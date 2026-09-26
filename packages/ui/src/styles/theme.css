@@ -48,6 +48,10 @@
   --color-ink-fijo: #141414;
   --color-paper-fijo: #ffffff;
 
+  /* El azul del círculo de Facebook, el de su guía de marca y el de Simple Icons. Tampoco cambia con
+     el tema: el logo es el mismo en claro y en oscuro, con la f en --color-paper-fijo (ADR 0076). */
+  --color-facebook: #0866ff;
+
   --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
   --font-display: 'Young Serif', Georgia, serif;
 
