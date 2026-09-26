@@ -16,6 +16,9 @@
   y al [0045](0045-los-costos-estimados-lo-que-hace-falta-y-mover-en-la-agenda.md) (tildar dibuja la
   tilde y corre la línea; destildar vuelve en el acto) y al [0048](0048-los-datos-para-transferir.md)
   («Copiado» dibuja su tilde).
+- Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md): la tira de fotos de la
+  vidriera, en la página del cliente, no es el «Carousel» de arrastrar que quedó afuera (ver la nota
+  debajo de «Lo que no se trajo»).
 
 ## Contexto
 
@@ -292,6 +295,13 @@ suma `quieta`, que pone `data-quieta` en el mismo molde.
 
 De esta tabla se usaron solo los de apretar, para ver si se hunden. Los demás se descartaron por lo que
 son, sin medirlos.
+
+**Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** La tira de fotos de la
+vidriera, en la página del cliente, no es el «Carousel» de esta tabla. No se arrastra: se desliza con el
+scroll nativo del navegador, y dos botones, «Fotos anteriores» y «Fotos siguientes», corren un ancho de
+golpe (`behavior: 'instant'`), que es la forma sin arrastrar que pide 2.5.7. No se mueve sola, no se
+anima y la guarda de las páginas del cliente sigue valiendo: `lo-que-responde-al-tocar.spec.ts` suma
+apretar «Fotos siguientes» y «Compartir».
 
 ## Desvíos del pedido
 

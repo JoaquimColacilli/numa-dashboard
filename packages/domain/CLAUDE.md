@@ -1,6 +1,6 @@
 # @maun/domain
 
-Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`cascada.ts`), los topes y la liquidación (`liquidacion.ts`), la seña esperada (`sena.ts`), el margen contra los costos estimados (`costos.ts`), el catálogo de lo que hace falta (`necesidades.ts`), la máquina de estados del proyecto (`estados.ts`), las fechas (`fechas.ts`), el libro mayor (`libroMayor.ts`), el CUIT (`cuit.ts`), los datos para cobrar (`cobro.ts`), la agenda con lo que se avisa (`agenda.ts`), la vista del cliente (`vistaCliente.ts`), hasta cuándo vale un presupuesto (`vigencia.ts`), las opiniones de los clientes (`opiniones.ts` y `encuesta.ts`), la respuesta del cliente sobre la entrega (`entrega.ts`) y el analítico de entregas (`analitico.ts`). Las decisiones están en el ADR 0011, las de la agenda en el 0034, las de la seña en el 0043, las de los costos, lo que hace falta y el día por horas en el 0045, las de la vista del cliente en el 0046 y el 0067, las de los datos para transferir en el 0048 y las de las opiniones en el 0057.
+Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`cascada.ts`), los topes y la liquidación (`liquidacion.ts`), la seña esperada (`sena.ts`), el margen contra los costos estimados (`costos.ts`), el catálogo de lo que hace falta (`necesidades.ts`), la máquina de estados del proyecto (`estados.ts`), las fechas (`fechas.ts`), el libro mayor (`libroMayor.ts`), el CUIT (`cuit.ts`), los datos para cobrar (`cobro.ts`), la agenda con lo que se avisa (`agenda.ts`), la vista del cliente (`vistaCliente.ts`), hasta cuándo vale un presupuesto (`vigencia.ts`), las opiniones de los clientes (`opiniones.ts` y `encuesta.ts`), la respuesta del cliente sobre la entrega (`entrega.ts`), el analítico de entregas (`analitico.ts`) y la vidriera del taller con sus redes (`vidriera.ts`). Las decisiones están en el ADR 0011, las de la agenda en el 0034, las de la seña en el 0043, las de los costos, lo que hace falta y el día por horas en el 0045, las de la vista del cliente en el 0046 y el 0067, las de los datos para transferir en el 0048, las de las opiniones en el 0057 y las de la vidriera en el 0076.
 
 ## Pureza (la aplican las herramientas)
 
@@ -112,6 +112,15 @@ fija caso por caso; una etapa o una variante nueva entra ahí.
 - **`validarRespuestaDeEntrega` (`entrega.ts`) es gemela de `private.validar_respuesta_de_entrega`**, con el mismo orden de revisiones. Los días van de pasado mañana a 30 días (`DESDE_CUANTOS_DIAS`, `HASTA_CUANTOS_DIAS`), sin domingos (`sePuedeElegir`), hasta diez, con la mañana, la tarde o las dos; la nota hasta 500 caracteres contados como en la encuesta. `armarRespuestaDeEntrega` deja la respuesta como la guarda la base: los días en orden y las franjas en el orden del enum.
 - **La agenda pone la entrega en la comprometida si la hay**, con su franja y sin hora, y esa **no se arrastra** (`puedeArrastrarse`): se cambia desde la ficha.
 
+## La vidriera y las redes del taller (ADR 0076)
+
+- **Cada red tiene una sola forma guardada, la canónica, y el `check` de la base exige esa o vacío**: `https://www.instagram.com/<usuario>/`, `https://www.tiktok.com/@<usuario>`, y `https://www.facebook.com/<nombre>` o `.../profile.php?id=<número>`, en minúscula. `revisarLaRed` lee lo que escribió el dueño (`@usuario`, `usuario` o el link, con o sin `https` y `www`, en Facebook también `m.` y `web.`, con barra, parámetros o ancla) y devuelve válido con el link, vacío, o inválido con su motivo: `otra-red`, `no-es-un-perfil` o `usuario`. Cada motivo tiene su mensaje en la app: no los juntes.
+- **`esLinkDe…` son las gemelas de los `check`**, y `SEGMENTOS_QUE_NO_SON_UN_PERFIL` es la lista de los arreglos del SQL (en Instagram, `p`, `reel`, `stories`…; en Facebook, `share`, `groups`, `watch`…, más `profile.php` sin id). Si cambiás una, cambiás la otra con una migración nueva, en el mismo PR y antes del `db push`: arreglar un `check` ya subido es destructivo.
+- **Lo que decide la lectura** está en el ADR: un link al perfil con una pestaña es el perfil; en TikTok, sin la `@` o un enlace corto (`vm.`, `vt.`) no es un perfil; en Facebook, un número solo es `profile.php?id=`.
+- **Cómo se ve cada una** (`comoSeMuestraLaRed`, `formaCortaDeLaRed`): `@usuario` en Instagram y TikTok, «Facebook» en Facebook. `redesALaVista` y `redParaCompartir` las recorren en el orden de `REDES_DEL_TALLER`: Instagram, Facebook y TikTok.
+- **El tope y el orden**: `TOPE_DE_LA_VIDRIERA` (12, el mismo del trigger de `MN022`), `lugaresLibres`, `enOrden` (por `orden`, la fecha de alta y el id), `ordenAlFinal` y `moverEnLaVidriera`, que devuelve solo las filas que cambian de `orden` y, si hay `orden` repetidos, renumera la lista.
+- La vista del cliente lee la `vidriera` con `?? VIDRIERA_VACIA`: un payload de antes no la trae.
+
 ## El analítico de entregas (ADR 0071)
 
 - **Los umbrales viven en `analitico.ts` y en ningún otro lado**: `UMBRAL_MEDIANA` (5: por debajo, los casos uno por uno), `UMBRAL_CUENTAS` (10: «k de n»), `UMBRAL_PORCENTAJE` (20: recién ahí el %), y `DIAS_DE_ACIERTO` (3). Una pantalla lee `resumen.modo` y si la cuenta es `null`, no compara contra 5.
@@ -146,6 +155,7 @@ fija caso por caso; una etapa o una variante nueva entra ahí.
 - **`validarRespuesta` contra `private.validar_respuesta` y `esLinkDeResena` contra el `check` de `ajustes.resena_link`**, en `20260921180000_opiniones_de_los_clientes.sql` (ADR 0057).
 - **`esNombreDeNecesidad` contra el `check` `necesidades_nombre_valido`** (`compararNombreDeNecesidad`, ADR 0060).
 - **`validarRespuestaDeEntrega` contra `private.validar_respuesta_de_entrega`** (`compararValidacionDeRespuestasDeEntrega`, ADR 0071), en `20260925120100_la_puerta_de_la_entrega.sql`.
+- **`esLinkDeInstagram`, `esLinkDeFacebook` y `esLinkDeTiktok` contra los `check` de `ajustes`** (`compararLinksDeLasRedes`, ADR 0076), en `20260926120000_la_vidriera_del_taller.sql`.
 
 `lineasDelLibro` **no tiene gemela en SQL y no la necesita**: es la forma sin partir de lo mismo, y
 `asientosDelLibro` es literalmente `lineasDelLibro(...).flatMap(asientosDeLaLinea)`. Nada en la base

@@ -5,6 +5,12 @@
 - Reusa las decisiones de la foto de perfil ([0022](0022-foto-de-perfil.md)): recorte y codificación en el
   navegador, bucket público, subida con `upsert` y su política de lectura, y nada de cola para el binario.
   Suma una tabla a la réplica ([0010](0010-sincronizacion-replica-completa.md)).
+- Completado el 2026-09-26 por el [0076](0076-la-vidriera-del-taller.md): el bucket suma la carpeta
+  `{household}/vidriera/`, con las fotos de la vidriera del taller, subidas con este mismo camino o
+  copiadas de una foto de un trabajo. Las cuatro políticas ya la cubrían, porque miran solo la primera
+  carpeta. «Espacio para archivos» suma las dos tablas, y los binarios huérfanos de las objeciones pueden
+  quedar también ahí. Elegir, preparar y subir viven ahora en `entities/archivo`, parametrizados por lo
+  que se acepta, el mensaje y la ruta.
 
 ## Contexto
 

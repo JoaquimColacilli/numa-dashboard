@@ -1,6 +1,6 @@
 # 0046. La vista del cliente: una lista blanca en la base, no una pantalla que esconde
 
-Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuánto hace que no pasa nada (ver el cierre de Consecuencias), la lista blanca suma los datos para transferirle al taller (ADR 0048), y la sección «El token se muestra una sola vez» quedó revertida por el [ADR 0052](0052-el-enlace-se-guarda-entero.md). Corregida el 2026-09-22: el camino de un trabajo terminado queda completo, sin ningún paso en curso. Y el mismo día, el logo de Mercado Pago del recuadro de los datos para transferir pasó a salir por la forma de cobro (el último punto de Consecuencias). Corregida el 2026-09-24 por el [ADR 0067](0067-la-vista-antes-de-aprobar.md): cada dato viaja desde la etapa en que es cierto (ver la corrección de la lista blanca). Corregida el 2026-09-25 por el [ADR 0070](0070-el-camino-tilda-lo-que-paso.md): el ámbar del camino es lo que se hace o se espera, no el paso al que llegó el trabajo, y el titular es un campo propio de la vista. Completada el 2026-09-25 por el [ADR 0071](0071-la-entrega-y-sus-fechas.md): la lista blanca suma listo, la entrega comprometida y la coordinación de la entrega (el pedido abierto y la última respuesta del cliente), y ninguna fecha que ya pasó.
+Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuánto hace que no pasa nada (ver el cierre de Consecuencias), la lista blanca suma los datos para transferirle al taller (ADR 0048), y la sección «El token se muestra una sola vez» quedó revertida por el [ADR 0052](0052-el-enlace-se-guarda-entero.md). Corregida el 2026-09-22: el camino de un trabajo terminado queda completo, sin ningún paso en curso. Y el mismo día, el logo de Mercado Pago del recuadro de los datos para transferir pasó a salir por la forma de cobro (el último punto de Consecuencias). Corregida el 2026-09-24 por el [ADR 0067](0067-la-vista-antes-de-aprobar.md): cada dato viaja desde la etapa en que es cierto (ver la corrección de la lista blanca). Corregida el 2026-09-25 por el [ADR 0070](0070-el-camino-tilda-lo-que-paso.md): el ámbar del camino es lo que se hace o se espera, no el paso al que llegó el trabajo, y el titular es un campo propio de la vista. Completada el 2026-09-25 por el [ADR 0071](0071-la-entrega-y-sus-fechas.md): la lista blanca suma listo, la entrega comprometida y la coordinación de la entrega (el pedido abierto y la última respuesta del cliente), y ninguna fecha que ya pasó. Completada el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md): la lista blanca suma la vidriera del taller (ver la nota en «Lo que el cliente puede ver»).
 
 ## Contexto
 
@@ -40,6 +40,14 @@ notas de obra, las tareas de presupuestar, las marcas de la agenda y el porcenta
 > presupuesto se mandó y `fecha_entrega` desde que se entregó. Se suman `presupuesto_vale_hasta`, solo
 > mientras espera la seña, y la seña en pesos, que calcula la base (`private.sena_esperada`): el
 > porcentaje sigue sin viajar.
+
+> **Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** Del taller viaja
+> además su vidriera, en todas las etapas, porque es del taller y vale siempre: los links de Instagram,
+> Facebook y TikTok de `ajustes` (null si están vacíos) y hasta doce fotos vivas de
+> `fotos_de_la_vidriera`, cada una con su id, sus dos rutas y sus medidas. Las rutas son
+> `{household}/vidriera/{id}`, propias de la foto: no llevan nada del trabajo del que salió, ni su id ni
+> el del archivo de origen. Por el enlace la función corre elevada, así que la subconsulta filtra por el
+> household del trabajo a mano.
 
 **Si esto fuera un `select *` con la pantalla filtrando, el día que alguien le agregue una columna a
 `proyectos` esa columna quedaría expuesta sin que nadie lo decida.** Por eso hay un test que se rompe

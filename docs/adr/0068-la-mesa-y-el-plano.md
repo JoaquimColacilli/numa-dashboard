@@ -24,6 +24,9 @@
   «+», la tilde y el tachado de lo recién tildado y la tilde de «Copiado». Los avisos entran y se van
   animados aunque los dispare la cola o el reloj: son la excepción declarada. El interruptor de los
   archivos que ve el cliente deja el `bg-hogar` y pasa a tinta.
+- Enmendado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md): `TarjetaConLamina` suma
+  `apilada`, y «Tu mueble» la usa: el dibujo arriba y el texto abajo en todos los anchos (§5). Resuelve
+  la objeción de «Tu mueble» apretada en la compu.
 
 ## Contexto
 
@@ -236,6 +239,11 @@ Los tokens cambian en `theme.css` y todo lo que ya usaba tokens cambia solo.
     era siempre el mismo, y el cliente de una cocina veía una cómoda. La lámina dibuja el proceso: el
     anotador, el presupuesto, el presupuesto con la seña encima, el serrucho, la casa y la casa con la
     tilde, según `etapaDelDibujo`. Gracias, una tarjeta firmada.
+  - **Enmendado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** «Tu mueble» va
+    `apilada`: una sola columna en todos los anchos, con la lámina arriba (196 px, y 240 desde 40rem de
+    tarjeta, sin estirarse al alto del texto) y el texto abajo, arrancando arriba y con el relleno del
+    celular. Sin la prop, `TarjetaConLamina` sigue poniendo la lámina al lado desde 40rem en los demás
+    lugares.
 
 ### 6. La barra del celular
 
@@ -499,7 +507,9 @@ Medido con `pnpm --filter @maun/web build` en `main` (`a289e82`) y en esta rama,
   columna de unos 670 px, la tarjeta pasa de 40rem y pone el dibujo al lado, y la columna de texto queda
   en unos 300 px. A 1440 el título ocupa tres renglones, «Lo estamos fabricando» dos, y el trío de montos
   se parte. No se sale nada; si molesta, el umbral de `TarjetaConLamina` tendría que ser una prop, y eso es
-  tocar el zip.
+  tocar el zip. **Resuelta el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md)**, con la
+  prop `apilada`: a 1440, con un título de dos renglones y la entrega comprometida, la tarjeta pasó de
+  824 a 710 px, con el título y el titular en tres renglones cada uno y los montos en una fila.
 - **Dos diferencias chicas con las maquetas del celular.** La tarjeta de un proyecto pone sus tres montos
   en dos columnas a 390, porque pasa a tres desde 23rem de tarjeta (el umbral de siempre, medido por
   `montos-en-las-tarjetas`); la maqueta la dibuja en tres. Y el botón de un vacío mide lo que su texto,
