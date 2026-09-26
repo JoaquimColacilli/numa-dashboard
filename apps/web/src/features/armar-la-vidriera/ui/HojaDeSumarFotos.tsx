@@ -398,71 +398,74 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
             </div>
           </div>
 
-          <div className="flex flex-none flex-col gap-3 border-t border-hairline px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-4">
-            {avance !== null && (
-              <p role="status" className="text-label text-text-2 tabular-nums">
-                {pestana === 'trabajos' ? 'Sumando' : 'Subiendo'} {avance.actual} de {avance.total}…
-              </p>
-            )}
-            {problemas.map((problema) => (
-              <p
-                key={problema}
-                role="alert"
-                className="text-label leading-relaxed font-medium text-alerta"
-              >
-                {problema}
-              </p>
-            ))}
-            {pestana === 'trabajos' && (
-              <>
-                <p id={idDelMotivo} className="text-label text-text-2 tabular-nums">
-                  {elegidas.length >= libres && libres > 0
-                    ? `Elegiste ${String(elegidas.length)}: es lo que entra en tu vidriera.`
-                    : `Elegiste ${String(elegidas.length)} de ${String(libres)} que entran.`}
+          {(pestana === 'trabajos' || avance !== null || problemas.length > 0) && (
+            <div className="flex flex-none flex-col gap-3 border-t border-hairline px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-4">
+              {avance !== null && (
+                <p role="status" className="text-label text-text-2 tabular-nums">
+                  {pestana === 'trabajos' ? 'Sumando' : 'Subiendo'} {avance.actual} de{' '}
+                  {avance.total}…
                 </p>
-                {avisando ? (
-                  <div
-                    ref={aviso}
-                    className="flex flex-col gap-3 rounded-field bg-atencion-tint px-3.5 py-3"
-                  >
-                    <p className="text-label leading-relaxed text-ink">
-                      {avisoSinCompartir(sinCompartir)}
-                    </p>
+              )}
+              {problemas.map((problema) => (
+                <p
+                  key={problema}
+                  role="alert"
+                  className="text-label leading-relaxed font-medium text-alerta"
+                >
+                  {problema}
+                </p>
+              ))}
+              {pestana === 'trabajos' && (
+                <>
+                  <p id={idDelMotivo} className="text-label text-text-2 tabular-nums">
+                    {elegidas.length >= libres && libres > 0
+                      ? `Elegiste ${String(elegidas.length)}: es lo que entra en tu vidriera.`
+                      : `Elegiste ${String(elegidas.length)} de ${String(libres)} que entran.`}
+                  </p>
+                  {avisando ? (
+                    <div
+                      ref={aviso}
+                      className="flex flex-col gap-3 rounded-field bg-atencion-tint px-3.5 py-3"
+                    >
+                      <p className="text-label leading-relaxed text-ink">
+                        {avisoSinCompartir(sinCompartir)}
+                      </p>
+                      <FilaDeAcciones>
+                        <Button
+                          onClick={() => {
+                            void sumarLasElegidas();
+                          }}
+                        >
+                          Sumar igual
+                        </Button>
+                        <Button
+                          variant="secundario"
+                          onClick={() => {
+                            setAvisando(false);
+                          }}
+                        >
+                          Revisar
+                        </Button>
+                      </FilaDeAcciones>
+                    </div>
+                  ) : (
                     <FilaDeAcciones>
                       <Button
-                        onClick={() => {
-                          void sumarLasElegidas();
-                        }}
+                        disabled={elegidas.length === 0}
+                        cargando={trabajando}
+                        onClick={pedirSumar}
                       >
-                        Sumar igual
+                        {textoDelBotonDeSumar(elegidas.length)}
                       </Button>
-                      <Button
-                        variant="secundario"
-                        onClick={() => {
-                          setAvisando(false);
-                        }}
-                      >
-                        Revisar
+                      <Button variant="secundario" onClick={pedirCierre}>
+                        Cancelar
                       </Button>
                     </FilaDeAcciones>
-                  </div>
-                ) : (
-                  <FilaDeAcciones>
-                    <Button
-                      disabled={elegidas.length === 0}
-                      cargando={trabajando}
-                      onClick={pedirSumar}
-                    >
-                      {textoDelBotonDeSumar(elegidas.length)}
-                    </Button>
-                    <Button variant="secundario" onClick={pedirCierre}>
-                      Cancelar
-                    </Button>
-                  </FilaDeAcciones>
-                )}
-              </>
-            )}
-          </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
     </Hoja>

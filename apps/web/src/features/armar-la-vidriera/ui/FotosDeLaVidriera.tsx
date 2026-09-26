@@ -133,7 +133,7 @@ export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
                   <span className="block text-body font-medium tabular-nums">
                     Foto {indice + 1} de {fotos.length}
                   </span>
-                  <span className="block truncate text-label text-text-2">
+                  <span className="block text-label break-words text-text-2">
                     {origenDeLaFoto(replica, foto)}
                   </span>
                 </p>
