@@ -4,6 +4,7 @@ import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { empezarLaSesion } from '@/entities/sesion';
 import { EnvInvalidoError, leerEnv } from '@/shared/config';
 import { esUnaPaginaPublica, vigilarLaVersionNueva } from '@/shared/lib';
 
@@ -32,7 +33,10 @@ export function arrancar(raiz: HTMLElement): void {
     throw error;
   }
 
-  if (!esUnaPaginaPublica(globalThis.location.pathname)) vigilarLaVersionNueva();
+  if (!esUnaPaginaPublica(globalThis.location.pathname)) {
+    vigilarLaVersionNueva();
+    empezarLaSesion();
+  }
 
   ponerLaCamaraLenta();
   const compuerta = crearCompuerta(window);

@@ -6,6 +6,7 @@ export {
   type CambioDelPerfil,
 } from './api/perfil';
 export { useSesion } from './api/useSesion';
+export { empezarLaSesion } from './model/store';
 export { useSesionActiva, type SesionActiva } from './model/contexto';
 export {
   SESION_ANONIMA,

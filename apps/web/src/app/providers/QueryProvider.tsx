@@ -17,6 +17,7 @@ import { ABRIENDO_LA_APP } from '../arranque/esqueleto';
 import { avisarDesdeLaCola } from './avisos-de-la-cola';
 import { OPCIONES_DE_DESHIDRATACION } from './lo-que-se-guarda';
 import { crearQueryClient, DURACION_CACHE_MS, VERSION_CACHE } from './query-client';
+import { traerLaReplicaDeLaSesionGuardada } from './replica-al-abrir';
 
 function hayDatosDeOtroUsuario(queryClient: QueryClient, usuarioId: string): boolean {
   return queryClient
@@ -86,6 +87,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         dehydrateOptions: OPCIONES_DE_DESHIDRATACION,
       }}
       onSuccess={() => {
+        traerLaReplicaDeLaSesionGuardada(queryClient, globalThis.location.pathname);
         void reanudarCola(queryClient);
       }}
     >
