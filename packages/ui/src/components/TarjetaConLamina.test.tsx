@@ -30,6 +30,48 @@ describe('TarjetaConLamina', () => {
     expect(container.querySelectorAll('svg.ilustracion')).toHaveLength(1);
   });
 
+  it('apilada va en filas en todos los anchos: la lámina arriba, de alto fijo, y el texto abajo desde arriba', () => {
+    render(
+      <TarjetaConLamina
+        dibujo={<Ilustracion nombre="se-corto" />}
+        aria-label="Tu mueble"
+        lamina="[&>svg]:w-56 @min-[40rem]/con-lamina:[&>svg]:w-72"
+        apilada
+      >
+        <h1>Placard de tres cuerpos con cajonera y estante para el hall de entrada</h1>
+      </TarjetaConLamina>,
+    );
+    const tarjeta = screen.getByRole('region', { name: 'Tu mueble' });
+    const grilla = tarjeta.firstElementChild;
+    const [lamina, texto] = [...(grilla?.children ?? [])];
+
+    expect(tarjeta).toHaveClass('@container/con-lamina');
+    expect(grilla).toHaveClass('grid', 'grid-cols-1');
+    expect(grilla?.className).not.toMatch(/grid-cols-2|order-|col-start|row-start/);
+    expect(lamina).toHaveAttribute('data-lamina');
+    expect(lamina).toHaveClass('h-49', '@min-[40rem]/con-lamina:h-60', '[&>svg]:w-56');
+    expect(lamina?.className).not.toMatch(/h-auto|min-h-70/);
+    expect(texto).toContainElement(screen.getByRole('heading', { level: 1 }));
+    expect(texto).toHaveClass('px-3.5', 'pt-4', 'pb-3.5');
+    expect(texto?.className).not.toMatch(/justify-center|px-8|py-8/);
+  });
+
+  it('sin apilada sigue poniendo la lámina al lado desde 40rem, como en los otros lugares', () => {
+    render(
+      <TarjetaConLamina dibujo={<Ilustracion nombre="se-corto" />} aria-label="Aviso">
+        <h1>No pudimos leer tus datos</h1>
+      </TarjetaConLamina>,
+    );
+    const grilla = screen.getByRole('region', { name: 'Aviso' }).firstElementChild;
+    const [lamina, texto] = [...(grilla?.children ?? [])];
+
+    expect(lamina).toHaveClass(
+      '@min-[40rem]/con-lamina:h-auto',
+      '@min-[40rem]/con-lamina:min-h-70',
+    );
+    expect(texto).toHaveClass('@min-[40rem]/con-lamina:justify-center');
+  });
+
   it('suma las clases de la lámina que le pasa quien la ubica', () => {
     render(
       <TarjetaConLamina dibujo={<Ilustracion nombre="gracias" />} lamina="[&>svg]:w-56" como="div">

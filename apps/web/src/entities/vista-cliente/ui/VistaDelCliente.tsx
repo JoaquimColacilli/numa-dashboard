@@ -393,6 +393,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             aria-label="Tu mueble"
             dibujo={<TrabajoEnEtapa etapa={etapaDelDibujo(vista)} />}
             lamina="[&>svg]:w-56 @min-[40rem]/con-lamina:[&>svg]:w-72"
+            apilada
           >
             <span className="text-body text-text-2">{vista.cliente}</span>
             <h1 className="font-display text-h1 leading-tight text-pretty lg:text-h1-lg">
