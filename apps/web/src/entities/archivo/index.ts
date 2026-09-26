@@ -26,3 +26,16 @@ export {
   type TipoDeArchivo,
   type UbicacionDelArchivo,
 } from './model/archivos';
+export {
+  LOS_VIDEOS_NO_ENTRAN,
+  SIN_SENAL_PARA_ARCHIVOS,
+  TIPOS_QUE_SE_ELIGEN,
+} from './model/eleccion';
+export { prepararImagen, type ImagenPreparada } from './model/preparacion';
+export {
+  ArchivoRechazado,
+  subirUnArchivo,
+  type ArchivoSubido,
+  type DependenciasDeLaSubida,
+  type DestinoDeLaSubida,
+} from './model/subida';

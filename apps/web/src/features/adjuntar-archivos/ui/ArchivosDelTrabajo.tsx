@@ -2,13 +2,19 @@ import { onlineManager, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useId, useRef, useState, type ChangeEvent } from 'react';
 
 import {
+  ArchivoRechazado,
   archivosDelProyecto,
   esImagen,
   loQueVeElCliente,
   pesoLegible,
+  prepararImagen,
   rutaDeLaMiniatura,
   rutaDelArchivo,
+  SIN_SENAL_PARA_ARCHIVOS,
+  subirUnArchivo,
+  TIPOS_QUE_SE_ELIGEN,
   type Archivo,
+  type DependenciasDeLaSubida,
 } from '@/entities/archivo';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -29,9 +35,6 @@ import {
 import { Button, ConSalida, Icono } from '@/shared/ui';
 
 import { anotarArchivo, borrarArchivo, mandarALaCola, opcionesDelBorrado } from '../model/acciones';
-import { SIN_SENAL_PARA_ARCHIVOS, TIPOS_QUE_SE_ELIGEN } from '../model/eleccion';
-import { prepararImagen } from '../model/preparacion';
-import { ArchivoRechazado, subirUnArchivo, type DependenciasDeLaSubida } from '../model/subida';
 import { VisorDeImagenes } from './VisorDeImagenes';
 
 const DEPENDENCIAS: DependenciasDeLaSubida = {

@@ -1,7 +1,7 @@
-import { rutaDeLaMiniatura, rutaDelArchivo } from '@/entities/archivo';
 import type { ArchivoNuevo } from '@/shared/api';
 import type { ImagenDecodificada } from '@/shared/lib';
 
+import { rutaDeLaMiniatura, rutaDelArchivo } from './archivos';
 import { eleccionDelArchivo, nombreParaGuardar } from './eleccion';
 import type { ImagenPreparada } from './preparacion';
 

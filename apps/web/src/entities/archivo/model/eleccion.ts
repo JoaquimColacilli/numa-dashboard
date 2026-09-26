@@ -1,4 +1,4 @@
-import { pesoLegible } from '@/entities/archivo';
+import { pesoLegible } from './archivos';
 
 export const TIPOS_QUE_SE_ELIGEN = 'image/*,application/pdf,video/*';
 
