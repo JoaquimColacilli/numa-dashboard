@@ -4,6 +4,10 @@ import {
   borrarArchivo,
   guardarArchivoNuevo,
   type ArchivoNuevo,
+  guardarFotoDeLaVidriera,
+  moverFotoDeLaVidriera,
+  sacarFotoDeLaVidriera,
+  type FotoDeLaVidrieraNueva,
   borrarCliente,
   borrarMovimiento,
   borrarProyecto,
@@ -208,6 +212,27 @@ export async function crearArchivo(
 
 export async function darDeBajaArchivo(id: string, borradoEn: string): Promise<FilaDe<'archivos'>> {
   return borrarArchivo(clienteMaun(), id, borradoEn);
+}
+
+export async function sumarALaVidriera(
+  nueva: FotoDeLaVidrieraNueva,
+  restaurada = false,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  return guardarFotoDeLaVidriera(clienteMaun(), nueva, restaurada);
+}
+
+export async function moverEnLaVidrieraDelTaller(
+  id: string,
+  orden: number,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  return moverFotoDeLaVidriera(clienteMaun(), id, orden);
+}
+
+export async function sacarDeLaVidriera(
+  id: string,
+  sacadaEn: string,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  return sacarFotoDeLaVidriera(clienteMaun(), id, sacadaEn);
 }
 
 export async function liquidarElProyecto(

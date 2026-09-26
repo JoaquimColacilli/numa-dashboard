@@ -1,16 +1,10 @@
 import type { MutationOptions } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Archivo } from '@/entities/archivo';
+import { ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS, type Archivo } from '@/entities/archivo';
 import type { NuevoAviso } from '@/shared/lib';
 
-import {
-  anotarArchivo,
-  borrarArchivo,
-  ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS,
-  type Mandar,
-  type OpcionesDelBorrado,
-} from './acciones';
+import { anotarArchivo, borrarArchivo, type Mandar, type OpcionesDelBorrado } from './acciones';
 
 const ARCHIVO: Archivo = {
   id: 'a1',

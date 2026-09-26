@@ -1,6 +1,7 @@
 import { onlineManager, type MutationOptions, type QueryClient } from '@tanstack/react-query';
 
 import {
+  ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS,
   MUTACION_DE_ARCHIVO_NUEVO,
   MUTACION_DE_BAJA_DE_ARCHIVO,
   rutasEnElBucket,
@@ -15,8 +16,6 @@ import {
   type Replica,
 } from '@/shared/api';
 import { avisarEnPantalla, claveDeTodaReplica, metaDeAvisos, type NuevoAviso } from '@/shared/lib';
-
-export const ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS = 6000;
 
 export type Mandar = <TVariables>(
   opciones: MutationOptions<Archivo, unknown, TVariables>,

@@ -177,6 +177,12 @@ const PARA_TODOS: Readonly<Record<string, (contexto: ContextoDelRechazo) => Rech
       'Solo lo que entró antes de la apertura puede estar en tus saldos de arranque. Destildá esa opción, o revisá la fecha, y volvé a guardarlo.',
     codigo: '',
   }),
+  MN022: () => ({
+    titulo: 'Tu vidriera ya tiene 12 fotos.',
+    queHacer:
+      'No se sumó la foto. Pasa si sumaste fotos desde otro aparato al mismo tiempo. Sacá una de tu vidriera en Ajustes y volvé a sumarla.',
+    codigo: '',
+  }),
   MN019: () => ({
     titulo: 'El seguimiento de este trabajo quedó a medias.',
     queHacer:

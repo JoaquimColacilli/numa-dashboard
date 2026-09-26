@@ -64,6 +64,13 @@ describe('los MN00x traducidos a castellano de taller', () => {
     );
   });
 
+  it('MN022: la vidriera ya tiene sus doce fotos', () => {
+    expect(texto('MN022', { operacion: 'guardado' })).toBe(
+      'Tu vidriera ya tiene 12 fotos. No se sumó la foto. Pasa si sumaste fotos desde otro aparato ' +
+        'al mismo tiempo. Sacá una de tu vidriera en Ajustes y volvé a sumarla.',
+    );
+  });
+
   it('MN005: el cliente del trabajo está borrado', () => {
     expect(texto('MN005', { operacion: 'proyecto', sujeto: 'Placard' })).toBe(
       'El cliente de este trabajo está borrado. Elegí otro cliente para el trabajo, o volvé a ' +

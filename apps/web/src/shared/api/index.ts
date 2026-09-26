@@ -87,10 +87,13 @@ export {
   marcarElProximoContacto,
   marcarEnLaAgenda,
   marcarTareasDelPresupuesto,
+  moverEnLaVidrieraDelTaller,
   registrarMovimiento,
   renombrarTaller,
   revertirLaLiquidacion,
+  sacarDeLaVidriera,
   sincronizar,
+  sumarALaVidriera,
   type PedidoDeSincronizacion,
 } from './datos';
 export {
@@ -143,6 +146,7 @@ export {
   visitaHecha,
   type AnotacionNueva,
   type ArchivoNuevo,
+  type FotoDeLaVidrieraNueva,
   type CambiosDeAjustes,
   type CambiosDeAnotacion,
   type CambiosDeCliente,

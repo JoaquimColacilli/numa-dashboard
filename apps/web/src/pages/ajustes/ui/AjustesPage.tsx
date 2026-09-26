@@ -16,11 +16,14 @@ import {
 import { useSesionActiva } from '@/entities/sesion';
 import { AjusteDeHuella } from '@/features/activar-huella';
 import { AjusteDeCocos } from '@/features/ajustar-cocos';
+import { FotosDeLaVidriera } from '@/features/armar-la-vidriera';
 import { BotonSalir } from '@/features/cerrar-sesion';
 import {
   FormularioDeCobro,
   FormularioDeConfiguracion,
+  FormularioDeRedes,
   FormularioDeResena,
+  hayRedesCargadas,
 } from '@/features/configurar-taller';
 import { FormularioDePerfil } from '@/features/editar-perfil';
 import { SelectorDeTema } from '@/features/elegir-tema';
@@ -253,13 +256,31 @@ export function AjustesPage() {
           </SeccionEnFila>
         )}
 
+        {ajustes && (
+          <SeccionEnFila
+            id="titulo-vidriera"
+            titulo="Tu vidriera"
+            bajada={
+              <p className="text-label leading-relaxed text-text-2">
+                Lo que ven tus clientes en su página: fotos de otros trabajos y tus redes.
+              </p>
+            }
+          >
+            <FotosDeLaVidriera hayRedes={hayRedesCargadas(ajustes)} />
+            <div className="flex flex-col gap-2 border-t border-hairline-soft pt-3.5">
+              <h3 className="text-body font-semibold">Redes</h3>
+              <FormularioDeRedes ajustes={ajustes} />
+            </div>
+          </SeccionEnFila>
+        )}
+
         <SeccionEnFila id="titulo-cocos" titulo="Corregir el saldo de Cocos">
           <AjusteDeCocos saldo={saldosDeLaReplica(replica).cocos} />
         </SeccionEnFila>
 
         <SeccionEnFila id="titulo-espacio" titulo="Espacio para archivos">
           <p className="text-body leading-relaxed text-text-2 tabular-nums">
-            Las fotos y los PDF de los trabajos ocupan{' '}
+            Las fotos y los PDF de los trabajos, y las fotos de tu vidriera, ocupan{' '}
             <span className="whitespace-nowrap">{pesoLegible(usado)}</span> de{' '}
             <span className="whitespace-nowrap">{pesoLegible(ESPACIO_DEL_PLAN_BYTES)}</span>.
           </p>
