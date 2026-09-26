@@ -98,6 +98,7 @@ export {
   analisisDeLaReplica,
   aplicarFilaLocal,
   cantidadDe,
+  CLAVE_DE_SESION,
   COLUMNA_DE_LA_FECHA,
   COLUMNA_DE_LA_MARCA,
   COLUMNAS_DE_AJUSTES,

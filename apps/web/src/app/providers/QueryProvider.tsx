@@ -11,8 +11,9 @@ import {
   reanudarCola,
   registrarGuardado,
 } from '@/shared/lib';
-import { Cargando } from '@/shared/ui';
 
+import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
+import { ABRIENDO_LA_APP } from '../arranque/esqueleto';
 import { avisarDesdeLaCola } from './avisos-de-la-cola';
 import { OPCIONES_DE_DESHIDRATACION } from './lo-que-se-guarda';
 import { crearQueryClient, DURACION_CACHE_MS, VERSION_CACHE } from './query-client';
@@ -44,7 +45,7 @@ function useLimpiezaDeSesion(queryClient: QueryClient): void {
 }
 
 function EsperandoElCache({ children }: { children: ReactNode }) {
-  return useIsRestoring() ? <Cargando que="Abriendo la app" /> : children;
+  return useIsRestoring() ? <EsqueletoDeArranque que={ABRIENDO_LA_APP} /> : children;
 }
 
 function useGuardadoInmediato(queryClient: QueryClient, persister: Persister): void {

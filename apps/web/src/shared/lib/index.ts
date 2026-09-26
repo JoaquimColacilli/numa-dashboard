@@ -93,7 +93,13 @@ export {
   useVersionNueva,
   vigilarLaVersionNueva,
 } from './version-nueva';
-export { esCelular, esMedidaDeCelular, useAnchoDePantalla, type AnchoDePantalla } from './pantalla';
+export {
+  CORTE_DE_CELULAR,
+  esCelular,
+  esMedidaDeCelular,
+  useAnchoDePantalla,
+  type AnchoDePantalla,
+} from './pantalla';
 export { useAltoVisible, useVentanaVisible, type VentanaVisible } from './teclado';
 export { useScrollPorPantalla } from './scroll';
 export { usePantallaDespierta } from './pantalla-despierta';

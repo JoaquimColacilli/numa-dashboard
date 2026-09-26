@@ -605,6 +605,30 @@ test.describe('el bloqueo con huella, en el celular', () => {
   });
 });
 
+test.describe('el primer cuadro, antes de que baje la app', () => {
+  test.use({ serviceWorkers: 'block' });
+  test.skip(({ isMobile }) => !isMobile, 'el bloqueo es solo del celular');
+
+  test('con el bloqueo puesto, el primer cuadro ya tiene la forma de la pantalla de bloqueo', async ({
+    page,
+  }) => {
+    await page.goto('/ajustes');
+    await expect(ajustes(page)).toBeVisible(CARGA_DEL_TALLER);
+    await activarBloqueoEnElDispositivo(page);
+
+    await page.route(/\/assets\/[^/]+\.js$/, (ruta) => ruta.abort());
+    await page.reload();
+
+    const esqueleto = page.locator('[data-esqueleto-de-arranque]');
+    await expect(page.locator('html')).toHaveAttribute('data-arranque', 'bloqueo');
+    await expect(esqueleto.locator('[data-forma="bloqueo"]')).toBeVisible();
+    await expect(esqueleto.locator('[data-forma="acceso"]')).toBeHidden();
+    await expect(page.getByRole('status')).toHaveText('Abriendo la app');
+    await expect(page.getByRole('main')).toHaveCount(0);
+    await expect(pantallaDeBloqueo(page)).toHaveCount(0);
+  });
+});
+
 test.describe('la oferta después de entrar con la contraseña, en el celular', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
   test.skip(({ isMobile }) => !isMobile, 'la oferta es solo del celular');

@@ -6,6 +6,8 @@ import { defaultClientConditions, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
+import { conElEsqueleto } from './src/app/arranque/esqueleto.ts';
+
 const NOMBRE_DE_SECRETO = /SERVICE_ROLE|SECRET/i;
 
 const SOLO_EN_SU_PANTALLA = /[\\/]node_modules[\\/]uqr[\\/]/;
@@ -57,6 +59,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      { name: 'maun:esqueleto-de-arranque', transformIndexHtml: conElEsqueleto },
       react(),
       tailwindcss(),
       VitePWA({

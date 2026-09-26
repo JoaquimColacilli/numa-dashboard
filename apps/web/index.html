@@ -40,6 +40,29 @@
               if (icono.hasAttribute('sizes')) icono.setAttribute('sizes', '48x48');
             });
         });
+      } else {
+        (function () {
+          var forma = 'acceso';
+          var usuario;
+          try {
+            var sesion = JSON.parse(localStorage.getItem('maun.sesion'));
+            usuario = sesion && sesion.user && sesion.user.id;
+            if (typeof usuario === 'string') forma = 'marco';
+          } catch (error) {
+            forma = 'acceso';
+          }
+          if (forma === 'marco' && Math.min(screen.width, screen.height) < 768) {
+            try {
+              var bloqueo = JSON.parse(localStorage.getItem('maun:bloqueo'));
+              if (bloqueo && typeof bloqueo === 'object' && bloqueo.usuarioId === usuario) {
+                forma = 'bloqueo';
+              }
+            } catch (error) {
+              forma = 'marco';
+            }
+          }
+          document.documentElement.dataset.arranque = forma;
+        })();
       }
     </script>
     <meta name="description" content="Nuevas maneras de gestionar el taller." />
