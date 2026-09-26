@@ -4,6 +4,7 @@ import { useCallback, useId, useRef, useState, type ChangeEvent } from 'react';
 import {
   ArchivoRechazado,
   archivosDelProyecto,
+  destinoDelTrabajo,
   esImagen,
   loQueVeElCliente,
   pesoLegible,
@@ -117,12 +118,20 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
       try {
         const resultado = await subirUnArchivo(
           elegido,
-          { householdId: household.id, proyectoId },
+          destinoDelTrabajo(household.id, proyectoId),
           DEPENDENCIAS,
         );
-        anotarArchivo(mandarALaCola(cliente), resultado.nuevo);
+        anotarArchivo(mandarALaCola(cliente), {
+          id: resultado.id,
+          proyecto_id: proyectoId,
+          nombre: resultado.nombre,
+          tipo: resultado.tipo,
+          bytes: resultado.bytes,
+          ancho: resultado.ancho,
+          alto: resultado.alto,
+        });
         subidos.push({
-          nombre: resultado.nuevo.nombre,
+          nombre: resultado.nombre,
           original: resultado.original,
           subido: resultado.subido,
         });

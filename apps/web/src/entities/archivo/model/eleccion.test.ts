@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   eleccionDelArchivo,
+  LO_QUE_SE_SUBE_A_UN_TRABAJO,
   LOS_VIDEOS_NO_ENTRAN,
   medidasAchicadas,
   nombreParaGuardar,
+  TIPOS_QUE_SE_ELIGEN,
   TOPE_DE_UN_PDF_BYTES,
 } from './eleccion';
 
@@ -63,6 +65,37 @@ describe('qué se puede subir', () => {
       clase: 'rechazado',
       motivo: '«planilla.xlsx» no se puede subir: se pueden subir fotos, capturas y PDF.',
     });
+  });
+
+  it('a los archivos de un trabajo van los de siempre, y se eligen con el mismo filtro', () => {
+    expect(LO_QUE_SE_SUBE_A_UN_TRABAJO).toEqual({
+      acepta: TIPOS_QUE_SE_ELIGEN,
+      conPdf: true,
+      videos: LOS_VIDEOS_NO_ENTRAN,
+      queSeSube: 'fotos, capturas y PDF',
+    });
+  });
+
+  it('donde van solo fotos, un PDF no entra y lo que se dice es lo de ese lugar', () => {
+    const soloFotos = {
+      acepta: 'image/*',
+      conPdf: false,
+      videos: 'Los videos no van.',
+      queSeSube: 'fotos y capturas',
+    };
+    expect(
+      eleccionDelArchivo({ name: 'despiece.pdf', type: 'application/pdf', size: 1 }, soloFotos),
+    ).toEqual({
+      clase: 'rechazado',
+      motivo: '«despiece.pdf» no se puede subir: se pueden subir fotos y capturas.',
+    });
+    expect(eleccionDelArchivo({ name: 'visita.mp4', type: '', size: 1 }, soloFotos)).toEqual({
+      clase: 'rechazado',
+      motivo: 'Los videos no van.',
+    });
+    expect(
+      eleccionDelArchivo({ name: 'mesa.jpg', type: 'image/jpeg', size: 1 }, soloFotos),
+    ).toEqual({ clase: 'imagen' });
   });
 });
 
