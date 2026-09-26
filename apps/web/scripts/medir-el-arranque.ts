@@ -31,6 +31,7 @@ const CONTEXTO: Readonly<Record<Perfil, BrowserContextOptions>> = {
   celular: {
     ...devices['Desktop Chrome'],
     viewport: { width: 390, height: 844 },
+    screen: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
     hasTouch: true,
