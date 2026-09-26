@@ -4,6 +4,7 @@ import { diasEntre, entregaEstimada } from './fechas.ts';
 import { restar, sumarTodos, type Money } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
 import { vencioElPresupuesto } from './vigencia.ts';
+import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 
 export type HitoDelTrabajo =
   'estimativo' | 'presupuesto' | 'aprobado' | 'fabricacion' | 'entregado' | 'pagado';
@@ -112,6 +113,7 @@ export interface TrabajoDelCliente {
   cobro: CobroDelTaller;
   pagos: readonly PagoDelCliente[];
   archivos: readonly ArchivoDelCliente[];
+  vidriera: VidrieraDelTaller;
 }
 
 export function hayComoTransferir(cobro: CobroDelTaller): boolean {
@@ -320,6 +322,7 @@ interface LoComunDeLaVista {
   pagado: Money;
   archivos: readonly ArchivoDelCliente[];
   comoPagar: ComoPagar | null;
+  vidriera: VidrieraDelTaller;
 }
 
 export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
@@ -1009,6 +1012,7 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     pagado,
     archivos: trabajo.archivos,
     comoPagar: comoPagar(trabajo),
+    vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
   };
 
   if (etapa === 'antes-del-presupuesto') return { ...comun, etapa };

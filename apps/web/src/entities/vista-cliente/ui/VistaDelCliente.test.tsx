@@ -2,6 +2,7 @@ import {
   centavos,
   COORDINAMOS_LA_ENTREGA_AL_APROBAR,
   SIGUE_CON_LA_SENA_CUBIERTA,
+  VIDRIERA_VACIA,
   vistaDelCliente,
   type TrabajoDelCliente,
 } from '@maun/domain';
@@ -63,6 +64,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
       { id: 'p2', fecha: '2026-09-16', concepto: 'Adelanto', monto: centavos(40_000_000) },
     ],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
     ...cambios,
   };
 }

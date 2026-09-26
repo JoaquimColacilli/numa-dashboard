@@ -2,6 +2,7 @@ import {
   centavos,
   PASOS_PARA_TRANSFERIR,
   PEDILE_LOS_DATOS,
+  VIDRIERA_VACIA,
   vistaDelCliente,
   type CobroDelTaller,
   type FormaDeCobro,
@@ -84,6 +85,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}, pago: Pago = {}): Tra
     cobro: CON_TODO,
     pagos: [{ id: 'p1', fecha: '2026-08-04', concepto: 'Seña', monto: centavos(40_000_000) }],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
     ...cambios,
   };
 }

@@ -42,6 +42,9 @@ export const COLUMNAS_DE_AJUSTES = [
   'cobro_link',
   'resena_link',
   'presupuesto_vale_dias',
+  'instagram_link',
+  'facebook_link',
+  'tiktok_link',
 ] as const;
 
 export type ColumnaDeAjustes = (typeof COLUMNAS_DE_AJUSTES)[number];
@@ -687,6 +690,71 @@ export async function borrarArchivo(
   const { data, error } = await cliente
     .from('archivos')
     .update({ deleted_at: borradoEn })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export const COLUMNAS_DE_FOTO_DE_LA_VIDRIERA = [
+  'orden',
+  'tipo',
+  'bytes',
+  'ancho',
+  'alto',
+  'archivo_de_origen',
+] as const;
+
+export type ColumnaDeFotoDeLaVidriera = (typeof COLUMNAS_DE_FOTO_DE_LA_VIDRIERA)[number];
+
+export type DatosDeFotoDeLaVidriera = Pick<
+  FilaDe<'fotos_de_la_vidriera'>,
+  ColumnaDeFotoDeLaVidriera
+>;
+
+export type FotoDeLaVidrieraNueva = DatosDeFotoDeLaVidriera & { id: string };
+
+export async function guardarFotoDeLaVidriera(
+  cliente: ClienteMaun,
+  nueva: FotoDeLaVidrieraNueva,
+  restaurada = false,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  const fila: Database['public']['Tables']['fotos_de_la_vidriera']['Insert'] = restaurada
+    ? { ...nueva, deleted_at: null }
+    : nueva;
+  const { data, error } = await cliente
+    .from('fotos_de_la_vidriera')
+    .upsert(fila, { onConflict: 'id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function moverFotoDeLaVidriera(
+  cliente: ClienteMaun,
+  id: string,
+  orden: number,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  const { data, error } = await cliente
+    .from('fotos_de_la_vidriera')
+    .update({ orden })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function sacarFotoDeLaVidriera(
+  cliente: ClienteMaun,
+  id: string,
+  sacadaEn: string,
+): Promise<FilaDe<'fotos_de_la_vidriera'>> {
+  const { data, error } = await cliente
+    .from('fotos_de_la_vidriera')
+    .update({ deleted_at: sacadaEn })
     .eq('id', id)
     .select()
     .single();
