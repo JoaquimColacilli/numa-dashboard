@@ -8,6 +8,7 @@ import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/a
 import type { FotoEnLaVidriera, OrdenEnLaVidriera } from '../api/mutacion';
 import {
   FotosDeLaVidriera,
+  LA_VIDRIERA_ESTA_LLENA,
   SIN_FOTOS_EN_LA_VIDRIERA,
   SIN_NADA_EN_LA_VIDRIERA,
 } from './FotosDeLaVidriera';
@@ -73,11 +74,17 @@ function filas(): HTMLElement[] {
 
 beforeEach(() => {
   onlineManager.setOnline(false);
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
 });
 
 afterEach(() => {
   cleanup();
   onlineManager.setOnline(true);
+  vi.unstubAllGlobals();
 });
 
 describe('las fotos de la vidriera en Ajustes', () => {
@@ -134,6 +141,18 @@ describe('las fotos de la vidriera en Ajustes', () => {
     expect(mandadas()).toHaveLength(1);
     expect(baja?.clave).toEqual(['vidriera', 'sacar']);
     expect(baja?.variables).toMatchObject({ id: 'a' });
+  });
+
+  it('«Sumar fotos» abre la hoja, y con doce fotos se apaga y dice por qué', () => {
+    montar([foto('a', 0)]);
+    fireEvent.click(screen.getByRole('button', { name: 'Sumar fotos' }));
+    expect(screen.getByRole('dialog', { name: 'Sumar fotos a la vidriera' })).toBeInTheDocument();
+    cleanup();
+
+    montar(Array.from({ length: 12 }, (_, indice) => foto(`f${String(indice)}`, indice)));
+    expect(screen.getByRole('button', { name: 'Sumar fotos' })).toBeDisabled();
+    expect(screen.getByText(LA_VIDRIERA_ESTA_LLENA)).toBeInTheDocument();
+    expect(screen.getByText('12 de 12')).toBeInTheDocument();
   });
 
   it('sin fotos dice qué ve el cliente, con redes o sin nada', () => {

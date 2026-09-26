@@ -8,6 +8,7 @@ export {
 } from './avisos';
 export {
   BUCKET_DE_ARCHIVOS,
+  copiarEnElBucketDeArchivos,
   quitarDelBucketDeArchivos,
   subirAlBucketDeArchivos,
   urlDelArchivo,

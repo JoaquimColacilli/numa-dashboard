@@ -1,15 +1,16 @@
 import { TOPE_DE_LA_VIDRIERA, type HaciaDondeSeMueve } from '@maun/domain';
 import { useQueryClient } from '@tanstack/react-query';
-import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 
 import { rutaEnLaVidriera } from '@/entities/archivo';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { urlDelArchivo } from '@/shared/api';
-import { Icono, type NombreDeIcono } from '@/shared/ui';
+import { Button, ConSalida, Icono, type NombreDeIcono } from '@/shared/ui';
 
 import type { FotoEnLaVidriera } from '../api/mutacion';
 import { mandarALaCola, moverLaFoto, opcionesDeLaBaja, sacarLaFoto } from '../model/acciones';
 import { fotosDeLaVidriera, origenDeLaFoto } from '../model/vidriera';
+import { HojaDeSumarFotos } from './HojaDeSumarFotos';
 
 export const SIN_NADA_EN_LA_VIDRIERA =
   'Todavía no hay nada en tu vidriera. Tus clientes la ven cuando sumes una foto o cargues una red.';
@@ -56,18 +57,21 @@ function BotonDeLaFoto({ accion, apagado = false, describe, alTocar }: BotonDeLa
   );
 }
 
+export const LA_VIDRIERA_ESTA_LLENA = `Tu vidriera ya tiene sus ${String(TOPE_DE_LA_VIDRIERA)} fotos. Sacá una para sumar otra.`;
+
 export interface FotosDeLaVidrieraProps {
   hayRedes: boolean;
-  children?: ReactNode;
 }
 
-export function FotosDeLaVidriera({ hayRedes, children }: FotosDeLaVidrieraProps) {
+export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const base = useId();
   const lista = useRef<HTMLOListElement>(null);
   const porEnfocar = useRef<{ id: string; accion: HaciaDondeSeMueve } | null>(null);
+  const [sumando, setSumando] = useState(false);
   const fotos = fotosDeLaVidriera(replica);
+  const llena = fotos.length >= TOPE_DE_LA_VIDRIERA;
 
   useLayoutEffect(() => {
     const pendiente = porEnfocar.current;
@@ -161,7 +165,32 @@ export function FotosDeLaVidriera({ hayRedes, children }: FotosDeLaVidrieraProps
           })}
         </ol>
       )}
-      {children}
+
+      <div className="flex flex-col items-start gap-1.5 pt-1">
+        <Button
+          variant="secundario"
+          disabled={llena}
+          onClick={() => {
+            setSumando(true);
+          }}
+        >
+          <Icono nombre="plus" tamano={16} />
+          Sumar fotos
+        </Button>
+        {llena && (
+          <p className="text-label leading-relaxed text-text-2">{LA_VIDRIERA_ESTA_LLENA}</p>
+        )}
+      </div>
+
+      <ConSalida valor={sumando}>
+        {() => (
+          <HojaDeSumarFotos
+            alCerrar={() => {
+              setSumando(false);
+            }}
+          />
+        )}
+      </ConSalida>
     </div>
   );
 }

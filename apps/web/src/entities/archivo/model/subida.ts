@@ -38,16 +38,17 @@ export interface DependenciasDeLaSubida {
   nuevoId: () => string;
 }
 
-export interface ArchivoSubido {
+interface LoQueSeSubio {
   id: string;
   nombre: string;
-  tipo: TipoDeArchivo;
   bytes: number;
-  ancho: number | null;
-  alto: number | null;
   original: number;
   subido: number;
 }
+
+export type ArchivoSubido =
+  | (LoQueSeSubio & { tipo: 'application/pdf'; ancho: null; alto: null })
+  | (LoQueSeSubio & { tipo: ImagenPreparada['tipo']; ancho: number; alto: number });
 
 export async function subirUnArchivo(
   archivo: File,
