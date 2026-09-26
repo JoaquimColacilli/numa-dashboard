@@ -5,6 +5,12 @@
 - Corrige al [0026](0026-el-bloqueo-cuenta-el-tiempo-afuera.md): ya no hay minuto de gracia.
 - Corregido por el [0037](0037-tocar-un-aviso-vuelve-sin-pedir-la-huella.md): volver a la app por tocar
   un aviso, con la app abierta atrás, no pide la huella.
+- Completado el 2026-09-26 por el [0075](0075-la-app-abre-sin-pantalla-en-blanco.md): con el bloqueo
+  puesto en un celular, el primer cuadro ya tiene la forma de la pantalla de bloqueo, antes de que baje
+  el JS. La elige el script del `head` con las mismas reglas que la guarda (la sesión guardada, la marca
+  `maun:bloqueo` del mismo usuario y el lado corto de la pantalla). La recarga que abre sin huella
+  (`abreSinHuella`) no entra en esa regla: su primer cuadro tiene la forma del bloqueo y enseguida pasa
+  a la app.
 
 ## Contexto
 
