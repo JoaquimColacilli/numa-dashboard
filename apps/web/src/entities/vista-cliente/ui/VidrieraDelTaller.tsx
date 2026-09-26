@@ -40,6 +40,14 @@ function medirElCarrusel(lista: HTMLElement): Carrusel {
   };
 }
 
+function mostrarLaFotoEnfocada(lista: HTMLElement, enfocada: EventTarget): void {
+  if (!(enfocada instanceof HTMLElement) || !enfocada.matches(':focus-visible')) return;
+  const borde = lista.getBoundingClientRect();
+  const caja = enfocada.getBoundingClientRect();
+  if (caja.left >= borde.left - 1 && caja.right <= borde.right + 1) return;
+  enfocada.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'instant' });
+}
+
 function mismoCarrusel(uno: Carrusel, otro: Carrusel): boolean {
   return (
     uno.hayMas === otro.hayMas &&
@@ -253,6 +261,9 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
           id={idLista}
           role="list"
           aria-label="Fotos de otros trabajos del taller"
+          onFocus={(evento) => {
+            mostrarLaFotoEnfocada(evento.currentTarget, evento.target);
+          }}
           className="-mx-4 mt-2 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-5 md:scroll-px-5 md:px-5 [&::-webkit-scrollbar]:hidden"
         >
           {fotos.map((foto, indice) => (

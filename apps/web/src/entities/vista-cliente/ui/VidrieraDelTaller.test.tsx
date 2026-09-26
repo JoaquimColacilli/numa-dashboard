@@ -136,6 +136,52 @@ describe('la vidriera del taller en la página del cliente', () => {
     vi.useRealTimers();
   });
 
+  it('una foto que se enfoca con el teclado y no se ve entera se corre al principio de la tira; tocada, no', () => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      if (this.tagName === 'UL') return new DOMRect(0, 0, 356, 128);
+      const numero = Number(/^Foto (\d) de 6$/.exec(this.getAttribute('aria-label') ?? '')?.[1]);
+      return new DOMRect(16 + (numero - 1) * 104, 0, 96, 128);
+    });
+    let conTeclado = true;
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      return selector === ':focus-visible' ? conTeclado : this.closest(selector) === this;
+    });
+    const mostrar = vi.fn(function (this: HTMLElement) {
+      return this.getAttribute('aria-label');
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: mostrar,
+    });
+    montar({ ...VIDRIERA_VACIA, fotos: fotos(6) });
+
+    act(() => {
+      screen.getByRole('link', { name: 'Foto 3 de 6' }).focus();
+    });
+    expect(mostrar).not.toHaveBeenCalled();
+
+    act(() => {
+      screen.getByRole('link', { name: 'Foto 4 de 6' }).focus();
+    });
+    expect(mostrar).toHaveBeenCalledExactlyOnceWith({
+      block: 'nearest',
+      inline: 'start',
+      behavior: 'instant',
+    });
+    expect(mostrar).toHaveReturnedWith('Foto 4 de 6');
+
+    conTeclado = false;
+    act(() => {
+      screen.getByRole('link', { name: 'Foto 5 de 6' }).focus();
+    });
+    expect(mostrar).toHaveBeenCalledOnce();
+  });
+
   it('con fotos que entran no hay botones', () => {
     montar({ ...VIDRIERA_VACIA, fotos: fotos(2) });
     expect(screen.queryByRole('button', { name: 'Fotos siguientes' })).toBeNull();
