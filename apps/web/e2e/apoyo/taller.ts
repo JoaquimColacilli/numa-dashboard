@@ -395,7 +395,154 @@ export async function vaciarArchivos(sesion: SesionDePrueba): Promise<number> {
   return vivas.length;
 }
 
+export interface FilaDeLaVidriera {
+  id: string;
+  household_id: string;
+  orden: number;
+  tipo: string;
+  bytes: number;
+  ancho: number;
+  alto: number;
+  archivo_de_origen: string | null;
+  deleted_at: string | null;
+}
+
+export async function fotosDeLaVidrieraDelTaller(
+  { entorno, accessToken }: SesionDePrueba,
+  incluirBorradas = false,
+): Promise<FilaDeLaVidriera[]> {
+  const filtro = incluirBorradas ? '' : '&deleted_at=is.null';
+  return (await pedir(
+    entorno,
+    `/rest/v1/fotos_de_la_vidriera?select=id,household_id,orden,tipo,bytes,ancho,alto,archivo_de_origen,deleted_at${filtro}&order=orden,created_at,id`,
+    { accessToken },
+  )) as FilaDeLaVidriera[];
+}
+
+export function rutasEnLaVidriera(
+  fila: Pick<FilaDeLaVidriera, 'id' | 'household_id' | 'tipo'>,
+): string[] {
+  const base = `${fila.household_id}/vidriera/${fila.id}`;
+  const extension = fila.tipo === 'image/jpeg' ? 'jpg' : 'webp';
+  return [`${base}.${extension}`, `${base}.mini.${extension}`];
+}
+
+export async function objetosDeLaVidriera(
+  { entorno, accessToken }: SesionDePrueba,
+  householdId: string,
+): Promise<string[]> {
+  const lista = (await pedir(entorno, '/storage/v1/object/list/archivos', {
+    method: 'POST',
+    accessToken,
+    body: JSON.stringify({ prefix: `${householdId}/vidriera`, limit: 1000 }),
+  })) as { name: string }[];
+  return lista.map((objeto) => `${householdId}/vidriera/${objeto.name}`);
+}
+
+export async function subirAlBucketDePrueba(
+  { entorno, accessToken }: SesionDePrueba,
+  ruta: string,
+  contenido: Buffer,
+  tipo: string,
+): Promise<void> {
+  const respuesta = await fetch(`${entorno.url}/storage/v1/object/archivos/${ruta}`, {
+    method: 'POST',
+    headers: {
+      apikey: entorno.publishableKey,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': tipo,
+      'x-upsert': 'true',
+      'cache-control': 'max-age=31536000',
+    },
+    body: new Uint8Array(contenido),
+  });
+  if (!respuesta.ok) {
+    throw new Error(
+      `subir ${ruta} devolvió ${String(respuesta.status)}: ${await respuesta.text()}`,
+    );
+  }
+}
+
+export interface FotoParaLaVidriera {
+  orden: number;
+  contenido?: Buffer;
+  tipo?: 'image/webp' | 'image/jpeg';
+  ancho?: number;
+  alto?: number;
+  archivoDeOrigen?: string | null;
+}
+
+export async function fotoALaVidrieraPorRest(
+  sesion: SesionDePrueba,
+  foto: FotoParaLaVidriera,
+): Promise<FilaDeLaVidriera> {
+  const { orden, contenido, tipo = 'image/webp', ancho = 900, alto = 1200 } = foto;
+  const id = crypto.randomUUID();
+  if (contenido !== undefined) {
+    const householdId = await householdDePrueba(sesion);
+    for (const ruta of rutasEnLaVidriera({ id, household_id: householdId, tipo })) {
+      await subirAlBucketDePrueba(sesion, ruta, contenido, tipo);
+    }
+  }
+  const filas = (await pedir(sesion.entorno, '/rest/v1/fotos_de_la_vidriera', {
+    method: 'POST',
+    accessToken: sesion.accessToken,
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      id,
+      orden,
+      tipo,
+      bytes: contenido === undefined ? 1_000 : contenido.length * 2,
+      ancho,
+      alto,
+      archivo_de_origen: foto.archivoDeOrigen ?? null,
+    }),
+  })) as FilaDeLaVidriera[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el alta de la foto de la vidriera no devolvió la fila');
+  return fila;
+}
+
+export async function vaciarLaVidriera(sesion: SesionDePrueba): Promise<number> {
+  const { entorno, accessToken } = sesion;
+  const filas = await fotosDeLaVidrieraDelTaller(sesion, true);
+  const rutas = filas.flatMap(rutasEnLaVidriera);
+  if (rutas.length > 0) {
+    await pedir(entorno, '/storage/v1/object/archivos', {
+      method: 'DELETE',
+      accessToken,
+      body: JSON.stringify({ prefixes: rutas }),
+    });
+  }
+  const vivas = filas.filter((fila) => fila.deleted_at === null);
+  if (vivas.length > 0) {
+    await pedir(entorno, '/rest/v1/fotos_de_la_vidriera?deleted_at=is.null', {
+      method: 'PATCH',
+      accessToken,
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+    });
+  }
+  return vivas.length;
+}
+
+export interface RedesDePrueba {
+  instagram_link: string;
+  facebook_link: string;
+  tiktok_link: string;
+}
+
+export const SIN_REDES: RedesDePrueba = { instagram_link: '', facebook_link: '', tiktok_link: '' };
+
+export async function escribirLasRedes(
+  sesion: SesionDePrueba,
+  redes: Partial<RedesDePrueba>,
+): Promise<void> {
+  await escribirAjustes(sesion, redes);
+}
+
 export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
+  await vaciarLaVidriera(sesion);
   await vaciarArchivos(sesion);
   await vaciarAnotaciones(sesion);
   await vaciarMovimientos(sesion);
@@ -627,6 +774,9 @@ const COLUMNAS_DE_LOS_AJUSTES = [
   'cobro_link',
   'resena_link',
   'presupuesto_vale_dias',
+  'instagram_link',
+  'facebook_link',
+  'tiktok_link',
 ] as const;
 
 export type AjustesDePrueba = Record<(typeof COLUMNAS_DE_LOS_AJUSTES)[number], number | string>;

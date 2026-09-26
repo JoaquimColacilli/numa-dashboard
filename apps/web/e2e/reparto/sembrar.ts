@@ -9,6 +9,7 @@ import {
   enlacePorRest,
   escribirAjustes,
   formasDeCobroPorRest,
+  fotoALaVidrieraPorRest,
   guardarProyectoPorRpc,
   movimientosPorRest,
   vaciarTaller,
@@ -42,7 +43,16 @@ export const AJUSTES_COMPLETOS: Partial<AjustesDePrueba> = {
   cobro_cuit: '27-30123456-4',
   cobro_link: 'https://mpago.la/2vXyZ1',
   resena_link: 'https://g.page/r/maun-muebles/review',
+  instagram_link: 'https://www.instagram.com/maun.muebles/',
+  facebook_link: 'https://www.facebook.com/maunmuebles',
+  tiktok_link: 'https://www.tiktok.com/@maun.muebles',
 };
+
+async function vidriera(sesion: SesionDePrueba, cantidad: number): Promise<void> {
+  for (let orden = 0; orden < cantidad; orden += 1) {
+    await fotoALaVidrieraPorRest(sesion, { orden });
+  }
+}
 
 const NOMBRES = [
   'Marcela Duarte',
@@ -386,6 +396,7 @@ export async function sembrarPocos(sesion: SesionDePrueba): Promise<TallerSembra
 
   const enlace = tokenDePrueba();
   await enlacePorRest(sesion, obraId, enlace);
+  await vidriera(sesion, 3);
   const encuesta = await opinion(sesion, entregado, 0);
   await movimientosPorRest(sesion, filas(6, movimiento));
   await anotacionesPorRest(sesion, [
@@ -512,6 +523,7 @@ export async function sembrarMuchos(sesion: SesionDePrueba): Promise<TallerSembr
 
   const enlace = tokenDePrueba();
   await enlacePorRest(sesion, obraId, enlace);
+  await vidriera(sesion, 12);
   let encuesta = '';
   for (let indice = 0; indice < 10; indice += 1) {
     const terminado = await obra(sesion, {

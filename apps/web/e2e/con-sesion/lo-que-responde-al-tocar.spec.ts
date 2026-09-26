@@ -6,11 +6,14 @@ import {
   crearCliente,
   diaHabilDesdeHoy,
   encuestaPorRest,
+  escribirLasRedes,
+  fotoALaVidrieraPorRest,
   guardarProyectoPorRpc,
   hoyEnElTaller,
   iniciarSesionDePrueba,
   necesidadesDe,
   proponerPorRpc,
+  SIN_REDES,
   trabajoListoConEnlace,
   vaciarTaller,
   type SesionDePrueba,
@@ -29,6 +32,7 @@ test.beforeEach(async () => {
 
 test.afterEach(async () => {
   await ajustarCobroDelTaller(sesion, { alias: '', cbu: '', titular: '', cuit: '' });
+  await escribirLasRedes(sesion, SIN_REDES);
 });
 
 interface Animacion {
@@ -717,6 +721,15 @@ async function sinMovimientoAlApretarYCopiar(
   const copiar = page.getByRole('button', { name: 'Copiar el alias' });
   await copiar.click();
   await expect(copiar).toContainText('Copiado');
+
+  const vidriera = page.getByRole('region', { name: 'Más trabajos del taller' });
+  await vidriera.getByRole('button', { name: 'Fotos siguientes' }).click();
+  await expect(vidriera.getByRole('button', { name: 'Fotos anteriores' })).not.toHaveAttribute(
+    'aria-disabled',
+  );
+  await vidriera.getByRole('button', { name: 'Compartir' }).click();
+  await expect(vidriera.getByRole('button', { name: 'Copiado' })).toBeVisible();
+
   const corriendo = await page.evaluate(
     (selector) =>
       document
@@ -743,6 +756,16 @@ test('la página del cliente queda quieta al apretar y al copiar, por el enlace 
   context,
 }, testInfo) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+  });
+  for (let orden = 0; orden < 8; orden += 1) {
+    await fotoALaVidrieraPorRest(sesion, { orden });
+  }
+  await escribirLasRedes(sesion, {
+    instagram_link: 'https://www.instagram.com/taller.maun/',
+    facebook_link: 'https://www.facebook.com/tallermaun',
+  });
   await ajustarCobroDelTaller(sesion, {
     alias: 'maun.muebles',
     cbu: '0110001312345678901233',
