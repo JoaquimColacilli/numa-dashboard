@@ -58,6 +58,13 @@ const LAMINAS: readonly Lamina[] = [
         texto:
           'Le muestra el día de cada paso y qué sigue. Nunca cuánto hace que no pasa nada: eso lo pone a contar contra vos, y una obra lleva semanas sin nada que se vea.',
       },
+      {
+        clave: 'vidriera',
+        icono: 'image',
+        titulo: 'Tu vidriera',
+        texto:
+          'Al final de la página, las fotos y las redes que elegís en Ajustes, en «Tu vidriera». Las ve cada cliente en la página de su trabajo, en todas las etapas, y desde ahí puede compartir tus redes.',
+      },
     ],
   },
   {
@@ -261,13 +268,14 @@ const LAMINAS: readonly Lamina[] = [
         icono: 'image',
         titulo: 'Las fotos que no marcaste',
         texto:
-          'Nacen apagadas, incluso las que ya tenías subidas. Solo ve las que prendés una por una en «Compartir».',
+          'Nacen apagadas, incluso las que ya tenías subidas. Solo ve las que prendés una por una en «Compartir», y las que sumás a tu vidriera.',
       },
       {
         clave: 'otros',
         icono: 'users',
         titulo: 'Otro trabajo',
-        texto: 'El enlace abre ese mueble y nada más: ni otro trabajo suyo, ni otro cliente tuyo.',
+        texto:
+          'El enlace abre ese mueble y nada más: ni otro trabajo suyo, ni otro cliente tuyo. De las fotos de tu vidriera ve la foto, sin nada del trabajo del que salió.',
       },
     ],
   },

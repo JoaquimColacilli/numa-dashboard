@@ -43,6 +43,7 @@ import {
 import { CaminoDeHitos } from './CaminoDeHitos';
 import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
+import { VidrieraDelTaller } from './VidrieraDelTaller';
 
 export interface VistaDelClienteProps {
   vista: Vista;
@@ -379,6 +380,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
         apoyo={
           <div className="@container flex flex-col gap-3 md:gap-4">
             <ApoyoDeLaVista vista={vista} hoy={hoy} />
+
+            <VidrieraDelTaller vidriera={vista.vidriera} taller={vista.taller} />
 
             <p data-fin-de-la-vista className="px-1 text-label leading-relaxed text-text-3">
               Esta página la arma el taller para vos y se actualiza sola a medida que avanza el
