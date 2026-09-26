@@ -18,8 +18,10 @@ export type Database = {
           costos_fijos_centavos: number;
           created_at: string;
           deleted_at: string | null;
+          facebook_link: string;
           household_id: string;
           id: string;
+          instagram_link: string;
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
           perdido_con_sueldo: boolean;
@@ -29,6 +31,7 @@ export type Database = {
           sueldo_mensual_centavos: number;
           sueldo_tope_mensual: boolean;
           tasa_cocos_anual_bp: number;
+          tiktok_link: string;
           updated_at: string;
           version: number;
         };
@@ -41,8 +44,10 @@ export type Database = {
           costos_fijos_centavos?: number;
           created_at?: string;
           deleted_at?: string | null;
+          facebook_link?: string;
           household_id?: string;
           id?: string;
+          instagram_link?: string;
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
@@ -52,6 +57,7 @@ export type Database = {
           sueldo_mensual_centavos?: number;
           sueldo_tope_mensual?: boolean;
           tasa_cocos_anual_bp?: number;
+          tiktok_link?: string;
           updated_at?: string;
           version?: number;
         };
@@ -64,8 +70,10 @@ export type Database = {
           costos_fijos_centavos?: number;
           created_at?: string;
           deleted_at?: string | null;
+          facebook_link?: string;
           household_id?: string;
           id?: string;
+          instagram_link?: string;
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
@@ -75,6 +83,7 @@ export type Database = {
           sueldo_mensual_centavos?: number;
           sueldo_tope_mensual?: boolean;
           tasa_cocos_anual_bp?: number;
+          tiktok_link?: string;
           updated_at?: string;
           version?: number;
         };
@@ -528,6 +537,66 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'proyectos';
             referencedColumns: ['household_id', 'id'];
+          },
+        ];
+      };
+      fotos_de_la_vidriera: {
+        Row: {
+          alto: number;
+          ancho: number;
+          archivo_de_origen: string | null;
+          bytes: number;
+          created_at: string;
+          deleted_at: string | null;
+          household_id: string;
+          id: string;
+          orden: number;
+          tipo: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          alto: number;
+          ancho: number;
+          archivo_de_origen?: string | null;
+          bytes: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          orden: number;
+          tipo: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          alto?: number;
+          ancho?: number;
+          archivo_de_origen?: string | null;
+          bytes?: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          orden?: number;
+          tipo?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'fotos_de_la_vidriera_archivo_de_origen_fk';
+            columns: ['household_id', 'archivo_de_origen'];
+            isOneToOne: false;
+            referencedRelation: 'archivos';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'fotos_de_la_vidriera_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
           },
         ];
       };

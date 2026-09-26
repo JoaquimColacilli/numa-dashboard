@@ -76,6 +76,15 @@ async function lecturasDeProyectos(monitor: pg.Client, pid: number): Promise<num
   return rows[0]?.cantidad ?? -1;
 }
 
+async function lecturasDeLaVidriera(monitor: pg.Client, pid: number): Promise<number> {
+  const { rows } = await monitor.query<{ cantidad: number }>(
+    `select count(*)::int as cantidad from pg_locks
+     where pid = $1 and relation = 'public.fotos_de_la_vidriera'::regclass and mode = 'AccessShareLock'`,
+    [pid],
+  );
+  return rows[0]?.cantidad ?? -1;
+}
+
 async function abrirTransaccion(cliente: pg.Client): Promise<void> {
   await cliente.query('begin');
   await cliente.query("set local lock_timeout = '30s'");
@@ -446,5 +455,31 @@ describe('liquidaciones y pagos sobre el mismo household, con conexiones reales 
 
     await edicion.query('rollback');
     await expect(resultado).resolves.toBeDefined();
+  });
+});
+
+const FOTO_DE_LA_VIDRIERA = `insert into public.fotos_de_la_vidriera (orden, tipo, bytes, ancho, alto)
+  values ($1, 'image/webp', 1000, 900, 1200)`;
+
+describe('dos aparatos que suman una foto a la misma vidriera, con conexiones reales y todo en rollback', () => {
+  it('la segunda espera a la primera en la fila del taller antes de contar las que hay', async () => {
+    const primera = await sesion();
+    const segunda = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(primera);
+    await entrarAlHousehold(primera);
+    await primera.query(FOTO_DE_LA_VIDRIERA, [0]);
+
+    await abrirTransaccion(segunda);
+    await entrarAlHousehold(segunda);
+    const pidSegunda = await pidDe(segunda);
+    const alta = sinRechazoSuelto(segunda.query(FOTO_DE_LA_VIDRIERA, [1]));
+
+    expect(await esperarQueEspere(monitor, pidSegunda)).toContain(await pidDe(primera));
+    expect(await lecturasDeLaVidriera(monitor, pidSegunda)).toBe(0);
+
+    await primera.query('rollback');
+    await expect(alta).resolves.toBeDefined();
   });
 });

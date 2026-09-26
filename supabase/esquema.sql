@@ -92,19 +92,25 @@ create table public.ajustes (
   cobro_link text not null default ''::text,
   resena_link text not null default ''::text,
   presupuesto_vale_dias integer not null default 15,
+  instagram_link text not null default ''::text,
+  facebook_link text not null default ''::text,
+  tiktok_link text not null default ''::text,
   constraint ajustes_cobro_alias_formato CHECK (cobro_alias = ''::text OR cobro_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
   constraint ajustes_cobro_cbu_formato CHECK (cobro_cbu = ''::text OR cobro_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_cuit_formato CHECK (cobro_cuit = ''::text OR cobro_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
   constraint ajustes_cobro_link_formato CHECK (cobro_link = ''::text OR char_length(cobro_link) <= 300 AND cobro_link ~ '^https://(www\.mercadopago\.com\.ar|mercadopago\.com\.ar|link\.mercadopago\.com\.ar|mpago\.la|mpago\.li)/[^[:space:]]*$'::text),
   constraint ajustes_cobro_titular_largo CHECK (char_length(cobro_titular) <= 200),
+  constraint ajustes_facebook_link_formato CHECK (facebook_link = ''::text OR facebook_link ~ '^https://www\.facebook\.com/profile\.php\?id=[0-9]{5,20}$'::text OR facebook_link ~ '^https://www\.facebook\.com/[a-z0-9.]{5,50}$'::text AND (split_part(facebook_link, '/'::text, 4) <> ALL (ARRAY['share'::text, 'sharer.php'::text, 'people'::text, 'story.php'::text, 'photo.php'::text, 'permalink.php'::text, 'groups'::text, 'events'::text, 'watch'::text, 'marketplace'::text, 'login'::text, 'profile.php'::text]))),
   constraint ajustes_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
   constraint ajustes_household_key UNIQUE (household_id),
   constraint ajustes_importes_no_negativos CHECK (sueldo_mensual_centavos >= 0 AND costos_fijos_centavos >= 0 AND meta_cocos_centavos >= 0),
+  constraint ajustes_instagram_link_formato CHECK (instagram_link = ''::text OR instagram_link ~ '^https://www\.instagram\.com/[a-z0-9._]{1,30}/$'::text AND (split_part(instagram_link, '/'::text, 4) <> ALL (ARRAY['p'::text, 'reel'::text, 'reels'::text, 'stories'::text, 'explore'::text, 'accounts'::text, 'direct'::text, 'tv'::text]))),
   constraint ajustes_pkey PRIMARY KEY (id),
   constraint ajustes_presupuesto_vale_dias_valido CHECK (presupuesto_vale_dias >= 1 AND presupuesto_vale_dias <= 365),
   constraint ajustes_resena_link_formato CHECK (resena_link = ''::text OR char_length(resena_link) <= 300 AND resena_link ~ '^https://(g\.page|search\.google\.com|maps\.google\.com|www\.google\.com|google\.com|maps\.app\.goo\.gl|g\.co)/[^[:space:]]*$'::text),
   constraint ajustes_sena_valida CHECK (sena_bp >= 0 AND sena_bp <= 10000),
-  constraint ajustes_tasa_valida CHECK (tasa_cocos_anual_bp >= 0 AND tasa_cocos_anual_bp <= 100000)
+  constraint ajustes_tasa_valida CHECK (tasa_cocos_anual_bp >= 0 AND tasa_cocos_anual_bp <= 100000),
+  constraint ajustes_tiktok_link_formato CHECK (tiktok_link = ''::text OR tiktok_link ~ '^https://www\.tiktok\.com/@[a-z0-9._]{2,24}$'::text)
 );
 comment on table public.ajustes is 'Parámetros del household: una fila por household, creada con él. Cambiarlos no reescribe las distribuciones ya congeladas.';
 comment on column public.ajustes.sueldo_mensual_centavos is 'Sueldo que el taller le paga al hogar por mes: objetivo del escalón de sueldo. Con sueldo_tope_mensual, los cobros del mes lo van cubriendo y lo que sobra queda en el taller.';
@@ -122,6 +128,9 @@ comment on column public.ajustes.cobro_cuit is 'El CUIT del titular con guiones 
 comment on column public.ajustes.cobro_link is 'El link de Mercado Pago del taller para que el cliente le pague, o vacío. Lo pega el dueño: lo saca de su app, de Cobrar con QR o de Link de pago. La página del cliente lo muestra como código QR y como botón. No se deriva del alias ni del CVU porque no existe ningún link estándar que abra una billetera en «Transferir a este alias»: el QR interoperable del BCRA lo emite un PSP y es un QR de cobro. El check acota el host a Mercado Pago porque este texto se vuelve un enlace en una página pública. Cobrar por acá le cuesta comisión al taller; transferir al alias no (ADR 0051 y 0054).';
 comment on column public.ajustes.resena_link is 'El enlace del taller para dejarle una reseña en Google, o vacío. Lo pega el dueño, lo saca de su Perfil de Negocio. La encuesta se lo ofrece al final a todos los que contestan, contesten lo que contesten: filtrar a quién se le pide según lo que opinó está prohibido por las políticas de Google (ADR 0057). El check acota el host a Google porque este texto se vuelve un enlace en una página pública.';
 comment on column public.ajustes.presupuesto_vale_dias is 'Cuántos días vale un presupuesto desde que se manda: la app los suma al día en que el dueño marca «Mandé el presupuesto» y guarda la fecha en proyectos.presupuesto_vale_hasta, que él puede pisar en cada trabajo. Arranca en 15. Es política del taller y no viaja al cliente: lo que viaja es la fecha (ADR 0067).';
+comment on column public.ajustes.instagram_link is 'El perfil de Instagram del taller, en la forma https://www.instagram.com/<usuario>/, o vacío. Lo ve el cliente en su página, en la vidriera, como @usuario (ADR 0076).';
+comment on column public.ajustes.facebook_link is 'El perfil o la página de Facebook del taller, en la forma https://www.facebook.com/<nombre> o https://www.facebook.com/profile.php?id=<número>, o vacío. Lo ve el cliente en su página, en la vidriera (ADR 0076).';
+comment on column public.ajustes.tiktok_link is 'El perfil de TikTok del taller, en la forma https://www.tiktok.com/@<usuario>, o vacío. Lo ve el cliente en su página, en la vidriera (ADR 0076).';
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
 alter table public.ajustes enable row level security;
@@ -134,7 +143,7 @@ create policy ajustes_lectura on public.ajustes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.ajustes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.ajustes to service_role;
-grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias) on public.ajustes to authenticated;
+grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link) on public.ajustes to authenticated;
 
 create table public.anotaciones (
   id uuid not null default private.uuidv7(),
@@ -199,6 +208,7 @@ create table public.archivos (
   visible_para_cliente boolean not null default false,
   constraint archivos_bytes_validos CHECK (bytes > 0 AND bytes <= 20971520),
   constraint archivos_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint archivos_household_id_key UNIQUE (household_id, id),
   constraint archivos_medidas_validas CHECK ((ancho IS NULL) = (alto IS NULL) AND (ancho IS NULL OR ancho > 0 AND alto > 0)),
   constraint archivos_nombre_valido CHECK (btrim(nombre) <> ''::text AND char_length(nombre) <= 200),
   constraint archivos_pkey PRIMARY KEY (id),
@@ -467,6 +477,57 @@ grant select on public.enlaces_publicos to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.enlaces_publicos to service_role;
 grant insert (id, proyecto_id, token_hash, revocado_at, deleted_at, token) on public.enlaces_publicos to authenticated;
 grant update (id, proyecto_id, token_hash, revocado_at, deleted_at, token) on public.enlaces_publicos to authenticated;
+
+create table public.fotos_de_la_vidriera (
+  id uuid not null default private.uuidv7(),
+  household_id uuid not null default private.household_actual(),
+  orden integer not null,
+  tipo text not null,
+  bytes bigint not null,
+  ancho integer not null,
+  alto integer not null,
+  archivo_de_origen uuid,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone,
+  version integer not null default 1,
+  constraint fotos_de_la_vidriera_archivo_de_origen_fk FOREIGN KEY (household_id, archivo_de_origen) REFERENCES archivos(household_id, id),
+  constraint fotos_de_la_vidriera_bytes_validos CHECK (bytes > 0 AND bytes <= 20971520),
+  constraint fotos_de_la_vidriera_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint fotos_de_la_vidriera_medidas_validas CHECK (ancho > 0 AND alto > 0),
+  constraint fotos_de_la_vidriera_orden_valido CHECK (orden >= 0),
+  constraint fotos_de_la_vidriera_pkey PRIMARY KEY (id),
+  constraint fotos_de_la_vidriera_tipo_valido CHECK (tipo = ANY (ARRAY['image/webp'::text, 'image/jpeg'::text]))
+);
+comment on table public.fotos_de_la_vidriera is 'Las fotos que el taller le muestra a todos sus clientes en su página, hasta 12 vivas. El binario vive en el bucket archivos, en {household}/vidriera/{id}.webp y al lado {id}.mini.webp (o .jpg): una foto que sale de un trabajo se copia, no se apunta, así la ruta no lleva el id de otro trabajo y borrarla del trabajo no la saca de la vidriera (ADR 0076).';
+comment on column public.fotos_de_la_vidriera.household_id is 'Default: el household del usuario de la sesión. El cliente de la app no lo manda.';
+comment on column public.fotos_de_la_vidriera.orden is 'El lugar de la foto en la vidriera, de menor a mayor. Dos aparatos que suman a la vez pueden dejar dos iguales: el orden de verdad es orden, created_at, id, y mover una foto renumera la lista.';
+comment on column public.fotos_de_la_vidriera.tipo is 'Lo que quedó en el bucket: image/webp, o image/jpeg donde el navegador no codifica WebP. La extensión de la ruta sale de acá.';
+comment on column public.fotos_de_la_vidriera.bytes is 'Lo que ocupa en el bucket, la foto y su miniatura. Suma al espacio del plan, que los trabajos y la vidriera comparten.';
+comment on column public.fotos_de_la_vidriera.ancho is 'Ancho en píxeles de la foto completa, para reservarle el lugar antes de que cargue.';
+comment on column public.fotos_de_la_vidriera.alto is 'Alto en píxeles de la foto completa.';
+comment on column public.fotos_de_la_vidriera.archivo_de_origen is 'La foto del trabajo de la que se copió, o null si se subió para la vidriera. Es para decir de dónde salió: el binario es otro, y la vidriera no depende de que esa foto siga viva.';
+comment on column public.fotos_de_la_vidriera.deleted_at is 'Borrado lógico, como en todo el household. La app quita el binario del bucket cuando vence el deshacer.';
+CREATE INDEX fotos_de_la_vidriera_household_actualizado ON public.fotos_de_la_vidriera USING btree (household_id, updated_at);
+CREATE INDEX fotos_de_la_vidriera_household_origen ON public.fotos_de_la_vidriera USING btree (household_id, archivo_de_origen);
+CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON fotos_de_la_vidriera FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
+CREATE TRIGGER cuidar_el_tope_de_la_vidriera BEFORE INSERT OR UPDATE OF deleted_at ON fotos_de_la_vidriera FOR EACH ROW EXECUTE FUNCTION private.cuidar_el_tope_de_la_vidriera();
+CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON fotos_de_la_vidriera FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+alter table public.fotos_de_la_vidriera enable row level security;
+create policy fotos_de_la_vidriera_alta on public.fotos_de_la_vidriera as permissive
+  for insert to authenticated
+  with check ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+create policy fotos_de_la_vidriera_edicion on public.fotos_de_la_vidriera as permissive
+  for update to authenticated
+  using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))))
+  with check ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+create policy fotos_de_la_vidriera_lectura on public.fotos_de_la_vidriera as permissive
+  for select to authenticated
+  using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+grant select on public.fotos_de_la_vidriera to authenticated;
+grant delete, insert, maintain, references, select, trigger, truncate, update on public.fotos_de_la_vidriera to service_role;
+grant insert (id, orden, tipo, bytes, ancho, alto, archivo_de_origen, deleted_at) on public.fotos_de_la_vidriera to authenticated;
+grant update (id, orden, tipo, bytes, ancho, alto, archivo_de_origen, deleted_at) on public.fotos_de_la_vidriera to authenticated;
 
 create table public.gastos (
   id uuid not null default private.uuidv7(),
@@ -1466,6 +1527,9 @@ AS $function$
     ),
     'cambios_de_fecha', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_fecha t where t.deleted_at is null
+    ),
+    'fotos_de_la_vidriera', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.deleted_at is null
     )
   )
 $function$;
@@ -1725,6 +1789,9 @@ begin
     ),
     'cambios_de_fecha', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_fecha t where t.updated_at >= v_desde
+    ),
+    'fotos_de_la_vidriera', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.updated_at >= v_desde
     )
   );
 end;
@@ -3210,6 +3277,48 @@ $function$;
 -- execute: solo el dueño
 comment on function private.crear_taller_del_usuario() is 'Trigger de auth.users: a la cuenta que confirma su mail le crea el taller, la membresía de titular y los ajustes en cero. Idempotente: si ya tuvo taller, no hace nada.';
 
+CREATE OR REPLACE FUNCTION private.cuidar_el_tope_de_la_vidriera()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_vivas integer;
+begin
+  -- Solo cuenta lo que deja una foto viva de más: el alta de una foto viva y restaurar una borrada.
+  -- Mover una foto viva o sacarla no suma nada.
+  if new.deleted_at is not null then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and old.deleted_at is null then
+    return new;
+  end if;
+
+  -- Bloquea el taller antes de contar: dos aparatos que suman a la vez se esperan acá, y el segundo
+  -- cuenta con la foto del primero adentro. Es FOR NO KEY UPDATE para no chocar con las foreign keys
+  -- que apuntan al taller, que toman FOR KEY SHARE: solo espera a otra foto que se suma o a quien
+  -- renombra el taller.
+  perform 1 from public.households h where h.id = new.household_id for no key update;
+
+  -- No se cuenta a sí misma: el reenvío de un alta que ya había entrado vuelve a pasar por acá.
+  select count(*) into v_vivas
+  from public.fotos_de_la_vidriera f
+  where f.household_id = new.household_id
+    and f.deleted_at is null
+    and f.id <> new.id;
+
+  if v_vivas >= 12 then
+    raise exception 'La vidriera ya tiene 12 fotos'
+      using errcode = 'MN022',
+            hint = 'Sacá una foto de la vidriera antes de sumar otra.';
+  end if;
+
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuidar_el_tope_de_la_vidriera() is 'Guarda del alta y de la restauración de una foto de la vidriera: un taller tiene a lo sumo 12 fotos vivas. Bloquea la fila del taller antes de contar, así dos altas a la vez se esperan, y no se cuenta a sí misma. Rechaza con MN022 (ADR 0076).';
+
 CREATE OR REPLACE FUNCTION private.cuidar_la_encuesta()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4485,6 +4594,23 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.revisar_el_seguimiento(uuid,uuid) is 'Un trabajo vivo está en seguimiento si y solo si tiene un contacto pendiente. La llaman las dos guardas diferidas, al commit, cuando ya se escribieron el estado y los contactos de la misma transacción.';
+
+CREATE OR REPLACE FUNCTION private.ruta_de_la_vidriera(p_household_id uuid, p_foto_id uuid, p_tipo text, p_miniatura boolean)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select p_household_id::text || '/vidriera/' || p_foto_id::text
+    || case when p_miniatura then '.mini' else '' end
+    || case p_tipo
+         when 'image/webp' then '.webp'
+         when 'image/jpeg' then '.jpg'
+         else '.bin'
+       end
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.ruta_de_la_vidriera(uuid,uuid,text,boolean) is 'La ruta de una foto de la vidriera en el bucket archivos, la misma que arma la app: {household}/vidriera/{id}.webp y al lado {id}.mini.webp, o .jpg (ADR 0076). Es la gemela de private.ruta_del_archivo para la carpeta de la vidriera: la vista del cliente la manda armada.';
 
 CREATE OR REPLACE FUNCTION private.ruta_del_archivo(p_household_id uuid, p_proyecto_id uuid, p_archivo_id uuid, p_tipo text, p_miniatura boolean)
  RETURNS text
@@ -5962,9 +6088,44 @@ begin
         and a.proyecto_id = v_p.id
         and a.deleted_at is null
         and a.visible_para_cliente
+    ),
+    -- La vidriera del taller (ADR 0076), en todas las etapas: las redes y hasta doce fotos, en su
+    -- orden. Las fotos se filtran por el taller del trabajo a mano: desde el link esta función corre
+    -- con los permisos del dueño de las tablas, que no pasa por la RLS, y sin ese filtro traería las
+    -- de todos los talleres. La ruta es la de la carpeta de la vidriera: el id de la foto de la que se
+    -- copió, y el de su trabajo, no viajan.
+    'vidriera', jsonb_build_object(
+      'redes', jsonb_build_object(
+        'instagram', nullif(v_ajustes.instagram_link, ''),
+        'facebook', nullif(v_ajustes.facebook_link, ''),
+        'tiktok', nullif(v_ajustes.tiktok_link, '')
+      ),
+      'fotos', (
+        select coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'id', f.id,
+              'ruta', private.ruta_de_la_vidriera(f.household_id, f.id, f.tipo, false),
+              'ruta_mini', private.ruta_de_la_vidriera(f.household_id, f.id, f.tipo, true),
+              'ancho', f.ancho,
+              'alto', f.alto
+            )
+            order by f.orden, f.created_at, f.id
+          ),
+          '[]'::jsonb
+        )
+        from (
+          select v.id, v.household_id, v.tipo, v.ancho, v.alto, v.orden, v.created_at
+          from public.fotos_de_la_vidriera v
+          where v.household_id = v_p.household_id
+            and v.deleted_at is null
+          order by v.orden, v.created_at, v.id
+          limit 12
+        ) as f
+      )
     )
   );
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda. El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067 y 0071).';
+comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; y los tres links de las redes, siempre. El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071 y 0076).';

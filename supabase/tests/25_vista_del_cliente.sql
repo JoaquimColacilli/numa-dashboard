@@ -1,8 +1,8 @@
 -- La vista del cliente (ADR 0046): la lista blanca de campos, el link con su huella y su dirección
 -- (ADR 0052), el registro de los cambios de etapa, los datos para transferir (ADR 0048), el título
 -- que alimenta la vista previa del enlace (ADR 0049), cómo te paga, la forma de cobro por trabajo y
--- por instancia de pago (ADR 0053), el estimativo y la visita para medir (ADR 0058), y el listo y la
--- entrega que se coordina con el cliente (ADR 0071).
+-- por instancia de pago (ADR 0053), el estimativo y la visita para medir (ADR 0058), el listo y la
+-- entrega que se coordina con el cliente (ADR 0071), y la vidriera del taller (ADR 0076).
 --
 -- Los dos tests que importan son los primeros: toda columna de proyectos y toda columna de ajustes
 -- están clasificadas, y agregar una columna a cualquiera de las dos rompe este archivo hasta que
@@ -11,7 +11,7 @@
 -- mirado. Ajustes entró a la lista con los datos para transferir: desde que uno de sus campos viaja
 -- a la superficie pública, la tabla entera necesita la misma vigilancia que proyectos.
 
-select plan(114);
+select plan(145);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -73,8 +73,9 @@ select set_eq(
 
 -- Toda columna de ajustes está clasificada -------------------------------------------------------------------
 
--- Los cuatro datos para transferir viajan, y nada más de esta tabla: el sueldo, los costos fijos,
--- la meta de Cocos, su tasa, la seña y las tres preferencias de liquidación son parte de cómo se
+-- Los datos para transferir viajan, y desde el ADR 0076 las tres redes del taller, que son de la
+-- vidriera y viajan en todas las etapas. Nada más de esta tabla: el sueldo, los costos fijos, la
+-- meta de Cocos, su tasa, la seña y las tres preferencias de liquidación son parte de cómo se
 -- reparte la plata adentro del taller, y eso el cliente no lo ve ni de lejos. Los días que vale un
 -- presupuesto tampoco: viaja la fecha que sale de ellos, guardada en el trabajo. Ajustes está acá
 -- desde que uno de sus campos viaja: una columna nueva rompe este test igual que en proyectos. El
@@ -89,6 +90,7 @@ select set_eq(
   array[
     -- Viajan
     'cobro_alias', 'cobro_cbu', 'cobro_titular', 'cobro_cuit', 'cobro_link',
+    'instagram_link', 'facebook_link', 'tiktok_link',
     -- No viajan
     'id', 'household_id', 'created_at', 'updated_at', 'deleted_at', 'version',
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
@@ -133,6 +135,30 @@ select set_eq(
     'created_at', 'updated_at', 'deleted_at', 'version'
   ],
   'toda columna de las respuestas de entrega está clasificada'
+);
+
+
+-- Toda columna de las fotos de la vidriera está clasificada (ADR 0076) -----------------------------------
+
+-- De cada foto viaja lo que hace falta para traerla del bucket y reservarle el lugar: el id y el tipo
+-- arman la ruta, con el taller adelante, y el ancho y el alto dan la proporción. El orden y el día en
+-- que se sumó ordenan la lista y no viajan. De qué trabajo salió no viaja nunca: la ruta es la de la
+-- vidriera, así que el cliente no ve el id de otro trabajo ni el de su archivo.
+select set_eq(
+  $$
+    select a.attname::text
+    from pg_attribute a
+    where a.attrelid = 'public.fotos_de_la_vidriera'::regclass and a.attnum > 0 and not a.attisdropped
+  $$,
+  array[
+    -- Viajan, las tres primeras adentro de la ruta
+    'id', 'household_id', 'tipo', 'ancho', 'alto',
+    -- Ordenan, sin viajar
+    'orden', 'created_at',
+    -- No viajan
+    'bytes', 'archivo_de_origen', 'updated_at', 'deleted_at', 'version'
+  ],
+  'toda columna de las fotos de la vidriera está clasificada'
 );
 
 
@@ -205,7 +231,7 @@ where household_id = tests.id('household_a');
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')) $$,
-  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos'],
+  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera'],
   'la vista devuelve exactamente estos campos y ninguno más'
 );
 
@@ -1345,6 +1371,332 @@ select is(
   'null'::jsonb,
   'y uno que nunca pasó por el estimativo no tiene ese día'
 );
+
+
+-- La vidriera del taller (ADR 0076) -------------------------------------------------------------------------
+
+-- Las redes y las fotos que el taller eligió para todos sus clientes. Viajan en todas las etapas, y
+-- las fotos salen solo del taller del trabajo: desde el link esta función corre con los permisos del
+-- dueño de las tablas, que no pasa por la RLS, así que el filtro por taller es lo único que separa
+-- una vidriera de otra. Beto tiene la suya, para que eso no sea trivial.
+
+select tests.salir();
+select tests.entrar_como(tests.id('beto'));
+
+insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto)
+  values ('bbbbbbbb-0000-7000-8000-000000000900', 0, 'image/webp', 1000, 900, 1200);
+
+update public.ajustes set instagram_link = 'https://www.instagram.com/taller.de.beto/'
+  where household_id = tests.id('household_b');
+
+select tests.salir();
+select tests.entrar_como(tests.id('ana'));
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'vidriera',
+  jsonb_build_object(
+    'redes', jsonb_build_object('instagram', null, 'facebook', null, 'tiktok', null),
+    'fotos', jsonb_build_array()
+  ),
+  'sin redes ni fotos, la vidriera viaja vacía: las redes en null, no en cadena vacía, y ninguna foto'
+);
+
+-- Cada link se guarda en su forma canónica o no se guarda: el texto se convierte en un enlace de una
+-- página que abre un desconocido. Postgres corta en el primer check que no pasa, así que van de a uno.
+select throws_ok(
+  format(
+    $$ update public.ajustes set instagram_link = 'https://www.instagram.com/p/C1a2b3c4d5/' where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'un posteo de Instagram no es un perfil: lo frena la base'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set instagram_link = 'https://instagram.com/taller.de.ana/' where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'y un perfil que no está en la forma canónica tampoco entra: la app lo normaliza antes de mandarlo'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set instagram_link = 'https://www.instagram.com/Taller.De.Ana/' where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'ni con mayúsculas: hay una sola forma de cada perfil'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set facebook_link = 'https://www.facebook.com/share/p/1AbCdEfGh/' where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'un enlace para compartir de Facebook no es una página'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set tiktok_link = 'https://www.tiktok.com/@taller.de.ana/video/7212345678901234567' where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'un video de TikTok no es un perfil'
+);
+
+select lives_ok(
+  format(
+    $$
+      update public.ajustes set
+        instagram_link = 'https://www.instagram.com/taller.de.ana/',
+        facebook_link = 'https://www.facebook.com/profile.php?id=100012345678',
+        tiktok_link = 'https://www.tiktok.com/@taller.de.ana'
+      where household_id = %L
+    $$,
+    tests.id('household_a')
+  ),
+  'las tres en su forma canónica se guardan, la de Facebook también con el número del perfil'
+);
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,redes}',
+  jsonb_build_object(
+    'instagram', 'https://www.instagram.com/taller.de.ana/',
+    'facebook', 'https://www.facebook.com/profile.php?id=100012345678',
+    'tiktok', 'https://www.tiktok.com/@taller.de.ana'
+  ),
+  'y viajan las tres tal como están guardadas'
+);
+
+select set_eq(
+  $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'vidriera') $$,
+  array['redes', 'fotos'],
+  'la vidriera trae exactamente dos cosas: las redes y las fotos'
+);
+
+select set_eq(
+  $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,redes}') $$,
+  array['instagram', 'facebook', 'tiktok'],
+  'y de las redes, exactamente las tres'
+);
+
+-- Tres fotos cargadas fuera de orden. La primera se copió de la foto del plano del placard: ni el id
+-- de esa foto ni el del placard viajan, porque la ruta es la de la vidriera.
+insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto, archivo_de_origen) values
+  ('aaaaaaaa-0000-7000-8000-000000000902', 2, 'image/webp', 1000, 900, 1200, null),
+  ('aaaaaaaa-0000-7000-8000-000000000900', 0, 'image/webp', 1000, 1200, 900, 'aaaaaaaa-0000-7000-8000-000000000200'),
+  ('aaaaaaaa-0000-7000-8000-000000000901', 1, 'image/jpeg', 1000, 900, 1200, null);
+
+select is(
+  (
+    select array_agg(t.e ->> 'id' order by t.n)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}')
+      with ordinality as t (e, n)
+  ),
+  array[
+    'aaaaaaaa-0000-7000-8000-000000000900',
+    'aaaaaaaa-0000-7000-8000-000000000901',
+    'aaaaaaaa-0000-7000-8000-000000000902'
+  ],
+  'las fotos viajan en el orden de la vidriera, no en el que se cargaron'
+);
+
+select set_eq(
+  $$
+    select jsonb_object_keys(e)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}') as e
+  $$,
+  array['id', 'ruta', 'ruta_mini', 'ancho', 'alto'],
+  'de cada foto viaja lo justo para traerla y reservarle el lugar: ni de dónde salió, ni cuánto pesa, ni su número de orden'
+);
+
+select is(
+  (
+    select e
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}') as e
+    where e ->> 'id' = 'aaaaaaaa-0000-7000-8000-000000000901'
+  ),
+  jsonb_build_object(
+    'id', 'aaaaaaaa-0000-7000-8000-000000000901',
+    'ruta', tests.id('household_a')::text || '/vidriera/aaaaaaaa-0000-7000-8000-000000000901.jpg',
+    'ruta_mini', tests.id('household_a')::text || '/vidriera/aaaaaaaa-0000-7000-8000-000000000901.mini.jpg',
+    'ancho', 900,
+    'alto', 1200
+  ),
+  'la ruta es la de la carpeta de la vidriera, con la extensión de su tipo, y la miniatura al lado'
+);
+
+select is(
+  private.ruta_de_la_vidriera(tests.id('household_a'), 'aaaaaaaa-0000-7000-8000-000000000900', 'image/webp', true),
+  tests.id('household_a')::text || '/vidriera/aaaaaaaa-0000-7000-8000-000000000900.mini.webp',
+  'la ruta de una miniatura en WebP'
+);
+
+select is_empty(
+  format(
+    $$
+      select v.aguja
+      from unnest(array['aaaaaaaa-0000-7000-8000-000000000010', 'aaaaaaaa-0000-7000-8000-000000000200']) as v (aguja)
+      where %L like '%%' || v.aguja || '%%'
+    $$,
+    public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000040')::text
+  ),
+  'la página de otro trabajo muestra la foto que salió del placard sin nombrar al placard ni a su archivo'
+);
+
+update public.fotos_de_la_vidriera set deleted_at = now()
+  where id = 'aaaaaaaa-0000-7000-8000-000000000902';
+
+select is(
+  (
+    select array_agg(t.e ->> 'id' order by t.n)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}')
+      with ordinality as t (e, n)
+  ),
+  array['aaaaaaaa-0000-7000-8000-000000000900', 'aaaaaaaa-0000-7000-8000-000000000901'],
+  'una foto sacada de la vidriera no viaja más'
+);
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000050') -> 'vidriera',
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'vidriera',
+  'la vidriera es la misma en todas las etapas: el que todavía no aprobó la ve igual que el que ya recibió su mueble'
+);
+
+-- Dos aparatos que suman a la vez pueden dejar dos con el mismo número. Adentro de esta transacción
+-- las dos se sumaron en el mismo instante, así que el que desempata es el id, como en la app.
+insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto)
+  values ('aaaaaaaa-0000-7000-8000-0000000008ff', 0, 'image/webp', 1000, 900, 1200);
+
+select is(
+  (
+    select array_agg(t.e ->> 'id' order by t.n)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}')
+      with ordinality as t (e, n)
+  ),
+  array[
+    'aaaaaaaa-0000-7000-8000-0000000008ff',
+    'aaaaaaaa-0000-7000-8000-000000000900',
+    'aaaaaaaa-0000-7000-8000-000000000901'
+  ],
+  'dos con el mismo orden salen por cuándo se sumaron y después por id, siempre igual'
+);
+
+-- El tope: doce vivas. Hay tres, entran nueve más en una sola sentencia; cada una ve las anteriores.
+insert into public.fotos_de_la_vidriera (orden, tipo, bytes, ancho, alto)
+  select 10 + n, 'image/webp', 1000, 900, 1200 from generate_series(1, 9) as n;
+
+select is(
+  (select count(*)::int from public.fotos_de_la_vidriera where deleted_at is null),
+  12,
+  'la vidriera de Ana tiene doce fotos vivas'
+);
+
+select throws_ok(
+  $$ insert into public.fotos_de_la_vidriera (orden, tipo, bytes, ancho, alto) values (30, 'image/webp', 1000, 900, 1200) $$,
+  'MN022',
+  'La vidriera ya tiene 12 fotos',
+  'la decimotercera no entra: la frena la base, aunque la pantalla no la haya frenado'
+);
+
+select throws_ok(
+  $$ update public.fotos_de_la_vidriera set deleted_at = null where id = 'aaaaaaaa-0000-7000-8000-000000000902' $$,
+  'MN022',
+  'La vidriera ya tiene 12 fotos',
+  'y deshacer la baja de una con la vidriera llena tampoco: volvería a haber trece'
+);
+
+select lives_ok(
+  $$ update public.fotos_de_la_vidriera set orden = 99 where id = 'aaaaaaaa-0000-7000-8000-0000000008ff' $$,
+  'con la vidriera llena se puede mover una foto: no suma ninguna'
+);
+
+select lives_ok(
+  $$
+    insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto)
+    values ('aaaaaaaa-0000-7000-8000-000000000900', 0, 'image/webp', 1000, 1200, 900)
+    on conflict (id) do update set orden = excluded.orden, deleted_at = excluded.deleted_at
+  $$,
+  'y el reenvío del alta de una que ya estaba no se cuenta a sí misma: es lo que hace la cola cuando no le llegó la respuesta'
+);
+
+update public.fotos_de_la_vidriera set deleted_at = now()
+  where id = 'aaaaaaaa-0000-7000-8000-000000000901';
+
+select lives_ok(
+  $$ update public.fotos_de_la_vidriera set deleted_at = null where id = 'aaaaaaaa-0000-7000-8000-000000000901' $$,
+  'con un lugar libre, el deshacer vuelve a poner la foto'
+);
+
+-- La lista blanca también corta en doce, aunque la guarda faltara. Para tener trece vivas se apaga el
+-- trigger unas líneas y se vuelve a prender; todo termina en rollback.
+select tests.salir();
+
+alter table public.fotos_de_la_vidriera disable trigger cuidar_el_tope_de_la_vidriera;
+
+insert into public.fotos_de_la_vidriera (id, household_id, orden, tipo, bytes, ancho, alto)
+  values ('aaaaaaaa-0000-7000-8000-000000000999', tests.id('household_a'), 200, 'image/webp', 1000, 900, 1200);
+
+alter table public.fotos_de_la_vidriera enable trigger cuidar_el_tope_de_la_vidriera;
+
+select tests.entrar_como(tests.id('ana'));
+
+select is(
+  jsonb_array_length(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{vidriera,fotos}'),
+  12,
+  'con trece vivas, la vista manda doce: las primeras por orden'
+);
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')::text like '%aaaaaaaa-0000-7000-8000-000000000999%',
+  false,
+  'y la que queda afuera es la última'
+);
+
+-- Por el link, la vidriera es la del taller del trabajo y de ningún otro.
+select set_config('tests.household_a', tests.id('household_a')::text, true);
+
+select tests.entrar_como_anon();
+
+select is(
+  (
+    select array_agg(distinct split_part(e ->> 'ruta', '/', 1))
+    from jsonb_array_elements(public.vista_compartida('el-token-del-vestidor-aa') #> '{vidriera,fotos}') as e
+  ),
+  array[current_setting('tests.household_a')],
+  'por el link, cada foto de la vidriera es del taller del trabajo: la de Beto no está, aunque la función no pase por la RLS'
+);
+
+select is(
+  public.vista_compartida('el-token-del-vestidor-aa')::text like '%bbbbbbbb-0000-7000-8000-000000000900%',
+  false,
+  'ni su id aparece en ningún lado del payload'
+);
+
+select is(
+  public.vista_compartida('el-token-del-vestidor-aa') #>> '{vidriera,redes,instagram}',
+  'https://www.instagram.com/taller.de.ana/',
+  'y las redes son las del taller del trabajo'
+);
+
+select throws_ok(
+  $ck$ select private.ruta_de_la_vidriera(null, null, 'image/webp', false) $ck$,
+  '42501',
+  null,
+  'el rol anónimo no arma rutas de la vidriera: la función vive en private'
+);
+
+select tests.salir();
+select tests.entrar_como(tests.id('ana'));
 
 
 -- El rol anónimo no gana nada con esto ---------------------------------------------------------------------------

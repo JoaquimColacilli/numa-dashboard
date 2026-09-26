@@ -8,6 +8,7 @@ import {
   compararLibroDelSeed,
   compararLibroMayor,
   compararLinkDeResena,
+  compararLinksDeLasRedes,
   compararLiquidaciones,
   compararNombreDeNecesidad,
   compararPagosPorDelante,
@@ -44,6 +45,10 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
 
   it('el enlace de reseña lo aceptan y lo rechazan igual el check de la base y el dominio', async () => {
     expect(await enTransaccionConRollback(compararLinkDeResena)).toEqual([]);
+  });
+
+  it('los links de Instagram, Facebook y TikTok los aceptan y los rechazan igual los checks de la base y el dominio, y lo que la app guarda de lo que se escribe pasa', async () => {
+    expect(await enTransaccionConRollback(compararLinksDeLasRedes)).toEqual([]);
   });
 
   it('el nombre de lo que hace falta lo aceptan y lo rechazan igual el check de la base y el dominio', async () => {
