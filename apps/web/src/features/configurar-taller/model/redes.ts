@@ -31,21 +31,21 @@ export const MENSAJE_DE_LA_RED: Readonly<
     'otra-red':
       'Ese enlace no es de Instagram. Pegá el de tu perfil, o escribí tu usuario con la @.',
     'no-es-un-perfil':
-      'Ese es el enlace de una publicación, no el de tu perfil. Pegá el de tu perfil, o escribí tu usuario con la @.',
+      'Ese enlace no es el de tu perfil: es de una publicación, un reel, una historia u otra parte de Instagram. Pegá el de tu perfil, o escribí tu usuario con la @.',
     usuario:
       'Escribí tu usuario de Instagram, con la @ o sin ella: letras, números, puntos y guiones bajos, sin espacios.',
   },
   facebook: {
     'otra-red': 'Ese enlace no es de Facebook. Pegá el de la página o el perfil del taller.',
     'no-es-un-perfil':
-      'Ese es el enlace de una publicación o de algo para compartir, no el de tu página. Entrá a la página del taller y copiá su dirección.',
+      'Ese enlace no es el de tu página: es de una publicación, un grupo o algo para compartir. Entrá a la página del taller y copiá su dirección.',
     usuario:
       'Pegá la dirección de la página del taller, como facebook.com/tutaller: el nombre va sin espacios, con letras, números o puntos.',
   },
   tiktok: {
     'otra-red': 'Ese enlace no es de TikTok. Pegá el de tu perfil, o escribí tu usuario con la @.',
     'no-es-un-perfil':
-      'Ese es el enlace de un video, no el de tu perfil. Pegá el de tu perfil, o escribí tu usuario con la @.',
+      'Ese enlace no es el de tu perfil: es de un video, un enlace corto u otra parte de TikTok. Pegá el de tu perfil, que lleva tu usuario con la @, o escribí tu usuario.',
     usuario:
       'Escribí tu usuario de TikTok, con la @ o sin ella: letras, números, puntos y guiones bajos, sin espacios.',
   },

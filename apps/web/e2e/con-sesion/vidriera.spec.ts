@@ -89,7 +89,7 @@ test('la vidriera de punta a punta: las redes, sumar de un trabajo y subir, el o
   const instagram = seccion.getByRole('textbox', { name: 'Instagram' });
   await instagram.fill('https://www.instagram.com/p/C1a2b3c4/');
   await seccion.getByRole('button', { name: 'Guardar las redes' }).click();
-  await expect(instagram).toHaveAccessibleDescription(/enlace de una publicación/);
+  await expect(instagram).toHaveAccessibleDescription(/no es el de tu perfil/);
 
   await instagram.fill('@Taller.Maun');
   await seccion
