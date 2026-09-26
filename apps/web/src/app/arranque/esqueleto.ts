@@ -190,7 +190,9 @@ function estado(que: string, visible: boolean): Elemento {
     'p',
     {
       role: 'status',
-      class: visible ? 'flex h-[1lh] items-center text-label text-text-2' : 'sr-only',
+      class: visible
+        ? 'flex h-[1lh] items-center text-label text-text-2'
+        : 'sr-only [font-family:system-ui]',
     },
     que,
   );
