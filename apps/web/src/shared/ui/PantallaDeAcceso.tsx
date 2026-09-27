@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
-import { Avatar, Logotipo } from '@maun/ui';
+import { Avatar, Eliseo, Lamina, Logotipo, type PoseDeEliseo } from '@maun/ui';
 
 import { useAnchoDePantalla, useVentanaVisible } from '@/shared/lib';
 
@@ -78,6 +78,8 @@ export interface PantallaDeAccesoProps {
   pie?: ReactNode;
   nota?: ReactNode;
   persona?: PersonaDeLaSesion;
+  pose?: PoseDeEliseo;
+  animarElDibujo?: boolean;
 }
 
 export function PantallaDeAcceso({
@@ -87,6 +89,8 @@ export function PantallaDeAcceso({
   pie,
   nota,
   persona,
+  pose,
+  animarElDibujo = false,
 }: PantallaDeAccesoProps) {
   const ancho = useAnchoDePantalla();
   const ventana = useVentanaVisible();
@@ -136,9 +140,9 @@ export function PantallaDeAcceso({
       }
       className="h-full overflow-y-auto overscroll-contain bg-mesa"
     >
-      <div className="flex min-h-full flex-col lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr_auto]">
+      <div className="grid min-h-full grid-rows-[1fr_auto] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr_auto]">
         <aside
-          className={`relative flex flex-1 flex-col gap-1 overflow-hidden bg-marca px-5 pt-[calc(env(safe-area-inset-top)+18px)] text-sobre-marca md:px-(--page-pad-tablet) lg:row-span-3 lg:grid lg:min-h-0 lg:grid-rows-subgrid lg:gap-0 lg:p-12 ${
+          className={`relative flex flex-col gap-1 overflow-hidden bg-marca px-5 pt-[calc(env(safe-area-inset-top)+18px)] text-sobre-marca md:px-(--page-pad-tablet) lg:row-span-3 lg:grid lg:min-h-0 lg:grid-rows-subgrid lg:gap-0 lg:p-12 ${
             compacto ? 'min-h-0 pb-4' : 'min-h-[calc(env(safe-area-inset-top)+64px)] pb-7'
           }`}
         >
@@ -160,9 +164,28 @@ export function PantallaDeAcceso({
                 </div>
               </div>
             ) : (
-              <p className="mt-auto max-w-[24ch] pt-8 text-lema leading-snug text-pretty lg:row-start-2 lg:mt-0 lg:max-w-[420px] lg:self-center lg:pt-0">
-                {LEMA}
-              </p>
+              <div className="mt-auto flex min-h-0 flex-1 flex-col justify-end pt-4 md:justify-center lg:row-start-2 lg:mt-0 lg:flex-none lg:gap-8 lg:self-center lg:pt-0">
+                {pose !== undefined && (
+                  <div
+                    data-pose={pose}
+                    className="flex max-h-50 min-h-0 flex-1 items-end @container-size md:max-h-74 md:justify-center lg:max-h-none lg:flex-none lg:justify-start lg:@container-normal"
+                  >
+                    <Lamina
+                      deLaMarca
+                      className="h-full w-full md:max-w-[30rem] lg:h-auto [&>svg]:h-full [&>svg]:w-auto lg:[&>svg]:h-auto lg:[&>svg]:max-h-[40dvh] lg:[&>svg]:w-full"
+                    >
+                      <Eliseo pose={pose} animar={animarElDibujo} />
+                    </Lamina>
+                  </div>
+                )}
+                <p
+                  className={`max-w-[24ch] text-lema leading-snug text-pretty lg:max-w-[420px] ${
+                    pose === undefined ? 'pt-4 lg:pt-0' : 'hidden lg:block'
+                  }`}
+                >
+                  {LEMA}
+                </p>
+              </div>
             ))}
           <Canto />
         </aside>
