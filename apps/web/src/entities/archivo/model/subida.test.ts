@@ -4,9 +4,26 @@ import type { ImagenDecodificada } from '@/shared/lib';
 
 import { LOS_VIDEOS_NO_ENTRAN } from './eleccion';
 import type { ImagenPreparada } from './preparacion';
-import { ArchivoRechazado, subirUnArchivo, type DependenciasDeLaSubida } from './subida';
+import {
+  ArchivoRechazado,
+  destinoDelTrabajo,
+  subirUnArchivo,
+  type DependenciasDeLaSubida,
+  type DestinoDeLaSubida,
+} from './subida';
 
-const DESTINO = { householdId: 'h', proyectoId: 'p' };
+const DESTINO = destinoDelTrabajo('h', 'p');
+
+const SOLO_FOTOS: DestinoDeLaSubida = {
+  loQueSeSube: {
+    acepta: 'image/*',
+    conPdf: false,
+    videos: 'Los videos no van.',
+    queSeSube: 'fotos y capturas',
+  },
+  ruta: (id, tipo, miniatura) =>
+    `h/otra-carpeta/${id}${miniatura ? '.mini' : ''}.${tipo === 'image/webp' ? 'webp' : 'jpg'}`,
+};
 
 function dependencias(extra: Partial<DependenciasDeLaSubida> = {}) {
   const subidas: { ruta: string; bytes: number; tipo: string }[] = [];
@@ -55,15 +72,12 @@ describe('subirUnArchivo', () => {
       { ruta: 'h/p/a1.mini.webp', bytes: 20_000, tipo: 'image/webp' },
     ]);
     expect(resultado).toEqual({
-      nuevo: {
-        id: 'a1',
-        proyecto_id: 'p',
-        nombre: 'relevamiento.jpg',
-        tipo: 'image/webp',
-        bytes: 270_000,
-        ancho: 2000,
-        alto: 1500,
-      },
+      id: 'a1',
+      nombre: 'relevamiento.jpg',
+      tipo: 'image/webp',
+      bytes: 270_000,
+      ancho: 2000,
+      alto: 1500,
       original: 3_400_000,
       subido: 270_000,
     });
@@ -75,13 +89,37 @@ describe('subirUnArchivo', () => {
     const resultado = await subirUnArchivo(archivo('despiece.pdf', '', 800_000), DESTINO, base);
 
     expect(subidas).toEqual([{ ruta: 'h/p/a1.pdf', bytes: 800_000, tipo: 'application/pdf' }]);
-    expect(resultado.nuevo).toMatchObject({
+    expect(resultado).toMatchObject({
       tipo: 'application/pdf',
       bytes: 800_000,
       ancho: null,
       alto: null,
     });
     expect(resultado.original).toBe(resultado.subido);
+  });
+
+  it('a un destino de solo fotos, la foto sube a su ruta y un PDF o un video no suben', async () => {
+    const { base, subidas } = dependencias();
+    const resultado = await subirUnArchivo(
+      archivo('mesa.jpg', 'image/jpeg', 900),
+      SOLO_FOTOS,
+      base,
+    );
+    expect(subidas.map((subida) => subida.ruta)).toEqual([
+      'h/otra-carpeta/a1.webp',
+      'h/otra-carpeta/a1.mini.webp',
+    ]);
+    expect(resultado.tipo).toBe('image/webp');
+
+    await expect(
+      subirUnArchivo(archivo('despiece.pdf', 'application/pdf', 10), SOLO_FOTOS, base),
+    ).rejects.toEqual(
+      new ArchivoRechazado('«despiece.pdf» no se puede subir: se pueden subir fotos y capturas.'),
+    );
+    await expect(
+      subirUnArchivo(archivo('visita.mp4', 'video/mp4', 10), SOLO_FOTOS, base),
+    ).rejects.toEqual(new ArchivoRechazado('Los videos no van.'));
+    expect(subidas).toHaveLength(2);
   });
 
   it('un video se rechaza antes de subir nada', async () => {

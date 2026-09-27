@@ -6,6 +6,12 @@
   [0012](0012-acceso-sesion-y-cola-de-salida.md).
 - Corregido por el [0044](0044-la-validacion-tardia-no-reabre-la-sesion.md): la validación que contesta
   después de un cierre ya no manda.
+- Completado el 2026-09-26 por el [0075](0075-la-app-abre-sin-pantalla-en-blanco.md): «Abriendo la app»
+  y «Trayendo los datos del taller» son el estado del esqueleto de arranque, un solo nodo con
+  `role="status"`; el segundo se ve en letra chica, y «Reintentar» y «Cerrar sesión» de los 15 s
+  aparecen adentro del mismo esqueleto. Los topes no cambiaron. Con el token vencido la apertura sigue
+  esperando el refresco: medido, 60 ms en la compu y 130 en el celular emulado; con la señal del taller,
+  hasta estos 10 s. No se cambió.
 
 ## Contexto
 

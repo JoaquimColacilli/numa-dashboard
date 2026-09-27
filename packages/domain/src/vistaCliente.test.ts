@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DIAS_HABILES_DE_ENTREGA, entregaEstimada, sumarDias, sumarDiasHabiles } from './fechas.ts';
 import { centavos, type Money } from './money.ts';
 import type { FormaDeCobro } from './pagos.ts';
+import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 import {
   APROBADO_SIN_LA_SENA,
   APROBASTE_EL_PRESUPUESTO,
@@ -109,6 +110,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     cobro: { alias: null, cbu: null, titular: null, cuit: null, link: null },
     pagos: [],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
     ...cambios,
   };
 }
@@ -1256,6 +1258,38 @@ describe('un trabajo guardado por una versión vieja de la app', () => {
     );
     expect(vista.sena).toEqual({ situacion: 'sin-presupuesto' });
     expect(vista.proyeccion).toEqual({ situacion: 'sin-fecha' });
+  });
+
+  it('sin la vidriera, la página se dibuja con la vidriera vacía', () => {
+    const { vidriera: _vidriera, ...viejo } = trabajo();
+    expect(vistaDelCliente(viejo as unknown as TrabajoDelCliente, HOY).vidriera).toEqual(
+      VIDRIERA_VACIA,
+    );
+  });
+});
+
+describe('la vidriera del taller en la página del cliente', () => {
+  const VIDRIERA: VidrieraDelTaller = {
+    redes: {
+      instagram: 'https://www.instagram.com/taller.maun/',
+      facebook: null,
+      tiktok: 'https://www.tiktok.com/@taller.maun',
+    },
+    fotos: [
+      {
+        id: 'f1',
+        ruta: 'h/vidriera/f1.webp',
+        rutaMini: 'h/vidriera/f1.mini.webp',
+        ancho: 900,
+        alto: 1200,
+      },
+    ],
+  };
+
+  it('llega igual en todas las etapas, antes y después de aprobar', () => {
+    for (const estado of ['contacto', 'presupuesto_enviado', 'en_curso', 'cobrado'] as const) {
+      expect(vistaDelCliente(trabajo({ estado, vidriera: VIDRIERA }), HOY).vidriera).toBe(VIDRIERA);
+    }
   });
 });
 

@@ -2,6 +2,7 @@ import {
   centavos,
   COORDINAMOS_LA_ENTREGA_AL_APROBAR,
   SIGUE_CON_LA_SENA_CUBIERTA,
+  VIDRIERA_VACIA,
   vistaDelCliente,
   type TrabajoDelCliente,
 } from '@maun/domain';
@@ -63,6 +64,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
       { id: 'p2', fecha: '2026-09-16', concepto: 'Adelanto', monto: centavos(40_000_000) },
     ],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
     ...cambios,
   };
 }
@@ -81,6 +83,30 @@ describe('la vista del cliente', () => {
     expect(entrada).toHaveTextContent('$ 1.240.000');
     expect(entrada).toHaveTextContent('$ 800.000');
     expect(entrada).toHaveTextContent('$ 440.000');
+  });
+
+  it('la vidriera del taller va al final del apoyo, justo antes de la nota del final', () => {
+    const { container } = dibujar(
+      trabajo({
+        vidriera: {
+          redes: {
+            instagram: 'https://www.instagram.com/taller.maun/',
+            facebook: null,
+            tiktok: null,
+          },
+          fotos: [],
+        },
+      }),
+    );
+    const vidriera = screen.getByRole('region', { name: 'El taller en las redes' });
+    const nota = container.querySelector('[data-fin-de-la-vista]');
+    expect(vidriera.nextElementSibling).toBe(nota);
+    expect(screen.getByRole('link', { name: '@taller.maun en Instagram' })).toBeInTheDocument();
+  });
+
+  it('sin nada en la vidriera, la página queda como estaba', () => {
+    const { container } = dibujar(trabajo());
+    expect(container.querySelector('[data-vidriera]')).toBeNull();
   });
 
   it('antes de la entrega la cifra grande es la etapa, y el saldo queda en la fila de abajo', () => {

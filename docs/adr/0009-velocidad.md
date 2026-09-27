@@ -2,6 +2,8 @@
 
 Estado: aceptada, 2026-09-11. La región y la base (bootstrap, índices) quedan hechas en la fase 2A; el cache, la sesión y el bundle, en la 2C.
 
+Completado el 2026-09-26 por el [0075](0075-la-app-abre-sin-pantalla-en-blanco.md): mientras la app arranca ya no se ve la mesa vacía sino un esqueleto de la pantalla, que sale del mismo `index.html` antes de que baje el JS; la validación de la sesión arranca con la app y no con la primera guarda; y sin réplica guardada el `bootstrap()` sale apenas se sabe que falta, sin esperar la sesión ni el render. El arranque se mide con `apps/web/scripts/medir-el-arranque.ts`, en frío, tibio y caliente, en la compu y en el celular frenado. `bootstrap()` al volumen del taller real (288 filas vivas) medido con `db:medir`: 37 ms en la base y 24 KB comprimido.
+
 ## Contexto
 
 El primer requisito del cliente: abre la app y ve sus datos, sin esperar ni mirar un spinner. La usa desde el celular en un taller con mala señal, en Buenos Aires. Cada consulta a la base paga el viaje de ida y vuelta, y eso se multiplica por cada consulta que se hace en serie.

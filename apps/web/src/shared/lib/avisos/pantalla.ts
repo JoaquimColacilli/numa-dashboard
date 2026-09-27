@@ -241,6 +241,21 @@ export const TEXTOS_DE_AVISO = {
     enCola: 'Anotado sin señal: se guarda solo cuando vuelva.',
     error: 'No se pudo marcar la respuesta como leída.',
   },
+  fotoDeLaVidriera: {
+    hecho: 'La foto está en tu vidriera.',
+    enCola: 'Foto anotada sin señal: se suma sola a tu vidriera cuando vuelva.',
+    error: 'No se sumó la foto a tu vidriera.',
+  },
+  fotoDeLaVidrieraMovida: {
+    hecho: 'Tu vidriera quedó en el orden nuevo.',
+    enCola: 'Orden anotado sin señal: se guarda solo cuando vuelva.',
+    error: 'No se guardó el orden de tu vidriera.',
+  },
+  fotoDeLaVidrieraSacada: {
+    hecho: 'La foto salió de tu vidriera.',
+    enCola: 'Anotado sin señal: sale de tu vidriera cuando vuelva.',
+    error: 'No se sacó la foto de tu vidriera.',
+  },
 } as const satisfies Record<string, TextosDeAviso>;
 
 export type QueSeGuarda = keyof typeof TEXTOS_DE_AVISO;

@@ -13,6 +13,15 @@ export async function subirAlBucketDeArchivos(ruta: string, contenido: Blob): Pr
   if (error) throw error;
 }
 
+function yaExistia(error: { message: string; statusCode?: string }): boolean {
+  return error.statusCode === '409' || /already exists/i.test(error.message);
+}
+
+export async function copiarEnElBucketDeArchivos(desde: string, hacia: string): Promise<void> {
+  const { error } = await clienteMaun().storage.from(BUCKET_DE_ARCHIVOS).copy(desde, hacia);
+  if (error && !yaExistia(error)) throw error;
+}
+
 export async function quitarDelBucketDeArchivos(rutas: readonly string[]): Promise<void> {
   const { error } = await clienteMaun()
     .storage.from(BUCKET_DE_ARCHIVOS)

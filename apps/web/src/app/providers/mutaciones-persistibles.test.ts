@@ -18,6 +18,7 @@ import * as movimiento from '@/entities/movimiento';
 import * as opinion from '@/entities/opinion';
 import * as proyecto from '@/entities/proyecto';
 import * as sesion from '@/entities/sesion';
+import * as armarLaVidriera from '@/features/armar-la-vidriera';
 import * as configurarTaller from '@/features/configurar-taller';
 import {
   CLAVE_DE_PROYECTO,
@@ -223,6 +224,7 @@ const MODULOS_CON_MUTACIONES = {
   proyecto,
   sesion,
   configurarTaller,
+  armarLaVidriera,
 };
 
 type MutacionExportada = [string, MutationOptions<unknown, unknown, never>];

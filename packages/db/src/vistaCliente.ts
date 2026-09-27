@@ -1,10 +1,13 @@
 import {
   esFranja,
+  esLinkDeLaRed,
   esLinkDeMercadoPago,
   FORMAS_DE_COBRO,
   FORMAS_DE_COORDINAR,
   INSTANCIAS_DE_PAGO,
   RESPUESTAS_DE_ENTREGA,
+  TOPE_DE_LA_VIDRIERA,
+  VIDRIERA_VACIA,
 } from '@maun/domain';
 import type {
   CobroDelTaller,
@@ -15,15 +18,19 @@ import type {
   EstadoProyecto,
   FechasDelTrabajo,
   FormaDeCobro,
+  FotoDeLaVidriera,
   InstanciaDePago,
   Money,
   PagoDelCliente,
   PagoOfrecido,
   PagoPendiente,
   PropuestaDeEntrega,
+  RedDelTaller,
+  RedesDelTaller,
   RespuestaDelCliente,
   FranjaDeEntrega,
   TrabajoDelCliente,
+  VidrieraDelTaller,
   VisitaDelTrabajo,
 } from '@maun/domain';
 
@@ -250,6 +257,48 @@ function entrega(valor: unknown): EntregaQueSeCoordina {
   };
 }
 
+function numero(valor: unknown, que: string): number {
+  const leido = numeroONada(valor, que);
+  if (leido === null) throw new RespuestaInvalidaError(`La vista del cliente no devolvió ${que}.`);
+  return leido;
+}
+
+function linkDeLaRed(red: RedDelTaller, valor: unknown, que: string): string | null {
+  const leido = textoONada(valor, que);
+  return leido !== null && esLinkDeLaRed(red, leido) ? leido : null;
+}
+
+function redes(valor: unknown): RedesDelTaller {
+  if (valor === null || valor === undefined) return VIDRIERA_VACIA.redes;
+  const crudas = objeto(valor, 'las redes del taller');
+  return {
+    instagram: linkDeLaRed('instagram', crudas.instagram, 'el Instagram del taller'),
+    facebook: linkDeLaRed('facebook', crudas.facebook, 'el Facebook del taller'),
+    tiktok: linkDeLaRed('tiktok', crudas.tiktok, 'el TikTok del taller'),
+  };
+}
+
+function fotoDeLaVidriera(valor: unknown): FotoDeLaVidriera {
+  const foto = objeto(valor, 'una foto de la vidriera');
+  return {
+    id: texto(foto.id, 'el id de una foto de la vidriera'),
+    ruta: texto(foto.ruta, 'la ruta de una foto de la vidriera'),
+    rutaMini: texto(foto.ruta_mini, 'la ruta de la miniatura de una foto de la vidriera'),
+    ancho: numero(foto.ancho, 'el ancho de una foto de la vidriera'),
+    alto: numero(foto.alto, 'el alto de una foto de la vidriera'),
+  };
+}
+
+function vidriera(valor: unknown): VidrieraDelTaller {
+  if (valor === null || valor === undefined) return VIDRIERA_VACIA;
+  const cruda = objeto(valor, 'la vidriera del taller');
+  const fotos =
+    cruda.fotos === null || cruda.fotos === undefined
+      ? []
+      : lista(cruda.fotos, 'las fotos de la vidriera').slice(0, TOPE_DE_LA_VIDRIERA);
+  return { redes: redes(cruda.redes), fotos: fotos.map(fotoDeLaVidriera) };
+}
+
 export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
   const cuerpo = objeto(valor, 'el trabajo');
   return {
@@ -267,6 +316,7 @@ export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
     cobro: cobro(cuerpo.cobro),
     pagos: pagos(cuerpo.pagos),
     archivos: archivos(cuerpo.archivos),
+    vidriera: vidriera(cuerpo.vidriera),
   };
 }
 

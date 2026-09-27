@@ -8,6 +8,7 @@ export {
 } from './avisos';
 export {
   BUCKET_DE_ARCHIVOS,
+  copiarEnElBucketDeArchivos,
   quitarDelBucketDeArchivos,
   subirAlBucketDeArchivos,
   urlDelArchivo,
@@ -87,10 +88,13 @@ export {
   marcarElProximoContacto,
   marcarEnLaAgenda,
   marcarTareasDelPresupuesto,
+  moverEnLaVidrieraDelTaller,
   registrarMovimiento,
   renombrarTaller,
   revertirLaLiquidacion,
+  sacarDeLaVidriera,
   sincronizar,
+  sumarALaVidriera,
   type PedidoDeSincronizacion,
 } from './datos';
 export {
@@ -98,6 +102,7 @@ export {
   analisisDeLaReplica,
   aplicarFilaLocal,
   cantidadDe,
+  CLAVE_DE_SESION,
   COLUMNA_DE_LA_FECHA,
   COLUMNA_DE_LA_MARCA,
   COLUMNAS_DE_AJUSTES,
@@ -142,6 +147,7 @@ export {
   visitaHecha,
   type AnotacionNueva,
   type ArchivoNuevo,
+  type FotoDeLaVidrieraNueva,
   type CambiosDeAjustes,
   type CambiosDeAnotacion,
   type CambiosDeCliente,

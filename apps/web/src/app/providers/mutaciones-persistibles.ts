@@ -84,6 +84,14 @@ import {
 } from '@/entities/opinion';
 import { CLAVE_DEL_PERFIL, MUTACION_DEL_PERFIL } from '@/entities/sesion';
 import {
+  CLAVE_DE_BAJA_DE_LA_VIDRIERA,
+  CLAVE_DE_FOTO_DE_LA_VIDRIERA,
+  CLAVE_DE_ORDEN_DE_LA_VIDRIERA,
+  MUTACION_DE_BAJA_DE_LA_VIDRIERA,
+  MUTACION_DE_FOTO_DE_LA_VIDRIERA,
+  MUTACION_DE_ORDEN_DE_LA_VIDRIERA,
+} from '@/features/armar-la-vidriera';
+import {
   CLAVE_DE_AJUSTES,
   CLAVE_DEL_NOMBRE,
   MUTACION_DE_AJUSTES,
@@ -208,6 +216,18 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_LECTURA_DE_ENTREGA, MUTACION_DE_LECTURA_DE_ENTREGA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_FOTO_DE_LA_VIDRIERA, MUTACION_DE_FOTO_DE_LA_VIDRIERA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(
+      CLAVE_DE_ORDEN_DE_LA_VIDRIERA,
+      MUTACION_DE_ORDEN_DE_LA_VIDRIERA,
+    );
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_BAJA_DE_LA_VIDRIERA, MUTACION_DE_BAJA_DE_LA_VIDRIERA);
   },
 ];
 

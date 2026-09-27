@@ -1,5 +1,6 @@
 import {
   centavos,
+  VIDRIERA_VACIA,
   vistaDelCliente,
   type EntregaQueSeCoordina,
   type RespuestaDeEntregaParaMandar,
@@ -64,6 +65,7 @@ function trabajo(entrega: Partial<EntregaQueSeCoordina>): TrabajoDelCliente {
     cobro: { alias: null, cbu: null, titular: null, cuit: null, link: null },
     pagos: [],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
   };
 }
 

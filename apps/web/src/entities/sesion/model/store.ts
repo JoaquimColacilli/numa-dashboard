@@ -36,7 +36,7 @@ function guardar(nuevo: EstadoSesion): void {
   for (const oyente of oyentes) oyente();
 }
 
-function arrancar(): void {
+export function empezarLaSesion(): void {
   if (arrancado) return;
   arrancado = true;
   let llegoUnCierre = false;
@@ -67,7 +67,7 @@ function arrancar(): void {
 }
 
 export function suscribirSesion(oyente: () => void): () => void {
-  arrancar();
+  empezarLaSesion();
   oyentes.add(oyente);
   return () => {
     oyentes.delete(oyente);

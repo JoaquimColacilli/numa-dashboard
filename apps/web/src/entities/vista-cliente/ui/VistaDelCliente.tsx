@@ -43,6 +43,7 @@ import {
 import { CaminoDeHitos } from './CaminoDeHitos';
 import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
+import { VidrieraDelTaller } from './VidrieraDelTaller';
 
 export interface VistaDelClienteProps {
   vista: Vista;
@@ -380,6 +381,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
           <div className="@container flex flex-col gap-3 md:gap-4">
             <ApoyoDeLaVista vista={vista} hoy={hoy} />
 
+            <VidrieraDelTaller vidriera={vista.vidriera} taller={vista.taller} />
+
             <p data-fin-de-la-vista className="px-1 text-label leading-relaxed text-text-3">
               Esta página la arma el taller para vos y se actualiza sola a medida que avanza el
               trabajo. Si algo no coincide, escribile al taller.
@@ -393,6 +396,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             aria-label="Tu mueble"
             dibujo={<TrabajoEnEtapa etapa={etapaDelDibujo(vista)} />}
             lamina="[&>svg]:w-56 @min-[40rem]/con-lamina:[&>svg]:w-72"
+            apilada
           >
             <span className="text-body text-text-2">{vista.cliente}</span>
             <h1 className="font-display text-h1 leading-tight text-pretty lg:text-h1-lg">

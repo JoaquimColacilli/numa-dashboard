@@ -10,6 +10,8 @@ export const ESPACIO_DEL_PLAN_BYTES = 1024 ** 3;
 
 export const ESPACIO_PARA_AVISAR_BYTES = 800 * 1024 ** 2;
 
+export const ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS = 6000;
+
 const EXTENSION: Readonly<Record<TipoDeArchivo, string>> = {
   'image/webp': 'webp',
   'image/jpeg': 'jpg',
@@ -55,6 +57,21 @@ export function rutasEnElBucket(archivo: UbicacionDelArchivo): string[] {
     : [rutaDelArchivo(archivo)];
 }
 
+export interface UbicacionEnLaVidriera {
+  id: string;
+  household_id: string;
+  tipo: string;
+}
+
+export function rutaEnLaVidriera(foto: UbicacionEnLaVidriera, miniatura = false): string {
+  const mini = miniatura ? '.mini' : '';
+  return `${foto.household_id}/vidriera/${foto.id}${mini}.${extensionDe(foto.tipo)}`;
+}
+
+export function rutasEnLaVidriera(foto: UbicacionEnLaVidriera): string[] {
+  return [rutaEnLaVidriera(foto), rutaEnLaVidriera(foto, true)];
+}
+
 function masNuevoPrimero(uno: Archivo, otro: Archivo): number {
   if (uno.created_at !== otro.created_at) return uno.created_at < otro.created_at ? 1 : -1;
   return uno.id < otro.id ? 1 : -1;
@@ -84,7 +101,14 @@ export function loQueVeElCliente(archivos: readonly Archivo[]): LoQueVeElCliente
 }
 
 export function espacioUsado(replica: Replica): number {
-  return filasDe(replica, 'archivos').reduce((suma, archivo) => suma + archivo.bytes, 0);
+  const deLosTrabajos = filasDe(replica, 'archivos').reduce(
+    (suma, archivo) => suma + archivo.bytes,
+    0,
+  );
+  return filasDe(replica, 'fotos_de_la_vidriera').reduce(
+    (suma, foto) => suma + foto.bytes,
+    deLosTrabajos,
+  );
 }
 
 const KB = 1024;

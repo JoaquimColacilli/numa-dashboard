@@ -1,21 +1,18 @@
 import { BotonSalir } from '@/features/cerrar-sesion';
 import { mensajeDeSincronizacion } from '@/shared/api';
-import { Aviso, Button, Cargando, FilaDeAcciones } from '@/shared/ui';
+import { Aviso, Button, FilaDeAcciones } from '@/shared/ui';
 
-export function CargaQueTarda({ que, reintentar }: { que: string; reintentar: () => void }) {
+export function CargaQueTarda({ reintentar }: { reintentar: () => void }) {
   return (
-    <div className="flex flex-col">
-      <Cargando que={que} />
-      <div className="mx-auto flex w-full max-w-content flex-col items-start gap-3 px-(--page-pad-mobile) pb-8 md:px-(--page-pad-tablet)">
-        <p role="status" className="text-body leading-relaxed text-text-2">
-          Está tardando más de lo normal. Sigue intentando solo; si no avanza, reintentá o cerrá
-          sesión.
-        </p>
-        <FilaDeAcciones className="w-full max-w-[520px]">
-          <Button onClick={reintentar}>Reintentar</Button>
-          <BotonSalir size="normal" className="w-full" />
-        </FilaDeAcciones>
-      </div>
+    <div className="flex flex-col items-start gap-3 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
+      <p role="status" className="text-body leading-relaxed text-text-2">
+        Está tardando más de lo normal. Sigue intentando solo; si no avanza, reintentá o cerrá
+        sesión.
+      </p>
+      <FilaDeAcciones className="w-full max-w-[520px]">
+        <Button onClick={reintentar}>Reintentar</Button>
+        <BotonSalir size="normal" className="w-full" />
+      </FilaDeAcciones>
     </div>
   );
 }

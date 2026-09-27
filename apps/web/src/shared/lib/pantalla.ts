@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 export type AnchoDePantalla = 'movil' | 'tablet' | 'escritorio';
 
-const CORTE_DE_CELULAR = 768;
+export const CORTE_DE_CELULAR = 768;
 const TABLET = `(min-width: ${String(CORTE_DE_CELULAR)}px)`;
 const ESCRITORIO = '(min-width: 1280px)';
 

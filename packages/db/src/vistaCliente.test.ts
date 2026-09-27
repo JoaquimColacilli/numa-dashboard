@@ -63,7 +63,33 @@ function respuesta(cambios: Record<string, unknown> = {}): Record<string, unknow
         ruta_mini: 'h/p/a1.mini.webp',
       },
     ],
+    vidriera: {
+      redes: {
+        instagram: 'https://www.instagram.com/taller.maun/',
+        facebook: null,
+        tiktok: 'https://www.tiktok.com/@taller.maun',
+      },
+      fotos: [
+        {
+          id: 'f1',
+          ruta: 'h/vidriera/f1.webp',
+          ruta_mini: 'h/vidriera/f1.mini.webp',
+          ancho: 900,
+          alto: 1200,
+        },
+      ],
+    },
     ...cambios,
+  };
+}
+
+function foto(id: string): Record<string, unknown> {
+  return {
+    id,
+    ruta: `h/vidriera/${id}.webp`,
+    ruta_mini: `h/vidriera/${id}.mini.webp`,
+    ancho: 900,
+    alto: 1200,
   };
 }
 
@@ -124,6 +150,22 @@ describe('leer la vista del cliente', () => {
           rutaMini: 'h/p/a1.mini.webp',
         },
       ],
+      vidriera: {
+        redes: {
+          instagram: 'https://www.instagram.com/taller.maun/',
+          facebook: null,
+          tiktok: 'https://www.tiktok.com/@taller.maun',
+        },
+        fotos: [
+          {
+            id: 'f1',
+            ruta: 'h/vidriera/f1.webp',
+            rutaMini: 'h/vidriera/f1.mini.webp',
+            ancho: 900,
+            alto: 1200,
+          },
+        ],
+      },
     });
   });
 
@@ -298,6 +340,13 @@ describe('leer la vista del cliente', () => {
       respuesta({ pagos: [{ id: 1, fecha: '2026-08-04', concepto: 'x', monto_centavos: 1 }] }),
       respuesta({ archivos: null }),
       respuesta({ archivos: [{ id: 'a1' }] }),
+      respuesta({ vidriera: 'fotos' }),
+      respuesta({ vidriera: { redes: 'instagram', fotos: [] } }),
+      respuesta({ vidriera: { redes: { instagram: 7 }, fotos: [] } }),
+      respuesta({ vidriera: { redes: null, fotos: 'f1' } }),
+      respuesta({ vidriera: { redes: null, fotos: [{ id: 'f1' }] } }),
+      respuesta({ vidriera: { redes: null, fotos: [{ ...foto('f1'), ancho: null }] } }),
+      respuesta({ vidriera: { redes: null, fotos: [{ ...foto('f1'), alto: '1200' }] } }),
     ]) {
       expect(() => leerVistaDelCliente(rota)).toThrow(RespuestaInvalidaError);
     }
@@ -438,5 +487,63 @@ describe('el link de Mercado Pago', () => {
       );
       expect(leido.cobro.link).toBeNull();
     }
+  });
+});
+
+describe('la vidriera del taller', () => {
+  it('una respuesta de antes, sin la vidriera, se lee con la vidriera vacía', () => {
+    const { vidriera: _vidriera, ...vieja } = respuesta();
+    expect(leerVistaDelCliente(vieja).vidriera).toEqual({
+      redes: { instagram: null, facebook: null, tiktok: null },
+      fotos: [],
+    });
+  });
+
+  it('sin redes o sin fotos, lo que falta queda vacío', () => {
+    expect(leerVistaDelCliente(respuesta({ vidriera: { fotos: [] } })).vidriera.redes).toEqual({
+      instagram: null,
+      facebook: null,
+      tiktok: null,
+    });
+    expect(
+      leerVistaDelCliente(respuesta({ vidriera: { redes: null, fotos: null } })).vidriera.fotos,
+    ).toEqual([]);
+  });
+
+  it('cada link se vuelve a leer: uno que no es de su red, o no es un perfil, se descarta', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        vidriera: {
+          redes: {
+            instagram: 'https://www.instagram.com/p/C1a2b3c4d5/',
+            facebook: 'javascript:alert(1)',
+            tiktok: ' https://www.tiktok.com/@taller.maun ',
+          },
+          fotos: [],
+        },
+      }),
+    );
+    expect(leido.vidriera.redes).toEqual({
+      instagram: null,
+      facebook: null,
+      tiktok: 'https://www.tiktok.com/@taller.maun',
+    });
+  });
+
+  it('con un link vacío, esa red no está', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        vidriera: { redes: { instagram: '', facebook: '  ', tiktok: null }, fotos: [] },
+      }),
+    );
+    expect(leido.vidriera.redes).toEqual({ instagram: null, facebook: null, tiktok: null });
+  });
+
+  it('lee las fotos en el orden en que llegan, y no más de doce', () => {
+    const ids = Array.from({ length: 14 }, (_, indice) => `f${String(indice + 1)}`);
+    const leido = leerVistaDelCliente(
+      respuesta({ vidriera: { redes: null, fotos: ids.map(foto) } }),
+    );
+    expect(leido.vidriera.fotos.map((una) => una.id)).toEqual(ids.slice(0, 12));
   });
 });

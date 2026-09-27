@@ -17,6 +17,7 @@ export const TABLAS_REPLICADAS = [
   'movimientos',
   'anotaciones',
   'archivos',
+  'fotos_de_la_vidriera',
   'enlaces_publicos',
   'preguntas',
   'encuestas_enviadas',

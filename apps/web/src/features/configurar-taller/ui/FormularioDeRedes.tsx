@@ -1,0 +1,90 @@
+import { REDES_DEL_TALLER, type RedDelTaller } from '@maun/domain';
+import { useMutation } from '@tanstack/react-query';
+import { useState, type SyntheticEvent } from 'react';
+
+import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
+import { useEstadoSync } from '@/shared/lib';
+import { Button, Campo, CamposJuntos } from '@/shared/ui';
+
+import { MUTACION_DE_AJUSTES } from '../api/mutacion';
+import {
+  cambiosDeLasRedes,
+  comoSeEscriben,
+  NOMBRE_DE_LA_RED,
+  redesDeLosAjustes,
+  type TextosDeLasRedes,
+} from '../model/redes';
+
+const EJEMPLO: Readonly<Record<RedDelTaller, string>> = {
+  instagram: '@tutaller',
+  facebook: 'facebook.com/tutaller',
+  tiktok: '@tutaller',
+};
+
+export const AYUDA_DE_LAS_REDES =
+  'Opcionales. Pegá el enlace de tu perfil, o escribí tu usuario con la @. Lo que dejes vacío no aparece.';
+
+export function FormularioDeRedes({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
+  const [textos, setTextos] = useState<TextosDeLasRedes>(() =>
+    comoSeEscriben(redesDeLosAjustes(ajustes)),
+  );
+  const [errores, setErrores] = useState<Partial<Record<RedDelTaller, string>>>({});
+  const guardar = useMutation(MUTACION_DE_AJUSTES);
+  const estadoSync = useEstadoSync();
+
+  const guardando = guardar.isPending;
+  const guardado =
+    !guardando && !guardar.isError && guardar.isSuccess && estadoSync.tipo === 'sincronizado';
+
+  function enviar(evento: SyntheticEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const { links, cambios, previos, errores: encontrados } = cambiosDeLasRedes(ajustes, textos);
+    setErrores(encontrados);
+    if (Object.keys(encontrados).length > 0) return;
+    setTextos(comoSeEscriben(links));
+    if (Object.keys(cambios).length === 0) return;
+    guardar.mutate({ id: ajustes.id, cambios, previos });
+  }
+
+  return (
+    <form noValidate className="flex flex-col gap-3" onSubmit={enviar}>
+      <p className="text-label leading-relaxed text-text-2">{AYUDA_DE_LAS_REDES}</p>
+      <CamposJuntos columnas={3} campoMinimo="12rem">
+        {REDES_DEL_TALLER.map((red) => (
+          <Campo
+            key={red}
+            etiqueta={NOMBRE_DE_LA_RED[red]}
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder={EJEMPLO[red]}
+            value={textos[red]}
+            error={errores[red]}
+            onChange={(evento) => {
+              const valor = evento.target.value;
+              setTextos((previos) => ({ ...previos, [red]: valor }));
+              setErrores((previos) => ({ ...previos, [red]: undefined }));
+            }}
+          />
+        ))}
+      </CamposJuntos>
+
+      {guardar.isError && (
+        <p role="alert" className="text-label font-medium text-alerta">
+          {mensajeDeSincronizacion(guardar.error)}
+        </p>
+      )}
+      {guardando && estadoSync.tipo === 'sin-conexion' && (
+        <p className="text-label text-atencion">
+          Quedó en la cola: se guarda cuando vuelva la señal.
+        </p>
+      )}
+      {guardado && <p className="text-label text-hogar">Guardado.</p>}
+
+      <Button type="submit" cargando={guardando} className="mt-1 self-start">
+        Guardar las redes
+      </Button>
+    </form>
+  );
+}

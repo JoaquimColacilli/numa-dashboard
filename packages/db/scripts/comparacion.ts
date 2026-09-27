@@ -10,6 +10,7 @@ import {
   estaLiquidado,
   esLinkDeMercadoPago,
   fechaDeApertura,
+  esLinkDeLaRed,
   esLinkDeResena,
   esNombreDeNecesidad,
   formasDeCobro,
@@ -19,7 +20,10 @@ import {
   puedeLiquidar,
   puedeRevertir,
   puntosBasicos,
+  REDES_DEL_TALLER,
+  revisarLaRed,
   saldosPorTesoro,
+  SEGMENTOS_QUE_NO_SON_UN_PERFIL,
   TESOROS,
   topesDeLaLiquidacion,
   validarRespuesta,
@@ -36,6 +40,7 @@ import {
   type LiquidacionRegistrada,
   type PreguntaDeLaEncuesta,
   type Reapertura,
+  type RedDelTaller,
 } from '@maun/domain';
 import type pg from 'pg';
 
@@ -507,6 +512,166 @@ export async function compararLinkDeResena(cliente: pg.Client): Promise<string[]
       ? []
       : [`link de reseña ${JSON.stringify(valor)}: SQL ${String(fila.pasa)}, TS ${String(ts)}`];
   });
+}
+
+const REDES_A_PROBAR: Readonly<
+  Record<RedDelTaller, { links: readonly string[]; escritos: readonly string[] }>
+> = {
+  instagram: {
+    links: [
+      '',
+      'https://www.instagram.com/taller.maun/',
+      'https://www.instagram.com/taller_maun/',
+      'https://www.instagram.com/a/',
+      `https://www.instagram.com/${'a'.repeat(30)}/`,
+      `https://www.instagram.com/${'a'.repeat(31)}/`,
+      'https://www.instagram.com/tv.maun/',
+      'https://www.instagram.com/taller.maun',
+      'https://instagram.com/taller.maun/',
+      'http://www.instagram.com/taller.maun/',
+      'https://www.instagram.com/Taller.Maun/',
+      'https://www.instagram.com/taller-maun/',
+      'https://www.instagram.com/taller maun/',
+      'https://www.instagram.com/ñandú/',
+      'https://www.instagram.com//',
+      'https://www.instagram.com/taller.maun/?igsh=abc',
+      'https://www.instagram.com/taller.maun/\n',
+      'https://www.instagram.com.otro.com/taller/',
+      'https://www.instagram.com/p/abc/',
+      ...SEGMENTOS_QUE_NO_SON_UN_PERFIL.instagram.map(
+        (segmento) => `https://www.instagram.com/${segmento}/`,
+      ),
+    ],
+    escritos: [
+      '@taller.maun',
+      'Taller.Maun',
+      'https://www.instagram.com/Taller.Maun/?igsh=abc',
+      'instagram.com/taller.maun',
+      '  http://instagram.com/taller.maun/reels/  ',
+    ],
+  },
+  facebook: {
+    links: [
+      '',
+      'https://www.facebook.com/tallermaun',
+      'https://www.facebook.com/taller.maun',
+      'https://www.facebook.com/mauns',
+      'https://www.facebook.com/maun',
+      'https://www.facebook.com/12345',
+      `https://www.facebook.com/${'a'.repeat(50)}`,
+      `https://www.facebook.com/${'a'.repeat(51)}`,
+      'https://www.facebook.com/profile.php?id=12345',
+      'https://www.facebook.com/profile.php?id=1234',
+      'https://www.facebook.com/profile.php?id=100012345678',
+      `https://www.facebook.com/profile.php?id=${'1'.repeat(20)}`,
+      `https://www.facebook.com/profile.php?id=${'1'.repeat(21)}`,
+      'https://www.facebook.com/profile.php?id=',
+      'https://www.facebook.com/profile.php?id=12345&sk=about',
+      'https://www.facebook.com/tallermaun/',
+      'https://facebook.com/tallermaun',
+      'https://m.facebook.com/tallermaun',
+      'https://www.facebook.com/TallerMaun',
+      'https://www.facebook.com/taller_maun',
+      'https://www.facebook.com/tallermaun/posts/123',
+      'https://www.facebook.com/tallermaun\n',
+      ...SEGMENTOS_QUE_NO_SON_UN_PERFIL.facebook.map(
+        (segmento) => `https://www.facebook.com/${segmento}`,
+      ),
+    ],
+    escritos: [
+      'TallerMaun',
+      'https://m.facebook.com/TallerMaun/?mibextid=abc',
+      'web.facebook.com/taller.maun',
+      'https://www.facebook.com/profile.php?id=100012345678&sk=about',
+      '100012345678',
+    ],
+  },
+  tiktok: {
+    links: [
+      '',
+      'https://www.tiktok.com/@taller.maun',
+      'https://www.tiktok.com/@taller_maun',
+      'https://www.tiktok.com/@ab',
+      'https://www.tiktok.com/@a',
+      `https://www.tiktok.com/@${'a'.repeat(24)}`,
+      `https://www.tiktok.com/@${'a'.repeat(25)}`,
+      'https://www.tiktok.com/taller.maun',
+      'https://www.tiktok.com/@taller.maun/',
+      'https://tiktok.com/@taller.maun',
+      'https://www.tiktok.com/@Taller.Maun',
+      'https://www.tiktok.com/@taller-maun',
+      'https://www.tiktok.com/@taller.maun/video/7212345678901234567',
+      'https://www.tiktok.com/@taller.maun\n',
+      'https://vm.tiktok.com/ZMabc123/',
+    ],
+    escritos: [
+      '@Taller.Maun',
+      'taller.maun',
+      'https://www.tiktok.com/@Taller.Maun?lang=es',
+      'tiktok.com/@taller_maun',
+    ],
+  },
+};
+
+export async function compararLinksDeLasRedes(cliente: pg.Client): Promise<string[]> {
+  const diferencias: string[] = [];
+  for (const red of REDES_DEL_TALLER) {
+    const columna = `${red}_link`;
+    const restriccion = `ajustes_${columna}_formato`;
+    const { rows: definicion } = await cliente.query<{ def: string }>(
+      `select pg_get_constraintdef(c.oid) as def
+       from pg_constraint c
+       where c.conrelid = 'public.ajustes'::regclass and c.conname = $1`,
+      [restriccion],
+    );
+    const cruda = definicion[0]?.def;
+    if (cruda === undefined) {
+      diferencias.push(`no existe el check ${restriccion} en la base`);
+      continue;
+    }
+
+    const expresion = cruda
+      .replace(/^CHECK\s*\(/, '')
+      .replace(/\)$/, '')
+      .replaceAll(columna, 'c.valor');
+
+    const { links, escritos } = REDES_A_PROBAR[red];
+    const guardados = escritos.map((escrito) => {
+      const revision = revisarLaRed(red, escrito);
+      return revision.estado === 'valido' ? revision.link : '';
+    });
+    const casos = [...links, ...guardados];
+
+    const { rows } = await cliente.query<{ pasa: boolean }>(
+      `select (${expresion}) as pasa
+       from unnest($1::text[]) with ordinality as c (valor, orden)
+       order by c.orden`,
+      [casos],
+    );
+    if (rows.length !== casos.length) {
+      diferencias.push(
+        `el check de ${red} devolvió ${String(rows.length)} filas para ${String(casos.length)} casos`,
+      );
+      continue;
+    }
+
+    rows.forEach((fila, i) => {
+      const valor = casos[i] ?? '';
+      const ts = valor === '' || esLinkDeLaRed(red, valor);
+      if (ts !== fila.pasa) {
+        diferencias.push(
+          `link de ${red} ${JSON.stringify(valor)}: SQL ${String(fila.pasa)}, TS ${String(ts)}`,
+        );
+      }
+      const escrito = escritos[i - links.length];
+      if (escrito !== undefined && (valor === '' || !fila.pasa)) {
+        diferencias.push(
+          `${red}: lo que la app guardaría de ${JSON.stringify(escrito)} (${JSON.stringify(valor)}) no lo acepta la base`,
+        );
+      }
+    });
+  }
+  return diferencias;
 }
 
 const NOMBRES_DE_NECESIDAD_A_PROBAR: readonly string[] = [
@@ -2415,6 +2580,7 @@ export async function compararDominioYSql(cliente: pg.Client): Promise<string[]>
     ...(await compararFormasDeCobro(cliente)),
     ...(await compararLinkDeCobro(cliente)),
     ...(await compararLinkDeResena(cliente)),
+    ...(await compararLinksDeLasRedes(cliente)),
     ...(await compararNombreDeNecesidad(cliente)),
     ...(await compararValidacionDeRespuestas(cliente)),
     ...(await compararValidacionDeRespuestasDeEntrega(cliente)),

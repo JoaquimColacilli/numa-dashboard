@@ -10,7 +10,9 @@ import {
   pesoLegible,
   rutaDeLaMiniatura,
   rutaDelArchivo,
+  rutaEnLaVidriera,
   rutasEnElBucket,
+  rutasEnLaVidriera,
   type Archivo,
 } from './archivos';
 
@@ -83,6 +85,27 @@ describe('los archivos de un trabajo', () => {
       archivo('b', { proyecto_id: 'q', bytes: 700 }),
     ]);
     expect(espacioUsado(replica)).toBe(1000);
+  });
+
+  it('y también las fotos de la vidriera, que ocupan el mismo espacio', () => {
+    const replica = replicaCon([archivo('a', { bytes: 300 })]);
+    const conVidriera = {
+      ...replica,
+      tablas: { ...replica.tablas, fotos_de_la_vidriera: { f1: { id: 'f1', bytes: 450 } } },
+    } as unknown as Replica;
+    expect(espacioUsado(conVidriera)).toBe(750);
+  });
+});
+
+describe('dónde vive una foto de la vidriera en el bucket', () => {
+  it('en la carpeta de la vidriera del taller, con la miniatura al lado, como la arma la base', () => {
+    const foto = { id: 'f1', household_id: 'h', tipo: 'image/webp' };
+    expect(rutaEnLaVidriera(foto)).toBe('h/vidriera/f1.webp');
+    expect(rutaEnLaVidriera(foto, true)).toBe('h/vidriera/f1.mini.webp');
+    expect(rutasEnLaVidriera({ ...foto, tipo: 'image/jpeg' })).toEqual([
+      'h/vidriera/f1.jpg',
+      'h/vidriera/f1.mini.jpg',
+    ]);
   });
 });
 

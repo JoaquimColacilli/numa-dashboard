@@ -1,4 +1,4 @@
-import { centavos, vistaDelCliente, type TrabajoDelCliente } from '@maun/domain';
+import { centavos, VIDRIERA_VACIA, vistaDelCliente, type TrabajoDelCliente } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import { etapaDelDibujo } from './etapa';
@@ -31,6 +31,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     cobro: { alias: null, cbu: null, titular: null, cuit: null, link: null },
     pagos: [],
     archivos: [],
+    vidriera: VIDRIERA_VACIA,
     ...cambios,
   };
 }

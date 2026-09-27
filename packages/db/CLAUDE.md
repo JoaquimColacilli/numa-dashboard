@@ -72,6 +72,15 @@ Tipos generados de Postgres (`src/database.types.ts`), `crearClienteMaun` (la fa
 - Las tres tablas están en la réplica. `src/vistas.ts` tiene `datosDelAnalisis` y `analisisDeLaReplica`, que leen las columnas nuevas tolerando una fila guardada antes de ellas.
 - `concurrencia.test.ts` suma dos: dos «me queda bien» a la vez se esperan en el lock del trabajo, y una propuesta nueva del dueño espera a la respuesta que se está guardando.
 
+## La vidriera del taller (ADR 0076)
+
+- **`fotos_de_la_vidriera`** son las fotos que el cliente ve en su página, hasta doce vivas por taller. Sincronizable, con la receta de siempre, y el alta es un upsert: `insert` y `update` de todo lo que manda, nunca de `household_id`. Se escribe con `guardarFotoDeLaVidriera` (el alta, y la restauración del «Deshacer», que vuelve `deleted_at` a null), `moverFotoDeLaVidriera` (solo el `orden`) y `sacarFotoDeLaVidriera` (la baja).
+- **`archivo_de_origen` apunta con una foreign key compuesta `(household_id, archivo_de_origen)` a `archivos (household_id, id)`**, así una foto no puede decir que salió del archivo de otro taller. Por eso existe la clave única `archivos_household_id_key`.
+- **El tope lo cuida `private.cuidar_el_tope_de_la_vidriera`**, antes del alta y de un cambio de `deleted_at`: bloquea la fila del household (`for no key update`) antes de contar y rechaza la foto número trece viva con `MN022`. `concurrencia.test.ts` prueba que la segunda alta espera a la primera.
+- **La ruta sale de `private.ruta_de_la_vidriera`**, gemela de `rutaEnLaVidriera` de la app: `{household}/vidriera/{id}.webp` y `.mini.webp`, o `.jpg`. Los binarios viven en el bucket `archivos` y los cubren sus políticas de siempre.
+- **Las redes son tres columnas de `ajustes`** (`instagram_link`, `facebook_link` y `tiktok_link`), vacías o en su forma canónica, con un `check` cada una, gemelo de `esLinkDe…` (`compararLinksDeLasRedes`). Están en `COLUMNAS_DE_AJUSTES`.
+- **`vista_del_cliente` manda la clave `vidriera` en todas las etapas**: las redes (null si están vacías) y las fotos vivas, por `orden, created_at, id` y hasta doce, con el filtro explícito por el household del trabajo, porque por el enlace corre elevada. `25_vista_del_cliente.sql` clasifica las tres columnas y las de la tabla como que viajan, y `27_encuesta_publica.sql` las tres columnas como que no. `leerVistaDelCliente` la tolera ausente, relee cada link con `esLinkDeLaRed` y corta en doce.
+
 ## La agenda y los avisos (ADR 0034 y 0036)
 
 - `src/agenda.ts` convierte filas en los datos del dominio: `datosDeLaAgendaDeLaReplica` para la app, `datosDeLaAgenda` para la función de borde. Es la misma función a propósito: lo que muestra la agenda y lo que se avisa no pueden divergir.
@@ -164,7 +173,7 @@ Versión fijada: **2.117.0**. No hay CI que la imponga: mantené la local en esa
 5. `pnpm --filter @maun/db gen:types` y `pnpm --filter @maun/db db:esquema`. Commiteá `src/database.types.ts` y `supabase/esquema.sql`: ninguno de los dos se edita a mano.
 6. `pnpm --filter @maun/db sb db advisors --linked` y `pnpm verify`.
 
-`supabase/esquema.sql` es la vista del estado final del esquema: `public`, `private`, **los triggers sobre `auth.users`**, que no son nuestra tabla pero sostienen el alta de cuentas, y **los buckets y las políticas de `storage.objects`** (las fotos de perfil y los archivos de los trabajos, ADR 0022 y 0039). Un bucket nuevo agrega sus políticas a la lista de `15_fotos_de_perfil.sql`, que exige exactamente las que hay. `tests/esquema.test.ts` lo compara contra la base viva: si falla, o faltó el paso 5 o alguien cambió la base por fuera del repo. Nunca se toca el esquema desde el SQL Editor del dashboard.
+`supabase/esquema.sql` es la vista del estado final del esquema: `public`, `private`, **los triggers sobre `auth.users`**, que no son nuestra tabla pero sostienen el alta de cuentas, y **los buckets y las políticas de `storage.objects`** (las fotos de perfil y los archivos de los trabajos, ADR 0022 y 0039; la vidriera usa el bucket de los archivos, ADR 0076). Un bucket nuevo agrega sus políticas a la lista de `15_fotos_de_perfil.sql`, que exige exactamente las que hay. `tests/esquema.test.ts` lo compara contra la base viva: si falla, o faltó el paso 5 o alguien cambió la base por fuera del repo. Nunca se toca el esquema desde el SQL Editor del dashboard.
 
 ## Tests de Vitest que tocan la base
 
@@ -183,7 +192,8 @@ Versión fijada: **2.117.0**. No hay CI que la imponga: mantené la local en esa
   - dos liquidaciones del mismo household se esperan en la fila de ajustes;
   - una liquidación espera a una edición de los ajustes;
   - dos envíos del mismo enlace de encuesta dejan una sola respuesta, y dar de baja el enlace espera a un envío en curso (ADR 0057);
-  - dos «me queda bien» a la vez se esperan en el lock del trabajo, y una propuesta nueva espera a la respuesta que se está guardando (ADR 0071).
+  - dos «me queda bien» a la vez se esperan en el lock del trabajo, y una propuesta nueva espera a la respuesta que se está guardando (ADR 0071);
+  - dos altas en la vidriera se esperan en el lock del household antes de contar (ADR 0076).
 
   Cada test falla si falta el lock que prueba. Usan proyectos del seed (`5eed…020002` entregado, `5eed…020011` en contacto) como datos commiteados que las sesiones ven. Solo corren contra migraciones ya aplicadas: otra sesión no ve DDL sin commitear.
 

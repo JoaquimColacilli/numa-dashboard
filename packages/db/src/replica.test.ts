@@ -307,6 +307,15 @@ describe('necesitaReconcile', () => {
     expect(necesitaReconcile(guardada, AHORA)).toBe(true);
   });
 
+  it('una réplica guardada antes de la vidriera se lee sin fotos y pide el reconcile que las trae', () => {
+    const vieja = conClientes('t1', [cruda('c1', 1)], 'reconcile', AHORA);
+    const { fotos_de_la_vidriera: _fotos, ...sinVidriera } = vieja.tablas;
+    const guardada = { ...vieja, tablas: sinVidriera } as unknown as Replica;
+
+    expect(filasDe(guardada, 'fotos_de_la_vidriera')).toEqual([]);
+    expect(necesitaReconcile(guardada, AHORA)).toBe(true);
+  });
+
   it('la marca del reconcile es el reloj del cliente, no el cursor del servidor', () => {
     const replica = conClientes('2020-01-01T00:00:00Z', [], 'reconcile', AHORA);
 

@@ -16,6 +16,8 @@ export { FondoDelElegido } from './components/FondoDelElegido.tsx';
 export type { FondoDelElegidoProps } from './components/FondoDelElegido.tsx';
 export { Icono } from './components/Icono.tsx';
 export type { IconoProps, NombreDeIcono } from './components/Icono.tsx';
+export { IconoDeRed } from './components/IconoDeRed.tsx';
+export type { IconoDeRedProps, RedConIcono } from './components/IconoDeRed.tsx';
 export { Interruptor } from './components/Interruptor.tsx';
 export type { InterruptorProps } from './components/Interruptor.tsx';
 export { MoneyInput } from './components/MoneyInput.tsx';

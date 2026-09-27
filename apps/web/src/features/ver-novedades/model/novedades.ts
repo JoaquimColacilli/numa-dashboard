@@ -5,6 +5,15 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-09-26.2',
+    lineas: [
+      'La app abre enseguida con su pantalla, y si tiene que traer los datos del taller te lo dice, en vez de quedar en blanco.',
+      'En la página de tu cliente, el dibujo va arriba y el texto abajo, así se lee entero también en la compu.',
+      'En Ajustes, «Tu vidriera»: elegí fotos de tus trabajos o subí nuevas, y cargá tu Instagram, Facebook y TikTok.',
+      'Tus clientes las ven en su página, y desde ahí pueden compartir tus redes.',
+    ],
+  },
+  {
     version: '2026-09-26',
     lineas: [
       'La app ahora se llama NUMA y estrena logo, ícono y dirección.',

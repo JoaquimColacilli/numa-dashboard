@@ -1,7 +1,6 @@
 export * from '@maun/ui';
 export { Aviso } from './Aviso';
 export { BloquePlegable, type BloquePlegableProps } from './BloquePlegable';
-export { Cargando } from './Cargando';
 export { DatoCopiable, type DatoCopiableProps } from './DatoCopiable';
 export {
   ComparacionMensual,

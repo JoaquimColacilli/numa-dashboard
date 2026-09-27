@@ -7,8 +7,9 @@ import { EntrarConOtraCuenta } from '@/features/cerrar-sesion';
 import { BloqueoAlVolver, PantallaDeBloqueo } from '@/features/desbloquear-la-app';
 import { householdDe, tieneAcceso } from '@/shared/api';
 import { esCelular, useAppBloqueada, useVueltaPorUnAviso, vigilarElBloqueo } from '@/shared/lib';
-import { Cargando } from '@/shared/ui';
 
+import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
+import { ABRIENDO_LA_APP, TRAYENDO_LOS_DATOS } from '../arranque/esqueleto';
 import { CargaQueTarda, ErrorDeCarga } from '../layout/ErrorDeCarga';
 import { ProveedorDeLaPuerta } from '../navegacion/ProveedorDeLaPuerta';
 
@@ -30,7 +31,7 @@ function useTardaMasDe(milisegundos: number): boolean {
 export function RutaPublica() {
   const sesion = useSesion();
 
-  if (sesion.tipo === 'cargando') return <Cargando que="Abriendo la app" />;
+  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={ABRIENDO_LA_APP} />;
   if (sesion.tipo === 'activa') return <Navigate to="/" replace />;
   return <Outlet />;
 }
@@ -57,7 +58,7 @@ function ConBloqueo({ usuarioId }: { usuarioId: string }) {
 export function RutaConSesion() {
   const sesion = useSesion();
 
-  if (sesion.tipo === 'cargando') return <Cargando que="Abriendo la app" />;
+  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={ABRIENDO_LA_APP} />;
   if (sesion.tipo === 'anonimo') return <Navigate to="/acceso" replace />;
 
   return (
@@ -108,6 +109,9 @@ export function RutaConAcceso() {
     return <ErrorDeCarga error={replica.error} reintentar={reintentar} />;
   }
 
-  if (tarda) return <CargaQueTarda que="Trayendo los datos del taller" reintentar={reintentar} />;
-  return <Cargando que="Trayendo los datos del taller" />;
+  return (
+    <EsqueletoDeArranque que={TRAYENDO_LOS_DATOS} visible forma="marco">
+      {tarda && <CargaQueTarda reintentar={reintentar} />}
+    </EsqueletoDeArranque>
+  );
 }

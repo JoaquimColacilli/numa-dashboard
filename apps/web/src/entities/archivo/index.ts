@@ -13,16 +13,36 @@ export {
   archivosDelProyecto,
   ESPACIO_DEL_PLAN_BYTES,
   ESPACIO_PARA_AVISAR_BYTES,
+  ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS,
   esImagen,
   espacioUsado,
   loQueVeElCliente,
   pesoLegible,
   rutaDeLaMiniatura,
   rutaDelArchivo,
+  rutaEnLaVidriera,
   rutasEnElBucket,
+  rutasEnLaVidriera,
   TIPOS_DE_ARCHIVO,
   type Archivo,
   type LoQueVeElCliente,
   type TipoDeArchivo,
   type UbicacionDelArchivo,
+  type UbicacionEnLaVidriera,
 } from './model/archivos';
+export {
+  LO_QUE_SE_SUBE_A_UN_TRABAJO,
+  LOS_VIDEOS_NO_ENTRAN,
+  SIN_SENAL_PARA_ARCHIVOS,
+  TIPOS_QUE_SE_ELIGEN,
+  type LoQueSeSube,
+} from './model/eleccion';
+export { prepararImagen, type ImagenPreparada } from './model/preparacion';
+export {
+  ArchivoRechazado,
+  destinoDelTrabajo,
+  subirUnArchivo,
+  type ArchivoSubido,
+  type DependenciasDeLaSubida,
+  type DestinoDeLaSubida,
+} from './model/subida';

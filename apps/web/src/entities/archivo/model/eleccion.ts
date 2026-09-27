@@ -1,4 +1,4 @@
-import { pesoLegible } from '@/entities/archivo';
+import { pesoLegible } from './archivos';
 
 export const TIPOS_QUE_SE_ELIGEN = 'image/*,application/pdf,video/*';
 
@@ -25,17 +25,39 @@ export interface ArchivoElegido {
 export type EleccionDelArchivo =
   { clase: 'imagen' } | { clase: 'pdf' } | { clase: 'rechazado'; motivo: string };
 
+export interface LoQueSeSube {
+  acepta: string;
+  conPdf: boolean;
+  videos: string;
+  queSeSube: string;
+}
+
+export const LO_QUE_SE_SUBE_A_UN_TRABAJO: LoQueSeSube = {
+  acepta: TIPOS_QUE_SE_ELIGEN,
+  conPdf: true,
+  videos: LOS_VIDEOS_NO_ENTRAN,
+  queSeSube: 'fotos, capturas y PDF',
+};
+
 const EXTENSIONES_DE_VIDEO = /\.(mp4|mov|m4v|avi|mkv|3gp|webm|wmv)$/i;
 const EXTENSIONES_DE_IMAGEN = /\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i;
 
-export function eleccionDelArchivo(archivo: ArchivoElegido): EleccionDelArchivo {
+export function eleccionDelArchivo(
+  archivo: ArchivoElegido,
+  loQueSeSube: LoQueSeSube = LO_QUE_SE_SUBE_A_UN_TRABAJO,
+): EleccionDelArchivo {
   const tipo = archivo.type.toLowerCase();
   const nombre = archivo.name.trim();
+  const noEntra: EleccionDelArchivo = {
+    clase: 'rechazado',
+    motivo: `«${nombre}» no se puede subir: se pueden subir ${loQueSeSube.queSeSube}.`,
+  };
 
   if (tipo.startsWith('video/') || EXTENSIONES_DE_VIDEO.test(nombre)) {
-    return { clase: 'rechazado', motivo: LOS_VIDEOS_NO_ENTRAN };
+    return { clase: 'rechazado', motivo: loQueSeSube.videos };
   }
   if (tipo === 'application/pdf' || /\.pdf$/i.test(nombre)) {
+    if (!loQueSeSube.conPdf) return noEntra;
     if (archivo.size > TOPE_DE_UN_PDF_BYTES) {
       return {
         clase: 'rechazado',
@@ -45,10 +67,7 @@ export function eleccionDelArchivo(archivo: ArchivoElegido): EleccionDelArchivo 
     return { clase: 'pdf' };
   }
   if (tipo.startsWith('image/') || EXTENSIONES_DE_IMAGEN.test(nombre)) return { clase: 'imagen' };
-  return {
-    clase: 'rechazado',
-    motivo: `«${nombre}» no se puede subir: se pueden subir fotos, capturas y PDF.`,
-  };
+  return noEntra;
 }
 
 export interface Medidas {
