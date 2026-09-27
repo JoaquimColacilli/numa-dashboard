@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { PantallaDeAcceso } from '@/shared/ui';
 
 import HTML from '../../../index.html?raw';
 import CONFIGURACION from '../../../vite.config.ts?raw';
@@ -98,6 +100,47 @@ describe('lo que se lee y lo que no', () => {
 
     expect(esqueleto()).toContainElement(screen.getByRole('button', { name: 'Reintentar' }));
     expect(screen.getByRole('button', { name: 'Reintentar' }).closest('[aria-hidden]')).toBeNull();
+  });
+});
+
+describe('el dibujo del panel del acceso', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('la forma del acceso reserva el hueco y la placa con las clases de la pantalla, vacía y sin data-lamina', () => {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({
+      matches: false,
+      media: consulta,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const pantalla = render(
+      <PantallaDeAcceso titulo="Entrá al taller" pose="trabajando">
+        <p>Formulario</p>
+      </PantallaDeAcceso>,
+    );
+    const hueco = pantalla.container.querySelector('[data-pose]');
+    const lamina = pantalla.container.querySelector('[data-lamina]');
+    const envoltorio = hueco?.parentElement;
+    const clasesDe = (nodo: Element | null | undefined) => [...(nodo?.classList ?? [])];
+    const esperado = {
+      envoltorio: clasesDe(envoltorio),
+      hueco: clasesDe(hueco),
+      lamina: clasesDe(lamina),
+    };
+    pantalla.unmount();
+
+    render(<EsqueletoDeArranque que={ABRIENDO_LA_APP} forma="acceso" />);
+    const acceso = esqueleto().querySelector('[data-forma="acceso"]');
+    const placa = acceso?.querySelector('.lamina-de-la-marca');
+
+    expect(placa).not.toBeNull();
+    expect(placa).not.toHaveAttribute('data-lamina');
+    expect(acceso?.querySelector('svg')).toBeNull();
+    expect(clasesDe(placa?.parentElement)).toEqual(esperado.hueco);
+    expect(clasesDe(placa?.parentElement?.parentElement)).toEqual(esperado.envoltorio);
+    expect(esperado.lamina).toEqual(expect.arrayContaining(clasesDe(placa)));
   });
 });
 
