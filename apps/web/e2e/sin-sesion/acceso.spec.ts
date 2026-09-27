@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+function huecoDelDibujo(page: Page) {
+  return page.locator('[data-pantalla-de-acceso] aside [data-pose]');
+}
 
 function usuarioSinConfirmar(email: string): Record<string, unknown> {
   const ahora = new Date().toISOString();
@@ -62,6 +66,51 @@ test('la primera vez, el canto de los tesoros se corta', async ({ page }) => {
     .toBe(true);
 });
 
+test('el panel lleva el dibujo del taller en su lámina, con la pose de entrar', async ({
+  page,
+}) => {
+  await page.goto('/acceso');
+  const hueco = huecoDelDibujo(page);
+
+  await expect(hueco).toHaveAttribute('data-pose', 'trabajando');
+  await expect(hueco.locator('.lamina-de-la-marca')).toBeVisible();
+  await expect(hueco.locator('.lamina-de-la-marca svg.ilustracion')).toHaveCount(1);
+  await expect(page.locator('[data-lamina]')).toHaveCount(1);
+});
+
+test.describe('en un celular bajo', () => {
+  test.skip(({ isMobile }) => !isMobile, 'el hueco del dibujo es del panel del celular');
+
+  test('si el hueco no llega a 120 px la lámina no se ve, y el dibujo nunca empuja el formulario', async ({
+    page,
+  }) => {
+    const apoyadoAbajo = () =>
+      page.evaluate(() => {
+        const pantalla = document.querySelector('[data-pantalla-de-acceso]');
+        const formulario = pantalla?.querySelector('main');
+        if (!pantalla || !formulario) return false;
+        const alto = window.visualViewport?.height ?? window.innerHeight;
+        return (
+          pantalla.scrollHeight <= pantalla.clientHeight &&
+          Math.abs(formulario.getBoundingClientRect().bottom - alto) < 1
+        );
+      });
+
+    await page.setViewportSize({ width: 360, height: 700 });
+    await page.goto('/acceso');
+    const hueco = huecoDelDibujo(page);
+    const lamina = hueco.locator('.lamina-de-la-marca');
+    await expect(lamina).toBeVisible();
+    await expect.poll(apoyadoAbajo).toBe(true);
+
+    await page.setViewportSize({ width: 360, height: 640 });
+    await expect(hueco).toHaveAttribute('data-pose', 'trabajando');
+    await expect.poll(async () => (await hueco.boundingBox())?.height ?? 0).toBeLessThan(120);
+    await expect(lamina).toBeHidden();
+    await expect.poll(apoyadoAbajo).toBe(true);
+  });
+});
+
 test('el formulario avisa lo que falta antes de salir a la red', async ({ page }) => {
   await page.goto('/acceso');
 
@@ -102,6 +151,8 @@ test('al crear la cuenta queda escrito a dónde fue el mail, y se puede cambiar'
     }),
   );
   await page.goto('/acceso/crear-cuenta');
+  const hueco = huecoDelDibujo(page);
+  await expect(hueco).toHaveAttribute('data-pose', 'midiendo');
 
   await page.getByLabel('Email').fill('nuevo@taller.com.ar');
   await page.getByLabel('Contraseña', { exact: true }).fill('clave-segura');
@@ -110,8 +161,11 @@ test('al crear la cuenta queda escrito a dónde fue el mail, y se puede cambiar'
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Revisá tu correo');
   await expect(page.getByText('nuevo@taller.com.ar')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Reenviar en \d:\d\d$/ })).toBeDisabled();
+  await expect(hueco).toHaveAttribute('data-pose', 'saludando');
+  await expect(page.locator('.trazar')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Cambiar' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creá tu cuenta');
   await expect(page.getByLabel('Email')).toHaveValue('nuevo@taller.com.ar');
+  await expect(hueco).toHaveAttribute('data-pose', 'midiendo');
 });

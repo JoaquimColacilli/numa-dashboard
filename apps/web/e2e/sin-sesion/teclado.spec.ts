@@ -19,18 +19,21 @@ test.describe('con el teclado del celular abierto', () => {
   test.skip(({ isMobile }) => !isMobile, 'el teclado en pantalla es del celular');
 
   for (const formulario of FORMULARIOS) {
-    test(`${formulario.ruta}: el campo enfocado y el botón de enviar quedan a la vista`, async ({
+    test(`${formulario.ruta}: el campo enfocado y el botón de enviar quedan a la vista, sin el dibujo del panel`, async ({
       page,
     }) => {
       await page.goto(formulario.ruta);
       const enviar = page.getByRole('button', { name: formulario.enviar, exact: true });
+      const laminas = page.locator('[data-lamina]').filter({ visible: true });
 
       for (const campo of formulario.campos) {
         await page.setViewportSize({ width: 390, height: ALTO_SIN_TECLADO });
+        await expect(laminas).toHaveCount(1);
         const entrada = page.getByLabel(campo, { exact: true });
         await entrada.focus();
         await page.setViewportSize({ width: 390, height: ALTO_CON_TECLADO });
 
+        await expect(laminas).toHaveCount(0);
         await expect.poll(() => aLaVista(page, entrada)).toBe(true);
         await expect.poll(() => aLaVista(page, enviar)).toBe(true);
       }
