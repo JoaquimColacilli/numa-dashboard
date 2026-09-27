@@ -30,6 +30,12 @@
   --color-elevado: #ffffff;
   --color-marca: #141414;
   --color-sobre-marca: #ffffff;
+
+  /* La barba del dibujo de Eliseo, un gris medio que no se vuelve blanco en oscuro, y la placa de
+     la lámina que va sobre el panel de la marca, apenas más clara que él (ADR 0077). */
+  --color-pelo: #8a8782;
+  --color-lamina-de-la-marca: #1f1f1f;
+
   --color-atencion: #9a6700;
   --color-atencion-tint: #fff8e6;
   --color-alerta: #b3261e;
@@ -213,6 +219,9 @@
   --velo: rgba(20, 20, 20, 0.35);
   --velo-suave: rgba(20, 20, 20, 0.2);
   --punto-de-la-lamina: rgba(20, 20, 20, 0.14);
+  --punto-de-la-lamina-de-la-marca: rgba(255, 255, 255, 0.13);
+  --costado-de-la-marca: #333333;
+  --pelo-de-la-marca: #4a4a4a;
 
   --sombra-float: 0 8px 24px rgba(20, 20, 20, 0.1), 0 1px 2px rgba(20, 20, 20, 0.05);
   --sombra-fab: 0 8px 18px rgba(20, 20, 20, 0.28);
@@ -578,6 +587,8 @@
     --color-elevado: #303030;
     --color-marca: #1c1c1c;
     --color-sobre-marca: #ededed;
+    --color-pelo: #4d4d4d;
+    --color-lamina-de-la-marca: #262626;
     --color-atencion: #e2b54f;
     --color-atencion-tint: #2b2310;
     --color-alerta: #f28b82;
@@ -604,6 +615,9 @@
     --velo: rgba(0, 0, 0, 0.6);
     --velo-suave: rgba(0, 0, 0, 0.4);
     --punto-de-la-lamina: rgba(237, 237, 237, 0.11);
+    --punto-de-la-lamina-de-la-marca: rgba(237, 237, 237, 0.11);
+    --costado-de-la-marca: #3a3a3a;
+    --pelo-de-la-marca: #505050;
 
     --tesoro-hogar: #6fc2a9;
     --tesoro-hogar-tint: #1b2e29;
@@ -793,6 +807,7 @@
     --il-tinta: var(--color-ink);
     --il-cara: var(--color-paper);
     --il-costado: var(--color-surface-2);
+    --il-pelo: var(--color-pelo);
     --il-renglon: var(--color-border);
     --il-letra: var(--color-text-2);
 
@@ -854,6 +869,12 @@
 
   .ilustracion .tinta {
     fill: var(--il-tinta);
+  }
+
+  /* La barba de Eliseo, el único relleno que suma su dibujo: un gris medio que en claro se lee
+     oscuro y en oscuro no se vuelve blanco, que es lo que le pasaría a una barba de tinta. */
+  .ilustracion .pelo {
+    fill: var(--il-pelo);
   }
 
   .ilustracion .hogar {
@@ -925,6 +946,33 @@
     height: auto;
     max-width: 100%;
     max-height: 100%;
+  }
+
+  /* El panel de la marca es oscuro en los dos temas: la lámina que va ahí es una placa apenas más
+     clara que el panel, con su grilla, y el dibujo cambia de tinta adentro de ella. En oscuro,
+     --color-sobre-marca es la misma tinta que --color-ink, que es lo que mide rediseno.spec. */
+  .lamina-de-la-marca {
+    background-color: var(--color-lamina-de-la-marca);
+    background-image:
+      radial-gradient(circle, var(--punto-de-la-lamina-de-la-marca) 0.9px, transparent 1.3px),
+      radial-gradient(circle, var(--punto-de-la-lamina-de-la-marca) 0.9px, transparent 1.3px);
+  }
+
+  .lamina-de-la-marca > .ilustracion {
+    --il-tinta: var(--color-sobre-marca);
+    --il-cara: var(--color-lamina-de-la-marca);
+    --il-costado: var(--costado-de-la-marca);
+    --il-pelo: var(--pelo-de-la-marca);
+  }
+
+  /* Esconde la placa cuando el hueco del celular no le deja 120 px. Solo actúa adentro de un
+     contenedor de tamaño: el hueco lo es por debajo de lg y deja de serlo desde lg. La lámina no
+     lleva utilidades de display, que le ganarían. Chromium la evalúa mal si el hueco está en un
+     flex en columna cuyo alto sale de un min-height; con la grilla de filas 1fr auto anda. */
+  @container (height < 7.5rem) {
+    .lamina-de-la-marca {
+      display: none;
+    }
   }
 }
 
