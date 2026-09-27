@@ -364,12 +364,22 @@ function canto(): Elemento {
   );
 }
 
-function lema(): Elemento {
+function dibujoDeLaMarca(): Elemento {
   return caja(
-    'mt-auto flex max-w-[26ch] flex-col pt-8 lg:row-start-2 lg:mt-0 lg:max-w-[420px] lg:self-center lg:pt-0',
-    renglonGrande('text-lema leading-snug', 'w-[96%]', 'bg-sobre-marca/25'),
-    renglonGrande('text-lema leading-snug', 'w-[90%]', 'bg-sobre-marca/25'),
-    renglonGrande('text-lema leading-snug', 'w-[62%]', 'bg-sobre-marca/25'),
+    'mt-auto flex min-h-0 flex-1 flex-col justify-end pt-4 md:justify-center lg:row-start-2 lg:mt-0 lg:flex-none lg:gap-8 lg:self-center lg:pt-0',
+    caja(
+      'flex max-h-50 min-h-0 flex-1 items-end @container-size md:max-h-74 md:justify-center lg:max-h-none lg:flex-none lg:justify-start lg:@container-normal',
+      caja(
+        'lamina lamina-de-la-marca h-full w-full md:max-w-[30rem] lg:h-auto',
+        raya('hidden aspect-[4/3] w-full lg:block lg:max-h-[40dvh]'),
+      ),
+    ),
+    caja(
+      'hidden max-w-[24ch] flex-col lg:flex lg:max-w-[420px]',
+      renglonGrande('text-lema leading-snug', 'w-[96%]', 'bg-sobre-marca/25'),
+      renglonGrande('text-lema leading-snug', 'w-[90%]', 'bg-sobre-marca/25'),
+      renglonGrande('text-lema leading-snug', 'w-[62%]', 'bg-sobre-marca/25'),
+    ),
   );
 }
 
@@ -385,9 +395,9 @@ function persona(): Elemento {
   );
 }
 
-function boton(ancho: string): Elemento {
+function boton(ancho: string, lugar = ''): Elemento {
   return caja(
-    'flex min-h-12 items-center justify-center gap-2 rounded-pill bg-ink',
+    `flex min-h-12 items-center justify-center gap-2 rounded-pill bg-ink ${lugar}`.trim(),
     raya(`h-[9px] rounded-pill bg-paper/45 ${ancho}`),
   );
 }
@@ -403,9 +413,19 @@ function campo(ancho: string): Elemento {
 function formularioDeAcceso(): Nodo[] {
   return [
     renglonGrande('font-display text-h1 leading-tight lg:text-h1-lg', 'w-56', TITULO),
-    caja('flex flex-col gap-4', campo('w-12'), campo('w-20'), boton('w-14')),
-    renglon('text-label', 'w-44', TENUE),
+    caja('flex flex-col gap-4', campo('w-12'), campo('w-20'), boton('w-14', 'mt-1')),
+    caja(
+      '-mt-2 flex min-h-tap items-center text-label',
+      raya(`h-[0.7em] w-44 rounded-pill ${TENUE}`),
+    ),
   ];
+}
+
+function notaDelAcceso(): Elemento {
+  return caja(
+    'mt-5 flex w-full max-w-[400px] flex-col md:mx-auto lg:row-start-3 lg:mx-0 lg:mt-0 lg:self-end',
+    renglon('text-meta leading-relaxed', 'w-72', TENUE),
+  );
 }
 
 function formularioDelBloqueo(): Nodo[] {
@@ -433,6 +453,7 @@ function pantallaDeAcceso(
   cuandoSeVe: string,
   abajo: Elemento,
   cuerpo: Nodo[],
+  ...despues: Elemento[]
 ): Elemento {
   return elemento(
     'div',
@@ -442,9 +463,9 @@ function pantallaDeAcceso(
       class: `fixed inset-0 z-40 hidden bg-mesa ${cuandoSeVe}`,
     },
     caja(
-      'flex h-full min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr_auto]',
+      'grid h-full min-h-0 grid-rows-[1fr_auto] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr_auto]',
       caja(
-        'relative flex min-h-[calc(env(safe-area-inset-top)+64px)] flex-1 flex-col gap-1 overflow-hidden bg-marca px-5 pt-[calc(env(safe-area-inset-top)+18px)] pb-7 md:px-(--page-pad-tablet) lg:row-span-3 lg:grid lg:min-h-0 lg:grid-rows-subgrid lg:gap-0 lg:p-12',
+        'relative flex min-h-[calc(env(safe-area-inset-top)+64px)] flex-col gap-1 overflow-hidden bg-marca px-5 pt-[calc(env(safe-area-inset-top)+18px)] pb-7 md:px-(--page-pad-tablet) lg:row-span-3 lg:grid lg:min-h-0 lg:grid-rows-subgrid lg:gap-0 lg:p-12',
         caja(
           'flex h-[30px] items-start lg:row-start-1',
           raya('mt-0.5 h-[23px] w-[85px] rounded-[5px] bg-sobre-marca/25'),
@@ -459,6 +480,7 @@ function pantallaDeAcceso(
           'flex w-full max-w-[400px] flex-col gap-6 md:mx-auto lg:row-start-2 lg:mx-0 lg:self-center',
           ...cuerpo,
         ),
+        ...despues,
       ),
     ),
   );
@@ -474,7 +496,13 @@ export function esqueletoDeArranque({ que, visible }: OpcionesDelEsqueleto): Ele
     'div',
     { 'data-esqueleto-de-arranque': '', class: 'relative flex min-h-0 flex-1' },
     marco(que, visible),
-    pantallaDeAcceso('acceso', '[[data-arranque=acceso]_&]:block', lema(), formularioDeAcceso()),
+    pantallaDeAcceso(
+      'acceso',
+      '[[data-arranque=acceso]_&]:block',
+      dibujoDeLaMarca(),
+      formularioDeAcceso(),
+      notaDelAcceso(),
+    ),
     pantallaDeAcceso(
       'bloqueo',
       '[[data-arranque=bloqueo]_&]:block',

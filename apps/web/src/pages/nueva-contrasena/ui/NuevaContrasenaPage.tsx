@@ -17,6 +17,8 @@ export function NuevaContrasenaPage() {
     return (
       <PantallaDeAcceso
         titulo="Listo, ya entraste"
+        pose="pulgar"
+        animarElDibujo
         bajada="Guardamos la contraseña nueva. Si entrás desde otro dispositivo, usá esta."
       >
         <Button
@@ -34,7 +36,11 @@ export function NuevaContrasenaPage() {
 
   if (sesion.tipo === 'cargando') {
     return (
-      <PantallaDeAcceso titulo="Un segundo" bajada="Estamos validando el enlace del correo.">
+      <PantallaDeAcceso
+        titulo="Un segundo"
+        pose="pensando"
+        bajada="Estamos validando el enlace del correo."
+      >
         <p role="status" aria-busy="true" className="text-body text-text-2">
           Verificando el enlace…
         </p>
@@ -47,6 +53,7 @@ export function NuevaContrasenaPage() {
     return (
       <PantallaDeAcceso
         titulo={sinConexion ? 'Sin señal' : 'Este enlace no sirve'}
+        pose="pensando"
         bajada={
           sinConexion
             ? 'El enlace se valida contra el servidor y ahora no hay señal.'
@@ -72,6 +79,7 @@ export function NuevaContrasenaPage() {
     return (
       <PantallaDeAcceso
         titulo="Esta pantalla se abre desde el correo"
+        pose="pensando"
         bajada="Para cambiar la contraseña hay que pedir el enlace y abrirlo desde el mail."
         pie={
           <Ir a="/" className={ENLACE_DE_ACCESO}>
@@ -89,6 +97,7 @@ export function NuevaContrasenaPage() {
   return (
     <PantallaDeAcceso
       titulo="Poné una contraseña nueva"
+      pose="pensando"
       bajada={
         <>
           Es para <strong className="font-medium text-ink">{sesion.email}</strong>.

@@ -5,6 +5,13 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-09-26.3',
+    lineas: [
+      'Las pantallas de entrar con tu mail y de recuperar la contraseña ahora tienen un dibujo tuyo en el taller: atornillando un mueble, midiendo una tabla, pensando o saludando.',
+      'Cuando cambiás la contraseña desde el mail, el dibujo levanta el pulgar.',
+    ],
+  },
+  {
     version: '2026-09-26.2',
     lineas: [
       'La app abre enseguida con su pantalla, y si tiene que traer los datos del taller te lo dice, en vez de quedar en blanco.',

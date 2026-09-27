@@ -212,6 +212,6 @@ export const EXCEPCIONES: readonly Excepcion[] = [
   {
     selector: '[data-pantalla-de-acceso] aside',
     motivo:
-      'La marca de las pantallas de sesión: tres textos fijos sin controles, no un reparto de contenido. El orden en que se leen no cambia el sentido y el teclado no pasa por ahí.',
+      'La marca de las pantallas de sesión: textos fijos y, si la pantalla lo lleva, un dibujo `aria-hidden`, sin controles, no un reparto de contenido. El orden en que se leen no cambia el sentido y el teclado no pasa por ahí.',
   },
 ];

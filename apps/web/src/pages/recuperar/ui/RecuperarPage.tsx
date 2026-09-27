@@ -12,6 +12,7 @@ export function RecuperarPage() {
     return (
       <PantallaDeAcceso
         titulo="Revisá tu correo"
+        pose="saludando"
         bajada="El enlace te lleva a poner una contraseña nueva."
         nota="El servidor de mails manda pocos por hora. Si pediste varios seguidos, esperá un rato antes de volver a intentar."
       >
@@ -28,6 +29,7 @@ export function RecuperarPage() {
   return (
     <PantallaDeAcceso
       titulo="Recuperá el acceso"
+      pose="pensando"
       bajada="Te mandamos un enlace para poner una contraseña nueva."
       pie={
         <p>

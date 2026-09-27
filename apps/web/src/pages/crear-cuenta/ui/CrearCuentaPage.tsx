@@ -12,6 +12,7 @@ export function CrearCuentaPage() {
     return (
       <PantallaDeAcceso
         titulo="Revisá tu correo"
+        pose="saludando"
         bajada="Falta un paso: confirmar que el mail es tuyo."
         nota="El servidor de mails manda pocos por hora. Si pediste varios seguidos, esperá un rato antes de volver a intentar."
       >
@@ -28,6 +29,7 @@ export function CrearCuentaPage() {
   return (
     <PantallaDeAcceso
       titulo="Creá tu cuenta"
+      pose="midiendo"
       bajada="Confirmás el mail y tu taller se crea solo, vacío y listo para cargar."
       nota="Una vez adentro, la app anda aunque no haya señal."
       pie={

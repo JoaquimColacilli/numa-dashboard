@@ -21,6 +21,7 @@ export function AccesoPage() {
   return (
     <PantallaDeAcceso
       titulo="Entrá al taller"
+      pose="trabajando"
       nota="Una vez adentro, la app anda aunque no haya señal."
       pie={
         <p>

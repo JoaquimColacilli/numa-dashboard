@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { Eliseo, POSES_DE_ELISEO } from './Eliseo.tsx';
 import { Ilustracion, NOMBRES_DE_ILUSTRACION } from './Ilustracion.tsx';
 import { TILDE } from './mano.ts';
 import { ETAPAS_DEL_TRABAJO, TrabajoEnEtapa } from './TrabajoEnEtapa.tsx';
@@ -20,6 +21,7 @@ const GRAMATICA = new Set([
   'maun',
   'diezmo',
   'cocos',
+  'pelo',
   'renglon',
   'rotulo',
   'cota',
@@ -128,5 +130,70 @@ describe('TrabajoEnEtapa', () => {
 
     const presupuesto = render(<TrabajoEnEtapa etapa="presupuesto" />);
     expect(presupuesto.container.querySelector('.trazos')).toBeNull();
+  });
+});
+
+describe('Eliseo', () => {
+  it.each(POSES_DE_ELISEO)(
+    '«%s» es una escena de 160 × 120 que no se lee, hecha solo con la gramática',
+    (pose) => {
+      const { container } = render(<Eliseo pose={pose} />);
+      const dibujos = container.querySelectorAll('svg');
+
+      expect(dibujos).toHaveLength(1);
+      const [dibujo] = dibujos;
+      expect(dibujo).toHaveAttribute('aria-hidden', 'true');
+      expect(dibujo).toHaveAttribute('focusable', 'false');
+      expect(dibujo).toHaveAttribute('width', '160');
+      expect(dibujo).toHaveAttribute('height', '120');
+      expect(dibujo).toHaveClass('ilustracion');
+      expect(container.querySelector('text, title')).toBeNull();
+      expect(container.innerHTML).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+      expect(container.innerHTML).not.toMatch(/\b(fill|stroke)="/);
+      for (const clase of clasesUsadas(container)) expect(GRAMATICA).toContain(clase);
+    },
+  );
+
+  it('cada pose tiene su dibujo, con el mismo encuadre', () => {
+    const dibujos = POSES_DE_ELISEO.map((pose) => {
+      const { container, unmount } = render(<Eliseo pose={pose} />);
+      const dibujo = container.innerHTML;
+      const encuadre = container.querySelector('svg')?.getAttribute('viewBox');
+      unmount();
+      return { dibujo, encuadre };
+    });
+
+    expect(new Set(dibujos.map(({ dibujo }) => dibujo)).size).toBe(POSES_DE_ELISEO.length);
+    expect(new Set(dibujos.map(({ encuadre }) => encuadre)).size).toBe(1);
+  });
+
+  it('la barba es la única mancha de pelo, en todas las poses', () => {
+    for (const pose of POSES_DE_ELISEO) {
+      const { container, unmount } = render(<Eliseo pose={pose} />);
+
+      expect(container.querySelectorAll('.pelo')).toHaveLength(1);
+      unmount();
+    }
+  });
+
+  it('solo la tilde del pulgar se traza, y solo si se pide', () => {
+    for (const pose of POSES_DE_ELISEO) {
+      const { container, unmount } = render(<Eliseo pose={pose} animar />);
+      const trazadas = container.querySelectorAll('.trazar');
+
+      if (pose === 'pulgar') {
+        expect(trazadas).toHaveLength(1);
+        expect(trazadas[0]).toHaveAttribute('d', TILDE);
+        expect(trazadas[0]).toHaveAttribute('pathLength', '1');
+        expect(trazadas[0]).toHaveClass('mano');
+      } else {
+        expect(trazadas).toHaveLength(0);
+      }
+      unmount();
+    }
+
+    const quieta = render(<Eliseo pose="pulgar" />);
+    expect(quieta.container.querySelector('.trazar')).toBeNull();
+    expect(quieta.container.querySelectorAll(`path[d="${TILDE}"]`)).toHaveLength(1);
   });
 });

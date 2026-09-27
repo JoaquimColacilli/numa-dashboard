@@ -50,6 +50,8 @@ export type {
 } from './ilustracion/TableroCortado.tsx';
 export { TrabajoEnEtapa } from './ilustracion/TrabajoEnEtapa.tsx';
 export type { EtapaDelTrabajo, TrabajoEnEtapaProps } from './ilustracion/TrabajoEnEtapa.tsx';
+export { Eliseo, POSES_DE_ELISEO } from './ilustracion/Eliseo.tsx';
+export type { EliseoProps, PoseDeEliseo } from './ilustracion/Eliseo.tsx';
 export { Isotipo, Logotipo } from './marca/Marca.tsx';
 export type { MarcaProps } from './marca/Marca.tsx';
 export { NOMBRE_DE_LA_APP } from './marca/trazos.ts';
