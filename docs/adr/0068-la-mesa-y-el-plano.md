@@ -27,6 +27,10 @@
 - Enmendado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md): `TarjetaConLamina` suma
   `apilada`, y «Tu mueble» la usa: el dibujo arriba y el texto abajo en todos los anchos (§5). Resuelve
   la objeción de «Tu mueble» apretada en la compu.
+- Enmendado el 2026-09-26 por el
+  [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md): las pantallas de sesión llevan
+  el dibujo de Eliseo en una lámina de la marca, sobre el panel oscuro y afuera de una tarjeta (la
+  regla que manda, §9, §11, §15 y cómo se suma una pose).
 
 ## Contexto
 
@@ -103,6 +107,12 @@ de puntos de la isométrica, adentro de una tarjeta y pegada a su título. Ning�
 sumo una lámina por pantalla, con `aria-hidden` y su texto al lado. El color entra por el canto: los
 tesoros pintan el canto de las piezas del tablero y el de sus propias tarjetas, y nada más cambia de
 color. Todo sale de los tokens.
+
+**Enmendado el 2026-09-26 por el [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)**:
+el panel de la marca de las pantallas de sesión es la excepción a «adentro de una tarjeta y pegada a
+su título». Ahí la lámina va sobre el panel, que ya es su marco, en la fila del lema, y su texto es el
+`h1` del formulario de al lado. Sigue siendo una sola por pantalla y `aria-hidden`, y es una lámina
+propia, `deLaMarca`, porque la común desaparece o encandila sobre el panel oscuro.
 
 ### 1. El corte vuelve a moverse
 
@@ -329,8 +339,13 @@ también se corta. Los que lo usaban sacan su tarjeta de alrededor.
 ### 9. Las escenas
 
 Llevan lámina solo las pantallas enteras vacías y los avisos que ocupan la pantalla, más la portada, el
-despiece, «Tu mueble» y Gracias. Las escenas son estáticas: el paso 09 del arnés de las transiciones cae
-en Historial vacío, y el vacío tiene que estar pintado desde el primer cuadro.
+despiece, «Tu mueble», Gracias y las pantallas de sesión menos el bloqueo. Las escenas son estáticas:
+el paso 09 del arnés de las transiciones cae en Historial vacío, y el vacío tiene que estar pintado
+desde el primer cuadro.
+
+**Enmendado el 2026-09-26 por el [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)**:
+se suman las pantallas de sesión, con el dibujo de Eliseo en el panel de la marca (las cinco filas
+de `Eliseo` al final de la tabla). El bloqueo no lleva dibujo: lleva la foto de la persona.
 
 | Dónde                            | Escena                            | Qué dibuja                                                                | Por qué                                                                 |
 | -------------------------------- | --------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -349,6 +364,11 @@ en Historial vacío, y el vacío tiene que estar pintado desde el primer cuadro.
 | «Tu mueble»                      | `TrabajoEnEtapa`                  | lo que está sobre la mesa en cada etapa, sin mueble (ADR 0069)            | el cliente ve en qué anda su trabajo, sea cual sea el mueble            |
 | Portada de Inicio                | `TableroCortado`, `TableroEntero` | el corte del mes, el tablero sin cortar o el tablero con las herramientas | es el gráfico mismo: qué parte de lo cobrado fue a cada tesoro          |
 | Despiece de la ficha             | `TableroCortado`                  | el tablero de un trabajo, de trazos o cortado                             | es el gráfico mismo, para un solo trabajo                               |
+| Entrá al taller                  | `Eliseo`, `trabajando`            | Eliseo atornilla la tapa de un mueble con el taladro, mirando el trabajo  | entrás a su taller y está trabajando; es la que más se ve: tranquila    |
+| Creá tu cuenta                   | `Eliseo`, `midiendo`              | mide una tabla sobre el mueble con la cinta y la marca de la mano         | medir es el primer paso de un mueble a medida, como la cuenta en la app |
+| Recuperá el acceso y el enlace   | `Eliseo`, `pensando`              | el puño bajo la barba y el mueble de trazos al lado                       | neutra: sirve igual para el error del enlace y para «Un segundo»        |
+| Revisá tu correo                 | `Eliseo`, `saludando`             | saluda, con la posición anterior de la mano en trazos                     | un «hasta ahora» mientras vas al correo: un registro, no un festejo     |
+| Listo, ya entraste               | `Eliseo`, `pulgar`                | el mueble terminado y el pulgar arriba, con la tilde que se traza una vez | el final del recorrido y el único festejo                               |
 
 No llevan dibujo: los vacíos de una búsqueda o de un filtro (Finanzas con un filtro puesto es la caja
 punteada con «Nada con esos filtros»), un vacío adentro de una sección que tiene otras cosas (los pagos
@@ -383,6 +403,11 @@ menú del «+», la tilde y el tachado, «Copiado»). **Los avisos son la excepc
 se van con un fundido aunque los dispare la cola o el reloj, y uno que nace durante una transición de
 pantalla entra quieto. El barrido de menos movimiento suma `animation-iteration-count: 1`, y los tres
 loops que no tenían guarda van con `motion-safe:`.
+
+**Enmendado el 2026-09-26 por el [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)**:
+a lo que se traza una vez al aparecer se suma la tilde de `pulgar`, en «Listo, ya entraste», con el
+mismo `maun-trazo` que la firma de Gracias. Es lo único que se mueve en esa pantalla: el canto ya se
+cortó en esa carga. Las otras poses no se mueven.
 
 ### 12. La accesibilidad
 
@@ -443,6 +468,12 @@ Medido con `pnpm --filter @maun/web build` en `main` (`a289e82`) y en esta rama,
   [ADR 0073](0073-la-app-se-llama-numa.md), el logotipo de NUMA de 23 px en ese mismo renglón), y su relleno de costado queda en 20 px
   aunque `--page-pad-mobile` bajó a 16. El `h1` de estas pantallas sube a 30 con el resto:
   `teclado.spec.ts` y `bloqueo.spec.ts` pasan a 390 × 460, así que queda así.
+  - **Enmendado el 2026-09-26 por el
+    [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md).** El panel de la marca
+    lleva el dibujo de Eliseo en su lámina (`Lamina` con `deLaMarca`), en la fila del lema: por debajo
+    de `lg` en su lugar, en un hueco de hasta 200 px (296 en la tablet) que se esconde si no llega a
+    120, y desde `lg` arriba del lema. Con el teclado abierto no se monta, y el bloqueo sigue con la
+    foto.
 - Las hojas no cambian de estructura: toman los radios nuevos, 28 la que sube desde abajo y 24 la del
   centro, sin borde ni relleno nuevo.
 
@@ -477,6 +508,13 @@ Medido con `pnpm --filter @maun/web build` en `main` (`a289e82`) y en esta rama,
   en `apps/web/e2e/reparto/rediseno.spec.ts` si tiene clave en `PANTALLAS`, o a `PANTALLAS` primero.
 - **Un aviso que ocupa la pantalla**: una `TarjetaConLamina` con `TITULO_DE_LAMINA` en su `h1`, el
   dibujo afuera del alerta.
+- **Una pose de Eliseo** (enmendado el 2026-09-26 por el
+  [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)): se dibuja en
+  `packages/ui/src/ilustracion/Eliseo.tsx` con sus piezas (`Cuerpo`, `BrazoEntero`, `Hombro`,
+  `Antebrazo`, `Mano` y los objetos del sistema), adentro de `Escenario`, que usa el mismo `ENCUADRE`
+  para todas: los pies en el mismo lugar, el mismo tamaño y el mueble a su derecha. La cara sale de
+  `Cabeza` con uno de sus cuatro gestos, y `Cabeza` no se toca. Se suma a `ESCENAS`, con su caso en
+  `Ilustracion.test.tsx` si hace algo que las otras no, y a la tabla de la sección 9.
 
 ## Consecuencias
 

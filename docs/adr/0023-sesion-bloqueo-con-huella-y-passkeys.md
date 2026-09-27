@@ -10,6 +10,12 @@
   Verificado ese día con la API de administración: prendidas, con el RP ID y el origen nuevos y el
   nombre «NUMA». El bloqueo con huella desbloquea con una credencial del dominio de la página, así que
   en la dirección nueva se activa de nuevo.
+- Enmendado el 2026-09-26 por el
+  [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md): el panel de la marca de entrar,
+  crear la cuenta, recuperar el acceso y la contraseña nueva lleva el dibujo de Eliseo, en el lugar del
+  lema en el celular y la tablet, y arriba de él en la compu. «Revisá tu correo» saluda sin trazar
+  nada, así sigue siendo un registro y no un festejo; «Listo, ya entraste» traza la tilde del pulgar
+  una vez. El bloqueo sigue con la foto.
 
 ## Contexto
 

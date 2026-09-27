@@ -80,3 +80,4 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0074](0074-lo-que-responde-al-tocar.md)                                    | Lo que responde al tocar: se hunde, se desliza, se abre y se tacha  | Aceptada             |
 | [0075](0075-la-app-abre-sin-pantalla-en-blanco.md)                          | La app abre sin pantalla en blanco                                  | Aceptada             |
 | [0076](0076-la-vidriera-del-taller.md)                                      | La vidriera del taller, y «Tu mueble» apilada                       | Aceptada             |
+| [0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)              | El dibujo de Eliseo en las pantallas de sesión                      | Aceptada             |
