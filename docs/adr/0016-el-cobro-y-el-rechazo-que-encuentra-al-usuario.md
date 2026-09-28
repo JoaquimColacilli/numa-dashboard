@@ -164,10 +164,12 @@ que es la definición de ajustada.
 
 **Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** Un cobro por la fila
 manda lo del mes como un mapa, `p_previo` (`{tesoro_id: centavos}`, lo que la app vio para cada paso),
-junto con la revisión de la fila y los repartos. La regla es la misma: si coincide con lo que suma la
-base, todo es estricto; si difiere, la base verifica la cuenta de la app con lo que vio (`MN008` si no
-da) y congela la suya. La fila congelada trae `dist_previo`, y comparándolo con lo mandado el aviso
-nombra el tesoro: «Gastos fijos: esperabas … y quedó en …». El reenvío de un cobro por la fila,
+junto con la revisión de la fila y los repartos. Con los tipos de tesoro, lo visto de un paso sale del
+mes o del saldo de su tesoro, según cómo se llena, y el mapa suma el tope de cada parte que va hasta la
+meta. La regla es la misma: si coincide con lo que calcula la base, todo es estricto; si difiere, la
+base verifica la cuenta de la app con lo que vio (`MN008` si no da) y congela la suya. La fila
+congelada trae `dist_previo`, y comparándolo con lo mandado el aviso nombra el tesoro: «Gastos fijos:
+esperabas … y quedó en …». El reenvío de un cobro por la fila,
 ajustado o no, se reconoce por la revisión, las entradas y los ids de los repartos, antes de elegir el
 camino. Los dos parámetros de este ADR siguen para el camino de antes.
 

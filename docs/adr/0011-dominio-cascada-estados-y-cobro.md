@@ -6,7 +6,7 @@ Estado: aceptada, 2026-09-11. Actualizada el mismo día con los topes mensuales,
 
 **Corregida el 2026-09-25 por el [ADR 0072](0072-el-sueldo-se-topea-por-mes.md)**: el tope de sueldo pasa a ser por mes, como los fijos, en todos los talleres menos el seed. «El tope de sueldo se queda por proyecto» queda como historia de por qué no se hizo antes. «Pasar el sueldo a tope mensual» es lo que se hizo, y su costo sin conexión ya lo había resuelto el [ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md).
 
-- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cascada pasa a ser un caso de la fila. Cada cobro baja por la fila del taller (el diezmo, los pasos con su tope por mes y el reparto por porcentajes), y la fila de siempre da lo mismo que la cascada. `fila.ts` y sus cinco gemelas de SQL se suman a lo que no puede divergir. Ver la nota en «Lo que impide que las dos implementaciones diverjan».
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cascada pasa a ser un caso de la fila. Cada cobro baja por la fila del taller (las obligaciones, con el diezmo entre ellas; los compromisos y los ahorros fijos, cada uno según cómo se llena; los ahorros por porcentaje, y lo que sobra al superávit), y la fila de siempre da lo mismo que la cascada. `fila.ts` y sus siete gemelas de SQL se suman a lo que no puede divergir. Ver las notas en «El diezmo tendría que ser configurable» y en «Lo que impide que las dos implementaciones diverjan».
 
 ## Contexto
 
@@ -259,6 +259,8 @@ Lo que implicaría, para cuando se haga:
 - **El libro mayor y los tesoros tampoco.** El asiento de diezmo sale del importe congelado, no de la tasa. Con tasa en cero no hay asiento, que es exactamente lo que hoy pasa con un perdido sin diezmo.
 - **Lo que sí hay que decidir es la pantalla.** El tesoro DIEZMO y `Diezmo.dc.html` están dibujados asumiendo que existe: con la tasa en cero hay que elegir entre esconderlo o mostrarlo vacío.
 
+**Resuelto el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md), de otra forma.** El diezmo se configura en la fila del taller y no en una columna de `ajustes`: es una obligación, con su porcentaje (10% si no se toca), sobre qué se calcula (el ingreso, si no se toca) y su lugar entre las obligaciones. La cascada, `DIEZMO` y `c_diezmo_bp` siguen para el camino de antes, el de una app sin actualizar. Por la fila, el porcentaje sale de la fila, `dist_diezmo_bp` guarda el de cada liquidación, como proponía esta sección, y el asiento sale del importe congelado. «Diezmo cero» no se puede guardar: una obligación va de 0,01% a 100%, y el diezmo no sale de la fila (`sin-diezmo`). Solo un perdido sin `perdido_con_diezmo` lo deja en cero, como antes.
+
 ## Lo que impide que las dos implementaciones diverjan
 
 - **Antes de aplicar.** `pnpm --filter @maun/db db:ensayo` aplica las migraciones pendientes en una transacción, corre pgTAP y además `scripts/comparacion.ts`, que cubre:
@@ -286,9 +288,18 @@ Lo que implicaría, para cuando se haga:
 **Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** La cascada, los topes y `calcularLiquidacion` siguen, con sus gemelas, y son lo que usa una app sin actualizar. Lo nuevo es la fila:
 
 - **`packages/domain/src/fila.ts` y sus cinco gemelas** (`private.entero_de_json`, `private.repartir_por_la_fila`, `private.fila_de_siempre`, `private.problema_de_la_fila` y `private.plan_del_reparto`) son otro par que no puede divergir. `compararFila` las ata en `scripts/comparacion.ts` con casos con semilla y los vectores de redondeo, y `ESCENARIOS_DE_LIQUIDACION` suma liquidaciones por la fila paso a paso. `filaDeSiempre` da lo mismo que `calcularDistribucion` con `topesDeLaLiquidacion`, y lo prueba `fila.test.ts` en 4.000 casos.
-- **El redondeo del reparto es otro.** El diezmo sigue redondeando mitad hacia arriba. Cada parte del reparto por porcentajes se redondea hacia abajo al centavo, y el resto con esos centavos queda en Maun: así la parte de un tesoro no depende de las demás.
+- **El redondeo del reparto es otro.** El diezmo sigue redondeando mitad hacia arriba. Cada parte del reparto por porcentajes se redondea hacia abajo al centavo, y el resto con esos centavos va al superávit (Maun, si no se eligió otro): así la parte de un tesoro no depende de las demás.
 - **Lo que el mes ya lleva se sigue sumando bajo el lock**, sin guardarlo (sección (a)), y cada camino suma lo del otro. Por la fila, cada paso suma `dist_sueldo` (Hogar) y `dist_fijos` (Maun) de las liquidaciones de antes, las filas vivas de `repartos` de su tesoro y las transferencias que cubren el mes. Por el camino de antes, el que usa una app sin actualizar, el sueldo suma además los repartos de los pasos de sueldo, y los fijos los de los pasos de gastos fijos de Maun: si no, una app vieja que cobra después de una nueva en el mismo mes paga el sueldo dos veces.
 - **Los locks suman dos esperas**: una cobertura del mes y `guardar_la_fila` toman `ajustes` como una liquidación. `concurrencia.test.ts` prueba que una cobertura espera a la liquidación en curso y que una liquidación espera a `guardar_la_fila`.
+
+**Y con los tipos de tesoro, del mismo ADR y el mismo día**, la fila suma las obligaciones, cómo se llena cada paso y las metas de los ahorros, en el dominio y en sus gemelas a la vez:
+
+- **Las gemelas son siete.** `private.repartir_por_la_fila`, `private.plan_del_reparto` y `private.fila_de_siempre` cambiaron de firma (drop y create); `private.problema_de_la_fila` suma los problemas de las obligaciones, los modos, las metas, los días de pago y el superávit; y se suman `private.previo_del_mes`, gemela de `previoDelMes`, y `private.lo_del_mes_es_otro(uuid[], uuid[], jsonb, jsonb)`, gemela de `loVistoEsOtro`. Todas leen una fila guardada antes completando lo que le falta, como `leerLaFila`. `compararFila` las ata con casos con semilla (21.295 en la corrida de escala 2 que se hizo antes de empujar), con la cuenta entera de un cobro y con los vectores fijos de los tipos, y `ESCENARIOS_DE_LIQUIDACION` suma liquidaciones con obligaciones, modos, metas, el superávit aparte y perdidos.
+- **Las obligaciones redondean como el diezmo**, mitad hacia arriba, sobre lo cobrado o sobre lo que les llega, y nunca apartan más que lo que llega. El diezmo es la primera obligación con el tesoro del diezmo: va a `dist_diezmo_*`, y en un perdido `perdido_con_diezmo` lo pone en cero. Las demás obligaciones se aplican igual.
+- **Lo que un paso ya tiene depende de cómo se llena**: por mes, lo del mes, la suma de siempre; si se renueva al pagar o se repone al usarlo, el saldo de su tesoro en `libro_mayor`, nunca menos de cero; por trabajo, cero. Los saldos se leen, como lo del mes, después del lock de `ajustes`, y no se guardan: la foto es `dist_previo`. `repartir` no cambió para los pasos: ese previo es el único número que entra.
+- **La meta**: un ahorro fijo que va hasta la meta nunca arranca con menos que su monto menos lo que le falta para la meta; una parte, con un tope igual a lo que le falta. Sin meta mayor que cero, junta sin fin.
+- **El lock de `ajustes` lo toma también todo movimiento**, y antes su proyecto, si lo tiene: cambia saldos que la liquidación mira. `concurrencia.test.ts` suma los dos casos.
+- **`packages/domain`** sigue con 100% de cobertura (830 tests), y la fila de siempre sigue dando lo mismo que la cascada en los 4.000 casos.
 
 ## Alternativas descartadas
 

@@ -4,18 +4,25 @@
 - Fecha: 2026-09-28
 - Enmienda al [0003](0003-distribucion-congelada.md) (los repartos, `dist_fila` y la foto de la
   reapertura son parte de lo congelado, y el libro lleva la cuenta por id de tesoro), al
-  [0010](0010-sincronizacion-replica-completa.md) (`MN023` a `MN025`, las dos tablas en la réplica y
-  dos esperas más en los locks), al [0011](0011-dominio-cascada-estados-y-cobro.md) (la cascada es la
-  fila de siempre, las cinco gemelas nuevas y lo que suma el mes en cada camino), al
+  [0010](0010-sincronizacion-replica-completa.md) (`MN023` a `MN025`, las dos tablas en la réplica, los
+  tipos nuevos de `repartos` y las esperas nuevas en los locks), al
+  [0011](0011-dominio-cascada-estados-y-cobro.md) (la cascada es la fila de siempre, las siete gemelas
+  con las obligaciones, los modos y las metas, y lo que suma el mes en cada camino), al
   [0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md) (el pedido con la fila y el ajuste por
   `dist_previo`), al [0018](0018-finanzas-el-diezmo-y-los-movimientos-a-mano.md) (la novena clase,
-  «Entre tesoros»), al [0062](0062-el-reparto-en-la-compu.md) (`/tesoros` es la única pantalla del
-  marco sin `Pagina` en la tablet y en la compu), al [0068](0068-la-mesa-y-el-plano.md) (la cuadrícula
-  del plano, las cuatro tintas y la lámina de la primera vez) y al
-  [0072](0072-el-sueldo-se-topea-por-mes.md) (una fila guardada cuenta el sueldo por mes).
+  «Entre tesoros», y la décima, «Gasto de un tesoro»), al
+  [0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md) (el vencimiento de un compromiso, una
+  tercera clase de evento que sale de la fila), al
+  [0036](0036-avisos-por-dispositivo-fuera-de-la-replica.md) (el aviso de los vencimientos), al
+  [0062](0062-el-reparto-en-la-compu.md) (`/tesoros` es la única pantalla del marco sin `Pagina` en la
+  tablet y en la compu), al [0068](0068-la-mesa-y-el-plano.md) (la cuadrícula del plano, las cuatro
+  tintas y la lámina de la primera vez) y al [0072](0072-el-sueldo-se-topea-por-mes.md) (una fila
+  guardada cuenta el sueldo por mes).
 - Sigue al [0074](0074-lo-que-responde-al-tocar.md) (el lienzo no anima nada y los botones usan
   `apretable`) y al [0075](0075-la-app-abre-sin-pantalla-en-blanco.md) (el esqueleto sigue con cuatro
   tarjetas).
+- Suma, el mismo día, «Los tipos de tesoro de Eliseo»: la fila se ordena por los tipos de tesoro que
+  él dibujó en un tablero de Miro.
 
 ## Contexto
 
@@ -47,6 +54,10 @@ el sueldo a Hogar con su tope, los costos fijos con el suyo y el remanente en Ma
 Todo lo que sigue sale de cambiar eso sin tocar un dato que exista: hay una sola base, es producción, y
 tiene los cobros de Eliseo.
 
+Mientras se armaba, Eliseo mostró cómo lo pensó él: la misma fila, ordenada por tipos de tesoro, con
+cosas que no habían entrado. Está en «Los tipos de tesoro de Eliseo», y las secciones de la decisión
+ya lo cuentan.
+
 ## Lo investigado
 
 Las fuentes se leyeron el 2026-09-27. Las citas van en el idioma de la página.
@@ -58,7 +69,8 @@ Las fuentes se leyeron el 2026-09-27. Las citas van en el idioma de la página.
   pidió Eliseo: prioridades («Lower priority values get run first»), un tope que por defecto es del mes
   («the limit … is based per month») y un «resto» que corre al final repartido por pesos. Dos
   diferencias nuestras, a propósito: Actual reparte el centavo que sobra entre las categorías, y acá ese
-  centavo queda en Maun; y en Actual el orden es el de la base y no el de la vista («based on the
+  centavo queda en el superávit (Maun, si no se eligió otro); y en Actual el orden es el de la base y
+  no el de la vista («based on the
   database order, not the view order»), y acá el orden de la fila es el que se ve.
 - _Monzo, Salary Sorter y Bills Pots_
   ([blog](https://monzo.com/blog/2019/09/26/introducing-salary-sorter-and-bills-pots)): cada ingreso se
@@ -67,7 +79,8 @@ Las fuentes se leyeron el 2026-09-27. Las citas van en el idioma de la página.
   un lugar fijo, Eliseo elige de dónde, como pidió en su tercera respuesta.
 - _Goodbudget, llenar desde el ingreso_
   ([ayuda](https://goodbudget.com/help/budgeting-with-goodbudget/fill-from-income/)): un sobre que se
-  queda con «extras or deficits». Es el papel de Maun: el resto y la pérdida.
+  queda con «extras or deficits». Es el papel del superávit con el resto, y el de Maun con la pérdida,
+  que queda en la caja del taller.
 - _YNAB, cubrir el faltante_
   ([novedad](https://www.ynab.com/whats-new/use-future-funds-to-cover-overspending)): el usuario elige de
   qué categorías sale la plata para cubrir, y el monto se propone hasta lo que falta o hasta lo que tiene
@@ -193,39 +206,46 @@ Las fuentes se leyeron el 2026-09-27. Las citas van en el idioma de la página.
   ([Wikipedia](https://en.wikipedia.org/wiki/Largest_remainders_method)): repartir los centavos que
   sobran a los restos más grandes hace que la parte de uno dependa de las demás, con paradojas conocidas
   (la de Alabama, la de un estado nuevo que le saca una banca a otro que no cambió). Acá cada parte se
-  redondea hacia abajo por su cuenta y el centavo queda en Maun: agregar un tesoro al reparto no le cambia
-  el centavo a los demás.
+  redondea hacia abajo por su cuenta y el centavo queda en el superávit: agregar un tesoro al reparto no
+  le cambia el centavo a los demás.
 
 ## Decisión
 
 ### 1. Las reglas de la fila
 
-- **Cada cobro baja por la fila.** Entra la ganancia del trabajo (lo cobrado menos los gastos, como
-  siempre: nunca el presupuesto). Sale primero el diezmo, 10% fijo. Después cada paso recibe hasta lo que
-  le falta de su tope del mes, en el orden que puso Eliseo. Lo que sobra se reparte por porcentaje entre
-  los tesoros del reparto, cada parte redondeada hacia abajo al centavo. El resto, con los centavos de
-  ese redondeo, queda en Maun.
+- **Cada cobro baja por la fila.** Entra el ingreso del trabajo (lo cobrado menos los gastos, como
+  siempre: nunca el presupuesto). Salen primero las obligaciones, en su orden: el diezmo, 10% sobre el
+  ingreso si no se cambia, y las que sume el dueño, como Ingresos Brutos. Después cada compromiso y
+  cada ahorro fijo recibe hasta lo que le falta según cómo se llena, en el orden que puso Eliseo. Lo
+  que sobra se reparte por porcentaje entre los ahorros del reparto, cada parte redondeada hacia abajo
+  al centavo. El resto, con los centavos de ese redondeo, va al superávit: Maun, si no se eligió otro.
+  Los tipos, sus palabras y el porqué están en «Los tipos de tesoro de Eliseo».
 - **Tres clases de paso.** _Sueldo_: siempre Hogar, y Hogar solo puede ser sueldo. _Gastos fijos_: con
   renglones (el alquiler, la luz, el ayudante), y el tope es la suma de los renglones. _Prioridad_: un
-  monto fijo por mes que se llena antes de repartir, como los materiales. Maun, si está en la fila, solo
+  monto fijo que se llena antes de repartir, como los materiales. Las dos primeras son compromisos y la
+  tercera es un ahorro fijo, que va siempre después de los compromisos. Maun, si está en la fila, solo
   puede ser un paso de gastos fijos, que es lo que pasa en la fila de siempre.
-- **Un tesoro va una sola vez**, como paso o como parte del reparto. El diezmo no está en la fila: es el
-  primer paso y no se mueve. Maun y Hogar no van en el reparto.
-- **El tope es del mes calendario de la fecha del cobro.** Cuenta lo que el tesoro ya recibió en el mes
-  por la fila, en cualquier lugar de la fila, y lo que se le pasó para cubrirlo.
+- **Un tesoro va una sola vez**, como obligación, como paso o como parte del reparto. El diezmo va
+  siempre entre las obligaciones, y nunca como paso ni como parte. Maun y Hogar no son obligación ni van
+  en el reparto. El superávit no puede ser un tesoro que ya esté en la fila, salvo Maun.
+- **El tope de un paso por mes es del mes calendario de la fecha del cobro.** Cuenta lo que el tesoro
+  ya recibió en el mes por la fila, en cualquier lugar de la fila, y lo que se le pasó para cubrirlo. Un
+  paso que se renueva al pagar o se repone al usarlo mira el saldo de su tesoro, y uno por trabajo
+  arranca siempre de cero.
 - **Los porcentajes suman hasta 100%.** Cada parte se redondea hacia abajo al centavo; el resto y los
-  centavos van a Maun. No se usa el método del resto mayor (ver «Lo investigado»): con él, el monto de
-  una parte dependería de las demás, y el centavo que sobra ya tiene dueño.
+  centavos van al superávit. No se usa el método del resto mayor (ver «Lo investigado»): con él, el
+  monto de una parte dependería de las demás, y el centavo que sobra ya tiene dueño.
 - **Cubrir el faltante.** Si a un paso de gastos fijos le falta plata en el mes, Eliseo elige de qué
   tesoros sale, uno o varios y cuánto de cada uno. Cada elección es una transferencia marcada con el mes
   que cubre (`cubre_el_mes`), y esa plata cuenta para el tope: el próximo cobro no la vuelve a llenar.
-  No se cubre con el diezmo, y la base lo exige con un `check`.
+  No se cubre con el diezmo, y la base lo exige con un `check`. En un compromiso que se renueva al
+  pagar, la plata que se le pasa cuenta porque sube su saldo.
 - **Los cambios valen desde el próximo cobro.** Guardar la fila no toca ninguna liquidación hecha
   ([ADR 0003](0003-distribucion-congelada.md)), y un cobro reabierto se vuelve a cobrar con la fila con la
   que se había cobrado. Cada paso guarda desde qué mes rige su tope (`desde`), para ver cuándo se
   actualizó por la inflación.
 - **Perdido.** Como hoy: el diezmo según `perdido_con_diezmo` y el sueldo en cero salvo
-  `perdido_con_sueldo`. Los demás pasos, iguales.
+  `perdido_con_sueldo`. Las demás obligaciones y los demás pasos, iguales.
 - **El sueldo por trabajo** (el modo del seed, [ADR 0072](0072-el-sueldo-se-topea-por-mes.md)) existe
   solo en la fila de siempre. Una fila guardada cuenta el sueldo por mes: al empezar a editar, el
   borrador lo pasa a mensual, y la hoja de guardar lo dice.
@@ -233,22 +253,25 @@ Las fuentes se leyeron el 2026-09-27. Las citas van en el idioma de la página.
   y se mueven con movimientos.
 - **Archivar.** Un tesoro con saldo pasa primero su plata a otro (Maun, sugerido). Deja de recibir y
   sigue apareciendo con su nombre en los repartos que ya hizo. Hogar, Maun, Diezmo y Cocos no se
-  archivan. Uno que está en la fila guardada, o en la foto de un cobro reabierto, tampoco: primero sale
-  de la fila, o se cobra ese trabajo.
+  archivan. Uno que está en la fila guardada (como obligación, paso, parte o superávit), o en la foto de
+  un cobro reabierto, tampoco: primero sale de la fila, o se cobra ese trabajo.
 
 La cuenta vive en dos lugares que no pueden divergir ([ADR 0011](0011-dominio-cascada-estados-y-cobro.md)):
-`packages/domain/src/fila.ts` y sus cinco gemelas de SQL, `private.entero_de_json`,
-`private.repartir_por_la_fila`, `private.fila_de_siempre`, `private.problema_de_la_fila` y
-`private.plan_del_reparto`. Rechazan con 22004, 22023 y 22003 donde el dominio tira `RangeError`. El
-comparador (`compararFila`) las ata con casos con semilla y con los vectores de redondeo: 5 centavos al
-70/30 dan 3 y 1 con 1 de resto; 100 al 33,33/33,33/33,34 dan 33, 33 y 33 con 1; 101 al 50/50 dan 50 y
-50 con 1.
+`packages/domain/src/fila.ts` y sus siete gemelas de SQL, `private.entero_de_json`,
+`private.repartir_por_la_fila`, `private.fila_de_siempre`, `private.problema_de_la_fila`,
+`private.plan_del_reparto`, `private.previo_del_mes` y `private.lo_del_mes_es_otro`. Rechazan con
+22004, 22023 y 22003 donde el dominio tira `RangeError`. El comparador (`compararFila`) las ata con
+casos con semilla, con la cuenta entera de un cobro (el plan, el previo y el reparto, uno detrás del
+otro) y con dos tandas de vectores fijos. Los de redondeo: 5 centavos al 70/30 dan 3 y 1 con 1 de
+resto; 100 al 33,33/33,33/33,34 dan 33, 33 y 33 con 1; 101 al 50/50 dan 50 y 50 con 1. Los de los
+tipos están en «Los tipos de tesoro de Eliseo».
 
 ### 2. La fila de siempre, y por qué no hay tabla de acumulados
 
 Un taller que nunca guardó su fila reparte con la de siempre: `filaDeSiempre` la arma con el sueldo y los
-costos fijos de Ajustes (el sueldo a Hogar, los costos fijos a un paso de Maun con un renglón «Costos
-fijos») y da lo mismo que la cascada de antes. `fila.test.ts` lo prueba con 4.000 casos contra
+costos fijos de Ajustes (el diezmo al 10% sobre el ingreso como única obligación, el sueldo a Hogar y
+los costos fijos a un paso de Maun con un renglón «Costos fijos», los dos por mes, y el superávit en
+Maun) y da lo mismo que la cascada de antes. `fila.test.ts` lo prueba con 4.000 casos contra
 `calcularDistribucion` y `topesDeLaLiquidacion`. Así el día de la migración no cambia nada para Eliseo:
 la app nueva cobra «por la fila» desde el primer cobro, con la fila de siempre, y el reparto es el mismo.
 
@@ -259,18 +282,21 @@ el mes marcado, y el próximo cobro no los vuelve a llenar.
 
 Lo que el mes ya lleva no se guarda en ningún lado. Lo suma la base al liquidar, con el candado de
 `ajustes` puesto, desde tres lugares: el sueldo y los fijos de las liquidaciones de antes (`dist_sueldo`
-para Hogar, `dist_fijos` para Maun), las filas vivas de `repartos` de los cobros por la fila del mes, y
-las transferencias con `cubre_el_mes`. Es lo que ya hacía `liquidar` con el sueldo y los fijos
-([ADR 0011](0011-dominio-cascada-estados-y-cobro.md)): una tabla de acumulados sería un segundo lugar
-donde el mes puede quedar mal, y reabrir un cobro tendría que acordarse de restarlo. Sumando, reabrir lo
-saca del mes por el solo hecho de borrar sus repartos.
+para Hogar, `dist_fijos` para Maun), las filas vivas de `repartos` de los cobros por la fila del mes, de
+cualquier tipo, y las transferencias con `cubre_el_mes`. Es lo que ya hacía `liquidar` con el sueldo y
+los fijos ([ADR 0011](0011-dominio-cascada-estados-y-cobro.md)): una tabla de acumulados sería un
+segundo lugar donde el mes puede quedar mal, y reabrir un cobro tendría que acordarse de restarlo.
+Sumando, reabrir lo saca del mes por el solo hecho de borrar sus repartos. Lo mismo el saldo que mira un
+paso que se renueva o se repone, y el de un ahorro con meta: la base lo lee de `libro_mayor`, bajo el
+mismo candado, que desde los tipos de tesoro toma también todo movimiento.
 
 ### 3. Los datos
 
 Ningún dato que exista se borra ni se cambia. Lo nuevo convive con las columnas de siempre, las
 liquidaciones viejas quedan como están, y una app que todavía no se actualizó sigue cobrando igual
 mientras el taller no guarde su fila. Las migraciones llegan a la base antes del merge, así que todo
-tiene que convivir con el bundle de producción de hoy. Son siete, una por tema:
+tiene que convivir con el bundle de producción de hoy. Son siete, una por tema, y los tipos de tesoro
+sumaron seis más (al final de esta sección):
 
 1. **`20260927120000_los_tesoros`.** `public.tesoros`, replicada: `id` (UUIDv7 de la app; en los cuatro
    del sistema, `private.uuidv7()`), `household_id`, `clave` (`public.tesoro` o null; sin grant), `nombre`
@@ -317,7 +343,9 @@ null`. Empieza con `revoke all … from anon, authenticated`, como la vidriera; 
    `dist_fila_version`, `dist_fila` (la fila con la que se liquidó: la guardada o la de siempre armada en
    ese momento), `dist_previo` (lo que cada tesoro de un paso llevaba del mes según la base,
    `{tesoro_id: centavos}`) y `reapertura_fila` (`{version, fila}` del cobro por la fila que se reabrió),
-   con dos `check` que miran solo las columnas nuevas. `bootstrap()` y `delta()` suman la clave.
+   con dos `check` que miran solo las columnas nuevas. `bootstrap()` y `delta()` suman la clave. Los
+   tipos de tesoro le sumaron a `repartos` dos tipos y dos columnas, y a `dist_previo`, los topes de las
+   metas (abajo y en la sección 4).
 5. **`…120400_el_libro_por_tesoro`.** `libro_mayor`, recreada con `with (security_invoker = true)` porque
    el `or replace` borra las opciones, suma al final `tesoro_id` y `contrapartida_id`; `tesoro` y
    `contrapartida` siguen con la clave. Los dos bloques de movimientos filtran por `hacia_id` y `desde_id`
@@ -362,23 +390,64 @@ Una app sin actualizar muestra el mensaje del `raise` tal cual, así que ninguno
 `rechazoDeLaBase` no lee el `detail`: MN023 va con un texto general, porque la pantalla ya frena antes con
 `problemasDeLaFila`, que es la misma cuenta.
 
+**Con los tipos de tesoro se sumaron seis migraciones**, con la misma regla: ninguna borra ni cambia un
+dato que exista.
+
+1. **`20260928120000_el_candado_de_los_movimientos`.** `private.completar_los_tesoros()`, con
+   `or replace`: todo movimiento toma `ajustes` `for no key update` antes de escribir, no solo el que
+   cubre un mes, porque un gasto desde un compromiso que se renueva al pagar cambia el saldo que mira la
+   liquidación. Si trae `proyecto_id`, antes toma ese proyecto `for key share`: es el orden de la
+   liquidación y de la reversión, y al revés la foreign key pediría el proyecto con `ajustes` ya tomado
+   y se trabaría con el cobro de ese trabajo.
+2. **`…120100_los_tipos_de_los_repartos`.** `repartos` suma `modo` y `base` (`text`, en null, así el
+   `alter` no reescribe ninguna fila) y dos tipos, `obligacion` y `superavit`. El check de forma pasa a
+   su versión nueva con el rito de los checks de movimientos, sin rellenar nada: un paso con `modo` null
+   es por mes y una parte sin tope junta sin fin. Una obligación lleva su porcentaje, de 0,01% a 100%, y
+   su base; un paso, un modo que su clase admite; una parte que va hasta la meta, su tope; y un
+   superávit, solo el monto.
+3. **`…120200_las_gemelas_por_tipos`.** `private.repartir_por_la_fila`, `private.plan_del_reparto` y
+   `private.fila_de_siempre` cambian de firma (drop y create, con su `revoke`);
+   `private.problema_de_la_fila`, con `or replace`, suma los problemas nuevos; y llegan dos gemelas,
+   `private.previo_del_mes` y `private.lo_del_mes_es_otro(uuid[], uuid[], jsonb, jsonb)`. Todas leen la
+   forma del primer pedido completando lo que falta con lo de siempre.
+4. **`…120300_el_cobro_por_tipos`.** `private.liquidar`, con `or replace`, porque la firma no cambia
+   (sección 4). Después saca la versión vieja de `lo_del_mes_es_otro(jsonb, jsonb)`, que `liquidar`
+   usaba en cada llamada: antes de reemplazarla no se podía.
+5. **`…120400_el_archivo_y_la_fila_por_tipos`.** La guarda de `MN024` mira también las obligaciones y
+   el superávit de la fila guardada y de la foto de cada reabierto vivo, y `private.guardar_la_fila` le
+   pasa a `private.problema_de_la_fila` la meta de cada tesoro (la de Cocos, de `ajustes`).
+6. **`…120500_el_aviso_de_los_vencimientos`.** La clave `vencimientos` de los avisos y lo que necesita
+   la función para armarlos ([ADR 0036](0036-avisos-por-dispositivo-fuera-de-la-replica.md)).
+
+Lo que se autorizó con los tipos aunque la regla lo cuente como destructivo, porque no borra ni cambia
+un dato: (1) drop y create de las gemelas que cambian de firma, que eran de este mismo PR; (2) cambiar el
+check de forma de `repartos` con el mismo rito; (3) `create or replace` de `liquidar`, de las funciones
+de los avisos y de las de los triggers, y el default nuevo de `preferencias_de_avisos.avisos`; y (4)
+desplegar la función de avisos después de sus tests. `guardar_la_fila` también se reemplazó, sin estar
+en la lista («Desvíos»). Antes de empujar se contó que ningún taller tenía `ajustes.fila` y que no había
+filas vivas de `repartos` fuera del taller de prueba («Verificación»). No hay códigos nuevos: `MN023`
+cubre también una fila con una obligación, un modo, una meta, un día o un superávit que no van.
+
 ### 4. Liquidar por la fila
 
 `private.liquidar`, `public.cobrar_proyecto` y `public.cerrar_perdido` suman tres parámetros al final,
 todos `default null`: `p_fila_version`, `p_repartos` (`[{id, posicion, tesoro_id, monto_centavos}]`) y
-`p_previo` (`{tesoro_id: centavos}`, lo que la app vio del mes para cada paso). Cambiar la firma es drop
-y create, con sus revokes y grants; con default, un bundle viejo sigue llamando con los de antes.
-`private.revertir_liquidacion` no cambia de firma: `or replace`.
+`p_previo` (`{tesoro_id: centavos}`: el previo que la app vio para cada paso y el tope de cada parte que
+va hasta la meta, abajo). Cambiar la firma es drop y create, con sus revokes y grants; con default, un
+bundle viejo sigue llamando con los de antes. `private.revertir_liquidacion` no cambia de firma:
+`or replace`.
 
 **El orden de las cerraduras no cambia**: el proyecto `for update` y después `ajustes` `for no key
-update`, como toda liquidación, reversión, guardado de la fila y cobertura de un mes.
+update`, como toda liquidación, reversión, guardado de la fila y cobertura de un mes. Desde los tipos de
+tesoro, todo movimiento toma también `ajustes`, y si es de un trabajo, antes ese trabajo `for key share`:
+el mismo orden.
 
 **Antes de elegir el camino se reconoce el reenvío**, porque un pedido que ya se aplicó no puede rebotar:
 el estricto de siempre y el de la liquidación de antes que volvió ajustada (los dos solo contra una
 liquidación de antes), y el de un cobro por la fila, ajustado o no (la misma revisión, las mismas
 entradas y los mismos ids de repartos en el mismo lugar; los montos tienen que ser los mismos salvo que
-lo del mes congelado no sea lo que mandó la app). Así un cobro de antes que se reenvía después de guardar
-la fila no sale MN025.
+lo que vio la app no sea lo congelado, comparado en los pasos y las partes de los repartos ya guardados
+de ese cobro). Así un cobro de antes que se reenvía después de guardar la fila no sale MN025.
 
 Después, tres caminos:
 
@@ -396,30 +465,39 @@ Después, tres caminos:
   sus `reapertura_objetivo_*` y `reapertura_sueldo_mensual`, en la revisión 0; en los demás casos, y
   siempre en un perdido (que nunca usa la foto de una reapertura), `ajustes.fila` (o la de siempre con los
   ajustes de hoy) y `ajustes.fila_version`. `p_fila_version` tiene que ser esa: si no, MN006, «La fila
-  cambió desde que la abriste.». El plan sale de `private.plan_del_reparto`, lo del mes lo suma la base
-  (sección 2) y el reparto sale de `private.repartir_por_la_fila`. Igual que con
-  `p_sueldo_previo_centavos` ([ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md)): si lo
-  que vio la app no es lo que suma la base, se ajusta sin rechazar, pero la cuenta de la app con lo que
-  vio tiene que dar lo que mandó (MN008); sin ajuste, `p_repartos` tiene que coincidir con la cuenta de la
-  base (MN008). Los parámetros de siempre viajan con lo que da `columnasDeSiempre` (topes, sueldo, fijos y
-  previos en cero, el diezmo, y el remanente con lo que pasa por Maun antes del reparto, neta − diezmo),
-  así los cuatro checks de `proyectos` siguen valiendo sin tocarlos y el reenvío estricto se sigue
-  reconociendo por las mismas columnas. Escribe el proyecto con esas columnas, `dist_fila_version`,
-  `dist_fila` y `dist_previo` (lo de la base), y una fila de `repartos` por paso y por parte con los ids de
-  la app y los montos de la base.
+  cambió desde que la abriste.». El plan sale de `private.plan_del_reparto` con los ids del diezmo y de
+  Maun: las obligaciones (el diezmo es la primera con el tesoro del diezmo), los pasos con su modo, lo
+  que va hasta la meta y el superávit. Lo del mes lo suma la base (sección 2), y los saldos de los
+  tesoros de los pasos y de las partes (de `libro_mayor` por `tesoro_id`, sin lo que ya estaba en la
+  apertura) y sus metas (la de Cocos, de `ajustes`) los lee después del candado. `private.previo_del_mes` da el previo de cada
+  paso según su modo, con el piso de su meta, y el tope de cada parte que va hasta la meta, y el reparto
+  sale de `private.repartir_por_la_fila`. Igual que con `p_sueldo_previo_centavos`
+  ([ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md)): si lo que vio la app no es lo que
+  calcula la base (`private.lo_del_mes_es_otro`), se ajusta sin rechazar, pero la cuenta de la app con lo
+  que vio tiene que dar lo que mandó (MN008); sin ajuste, `p_repartos` tiene que coincidir con la cuenta
+  de la base (MN008). Los parámetros de siempre viajan con lo que da `columnasDeSiempre` (topes, sueldo,
+  fijos y previos en cero, el diezmo, que es el de la obligación del diezmo, y el remanente con lo que
+  pasa por Maun antes del reparto, neta − diezmo), así los cuatro checks de `proyectos` siguen valiendo
+  sin tocarlos y el reenvío estricto se sigue reconociendo por las mismas columnas. En un perdido,
+  `p_diezmo_bp` se compara con el porcentaje del diezmo en la fila, o con cero sin `perdido_con_diezmo`.
+  Escribe el proyecto con esas columnas, `dist_fila_version`, `dist_fila` y `dist_previo` (lo de la
+  base, con la forma de `p_previo`), y los repartos con los ids de la app y los montos de la base: una
+  fila por cada obligación que no es el diezmo, por paso, por parte y por el superávit si no es Maun, en
+  ese orden.
 
 Por cualquiera de los dos caminos, liquidar deja `reapertura_fila` en null, como hoy los `reapertura_*`.
-**Revertir** borra lógicamente los repartos del proyecto y, desde un cobrado por la fila, guarda
-`reapertura_fila` con `dist_fila_version` y `dist_fila` (además de la foto de siempre, que es la que usa
-la app para proponer la fecha). Desde un cobrado por el camino de antes hace lo de hoy y la deja en null;
-desde un perdido también.
+**Revertir** borra lógicamente los repartos del proyecto, de cualquier tipo, y, desde un cobrado por la
+fila, guarda `reapertura_fila` con `dist_fila_version` y `dist_fila` (además de la foto de siempre, que
+es la que usa la app para proponer la fecha). Desde un cobrado por el camino de antes hace lo de hoy y la
+deja en null; desde un perdido también.
 
-La app elige la misma fila con las mismas reglas (`filaParaLiquidar` de `@maun/db`), calcula con
-`calcularPorLaFila`, arma los ids con `uuidv7()` y manda `p_fila_version`, `p_repartos` y `p_previo`,
-más los parámetros de siempre con `columnasDeSiempre`. La liquidación optimista escribe también sus
-filas de `repartos`, así lo del mes que suma la app ya las cuenta, y reabrir las saca. El ajuste se
-detecta comparando `dist_previo` con lo que se mandó, y `anotarElAjuste` avisa como hoy, tesoro por
-tesoro.
+La app arma la entrada con `entradaDeLaLiquidacion` de `@maun/db`: la misma fila con las mismas reglas
+(`filaParaLiquidar`), y lo del mes, los saldos por id y las metas de la réplica. Calcula con
+`calcularPorLaFila`, arma un id con `uuidv7()` por cada fila de `repartosDelCobro` y manda, con
+`pedidoDeLaFila`, `p_fila_version`, `p_repartos` y `p_previo` (`previoQueVio`), más los parámetros de
+siempre con `columnasDeSiempre`. La liquidación optimista escribe también sus filas de `repartos`, así
+lo del mes que suma la app ya las cuenta, y reabrir las saca. El ajuste se detecta con `loVistoEsOtro`,
+comparando `dist_previo` con lo que se mandó, y `anotarElAjuste` avisa como hoy, tesoro por tesoro.
 
 ### 5. La réplica y la cola
 
@@ -447,12 +525,28 @@ tesoro.
   edición de Ajustes sin señal manda la revisión que la base va a tener cuando drene.
 - `rechazos.ts` suma las operaciones `fila` y `tesoro` y traduce MN023, MN024 (con el nombre del
   tesoro), MN025 y el MN006 de la fila; el MN006 del cobro suma «o cambió la fila».
+- **Con los tipos de tesoro**, `repartos` trae `modo` y `base`, que la réplica lee tolerando que falten
+  (`modoDelReparto` y `baseDelReparto`: un paso sin modo es por mes), sin subir `VERSION_CACHE`.
+  `vistas.ts` suma `sistemaDeLaReplica` (los ids de Hogar, Maun y el diezmo), `metasDeLaReplica` (la de
+  Cocos, de `ajustes`), `gastosDeLosTesorosDeLaReplica` (los gastos desde un tesoro, para saber qué
+  renglón se pagó), `datosDelMesDeLaReplica` (lo que pide `filaDelMes`), `entradaDeLaLiquidacion` (lo
+  que pide `calcularPorLaFila`, como lo va a mirar la base), `reaperturaDeLaFila`, `filaDelCobro` y los
+  insumos (`insumosPorTrabajo`, `insumosDelTrabajo` e `insumosDelTaller`); `sincronizacion.ts`,
+  `pedidoDeLaFila`; y `agenda.ts`, los vencimientos, con el rango que `datosDeLaAgenda` pasa a pedir
+  ([ADR 0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md)). Los tipos no traen códigos
+  nuevos.
 
 ### 6. El dominio
 
-- `fila.ts` es la fuente: tipos, validación (`problemasDeLaFila`, con sus 24 códigos), el plan, el
-  reparto, lo del mes (`previoDelMes`, `filaDelMes`), `columnasDeSiempre`, las funciones de edición y
-  `cambiosDeLaFila`. Vino hecha y va tal cual.
+- `fila.ts` es la fuente: los tipos, la lectura que completa lo que falta (`leerLaFila`), la validación
+  (`problemasDeLaFila`, con sus 35 códigos), el plan, el reparto, lo del mes (`loDelMes`,
+  `previoDelMes` y `filaDelMes`), lo que se congela y lo que viaja (`columnasDeSiempre`,
+  `repartosDelCobro`, `previoQueVio`, `previoDeLoVisto` y `loVistoEsOtro`), los vencimientos de cada
+  paso, las funciones de edición y `cambiosDeLaFila`. En el primer pedido vino hecha y fue tal cual; con
+  los tipos de tesoro se reescribió.
+- `agenda.ts` suma la tercera clase de evento, el vencimiento, y `vencimientosDeLaFila`
+  ([ADR 0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md)); `fechas.ts`, `esMes`,
+  `mesesDelRango` y `diaDelMes`.
 - `libroMayor.ts` lleva la cuenta por id de tesoro: `DatosDelLibro` suma los tesoros y los repartos, y
   cada línea y cada asiento llevan el id además de la clave (null para los tesoros del dueño). El lado
   que falta se completa desde el otro, como en la base: un movimiento de una réplica vieja trae solo la
@@ -461,12 +555,30 @@ tesoro.
   `saldosDelLibroPorId` devuelven el mapa por id, y `entradasYSalidasPorId` las cifras del mes de
   cualquier tesoro. `Tesoro` sigue siendo el tipo de las cuatro claves. `estadoDelDiezmo` y
   `proyeccionCocos` no cambian.
-- `comparacion.ts` suma `compararFila` (las cinco gemelas contra el dominio, con casos con semilla y los
-  vectores de redondeo), escenarios por la fila en `ESCENARIOS_DE_LIQUIDACION` y `compararLibroMayor` por
-  `tesoro_id`. `compararSeed` y `compararLibroDelSeed` siguen dando igual: el seed reparte con la fila de
-  siempre y el sueldo por proyecto.
+- `comparacion.ts` suma `compararFila` (las siete gemelas contra el dominio y la cuenta entera de un
+  cobro, con casos con semilla y los vectores fijos), escenarios por la fila en
+  `ESCENARIOS_DE_LIQUIDACION` (con los tipos: obligaciones, modos, metas, el superávit aparte y
+  perdidos) y `compararLibroMayor` por `tesoro_id`. `compararSeed` y `compararLibroDelSeed` siguen
+  dando igual: el seed reparte con la fila de siempre y el sueldo por proyecto.
 
 ### 7. La pantalla Tesoros (`/tesoros`)
+
+> Con los tipos de tesoro (sección «Los tipos de tesoro de Eliseo») el plano sigue el diagrama de
+> Eliseo:
+>
+> - **La forma del plano.** Arriba, la fila de la seña, con la ficha Insumos de trazos que abre la lista
+>   por trabajo; «Se cobra el trabajo» baja a la píldora «Ingreso». Después, las obligaciones, los
+>   compromisos, los ahorros fijos y el reparto, con los globos numerados seguido. Entre los grupos van
+>   «Ingreso libre» y «Ganancia», y a la izquierda la columna de los tipos, con su llave y su (i).
+> - **Las fichas** dicen su tipo («Obligación», «Compromiso», «Ahorro fijo», «Ahorro», «Superávit»),
+>   su modo, «a pagar», «vence el» y su meta. Su `ariaLabel` es «Compromiso 3 de 4: …» y ya no
+>   «Paso N de M».
+> - **El panel** va por tipo. «Nuevo tesoro» ofrece los seis lugares con sus sugerencias.
+> - **La prueba** suma «Se cobró» y «Con lo de hoy» / «Todo en cero».
+> - **«Nuevo tesoro» del estante** es un botón de verdad, `focusable: false` en el nodo.
+> - **`/tesoros?tesoro=<id>`** elige ese tesoro.
+>
+> Lo que sigue describe el primer pedido; donde choca, vale esta nota.
 
 **La navegación.** Tesoros es un destino propio después de Finanzas en la barra lateral y en el riel (ícono `gem`). En el celular la barra sigue con sus cuatro destinos y el «+»: Tesoros entra por la hoja del perfil (arriba de Diezmo, con «Cómo se reparte cada cobro»), por «Ver la fila» de Inicio y por el faltante, y resalta Inicio, como Diezmo y Opiniones. En el catálogo de navegación cuelga de Inicio (`profundidad: 1`, forma `pantalla`), y está en `LEEN_DE_LA_REPLICA`: tirar para actualizar anda en el plano vertical.
 
@@ -507,6 +619,23 @@ tesoro.
 
 ### 9. Inicio y el resto de la app
 
+> Con los tipos de tesoro:
+>
+> - **Inicio**
+>   - suma el panorama («Para pagar», «Ahorros», «Superávit», «Insumos de los trabajos»);
+>   - pone el tipo en cada tarjeta y los insumos en la de Maun;
+>   - muestra el faltante de los compromisos que se renuevan, con el vencimiento de los próximos 7 días;
+>   - arma «La fila de septiembre» por tipo;
+>   - suma los vencimientos del día a «Hoy en la agenda».
+> - **La Agenda** muestra cada vencimiento en su día, con la séptima marca (un reloj de arena) y la
+>   tinta `--ag-vencimiento` (7,66:1 en claro, 8,16:1 en oscuro), «Pagado» o «Registrar el pago», y
+>   «Ver en Tesoros».
+> - **Avisos** suma «Vencimientos».
+> - **La ficha del trabajo** muestra sus insumos.
+> - **El despiece** va por tipo, en «Distribución del ingreso».
+> - **Diezmo** lee el porcentaje y la base de la fila.
+> - **Finanzas** suma la décima clase, «Gasto de un tesoro».
+
 - **La portada** corta el tablero por tesoro con su tinta. El corte del mes sale de las liquidaciones del mes: las de antes (el sueldo a Hogar, el diezmo, lo demás a Maun) y las de la fila (cada reparto a su tesoro y lo que queda a Maun), más los gastos. En un cobro por la fila lo que queda en Maun es neta − diezmo − la suma de sus repartos, no `dist_remanente`. La frase nombra al hogar, al taller y al diezmo como antes, y a los demás por su nombre: «2 trabajos cerrados en septiembre: 67% al hogar, 23% a Gastos fijos y 10% al diezmo.»
 - **Las tarjetas** son una por tesoro vivo, con el mismo diseño: Hogar, Maun, Diezmo, Cocos y los del dueño por `orden`. Con los cuatro de siempre, `Tablero enUnaFila` como antes; con más, `Tablero` con `tarjetaMinima="13.25rem"` y `completar` (4 columnas en la compu, 3 en la tablet), y dos en el celular. Los montos de una fila quedan a la misma altura (`subgrid`). La del diezmo sigue con la frase de la deuda; las que tienen meta dicen el porcentaje; las demás, su descripción en un renglón.
 - **El faltante**: si a un paso de gastos fijos del mes le falta, arriba va «Faltan $ 270.000 para gastos fijos de septiembre.», con cuántos días quedan del mes y «Elegir de qué tesoro sacar», que abre la hoja de cubrir. Reemplaza al mensaje del mes. Con más de un paso incompleto, un aviso por paso.
@@ -523,6 +652,297 @@ tesoro.
 - **Las líneas del plano** son las de ISO 128-2: continua de 1,5 para los contornos, fina para las guías de los globos, de trazos para lo que no recibe, trazo y punto para la línea que se está uniendo, y marca a mano para el triángulo de revisión. Una sola tinta: el acento es la elección.
 - **La ilustración** suma `Globo` y la escena `la-fila`, y `TableroCortado` corta con las ocho tintas.
 - **El movimiento**: en reposo nada se mueve, los botones usan `apretable` y las hojas su transición de siempre. El lienzo no anima nada.
+
+## Los tipos de tesoro de Eliseo
+
+Mientras se armaba la fila, Eliseo le mostró a Joaquim cómo la pensó él, en un tablero de Miro. Es la
+misma fila, pero él la ordena por tipos de tesoro, y había cosas que no habían entrado. Esta sección es
+lo que hace que la app quede como lo escribió él. Lo que no cambia sigue como dicen las secciones de
+arriba, que ya están al día con esto.
+
+### El tablero
+
+El texto, con sus palabras. Solo se corrigieron tildes y errores de tipeo:
+
+> La idea es establecer diferentes TIPOS de tesoro y establecer la función de cada uno de ellos. El
+> razonamiento que me lleva a pensar en la utilidad de esto es que cada negocio tiene una estructura de
+> finanzas diferente y puede tener necesidades diferentes a lo largo de su desarrollo.. ejemplos de
+> distintas OBLIGACIONES que deben ser cubiertas y a modo organizativo cada una de ellas puede ser
+> separada en cajas o "tesoros", a fin de organizar visualmente dónde está el dinero y qué es REALMENTE
+> ganancia.. LO NORMAL, en pymes y negocios unipersonales es que tengan toda la plata en la misma
+> billetera.. el hecho de que la aplicación lo separe en tesoros diferentes (aunque esté todo en la
+> misma cuenta de banco en la realidad) proporciona la tranquilidad de saber que el dinero para pagar el
+> alquiler, la cuota del auto, el colegio del hijo, lo que fuera que sabe que tiene que cubrir, esté
+> ahí.. y al mismo tiempo, si se propone una meta de ahorro para un propósito específico (o varios)
+> pueda separar de su ganancia ese dinero... TAMBIÉN entendiendo que las cosas no salen siempre del modo
+> que queremos, que exista la posibilidad de un movimiento interno entre tesoros, nos permite que si un
+> mes no entró suficiente dinero para pagar los sueldos (por ejemplo) pueda sacar del tesoro general (o
+> de algún ahorro particular) para cubrir las obligaciones.. este es un poco el corazón de la idea.. una
+> especie de MAPA VISUAL, un PANORAMA de dónde está la plata y para qué la puedo usar.. en función de
+> los propósitos que tengo..
+
+El diagrama baja así: SEÑA → SE CONCRETA UN PROYECTO → INGRESO → INGRESO LIBRE → GANANCIA, y de cada
+escalón sale una flecha a un tipo de tesoro, en una columna que dice «TIPOS DE TESORO»:
+
+- SEÑA → INSUMOS: «Tesoro interno y particular de cada proyecto. Puede haber un visor externo en el
+  sector "tesoros" que reúna el total del dinero disponible entre todos los proyectos activos.»
+- INGRESO → OBLIGACIONES: «Tesoro que reúne valores siempre. Vuelven a cero cuando se registra el pago
+  de las obligaciones y figuran como "deuda" mientras tanto. Pueden establecerse órdenes de prioridad
+  diferente entre ellos.»
+- INGRESO LIBRE → COMPROMISO: «Tesoro que reúne valores hasta alcanzar un monto. Vuelven a cero cuando
+  se registra el pago de dichas obligaciones y figuran como "deuda" mientras tanto. Pueden asignarse
+  fechas de pago para los compromisos a modo de alerta en la agenda.»
+- GANANCIA → AHORROS: «Tesoro que reúne valores de una parte de la ganancia, puede ser de modo
+  indefinido o hasta alcanzar un monto estipulado, puede ser porcentual o un monto fijo (mensual o por
+  operación). Muestran una barra de progreso en caso de tener un valor estipulado.»
+- GANANCIA → SUPERÁVIT: «Tesoro que reúne ganancia resultante.»
+
+Y sus notas:
+
+- «SEÑA (el dinero que entra al iniciar un proyecto). INSUMOS (para cada proyecto).»
+- «EL INGRESO: se define, proyecto a proyecto, en función de la diferencia entre costos y beneficios.»
+- «OBLIGACIONES SOBRE EL INGRESO (DIEZMO / Ingresos Brutos). Ingresos brutos tal vez se podría definir
+  antes que diezmos.»
+- «INGRESO LIBRE (no sé cómo llamarlo, es el resultante entre INGRESO y la OBLIGACIÓN A).»
+- «OBLIGACIONES FIJAS (sueldos, alquileres, cuotas, luz, gas, teléfono, etc). COMPROMISOS es un buen
+  nombre también.»
+- «GANANCIA (el resultante entre INGRESOS y OBLIGACIONES).»
+- «AHORROS DE INVERSIÓN (compra inmueble, compra vehículo, compra maquinaria).»
+- «AHORROS DE STOCK (herrajes, madera, insumos (hotmelt, cementos, cola)) --> aquellos costos
+  fantasmas que no se pueden cargar trabajo a trabajo, porque es necesario tenerlos previamente como
+  parte del día a día del taller.»
+- «SUPERÁVIT (aquí cae el excedente): de aquí pueden salir todos los gastos extras, inesperados o
+  especiales (regalos empresariales, pago de algún imprevisto, compras cajas navideñas, etc).»
+
+Después vio capturas de la pantalla Tesoros tal como estaba. Le marcó el tipo a cada ficha (Diezmo,
+obligación; Hogar y Gastos fijos, compromiso; Materiales y Cocos, ahorros; Maun, el resto, superávit) y
+anotó:
+
+- «Esto se vería cada vez que cerrás un Proyecto.. ?? pregunto porque veo que se ve el paso a paso de un
+  monto determinado..»
+- «creo que lo más relevante ahora es que quede claro cada "categoría" de tesoro... por ejemplo hasta
+  hoy llamamos "COCOS" a lo que sería mi ahorro para inmueble.. pero es de la misma categoría que
+  "Materiales" (que veo que como está marcado como prioridad, recibe antes de repartir el restante). Al
+  parecer sí nos estamos entendiendo VAMOOOOO!!!»
+
+### Cómo cae cada tipo en la fila
+
+Es la misma fila de la sección 1, con cada lugar nombrado por su tipo. La plata baja en este orden, y
+cada escalón del diagrama es un número de la cuenta:
+
+| Tipo                   | En la fila                                   | Cómo recibe                                                                                                    | Ejemplos                              |
+| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Insumos                | No está: es un visor, no un tesoro           | No recibe. Es lo que entró de cada trabajo en curso menos lo que se gastó en él, y está en Maun                | La seña de una cocina                 |
+| Obligaciones           | `obligaciones`, antes que todo, hasta seis   | Su porcentaje de lo que cobrás o del ingreso que les llega. Quedan a pagar hasta que se registra el pago       | El diezmo, Ingresos Brutos            |
+| Compromisos            | Los pasos de sueldo y de gastos fijos        | Hasta su monto, por mes o renovándose al pagar; el sueldo, siempre por mes. Quedan a pagar, salvo Hogar y Maun | El sueldo, el alquiler, la luz        |
+| Ahorros fijos          | Los pasos de prioridad, tras los compromisos | Hasta su monto: por mes, reponiéndose al usarlo o en cada cobro, sin fin o hasta la meta                       | El stock del taller, la maquinaria    |
+| Ahorros por porcentaje | Las partes del reparto                       | Su porcentaje de lo que sobra, hacia abajo al centavo, sin fin o hasta la meta                                 | El inmueble (hoy, Cocos), el vehículo |
+| Superávit              | `superavit`, un tesoro                       | Lo que queda, con los centavos del redondeo                                                                    | Maun, o un tesoro «Superávit»         |
+
+Las palabras del medio también son las suyas, y cada una es un número del reparto (`Reparto` en
+`fila.ts`): el **ingreso** es lo cobrado menos los gastos (`neta`); el **ingreso libre**, el ingreso
+menos las obligaciones (`libre`); la **ganancia**, lo que queda después de los compromisos
+(`ganancia`); lo que se reparte por porcentaje es lo que queda después de los ahorros fijos
+(`sobrante`); y el **superávit**, lo que queda después de los ahorros (`remanente`; con un ingreso que no
+es positivo, es la pérdida, y queda en Maun).
+
+**La cuenta de un cobro** (`repartir` y `private.repartir_por_la_fila`):
+
+1. El ingreso es lo cobrado menos los gastos. Si no es positivo, no se reparte nada, como siempre.
+2. Las obligaciones, en su orden. Cada una es su porcentaje de lo cobrado o de lo que le llega,
+   redondeado como el diezmo (mitad hacia arriba), y nunca más que lo que llega. En un perdido, el
+   diezmo sigue a `perdido_con_diezmo` y las demás se aplican igual.
+3. Los compromisos y después los ahorros fijos, cada uno hasta lo que le falta. Lo que ya tiene depende
+   de cómo se llena: por mes, lo del mes; si se renueva o se repone, el saldo del tesoro, nunca menos de
+   cero; por trabajo, cero.
+4. Los ahorros por porcentaje, sobre lo que sobra, cada uno hacia abajo al centavo.
+5. Lo que queda, con los centavos, es del superávit.
+
+**La meta.** A un ahorro le falta, para su meta, la meta menos su saldo, nunca menos de cero. Un ahorro
+por porcentaje que va hasta la meta no recibe más que eso. En un ahorro fijo, lo que ya tiene nunca se
+cuenta como menos que su monto menos lo que le falta para la meta: así recibe lo menor entre lo que le
+falta según cómo se llena y lo que le falta para la meta, y la cuenta de los pasos no cambia. Ese número
+sirve solo para el tope: `calcularPorLaFila` devuelve también lo que el paso lleva según cómo se llena
+(`lleva`) y si lo frenó la meta (`llegaALaMeta`), que es lo que se muestra.
+
+**El diezmo de un cobro por la fila es su obligación**: `columnasDeSiempre` escribe ese monto y ese
+porcentaje en `dist_diezmo_centavos` y `dist_diezmo_bp`, y `dist_remanente` sigue siendo el ingreso
+menos el diezmo. Las otras obligaciones y el superávit que no es Maun van a `repartos`.
+
+Los vectores fijos, en `fila.test.ts` y en el comparador contra SQL:
+
+- se cobran $ 2.500.000 y hay $ 500.000 de gastos: el ingreso es $ 2.000.000. Con Ingresos Brutos al
+  3,5% sobre lo cobrado antes del diezmo, salen $ 87.500 de Ingresos Brutos y $ 191.250 de diezmo, y el
+  ingreso libre es $ 1.721.250. Con el diezmo primero, salen $ 200.000 de diezmo y $ 87.500 de Ingresos
+  Brutos, y quedan $ 1.712.500;
+- un ahorro del 20% hasta la meta de $ 300.000 que ya tiene $ 250.000, con $ 1.000.000 de lo que sobra:
+  recibe $ 50.000, y los $ 150.000 que no recibe van al superávit;
+- un compromiso que se renueva al pagar, de $ 900.000 y con $ 630.000 de saldo, recibe como mucho
+  $ 270.000;
+- con $ 1.000.000 cobrados y $ 990.000 de gastos, Ingresos Brutos antes del diezmo aparta $ 10.000, todo
+  lo que llega, y el diezmo queda en cero;
+- un ingreso de 15 centavos aparta 2 de diezmo, mitad hacia arriba.
+
+### Lo que se decidió, y por qué
+
+Lo que ya estaba hecho es su cascada: el diezmo primero, pasos con tope en el orden que él elige, el
+reparto por porcentaje, el resto en Maun y cubrir el faltante desde otro tesoro. Lo que cambia es esto,
+y todo lo que se puede elegir se elige desde Tesoros:
+
+1. **Cinco tipos, en un orden fijo: obligaciones, compromisos, ahorros fijos, ahorros por porcentaje y
+   superávit.** Adentro de cada tipo, el orden lo elige él. Un ahorro no puede ir antes de un compromiso
+   (`ahorro-antes-de-compromiso`): así «ingreso libre» y «ganancia» quedan cada una en un solo lugar de
+   la fila y dicen siempre lo mismo. Con un ahorro entre dos compromisos, la ganancia sería un número
+   distinto según dónde se la mire.
+2. **Las palabras son las suyas.** Ingreso es lo que deja cada trabajo, lo cobrado menos los gastos;
+   ingreso libre, el ingreso menos las obligaciones; ganancia, lo que queda después de los compromisos;
+   superávit, lo que queda después de los ahorros. Los pasos de sueldo y de gastos fijos pasan a
+   llamarse compromisos, los de prioridad ahorros fijos, y las partes del reparto ahorros por
+   porcentaje. Los identificadores del código (`sueldo`, `fijos`, `prioridad`) no cambian: no se
+   renombra por un cambio de texto ([ADR 0064](0064-el-seguimiento-de-verdad-y-las-consultas.md)).
+3. **Las obligaciones se configuran**: una lista ordenada de hasta seis, cada una con su tesoro, su
+   porcentaje (de 0,01% a 100%) y sobre qué se calcula: «lo que cobrás» (`cobrado`, todo lo que entró
+   del trabajo) o «el ingreso» (`ingreso`, lo que llega después de las obligaciones de arriba). Es su
+   dibujo: «OBLIGACIONES SOBRE EL INGRESO (DIEZMO / Ingresos Brutos)», que «reúne valores siempre», con
+   «órdenes de prioridad diferente entre ellos».
+   - **El diezmo es una obligación más, y va siempre**: es la regla del taller desde el sistema viejo, y
+     la pantalla Diezmo y su deuda cuentan con él. Arranca en 10% sobre el ingreso, lo de siempre, y su
+     porcentaje y su lugar se pueden cambiar.
+   - **Hogar y Maun no pueden ser obligación.** Hogar recibe solo el sueldo, con su tope por mes
+     ([ADR 0072](0072-el-sueldo-se-topea-por-mes.md)): una obligación en Hogar sería un sueldo sin tope.
+     Maun es la caja donde entra cada cobro: lo que se le apartara no se separaría de nada, ni sería
+     deuda.
+   - **Ingresos Brutos no viene cargado**, porque no todos lo pagan igual. Si lo suma, entra antes del
+     diezmo, porque así lo escribió él («Ingresos brutos tal vez se podría definir antes que diezmos»), y
+     el diezmo pasa a calcularse sobre lo que queda. Va sobre lo cobrado, porque en el régimen general
+     se liquida sobre lo facturado, no sobre lo que deja el trabajo. Las dos cosas quedan para confirmar
+     con Eliseo.
+   - **Si paga Ingresos Brutos adentro del monotributo, va como compromiso.** En la Provincia de Buenos
+     Aires, el monotributo unificado cobra junto con el nacional «El impuesto sobre los Ingresos Brutos
+     provincial», con «una cuota fija mensual de acuerdo con la categoría del Monotributo»
+     (iProfesional, en «Fuentes»). Una cuota fija por mes no es un porcentaje de cada cobro: es un
+     compromiso, y la ayuda de «Sobre qué se calcula» lo dice.
+4. **Cómo se llena cada paso**, a elegir en cada uno:
+   - «por mes» (`mes`): recibe hasta su monto en cada mes del calendario, que es lo que hacía la fila;
+   - «se renueva al pagar» en un compromiso, o «se repone al usarlo» en un ahorro fijo (`saldo`): junta
+     hasta tener su monto de saldo, y cuando se registra un pago o un gasto desde ese tesoro, vuelve a
+     juntar;
+   - «por trabajo» (`trabajo`), solo en los ahorros fijos: recibe su monto en cada cobro, sin mirar el
+     mes.
+
+   Un compromiso nuevo arranca en «se renueva al pagar», porque es lo que escribió Eliseo: «Vuelven a
+   cero cuando se registra el pago de dichas obligaciones y figuran como "deuda" mientras tanto». Un
+   ahorro fijo nuevo arranca por mes, como el fijo mensual para los materiales que pidió de entrada; «por
+   trabajo» es su monto fijo «por operación». **El sueldo del Hogar va siempre por mes**: el Hogar gasta
+   su saldo todo el mes, y renovarlo al pagar pagaría el sueldo varias veces. **Un paso de Maun tampoco se
+   renueva al pagar**: el saldo de Maun es toda la caja del taller, con los cobros y los insumos, y el
+   paso la vería siempre llena, así que los costos fijos dejarían de apartarse antes de los ahorros.
+   `modosPosibles` y `modoInicial` son esas reglas, y `modo-invalido` las cuida al guardar.
+
+5. **Hasta la meta, solo en los ahorros.** Un ahorro fijo o por porcentaje cuyo tesoro tiene meta puede
+   juntar sin fin o «hasta la meta», como escribió él: «puede ser de modo indefinido o hasta alcanzar un
+   monto estipulado». Arranca en «hasta la meta» cuando el tesoro tiene meta, porque para eso se la puso.
+   Cuando llega, deja de recibir, y lo que le tocaba sigue hacia abajo hasta el superávit: no se pierde,
+   y lo de los demás no cambia. Si el tesoro se queda sin meta, junta sin fin. La meta de Cocos sigue en
+   `ajustes` («La meta de Cocos en dos lugares», en las alternativas). Los compromisos no la necesitan:
+   su monto ya es su tope.
+6. **Los ahorros por porcentaje, sobre lo que sobra.** Sus porcentajes se calculan sobre lo que queda
+   después de los ahorros fijos, no sobre la ganancia, para que nunca sumen más de lo que hay. Sobre la
+   ganancia, un ahorro fijo de $ 300.000 y otro del 50% pedirían $ 500.000 de una ganancia de
+   $ 400.000, y habría que decidir a cuál se le corta. Con el orden de la fila no hay nada que decidir.
+7. **El superávit se elige**: es el tesoro que recibe lo que sobra y los centavos del redondeo, y es
+   Maun si no se elige otro, que es lo de siempre. Es el lugar donde, según él, «cae el excedente», y
+   del que «pueden salir todos los gastos extras, inesperados o especiales». Si es otro, Maun queda con
+   los insumos de los trabajos en curso y con lo que se cargue a mano. No puede ser Hogar, que recibiría
+   más que su sueldo, ni el diezmo, que es una deuda, ni un tesoro que ya esté en la fila, que recibiría
+   por dos reglas a la vez. Maun sí puede, aunque sea un paso de gastos fijos: es lo que pasa en la fila
+   de siempre.
+8. **Los compromisos tienen día de pago**, opcional, en cada renglón: «Pueden asignarse fechas de pago
+   para los compromisos a modo de alerta en la agenda». El vencimiento aparece en la Agenda y en Inicio,
+   y avisa al teléfono como los demás eventos de la agenda, con su propio aviso, «Vencimientos»
+   ([ADR 0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md) y
+   [0036](0036-avisos-por-dispositivo-fuera-de-la-replica.md)). No se guarda: sale de la fila. Registrar
+   el pago es un gasto desde ese tesoro con el nombre del renglón como categoría (desde Maun, con «Gasto
+   del taller»): con eso el vencimiento de ese mes queda pagado, sin una tabla de pagos.
+9. **Lo que tienen las obligaciones y los compromisos es deuda**, y se muestra como «a pagar», como ya
+   hacía el diezmo con `estadoDelDiezmo`, porque así lo escribió él: «figuran como "deuda" mientras
+   tanto». Registrar el pago lo baja, y un compromiso que se renueva al pagar vuelve a juntar. Hogar y
+   Maun no: el saldo del Hogar es la plata de la casa y el de Maun es la caja del taller, y ninguno de
+   los dos se le debe a nadie.
+10. **Los insumos son un visor, no un tesoro.** Por cada trabajo vivo que no está cobrado ni perdido,
+    son todo lo que entró (la seña y los pagos, también los de antes de la apertura) menos todo lo que se
+    gastó en ese trabajo. No mueven plata: esa plata está en Maun hasta que el trabajo se cobra. Es el
+    «visor externo en el sector "tesoros"» que él mismo propuso. Pueden dar negativo, si el taller puso
+    plata, y el total cuenta los negativos: así Maun sin los insumos es exacto. Se ven en la ficha del
+    trabajo, en Tesoros y en Inicio.
+11. **La flecha dice «Se cobra el trabajo», no «Se concreta un proyecto».** El ingreso se reparte al
+    cobrar: mientras el trabajo puede caerse, la seña es un anticipo y no un ingreso
+    ([ADR 0011](0011-dominio-cascada-estados-y-cobro.md), «El perdido se liquida al pasar a perdido»), y
+    lo cobrado menos los gastos se sabe al final. Hasta entonces la seña está en los insumos. Es también
+    la respuesta a su pregunta: lo que baja por la fila es cada cobro.
+
+### Alternativas descartadas
+
+- **Los compromisos solo por mes**, como hacía la fila. Un paso por mes recibe hasta su monto en cada
+  mes, se haya pagado o no: un alquiler que no se pagó en septiembre se vuelve a llenar en octubre, el
+  tesoro junta dos, y esa plata no llega a los ahorros. Eliseo escribió otra cosa: el compromiso «reúne
+  valores hasta alcanzar un monto» y vuelve a cero cuando se registra el pago. Por mes queda como opción,
+  y es la del sueldo.
+- **Mover la seña a un tesoro de cada trabajo, con asientos propios**, como dice su dibujo («Tesoro
+  interno y particular de cada proyecto»). Cada pago y cada gasto del trabajo tendría que mover plata
+  entre Maun y ese tesoro, el cobro lo tendría que vaciar y reabrirlo, volver a llenarlo: asientos nuevos
+  en el libro y en lo congelado ([ADR 0003](0003-distribucion-congelada.md)) para una plata que no cambia
+  de lugar, porque ya está en Maun. El visor la cuenta con lo que ya está en la réplica, sin escribir
+  nada.
+- **Los porcentajes sobre la ganancia, antes de los ahorros fijos.** Los fijos y los porcentajes
+  podrían pedir más de lo que hay, y habría que decidir a cuál se le corta (punto 6).
+- **Un tipo fijo guardado en cada tesoro.** Una columna `tipo` en `tesoros` diría lo mismo que su lugar
+  en la fila, y los dos se podrían contradecir: un tesoro marcado como ahorro puesto como compromiso.
+  Cambiarle el tipo serían dos escrituras en la cola, el tesoro y la fila. Además, un tesoro del estante
+  no tiene tipo, porque no recibe, y Maun puede ser compromiso y superávit a la vez. El tipo sale de su
+  lugar en la fila (`tipoDelTesoro`).
+
+### Consecuencias
+
+- **Finanzas suma la décima clase, «Gasto de un tesoro»**
+  ([ADR 0018](0018-finanzas-el-diezmo-y-los-movimientos-a-mano.md)): un gasto desde cualquier tesoro del
+  dueño. Es como se registra el pago de una obligación o de un compromiso que no es Hogar, Maun, Cocos
+  ni el diezmo, que siguen con sus clases. No necesitó migración: el `check` de movimientos ya mira los
+  ids.
+- **Todo movimiento toma el candado de `ajustes`**, y antes su trabajo, si es de uno. Un gasto desde un
+  tesoro que se renueva o se repone cambia lo que el próximo cobro le da, así que una liquidación del
+  mismo taller tiene que ver cada movimiento entero o no verlo. Cuesta que un movimiento espere a un
+  cobro del mismo taller que esté en curso. Un update masivo sobre movimientos de trabajos distintos,
+  como `vaciarMovimientos` de los e2e, puede trabarse con un cobro en curso (`40P01`); la app escribe de
+  a uno.
+- **Un trabajo a pérdida no aparta Ingresos Brutos, aunque se deba.** Si lo cobrado menos los gastos no
+  es positivo, no se reparte nada, como siempre, pero en el régimen general Ingresos Brutos se debe igual
+  sobre lo facturado: esa plata la tiene que pasar él, «Entre tesoros». Y como una obligación nunca
+  aparta más que lo que llega, con un ingreso chico se aparta a medias: con $ 1.000.000 cobrados y
+  $ 990.000 de gastos, $ 10.000 de los $ 35.000.
+- **El reparto de un cobro depende también de los saldos.** Un paso que se renueva o se repone mira el
+  saldo de su tesoro, y un ahorro con meta, el suyo. Si otro aparato registró un pago que la app todavía
+  no vio, la base cuenta con el saldo de verdad y el cobro sale ajustado, no rechazado, como con lo del
+  mes ([ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md)).
+- **Cambiar una meta no suma una revisión de la fila.** La meta es un dato del tesoro (la de Cocos, de
+  `ajustes`), como su saldo, y `contar_la_revision_de_la_fila` no la mira: un cobro armado con la meta
+  de antes sale ajustado, no rechazado con MN006. Un tesoro que se queda sin meta sigue en la fila y
+  junta sin fin; recién al guardar la fila otra vez, «hasta la meta» sin meta es un problema.
+- **Las filas guardadas antes se leen sin reescribirlas.** `leerLaFila` y las gemelas completan lo que
+  falta con lo de siempre, y un paso de `repartos` con `modo` null es por mes. No hubo nada que rellenar:
+  ningún taller tenía la fila guardada.
+- **`diezmo-en-la-fila` nunca es el primer problema que devuelve la base.** El diezmo como paso sale
+  antes como repetido, si también es obligación, o como `sin-diezmo`, si no lo es. En la lista completa
+  sigue apareciendo.
+- **La agenda pide un rango para armar sus datos.** Los vencimientos se repiten cada mes:
+  `datosDeLaAgenda` arma los meses del rango que recibe, que tiene que ser el mismo que después mira
+  `eventosDeLaAgenda`.
+- **La función de avisos repite dos reglas del dominio**: la ventana de `eventosParaAvisar`
+  (`rangoDelAviso`) y las preferencias iniciales para lo que falte (`preferenciasCompletas`). Si cambia
+  una, cambia la otra.
+- **Sin la zona, la función leería en UTC el mes en que se guardó la fila.** La base la manda en cada
+  aviso. Sin ella, una fila guardada en las últimas tres horas del último día de un mes haría aparecer
+  desde el mes siguiente los vencimientos de los pasos sin `desde`.
 
 ## Alternativas descartadas
 
@@ -593,6 +1013,23 @@ Lo pedido está hecho tal cual. Estas son las objeciones, fundamentadas:
 4. **`guardar_la_fila` con `p_fila` null es API que la pantalla no ofrece.** La usa `vaciarTaller` para dejar el taller de prueba sin fila. Cualquier dueño puede llamarla sobre su propio taller y volver a la fila de siempre; no toca a nadie más, y la revisión nueva hace rebotar un cobro armado antes.
 5. **Las gemelas difieren en un número que la app nunca manda**: `private.entero_de_json` rechaza el texto JSON `1.0000000000000001`, que JavaScript lee como 1. La base es la más estricta de las dos y la app escribe con `JSON.stringify`, así que no se arregla; queda fuera del comparador, anotado acá. La otra diferencia que encontró el comparador sí se arregló antes de subir la migración: `private.fila_de_siempre` aceptaba un sueldo o unos fijos por encima de `Number.MAX_SAFE_INTEGER`, y ahora rechaza con 22003, como el dominio.
 
+Con los tipos de tesoro:
+
+6. **«Pagado» se decide por el texto.** Un vencimiento queda pagado si hay un gasto desde ese tesoro
+   con el nombre del renglón como categoría en el mes. Si Eliseo paga desde otro tesoro, con otra
+   categoría, o renombra el renglón después de pagar, figura sin pagar y la Agenda le ofrece registrar
+   el pago otra vez. Un renglón con id propio sería más firme, pero los renglones viven en el jsonb de
+   la fila y no tienen id.
+7. **La escala del plano en la compu.** Con la fila típica de Eliseo el plano entra a 1:1,6: la letra
+   chica de las fichas queda en unos 7 px en una pantalla común. Se eligió ver la fila entera, que es el
+   panorama que él pidió; si le cuesta leer, se compacta o se pone un piso de 0,8 con desplazamiento.
+8. **El candado de `ajustes` en cada movimiento** serializa todas las escrituras del taller detrás de
+   cada liquidación, para una garantía que solo necesitan los tesoros que se renuevan o se reponen, y un
+   update masivo sobre movimientos de trabajos distintos puede cortarse con 40P01. Para un solo usuario
+   no se nota.
+9. **`index-*.js` volvió a crecer**: 959.328 B (264.574 con gzip), 59.588 más que en el primer pedido,
+   porque las pantallas del taller no se parten. El lienzo sigue aparte (194.887 B).
+
 ## Desvíos del LEEME y de las maquetas
 
 - **El encuadre lo calcula la app, no `fitView`.** El LEEME pedía `fitView` con `maxZoom: 1` y padding. `fitView` encuadra al montar y no cuando cambia la forma de la fila (un paso más dejaba una ficha afuera), y en el primer render el `transform` quedaba en 0,0. `model/encuadre.ts` hace la misma cuenta y la repite cuando algo queda afuera.
@@ -608,13 +1045,72 @@ Lo pedido está hecho tal cual. Estas son las objeciones, fundamentadas:
 - **Lo que las maquetas dibujan simplificado y `main` ya hacía distinto** queda como estaba: la fecha de Inicio («dom 27 sep»), «Entrega más próxima» sin el cliente, «Hoy en la agenda» en el celular, el pie «Todo sincronizado.» de la barra lateral, las hojas sin agarradera y el `scrollbar-gutter` del `<main>` en la tablet.
 - **En la base, además de lo pedido**: `private.lo_del_mes_es_otro` (si lo que vio la app es otro que lo que suma la base), el rechazo con 23514 de una edición que saca el id de un lado y pone otra clave, y el tope de 22003 en `private.fila_de_siempre`.
 
+**Con los tipos de tesoro**, del pedido, en el dominio y en la base:
+
+- **`p_previo` y `dist_previo` llevan un número por paso, no dos.** El pedido decía el previo según su
+  modo y, aparte, lo que le faltaba para la meta. Van plegados: el previo con el piso de la meta,
+  `max(lo del modo, monto − lo que le falta para la meta)`, que es el único número que entra a la
+  cuenta, y en cada parte que va hasta la meta, su tope. Con eso la base rehace la cuenta de la app y
+  detecta el ajuste; el segundo número no cambiaba nada de lo que se congela.
+- **`private.lo_del_mes_es_otro` tiene una versión nueva, que mira las partes por presencia**: una parte
+  con tope de un lado y sin tope del otro ya es otra cosa. La de antes contaba como cero una clave que
+  faltaba, y con las partes haría saltar mal el MN008. Se sacó recién después de reemplazar `liquidar`,
+  que la usaba en cada llamada. En el reenvío, los pasos y las partes que compara salen de los repartos ya
+  guardados de ese cobro.
+- **`guardar_la_fila` se reemplazó con `create or replace`**, con la misma firma, aunque no estaba en la
+  lista de lo autorizado: es la única forma de pasarle las metas a `problema_de_la_fila`, y no toca
+  ningún dato.
+- **El check de `repartos` exige de 0,01% a 100% en las obligaciones.** El diezmo, el único que puede ir
+  en cero (en un perdido sin diezmo), nunca lleva fila. El modo va según la clase, pero que un paso de
+  Maun vaya solo por mes no entra en el check, porque necesita la clave del tesoro: lo cuida
+  `problema_de_la_fila` al guardar.
+- **`leerLaFila` completa solo lo que falta.** Una clave que está en null no se lee, salvo `dia`, donde
+  null es sin día de pago.
+- **`filaDelMes` devuelve las listas en el orden de la fila, con el `tipo` en cada paso**, y no un objeto
+  agrupado por tipo: el orden de la fila ya es por tipo.
+- **`datosDeLaAgenda` pide el rango, y cada aviso de la mañana lleva la zona de la persona**, que el
+  pedido no decía: los vencimientos se repiten cada mes, y el mes en que se guardó la fila depende de la
+  zona. La función completa además las preferencias que no traen `vencimientos` (`preferenciasCompletas`),
+  así no importa si llega antes el deploy o la migración.
+- **El renglón del aviso suma «(hoy)» o «(en N días)»**, como los demás: «Vence: Alquiler, $ 500.000
+  (hoy)». La función escribe los pesos por su cuenta, con espacio duro y coma decimal, porque no importa
+  nada de la app.
+- **Los insumos de un trabajo pueden dar negativo** y el total los cuenta, como está en el punto 10 de
+  «Lo que se decidió».
+
+Con los tipos de tesoro, en la web:
+
+- **La escala.** El LEEME pedía que la fila entera entrara en la compu a 0,8–1. Con la seña, las
+  obligaciones y las etiquetas del flujo, la fila de Eliseo entra a 1:1,6 (zoom 0,63), y no llega a 0,8
+  sin romper el diagrama vertical del pedido. Se ve entera y se agranda con Acercar.
+- **La tablet vertical**: la tarjeta flotante de la prueba muestra «Se cobró» sin su línea de ayuda,
+  para no tapar el plano. En el panel y en el celular la ayuda está.
+- **`?tesoro=` con una parte del reparto** la marca en el plano y abre el panel del reparto, que es el
+  de las partes.
+- **El despiece de un trabajo ya cobrado**: solo las partes guardan su tope, así que ahí «llegó a la
+  meta» se ve en las partes y no en los pasos.
+- **La hoja de cubrir**, con un compromiso que se renueva, dice «Faltan $ … para completar su monto» y
+  no nombra el mes.
+- **Quedan dos «ganancia»** que no quieren decir lo cobrado menos los gastos: «el corte de la ganancia»
+  de los rechazos y «tu ganancia» de la hoja de compartir. Las ayudas de Tesoros usan «ganancia» como
+  Eliseo: lo que queda después de los compromisos.
+
 ## Lo que falta confirmar con Eliseo
 
 - Si «Gastos fijos» es un tesoro aparte, como en las maquetas, o prefiere que los gastos fijos sigan en Maun, como la fila de siempre. Las dos cosas funcionan.
-- Si el sueldo tiene que ir siempre primero o puede ir después de los gastos fijos. Hoy puede ir en cualquier lugar.
+- Si el sueldo tiene que ir siempre primero o puede ir después de los gastos fijos. Hoy puede ir en cualquier lugar entre los compromisos.
 - Qué tesoros quiere de entrada (las maquetas usan Materiales, Inmuebles y Herramientas) y con qué metas.
 - Si cubrir el faltante desde Cocos tiene que pedir una confirmación más. Hoy la hoja dice qué cuesta y deja hacerlo.
 - Si la hoja de guardar tiene que avisar que, el mes en que los gastos fijos salen de Maun, ese paso se vuelve a llenar (objeción 2).
+- Si Ingresos Brutos va sobre lo cobrado y antes del diezmo. Así quedó: antes del diezmo porque así lo
+  escribió él, y sobre lo cobrado porque así se liquida en el régimen general. Si lo paga adentro del
+  monotributo, es una cuota fija por mes y va como compromiso. Ingresos Brutos no viene cargado.
+
+- Si lee bien el plano a 1:1,6 en la PC del taller.
+- Si le sirve que «Pagado» salga de la categoría del gasto.
+- La descripción del diezmo que se ve en Tesoros sale de la base y todavía dice «Lo apartado de cada
+  ganancia». Cambiarla en los talleres que existen es un update de datos de producción y no se hizo.
+- El resumen del mes de la Agenda dice «compromisos» por las citas, y ahora choca con el tipo de tesoro.
 
 ## Verificación
 
@@ -655,6 +1151,59 @@ Después se reabrió, se borraron el trabajo y el cliente, se volvió a la fila 
 
 **Lo que no se probó**: con un lector de pantalla real, en el Samsung de Eliseo y en una tablet de verdad.
 
+**Los tipos de tesoro** (2026-09-28): la base, el dominio y la función de avisos.
+
+- **Antes y después de empujar**, las mismas cifras: 4 talleres, 18.740 movimientos (27 vivos), 13
+  proyectos liquidados, 4 filas de ajustes y ninguna con la fila guardada, 107 tesoros (16 sin
+  archivar), 672 repartos y ninguno vivo, y la misma huella md5 de los saldos por tesoro. Ningún taller
+  tenía la fila guardada ni repartos vivos fuera del de prueba, que era la condición para cambiar el
+  check de `repartos`.
+- **`db:ensayo -- --seed`** en verde: 40 archivos y 1.461 tests de pgTAP, con
+  `39_los_tipos_de_tesoro.sql` nuevo (83) y 03, 17, 19, 36, 37 y 38 al día (82, 33, 21, 44, 49 y 86), y
+  el dominio contra SQL con el seed. `sb db push` aplicó las seis migraciones. Después, el check de
+  `repartos` quedó validado con su nombre de siempre, las dos columnas nuevas y el default de los avisos
+  estaban, y `authenticated` no puede ejecutar ninguna de las gemelas. Los advisors dan los mismos ocho
+  avisos de antes.
+- **La suite de `@maun/db` contra la base migrada**: 18 archivos y 283 tests, con los dos casos de
+  concurrencia nuevos.
+- **El comparador**, con 21.295 casos de la fila (escala 2), las liquidaciones y el libro: ninguna
+  diferencia. Para ver que detecta, se probaron 14 mutantes de las gemelas (una obligación redondeada
+  hacia abajo o sin el tope de lo que llega, la base `cobrado` leída como `ingreso`, una parte sin su
+  tope, el previo sin el piso de la meta, un saldo negativo como previo, el diezmo de un perdido sin
+  mirar `perdido_con_diezmo`, lo que vio la app sin mirar las partes, entre otros) y 4 de `liquidar`
+  (congelar lo que vio la app sin ajustar, no leer los saldos del libro, la meta de Cocos sin `ajustes` y
+  el diezmo del perdido sin su porcentaje de la fila): los detectó a todos.
+- **`@maun/domain`**: 830 tests, 100% de cobertura, los vectores fijos y los 4.000 casos de la fila de
+  siempre contra `calcularDistribucion`.
+- **La función de avisos**: 21 tests de Deno, 7 nuevos, y desplegada el 2026-09-28.
+
+**Un cobro de punta a punta** en el taller de la cuenta de prueba, con un script que arma el pedido con
+las mismas funciones que la app (`entradaDeLaLiquidacion`, `calcularPorLaFila` y `pedidoDeLaFila`) y lo
+manda como ese usuario. La fila: Ingresos Brutos al 3,5% sobre lo cobrado, antes del diezmo al 10% sobre
+el ingreso; Gastos fijos, un compromiso que se renueva al pagar, con el alquiler de $ 500.000, que vence
+el 10, y la luz de $ 400.000; Inmueble, un ahorro del 20% hasta su meta de $ 300.000, que ya tenía
+$ 250.000; y el superávit en un tesoro «Superávit».
+
+- El primer cobro, $ 2.500.000 con $ 500.000 de gastos: Ingresos Brutos $ 87.500, diezmo $ 191.250,
+  Gastos fijos $ 900.000, Inmueble $ 50.000 (le tocaban $ 164.250) y el superávit $ 771.250. `p_previo`
+  llevó Gastos fijos en cero e Inmueble con su tope de $ 50.000, y `dist_previo` quedó igual. `repartos`
+  quedó con cuatro filas, en este orden: la obligación (`base` `cobrado`), el paso (`modo` `saldo`), la
+  parte (tope $ 50.000) y el superávit. En `libro_mayor`, el cobro entra a Maun, el gasto sale de Maun,
+  el diezmo pasa de Maun al Diezmo y cada reparto, de Maun a su tesoro.
+- El pago del alquiler, un gasto de $ 500.000 desde Gastos fijos con la categoría «Alquiler», lo bajó a
+  $ 400.000.
+- El segundo cobro, $ 1.000.000 sin gastos: Ingresos Brutos $ 35.000, diezmo $ 96.500, Gastos fijos se
+  renovó con $ 500.000 (volvió a $ 900.000), Inmueble $ 0 (ya estaba en su meta) y el superávit
+  $ 368.500.
+
+Después se reabrieron y se borraron los dos trabajos, el taller volvió a la fila de siempre y se
+archivaron los cuatro tesoros de la prueba: quedó sin fila, con los cuatro de siempre y sin repartos ni
+movimientos vivos de la prueba.
+
+**Razonado y no probado**: que el caso de concurrencia del movimiento con su trabajo falla si el
+trigger toma los locks al revés, y que ningún cobro real cayó entre una migración y la siguiente (el
+bundle de producción cobra por el camino de antes, que no usa las gemelas, y ningún taller tenía fila).
+
 ## Fuentes
 
 Consultadas el 2026-09-27. Van citadas en «Lo investigado».
@@ -684,3 +1233,7 @@ Consultadas el 2026-09-27. Van citadas en «Lo investigado».
 - tldraw, la licencia: https://tldraw.dev/community/license
 - GoJS, el despliegue: https://gojs.net/latest/intro/deployment.html
 - JointJS, la licencia y las funciones: https://www.jointjs.com/license y https://www.jointjs.com/features
+- ARBA y el monotributo unificado (iProfesional, «ARBA publicó los nuevos montos del monotributo
+  unificado desde agosto 2026», 6 de agosto de 2026), consultada el 2026-09-28 y citada en «Los tipos de
+  tesoro de Eliseo»:
+  https://www.iprofesional.com/impuestos/461356-monotributo-unificado-buenos-aires-cuanto-pagas-con-los-nuevos-importes-de-arba

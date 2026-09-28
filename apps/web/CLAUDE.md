@@ -323,6 +323,20 @@ src/
 - **La fila optimista de `ajustes` sube `fila_version`** con la misma regla que el trigger de la base (`cambiaElReparto`, en `features/configurar-taller`), y el `onError` la devuelve: un cobro encolado detrás de una edición de Ajustes sin señal manda la revisión que la base va a tener.
 - **En Ajustes**, sin fila guardada el sueldo y los costos fijos siguen ahí (arman la fila de siempre); con fila, la sección manda a Tesoros. `faltaConfigurar` es falso con fila.
 
+### Los tipos de tesoro (ADR 0078, «Los tipos de tesoro de Eliseo»)
+
+- **Las palabras de Eliseo**: ingreso (lo cobrado menos los gastos de un trabajo), ingreso libre (el ingreso menos las obligaciones), ganancia (lo que queda después de los compromisos) y superávit (lo que queda después de los ahorros). En el código siguen `sueldo`, `fijos` y `prioridad`.
+- **El tipo sale del lugar en la fila**, no de una columna: obligación, compromiso, ahorro fijo, ahorro (el reparto) o superávit. Los nombres para la pantalla están en `entities/fila/model/tipos.ts`, y las ayudas (i) en `entities/fila/ui/Ayudas.tsx`, porque las usan Tesoros, Inicio y `editar-tesoro`.
+- **El plano de Tesoros**:
+  - sigue el diagrama de Eliseo: la fila de la seña, «Se cobra el trabajo», el «Ingreso», y los grupos con la columna de los tipos a la izquierda;
+  - los globos van numerados seguido, y las fichas se anuncian como «Compromiso 3 de 4: …»;
+  - «Nuevo tesoro» del estante es un botón (el nodo va `focusable: false`, el botón `nodrag nopan`);
+  - `/tesoros?tesoro=<id>` elige ese tesoro.
+- **Los insumos son un visor, no un tesoro**: `insumosPorTrabajo` y `insumosDelTaller` de `@maun/db`. Se ven en la ficha del trabajo, en Tesoros y en Inicio, y la plata sigue en Maun.
+- **Los vencimientos** salen de la fila, no se guardan: son la tercera clase de evento de la agenda, con la marca `reloj` y la tinta `--ag-vencimiento`. «Pagado» es un gasto desde ese tesoro con el nombre del renglón como categoría en el mes.
+- **La décima clase de movimiento, «Gasto de un tesoro»** (`gasto_tesoro`), es un gasto desde cualquier tesoro del dueño. «Registrar el pago» abre `/finanzas/nuevo?clase&tesoro&monto&categoria` (y `fecha`).
+- **Inicio** suma el panorama (`pages/inicio/model/panorama.ts`).
+
 ## La fecha de la plata (ADR 0063)
 
 - **Toda plata que entra lleva una fecha editable, con hoy por defecto, y la fecha viaja con la mutación.** Hoy es `hoyEnElTaller()` de `@/shared/lib`, el día en Argentina: nunca `toISOString()`, que después de las 21 ya es mañana. La base no inventa ninguna: rechaza la que falta (`MN016`) y la que todavía no llegó (`MN017`), y la pantalla lo avisa antes con `errorDeLaFechaDeLaPlata`.

@@ -2,7 +2,7 @@
 
 Estado: aceptada, 2026-09-11, con la evidencia de la fase 2 (ver al final). La cascada, la liquidación (cobrar o cerrar como perdido), la reversión y los topes mensuales se detallan en el ADR 0011.
 
-- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): lo congelado de un cobro por la fila suma la fila con la que se repartió, su revisión, lo que el mes llevaba y una fila de `repartos` por cada paso y cada parte. El libro mayor lleva la cuenta por id de tesoro. Ver la nota al final de «Cómo quedó en la base».
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): lo congelado de un cobro por la fila suma la fila con la que se repartió, su revisión, lo que cada paso ya tenía y una fila de `repartos` por cada obligación que no es el diezmo, cada paso, cada parte y el superávit si no es Maun. El libro mayor lleva la cuenta por id de tesoro. Ver la nota al final de «Cómo quedó en la base».
 
 ## Contexto
 
@@ -53,7 +53,7 @@ Hay además un problema de historia. Si el sueldo configurado cambia el año que
 
 **Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** La decisión no cambia: se congela, y la vista arma lo derivado. Cambia qué se congela y cómo se nombra un tesoro.
 
-- **Un cobro por la fila congela más.** Además de los cuatro escalones de siempre (con lo que da `columnasDeSiempre`, así los checks de `proyectos` siguen valiendo sin tocarlos), guarda `dist_fila` (la fila con la que se repartió, la guardada o la de siempre armada en ese momento), `dist_fila_version` y `dist_previo` (lo que cada paso llevaba del mes según la base), y una fila de `repartos` por paso y por parte, con el tesoro, su nombre de ese día y el monto. Guardar una fila nueva no toca ninguna liquidación hecha: los cambios valen desde el próximo cobro.
+- **Un cobro por la fila congela más.** Además de los cuatro escalones de siempre (con lo que da `columnasDeSiempre`, así los checks de `proyectos` siguen valiendo sin tocarlos), guarda `dist_fila` (la fila con la que se repartió, la guardada o la de siempre armada en ese momento), `dist_fila_version` y `dist_previo` (lo que cada paso ya tenía según la base, del mes o de su saldo según cómo se llena, y el tope de cada parte que va hasta la meta), y una fila de `repartos` por cada obligación que no es el diezmo, por paso, por parte y por el superávit si no es Maun, con el tesoro, su nombre de ese día y el monto. Guardar una fila nueva no toca ninguna liquidación hecha: los cambios valen desde el próximo cobro.
 - **Reabrir borra lógicamente los repartos** y guarda la foto en `reapertura_fila`, así volver a cobrar reparte con la fila con la que se había cobrado, como ya pasaba con la fecha y los objetivos.
 - **Los movimientos nombran sus tesoros por id** (`desde_id`, `hacia_id`), porque un tesoro del dueño no tiene clave. `tesoro_origen` y `tesoro_destino` siguen, y un trigger completa un lado desde el otro: una app sin actualizar sigue escribiendo la clave.
 - **La vista suma un origen, `reparto`**: cada reparto vivo de un proyecto liquidado pasa su monto de Maun a su tesoro. Suma también `tesoro_id` y `contrapartida_id` al final; el saldo de un tesoro es `sum(monto_centavos) where tesoro_id = X`. `tesoro` sigue con la clave, así las consultas de antes dan lo mismo.

@@ -10,6 +10,10 @@
 - Enmendada el 2026-09-25 por el [ADR 0074](0074-lo-que-responde-al-tocar.md): al tildar una
   anotación, la tilde se dibuja y una línea corre sobre el texto hasta quedar tachado como siempre;
   solo en el renglón recién tildado, aunque React lo mueva al final. Destildar vuelve en el acto.
+- Enmendada el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la agenda
+  también muestra lo que sale de la fila de los tesoros, el vencimiento de cada renglón con día de pago
+  de un compromiso. Es una tercera clase de evento y tampoco se guarda. Ver la nota después de «Por qué
+  no se guarda».
 
 ## Contexto
 
@@ -40,6 +44,34 @@ Por qué no se guarda:
 - **La misma función elige qué avisar.** `eventosParaAvisar` llama a `eventosDeLaAgenda` con
   `[hoy, hoy + anticipación]`, y la función de borde importa ese mismo código (ADR 0036). La grilla, la
   lista del día y el aviso no pueden decir cosas distintas.
+
+**Enmendada el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): lo que sale
+de la fila.** Un compromiso de la fila de los tesoros puede tener día de pago en cada renglón (el
+alquiler, el 10). Su vencimiento aparece en la agenda y, por las mismas razones de arriba, no se guarda:
+sale de la fila guardada del taller.
+
+- **Es una tercera clase de evento**, `clase: 'vencimiento'` (`EventoVencimiento`), con el tesoro y su
+  nombre, el renglón, el monto y `hecha` cuando está pagado. No es un derivado más: `EventoDerivado`
+  pide un trabajo y un cliente, y un vencimiento no tiene ninguno. Su categoría, `vencimiento`, está en
+  `CategoriaDeAgenda` pero no en `CategoriaDerivada`. No se arrastra (`puedeArrastrarse`: el día sale de
+  la fila y se cambia ahí), no lleva hora ni enlaza a un trabajo, e `importante` va siempre en false. En
+  el día va después de volver a escribirle y antes de lo que se anota. Todo lo que mira `evento.clase`
+  tiene tres ramas.
+- **En qué días aparece**: en su día de cada mes, desde el mes en que rige su paso (su `desde`, o el mes
+  en que se guardó la fila si no tiene), nunca antes. Si el mes no tiene ese día, va el último: el 31
+  cae el 30 en septiembre. Sin fila guardada no hay vencimientos, porque la de siempre no tiene días.
+- **Pagado** es que en ese mes hay un gasto desde ese tesoro con el nombre del renglón como categoría,
+  sin mirar tildes ni mayúsculas. Registrar el pago es justamente eso
+  ([ADR 0018](0018-finanzas-el-diezmo-y-los-movimientos-a-mano.md), la décima clase). Lo pagado queda
+  hecho en su día, como una anotación tildada.
+- **Lo arma quien arma los datos.** `vencimientosDeLaFila` (`agenda.ts` del dominio) recibe la fila, los
+  nombres de los tesoros, el mes en que se guardó (`AAAA-MM`) y los gastos de los tesoros, y
+  `DatosDeLaAgenda` trae la lista en `vencimientos`. La llama `datosDeLaAgenda(filas, rango, zona?)` de
+  `@maun/db`: la app desde la réplica y la función de avisos desde la base (ADR 0036). Como los
+  vencimientos se repiten cada mes, el rango pasó a ser obligatorio: se arman los meses que toca, y tiene
+  que ser el mismo rango que después mira `eventosDeLaAgenda`.
+- **Se avisa como los demás**, con su propia preferencia, `vencimientos`, prendida y para el mismo día.
+  Lo pagado no se avisa.
 
 **Lo propio es una fila de `anotaciones`** (`20260914120000_agenda.sql`): fecha, hora opcional, texto,
 categoría (`materiales` o `taller`), trabajo opcional con foreign key compuesta dentro del household,
