@@ -17,6 +17,10 @@ import { DIAS_MAXIMOS_DE_UN_PRESUPUESTO, parsearDias } from '../model/vigencia';
 
 const LARGO_DEL_NOMBRE = 120;
 
+export type ParteDeLaConfiguracion = 'taller' | 'reparto' | 'cocos';
+
+const TODAS_LAS_PARTES: readonly ParteDeLaConfiguracion[] = ['taller', 'reparto', 'cocos'];
+
 type CampoDelFormulario = 'nombre' | 'sueldo' | 'fijos' | 'meta' | 'tasa' | 'sena' | 'vigencia';
 
 const MENSAJE: Readonly<Partial<Record<CampoDelFormulario, string>>> = {
@@ -25,18 +29,24 @@ const MENSAJE: Readonly<Partial<Record<CampoDelFormulario, string>>> = {
   vigencia: `Escribí cuántos días vale un presupuesto, entre 1 y ${String(DIAS_MAXIMOS_DE_UN_PRESUPUESTO)}. Lo normal son 15.`,
 };
 
+type ValorDelFormulario = [CampoDelFormulario, keyof CambiosDeAjustes, number | null | undefined];
+
 interface ErrorDelFormulario {
   campo: CampoDelFormulario;
   mensaje: string;
 }
 
+export interface FormularioDeConfiguracionProps {
+  household: FilaDe<'households'>;
+  ajustes: FilaDe<'ajustes'>;
+  partes?: readonly ParteDeLaConfiguracion[];
+}
+
 export function FormularioDeConfiguracion({
   household,
   ajustes,
-}: {
-  household: FilaDe<'households'>;
-  ajustes: FilaDe<'ajustes'>;
-}) {
+  partes = TODAS_LAS_PARTES,
+}: FormularioDeConfiguracionProps) {
   const [nombre, setNombre] = useState(household.nombre);
   const [sueldo, setSueldo] = useState<number | null>(ajustes.sueldo_mensual_centavos);
   const [fijos, setFijos] = useState<number | null>(ajustes.costos_fijos_centavos);
@@ -49,6 +59,11 @@ export function FormularioDeConfiguracion({
   const mutacionDeAjustes = useMutation(MUTACION_DE_AJUSTES);
   const mutacionDelNombre = useMutation(MUTACION_DEL_NOMBRE);
   const estadoSync = useEstadoSync();
+
+  const conElTaller = partes.includes('taller');
+  const conElReparto = partes.includes('reparto');
+  const conCocos = partes.includes('cocos');
+  const cuantos = (conElTaller ? 3 : 0) + (conElReparto ? 2 : 0) + (conCocos ? 2 : 0);
 
   const guardando = mutacionDeAjustes.isPending || mutacionDelNombre.isPending;
   const hayFallo = mutacionDeAjustes.isError || mutacionDelNombre.isError;
@@ -63,7 +78,7 @@ export function FormularioDeConfiguracion({
     evento.preventDefault();
 
     const nombreLimpio = nombre.trim();
-    if (nombreLimpio === '' || nombreLimpio.length > LARGO_DEL_NOMBRE) {
+    if (conElTaller && (nombreLimpio === '' || nombreLimpio.length > LARGO_DEL_NOMBRE)) {
       setError({
         campo: 'nombre',
         mensaje: `Poné un nombre para el taller, de hasta ${String(LARGO_DEL_NOMBRE)} caracteres.`,
@@ -71,24 +86,26 @@ export function FormularioDeConfiguracion({
       return;
     }
 
-    const valores = {
-      sueldo_mensual_centavos: sueldo,
-      costos_fijos_centavos: fijos,
-      meta_cocos_centavos: meta,
-      tasa_cocos_anual_bp: parsearPorcentaje(tasa),
-      sena_bp: parsearPorcentaje(sena, SENA_MAXIMA_BP),
-      presupuesto_vale_dias: parsearDias(vigencia),
-    };
-
-    const faltante: [CampoDelFormulario, number | null | undefined][] = [
-      ['sueldo', valores.sueldo_mensual_centavos],
-      ['fijos', valores.costos_fijos_centavos],
-      ['meta', valores.meta_cocos_centavos],
-      ['tasa', valores.tasa_cocos_anual_bp],
-      ['sena', valores.sena_bp],
-      ['vigencia', valores.presupuesto_vale_dias],
-    ];
-    const invalido = faltante.find(([, valor]) => valor === undefined || valor === null);
+    const faltante: ValorDelFormulario[] = [];
+    if (conElReparto) {
+      faltante.push(
+        ['sueldo', 'sueldo_mensual_centavos', sueldo],
+        ['fijos', 'costos_fijos_centavos', fijos],
+      );
+    }
+    if (conCocos) {
+      faltante.push(
+        ['meta', 'meta_cocos_centavos', meta],
+        ['tasa', 'tasa_cocos_anual_bp', parsearPorcentaje(tasa)],
+      );
+    }
+    if (conElTaller) {
+      faltante.push(
+        ['sena', 'sena_bp', parsearPorcentaje(sena, SENA_MAXIMA_BP)],
+        ['vigencia', 'presupuesto_vale_dias', parsearDias(vigencia)],
+      );
+    }
+    const invalido = faltante.find(([, , valor]) => valor === undefined || valor === null);
     if (invalido) {
       setError({
         campo: invalido[0],
@@ -99,12 +116,15 @@ export function FormularioDeConfiguracion({
     }
 
     setError(undefined);
-    const { cambios, previos } = diferencias(ajustes, valores as CambiosDeAjustes);
+    const valores = Object.fromEntries(
+      faltante.map(([, columna, valor]) => [columna, valor]),
+    ) as CambiosDeAjustes;
+    const { cambios, previos } = diferencias(ajustes, valores);
 
     if (Object.keys(cambios).length > 0) {
       mutacionDeAjustes.mutate({ id: ajustes.id, cambios, previos });
     }
-    if (nombreLimpio !== household.nombre) {
+    if (conElTaller && nombreLimpio !== household.nombre) {
       mutacionDelNombre.mutate({
         id: household.id,
         nombre: nombreLimpio,
@@ -115,71 +135,85 @@ export function FormularioDeConfiguracion({
 
   return (
     <form noValidate className="flex flex-col gap-3" onSubmit={enviar}>
-      <CamposJuntos columnas={3} deADos campoMinimo="12rem">
-        <Campo
-          etiqueta="Nombre del taller"
-          value={nombre}
-          maxLength={LARGO_DEL_NOMBRE}
-          error={error?.campo === 'nombre' ? error.mensaje : undefined}
-          onChange={(evento) => {
-            setNombre(evento.target.value);
-          }}
-        />
-        <MoneyInput
-          etiqueta="Sueldo que te asignás"
-          ayuda={
-            ajustes.sueldo_tope_mensual
-              ? 'Lo que tu casa necesita por mes. Los cobros del mes lo van pagando y, una vez cubierto, lo que sobra queda en el taller.'
-              : 'Lo que cada trabajo cobrado transfiere al hogar.'
-          }
-          value={sueldo}
-          error={error?.campo === 'sueldo' ? error.mensaje : undefined}
-          onChange={setSueldo}
-        />
-        <MoneyInput
-          etiqueta="Costos fijos por mes"
-          ayuda="Alquiler, servicios y todo lo que se paga aunque no entre trabajo."
-          value={fijos}
-          error={error?.campo === 'fijos' ? error.mensaje : undefined}
-          onChange={setFijos}
-        />
-        <MoneyInput
-          etiqueta="Meta de Cocos"
-          ayuda="A cuánto querés llegar en el ahorro invertido."
-          value={meta}
-          error={error?.campo === 'meta' ? error.mensaje : undefined}
-          onChange={setMeta}
-        />
-        <Campo
-          etiqueta="Seña que pedís (%)"
-          inputMode="decimal"
-          ayuda="Qué parte del presupuesto pedís para confirmar un trabajo. Lo normal es la mitad, y en un trabajo puntual la podés cambiar."
-          value={sena}
-          error={error?.campo === 'sena' ? error.mensaje : undefined}
-          onChange={(evento) => {
-            setSena(evento.target.value);
-          }}
-        />
-        <Campo
-          etiqueta="Días que vale un presupuesto"
-          inputMode="numeric"
-          ayuda="Se cuentan desde el día que lo mandás. Tu cliente ve hasta cuándo puede dejar la seña, y en cada trabajo la fecha se puede cambiar."
-          value={vigencia}
-          error={error?.campo === 'vigencia' ? error.mensaje : undefined}
-          onChange={(evento) => {
-            setVigencia(evento.target.value);
-          }}
-        />
-        <Campo
-          etiqueta="Tasa anual de Cocos (%)"
-          inputMode="decimal"
-          ayuda="Solo sirve para proyectar. Si no la sabés, dejala en 0."
-          value={tasa}
-          error={error?.campo === 'tasa' ? error.mensaje : undefined}
-          onChange={(evento) => {
-            setTasa(evento.target.value);
-          }}
-        />
+      <CamposJuntos columnas={cuantos > 2 ? 3 : 2} deADos campoMinimo="12rem">
+        {conElTaller && (
+          <Campo
+            etiqueta="Nombre del taller"
+            value={nombre}
+            maxLength={LARGO_DEL_NOMBRE}
+            error={error?.campo === 'nombre' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              setNombre(evento.target.value);
+            }}
+          />
+        )}
+        {conElReparto && (
+          <MoneyInput
+            etiqueta="Sueldo que te asignás"
+            ayuda={
+              ajustes.sueldo_tope_mensual
+                ? 'Lo que tu casa necesita por mes. Los cobros del mes lo van pagando y, una vez cubierto, lo que sobra queda en el taller.'
+                : 'Lo que cada trabajo cobrado transfiere al hogar.'
+            }
+            value={sueldo}
+            error={error?.campo === 'sueldo' ? error.mensaje : undefined}
+            onChange={setSueldo}
+          />
+        )}
+        {conElReparto && (
+          <MoneyInput
+            etiqueta="Costos fijos por mes"
+            ayuda="Alquiler, servicios y todo lo que se paga aunque no entre trabajo."
+            value={fijos}
+            error={error?.campo === 'fijos' ? error.mensaje : undefined}
+            onChange={setFijos}
+          />
+        )}
+        {conCocos && (
+          <MoneyInput
+            etiqueta="Meta de Cocos"
+            ayuda="A cuánto querés llegar en el ahorro invertido."
+            value={meta}
+            error={error?.campo === 'meta' ? error.mensaje : undefined}
+            onChange={setMeta}
+          />
+        )}
+        {conElTaller && (
+          <Campo
+            etiqueta="Seña que pedís (%)"
+            inputMode="decimal"
+            ayuda="Qué parte del presupuesto pedís para confirmar un trabajo. Lo normal es la mitad, y en un trabajo puntual la podés cambiar."
+            value={sena}
+            error={error?.campo === 'sena' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              setSena(evento.target.value);
+            }}
+          />
+        )}
+        {conElTaller && (
+          <Campo
+            etiqueta="Días que vale un presupuesto"
+            inputMode="numeric"
+            ayuda="Se cuentan desde el día que lo mandás. Tu cliente ve hasta cuándo puede dejar la seña, y en cada trabajo la fecha se puede cambiar."
+            value={vigencia}
+            error={error?.campo === 'vigencia' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              setVigencia(evento.target.value);
+            }}
+          />
+        )}
+        {conCocos && (
+          <Campo
+            etiqueta="Tasa anual de Cocos (%)"
+            inputMode="decimal"
+            ayuda="Solo sirve para proyectar. Si no la sabés, dejala en 0."
+            value={tasa}
+            error={error?.campo === 'tasa' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              setTasa(evento.target.value);
+            }}
+          />
+        )}
       </CamposJuntos>
 
       {hayFallo && (
@@ -195,7 +229,7 @@ export function FormularioDeConfiguracion({
       {guardado && <p className="text-label text-hogar">Guardado.</p>}
 
       <Button type="submit" cargando={guardando} className="mt-1 self-start">
-        Guardar la configuración
+        {conElTaller ? 'Guardar la configuración' : 'Guardar el sueldo y los costos'}
       </Button>
     </form>
   );

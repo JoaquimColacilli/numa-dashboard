@@ -35,6 +35,8 @@ select tests.guardar('household_b', private.crear_household('Taller de Beto', te
 -- porcentaje y sigue sin viajar: lo que viaja es el importe. Desde el ADR 0071 viajan también el día
 -- en que el mueble quedó listo («fechas.listo») y la entrega comprometida con su franja
 -- («entrega.comprometida»); el tipo de proyecto es una palabra del dueño para su analítico y no viaja.
+-- La fila con la que se liquidó, lo que cada tesoro llevaba del mes y la foto de la reapertura (ADR
+-- 0078) son la distribución del taller, como los dist_*: no viajan.
 select set_eq(
   $$
     select a.attname::text
@@ -65,7 +67,8 @@ select set_eq(
     'visita_importante', 'entrega_importante', 'presupuesto_importante',
     'sena_bp', 'entrega_hora', 'visita_hora',
     'costo_madera_centavos', 'costo_herrajes_centavos', 'costo_flete_centavos',
-    'costo_ayudante_centavos'
+    'costo_ayudante_centavos',
+    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila'
   ],
   'toda columna de proyectos está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );
@@ -80,7 +83,8 @@ select set_eq(
 -- presupuesto tampoco: viaja la fecha que sale de ellos, guardada en el trabajo. Ajustes está acá
 -- desde que uno de sus campos viaja: una columna nueva rompe este test igual que en proyectos. El
 -- enlace de reseña no viaja por esta puerta: sale por la de la encuesta, y su clasificación está en
--- 27_encuesta_publica.sql.
+-- 27_encuesta_publica.sql. La fila de los tesoros, su revisión y cuándo se guardó (ADR 0078) son
+-- cómo se reparte la plata adentro del taller: no viajan.
 select set_eq(
   $$
     select a.attname::text
@@ -95,7 +99,8 @@ select set_eq(
     'id', 'household_id', 'created_at', 'updated_at', 'deleted_at', 'version',
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
     'tasa_cocos_anual_bp', 'sueldo_tope_mensual', 'perdido_con_sueldo', 'perdido_con_diezmo',
-    'sena_bp', 'resena_link', 'presupuesto_vale_dias'
+    'sena_bp', 'resena_link', 'presupuesto_vale_dias',
+    'fila', 'fila_version', 'fila_guardada_at'
   ],
   'toda columna de ajustes está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );

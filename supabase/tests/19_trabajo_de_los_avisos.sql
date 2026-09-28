@@ -1,7 +1,7 @@
 -- A quién le toca el aviso de la mañana: la cuenta de la hora local la hace la base con la zona que
 -- eligió cada persona, no el servidor que manda. Y el trabajo que lo pide existe.
 
-select plan(14);
+select plan(21);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -51,6 +51,42 @@ insert into public.proximos_contactos (proyecto_id, fecha, etapa_previa, hecho_e
   values ('aaaaaaaa-0000-7000-8000-000000000003', '2026-09-01', 'presupuesto_enviado', '2026-09-02', 'otra_fecha');
 insert into public.proximos_contactos (proyecto_id, fecha, etapa_previa)
   values ('aaaaaaaa-0000-7000-8000-000000000003', '2026-09-14', 'presupuesto_enviado');
+
+-- Los vencimientos salen de la fila: un compromiso, Gastos fijos, con el alquiler que vence el 10, y
+-- los gastos desde su tesoro. Uno archivado, que también viaja con los tesoros.
+insert into public.tesoros (id, nombre, tinta, icono) values
+  ('aaaaaaaa-0000-7000-8000-000000000101', 'Gastos fijos', 'petroleo', 'building-2'),
+  ('aaaaaaaa-0000-7000-8000-000000000102', 'Viejo', 'grana', 'vault');
+update public.tesoros set archivado_at = now() where id = 'aaaaaaaa-0000-7000-8000-000000000102';
+select fila_version
+from public.guardar_la_fila(
+  (select fila_version from public.ajustes),
+  jsonb_build_object(
+    'obligaciones', jsonb_build_array(
+      jsonb_build_object('tesoro', (select id from public.tesoros where clave = 'diezmo'), 'porcentaje', 1000, 'base', 'ingreso')
+    ),
+    'pasos', jsonb_build_array(jsonb_build_object(
+      'tesoro', 'aaaaaaaa-0000-7000-8000-000000000101', 'clase', 'fijos', 'tope', 90000000,
+      'renglones', '[{"nombre": "Alquiler", "monto": 50000000, "dia": 10}, {"nombre": "Luz", "monto": 40000000, "dia": null}]'::jsonb,
+      'desde', null, 'modo', 'saldo', 'hastaLaMeta', false
+    )),
+    'reparto', '[]'::jsonb,
+    'superavit', (select id from public.tesoros where clave = 'maun'),
+    'sueldoPorTrabajo', false
+  )
+);
+insert into public.movimientos (fecha, tipo, hacia_id, monto_centavos) values
+  ('2026-09-05', 'ingreso', 'aaaaaaaa-0000-7000-8000-000000000101', 90000000);
+insert into public.movimientos (fecha, tipo, desde_id, monto_centavos, categoria) values
+  ('2026-08-31', 'gasto', 'aaaaaaaa-0000-7000-8000-000000000101', 100, 'Luz'),
+  ('2026-09-10', 'gasto', 'aaaaaaaa-0000-7000-8000-000000000101', 50000000, 'Alquiler'),
+  ('2026-10-02', 'gasto', 'aaaaaaaa-0000-7000-8000-000000000101', 40000000, 'Luz'),
+  ('2026-11-01', 'gasto', 'aaaaaaaa-0000-7000-8000-000000000101', 100, 'Luz');
+insert into public.movimientos (fecha, tipo, desde_id, tesoro_destino, monto_centavos) values
+  ('2026-09-06', 'transferencia', 'aaaaaaaa-0000-7000-8000-000000000101', 'maun', 100);
+insert into public.movimientos (fecha, tipo, desde_id, monto_centavos, categoria, deleted_at) values
+  ('2026-09-11', 'gasto', 'aaaaaaaa-0000-7000-8000-000000000101', 100, 'Alquiler', now());
+
 select tests.registrar('https://push.example/a', 'America/Argentina/Buenos_Aires');
 
 -- M: en Madrid, a las 12:00.
@@ -146,6 +182,80 @@ select is(
   tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') ->> 'dia',
   '2026-09-15',
   'al día siguiente vuelve a tocar'
+);
+
+
+-- Los vencimientos -----------------------------------------------------------------------------------------
+
+select is(
+  array[
+    tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') ->> 'zona',
+    tests.aviso_de('2026-09-14 10:20:00+00', 'https://push.example/m') ->> 'zona'
+  ],
+  array['America/Argentina/Buenos_Aires', 'Europe/Madrid'],
+  'cada aviso lleva la zona de su persona: con ella se lee en qué mes se guardó la fila'
+);
+
+select is(
+  tests.aviso_de('2026-09-14 10:20:00+00', 'https://push.example/m') -> 'preferencias' -> 'vencimientos',
+  '{"activo": true, "anticipacion": 0}'::jsonb,
+  'el aviso trae los vencimientos prendidos para el mismo día, también a quien guardó sus preferencias con las claves de antes'
+);
+
+select is(
+  (
+    select array[
+      jsonb_array_length(e -> 'filas' -> 'ajustes')::text,
+      e -> 'filas' -> 'ajustes' -> 0 -> 'fila' -> 'pasos' -> 0 -> 'renglones' -> 0 ->> 'dia',
+      (e -> 'filas' -> 'ajustes' -> 0 ->> 'fila_guardada_at' is not null)::text
+    ]
+    from tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') as e
+  ),
+  array['1', '10', 'true'],
+  'trae la fila de ajustes del taller, con los días de pago de los renglones y cuándo se guardó'
+);
+
+select is(
+  (
+    select array_agg(t ->> 'nombre' order by t ->> 'nombre')
+    from tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') as e
+    cross join jsonb_array_elements(e -> 'filas' -> 'tesoros') as t
+  ),
+  array['Cocos', 'Diezmo', 'Gastos fijos', 'Hogar', 'Maun', 'Viejo'],
+  'y todos los tesoros del taller, también el archivado, para nombrar cada vencimiento'
+);
+
+select is(
+  (
+    select array_agg((m ->> 'fecha') || ' ' || (m ->> 'categoria') order by m ->> 'fecha')
+    from tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') as e
+    cross join jsonb_array_elements(e -> 'filas' -> 'movimientos') as m
+  ),
+  array['2026-09-10 Alquiler'],
+  'y los gastos vivos desde un tesoro del mes que mira: ni el de agosto, ni el de octubre, ni el borrado, ni un ingreso, ni una transferencia'
+);
+
+select is(
+  (
+    select array_agg((m ->> 'fecha') || ' ' || (m ->> 'categoria') order by m ->> 'fecha')
+    from tests.aviso_de('2026-09-29 10:40:00+00', 'https://push.example/a') as e
+    cross join jsonb_array_elements(e -> 'filas' -> 'movimientos') as m
+  ),
+  array['2026-09-10 Alquiler', '2026-10-02 Luz'],
+  'el 29 de septiembre mira hasta tres días adelante, que ya es octubre: trae los gastos de los dos meses'
+);
+
+select is(
+  (
+    select array[
+      jsonb_array_length(e -> 'filas' -> 'movimientos'),
+      jsonb_array_length(e -> 'filas' -> 'tesoros'),
+      jsonb_array_length(e -> 'filas' -> 'ajustes')
+    ]
+    from tests.aviso_de('2026-09-14 10:20:00+00', 'https://push.example/m') as e
+  ),
+  array[0, 4, 1],
+  'y de otro taller trae lo suyo: sus cuatro tesoros, sus ajustes y ningún gasto de A'
 );
 
 select tests.entrar_como(tests.id('a'));

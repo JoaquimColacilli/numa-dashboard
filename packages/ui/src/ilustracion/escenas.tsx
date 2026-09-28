@@ -13,14 +13,16 @@ import {
 } from './objetos.tsx';
 import {
   encerrar,
+  iso,
   limites,
   planoDeFrente,
   planoDelPiso,
   planoInclinado,
+  unir,
   type Limites,
   type Volumen,
 } from './proyeccion.ts';
-import { Caja, Cara, Cota, EnElPlano } from './trazos.tsx';
+import { Caja, Cara, Cota, EnElPlano, Globo, Rayado } from './trazos.tsx';
 
 function Escena({
   volumenes,
@@ -217,6 +219,65 @@ export function SeCorto() {
       <EnElPlano transform={planoDelPiso(0)}>
         <path d={`M${String(mitad + aire / 2)} -12V${String(66 + caida + 12)}`} className="eje" />
       </EnElPlano>
+    </Escena>
+  );
+}
+
+const TABLA_DE_LA_FILA = { largo: 104, ancho: 60, espesor: 4 } as const;
+const CORTES_DE_LA_FILA = [10, 38, 60, 78] as const;
+const PASOS_DE_LA_FILA = [
+  { numero: 1, centro: 24 },
+  { numero: 2, centro: 49 },
+  { numero: 3, centro: 69 },
+] as const;
+const AFUERA_DEL_CANTO = -16;
+const ADENTRO_DEL_CANTO = 10;
+
+export function LaFila() {
+  const { largo, ancho, espesor } = TABLA_DE_LA_FILA;
+  const reparto = CORTES_DE_LA_FILA[3];
+  const mitad = ancho / 2;
+  const cortes = CORTES_DE_LA_FILA.map((desde) => `M${String(desde)} -6V${String(ancho + 6)}`).join(
+    '',
+  );
+  return (
+    <Escena
+      medida={unir(
+        limites([{ x: 0, y: 0, z: 0, largo, ancho, alto: espesor }]),
+        encerrar(
+          PASOS_DE_LA_FILA.map(({ centro }) => [centro, AFUERA_DEL_CANTO - 7, espesor] as const),
+        ),
+      )}
+    >
+      <Caja
+        x={0}
+        y={0}
+        z={0}
+        largo={largo}
+        ancho={ancho}
+        alto={espesor}
+        izquierda="tinta"
+        derecha="tinta"
+      />
+      <EnElPlano transform={planoDelPiso(espesor)}>
+        <Rayado x={reparto} y={mitad} ancho={largo - reparto} alto={ancho - mitad} />
+        <path
+          d={`${cortes}M${String(reparto)} ${String(mitad)}H${String(largo + 6)}`}
+          className="eje"
+        />
+      </EnElPlano>
+      {PASOS_DE_LA_FILA.map(({ numero, centro }) => {
+        const [x, y] = iso(centro, AFUERA_DEL_CANTO, espesor);
+        return (
+          <Globo
+            key={numero}
+            x={x}
+            y={y}
+            numero={numero}
+            hacia={iso(centro, ADENTRO_DEL_CANTO, espesor)}
+          />
+        );
+      })}
     </Escena>
   );
 }

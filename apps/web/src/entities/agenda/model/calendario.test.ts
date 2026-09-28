@@ -1,4 +1,9 @@
-import type { EventoDerivado, EventoPropio } from '@maun/domain';
+import {
+  centavos,
+  type EventoDerivado,
+  type EventoPropio,
+  type EventoVencimiento,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,9 +25,12 @@ import {
   resumenDelDia,
   resumenDelMes,
   semanasDelMes,
+  textoCortoDelEvento,
   textoDeLoHecho,
+  textoDelEvento,
   urgenciaDelEvento,
 } from './calendario';
+import { CATEGORIA } from './categorias';
 
 const HOY = '2026-09-14';
 
@@ -61,6 +69,64 @@ function propio(cambios: Partial<EventoPropio> = {}): EventoPropio {
     ...cambios,
   };
 }
+
+function vencimiento(cambios: Partial<EventoVencimiento> = {}): EventoVencimiento {
+  return {
+    clase: 'vencimiento',
+    id: 'vencimiento:fijos:0:2026-09-10',
+    categoria: 'vencimiento',
+    fecha: '2026-09-10',
+    hora: null,
+    tesoro: 'fijos',
+    nombreDelTesoro: 'Gastos fijos',
+    renglon: 'Alquiler',
+    monto: centavos(27_000_000),
+    hecha: false,
+    importante: false,
+    ...cambios,
+  };
+}
+
+describe('un vencimiento', () => {
+  it('se nombra por su renglón, con el monto y el tesoro de donde se paga', () => {
+    const alquiler = vencimiento();
+    expect(textoDelEvento(alquiler)).toBe('Alquiler');
+    expect(nombreDelEvento(alquiler)).toBe('Vence: Alquiler');
+    expect(textoCortoDelEvento(alquiler)).toBe('Vence: Alquiler');
+    expect(detalleDelEvento(alquiler).replace(/\s/g, ' ')).toBe('$ 270.000 de Gastos fijos');
+    expect(textoDeLoHecho(vencimiento({ hecha: true }))).toBe('pagado');
+  });
+
+  it('se cuenta aparte de las citas, y el que pasó sin pagarse venció', () => {
+    expect(resumenDelDia([vencimiento(), propio()])).toBe('1 vencimiento · 1 cosa anotada');
+    expect(resumenDelDia([derivado(), vencimiento(), propio()])).toBe(
+      '1 cita · 1 vencimiento · 1 cosa anotada',
+    );
+    expect(resumenDelMes([derivado(), vencimiento(), propio()])).toBe(
+      '1 cita · 1 vencimiento · 1 anotación',
+    );
+    expect(resumenDelMes([derivado(), vencimiento({ hecha: true })])).toBe(
+      '1 cita · 0 anotaciones · 1 hecha',
+    );
+    expect(urgenciaDelEvento(vencimiento(), '2026-09-12')).toEqual({
+      texto: 'venció hace 2 días',
+      tono: 'alerta',
+    });
+    expect(urgenciaDelEvento(vencimiento(), '2026-09-09')).toEqual({
+      texto: 'es mañana',
+      tono: 'atencion',
+    });
+    expect(urgenciaDelEvento(vencimiento({ hecha: true }), '2026-09-12')).toBeNull();
+  });
+
+  it('tiene su propia marca, distinta de las otras seis', () => {
+    const formas = Object.values(CATEGORIA).map((categoria) => categoria.forma);
+    expect(CATEGORIA.vencimiento.forma).toBe('reloj');
+    expect(formas.filter((forma) => forma === 'reloj')).toHaveLength(1);
+    expect(new Set(formas).size).toBe(formas.length);
+    expect(CATEGORIA.vencimiento.texto).toBe('text-ag-vencimiento');
+  });
+});
 
 describe('el calendario de lunes a domingo', () => {
   it('sabe qué día de la semana es cada fecha, con el lunes primero', () => {
@@ -111,11 +177,11 @@ describe('el calendario de lunes a domingo', () => {
 });
 
 describe('los resúmenes', () => {
-  it('el del mes cuenta compromisos y anotaciones pendientes, dice aparte lo hecho, y el mes vacío lo dice', () => {
+  it('el del mes cuenta citas y anotaciones pendientes, dice aparte lo hecho, y el mes vacío lo dice', () => {
     expect(resumenDelMes([])).toBe('sin nada agendado');
-    expect(resumenDelMes([derivado(), propio()])).toBe('1 compromiso · 1 anotación');
+    expect(resumenDelMes([derivado(), propio()])).toBe('1 cita · 1 anotación');
     expect(resumenDelMes([derivado(), derivado({ id: 'visita:p2' }), propio()])).toBe(
-      '2 compromisos · 1 anotación',
+      '2 citas · 1 anotación',
     );
     expect(
       resumenDelMes([
@@ -124,20 +190,18 @@ describe('los resúmenes', () => {
         propio({ id: 'n2', hecha: true }),
         propio({ id: 'n3', hecha: true }),
       ]),
-    ).toBe('1 compromiso · 1 anotación · 2 hechas');
+    ).toBe('1 cita · 1 anotación · 2 hechas');
   });
 
-  it('el del mes cuenta un compromiso cumplido con lo hecho, no con lo pendiente', () => {
+  it('el del mes cuenta una cita cumplida con lo hecho, no con lo pendiente', () => {
     expect(
       resumenDelMes([
         derivado({ hecha: true }),
         derivado({ id: 'visita:p2', categoria: 'visita' }),
         propio({ hecha: true }),
       ]),
-    ).toBe('1 compromiso · 0 anotaciones · 2 hechas');
-    expect(resumenDelMes([derivado({ hecha: true })])).toBe(
-      '0 compromisos · 0 anotaciones · 1 hecha',
-    );
+    ).toBe('1 cita · 0 anotaciones · 2 hechas');
+    expect(resumenDelMes([derivado({ hecha: true })])).toBe('0 citas · 0 anotaciones · 1 hecha');
   });
 
   it('el del día cuenta lo pendiente y dice aparte lo hecho', () => {
@@ -149,7 +213,7 @@ describe('los resúmenes', () => {
         propio({ id: 'n2' }),
         propio({ id: 'n3', hecha: true }),
       ]),
-    ).toBe('1 compromiso · 2 cosas anotadas · 1 hecha');
+    ).toBe('1 cita · 2 cosas anotadas · 1 hecha');
     expect(resumenDelDia([propio({ hecha: true }), propio({ id: 'n2', hecha: true })])).toBe(
       '2 hechas',
     );
@@ -170,7 +234,7 @@ describe('los resúmenes', () => {
 });
 
 describe('lo hecho en el día', () => {
-  it('está hecha la anotación tildada y el compromiso cumplido', () => {
+  it('está hecha la anotación tildada y la cita cumplida', () => {
     expect(estaHecha(propio({ hecha: true }))).toBe(true);
     expect(estaHecha(propio())).toBe(false);
     expect(estaHecha(derivado())).toBe(false);
@@ -203,7 +267,7 @@ describe('lo hecho en el día', () => {
   });
 });
 
-describe('la urgencia de un compromiso', () => {
+describe('la urgencia de una cita', () => {
   it('lo atrasado y lo de hoy son alerta, lo cercano atención y lo lejano normal', () => {
     expect(urgenciaDelEvento(derivado({ fecha: '2026-09-11' }), HOY)).toEqual({
       texto: 'atrasada, era hace 3 días',
@@ -228,7 +292,7 @@ describe('la urgencia de un compromiso', () => {
     expect(urgenciaDelEvento(propio({ fecha: '2026-09-11' }), HOY)).toBeNull();
   });
 
-  it('un compromiso cumplido no está atrasado ni es para hoy', () => {
+  it('una cita cumplida no está atrasada ni es para hoy', () => {
     expect(urgenciaDelEvento(derivado({ fecha: '2026-09-11', hecha: true }), HOY)).toBeNull();
     expect(urgenciaDelEvento(derivado({ fecha: HOY, hecha: true }), HOY)).toBeNull();
   });

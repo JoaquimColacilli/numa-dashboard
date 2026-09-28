@@ -274,6 +274,24 @@ describe('lecturas de la réplica', () => {
 
     expect(faltaConfigurar(undefined)).toBe(false);
 
+    const conFila = aplicarLote(
+      replicaVacia(USUARIO),
+      lote('t1', {
+        ajustes: [
+          cruda('a1', 1, {
+            sueldo_mensual_centavos: 0,
+            costos_fijos_centavos: 0,
+            meta_cocos_centavos: 0,
+            tasa_cocos_anual_bp: 0,
+            fila: { pasos: [], reparto: [], sueldoPorTrabajo: false },
+          }),
+        ],
+      }),
+      'reconcile',
+      AHORA,
+    );
+    expect(faltaConfigurar(ajustesDe(conFila))).toBe(false);
+
     const conTasa = ajustesCon({
       sueldo_mensual_centavos: 0,
       costos_fijos_centavos: 0,

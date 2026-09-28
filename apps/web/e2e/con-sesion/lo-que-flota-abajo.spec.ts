@@ -165,6 +165,21 @@ async function sembrar(): Promise<Taller> {
   return { clienteId, obraId, entregadoId, contactoId: contacto.id };
 }
 
+interface Recorrida {
+  ruta: string;
+  nombre: string;
+  preparar?: (page: Page) => Promise<void>;
+}
+
+async function editarLaFila(page: Page): Promise<void> {
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: /^Editar( la fila)?$/ })
+    .first()
+    .click();
+  await expect(page.getByRole('region', { name: 'Editando la fila' })).toBeVisible(CARGA);
+}
+
 async function alFinalDelScroll(page: Page): Promise<void> {
   await page.evaluate(() => {
     for (const elemento of document.querySelectorAll<HTMLElement>('*')) {
@@ -329,29 +344,35 @@ test('al final del scroll nada del contenido queda debajo de lo que flota abajo,
   const cdp = await context.newCDPSession(page);
   const condiciones = isMobile ? CONDICIONES_DEL_CELULAR : [BASE];
 
-  const pantallas = [
-    '/',
-    '/consultas',
-    '/proyectos',
-    '/proyectos?etapa=historial',
-    '/clientes',
-    '/finanzas',
-    '/diezmo',
-    '/ajustes',
-    `/proyectos/${taller.obraId}`,
-    `/proyectos/${taller.contactoId}`,
-    `/clientes/${taller.clienteId}`,
-    `/proyectos/${taller.entregadoId}/cobrar`,
-    `/proyectos/${taller.obraId}/cerrar`,
-    `/proyectos/${taller.contactoId}/aprobar`,
-    '/proyectos/nuevo',
-    `/proyectos/${taller.obraId}/editar`,
-    `/proyectos/${taller.obraId}/vista-cliente`,
-    `/proyectos/${taller.contactoId}/vista-cliente`,
+  const pantallas: Recorrida[] = [
+    ...[
+      '/',
+      '/consultas',
+      '/proyectos',
+      '/proyectos?etapa=historial',
+      '/clientes',
+      '/finanzas',
+      '/tesoros',
+    ].map((ruta) => ({ ruta, nombre: ruta })),
+    { ruta: '/tesoros', nombre: '/tesoros editando la fila', preparar: editarLaFila },
+    ...[
+      '/diezmo',
+      '/ajustes',
+      `/proyectos/${taller.obraId}`,
+      `/proyectos/${taller.contactoId}`,
+      `/clientes/${taller.clienteId}`,
+      `/proyectos/${taller.entregadoId}/cobrar`,
+      `/proyectos/${taller.obraId}/cerrar`,
+      `/proyectos/${taller.contactoId}/aprobar`,
+      '/proyectos/nuevo',
+      `/proyectos/${taller.obraId}/editar`,
+      `/proyectos/${taller.obraId}/vista-cliente`,
+      `/proyectos/${taller.contactoId}/vista-cliente`,
+    ].map((ruta) => ({ ruta, nombre: ruta })),
   ];
 
   const resultado: Record<string, string[]> = {};
-  for (const [indice, ruta] of pantallas.entries()) {
+  for (const [indice, { ruta, nombre, preparar }] of pantallas.entries()) {
     await page.goto(ruta);
     await expect(page.getByRole('main')).toBeVisible(CARGA);
     await expect(
@@ -360,6 +381,7 @@ test('al final del scroll nada del contenido queda debajo de lo que flota abajo,
     if (ruta.endsWith('/vista-cliente')) {
       await expect(page.locator('[data-fin-de-la-vista]')).toBeAttached(CARGA);
     }
+    if (preparar !== undefined) await preparar(page);
     await page.waitForTimeout(800);
 
     for (const senal of ['con señal', 'sin señal'] as const) {
@@ -377,7 +399,7 @@ test('al final del scroll nada del contenido queda debajo de lo que flota abajo,
           ...(await contenidoTapado(page)),
           ...(ruta.endsWith('/vista-cliente') ? await finDeLaVistaTapado(page) : []),
         ];
-        const clave = `${String(indice + 1).padStart(2, '0')} ${ruta} (${senal}, ${condicion.nombre})`;
+        const clave = `${String(indice + 1).padStart(2, '0')} ${nombre} (${senal}, ${condicion.nombre})`;
         if (tapados.length > 0) resultado[clave] = tapados;
         if (CAPTURADAS.has(condicion.codigo) || tapados.length > 0) {
           await page.screenshot({

@@ -12,9 +12,9 @@ import {
   nombreDelEvento,
   numeroDelDia,
   semanasDelMes,
+  textoCortoDelEvento,
   textoDeLoHecho,
 } from '../model/calendario';
-import { DERIVADA } from '../model/categorias';
 import { MarcaDeCategoria } from './MarcaDeCategoria';
 import type { AccionesDelArrastre } from './useArrastreDeEventos';
 
@@ -29,12 +29,6 @@ export interface GrillaDelMesProps {
   alAbrirEvento: (evento: EventoDeLaAgenda) => void;
   idDeLaCapa?: string;
   arrastre?: AccionesDelArrastre;
-}
-
-function textoCorto(evento: EventoDeLaAgenda): string {
-  return evento.clase === 'propia'
-    ? evento.texto
-    : `${DERIVADA[evento.categoria].corta}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
 }
 
 export function GrillaDelMes({
@@ -138,7 +132,7 @@ export function GrillaDelMes({
                     data-evento={evento.id}
                     title={nombreDelEvento(evento)}
                     aria-describedby={propiasDelArrastre === undefined ? undefined : idDeLaAyuda}
-                    {...(evento.clase === 'propia' ? abreLaCapa : {})}
+                    {...(evento.clase === 'derivada' ? {} : abreLaCapa)}
                     {...propiasDelArrastre}
                     onClick={(toque) => {
                       if (arrastre?.seAcabaDeArrastrar() === true) {
@@ -163,10 +157,10 @@ export function GrillaDelMes({
                     </span>
                     <span
                       className={`min-w-0 flex-1 truncate text-meta leading-snug ${
-                        evento.clase === 'derivada' ? 'font-semibold' : ''
+                        evento.clase === 'propia' ? '' : 'font-semibold'
                       } ${hecha ? 'text-text-3 line-through' : 'text-ink'}`}
                     >
-                      {textoCorto(evento)}
+                      {textoCortoDelEvento(evento)}
                     </span>
                     {hecha && <span className="sr-only">, {textoDeLoHecho(evento)}</span>}
                   </button>

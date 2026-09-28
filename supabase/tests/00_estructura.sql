@@ -6,7 +6,7 @@ select plan(18);
 
 select tables_are(
   'public',
-  array['households', 'household_members', 'clientes', 'proyectos', 'pagos', 'gastos', 'opciones_de_presupuesto', 'necesidades', 'movimientos', 'ajustes', 'anotaciones', 'archivos', 'enlaces_publicos', 'cambios_de_estado', 'preguntas', 'encuestas_enviadas', 'respuestas', 'renglones_de_respuesta', 'proximos_contactos', 'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera'],
+  array['households', 'household_members', 'clientes', 'proyectos', 'pagos', 'gastos', 'opciones_de_presupuesto', 'necesidades', 'movimientos', 'ajustes', 'anotaciones', 'archivos', 'enlaces_publicos', 'cambios_de_estado', 'preguntas', 'encuestas_enviadas', 'respuestas', 'renglones_de_respuesta', 'proximos_contactos', 'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera', 'tesoros', 'repartos'],
   'public tiene exactamente las tablas esperadas: una tabla nueva obliga a revisar esta suite'
 );
 
@@ -25,7 +25,7 @@ select set_eq(
     'registrar_suscripcion', 'dar_de_baja_suscripcion', 'estado_de_mis_avisos', 'guardar_preferencias_de_avisos',
     'suscripciones_para_probar', 'anotar_aviso', 'borrar_suscripcion_vencida', 'avisos_por_mandar',
     'vista_del_cliente', 'vista_compartida', 'titulo_compartido', 'encuesta_compartida', 'contestar_encuesta',
-    'proponer_la_entrega', 'responder_la_entrega'
+    'proponer_la_entrega', 'responder_la_entrega', 'guardar_la_fila'
   ],
   'public expone exactamente las funciones esperadas'
 );

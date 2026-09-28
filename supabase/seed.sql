@@ -20,6 +20,11 @@ values ('5eed0000-0000-7000-8000-000000000001', '[seed] Taller de prueba');
 insert into public.ajustes (id, household_id, sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, sueldo_tope_mensual)
 values ('5eed0000-0000-7000-8000-000000000002', '5eed0000-0000-7000-8000-000000000001', 180000000, 25000000, 1000000000, 4000, false);
 
+-- Los cuatro tesoros de siempre, los mismos que recibe cualquier taller nuevo. Van antes de los
+-- movimientos, que los nombran por id. El seed no guarda fila: reparte con la de siempre, como la
+-- cascada de antes y con el sueldo por proyecto (ADR 0078).
+select private.sembrar_los_tesoros('5eed0000-0000-7000-8000-000000000001');
+
 
 -- Clientes ---------------------------------------------------------------------------------------
 

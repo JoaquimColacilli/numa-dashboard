@@ -618,7 +618,7 @@ export function PantallaDeProyecto({
                 etiquetaDelDetalle="Descripción"
                 placeholderDelDetalle="Melamina, herrajes, flete…"
                 textoDeAgregar="Agregar un gasto"
-                ayuda="Materiales y compras de este mueble. Se descuentan de la ganancia."
+                ayuda="Materiales y compras de este mueble. Se descuentan del ingreso del trabajo."
                 vacio="Todavía no cargaste gastos para este mueble."
                 control={control}
                 register={register}

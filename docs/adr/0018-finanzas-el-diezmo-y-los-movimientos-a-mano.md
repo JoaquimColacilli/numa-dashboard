@@ -2,6 +2,12 @@
 
 Estado: **aceptada**. Fecha: 2026-09-12.
 
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): el formulario suma una
+  novena clase, «Entre tesoros», una transferencia entre dos tesoros cualesquiera, y con los tipos de
+  tesoro una décima, «Gasto de un tesoro», un gasto desde un tesoro del dueño; el filtro por tesoro
+  acepta cualquier tesoro por id; y el libro lleva cada lado por id de tesoro. Ver las notas al final de
+  la sección 1.
+
 ## Contexto
 
 Este es el paso que cierra la paridad con el HTML viejo: después de esto, todo lo que el dueño sabe
@@ -36,6 +42,27 @@ y Entre tesoros.**
 
 El neto del día se calcula sobre el tesoro filtrado cuando hay uno, y sobre el taller entero cuando no
 lo hay (y ahí las transferencias valen cero, porque no cambian nada).
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** Con los tesoros que arma
+el dueño, un lado del libro se nombra por id (`desdeId`, `haciaId`) y la clave queda para los cuatro de
+siempre. Las ocho clases no cambian y se suma la novena, **«Entre tesoros»**: una transferencia entre dos
+tesoros cualesquiera, con los dos selectores, que no ofrecen el diezmo. El formulario sigue sin poder
+armar una combinación que el `check` rechace: ahora el `check` mira los ids. El filtro por tesoro
+(`?tesoro=`) acepta cualquier tesoro por id y los cuatro de siempre siguen entrando por su clave, para
+no romper los enlaces. El filtro por sentido sigue con sus cuatro opciones.
+
+**Y la décima clase, con los tipos de tesoro, del mismo ADR y el mismo día.** «Gasto de un tesoro» es un
+gasto desde un tesoro del dueño, sin clave y sin archivar, que se elige en el formulario. Va después de
+«Gasto del taller». Si el tesoro es un compromiso de gastos fijos de la fila, sus categorías son los
+renglones, más «Otro»; si no, «Compra», «Imprevisto», «Regalo» y «Otro». Es lo que usa «Registrar el
+pago» de una obligación o de un compromiso: abre la hoja con la clase, el tesoro, el monto y la
+categoría puestos (`?clase&tesoro&monto&categoria`, cada uno validado). Desde Maun usa «Gasto del
+taller», desde Hogar y Cocos sus propias clases, y el diezmo sigue con «Pago del diezmo», sin
+categoría. La categoría es el nombre del renglón: con eso el vencimiento de ese mes queda pagado
+([ADR 0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md)), sin guardar nada más. No hizo falta
+una migración: el `check` de movimientos ya mira los ids, y un gasto desde cualquier tesoro con
+cualquier categoría es válido (`39_los_tipos_de_tesoro.sql` lo prueba). Como todo movimiento, toma el
+lock de `ajustes` antes de escribir ([ADR 0010](0010-sincronizacion-replica-completa.md)).
 
 ### 2. El diezmo no se muestra como un saldo con signo
 

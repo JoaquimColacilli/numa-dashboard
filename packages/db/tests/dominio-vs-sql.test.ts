@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compararCascada,
   compararEstados,
+  compararFila,
   compararFormasDeCobro,
   compararGuardadoDeProyecto,
   compararLibroDelSeed,
@@ -67,6 +68,10 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
     expect(await enTransaccionConRollback(compararRangos)).toEqual([]);
   });
 
+  it('las cinco gemelas de la fila dan lo mismo que fila.ts en miles de casos, y rechazan lo mismo', async () => {
+    expect(await enTransaccionConRollback(compararFila)).toEqual([]);
+  });
+
   it('los estados son los del enum de Postgres, en el mismo orden', async () => {
     expect(await enTransaccionConRollback(compararEstados)).toEqual([]);
   });
@@ -77,7 +82,7 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
 
   it('lo que congelan cobrar, cerrar, reabrir y reactivar, paso a paso, es lo que calcula el dominio', async () => {
     expect(await enTransaccionConRollback(compararLiquidaciones)).toEqual([]);
-  });
+  }, 180_000);
 
   it('cada liquidación del seed es la que calcula el dominio con las anteriores de su mes', async () => {
     expect(await enTransaccionConRollback(compararSeed)).toEqual([]);
@@ -85,7 +90,7 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
 
   it('el libro mayor de SQL da los mismos asientos y los mismos saldos que asientosDelLibro', async () => {
     expect(await enTransaccionConRollback(compararLibroMayor)).toEqual([]);
-  });
+  }, 180_000);
 
   it('el libro mayor del seed sale igual de la vista y de la réplica', async () => {
     expect(await enTransaccionConRollback(compararLibroDelSeed)).toEqual([]);

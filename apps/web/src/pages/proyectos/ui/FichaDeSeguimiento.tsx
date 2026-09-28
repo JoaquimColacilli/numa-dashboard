@@ -6,6 +6,7 @@ import {
   EstadoBadge,
   etapaAlVolver,
   historiaDelSeguimiento,
+  insumosDelProyecto,
   pendienteDelSeguimiento,
   RUTA_DE_SEGUIMIENTO,
   rutaDeCierre,
@@ -38,6 +39,8 @@ import {
   PanelDePaso,
   PrincipalYApoyo,
 } from '@/shared/ui';
+
+import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
   clave,
@@ -78,6 +81,7 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
   const telefono = cliente?.telefono ?? '';
   const pendiente = pendienteDelSeguimiento(replica, proyecto.id);
   const historia = historiaDelSeguimiento(replica, proyecto.id);
+  const insumos = insumosDelProyecto(replica, proyecto.id);
   const atrasado = pendiente !== undefined && pendiente.fecha < hoy;
 
   const paso =
@@ -208,6 +212,10 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
               <Dato clave="Teléfono">{telefono.trim() === '' ? 'Sin teléfono' : telefono}</Dato>
             </dl>
           </section>
+
+          {insumos !== null && (insumos.entro !== 0 || insumos.gastado !== 0) && (
+            <InsumosDelTrabajo insumos={insumos} />
+          )}
 
           <section
             aria-labelledby="historia-del-seguimiento"

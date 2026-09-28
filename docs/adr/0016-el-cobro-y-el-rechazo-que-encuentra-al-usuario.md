@@ -3,6 +3,12 @@
 Estado: aceptada, 2026-09-12. Es el cuarto paso de la fase 2D, y el primero que mueve plata de
 verdad: produce asientos contables congelados que el dueño va a leer como el estado de su negocio.
 
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): el despiece es el de la
+  fila, una línea por paso y por parte con su tesoro, más el diezmo y lo que queda en Maun; reabrir dice
+  qué vuelve de cada tesoro; y lo del mes que viaja pasa a ser un mapa por tesoro (`p_previo`), con la
+  misma regla de ajustar sin rechazar. Ver las notas en «La confirmación es el despiece» y en «El
+  acumulado del mes viaja».
+
 ## Contexto
 
 La base ya tenía las cuatro operaciones (`cobrar_proyecto`, `cerrar_perdido`, `reabrir_proyecto`,
@@ -40,6 +46,14 @@ la seguridad, no el marco del diálogo.
   fechar el pago el día que el cliente transfirió, pero la liquidación es de hoy, que es la que
   decide en qué mes cae el reparto. Si no, fechar un pago la semana pasada movería el cobro de mes
   sin que nadie lo pida. En un cobro reabierto el dominio ignora las dos y usa la del cobro original.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** El despiece es el de la
+fila: una pieza por paso y por parte, con el nombre, la tinta y el ícono de su tesoro, más el diezmo y
+lo que queda en Maun, y un paso que no llega a su tope dice cuánto le falta. «Distribución de la
+ganancia» ya no dice «entre los cuatro tesoros». Reabrir lista qué vuelve de cada tesoro a la caja del
+taller, sacado de los repartos del proyecto, y avisa que se vuelve a cobrar con la misma fila de ese
+cobro. Mientras la réplica no trae los tesoros del taller, el cobro se frena con un mensaje: sin sus
+ids, el pedido no puede viajar.
 
 ## Un cobro encolado no está cobrado
 
@@ -147,6 +161,17 @@ congelados no son los que mandó la app —ese es justamente el ajuste—, así 
 estricta no lo reconocía y el reintento habría rebotado con `MN001`. La rama nueva lo reconoce por
 las entradas que la app sí controla, y solo cuando el acumulado congelado difiere del que se mandó,
 que es la definición de ajustada.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** Un cobro por la fila
+manda lo del mes como un mapa, `p_previo` (`{tesoro_id: centavos}`, lo que la app vio para cada paso),
+junto con la revisión de la fila y los repartos. Con los tipos de tesoro, lo visto de un paso sale del
+mes o del saldo de su tesoro, según cómo se llena, y el mapa suma el tope de cada parte que va hasta la
+meta. La regla es la misma: si coincide con lo que calcula la base, todo es estricto; si difiere, la
+base verifica la cuenta de la app con lo que vio (`MN008` si no da) y congela la suya. La fila
+congelada trae `dist_previo`, y comparándolo con lo mandado el aviso nombra el tesoro: «Gastos fijos:
+esperabas … y quedó en …». El reenvío de un cobro por la fila,
+ajustado o no, se reconoce por la revisión, las entradas y los ids de los repartos, antes de elegir el
+camino. Los dos parámetros de este ADR siguen para el camino de antes.
 
 ## El despiece animado
 

@@ -5,6 +5,9 @@
 - Se apoya en el [0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md) (qué avisar) y en el
   [0035](0035-un-service-worker-propio.md) (el service worker). Es una excepción declarada al
   [0010](0010-sincronizacion-replica-completa.md) y al [0013](0013-shell-navegacion-e-inicio.md).
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): el aviso de
+  la mañana también dice qué compromiso vence, con su propia preferencia (`vencimientos`), y cada aviso
+  lleva la zona de la persona. Ver la nota al final de «Decisión».
 
 ## Contexto
 
@@ -74,6 +77,33 @@ en los secretos de la función. Nada de eso está en el repo.
 dependencia más que las esperadas, las del service worker y `web-push`. Sirve para correr `deno check` y
 `deno test` de la función dentro de `pnpm verify`: sin eso, la función no tendría typecheck ni tests en
 el único paso que el repo exige.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): los
+vencimientos.** El aviso de la mañana suma los vencimientos de los compromisos de la fila (ADR 0034),
+con su propia preferencia, `vencimientos`, prendida y para el mismo día, como se sumó la de volver a
+escribirle (`seguimientos`, [ADR 0064](0064-el-seguimiento-de-verdad-y-las-consultas.md)).
+
+- **Las preferencias guardadas no se reescriben.** `private.avisos_completos` les suma al leerlas las
+  claves que les faltan, con su valor inicial (es la gemela de `PREFERENCIAS_INICIALES` para esas dos
+  claves); `private.avisos_bien_formados` acepta las de cuatro, cinco y seis claves, así un bundle viejo
+  que guarda cinco no rebota; y el default de `preferencias_de_avisos.avisos` trae las seis. La función
+  completa además con las iniciales lo que no venga (`preferenciasCompletas`): no depende de si llegó
+  antes el deploy o la migración.
+- **`private.avisos_por_mandar` manda lo que hace falta para armarlos**, con el mismo patrón que las
+  demás filas: los ajustes (la fila del taller y cuándo se guardó), todos los tesoros del taller,
+  archivados incluidos, para los nombres, y los gastos vivos desde un tesoro (movimientos de tipo
+  `gasto`, no los gastos de los trabajos) del mes del día al mes del día más tres, la anticipación más
+  larga, que puede caer en el mes siguiente. **Cada aviso lleva también la zona de la persona**: con
+  ella la función sabe en qué mes se guardó la fila, que en las últimas horas del último día de un mes
+  no es el mismo en UTC.
+- **La función los arma con el dominio**, como todo lo demás: `datosDeLaAgenda(filas, rango, zona)` con
+  el rango que mira el aviso (`rangoDelAviso`: del día a la anticipación más larga, la misma ventana
+  que usa `eventosParaAvisar`), y `eventosParaAvisar`, que no avisa lo pagado. El renglón dice «Vence:
+  Alquiler, $ 500.000 (hoy)»: el renglón, el monto en pesos (con espacio duro y coma decimal, escritos
+  por la función) y el «(hoy)» o «(en N días)» de los demás renglones.
+- **Verificado**: `17_suscripciones_de_avisos.sql` (33) y `19_trabajo_de_los_avisos.sql` (21), con la
+  clave nueva y la zona, y 21 tests de Deno, 7 de ellos nuevos. La función se desplegó el 2026-09-28.
+  Que un vencimiento llegue a un teléfono de verdad tampoco está probado.
 
 ## Alternativas descartadas
 

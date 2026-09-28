@@ -135,6 +135,22 @@ export const PANTALLAS: readonly Pantalla[] = [
     listo: enElMarco,
   },
   { clave: 'finanzas', nombre: 'Finanzas', ruta: () => '/finanzas', listo: enElMarco },
+  {
+    clave: 'tesoros',
+    sinMarco:
+      'Es un plano a todo el ancho con su panel de detalle: no lleva el molde de las páginas del taller.',
+    nombre: 'Tesoros',
+    ruta: () => '/tesoros',
+    listo: async (page) => {
+      await enElMarco(page);
+      const ancho = page.viewportSize()?.width ?? 1440;
+      await expect(
+        ancho >= 768
+          ? page.locator('.react-flow__node').first()
+          : page.getByRole('region', { name: 'La fila', exact: true }),
+      ).toBeVisible(CARGA);
+    },
+  },
   { clave: 'diezmo', nombre: 'Diezmo', ruta: () => '/diezmo', listo: enElMarco },
   { clave: 'opiniones', nombre: 'Opiniones', ruta: () => '/opiniones', listo: enElMarco },
   {
@@ -208,6 +224,11 @@ export const EXCEPCIONES: readonly Excepcion[] = [
     selector: '[data-reparto="fila"]',
     motivo:
       'Es una sola sección: su título a la izquierda y sus controles a la derecha. La fila mide lo que mide la sección.',
+  },
+  {
+    selector: 'div:has(> aside[aria-label="Detalle"])',
+    motivo:
+      'El plano de Tesoros y su panel de detalle: el lienzo ocupa todo el alto y el panel mide lo que tiene y scrollea solo. No son dos columnas de contenido que tengan que terminar juntas.',
   },
   {
     selector: '[data-pantalla-de-acceso] aside',

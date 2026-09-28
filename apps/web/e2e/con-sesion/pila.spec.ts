@@ -192,7 +192,7 @@ test('guardar un proyecto nuevo, cobrar y borrar no dejan un formulario ni una f
   await page.getByRole('button', { name: /^Cobrar y repartir/ }).click();
   await expect(page).toHaveURL(new RegExp(`/proyectos/${cobrable}$`));
   const corte = page
-    .getByRole('region', { name: 'Distribución de la ganancia' })
+    .getByRole('region', { name: 'Distribución del ingreso' })
     .locator('[style*="maun-corte"]');
   await expect(corte.first()).toBeAttached();
   await page.goBack();

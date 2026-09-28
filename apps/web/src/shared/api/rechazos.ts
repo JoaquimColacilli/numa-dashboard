@@ -8,6 +8,8 @@ export type OperacionRechazada =
   | 'proyecto'
   | 'baja-de-proyecto'
   | 'baja-de-cliente'
+  | 'fila'
+  | 'tesoro'
   | 'guardado';
 
 export interface ContextoDelRechazo {
@@ -71,7 +73,16 @@ function cambioDesdeQueLoViste(contexto: ContextoDelRechazo): RechazoTraducido {
     return {
       titulo: 'Los números cambiaron desde que viste el reparto.',
       queHacer:
-        'Se cargó un pago o un gasto, o cambiaron el sueldo o los costos fijos. Abrí el cobro otra vez: el reparto se calcula de nuevo con lo que hay ahora, y lo revisás antes de confirmar.',
+        'Se cargó un pago o un gasto, cambiaron el sueldo o los costos fijos, o cambió la fila. Abrí el cobro otra vez: el reparto se calcula de nuevo con lo que hay ahora, y lo revisás antes de confirmar.',
+      codigo: '',
+    };
+  }
+
+  if (contexto.operacion === 'fila') {
+    return {
+      titulo: 'La fila cambió mientras la editabas.',
+      queHacer:
+        'Se guardó en otro dispositivo o cambiaron los Ajustes. Mirá cómo quedó y volvé a hacer tus cambios.',
       codigo: '',
     };
   }
@@ -175,6 +186,26 @@ const PARA_TODOS: Readonly<Record<string, (contexto: ContextoDelRechazo) => Rech
     titulo: 'Esa plata no es de antes de que empezaras con la app.',
     queHacer:
       'Solo lo que entró antes de la apertura puede estar en tus saldos de arranque. Destildá esa opción, o revisá la fecha, y volvé a guardarlo.',
+    codigo: '',
+  }),
+  MN023: () => ({
+    titulo: 'La fila no se pudo guardar.',
+    queHacer: 'Revisala y probá de nuevo.',
+    codigo: '',
+  }),
+  MN024: (contexto) => ({
+    titulo:
+      contexto.sujeto === undefined || contexto.sujeto.trim() === ''
+        ? 'No se pudo archivar el tesoro.'
+        : `No se pudo archivar ${contexto.sujeto}.`,
+    queHacer:
+      'Sacalo de la fila, cobrá el trabajo reabierto que lo usa y pasá su plata a otro tesoro. Después archivalo.',
+    codigo: '',
+  }),
+  MN025: () => ({
+    titulo: 'Este cobro quedó de antes de actualizar la app.',
+    queHacer:
+      'Abrí el cobro otra vez: el reparto se calcula con tu fila y lo revisás antes de confirmar.',
     codigo: '',
   }),
   MN022: () => ({

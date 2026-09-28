@@ -3,25 +3,46 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { CorteDelMes } from '@/entities/proyecto';
+import type { CorteDelMes, ParteDelCorte } from '@/entities/proyecto';
 
 const HOY = '2026-09-24';
+
+function parte(
+  tesoro: string,
+  clave: ParteDelCorte['clave'],
+  nombre: string,
+  tinta: ParteDelCorte['tinta'],
+  monto: number,
+): ParteDelCorte {
+  return { tesoro, clave, nombre, tinta, monto: centavos(monto) };
+}
 
 const CORTE: CorteDelMes = {
   trabajos: 1,
   tablero: centavos(320_000_000),
-  hogar: centavos(180_000_000),
-  maun: centavos(81_000_000),
-  diezmo: centavos(29_000_000),
+  partes: [
+    parte('h', 'hogar', 'Hogar', 'hogar', 180_000_000),
+    parte('m', 'maun', 'Maun', 'maun', 81_000_000),
+    parte('d', 'diezmo', 'Diezmo', 'diezmo', 29_000_000),
+  ],
   gastos: centavos(30_000_000),
+};
+
+const CON_LA_FILA: CorteDelMes = {
+  trabajos: 2,
+  tablero: centavos(270_000_000),
+  partes: [
+    parte('h', 'hogar', 'Hogar', 'hogar', 180_000_000),
+    parte('f', null, 'Gastos fijos', 'grana', 63_000_000),
+    parte('d', 'diezmo', 'Diezmo', 'diezmo', 27_000_000),
+  ],
+  gastos: centavos(0),
 };
 
 const SIN_NADA_COBRADO: CorteDelMes = {
   trabajos: 1,
   tablero: centavos(0),
-  hogar: centavos(0),
-  maun: centavos(0),
-  diezmo: centavos(0),
+  partes: [],
   gastos: centavos(0),
 };
 
@@ -93,6 +114,24 @@ describe('la portada de Inicio', { timeout: 20_000 }, () => {
     expect(dibujo.querySelector('.mano')).toBeNull();
   });
 
+  it('con la fila, nombra al hogar y al diezmo como siempre y a los demás tesoros por su nombre, cada uno con su tinta', async () => {
+    const montar = await portadaNueva();
+    const { container } = montar(CON_LA_FILA);
+
+    const portada = screen.getByRole('region', { name: 'El corte de septiembre' });
+    expect(
+      within(portada).getByText(
+        '2 trabajos cerrados en septiembre: 67% al hogar, 23% a Gastos fijos y 10% al diezmo.',
+      ),
+    ).toBeInTheDocument();
+    const dibujo = dibujoDe(container);
+    expect(
+      [...dibujo.querySelectorAll('[data-pieza]')].map((pieza) => pieza.getAttribute('data-pieza')),
+    ).toEqual(expect.arrayContaining(['hogar', 'f', 'diezmo']));
+    expect(dibujo.querySelector('[data-pieza="f"] .grana')).not.toBeNull();
+    expect(dibujo.querySelector('[data-pieza="gastos"]')).toBeNull();
+  });
+
   it('la medida de lo cobrado va desde la tablet, no en el celular', async () => {
     const montar = await portadaNueva();
     const celular = montar(CORTE);
@@ -137,7 +176,7 @@ describe('la portada de Inicio', { timeout: 20_000 }, () => {
       'El taller arranca acá',
     );
     expect(
-      within(portada).getByRole('button', { name: 'Configurar sueldo y metas' }),
+      within(portada).getByRole('button', { name: 'Cargar sueldo y costos fijos' }),
     ).toBeInTheDocument();
     expect(
       within(portada).getByRole('button', { name: 'Cargar el primer proyecto' }),

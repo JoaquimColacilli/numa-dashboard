@@ -80,6 +80,7 @@ const DESTINOS_DE_LA_BARRA_LATERAL = [
   'w-16',
   'w-14',
   'w-15',
+  'w-14',
   'w-17',
   'w-13',
   'w-13',
@@ -146,7 +147,7 @@ function riel(): Elemento {
       'mb-4.5 flex size-tap items-center justify-center rounded-pill bg-ink shadow-fab',
       mas('size-5'),
     ),
-    ...[0, 1, 2, 3, 4, 5, 6].map(destinoDelRiel),
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map(destinoDelRiel),
     caja('flex-1'),
     destinoDelRiel(-1),
   );
@@ -262,6 +263,67 @@ function portada(): Elemento {
   );
 }
 
+export const SECCION_DEL_PANORAMA = `@container ${TARJETA} px-4 py-4 md:px-5`;
+export const TITULO_DEL_PANORAMA = 'flex items-center gap-1.5 text-label';
+export const CIFRAS_DEL_PANORAMA =
+  'mt-3 grid grid-cols-2 gap-x-3 gap-y-4 @min-[34rem]:grid-cols-4 @min-[34rem]:gap-x-4';
+export const CIFRA_DEL_PANORAMA = '@container row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0.5';
+
+const ETIQUETA_DE_LA_CIFRA = 'self-end text-meta leading-tight';
+
+function etiquetaDeLaCifra(ancho: string): Elemento {
+  return renglon(ETIQUETA_DE_LA_CIFRA, ancho);
+}
+
+function etiquetaQueSeParte(ancho: string, anchoDelSegundo: string): Elemento {
+  return caja(
+    `flex flex-col ${ETIQUETA_DE_LA_CIFRA}`,
+    elemento(
+      'span',
+      { class: 'flex h-[1lh] items-center' },
+      raya(`h-[0.7em] rounded-pill ${ancho} ${TEXTO}`),
+    ),
+    elemento(
+      'span',
+      { class: 'hidden h-[1lh] items-center @max-[8.1rem]:flex' },
+      raya(`h-[0.7em] rounded-pill ${anchoDelSegundo} ${TEXTO}`),
+    ),
+  );
+}
+
+function cifraDelPanorama(etiqueta: Elemento, monto: string, detalle: string): Elemento {
+  return caja(
+    CIFRA_DEL_PANORAMA,
+    etiqueta,
+    caja(
+      'flex min-w-0 flex-col',
+      renglon('text-monto-que-entra leading-tight [--caracteres:11]', monto, TITULO),
+    ),
+    renglon('text-meta', detalle, TENUE),
+  );
+}
+
+function panorama(): Elemento {
+  return dibujo(
+    SECCION_DEL_PANORAMA,
+    caja(
+      TITULO_DEL_PANORAMA,
+      renglon('text-label', 'w-18', TITULO),
+      caja(
+        'flex size-5 flex-none items-center justify-center',
+        raya(`size-4 rounded-pill ${TENUE}`),
+      ),
+    ),
+    caja(
+      CIFRAS_DEL_PANORAMA,
+      cifraDelPanorama(etiquetaDeLaCifra('w-16'), 'w-[74%]', 'w-[58%]'),
+      cifraDelPanorama(etiquetaDeLaCifra('w-13'), 'w-[82%]', 'w-[62%]'),
+      cifraDelPanorama(etiquetaDeLaCifra('w-15'), 'w-[66%]', 'w-[48%]'),
+      cifraDelPanorama(etiquetaQueSeParte('w-[88%]', 'w-[44%]'), 'w-[70%]', 'w-[64%]'),
+    ),
+  );
+}
+
 function tesoro(canto: string): Elemento {
   return caja(
     `relative flex min-h-[118px] min-w-0 flex-col justify-between gap-3 overflow-hidden p-3 pb-4 ${TARJETA}`,
@@ -348,7 +410,7 @@ function marco(que: string, visible: boolean): Elemento {
     riel(),
     caja(
       'min-h-0 flex-1 overflow-hidden [scrollbar-gutter:stable_both-edges]',
-      caja(PAGINA, encabezado(que, visible), RANURA, portada(), tesoros(), elMes()),
+      caja(PAGINA, encabezado(que, visible), RANURA, portada(), panorama(), tesoros(), elMes()),
     ),
     barraInferior(),
   );

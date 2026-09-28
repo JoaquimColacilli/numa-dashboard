@@ -28,6 +28,26 @@ describe('TableroCortado', () => {
     expect(container.querySelector('.cocos')).toBeNull();
   });
 
+  it('los tesoros que arma el dueño cortan con su tinta, como los de siempre', () => {
+    const conLosNuevos: readonly PiezaDelTablero[] = [
+      { id: 'hogar', tono: 'hogar', parte: 0.3, nombre: 'Hogar', porcentaje: '30%' },
+      { id: 'fijos', tono: 'grana', parte: 0.2, nombre: 'Gastos fijos', porcentaje: '20%' },
+      { id: 'materiales', tono: 'mostaza', parte: 0.1, nombre: 'Materiales', porcentaje: '10%' },
+      { id: 'inversiones', tono: 'petroleo', parte: 0.2, nombre: 'Inversiones', porcentaje: '20%' },
+      { id: 'inmuebles', tono: 'ciruela', parte: 0.2, nombre: 'Inmuebles', porcentaje: '20%' },
+    ];
+    const { container } = render(<TableroCortado piezas={conLosNuevos} />);
+
+    for (const [id, tono] of [
+      ['fijos', 'grana'],
+      ['materiales', 'mostaza'],
+      ['inversiones', 'petroleo'],
+      ['inmuebles', 'ciruela'],
+    ]) {
+      expect(container.querySelector(`[data-pieza="${id}"] .${tono}`)).not.toBeNull();
+    }
+  });
+
   it('una parte de menos del 1% no llega a ser pieza: no se vería', () => {
     const conUnaAstilla: readonly PiezaDelTablero[] = [
       ...MES.filter((pieza) => pieza.id !== 'cocos'),

@@ -1,4 +1,10 @@
 import {
+  archivarTesoro,
+  guardarCambiosDeTesoro,
+  guardarLaFilaDelTaller,
+  guardarTesoroNuevo,
+  type CambiosDeTesoro,
+  type TesoroNuevo,
   aplicarLote,
   borrarAnotacion,
   borrarArchivo,
@@ -51,6 +57,7 @@ import {
   type ProyectoParaGuardar,
   type Replica,
 } from '@maun/db';
+import type { Fila } from '@maun/domain';
 
 import { clienteMaun } from './cliente';
 
@@ -245,4 +252,29 @@ export async function revertirLaLiquidacion(
   pedido: PedidoDeReversion,
 ): Promise<FilaDe<'proyectos'>> {
   return revertirLiquidacion(clienteMaun(), pedido);
+}
+
+export async function guardarLaFila(
+  version: number,
+  fila: Fila | null,
+): Promise<FilaDe<'ajustes'>> {
+  return guardarLaFilaDelTaller(clienteMaun(), version, fila);
+}
+
+export async function crearTesoro(nuevo: TesoroNuevo): Promise<FilaDe<'tesoros'>> {
+  return guardarTesoroNuevo(clienteMaun(), nuevo);
+}
+
+export async function editarTesoro(
+  id: string,
+  cambios: CambiosDeTesoro,
+): Promise<FilaDe<'tesoros'>> {
+  return guardarCambiosDeTesoro(clienteMaun(), id, cambios);
+}
+
+export async function archivarElTesoro(
+  id: string,
+  archivadoEn: string | null,
+): Promise<FilaDe<'tesoros'>> {
+  return archivarTesoro(clienteMaun(), id, archivadoEn);
 }

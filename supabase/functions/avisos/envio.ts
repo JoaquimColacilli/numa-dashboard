@@ -1,4 +1,11 @@
-import { eventosParaAvisar } from '@maun/domain';
+import {
+  AVISOS_DE_LA_AGENDA,
+  eventosParaAvisar,
+  PREFERENCIAS_INICIALES,
+  sumarDias,
+  type PreferenciasDeAvisos,
+  type RangoDeLaAgenda,
+} from '@maun/domain';
 
 import { datosDeLaAgenda } from '../../../packages/db/src/agenda.ts';
 import type { AvisoPorMandar, Base, Suscripcion } from './base.ts';
@@ -56,6 +63,17 @@ async function mandarUno(
   }
 }
 
+export function preferenciasCompletas(
+  preferencias: Partial<PreferenciasDeAvisos>,
+): PreferenciasDeAvisos {
+  return { ...PREFERENCIAS_INICIALES, ...preferencias };
+}
+
+export function rangoDelAviso(dia: string, preferencias: PreferenciasDeAvisos): RangoDeLaAgenda {
+  const mayor = Math.max(...AVISOS_DE_LA_AGENDA.map((aviso) => preferencias[aviso].anticipacion));
+  return { desde: dia, hasta: sumarDias(dia, mayor) };
+}
+
 export async function mandarLosAvisos(
   avisos: readonly AvisoPorMandar[],
   base: Base,
@@ -64,7 +82,9 @@ export async function mandarLosAvisos(
 ): Promise<ResultadoDelEnvio> {
   const resultado = resultadoVacio();
   for (const aviso of avisos) {
-    const eventos = eventosParaAvisar(datosDeLaAgenda(aviso.filas), aviso.dia, aviso.preferencias);
+    const preferencias = preferenciasCompletas(aviso.preferencias);
+    const datos = datosDeLaAgenda(aviso.filas, rangoDelAviso(aviso.dia, preferencias), aviso.zona);
+    const eventos = eventosParaAvisar(datos, aviso.dia, preferencias);
     if (eventos.length === 0) {
       resultado.sinNadaQueAvisar += 1;
       await base.anotarAviso(aviso.id, aviso.dia, false);

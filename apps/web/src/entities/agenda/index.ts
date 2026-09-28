@@ -33,6 +33,7 @@ export {
   resumenDelDia,
   resumenDelMes,
   semanasDelMes,
+  textoCortoDelEvento,
   textoDeLoHecho,
   textoDelEvento,
   urgenciaDelEvento,
@@ -46,10 +47,18 @@ export {
   AYUDA_DE_LA_PROPIA,
   CATEGORIA,
   DERIVADA,
+  VENCIMIENTO,
   type DatosDeLaCategoria,
   type DatosDeLaDerivada,
+  type DatosDelVencimiento,
   type FormaDeLaMarca,
 } from './model/categorias';
+export {
+  fechaDelPagoPropuesta,
+  rutaDelVencimiento,
+  sePuedeRegistrarElPago,
+  vencimientosDeLaReplica,
+} from './model/vencimientos';
 export { CaminosALosTrabajos, type CaminosALosTrabajosProps } from './ui/CaminosALosTrabajos';
 export { DiaPorHoras, type DiaPorHorasProps } from './ui/DiaPorHoras';
 export { DetalleDelDia, type AvisoDelDia, type DetalleDelDiaProps } from './ui/DetalleDelDia';

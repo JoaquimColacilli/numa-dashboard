@@ -6,7 +6,7 @@
 -- todo el archivo es una sola transacción, cada caso empieza borrando la marca maun.cambios_avisados,
 -- que en la app vive lo que vive una transacción.
 
-select plan(25);
+select plan(27);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -43,6 +43,21 @@ select is(
 select ok(
   (select count(*) from jsonb_object_keys(public.delta(now())) as t where t <> 'cursor') > 0,
   'y el delta tiene tablas: la comparación de arriba no es vacía'
+);
+
+select is(
+  (
+    select array_agg(c.relname::text order by c.relname)
+    from pg_trigger g
+    join pg_class c on c.oid = g.tgrelid
+    where c.relnamespace = 'public'::regnamespace
+      and c.relname in ('tesoros', 'repartos')
+      and g.tgname = 'avisar_los_cambios'
+      and g.tgfoid = 'private.avisar_los_cambios()'::regprocedure
+      and not g.tgisinternal
+  ),
+  array['repartos', 'tesoros'],
+  'los tesoros y los repartos (ADR 0078) avisan con el mismo trigger que las demás tablas del delta'
 );
 
 select ok(
@@ -160,6 +175,16 @@ select is(
   tests.avisos_y_de_nuevo(),
   array[tests.id('household_a')],
   'guardar un trabajo con sus pagos, que escribe en varias tablas, avisa una vez'
+);
+
+insert into public.tesoros (id, nombre, tinta, icono)
+  values ('aaaaaaaa-0000-7000-8000-000000000030', 'Herramientas', 'grana', 'wrench');
+update public.tesoros set meta_centavos = 100000000 where id = 'aaaaaaaa-0000-7000-8000-000000000030';
+
+select is(
+  tests.avisos_y_de_nuevo(),
+  array[tests.id('household_a')],
+  'sumar un tesoro y ponerle una meta avisa una vez al canal de su taller'
 );
 
 -- Lo que contesta el cliente sobre la entrega, sin sesión, le llega a la app abierta del taller por el

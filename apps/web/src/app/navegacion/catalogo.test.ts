@@ -53,8 +53,9 @@ describe('el catálogo de las pantallas del marco', () => {
     expect(pantallaDe('/v/token')).toBeUndefined();
   });
 
-  it('en el celular, Agenda, Opiniones, Diezmo y Ajustes cuelgan de Inicio', () => {
-    for (const id of ['agenda', 'resultados', 'preguntas', 'diezmo', 'ajustes']) {
+  it('en el celular, Agenda, Tesoros, Opiniones, Diezmo y Ajustes cuelgan de Inicio', () => {
+    expect(pantallaDe('/tesoros')?.id).toBe('tesoros');
+    for (const id of ['agenda', 'tesoros', 'resultados', 'preguntas', 'diezmo', 'ajustes']) {
       const pantalla = CATALOGO.find((una) => una.id === id);
       expect(pantalla?.seccion, id).toBe('inicio');
       expect(pantalla?.raiz, id).toBe(false);

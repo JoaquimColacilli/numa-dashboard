@@ -46,6 +46,31 @@ export const TEXTOS_DE_AVISO = {
     enCola: 'Borrado anotado sin señal: se hace solo cuando vuelva.',
     error: 'No se borró el movimiento.',
   },
+  tesoroNuevo: {
+    hecho: 'Tesoro creado.',
+    enCola: 'Tesoro anotado sin señal: se crea solo cuando vuelva.',
+    error: 'No se creó el tesoro.',
+  },
+  tesoroEditado: {
+    hecho: 'Cambios del tesoro guardados.',
+    enCola: 'Cambios del tesoro anotados sin señal: se guardan solos cuando vuelva.',
+    error: 'No se guardaron los cambios del tesoro.',
+  },
+  tesoroArchivado: {
+    hecho: 'Tesoro archivado.',
+    enCola: 'Archivo anotado sin señal: se hace solo cuando vuelva.',
+    error: 'No se archivó el tesoro.',
+  },
+  filaGuardada: {
+    hecho: 'La fila quedó guardada: vale desde el próximo cobro.',
+    enCola: 'Fila anotada sin señal: se guarda sola cuando vuelva.',
+    error: 'No se guardó la fila.',
+  },
+  faltanteCubierto: {
+    hecho: 'Listo: la plata pasó y cuenta para el tope del mes.',
+    enCola: 'Anotado sin señal: la plata pasa sola cuando vuelva.',
+    error: 'No se pasó la plata para cubrir el mes.',
+  },
   clienteNuevo: {
     hecho: 'Cliente guardado.',
     enCola: 'Cliente anotado sin señal: se guarda solo cuando vuelva.',

@@ -20,29 +20,163 @@ export interface SesionDePrueba {
   guardada: string;
 }
 
+const ESPERA_DE_UNA_LECTURA_MS = 10_000;
+const ESPERA_DE_UNA_ESCRITURA_MS = 20_000;
+const PAUSAS_ENTRE_INTENTOS_MS = [500, 2_000] as const;
+const PEDIDO_LENTO_MS = 3_000;
+
+const CODIGOS_QUE_NO_ESCRIBIERON = new Set([
+  '40001',
+  '40P01',
+  '55P03',
+  '57014',
+  'PGRST000',
+  'PGRST001',
+  'PGRST002',
+  'PGRST003',
+]);
+
+const ESTADOS_QUE_NO_ESCRIBIERON = new Set([429, 503, 521, 522, 523]);
+
+const FALLAS_ANTES_DE_MANDAR = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+const POST_QUE_SE_PUEDEN_REPETIR = [
+  '/auth/v1/token',
+  '/storage/v1/object/list/',
+  '/rest/v1/rpc/estado_de_mis_avisos',
+  '/rest/v1/rpc/guardar_preferencias_de_avisos',
+  '/rest/v1/rpc/encuesta_compartida',
+];
+
+type OtraVez = 'siempre' | 'si-se-puede-repetir' | 'nunca';
+
+class PedidoFallido extends Error {
+  readonly otraVez: OtraVez;
+
+  constructor(mensaje: string, otraVez: OtraVez) {
+    super(mensaje);
+    this.otraVez = otraVez;
+  }
+}
+
+function sePuedeRepetir(metodo: string, ruta: string): boolean {
+  return metodo !== 'POST' || POST_QUE_SE_PUEDEN_REPETIR.some((inicio) => ruta.startsWith(inicio));
+}
+
+function sinConsulta(ruta: string): string {
+  return ruta.split('?')[0] ?? ruta;
+}
+
+function codigoDeLaFalla(error: unknown): string {
+  if (!(error instanceof Error)) return '';
+  const causa: unknown = error.cause;
+  if (causa instanceof Error && 'code' in causa && typeof causa.code === 'string') {
+    return causa.code;
+  }
+  return error.name;
+}
+
+function fallaDeLaRed(error: unknown, espera: number): PedidoFallido {
+  const codigo = codigoDeLaFalla(error);
+  if (codigo === 'TimeoutError' || codigo === 'AbortError') {
+    return new PedidoFallido(`no contestó en ${String(espera / 1000)} s`, 'si-se-puede-repetir');
+  }
+  const detalle = error instanceof Error ? error.message : String(error);
+  return new PedidoFallido(
+    `no llegó a la base (${codigo === '' ? detalle : `${codigo}: ${detalle}`})`,
+    FALLAS_ANTES_DE_MANDAR.has(codigo) ? 'siempre' : 'si-se-puede-repetir',
+  );
+}
+
+function fallaDeLaRespuesta(ruta: string, estado: number, texto: string): PedidoFallido {
+  let cuerpo: unknown;
+  try {
+    cuerpo = JSON.parse(texto) as unknown;
+  } catch {
+    return new PedidoFallido(
+      `${ruta} devolvió ${String(estado)} sin JSON: ${texto.replace(/\s+/g, ' ').slice(0, 160)}`,
+      ESTADOS_QUE_NO_ESCRIBIERON.has(estado)
+        ? 'siempre'
+        : estado >= 500 || estado < 300
+          ? 'si-se-puede-repetir'
+          : 'nunca',
+    );
+  }
+  const codigo =
+    typeof cuerpo === 'object' && cuerpo !== null && 'code' in cuerpo ? String(cuerpo.code) : '';
+  return new PedidoFallido(
+    `${ruta} devolvió ${String(estado)}: ${JSON.stringify(cuerpo)}`,
+    CODIGOS_QUE_NO_ESCRIBIERON.has(codigo) || ESTADOS_QUE_NO_ESCRIBIERON.has(estado)
+      ? 'siempre'
+      : estado >= 500
+        ? 'si-se-puede-repetir'
+        : 'nunca',
+  );
+}
+
 async function pedir(
   entorno: EntornoDePrueba,
   ruta: string,
-  opciones: Omit<RequestInit, 'headers'> & {
+  opciones: Omit<RequestInit, 'headers' | 'signal'> & {
     accessToken?: string;
     headers?: Record<string, string>;
   } = {},
 ): Promise<unknown> {
   const { accessToken, headers, ...resto } = opciones;
-  const respuesta = await fetch(`${entorno.url}${ruta}`, {
-    ...resto,
-    headers: {
-      apikey: entorno.publishableKey,
-      'Content-Type': 'application/json',
-      ...(accessToken === undefined ? {} : { Authorization: `Bearer ${accessToken}` }),
-      ...headers,
-    },
-  });
-  const cuerpo: unknown = respuesta.status === 204 ? null : await respuesta.json();
-  if (!respuesta.ok) {
-    throw new Error(`${ruta} devolvió ${String(respuesta.status)}: ${JSON.stringify(cuerpo)}`);
+  const metodo = (resto.method ?? 'GET').toUpperCase();
+  const repetible = sePuedeRepetir(metodo, ruta);
+  const espera = repetible ? ESPERA_DE_UNA_LECTURA_MS : ESPERA_DE_UNA_ESCRITURA_MS;
+  const donde = `${metodo} ${sinConsulta(ruta)}`;
+
+  for (let intento = 1; ; intento += 1) {
+    const inicio = performance.now();
+    let falla: PedidoFallido;
+    try {
+      const respuesta = await fetch(`${entorno.url}${ruta}`, {
+        ...resto,
+        signal: AbortSignal.timeout(espera),
+        headers: {
+          apikey: entorno.publishableKey,
+          'Content-Type': 'application/json',
+          ...(accessToken === undefined ? {} : { Authorization: `Bearer ${accessToken}` }),
+          ...headers,
+        },
+      });
+      const texto = await respuesta.text();
+      const tardo = performance.now() - inicio;
+      if (tardo > PEDIDO_LENTO_MS) {
+        console.warn(`[taller] ${donde} tardó ${(tardo / 1000).toFixed(1)} s`);
+      }
+      if (respuesta.ok) {
+        if (texto === '') return null;
+        try {
+          return JSON.parse(texto) as unknown;
+        } catch {
+          falla = fallaDeLaRespuesta(ruta, respuesta.status, texto);
+        }
+      } else {
+        falla = fallaDeLaRespuesta(ruta, respuesta.status, texto);
+      }
+    } catch (error) {
+      falla = fallaDeLaRed(error, espera);
+    }
+    const pausa = PAUSAS_ENTRE_INTENTOS_MS[intento - 1];
+    const otraVez =
+      falla.otraVez === 'siempre' || (falla.otraVez === 'si-se-puede-repetir' && repetible);
+    if (!otraVez || pausa === undefined) {
+      if (intento > 1) falla.message = `${falla.message} (intento ${String(intento)})`;
+      throw falla;
+    }
+    console.warn(`[taller] ${donde}: ${falla.message}; otra vez en ${String(pausa)} ms`);
+    await new Promise((listo) => setTimeout(listo, pausa));
   }
-  return cuerpo;
 }
 
 export async function iniciarSesionDePrueba(): Promise<SesionDePrueba> {
@@ -239,6 +373,9 @@ export interface FilaDeMovimiento {
   tipo: string;
   tesoro_origen: string | null;
   tesoro_destino: string | null;
+  desde_id?: string | null;
+  hacia_id?: string | null;
+  cubre_el_mes?: string | null;
   monto_centavos: number;
   categoria: string;
   descripcion: string;
@@ -265,7 +402,7 @@ export async function movimientosDelTaller({
 }: SesionDePrueba): Promise<FilaDeMovimiento[]> {
   return (await pedir(
     entorno,
-    '/rest/v1/movimientos?select=id,fecha,tipo,tesoro_origen,tesoro_destino,monto_centavos,categoria,descripcion&deleted_at=is.null&order=id',
+    '/rest/v1/movimientos?select=id,fecha,tipo,tesoro_origen,tesoro_destino,desde_id,hacia_id,cubre_el_mes,monto_centavos,categoria,descripcion&deleted_at=is.null&order=id',
     { accessToken },
   )) as FilaDeMovimiento[];
 }
@@ -541,6 +678,224 @@ export async function escribirLasRedes(
   await escribirAjustes(sesion, redes);
 }
 
+export type ClaveDeTesoro = 'hogar' | 'maun' | 'diezmo' | 'cocos';
+
+export interface FilaDeTesoro {
+  id: string;
+  clave: ClaveDeTesoro | null;
+  nombre: string;
+  descripcion: string;
+  tinta: string;
+  icono: string;
+  meta_centavos: number | null;
+  rinde_anual_bp: number | null;
+  orden: number;
+  archivado_at: string | null;
+}
+
+const COLUMNAS_DEL_TESORO =
+  'id,clave,nombre,descripcion,tinta,icono,meta_centavos,rinde_anual_bp,orden,archivado_at';
+
+export async function tesorosDelTaller(
+  { entorno, accessToken }: SesionDePrueba,
+  { conLosArchivados = false } = {},
+): Promise<FilaDeTesoro[]> {
+  const filtro = conLosArchivados ? '' : '&archivado_at=is.null';
+  return (await pedir(
+    entorno,
+    `/rest/v1/tesoros?select=${COLUMNAS_DEL_TESORO}&deleted_at=is.null${filtro}&order=orden,created_at,id`,
+    { accessToken },
+  )) as FilaDeTesoro[];
+}
+
+export async function idDelTesoro(sesion: SesionDePrueba, clave: ClaveDeTesoro): Promise<string> {
+  const tesoro = (await tesorosDelTaller(sesion)).find((uno) => uno.clave === clave);
+  if (tesoro === undefined) throw new Error(`el taller de prueba no tiene el tesoro ${clave}`);
+  return tesoro.id;
+}
+
+export interface TesoroParaCrear {
+  nombre: string;
+  descripcion?: string;
+  tinta?: string;
+  icono?: string;
+  meta_centavos?: number | null;
+  rinde_anual_bp?: number | null;
+  orden?: number;
+}
+
+export async function tesoroPorRest(
+  { entorno, accessToken }: SesionDePrueba,
+  datos: TesoroParaCrear,
+): Promise<FilaDeTesoro> {
+  const filas = (await pedir(entorno, `/rest/v1/tesoros?select=${COLUMNAS_DEL_TESORO}`, {
+    method: 'POST',
+    accessToken,
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      descripcion: '',
+      tinta: 'grana',
+      icono: 'vault',
+      orden: 10,
+      ...datos,
+    }),
+  })) as FilaDeTesoro[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el alta del tesoro no devolvió la fila');
+  return fila;
+}
+
+export async function saldoDelTesoro(
+  { entorno, accessToken }: SesionDePrueba,
+  tesoroId: string,
+): Promise<number> {
+  const asientos = (await pedir(
+    entorno,
+    `/rest/v1/libro_mayor?select=monto_centavos&tesoro_id=eq.${tesoroId}&ya_en_la_apertura=is.false`,
+    { accessToken },
+  )) as { monto_centavos: number }[];
+  return asientos.reduce((saldo, asiento) => saldo + asiento.monto_centavos, 0);
+}
+
+export async function archivarTesoroPorRest(
+  { entorno, accessToken }: SesionDePrueba,
+  tesoroId: string,
+): Promise<void> {
+  await pedir(entorno, `/rest/v1/tesoros?id=eq.${tesoroId}`, {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ archivado_at: new Date().toISOString() }),
+  });
+}
+
+export interface FilaGuardada {
+  fila: Record<string, unknown> | null;
+  fila_version: number;
+  fila_guardada_at: string | null;
+}
+
+export async function leerLaFila({ entorno, accessToken }: SesionDePrueba): Promise<FilaGuardada> {
+  const filas = (await pedir(
+    entorno,
+    '/rest/v1/ajustes?select=fila,fila_version,fila_guardada_at&deleted_at=is.null',
+    { accessToken },
+  )) as FilaGuardada[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el taller de prueba no tiene ajustes');
+  return fila;
+}
+
+export async function guardarLaFilaPorRpc(
+  { entorno, accessToken }: SesionDePrueba,
+  version: number,
+  fila: Record<string, unknown> | null,
+): Promise<FilaGuardada> {
+  return (await pedir(entorno, '/rest/v1/rpc/guardar_la_fila', {
+    method: 'POST',
+    accessToken,
+    body: JSON.stringify({ p_version: version, p_fila: fila }),
+  })) as FilaGuardada;
+}
+
+export async function sacarLaFila(sesion: SesionDePrueba): Promise<boolean> {
+  const { fila, fila_version } = await leerLaFila(sesion);
+  if (fila === null) return false;
+  await guardarLaFilaPorRpc(sesion, fila_version, null);
+  return true;
+}
+
+export async function archivarLosTesorosDelDueno(sesion: SesionDePrueba): Promise<number> {
+  const tesoros = await tesorosDelTaller(sesion);
+  const delDueno = tesoros.filter((tesoro) => tesoro.clave === null);
+  if (delDueno.length === 0) return 0;
+
+  const maun = tesoros.find((tesoro) => tesoro.clave === 'maun');
+  if (maun === undefined) throw new Error('el taller de prueba no tiene el tesoro maun');
+
+  const pases: string[] = [];
+  for (const tesoro of delDueno) {
+    const saldo = await saldoDelTesoro(sesion, tesoro.id);
+    if (saldo !== 0) {
+      const id = crypto.randomUUID();
+      await movimientosPorRest(sesion, [
+        {
+          id,
+          fecha: hoyEnElTaller(),
+          tipo: 'transferencia',
+          desde_id: saldo > 0 ? tesoro.id : maun.id,
+          hacia_id: saldo > 0 ? maun.id : tesoro.id,
+          monto_centavos: Math.abs(saldo),
+          categoria: '',
+          descripcion: `Lo que quedaba en ${tesoro.nombre}`,
+        },
+      ]);
+      pases.push(id);
+    }
+    await archivarTesoroPorRest(sesion, tesoro.id);
+  }
+  if (pases.length > 0) await vaciarMovimientos(sesion);
+  return delDueno.length;
+}
+
+export interface FilaDeReparto {
+  id: string;
+  posicion: number;
+  tesoro_id: string;
+  nombre: string;
+  tipo: 'obligacion' | 'paso' | 'parte' | 'superavit';
+  clase: string | null;
+  modo: string | null;
+  base: string | null;
+  objetivo_centavos: number | null;
+  previo_centavos: number | null;
+  tope_centavos: number | null;
+  por_mes: boolean | null;
+  porcentaje_bp: number | null;
+  monto_centavos: number;
+  fecha: string;
+  ya_en_la_apertura: boolean;
+}
+
+export async function repartosDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<FilaDeReparto[]> {
+  return (await pedir(
+    entorno,
+    `/rest/v1/repartos?select=id,posicion,tesoro_id,nombre,tipo,clase,modo,base,objetivo_centavos,previo_centavos,tope_centavos,por_mes,porcentaje_bp,monto_centavos,fecha,ya_en_la_apertura&deleted_at=is.null&proyecto_id=eq.${proyectoId}&order=posicion`,
+    { accessToken },
+  )) as FilaDeReparto[];
+}
+
+export interface RepartoLeido {
+  tesoro: string;
+  clase: string | null;
+  objetivo: number | null;
+  previo: number | null;
+  monto: number;
+}
+
+export async function repartoDelCobro(
+  sesion: SesionDePrueba,
+  proyectoId: string,
+): Promise<RepartoLeido[]> {
+  const claves = new Map(
+    (await tesorosDelTaller(sesion, { conLosArchivados: true })).map((tesoro) => [
+      tesoro.id,
+      tesoro.clave ?? tesoro.nombre,
+    ]),
+  );
+  return (await repartosDe(sesion, proyectoId)).map((reparto) => ({
+    tesoro: claves.get(reparto.tesoro_id) ?? reparto.tesoro_id,
+    clase: reparto.clase,
+    objetivo: reparto.objetivo_centavos,
+    previo: reparto.previo_centavos,
+    monto: reparto.monto_centavos,
+  }));
+}
+
 export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarLaVidriera(sesion);
   await vaciarArchivos(sesion);
@@ -548,6 +903,8 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarMovimientos(sesion);
   await vaciarProyectos(sesion);
   await vaciarClientes(sesion);
+  await sacarLaFila(sesion);
+  await archivarLosTesorosDelDueno(sesion);
 }
 
 export async function crearCliente(

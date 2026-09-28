@@ -105,6 +105,8 @@ export function filaRevertida(
   revertidaEn: string,
 ): Proyecto {
   const desdeUnCobro = proyecto.estado === 'cobrado';
+  const quizas = proyecto as Partial<Proyecto>;
+  const version = quizas.dist_fila_version ?? null;
   return {
     ...proyecto,
     estado: hacia,
@@ -134,6 +136,11 @@ export function filaRevertida(
     dist_sueldo_previo_centavos: null,
     dist_fijos_previo_centavos: null,
     dist_liquidado_at: null,
+    dist_fila_version: null,
+    dist_fila: null,
+    dist_previo: null,
+    reapertura_fila:
+      desdeUnCobro && version !== null ? { version, fila: quizas.dist_fila ?? null } : null,
   };
 }
 

@@ -1,4 +1,9 @@
-import type { EventoDeLaAgenda, EventoDerivado, EventoPropio } from '@maun/domain';
+import type {
+  EventoDeLaAgenda,
+  EventoDerivado,
+  EventoPropio,
+  EventoVencimiento,
+} from '@maun/domain';
 
 import { rutaDelCliente, rutaDelProyecto, useAnchoDePantalla, Ir } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
@@ -9,7 +14,14 @@ import {
   textoDelEvento,
   urgenciaDelEvento,
 } from '../model/calendario';
-import { CATEGORIA, DERIVADA, ESTA_COMPROMETIDA, FRANJA_DEL_EVENTO } from '../model/categorias';
+import {
+  CATEGORIA,
+  DERIVADA,
+  ESTA_COMPROMETIDA,
+  FRANJA_DEL_EVENTO,
+  VENCIMIENTO,
+} from '../model/categorias';
+import { sePuedeRegistrarElPago } from '../model/vencimientos';
 import { CasillaDeAnotacion, MarcaConAnillo, MarcaDeCategoria } from './MarcaDeCategoria';
 
 export interface AccionesDeLaAgenda {
@@ -18,6 +30,8 @@ export interface AccionesDeLaAgenda {
   alMarcar: (evento: EventoDeLaAgenda) => void;
   alBorrar: (evento: EventoPropio) => void;
   alRegistrar?: (evento: EventoDerivado) => void;
+  alRegistrarElPago?: (evento: EventoVencimiento) => void;
+  alAbrirVencimiento?: (evento: EventoVencimiento) => void;
   recienHecha?: string | null;
   alTerminarDeTachar?: () => void;
 }
@@ -43,6 +57,7 @@ function DetalleConEnlaces({ evento }: { evento: EventoDeLaAgenda }) {
       </Ir>
     );
   }
+  if (evento.clase === 'vencimiento') return <>{detalleDelEvento(evento)}</>;
   const cliente = evento.cliente.trim();
   const lugar = evento.lugar.trim();
   return (
@@ -75,6 +90,12 @@ function Contenido({
   const urgencia = urgenciaDelEvento(evento, hoy);
   const detalle = detalleDelEvento(evento);
   const { hecha } = evento;
+  const accion =
+    evento.clase === 'derivada'
+      ? DERIVADA[evento.categoria].accion
+      : evento.clase === 'vencimiento'
+        ? VENCIMIENTO.accion
+        : null;
 
   return (
     <>
@@ -87,7 +108,7 @@ function Contenido({
             {FRANJA_DEL_EVENTO[evento.franja]}
           </span>
         )}
-        {evento.clase === 'derivada' && (
+        {accion !== null && (
           <span
             className={
               hecha
@@ -95,7 +116,7 @@ function Contenido({
                 : `text-body font-semibold ${categoria.texto}`
             }
           >
-            {DERIVADA[evento.categoria].accion}
+            {accion}
           </span>
         )}
         <span
@@ -267,6 +288,119 @@ function FilaDerivada({
   );
 }
 
+function Pagado() {
+  return (
+    <span
+      aria-hidden
+      data-pagado
+      className="flex flex-none items-center gap-1 text-meta font-semibold text-text-2"
+    >
+      <Icono nombre="check" tamano={14} grosor={2.25} />
+      {VENCIMIENTO.pagado}
+    </span>
+  );
+}
+
+function FilaDeVencimiento({
+  evento,
+  hoy,
+  acciones,
+  enElDia,
+  sinBorde,
+  alAbrirElDia,
+}: {
+  evento: EventoVencimiento;
+  hoy: string;
+  acciones: AccionesDeLaAgenda;
+  enElDia: boolean;
+  sinBorde: boolean;
+  alAbrirElDia?: (fecha: string) => void;
+}) {
+  const abrir = acciones.alAbrirVencimiento;
+  const sePuede = sePuedeRegistrarElPago(evento, hoy);
+  const registrar = sePuede ? acciones.alRegistrarElPago : undefined;
+  const alTocar =
+    abrir !== undefined
+      ? () => {
+          abrir(evento);
+        }
+      : alAbrirElDia === undefined
+        ? undefined
+        : () => {
+            alAbrirElDia(evento.fecha);
+          };
+  const botonDelPago =
+    registrar === undefined ? null : (
+      <Button
+        size="chico"
+        variant={enElDia ? 'primario' : 'secundario'}
+        onClick={() => {
+          registrar(evento);
+        }}
+      >
+        {VENCIMIENTO.registrar}
+      </Button>
+    );
+
+  return (
+    <li
+      data-vencimiento={evento.id}
+      data-hecha={String(evento.hecha)}
+      className={`flex gap-3 ${sinBorde ? '' : enElDia ? 'border-t' : 'border-t first:border-t-0'} border-hairline-soft ${
+        evento.hecha ? 'items-center py-2' : 'items-start py-3'
+      }`}
+    >
+      <MarcaConAnillo categoria={evento.categoria} importante={false} />
+      {!enElDia && alTocar !== undefined ? (
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={alTocar}
+            className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-field text-left"
+          >
+            <Contenido evento={evento} hoy={hoy} enElDia={false} />
+          </button>
+          {botonDelPago}
+        </div>
+      ) : (
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <Contenido evento={evento} hoy={hoy} enElDia={enElDia} />
+          {enElDia && !evento.hecha && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-field bg-surface px-2.5 py-2 text-meta leading-snug text-text-2">
+              <Icono nombre="link-2" tamano={14} />
+              <span className="min-w-[10rem] flex-1">
+                {VENCIMIENTO.origen}.{sePuede ? '' : ` ${VENCIMIENTO.masAdelante}`}
+              </span>
+              {botonDelPago}
+              {abrir !== undefined && (
+                <Button
+                  variant="secundario"
+                  size="chico"
+                  onClick={() => {
+                    abrir(evento);
+                  }}
+                >
+                  {VENCIMIENTO.verEnTesoros}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {evento.hecha ? (
+        <Pagado />
+      ) : (
+        !enElDia &&
+        abrir !== undefined && (
+          <span aria-hidden className="mt-0.5 flex-none text-text-3">
+            <Icono nombre="chevron-right" tamano={18} />
+          </span>
+        )
+      )}
+    </li>
+  );
+}
+
 export function FilaDeEvento({
   evento,
   hoy,
@@ -275,6 +409,19 @@ export function FilaDeEvento({
   sinBorde = false,
   alAbrirElDia,
 }: FilaDeEventoProps) {
+  if (evento.clase === 'vencimiento') {
+    return (
+      <FilaDeVencimiento
+        evento={evento}
+        hoy={hoy}
+        acciones={acciones}
+        enElDia={enElDia}
+        sinBorde={sinBorde}
+        alAbrirElDia={alAbrirElDia}
+      />
+    );
+  }
+
   if (evento.clase === 'derivada') {
     return (
       <FilaDerivada

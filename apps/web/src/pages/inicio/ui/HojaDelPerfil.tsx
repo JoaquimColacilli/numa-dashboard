@@ -18,6 +18,7 @@ import {
   RUTA_DE_AJUSTES,
   RUTA_DE_DIEZMO,
   RUTA_DE_OPINIONES,
+  RUTA_DE_TESOROS,
   useEstadoSync,
   type EstadoSync,
   Ir,
@@ -43,10 +44,10 @@ function masDias(fecha: string, dias: number): string {
 }
 
 function proximoEnLaAgenda(replica: Replica, hoy: string): string {
-  const [proximo] = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica), {
-    desde: hoy,
-    hasta: masDias(hoy, DIAS_QUE_MIRA_LA_AGENDA),
-  }).filter((evento) => !evento.hecha);
+  const rango = { desde: hoy, hasta: masDias(hoy, DIAS_QUE_MIRA_LA_AGENDA) };
+  const [proximo] = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica, rango), rango).filter(
+    (evento) => !evento.hecha,
+  );
   if (proximo === undefined) return 'Nada agendado por ahora';
   const etiqueta = etiquetaDelDia(proximo.fecha, hoy);
   const cuando =
@@ -137,6 +138,12 @@ export function HojaDelPerfil({
             }
           />
           <Fila
+            ruta={RUTA_DE_TESOROS}
+            icono="gem"
+            etiqueta="Tesoros"
+            bajada="Cómo se reparte cada cobro"
+          />
+          <Fila
             ruta={RUTA_DE_DIEZMO}
             icono="church"
             fondo="bg-diezmo-tint text-diezmo"
@@ -158,7 +165,7 @@ export function HojaDelPerfil({
             ruta={RUTA_DE_AJUSTES}
             icono="settings"
             etiqueta="Ajustes"
-            bajada="Sueldo, costos fijos, metas"
+            bajada="Tu taller, cómo te pagan y la vidriera"
           />
           <FilaParaSalir className={FILA} />
         </div>

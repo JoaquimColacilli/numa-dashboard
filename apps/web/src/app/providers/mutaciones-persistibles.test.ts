@@ -18,6 +18,8 @@ import * as movimiento from '@/entities/movimiento';
 import * as opinion from '@/entities/opinion';
 import * as proyecto from '@/entities/proyecto';
 import * as sesion from '@/entities/sesion';
+import * as tesoro from '@/entities/tesoro';
+import * as armarLaFila from '@/features/armar-la-fila';
 import * as armarLaVidriera from '@/features/armar-la-vidriera';
 import * as configurarTaller from '@/features/configurar-taller';
 import {
@@ -105,6 +107,10 @@ const PROYECTO: FilaDe<'proyectos'> = {
   reapertura_objetivo_fijos_centavos: null,
   reapertura_sueldo_mensual: null,
   reapertura_fecha_cobro: null,
+  reapertura_fila: null,
+  dist_fila_version: null,
+  dist_fila: null,
+  dist_previo: null,
   reparto_ya_en_la_apertura: false,
   presupuesto_vale_hasta: null,
   listo_el: null,
@@ -223,8 +229,10 @@ const MODULOS_CON_MUTACIONES = {
   opinion,
   proyecto,
   sesion,
+  tesoro,
   configurarTaller,
   armarLaVidriera,
+  armarLaFila,
 };
 
 type MutacionExportada = [string, MutationOptions<unknown, unknown, never>];

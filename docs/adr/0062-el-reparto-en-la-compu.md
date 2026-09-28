@@ -11,6 +11,9 @@
   tarjeta de papel a todo el ancho, sin el tope de 560 ni la línea de arriba; las secciones se separan
   con `gap-3`, y `gap-4` desde 40rem; `PrincipalYApoyo` junta sus columnas a `gap-x-4` y separa por
   defecto con `gap-y-3`. El orden del DOM sigue siendo el que se ve.
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): `/tesoros`
+  es la única pantalla del marco sin `Pagina` en la tablet y la compu. Ver la nota en «Cómo quedó cada
+  pantalla».
 
 ## Contexto
 
@@ -205,6 +208,14 @@ en una capa: desparejo por naturaleza, ADR 0034); Clientes y Preguntas (ya eran 
 ancho); las hojas (sus pares de campos cortos y de lo mismo, como teléfono y zona o CUIT y razón social,
 son la excepción que Baymard y NN/g aceptan); la encuesta (una columna angosta y centrada, pensada
 para el celular del cliente); y el acceso (ver «Dónde se aparta del pedido»).
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** Tesoros
+es un plano a todo el ancho con su panel de detalle, y en la tablet y la compu no va en `Pagina`: el
+lienzo usa todo el ancho que deja el menú y la página no scrollea (scrollean el lienzo y el panel).
+`esUnPlanoATodoElAncho` le saca al `<main>` el `scrollbar-gutter`. En el celular va en `Pagina`, como
+todas. En `e2e/reparto/pantallas.ts` está en `PANTALLAS` con `sinMarco` y su motivo, y el hueco entre
+el lienzo y el panel es una excepción de `EXCEPCIONES`: es el plano, no una columna vacía. Una pantalla
+nueva no se suma a esta excepción sin su ADR.
 
 ### El test del hueco, en `pnpm verify`
 

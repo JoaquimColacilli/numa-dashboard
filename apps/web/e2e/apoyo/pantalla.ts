@@ -31,7 +31,10 @@ export async function saldosEnInicio(page: Page): Promise<SaldosDeInicio> {
   const tesoros = page.getByRole('region', { name: 'Tesoros' });
 
   const leer = async (nombre: string): Promise<number> => {
-    const texto = await tesoros.getByRole('button', { name: new RegExp(`^${nombre}`) }).innerText();
+    const texto = await tesoros
+      .getByRole('button', { name: new RegExp(`^${nombre}`) })
+      .first()
+      .innerText();
     const encontrado = /\$\s?([\d.]+)/.exec(texto);
     if (!encontrado?.[1]) {
       if (nombre === 'Diezmo') return 0;

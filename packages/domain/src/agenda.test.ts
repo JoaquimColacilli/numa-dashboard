@@ -12,14 +12,18 @@ import {
   puedeArrastrarse,
   rangoQueEntra,
   TODO_EL_RELOJ,
+  vencimientosDeLaFila,
   type AnotacionDeLaAgenda,
   type DatosDeLaAgenda,
+  type EntradaDeLosVencimientos,
   type EventoDeLaAgenda,
   type PreferenciasDeAvisos,
   type ProximoDeLaAgenda,
   type ProyectoDeLaAgenda,
 } from './agenda.ts';
 import { ESTADOS, ESTADOS_DE_CONSULTA } from './estados.ts';
+import type { Fila } from './fila.ts';
+import { centavos } from './money.ts';
 
 const SEPTIEMBRE = { desde: '2026-09-01', hasta: '2026-09-30' };
 
@@ -68,6 +72,7 @@ function datos(cambios: Partial<DatosDeLaAgenda> = {}): DatosDeLaAgenda {
     ],
     anotaciones: [],
     proximos: [],
+    vencimientos: [],
     ...cambios,
   };
 }
@@ -760,6 +765,7 @@ describe('eventosParaAvisar', () => {
       visitas: { activo: false, anticipacion: 3 },
       presupuestos: { activo: false, anticipacion: 3 },
       seguimientos: { activo: false, anticipacion: 3 },
+      vencimientos: { activo: false, anticipacion: 3 },
       anotaciones: { activo: false, anticipacion: 3 },
     };
 
@@ -772,6 +778,7 @@ describe('eventosParaAvisar', () => {
       visitas: { activo: true, anticipacion: 3 },
       presupuestos: { activo: true, anticipacion: 3 },
       seguimientos: { activo: true, anticipacion: 3 },
+      vencimientos: { activo: true, anticipacion: 3 },
       anotaciones: { activo: true, anticipacion: 3 },
     };
 
@@ -787,6 +794,7 @@ describe('eventosParaAvisar', () => {
       'visitas',
       'entregas',
       'seguimientos',
+      'vencimientos',
       'anotaciones',
       'anotaciones',
     ]);
@@ -795,6 +803,7 @@ describe('eventosParaAvisar', () => {
       visitas: { activo: true, anticipacion: 1 },
       presupuestos: { activo: true, anticipacion: 1 },
       seguimientos: { activo: true, anticipacion: 0 },
+      vencimientos: { activo: true, anticipacion: 0 },
       anotaciones: { activo: false, anticipacion: 0 },
     });
   });
@@ -1025,5 +1034,246 @@ describe('la entrega comprometida en la agenda', () => {
       RANGO,
     );
     expect(eventos).toMatchObject([{ fecha: '2026-09-22', hecha: true }]);
+  });
+});
+
+describe('los vencimientos de los compromisos', () => {
+  const GASTOS_FIJOS = '00000000-0000-7000-8000-000000000010';
+  const CUOTAS = '00000000-0000-7000-8000-000000000011';
+
+  const FILA: Fila = {
+    obligaciones: [],
+    pasos: [
+      {
+        tesoro: GASTOS_FIJOS,
+        clase: 'fijos',
+        tope: centavos(90_000_000),
+        renglones: [
+          { nombre: 'Alquiler', monto: centavos(50_000_000), dia: 10 },
+          { nombre: 'Luz', monto: centavos(6_000_000), dia: 31 },
+          { nombre: 'Ayudante', monto: centavos(34_000_000), dia: null },
+        ],
+        desde: null,
+        modo: 'saldo',
+        hastaLaMeta: false,
+      },
+      {
+        tesoro: CUOTAS,
+        clase: 'fijos',
+        tope: centavos(20_000_000),
+        renglones: [{ nombre: 'Cuota del auto', monto: centavos(20_000_000), dia: 15 }],
+        desde: '2026-10',
+        modo: 'mes',
+        hastaLaMeta: false,
+      },
+    ],
+    reparto: [],
+    superavit: '00000000-0000-7000-8000-000000000002',
+    sueldoPorTrabajo: false,
+  };
+
+  function entrada(cambios: Partial<EntradaDeLosVencimientos> = {}): EntradaDeLosVencimientos {
+    return {
+      fila: FILA,
+      nombres: new Map([[GASTOS_FIJOS, 'Gastos fijos']]),
+      guardada: '2026-09',
+      gastos: [],
+      ...cambios,
+    };
+  }
+
+  const SOLO_SEPTIEMBRE = { desde: '2026-09', hasta: '2026-09' };
+
+  it('cada renglón con día vence en su día, con su nombre, su monto y su tesoro, y el 31 cae el 30 en septiembre', () => {
+    expect(vencimientosDeLaFila(entrada(), SOLO_SEPTIEMBRE)).toEqual([
+      {
+        id: `vencimiento:${GASTOS_FIJOS}:0:2026-09-10`,
+        tesoro: GASTOS_FIJOS,
+        nombreDelTesoro: 'Gastos fijos',
+        renglon: 'Alquiler',
+        monto: 50_000_000,
+        fecha: '2026-09-10',
+        pagado: false,
+      },
+      {
+        id: `vencimiento:${GASTOS_FIJOS}:1:2026-09-30`,
+        tesoro: GASTOS_FIJOS,
+        nombreDelTesoro: 'Gastos fijos',
+        renglon: 'Luz',
+        monto: 6_000_000,
+        fecha: '2026-09-30',
+        pagado: false,
+      },
+    ]);
+  });
+
+  it('aparece desde su desde, o desde el mes en que se guardó la fila, y nunca antes', () => {
+    const fechas = vencimientosDeLaFila(entrada(), { desde: '2026-08', hasta: '2026-11' }).map(
+      (vencimiento) => [vencimiento.nombreDelTesoro, vencimiento.fecha],
+    );
+    expect(fechas).toEqual([
+      ['Gastos fijos', '2026-09-10'],
+      ['Gastos fijos', '2026-09-30'],
+      ['Gastos fijos', '2026-10-10'],
+      ['Gastos fijos', '2026-10-31'],
+      ['Gastos fijos', '2026-11-10'],
+      ['Gastos fijos', '2026-11-30'],
+      ['', '2026-10-15'],
+      ['', '2026-11-15'],
+    ]);
+  });
+
+  it('sin fecha de guardado ni desde, vence en todos los meses que se piden', () => {
+    const agosto = vencimientosDeLaFila(entrada({ guardada: null }), {
+      desde: '2026-08',
+      hasta: '2026-08',
+    });
+    expect(agosto.map((vencimiento) => vencimiento.fecha)).toEqual(['2026-08-10', '2026-08-31']);
+  });
+
+  it('queda pagado con un gasto desde ese tesoro con el renglón como categoría en ese mes', () => {
+    const pagado = vencimientosDeLaFila(
+      entrada({
+        gastos: [
+          { tesoro: GASTOS_FIJOS, categoria: 'Alquiler', fecha: '2026-09-08' },
+          { tesoro: CUOTAS, categoria: 'Luz', fecha: '2026-09-08' },
+        ],
+      }),
+      { desde: '2026-09', hasta: '2026-10' },
+    );
+    expect(
+      pagado.map((vencimiento) => [vencimiento.renglon, vencimiento.fecha, vencimiento.pagado]),
+    ).toEqual([
+      ['Alquiler', '2026-09-10', true],
+      ['Luz', '2026-09-30', false],
+      ['Alquiler', '2026-10-10', false],
+      ['Luz', '2026-10-31', false],
+      ['Cuota del auto', '2026-10-15', false],
+    ]);
+  });
+
+  it('rechaza un rango de meses al revés o un mes del guardado mal escrito', () => {
+    expect(() => vencimientosDeLaFila(entrada(), { desde: '2026-10', hasta: '2026-09' })).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      vencimientosDeLaFila(entrada({ guardada: '2026-09-28T12:00:00Z' }), SOLO_SEPTIEMBRE),
+    ).toThrow(RangeError);
+  });
+
+  it('en la agenda es una tercera clase de evento, hecho cuando está pagado, y va después de volver a escribirle', () => {
+    const vencimientos = vencimientosDeLaFila(
+      entrada({ gastos: [{ tesoro: GASTOS_FIJOS, categoria: 'alquiler', fecha: '2026-09-01' }] }),
+      { desde: '2026-09', hasta: '2026-10' },
+    );
+    const eventos = eventosDeLaAgenda(
+      datos({
+        vencimientos,
+        proyectos: [proyecto({ id: 'p1', titulo: 'Placard', estado: 'en_seguimiento' })],
+        proximos: [
+          {
+            id: 's1',
+            proyectoId: 'p1',
+            fecha: '2026-09-10',
+            hechoEl: null,
+            nota: '',
+            importante: false,
+          },
+        ],
+        anotaciones: [anotacion({ id: 'nota', fecha: '2026-09-10' })],
+      }),
+      SEPTIEMBRE,
+    );
+    expect(eventos.map((evento) => evento.id)).toEqual([
+      'seguimiento:s1',
+      `vencimiento:${GASTOS_FIJOS}:0:2026-09-10`,
+      'nota',
+      `vencimiento:${GASTOS_FIJOS}:1:2026-09-30`,
+    ]);
+    expect(eventos[1]).toEqual({
+      clase: 'vencimiento',
+      id: `vencimiento:${GASTOS_FIJOS}:0:2026-09-10`,
+      categoria: 'vencimiento',
+      fecha: '2026-09-10',
+      hora: null,
+      tesoro: GASTOS_FIJOS,
+      nombreDelTesoro: 'Gastos fijos',
+      renglon: 'Alquiler',
+      monto: 50_000_000,
+      hecha: true,
+      importante: false,
+    });
+    expect(eventos[3]).toMatchObject({ clase: 'vencimiento', hecha: false });
+  });
+
+  it('dentro del día se ordenan por el renglón', () => {
+    const [primero, segundo] = eventosDeLaAgenda(
+      datos({
+        vencimientos: [
+          {
+            id: 'b',
+            tesoro: CUOTAS,
+            nombreDelTesoro: '',
+            renglon: 'Seguro',
+            monto: centavos(1),
+            fecha: '2026-09-15',
+            pagado: false,
+          },
+          {
+            id: 'a',
+            tesoro: CUOTAS,
+            nombreDelTesoro: '',
+            renglon: 'Cuota del auto',
+            monto: centavos(1),
+            fecha: '2026-09-15',
+            pagado: false,
+          },
+        ],
+      }),
+      SEPTIEMBRE,
+    );
+    expect([primero?.id, segundo?.id]).toEqual(['a', 'b']);
+  });
+
+  it('no se arrastra, esté pagado o no: sale de la fila y no se guarda', () => {
+    const eventos = eventosDeLaAgenda(
+      datos({
+        vencimientos: vencimientosDeLaFila(
+          entrada({ gastos: [{ tesoro: GASTOS_FIJOS, categoria: 'Luz', fecha: '2026-09-30' }] }),
+          SOLO_SEPTIEMBRE,
+        ),
+      }),
+      SEPTIEMBRE,
+    );
+    expect(eventos.map((evento) => [evento.hecha, puedeArrastrarse(evento)])).toEqual([
+      [false, false],
+      [true, false],
+    ]);
+  });
+
+  it('el aviso usa su preferencia: el mismo día, prendido, sin lo pagado, y se apaga', () => {
+    const agenda = datos({
+      vencimientos: vencimientosDeLaFila(
+        entrada({ gastos: [{ tesoro: GASTOS_FIJOS, categoria: 'Luz', fecha: '2026-09-02' }] }),
+        { desde: '2026-09', hasta: '2026-10' },
+      ),
+    });
+    expect(
+      eventosParaAvisar(agenda, '2026-09-10', PREFERENCIAS_INICIALES).map((e) => e.id),
+    ).toEqual([`vencimiento:${GASTOS_FIJOS}:0:2026-09-10`]);
+    expect(eventosParaAvisar(agenda, '2026-09-09', PREFERENCIAS_INICIALES)).toEqual([]);
+    expect(eventosParaAvisar(agenda, '2026-09-30', PREFERENCIAS_INICIALES)).toEqual([]);
+    expect(
+      eventosParaAvisar(agenda, '2026-09-09', {
+        ...PREFERENCIAS_INICIALES,
+        vencimientos: { activo: true, anticipacion: 1 },
+      }).map((evento) => evento.id),
+    ).toEqual([`vencimiento:${GASTOS_FIJOS}:0:2026-09-10`]);
+    expect(
+      eventosParaAvisar(agenda, '2026-09-10', {
+        ...PREFERENCIAS_INICIALES,
+        vencimientos: { activo: false, anticipacion: 0 },
+      }),
+    ).toEqual([]);
   });
 });

@@ -1,17 +1,29 @@
 export {
   CLASE,
   CLASES_EN_ORDEN,
+  categoriasDeLaClase,
   claseDe,
+  claseParaPagar,
   clasesDelGrupo,
+  gastaDesdeElTesoro,
   GRUPOS,
+  renglonesPorTesoro,
+  rutaParaRegistrarElPago,
+  vaEntreTesoros,
   type ClaseDeMovimiento,
   type DatosDeClase,
   type GrupoDeMovimiento,
+  type PagoParaRegistrar,
 } from './model/clases';
-export { ayudaDelMovimiento, type ContextoDeAyuda } from './model/ayuda';
+export { ayudaDelMovimiento, type ContextoDeAyuda, type LadoDeLaAyuda } from './model/ayuda';
 export { fraseDelDiezmo, type FraseDelDiezmo } from './model/diezmo';
+export {
+  ladosDeLaFila,
+  ladosDelMovimiento,
+  type LadoDelMovimiento,
+  type LadosDelMovimiento,
+} from './model/lados';
 export { resumenMensual, type ResumenMensual } from './model/mes';
-export { faltaDelSueldo, fraseDelSueldo, type FraseDelSueldo } from './model/sueldo';
 export {
   agruparPorDia,
   efectoDeLaLinea,
@@ -21,12 +33,15 @@ export {
   lineasDelTaller,
   mesesConMovimiento,
   MOTIVO_DEL_BLOQUEO,
+  tesorosConMovimientoEn,
   TODOS_LOS_MESES,
+  TODOS_LOS_TESOROS,
   type BloqueoDeLinea,
   type DiaDelLibro,
   type FiltroDelLibro,
   type LineaDelTaller,
   type SentidoDeLinea,
+  type TesoroDeLaLinea,
 } from './model/libro';
 export {
   CLAVE_DE_BAJA_DE_MOVIMIENTO,

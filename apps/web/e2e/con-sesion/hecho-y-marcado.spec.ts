@@ -182,7 +182,7 @@ test('entregar un proyecto deja la entrega tachada en su día, sin decir que est
     .toBe('entregado');
 
   await abrirLaAgenda(page);
-  await expect(page.getByText('0 compromisos · 0 anotaciones · 1 hecha')).toBeVisible();
+  await expect(page.getByText('0 citas · 0 anotaciones · 1 hecha')).toBeVisible();
   if (isMobile) {
     const fila = (await elDiaEnLaLista(page, AYER_O_HOY))
       .getByRole('listitem')
@@ -229,7 +229,7 @@ test('entregar un proyecto deja la entrega tachada en su día, sin decir que est
     .toBe('en_curso');
 
   await abrirLaAgenda(page);
-  await expect(page.getByText('1 compromiso · 0 anotaciones')).toBeVisible();
+  await expect(page.getByText('1 cita · 0 anotaciones')).toBeVisible();
   const pendiente = await abrirElDia(page, isMobile, AYER_O_HOY);
   await expect(pendiente.getByRole('list', { name: 'Hecho' })).toHaveCount(0);
   const fila = pendiente.getByRole('listitem').filter({ hasText: titulo });

@@ -9,7 +9,10 @@ import {
   hoyEnElTaller,
   iniciarSesionDePrueba,
   leerProyecto,
+  repartoDelCobro,
+  repartosDe,
   vaciarTaller,
+  type RepartoLeido,
   type SesionDePrueba,
 } from '../apoyo/taller';
 import { listoParaCortar, saldosEnInicio } from '../apoyo/pantalla';
@@ -99,6 +102,10 @@ async function esperarEstado(id: string, estado: string): Promise<void> {
     .toBe(estado);
 }
 
+function loQueRepartio(id: string): Promise<RepartoLeido[]> {
+  return repartoDelCobro(sesion, id);
+}
+
 test('el despiece se ve antes de cobrar y la distribución queda congelada después', async ({
   page,
 }) => {
@@ -109,7 +116,7 @@ test('el despiece se ve antes de cobrar y la distribución queda congelada despu
   await page.goto(`/proyectos/${id}`);
   await page.getByRole('button', { name: /^Cobrar/ }).click();
 
-  const despiece = page.getByRole('region', { name: 'Distribución de la ganancia' });
+  const despiece = page.getByRole('region', { name: 'Distribución del ingreso' });
   await expect(despiece).toContainText('$ 700.000');
   await expect(despiece).toContainText('Diezmo 10%');
   await expect(despiece).toContainText('$ 70.000');
@@ -135,9 +142,13 @@ test('el despiece se ve antes de cobrar y la distribución queda congelada despu
   const congelada = await distribucionDe(sesion, id);
   expect(congelada?.dist_cobrado_centavos).toBe(70_000_000);
   expect(congelada?.dist_diezmo_centavos).toBe(7_000_000);
-  expect(congelada?.dist_sueldo_centavos).toBe(50_000_000);
-  expect(congelada?.dist_fijos_centavos).toBe(13_000_000);
-  expect(congelada?.dist_remanente_centavos).toBe(0);
+  expect(congelada?.dist_sueldo_centavos).toBe(0);
+  expect(congelada?.dist_fijos_centavos).toBe(0);
+  expect(congelada?.dist_remanente_centavos).toBe(63_000_000);
+  expect(await loQueRepartio(id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: 0, monto: 50_000_000 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: 13_000_000 },
+  ]);
 
   const despues = await saldosEnInicio(page);
   expect(despues.hogar - antes.hogar).toBe(500_000);
@@ -192,12 +203,18 @@ test('dos cobros del mismo mes hechos sin señal drenan en orden y ninguno rebot
   await esperarEstado(uno.id, 'cobrado');
   await esperarEstado(dos.id, 'cobrado');
 
-  expect((await distribucionDe(sesion, uno.id))?.dist_fijos_centavos).toBe(13_000_000);
-  expect((await distribucionDe(sesion, dos.id))?.dist_fijos_centavos).toBe(12_000_000);
-  expect((await distribucionDe(sesion, uno.id))?.dist_sueldo_centavos).toBe(SUELDO);
+  expect(await loQueRepartio(uno.id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: 0, monto: SUELDO },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: 13_000_000 },
+  ]);
+  expect(await loQueRepartio(dos.id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: SUELDO, monto: 0 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 13_000_000, monto: 12_000_000 },
+  ]);
   expect(await distribucionDe(sesion, dos.id)).toMatchObject({
+    dist_diezmo_centavos: 10_000_000,
     dist_sueldo_centavos: 0,
-    dist_remanente_centavos: 78_000_000,
+    dist_remanente_centavos: 90_000_000,
   });
   await expect(page.getByText('El servidor lo rechazó')).toBeHidden();
 });
@@ -225,7 +242,7 @@ test('el sueldo se cuenta por mes: con el mes cubierto, el reparto lo dice y Aju
   await page.goto(`/proyectos/${dos.id}`);
   await listoParaCortar(page);
   const sueldo = page
-    .getByRole('region', { name: 'Distribución de la ganancia' })
+    .getByRole('region', { name: 'Distribución del ingreso' })
     .getByRole('listitem')
     .filter({ hasText: 'Sueldo' });
   await expect(sueldo).toContainText('ya lo cubrieron otros cobros del mes');
@@ -328,16 +345,29 @@ test('un cobro con el acumulado del mes desactualizado vuelve ajustado y muestra
   await esperarEstado(dos.id, 'cobrado');
 
   const congelada = await distribucionDe(sesion, dos.id);
-  expect(congelada?.dist_tope_fijos_centavos).toBe(12_000_000);
-  expect(congelada?.dist_fijos_centavos).toBe(12_000_000);
   expect(congelada?.dist_sueldo_centavos).toBe(0);
-  expect(congelada?.dist_remanente_centavos).toBe(78_000_000);
+  expect(congelada?.dist_fijos_centavos).toBe(0);
+  expect(congelada?.dist_remanente_centavos).toBe(90_000_000);
+  expect(await loQueRepartio(dos.id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: SUELDO, monto: 0 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 13_000_000, monto: 12_000_000 },
+  ]);
 
   await expect(page.getByText('El reparto salió distinto del que viste.')).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText('Sueldo: esperabas', { exact: false })).toBeVisible();
-  await expect(page.getByText('Costos fijos: esperabas', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText(
+      'Hogar: esperabas $ 500.000 y quedó en $ 0, porque el mes ya llevaba $ 500.000 de otra liquidación.',
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      'Maun: esperabas $ 250.000 y quedó en $ 120.000, porque el mes ya llevaba $ 130.000 de otra liquidación.',
+      { exact: false },
+    ),
+  ).toBeVisible();
 });
 
 test('cerrar un perdido con seña liquida la seña con diezmo y sin sueldo', async ({ page }) => {
@@ -359,7 +389,10 @@ test('cerrar un perdido con seña liquida la seña con diezmo y sin sueldo', asy
   const congelada = await distribucionDe(sesion, id);
   expect(congelada?.dist_diezmo_centavos).toBe(2_000_000);
   expect(congelada?.dist_sueldo_centavos).toBe(0);
-  expect(congelada?.dist_fijos_centavos).toBe(18_000_000);
+  expect(await loQueRepartio(id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: 0, previo: 0, monto: 0 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: 18_000_000 },
+  ]);
 });
 
 test('reabrir un cobro conserva la fecha y los topes del cobro original', async ({ page }) => {
@@ -368,6 +401,7 @@ test('reabrir un cobro conserva la fecha y los topes del cobro original', async 
   await cobrarDesdeLaFicha(page, id);
   await esperarEstado(id, 'cobrado');
   const primera = await distribucionDe(sesion, id);
+  const repartida = await loQueRepartio(id);
 
   await ajustarTaller(sesion, { costos_fijos_centavos: 99_000_000 });
 
@@ -375,6 +409,7 @@ test('reabrir un cobro conserva la fecha y los topes del cobro original', async 
   await page.getByRole('button', { name: 'Reabrir el cobro' }).click();
   await page.getByRole('button', { name: /^Reabrir y deshacer/ }).click();
   await esperarEstado(id, 'entregado');
+  expect(await repartosDe(sesion, id)).toEqual([]);
 
   await page.reload();
   await cobrarDesdeLaFicha(page, id);
@@ -382,8 +417,11 @@ test('reabrir un cobro conserva la fecha y los topes del cobro original', async 
 
   const segunda = await distribucionDe(sesion, id);
   expect(segunda?.fecha_cobro).toBe(primera?.fecha_cobro);
-  expect(segunda?.dist_tope_fijos_centavos).toBe(primera?.dist_tope_fijos_centavos);
-  expect(segunda?.dist_fijos_centavos).toBe(13_000_000);
+  expect(await loQueRepartio(id)).toEqual(repartida);
+  expect(repartida).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: 0, monto: SUELDO },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: 13_000_000 },
+  ]);
 });
 
 test.describe('con prefers-reduced-motion', () => {
@@ -403,7 +441,7 @@ test.describe('con prefers-reduced-motion', () => {
     });
     expect(duraciones).toEqual([0, 0]);
 
-    const despiece = page.getByRole('region', { name: 'Distribución de la ganancia' });
+    const despiece = page.getByRole('region', { name: 'Distribución del ingreso' });
     await expect(despiece).toContainText('$ 500.000');
     await expect(despiece).toContainText('$ 130.000');
     await esperarEstado(id, 'cobrado');

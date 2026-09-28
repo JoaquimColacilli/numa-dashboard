@@ -1,8 +1,29 @@
 import type { ReactNode } from 'react';
 
-import { iso, puntos, recorrido, type Punto3, type Volumen } from './proyeccion.ts';
+import {
+  iso,
+  puntos,
+  recorrido,
+  redondear,
+  type Punto,
+  type Punto3,
+  type Volumen,
+} from './proyeccion.ts';
 
-export type Relleno = 'cara' | 'costado' | 'tinta' | 'hogar' | 'maun' | 'diezmo' | 'cocos' | 'nada';
+export const TINTAS_DE_TESORO = [
+  'hogar',
+  'maun',
+  'diezmo',
+  'cocos',
+  'grana',
+  'mostaza',
+  'petroleo',
+  'ciruela',
+] as const;
+
+export type TintaDeTesoro = (typeof TINTAS_DE_TESORO)[number];
+
+export type Relleno = 'cara' | 'costado' | 'tinta' | TintaDeTesoro | 'nada';
 
 export type Linea = 'gruesa' | 'fina' | 'trazos' | 'eje' | 'mano';
 
@@ -147,6 +168,40 @@ export function Losa({ contorno, z, espesor }: LosaProps) {
         points={puntos(...contorno.map(([u, v]) => iso(u, v, z + espesor)))}
         className="cara"
       />
+    </g>
+  );
+}
+
+export interface GloboProps {
+  x: number;
+  y: number;
+  numero: number;
+  hacia: Punto;
+}
+
+const RADIO_DEL_GLOBO = 6;
+
+export function Globo({ x, y, numero, hacia }: GloboProps) {
+  const [hastaX, hastaY] = hacia;
+  const largo = Math.hypot(hastaX - x, hastaY - y);
+  const borde =
+    largo === 0
+      ? [x, y]
+      : [
+          redondear(x + ((hastaX - x) / largo) * RADIO_DEL_GLOBO),
+          redondear(y + ((hastaY - y) / largo) * RADIO_DEL_GLOBO),
+        ];
+  return (
+    <g>
+      <path
+        d={`M${String(borde[0])} ${String(borde[1])}L${String(hastaX)} ${String(hastaY)}`}
+        className="fina"
+      />
+      <circle cx={hastaX} cy={hastaY} r={1} className="tinta sin-linea" />
+      <circle cx={x} cy={y} r={RADIO_DEL_GLOBO} className="cara fina" />
+      <text x={x} y={redondear(y + 2.8)} className="globo">
+        {numero}
+      </text>
     </g>
   );
 }

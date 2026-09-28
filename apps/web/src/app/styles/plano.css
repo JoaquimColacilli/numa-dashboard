@@ -1,0 +1,59 @@
+/* base.css de React Flow tiene que entrar en una capa: suelto les gana a las utilidades de
+   Tailwind y borra el anillo de foco. */
+@import '@xyflow/react/dist/base.css' layer(components);
+
+/* El plano de los tesoros (ADR 0078). Las variables de React Flow cuelgan de los tokens, así que el
+   oscuro viene solo. El color del fondo y de la cuadrícula lo ponen los dos <Background>. */
+@layer components {
+  .react-flow.plano {
+    --xy-edge-stroke: var(--color-text-3);
+    --xy-edge-stroke-width: 1.5;
+    --xy-edge-stroke-selected: var(--color-ink);
+    --xy-connectionline-stroke: var(--color-ink);
+    --xy-connectionline-stroke-width: 1.5;
+    --xy-handle-background-color: var(--color-paper);
+    --xy-handle-border-color: var(--color-text-3);
+    --xy-selection-background-color: color-mix(in srgb, var(--color-ink) 6%, transparent);
+    --xy-selection-border: 1px dashed var(--color-text-3);
+    --xy-attribution-background-color: transparent;
+  }
+
+  .react-flow.plano .react-flow__node {
+    border-radius: var(--radius-lamina);
+  }
+
+  /* Hasta que la app encuadra la fila, las fichas no se ven: así no se pintan un cuadro en el
+     lugar de React Flow y otro en el suyo. La cuadrícula sí. */
+  .react-flow.plano[data-sin-encuadrar] .react-flow__viewport {
+    visibility: hidden;
+  }
+
+  .react-flow.plano .react-flow__edge-path {
+    stroke-linecap: butt;
+  }
+
+  .react-flow.plano .react-flow__attribution a {
+    color: var(--color-text-3);
+  }
+
+  /* La misma cuadrícula en el plano vertical del celular, que no usa React Flow. */
+  .cuadricula {
+    background-color: var(--color-lamina);
+    background-image:
+      linear-gradient(to right, var(--cuadricula-mayor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--cuadricula-mayor) 1px, transparent 1px),
+      linear-gradient(to right, var(--cuadricula-menor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--cuadricula-menor) 1px, transparent 1px);
+    background-size:
+      80px 80px,
+      80px 80px,
+      16px 16px,
+      16px 16px;
+  }
+
+  /* Los rótulos del plano: mayúsculas chicas con aire, como las de un plano impreso. */
+  .rotulo-del-plano {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+  }
+}

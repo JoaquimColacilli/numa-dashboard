@@ -24,15 +24,23 @@ import {
   FormularioDeRedes,
   FormularioDeResena,
   hayRedesCargadas,
+  type ParteDeLaConfiguracion,
 } from '@/features/configurar-taller';
 import { FormularioDePerfil } from '@/features/editar-perfil';
 import { SelectorDeTema } from '@/features/elegir-tema';
 import { VersionDeLaApp } from '@/features/ver-novedades';
-import { ajustesDe, householdDe, mensajeDeSincronizacion, saldosDeLaReplica } from '@/shared/api';
+import {
+  ajustesDe,
+  filaDelTaller,
+  householdDe,
+  mensajeDeSincronizacion,
+  saldosDeLaReplica,
+} from '@/shared/api';
 import {
   describirEstadoSync,
   esCelular,
   RUTA_DE_AVISOS,
+  RUTA_DE_TESOROS,
   useAvisos,
   useEstadoSync,
   Ir,
@@ -40,6 +48,10 @@ import {
 import { Button, Icono, Pagina, PanelDeAvisos, SeccionEnFila, SeccionesEnFilas } from '@/shared/ui';
 
 const MUESTRA_DEL_DESENLACE_MS = 6000;
+
+const SOLO_EL_REPARTO: readonly ParteDeLaConfiguracion[] = ['reparto'];
+
+const SOLO_EL_TALLER: readonly ParteDeLaConfiguracion[] = ['taller'];
 
 const FORMATO_DE_LA_SINCRONIZACION = new Intl.DateTimeFormat('es-AR', {
   day: 'numeric',
@@ -161,6 +173,7 @@ export function AjustesPage() {
   const estadoSync = useEstadoSync();
   const household = householdDe(replica);
   const ajustes = ajustesDe(replica);
+  const filaGuardada = filaDelTaller(replica).guardada;
   const usado = espacioUsado(replica);
 
   return (
@@ -188,8 +201,8 @@ export function AjustesPage() {
 
         <SeccionEnFila id="titulo-avisos-de-la-agenda" titulo="Avisos de la agenda">
           <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-            Un recordatorio a la mañana con las entregas, las visitas y los presupuestos que vencen.
-            Se activa en cada dispositivo.
+            Un recordatorio a la mañana con las entregas, las visitas, los presupuestos y los pagos
+            que vencen. Se activa en cada dispositivo.
           </p>
           <Ir
             a={RUTA_DE_AVISOS}
@@ -219,8 +232,46 @@ export function AjustesPage() {
         </SeccionEnFila>
 
         {household && ajustes && (
-          <SeccionEnFila id="titulo-reparto" titulo="Reparto y metas">
-            <FormularioDeConfiguracion household={household} ajustes={ajustes} />
+          <SeccionEnFila
+            id="titulo-reparto"
+            titulo="Sueldo y costos fijos"
+            bajada={
+              filaGuardada ? undefined : (
+                <p className="text-label leading-relaxed text-text-2">
+                  Con esto se arma la fila de cada cobro: primero el diezmo, después los compromisos
+                  (tu sueldo y los costos fijos), y lo que sobra queda en Maun.
+                </p>
+              )
+            }
+          >
+            {filaGuardada ? (
+              <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
+                Tu sueldo y los compromisos se arman en la fila de Tesoros.
+              </p>
+            ) : (
+              <FormularioDeConfiguracion
+                household={household}
+                ajustes={ajustes}
+                partes={SOLO_EL_REPARTO}
+              />
+            )}
+            <Ir
+              a={RUTA_DE_TESOROS}
+              className="inline-flex min-h-tap items-center gap-1.5 self-start rounded-field text-body font-semibold underline underline-offset-3"
+            >
+              <Icono nombre="gem" tamano={18} />
+              Ver la fila en Tesoros
+            </Ir>
+          </SeccionEnFila>
+        )}
+
+        {household && ajustes && (
+          <SeccionEnFila id="titulo-taller" titulo="Tu taller">
+            <FormularioDeConfiguracion
+              household={household}
+              ajustes={ajustes}
+              partes={SOLO_EL_TALLER}
+            />
           </SeccionEnFila>
         )}
 

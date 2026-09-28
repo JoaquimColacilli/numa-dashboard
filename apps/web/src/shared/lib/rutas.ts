@@ -66,24 +66,63 @@ export const RUTA_DE_FINANZAS = '/finanzas';
 
 export const PARAMETRO_DE_TESORO = 'tesoro';
 
-function esTesoro(valor: string | null): valor is Tesoro {
-  return valor !== null && (TESOROS_EN_ORDEN as readonly string[]).includes(valor);
+const FORMA_DE_UN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function esTesoro(valor: string): valor is Tesoro {
+  return (TESOROS_EN_ORDEN as readonly string[]).includes(valor);
 }
 
-export function tesoroDelParametro(valor: string | null): Tesoro | 'todos' {
-  return esTesoro(valor) ? valor : 'todos';
+export function tesoroDelParametro(valor: string | null): string {
+  if (valor === null) return 'todos';
+  return esTesoro(valor) || FORMA_DE_UN_ID.test(valor) ? valor : 'todos';
 }
 
-export function rutaDeFinanzasDelTesoro(tesoro: Tesoro): string {
-  return `${RUTA_DE_FINANZAS}?${new URLSearchParams({ [PARAMETRO_DE_TESORO]: tesoro }).toString()}`;
+export type TesoroDeLaRuta = Tesoro | { id: string; clave: Tesoro | null };
+
+export function parametroDelTesoro(tesoro: TesoroDeLaRuta): string {
+  return typeof tesoro === 'string' ? tesoro : (tesoro.clave ?? tesoro.id);
+}
+
+export function rutaDeFinanzasDelTesoro(tesoro: TesoroDeLaRuta): string {
+  return `${RUTA_DE_FINANZAS}?${new URLSearchParams({ [PARAMETRO_DE_TESORO]: parametroDelTesoro(tesoro) }).toString()}`;
 }
 
 export const RUTA_DE_MOVIMIENTO_NUEVO = '/finanzas/nuevo';
 
-export function rutaDeMovimientoNuevo(opciones: { clase?: string } = {}): string {
-  return opciones.clase === undefined
-    ? RUTA_DE_MOVIMIENTO_NUEVO
-    : `${RUTA_DE_MOVIMIENTO_NUEVO}?${new URLSearchParams({ clase: opciones.clase }).toString()}`;
+export interface MovimientoPropuesto {
+  clase?: string;
+  tesoro?: string;
+  monto?: number;
+  categoria?: string;
+  fecha?: string;
+}
+
+const LARGO_MAXIMO_DE_LA_CATEGORIA = 80;
+
+export function rutaDeMovimientoNuevo(opciones: MovimientoPropuesto = {}): string {
+  const parametros = new URLSearchParams();
+  if (opciones.clase !== undefined) parametros.set('clase', opciones.clase);
+  if (opciones.tesoro !== undefined) parametros.set('tesoro', opciones.tesoro);
+  if (opciones.monto !== undefined) parametros.set('monto', String(opciones.monto));
+  if (opciones.categoria !== undefined) parametros.set('categoria', opciones.categoria);
+  if (opciones.fecha !== undefined) parametros.set('fecha', opciones.fecha);
+  const texto = parametros.toString();
+  return texto === '' ? RUTA_DE_MOVIMIENTO_NUEVO : `${RUTA_DE_MOVIMIENTO_NUEVO}?${texto}`;
+}
+
+export function movimientoPropuesto(parametros: URLSearchParams): MovimientoPropuesto {
+  const clase = parametros.get('clase');
+  const tesoro = parametros.get('tesoro');
+  const monto = Number(parametros.get('monto') ?? '');
+  const categoria = parametros.get('categoria')?.trim() ?? '';
+  const fecha = fechaDelEnlace(parametros.get('fecha'));
+  return {
+    ...(clase === null ? {} : { clase }),
+    ...(tesoro === null || !FORMA_DE_UN_ID.test(tesoro) ? {} : { tesoro }),
+    ...(Number.isSafeInteger(monto) && monto > 0 ? { monto } : {}),
+    ...(categoria === '' || categoria.length > LARGO_MAXIMO_DE_LA_CATEGORIA ? {} : { categoria }),
+    ...(fecha === undefined ? {} : { fecha }),
+  };
 }
 
 export function rutaDelMovimiento(id: string): string {
@@ -91,6 +130,8 @@ export function rutaDelMovimiento(id: string): string {
 }
 
 export const RUTA_DE_DIEZMO = '/diezmo';
+
+export const RUTA_DE_TESOROS = '/tesoros';
 
 export const RUTA_DE_AJUSTES = '/ajustes';
 

@@ -1,7 +1,55 @@
 import { centavos, type LineaDelLibro } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
-import { agruparPorDia, efectoDeLaLinea, type LineaDelTaller } from './libro';
+import type { Replica } from '@/shared/api';
+
+import {
+  agruparPorDia,
+  efectoDeLaLinea,
+  filtrarLineas,
+  filtroInicial,
+  lineasDelTaller,
+  tesorosConMovimientoEn,
+  TODOS_LOS_TESOROS,
+  type LineaDelTaller,
+  type TesoroDeLaLinea,
+} from './libro';
+
+const HOGAR_ID = '0192aaaa-0000-7000-8000-000000000001';
+const MAUN_ID = '0192aaaa-0000-7000-8000-000000000002';
+const DIEZMO_ID = '0192aaaa-0000-7000-8000-000000000003';
+const COCOS_ID = '0192aaaa-0000-7000-8000-000000000004';
+const MATERIALES_ID = '0192aaaa-0000-7000-8000-000000000005';
+const HERRAMIENTAS_ID = '0192aaaa-0000-7000-8000-000000000006';
+
+const HOGAR: TesoroDeLaLinea = {
+  id: HOGAR_ID,
+  clave: 'hogar',
+  nombre: 'Hogar',
+  tinta: 'hogar',
+  icono: 'house',
+};
+const MAUN: TesoroDeLaLinea = {
+  id: MAUN_ID,
+  clave: 'maun',
+  nombre: 'Maun',
+  tinta: 'maun',
+  icono: 'hammer',
+};
+const TESOROS: readonly TesoroDeLaLinea[] = [
+  HOGAR,
+  MAUN,
+  { id: DIEZMO_ID, clave: 'diezmo', nombre: 'Diezmo', tinta: 'diezmo', icono: 'church' },
+  { id: COCOS_ID, clave: 'cocos', nombre: 'Cocos', tinta: 'cocos', icono: 'piggy-bank' },
+  { id: MATERIALES_ID, clave: null, nombre: 'Materiales', tinta: 'mostaza', icono: 'package' },
+  {
+    id: HERRAMIENTAS_ID,
+    clave: null,
+    nombre: 'Herramientas',
+    tinta: 'grana',
+    icono: 'wrench',
+  },
+];
 
 function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
   const base: LineaDelLibro = {
@@ -11,6 +59,8 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     concepto: 'sueldo',
     desde: 'maun',
     hacia: 'hogar',
+    desdeId: MAUN_ID,
+    haciaId: HOGAR_ID,
     monto: centavos(50_000_000),
     categoria: '',
     descripcion: '',
@@ -24,31 +74,212 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     detalle: '',
     proyectoTitulo: 'Placard',
     sentido: 'mueve',
-    tesoroPrincipal: 'hogar',
+    tesoroDesde: MAUN,
+    tesoroHacia: HOGAR,
+    tesoroPrincipal: HOGAR,
     bloqueo: 'del-proyecto',
     ...extra,
   };
 }
 
+interface MovimientoDePrueba {
+  id: string;
+  fecha?: string;
+  tipo: string;
+  tesoro_origen?: string | null;
+  tesoro_destino?: string | null;
+  desde_id?: string | null;
+  hacia_id?: string | null;
+  monto_centavos?: number;
+  descripcion?: string;
+}
+
+function replicaCon(movimientos: MovimientoDePrueba[], conTesoros = true): Replica {
+  const tesoros = conTesoros
+    ? Object.fromEntries(
+        TESOROS.map((tesoro, orden) => [
+          tesoro.id,
+          {
+            id: tesoro.id,
+            clave: tesoro.clave,
+            nombre: tesoro.nombre,
+            descripcion: '',
+            tinta: tesoro.tinta,
+            icono: tesoro.icono,
+            meta_centavos: null,
+            rinde_anual_bp: null,
+            orden,
+            archivado_at: null,
+            created_at: '2026-09-27T10:00:00Z',
+          },
+        ]),
+      )
+    : {};
+  return {
+    usuarioId: 'u',
+    cursor: '',
+    reconciliadoEn: '',
+    tablas: {
+      tesoros,
+      movimientos: Object.fromEntries(
+        movimientos.map((movimiento) => [
+          movimiento.id,
+          {
+            fecha: '2026-09-20',
+            tesoro_origen: null,
+            tesoro_destino: null,
+            monto_centavos: 1_000_000,
+            categoria: '',
+            descripcion: '',
+            proyecto_id: null,
+            ...movimiento,
+          },
+        ]),
+      ),
+    },
+  } as unknown as Replica;
+}
+
 describe('efectoDeLaLinea', () => {
   it('una línea que ya estaba en los saldos de la apertura no mueve ningún tesoro', () => {
     const marcada = linea({ yaEnLaApertura: true });
-    expect(efectoDeLaLinea(marcada, 'hogar')).toBe(0);
-    expect(efectoDeLaLinea(marcada, 'maun')).toBe(0);
-    expect(efectoDeLaLinea(marcada, 'todos')).toBe(0);
+    expect(efectoDeLaLinea(marcada, HOGAR_ID)).toBe(0);
+    expect(efectoDeLaLinea(marcada, MAUN_ID)).toBe(0);
+    expect(efectoDeLaLinea(marcada, TODOS_LOS_TESOROS)).toBe(0);
   });
 
-  it('la misma línea sin marcar sí los mueve', () => {
+  it('la misma línea sin marcar sí los mueve, por el id de cada tesoro', () => {
     const comun = linea();
-    expect(efectoDeLaLinea(comun, 'hogar')).toBe(50_000_000);
-    expect(efectoDeLaLinea(comun, 'maun')).toBe(-50_000_000);
+    expect(efectoDeLaLinea(comun, HOGAR_ID)).toBe(50_000_000);
+    expect(efectoDeLaLinea(comun, MAUN_ID)).toBe(-50_000_000);
+    expect(efectoDeLaLinea(comun, COCOS_ID)).toBe(0);
+    expect(efectoDeLaLinea(comun, TODOS_LOS_TESOROS)).toBe(0);
   });
 
   it('el neto del día no cuenta lo que ya estaba en los saldos', () => {
     const [dia] = agruparPorDia(
       [linea({ yaEnLaApertura: true }), linea({ clave: 'otra', monto: centavos(1_000) })],
-      'hogar',
+      HOGAR_ID,
     );
     expect(dia?.neto).toBe(1_000);
+  });
+});
+
+describe('las líneas del taller con los tesoros del dueño', () => {
+  it('un pase entre dos tesoros del dueño es una línea entre tesoros, con sus nombres y sus tintas', () => {
+    const [pase] = lineasDelTaller(
+      replicaCon([
+        {
+          id: 'm1',
+          tipo: 'transferencia',
+          desde_id: MATERIALES_ID,
+          hacia_id: HERRAMIENTAS_ID,
+        },
+      ]),
+      TESOROS,
+    );
+    expect(pase).toMatchObject({
+      sentido: 'mueve',
+      etiqueta: 'Entre tesoros',
+      desde: null,
+      hacia: null,
+      desdeId: MATERIALES_ID,
+      haciaId: HERRAMIENTAS_ID,
+      bloqueo: null,
+    });
+    expect(pase?.tesoroDesde).toMatchObject({ nombre: 'Materiales', tinta: 'mostaza' });
+    expect(pase?.tesoroHacia).toMatchObject({ nombre: 'Herramientas', tinta: 'grana' });
+    expect(pase?.tesoroPrincipal.nombre).toBe('Herramientas');
+  });
+
+  it('una fila guardada antes de los ids se nombra por su clave', () => {
+    const [gasto] = lineasDelTaller(
+      replicaCon([{ id: 'm1', tipo: 'gasto', tesoro_origen: 'hogar' }]),
+      TESOROS,
+    );
+    expect(gasto).toMatchObject({
+      sentido: 'sale',
+      etiqueta: 'Gasto del hogar',
+      desdeId: HOGAR_ID,
+    });
+    expect(gasto?.tesoroDesde).toBe(HOGAR);
+    expect(gasto?.tesoroHacia).toBeNull();
+    expect(gasto?.tesoroPrincipal).toBe(HOGAR);
+  });
+
+  it('sin los tesoros en la réplica, los cuatro de siempre salen del catálogo', () => {
+    const [ingreso] = lineasDelTaller(
+      replicaCon([{ id: 'm1', tipo: 'ingreso', tesoro_destino: 'maun' }], false),
+      [],
+    );
+    expect(ingreso?.tesoroHacia).toMatchObject({
+      id: 'maun',
+      clave: 'maun',
+      nombre: 'Maun',
+      tinta: 'maun',
+    });
+    expect(ingreso?.etiqueta).toBe('Ingreso al taller');
+  });
+
+  it('un tesoro que la réplica no conoce igual tiene un nombre', () => {
+    const [pase] = lineasDelTaller(
+      replicaCon([
+        { id: 'm1', tipo: 'transferencia', tesoro_origen: 'maun', hacia_id: 'desconocido' },
+      ]),
+      TESOROS,
+    );
+    expect(pase?.tesoroHacia).toMatchObject({ id: 'desconocido', nombre: 'Otro tesoro' });
+  });
+
+  it('el filtro por tesoro toma el id, y cada lado cuenta', () => {
+    const lineas = lineasDelTaller(
+      replicaCon([
+        { id: 'm1', tipo: 'transferencia', desde_id: MAUN_ID, hacia_id: MATERIALES_ID },
+        { id: 'm2', tipo: 'gasto', tesoro_origen: 'hogar' },
+        {
+          id: 'm3',
+          tipo: 'transferencia',
+          desde_id: MATERIALES_ID,
+          hacia_id: HERRAMIENTAS_ID,
+          fecha: '2026-08-02',
+        },
+      ]),
+      TESOROS,
+    );
+    const filtro = { ...filtroInicial('2026-09'), mes: 'todos' };
+    expect(
+      filtrarLineas(lineas, { ...filtro, tesoro: MATERIALES_ID }).map((una) => una.asientoId),
+    ).toEqual(['m1', 'm3']);
+    expect(
+      filtrarLineas(lineas, { ...filtro, tesoro: MAUN_ID }).map((una) => una.asientoId),
+    ).toEqual(['m1']);
+    expect(filtrarLineas(lineas, filtro)).toHaveLength(3);
+
+    const [dia] = agruparPorDia(
+      filtrarLineas(lineas, { ...filtro, tesoro: MATERIALES_ID }),
+      MATERIALES_ID,
+    );
+    expect(dia?.neto).toBe(1_000_000);
+  });
+
+  it('los tesoros con movimiento en el período son los de los dos lados de cada línea del mes', () => {
+    const lineas = lineasDelTaller(
+      replicaCon([
+        { id: 'm1', tipo: 'transferencia', desde_id: MAUN_ID, hacia_id: MATERIALES_ID },
+        {
+          id: 'm2',
+          tipo: 'transferencia',
+          desde_id: MATERIALES_ID,
+          hacia_id: HERRAMIENTAS_ID,
+          fecha: '2026-08-02',
+        },
+      ]),
+      TESOROS,
+    );
+    expect([...tesorosConMovimientoEn(lineas, '2026-09')].sort()).toEqual(
+      [MAUN_ID, MATERIALES_ID].sort(),
+    );
+    expect(tesorosConMovimientoEn(lineas, 'todos').has(HERRAMIENTAS_ID)).toBe(true);
+    expect(tesorosConMovimientoEn(lineas, '2026-07').size).toBe(0);
   });
 });

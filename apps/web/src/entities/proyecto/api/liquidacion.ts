@@ -1,10 +1,11 @@
-import type { EstadoProyecto } from '@maun/domain';
+import type { EstadoProyecto, PlanDelReparto } from '@maun/domain';
 import { useMutationState, type MutationOptions, type QueryClient } from '@tanstack/react-query';
 
 import {
   aplicarFilaLocal,
   debeReintentarse,
   liquidarElProyecto,
+  quitarFilaLocal,
   revertirLaLiquidacion,
   traducirRechazo,
   type FilaDe,
@@ -24,6 +25,11 @@ import {
 } from '@/shared/lib';
 
 import { ajusteDeLaLiquidacion } from '../model/liquidacion';
+import {
+  ajusteDelReparto,
+  type AjusteDelReparto,
+  type DiferenciaDelReparto,
+} from '../model/por-la-fila';
 import { rutaDelProyecto } from '../model/rutas';
 
 export const CLAVE_DE_LIQUIDACION = ['proyectos', 'liquidar'] as const;
@@ -38,6 +44,8 @@ export interface LiquidacionDeProyecto {
   optimista: FilaDe<'proyectos'>;
   previo: FilaDe<'proyectos'>;
   titulo: string;
+  repartos?: readonly FilaDe<'repartos'>[];
+  plan?: PlanDelReparto;
 }
 
 export interface ReversionDeProyecto {
@@ -45,6 +53,7 @@ export interface ReversionDeProyecto {
   optimista: FilaDe<'proyectos'>;
   previo: FilaDe<'proyectos'>;
   titulo: string;
+  repartos?: readonly FilaDe<'repartos'>[];
 }
 
 export type OperacionDeLiquidacion = 'cobro' | 'cierre' | 'reapertura' | 'reactivacion';
@@ -99,20 +108,71 @@ function anotarElRechazo(
   });
 }
 
+function porQueCambio(diferencia: DiferenciaDelReparto): string {
+  if (diferencia.modo === 'saldo') {
+    return `, porque ya tenía ${formatearPesos(diferencia.yaLlevabaElMes)}`;
+  }
+  if (diferencia.modo === 'mes' && diferencia.yaLlevabaElMes > 0) {
+    return `, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación`;
+  }
+  return '';
+}
+
+function ajusteQueSePuedeLeer(
+  fila: FilaDe<'proyectos'>,
+  pedido: PedidoDeLiquidacion,
+  plan: PlanDelReparto,
+  nombres: ReadonlyMap<string, string>,
+): AjusteDelReparto | undefined {
+  try {
+    return ajusteDelReparto(fila, pedido, plan, nombres);
+  } catch {
+    return undefined;
+  }
+}
+
+function detalleDelAjuste({
+  pedido,
+  plan,
+  repartos,
+}: LiquidacionDeProyecto): (fila: FilaDe<'proyectos'>) => string | undefined {
+  return (fila) => {
+    if (pedido.porLaFila !== undefined && plan !== undefined) {
+      const nombres = new Map(
+        (repartos ?? []).map((reparto) => [reparto.tesoro_id, reparto.nombre]),
+      );
+      const ajuste = ajusteQueSePuedeLeer(fila, pedido, plan, nombres);
+      if (!ajuste) return undefined;
+      const lineas = ajuste.diferencias
+        .map(
+          (diferencia) =>
+            `${diferencia.nombre}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}${porQueCambio(diferencia)}.`,
+        )
+        .join(' ');
+      if (ajuste.superavit !== null) return lineas;
+      return `${lineas} La diferencia quedó en el taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`;
+    }
+
+    const ajuste = ajusteDeLaLiquidacion(fila, pedido);
+    if (!ajuste) return undefined;
+    const lineas = ajuste.diferencias
+      .map(
+        (diferencia) =>
+          `${diferencia.etiqueta}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación.`,
+      )
+      .join(' ');
+    return `${lineas} La diferencia quedó en el remanente del taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`;
+  };
+}
+
 function anotarElAjuste(
   cliente: QueryClient,
   fila: FilaDe<'proyectos'>,
-  { pedido, titulo }: LiquidacionDeProyecto,
+  variables: LiquidacionDeProyecto,
 ): Promise<void> {
-  const ajuste = ajusteDeLaLiquidacion(fila, pedido);
-  if (!ajuste) return Promise.resolve();
-
-  const detalle = ajuste.diferencias
-    .map(
-      (diferencia) =>
-        `${diferencia.etiqueta}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación.`,
-    )
-    .join(' ');
+  const { pedido, titulo } = variables;
+  const detalle = detalleDelAjuste(variables)(fila);
+  if (detalle === undefined) return Promise.resolve();
 
   return anotarAviso(cliente, {
     id: uuidv7(),
@@ -121,7 +181,7 @@ function anotarElAjuste(
     operacion: ETIQUETA[operacionDeLiquidacion(pedido)],
     sujeto: titulo,
     titulo: 'El reparto salió distinto del que viste.',
-    detalle: `${detalle} La diferencia quedó en el remanente del taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`,
+    detalle,
     codigo: '',
     proyectoId: pedido.proyectoId,
     ruta: rutaDelProyecto(pedido.proyectoId),
@@ -138,9 +198,14 @@ export const MUTACION_DE_LIQUIDACION: MutationOptions<
   scope: COLA_DE_SALIDA,
   gcTime: DURACION_DEL_RECHAZO_MS,
   retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
-  onMutate: async ({ optimista }, { client }) => {
+  onMutate: async ({ optimista, repartos = [] }, { client }) => {
     await client.cancelQueries({ queryKey: claveDeTodaReplica() });
-    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proyectos', optimista));
+    cambiarReplicas(client, (replica) =>
+      repartos.reduce(
+        (conRepartos, reparto) => aplicarFilaLocal(conRepartos, 'repartos', reparto),
+        aplicarFilaLocal(replica, 'proyectos', optimista),
+      ),
+    );
     await guardarCacheAhora();
   },
   onSuccess: async (fila, variables, _contexto, { client }) => {
@@ -148,8 +213,13 @@ export const MUTACION_DE_LIQUIDACION: MutationOptions<
     await limpiarRechazosDelProyecto(client, variables.pedido.proyectoId);
     await anotarElAjuste(client, fila, variables);
   },
-  onError: async (error, { pedido, previo, titulo }, _contexto, { client }) => {
-    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proyectos', previo));
+  onError: async (error, { pedido, previo, titulo, repartos = [] }, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) =>
+      repartos.reduce(
+        (sinRepartos, reparto) => quitarFilaLocal(sinRepartos, 'repartos', reparto.id),
+        aplicarFilaLocal(replica, 'proyectos', previo),
+      ),
+    );
     await anotarElRechazo(
       client,
       error,
@@ -171,17 +241,27 @@ export const MUTACION_DE_REVERSION: MutationOptions<
   scope: COLA_DE_SALIDA,
   gcTime: DURACION_DEL_RECHAZO_MS,
   retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
-  onMutate: async ({ optimista }, { client }) => {
+  onMutate: async ({ optimista, repartos = [] }, { client }) => {
     await client.cancelQueries({ queryKey: claveDeTodaReplica() });
-    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proyectos', optimista));
+    cambiarReplicas(client, (replica) =>
+      repartos.reduce(
+        (sinRepartos, reparto) => quitarFilaLocal(sinRepartos, 'repartos', reparto.id),
+        aplicarFilaLocal(replica, 'proyectos', optimista),
+      ),
+    );
     await guardarCacheAhora();
   },
   onSuccess: async (fila, { pedido }, _contexto, { client }) => {
     cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proyectos', fila));
     await limpiarRechazosDelProyecto(client, pedido.proyectoId);
   },
-  onError: async (error, { pedido, previo, titulo }, _contexto, { client }) => {
-    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proyectos', previo));
+  onError: async (error, { pedido, previo, titulo, repartos = [] }, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) =>
+      repartos.reduce(
+        (conRepartos, reparto) => aplicarFilaLocal(conRepartos, 'repartos', reparto),
+        aplicarFilaLocal(replica, 'proyectos', previo),
+      ),
+    );
     await anotarElRechazo(
       client,
       error,

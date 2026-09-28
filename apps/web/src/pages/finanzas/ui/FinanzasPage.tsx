@@ -1,4 +1,4 @@
-import { asientosDelLibro, type Tesoro } from '@maun/domain';
+import { asientosDelLibro } from '@maun/domain';
 import { useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
@@ -12,7 +12,9 @@ import {
   ListaDelLibro,
   mesesConMovimiento,
   resumenMensual,
+  tesorosConMovimientoEn,
   TODOS_LOS_MESES,
+  TODOS_LOS_TESOROS,
   useMovimientosEnVuelo,
   type FiltroDelLibro,
   type LineaDelTaller,
@@ -20,6 +22,7 @@ import {
 } from '@/entities/movimiento';
 import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { tesorosDelTaller } from '@/entities/tesoro';
 import { datosDelLibro } from '@/shared/api';
 import {
   conFondo,
@@ -28,11 +31,11 @@ import {
   mesDeLaFecha,
   nombreDelMes,
   PARAMETRO_DE_TESORO,
+  parametroDelTesoro,
   rutaDelMovimiento,
   RUTA_DE_MOVIMIENTO_NUEVO,
-  TESORO,
   tesoroDelParametro,
-  TESOROS_EN_ORDEN,
+  TINTA,
   useIr,
 } from '@/shared/lib';
 import {
@@ -44,6 +47,8 @@ import {
   Pagina,
   PrincipalYApoyo,
 } from '@/shared/ui';
+
+import { tesorosDeLosChips } from '../model/chips';
 
 const SENTIDOS: readonly { id: SentidoDeLinea | 'todos'; etiqueta: string }[] = [
   { id: 'todos', etiqueta: 'Todo' },
@@ -96,19 +101,25 @@ export function FinanzasPage() {
     const { sentido, mes: mesInicial, texto } = filtroInicial(mes);
     return { sentido, mes: mesInicial, texto };
   });
-  const filtro: FiltroDelLibro = {
-    ...resto,
-    tesoro: tesoroDelParametro(parametros.get(PARAMETRO_DE_TESORO)),
-  };
+
+  const tesoros = useMemo(() => tesorosDelTaller(replica), [replica]);
+  const pedido = tesoroDelParametro(parametros.get(PARAMETRO_DE_TESORO));
+  const elegido = tesoros.find((tesoro) => tesoro.id === pedido || tesoro.clave === pedido);
+  const filtro: FiltroDelLibro = { ...resto, tesoro: elegido?.id ?? TODOS_LOS_TESOROS };
   const [ficha, setFicha] = useState<LineaDelTaller | null>(null);
 
   const enVuelo = useMovimientosEnVuelo();
   const liquidaciones = useLiquidacionesEnVuelo();
 
-  const lineas = useMemo(() => lineasDelTaller(replica), [replica]);
+  const lineas = useMemo(() => lineasDelTaller(replica, tesoros), [replica, tesoros]);
   const visibles = filtrarLineas(lineas, filtro);
   const dias = agruparPorDia(visibles, filtro.tesoro);
   const meses = mesesConMovimiento(lineas, mes);
+  const chips = tesorosDeLosChips(
+    tesoros,
+    tesorosConMovimientoEn(lineas, filtro.mes),
+    filtro.tesoro,
+  );
 
   const asientos = useMemo(() => asientosDelLibro(datosDelLibro(replica)), [replica]);
   const actual = resumenMensual(asientos, mes);
@@ -118,11 +129,12 @@ export function FinanzasPage() {
   const cambiar = ({ tesoro, ...otros }: Partial<FiltroDelLibro>) => {
     if (Object.keys(otros).length > 0) setResto((previo) => ({ ...previo, ...otros }));
     if (tesoro === undefined) return;
+    const nuevo = tesoros.find((uno) => uno.id === tesoro);
     setParametros(
       (previos) => {
         const siguientes = new URLSearchParams(previos);
-        if (tesoro === 'todos') siguientes.delete(PARAMETRO_DE_TESORO);
-        else siguientes.set(PARAMETRO_DE_TESORO, tesoro);
+        if (nuevo === undefined) siguientes.delete(PARAMETRO_DE_TESORO);
+        else siguientes.set(PARAMETRO_DE_TESORO, parametroDelTesoro(nuevo));
         return siguientes;
       },
       { replace: true },
@@ -139,7 +151,7 @@ export function FinanzasPage() {
 
   function sinConfirmar(linea: LineaDelTaller): boolean {
     if (linea.origen === 'manual') return enVuelo.has(linea.asientoId);
-    if (linea.origen !== 'distribucion') return false;
+    if (linea.origen !== 'distribucion' && linea.origen !== 'reparto') return false;
     return liquidaciones.some((liquidacion) => liquidacion.proyectoId === linea.proyectoId);
   }
 
@@ -198,20 +210,20 @@ export function FinanzasPage() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="contents @min-[52rem]/apoyo:flex @min-[52rem]/apoyo:flex-wrap @min-[52rem]/apoyo:items-center @min-[52rem]/apoyo:gap-2">
                 <Chip
-                  activo={filtro.tesoro === 'todos'}
+                  activo={filtro.tesoro === TODOS_LOS_TESOROS}
                   etiqueta="Todos"
                   alElegir={() => {
-                    cambiar({ tesoro: 'todos' });
+                    cambiar({ tesoro: TODOS_LOS_TESOROS });
                   }}
                 />
-                {TESOROS_EN_ORDEN.map((id: Tesoro) => (
+                {chips.map((tesoro) => (
                   <Chip
-                    key={id}
-                    activo={filtro.tesoro === id}
-                    etiqueta={TESORO[id].nombre}
-                    punto={TESORO[id].barra}
+                    key={tesoro.id}
+                    activo={filtro.tesoro === tesoro.id}
+                    etiqueta={tesoro.nombre}
+                    punto={TINTA[tesoro.tinta].fondo}
                     alElegir={() => {
-                      cambiar({ tesoro: id });
+                      cambiar({ tesoro: tesoro.id });
                     }}
                   />
                 ))}

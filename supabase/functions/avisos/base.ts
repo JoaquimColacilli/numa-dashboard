@@ -11,6 +11,7 @@ export interface Suscripcion {
 
 export interface AvisoPorMandar extends Suscripcion {
   dia: string;
+  zona?: string;
   preferencias: PreferenciasDeAvisos;
   filas: FilasDeLaAgenda;
 }

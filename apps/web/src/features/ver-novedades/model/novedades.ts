@@ -5,6 +5,15 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-09-28',
+    lineas: [
+      'Hay una pantalla nueva, Tesoros: armás cómo se reparte el ingreso de cada trabajo entre obligaciones, compromisos, ahorros y superávit, en el orden que quieras.',
+      'Sumá Ingresos Brutos a las obligaciones, ponele día de pago a cada compromiso y la agenda te avisa cuándo vence.',
+      'Los ahorros pueden juntar hasta su meta, y lo que no entra va al superávit.',
+      'Inicio muestra cuánto tenés para pagar, ahorrado y libre, y cuánto queda de la seña de cada trabajo en curso.',
+    ],
+  },
+  {
     version: '2026-09-26.3',
     lineas: [
       'Las pantallas de entrar con tu mail y de recuperar la contraseña ahora tienen un dibujo tuyo en el taller: atornillando un mueble, midiendo una tabla, pensando o saludando.',

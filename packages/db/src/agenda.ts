@@ -1,4 +1,15 @@
-import type { CategoriaDelTrabajo, CategoriaPropia, DatosDeLaAgenda } from '@maun/domain';
+import {
+  esMes,
+  leerLaFila,
+  mesDe,
+  vencimientosDeLaFila,
+  type CategoriaDelTrabajo,
+  type CategoriaPropia,
+  type DatosDeLaAgenda,
+  type GastoDeUnTesoro,
+  type RangoDeLaAgenda,
+  type VencimientoDeLaAgenda,
+} from '@maun/domain';
 
 import { filasDe, type FilaDe, type Replica } from './replica.ts';
 
@@ -7,6 +18,9 @@ export interface FilasDeLaAgenda {
   clientes: readonly FilaDe<'clientes'>[];
   anotaciones: readonly FilaDe<'anotaciones'>[];
   proximos_contactos?: readonly FilaDe<'proximos_contactos'>[];
+  ajustes?: readonly FilaDe<'ajustes'>[];
+  tesoros?: readonly FilaDe<'tesoros'>[];
+  movimientos?: readonly FilaDe<'movimientos'>[];
 }
 
 export const COLUMNAS_DE_MARCAS = [
@@ -84,7 +98,84 @@ export function franjaDeLaEntrega(
   return (proyecto as FilaQuizasSinLoHechoNiLasMarcas).entrega_comprometida_franja ?? null;
 }
 
-export function datosDeLaAgenda(filas: FilasDeLaAgenda): DatosDeLaAgenda {
+function sinBorrar(fila: { deleted_at?: string | null }): boolean {
+  return (fila.deleted_at ?? null) === null;
+}
+
+export function gastosDeLosTesoros(
+  movimientos: readonly FilaDe<'movimientos'>[],
+  tesoros: readonly FilaDe<'tesoros'>[],
+): GastoDeUnTesoro[] {
+  const gastos: GastoDeUnTesoro[] = [];
+  for (const movimiento of movimientos) {
+    if (!sinBorrar(movimiento) || movimiento.tipo !== 'gasto') continue;
+    const origen = movimiento.tesoro_origen;
+    const tesoro =
+      (movimiento as Partial<FilaDe<'movimientos'>>).desde_id ??
+      (origen === null ? null : (tesoros.find((uno) => uno.clave === origen)?.id ?? origen));
+    if (tesoro === null) continue;
+    gastos.push({ tesoro, categoria: movimiento.categoria, fecha: movimiento.fecha });
+  }
+  return gastos;
+}
+
+const PARTES_DEL_MES = { year: 'numeric', month: '2-digit' } as const;
+
+function formatoDelMes(zona: string | undefined): Intl.DateTimeFormat {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { ...PARTES_DEL_MES, timeZone: zona });
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', PARTES_DEL_MES);
+  }
+}
+
+export function mesEnLaZona(instante: string, zona?: string): string | null {
+  const momento = new Date(instante);
+  if (Number.isNaN(momento.getTime())) return null;
+  const partes = formatoDelMes(zona).formatToParts(momento);
+  const anio = partes.find((parte) => parte.type === 'year')?.value ?? '';
+  const mes = partes.find((parte) => parte.type === 'month')?.value ?? '';
+  const valor = `${anio}-${mes}`;
+  return esMes(valor) ? valor : null;
+}
+
+function vencimientosDeLasFilas(
+  filas: FilasDeLaAgenda,
+  rango: RangoDeLaAgenda,
+  zona: string | undefined,
+): VencimientoDeLaAgenda[] {
+  const desde = mesDe(rango.desde);
+  const hasta = mesDe(rango.hasta);
+  const ajustes = (filas.ajustes ?? []).find(sinBorrar) as Partial<FilaDe<'ajustes'>> | undefined;
+  const guardada = ajustes?.fila ?? null;
+  if (guardada === null) return [];
+
+  const tesoros = filas.tesoros ?? [];
+  const idDe = (clave: 'diezmo' | 'maun') =>
+    tesoros.find((tesoro) => tesoro.clave === clave)?.id ?? clave;
+  const fila = leerLaFila(guardada, { diezmo: idDe('diezmo'), maun: idDe('maun') });
+  if (fila === null) return [];
+
+  const guardadaEn = ajustes?.fila_guardada_at ?? null;
+  return vencimientosDeLaFila(
+    {
+      fila,
+      nombres: new Map(tesoros.map((tesoro) => [tesoro.id, tesoro.nombre])),
+      guardada: guardadaEn === null ? null : mesEnLaZona(guardadaEn, zona),
+      gastos: gastosDeLosTesoros(filas.movimientos ?? [], tesoros).filter((gasto) => {
+        const mes = gasto.fecha.slice(0, 7);
+        return mes >= desde && mes <= hasta;
+      }),
+    },
+    { desde, hasta },
+  );
+}
+
+export function datosDeLaAgenda(
+  filas: FilasDeLaAgenda,
+  rango: RangoDeLaAgenda,
+  zona?: string,
+): DatosDeLaAgenda {
   return {
     proyectos: filas.proyectos.map((proyecto) => ({
       id: proyecto.id,
@@ -131,14 +222,26 @@ export function datosDeLaAgenda(filas: FilasDeLaAgenda): DatosDeLaAgenda {
         nota: proximo.nota,
         importante: proximo.importante,
       })),
+    vencimientos: vencimientosDeLasFilas(filas, rango, zona),
   };
 }
 
-export function datosDeLaAgendaDeLaReplica(replica: Replica): DatosDeLaAgenda {
-  return datosDeLaAgenda({
-    proyectos: filasDe(replica, 'proyectos'),
-    clientes: filasDe(replica, 'clientes'),
-    anotaciones: filasDe(replica, 'anotaciones'),
-    proximos_contactos: filasDe(replica, 'proximos_contactos'),
-  });
+export function datosDeLaAgendaDeLaReplica(
+  replica: Replica,
+  rango: RangoDeLaAgenda,
+  zona?: string,
+): DatosDeLaAgenda {
+  return datosDeLaAgenda(
+    {
+      proyectos: filasDe(replica, 'proyectos'),
+      clientes: filasDe(replica, 'clientes'),
+      anotaciones: filasDe(replica, 'anotaciones'),
+      proximos_contactos: filasDe(replica, 'proximos_contactos'),
+      ajustes: filasDe(replica, 'ajustes'),
+      tesoros: filasDe(replica, 'tesoros'),
+      movimientos: filasDe(replica, 'movimientos'),
+    },
+    rango,
+    zona,
+  );
 }

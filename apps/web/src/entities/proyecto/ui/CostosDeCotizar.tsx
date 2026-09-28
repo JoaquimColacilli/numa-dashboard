@@ -127,7 +127,7 @@ export function CostosDeCotizar({
       titulo="Costos estimados"
       abiertoAlPrincipio={abiertoAlPrincipio}
       enTarjeta={!anidado}
-      ayuda="Lo que calculás que vas a gastar. No toca el presupuesto: ese lo ponés vos, con tu ganancia adentro."
+      ayuda="Lo que calculás que vas a gastar. No toca el presupuesto: ese lo ponés vos, con el ingreso que querés que te deje."
       resumen={
         <span className="flex items-center gap-2.5">
           {cargadas > 0 && (

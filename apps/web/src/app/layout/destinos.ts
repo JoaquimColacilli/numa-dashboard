@@ -7,6 +7,7 @@ export type IdDeSeccion =
   | 'proyectos'
   | 'clientes'
   | 'finanzas'
+  | 'tesoros'
   | 'opiniones'
   | 'diezmo'
   | 'ajustes';
@@ -38,6 +39,13 @@ export const DESTINOS: Readonly<Record<IdDeSeccion, Destino>> = {
   proyectos: { id: 'proyectos', etiqueta: 'Proyectos', ruta: '/proyectos', icono: 'folder-kanban' },
   clientes: { id: 'clientes', etiqueta: 'Clientes', ruta: '/clientes', icono: 'users' },
   finanzas: { id: 'finanzas', etiqueta: 'Finanzas', ruta: '/finanzas', icono: 'wallet' },
+  tesoros: {
+    id: 'tesoros',
+    etiqueta: 'Tesoros',
+    ruta: '/tesoros',
+    icono: 'gem',
+    alternativa: 'inicio',
+  },
   opiniones: {
     id: 'opiniones',
     etiqueta: 'Opiniones',
@@ -69,6 +77,7 @@ export const NAV_TABLET: readonly IdDeSeccion[] = [
   'proyectos',
   'clientes',
   'finanzas',
+  'tesoros',
   'opiniones',
   'diezmo',
 ];
@@ -80,6 +89,7 @@ export const NAV_ESCRITORIO: readonly IdDeSeccion[] = [
   'proyectos',
   'clientes',
   'finanzas',
+  'tesoros',
   'opiniones',
   'diezmo',
   'ajustes',

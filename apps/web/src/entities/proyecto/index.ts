@@ -112,20 +112,47 @@ export {
   type Pago,
   type Proyecto,
 } from './model/catalogos';
-export { corteDelMes, fraseDelCorte, piezasDelCorte, type CorteDelMes } from './model/corte';
+export {
+  corteDelMes,
+  fraseDelCorte,
+  piezasDelCorte,
+  type CorteDelMes,
+  type ParteDelCorte,
+} from './model/corte';
 export {
   ajustesDeLaReplica,
-  despieceDeLaLiquidacion,
+  despieceDelCobro,
   despieceDelProyecto,
   distribucionCongelada,
   fechaDelCobroPropuesta,
-  liquidacionProyectada,
+  loQueRecibeCadaTesoro,
+  loQueVuelveAlReabrir,
   reaperturaDe,
   repartoEnLaAperturaPropuesto,
   type Despiece,
-  type OpcionesDeProyeccion,
+  type MontoDelTesoro,
   type PiezaDelDespiece,
+  type TipoDePieza,
 } from './model/despiece';
+export {
+  ajusteDelReparto,
+  cobroPorLaFila,
+  cuantosRepartos,
+  pedidoPorLaFila,
+  proyectoLiquidadoPorLaFila,
+  repartosLiquidados,
+  type AjusteDelReparto,
+  type CobroPorLaFila,
+  type DiferenciaDelReparto,
+  type OpcionesDelCobro,
+} from './model/por-la-fila';
+export {
+  fraseDeLosInsumos,
+  insumosDeLosTrabajos,
+  insumosDelProyecto,
+  type InsumosDeLosTrabajos,
+  type InsumosDeUnTrabajo,
+} from './model/insumos';
 export {
   ajusteDeLaLiquidacion,
   datosActualesDelProyecto,

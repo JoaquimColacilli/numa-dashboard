@@ -78,7 +78,7 @@ export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) 
                   ir('/ajustes');
                 }}
               >
-                Configurar sueldo y metas
+                Cargar sueldo y costos fijos
               </Button>
               <Button
                 variant="secundario"

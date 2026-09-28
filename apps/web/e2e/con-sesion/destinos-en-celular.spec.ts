@@ -95,6 +95,20 @@ test.describe('los ocho destinos del sidebar, en el celular', () => {
     await expect(titulo(page, 'Preguntas')).toBeVisible();
 
     await aInicio(page);
+    await page.getByRole('button', { name: /^Tu cuenta/ }).click();
+    const loQueNoEntra = page
+      .getByRole('dialog')
+      .getByRole('navigation', { name: 'Lo que no entra en la barra' });
+    const enOrden = ['Opiniones', 'Tesoros', 'Diezmo', 'Agenda'];
+    const filas = await loQueNoEntra.getByRole('link').allTextContents();
+    expect(filas.map((fila) => enOrden.find((nombre) => fila.trim().startsWith(nombre)))).toEqual(
+      enOrden,
+    );
+    await loQueNoEntra.getByRole('link', { name: /^Tesoros/ }).click();
+    await expect(page).toHaveURL(/\/tesoros$/);
+    await expect(titulo(page, 'Tesoros')).toBeVisible();
+
+    await aInicio(page);
     await page
       .getByRole('region', { name: 'Hoy en la agenda' })
       .getByRole('link', { name: 'Ver la agenda' })
@@ -181,7 +195,7 @@ test.describe('en escritorio', () => {
     await expect(barra(page).getByRole('button', { name: 'Ajustes' })).toBeVisible();
   });
 
-  test('Opiniones está en la barra lateral, entre Finanzas y Diezmo, con sus dos partes', async ({
+  test('Tesoros y Opiniones están en la barra lateral, entre Finanzas y Diezmo, y Opiniones con sus dos partes', async ({
     page,
   }) => {
     await page.goto('/');
@@ -190,11 +204,20 @@ test.describe('en escritorio', () => {
     const destinos = await barra(page)
       .getByRole('button')
       .evaluateAll((todos) => todos.map((boton) => boton.textContent.trim()));
-    expect(destinos.slice(destinos.indexOf('Finanzas'), destinos.indexOf('Finanzas') + 3)).toEqual([
+    expect(destinos.slice(destinos.indexOf('Finanzas'), destinos.indexOf('Finanzas') + 4)).toEqual([
       'Finanzas',
+      'Tesoros',
       'Opiniones',
       'Diezmo',
     ]);
+
+    await barra(page).getByRole('button', { name: 'Tesoros' }).click();
+    await expect(page).toHaveURL(/\/tesoros$/);
+    await expect(titulo(page, 'Tesoros')).toBeVisible();
+    await expect(barra(page).getByRole('button', { name: 'Tesoros' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
 
     await barra(page).getByRole('button', { name: 'Opiniones' }).click();
     await expect(titulo(page, 'Resultados')).toBeVisible();

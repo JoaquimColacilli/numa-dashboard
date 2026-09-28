@@ -1,8 +1,14 @@
 import { diasEntre, type EventoDeLaAgenda } from '@maun/domain';
 
-import { DIAS_DE_LA_SEMANA, diaDeLaSemana, nombreDelMes, relativa } from '@/shared/lib';
+import {
+  DIAS_DE_LA_SEMANA,
+  diaDeLaSemana,
+  formatearPesos,
+  nombreDelMes,
+  relativa,
+} from '@/shared/lib';
 
-import { DERIVADA } from './categorias';
+import { DERIVADA, VENCIMIENTO } from './categorias';
 
 export {
   DIAS_DE_LA_SEMANA,
@@ -54,7 +60,9 @@ export function estaHecha(evento: EventoDeLaAgenda): boolean {
 }
 
 export function textoDeLoHecho(evento: EventoDeLaAgenda): string {
-  return evento.clase === 'propia' ? 'hecha' : DERIVADA[evento.categoria].hecha;
+  if (evento.clase === 'propia') return 'hecha';
+  if (evento.clase === 'vencimiento') return VENCIMIENTO.hecha;
+  return DERIVADA[evento.categoria].hecha;
 }
 
 export function conLoHechoAlFinal(eventos: readonly EventoDeLaAgenda[]): EventoDeLaAgenda[] {
@@ -69,37 +77,40 @@ function plural(cantidad: number, singular: string, varios: string): string {
 }
 
 interface CuentaDeLoPendiente {
-  compromisos: number;
+  citas: number;
+  vencimientos: number;
   anotadas: number;
   hechas: number;
 }
 
 function cuentaDeLoPendiente(eventos: readonly EventoDeLaAgenda[]): CuentaDeLoPendiente {
   const pendientes = eventos.filter((evento) => !estaHecha(evento));
-  const compromisos = pendientes.filter((evento) => evento.clase === 'derivada').length;
+  const deLaClase = (clase: EventoDeLaAgenda['clase']) =>
+    pendientes.filter((evento) => evento.clase === clase).length;
   return {
-    compromisos,
-    anotadas: pendientes.length - compromisos,
+    citas: deLaClase('derivada'),
+    vencimientos: deLaClase('vencimiento'),
+    anotadas: deLaClase('propia'),
     hechas: eventos.length - pendientes.length,
   };
 }
 
 export function resumenDelMes(eventos: readonly EventoDeLaAgenda[]): string {
   if (eventos.length === 0) return 'sin nada agendado';
-  const { compromisos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
-  const partes = [
-    plural(compromisos, 'compromiso', 'compromisos'),
-    plural(anotadas, 'anotación', 'anotaciones'),
-  ];
+  const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
+  const partes = [plural(citas, 'cita', 'citas')];
+  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
+  partes.push(plural(anotadas, 'anotación', 'anotaciones'));
   if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
   return partes.join(' · ');
 }
 
 export function resumenDelDia(eventos: readonly EventoDeLaAgenda[]): string {
-  const { compromisos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
+  const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
 
   const partes: string[] = [];
-  if (compromisos > 0) partes.push(plural(compromisos, 'compromiso', 'compromisos'));
+  if (citas > 0) partes.push(plural(citas, 'cita', 'citas'));
+  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
   if (anotadas > 0) partes.push(plural(anotadas, 'cosa anotada', 'cosas anotadas'));
   if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
   return partes.length === 0 ? 'Nada agendado' : partes.join(' · ');
@@ -126,14 +137,22 @@ export interface UrgenciaDelEvento {
 export function urgenciaDelEvento(evento: EventoDeLaAgenda, hoy: string): UrgenciaDelEvento | null {
   if (evento.clase === 'propia' || estaHecha(evento)) return null;
   const dias = diasEntre(hoy, evento.fecha);
-  if (dias < 0) return { texto: `atrasada, era ${relativa(evento.fecha, hoy)}`, tono: 'alerta' };
+  if (dias < 0) {
+    const cuando = relativa(evento.fecha, hoy);
+    return {
+      texto: evento.clase === 'vencimiento' ? `venció ${cuando}` : `atrasada, era ${cuando}`,
+      tono: 'alerta',
+    };
+  }
   if (dias === 0) return { texto: 'es hoy', tono: 'alerta' };
   if (dias === 1) return { texto: 'es mañana', tono: 'atencion' };
   return { texto: relativa(evento.fecha, hoy), tono: dias <= 4 ? 'atencion' : 'normal' };
 }
 
 export function textoDelEvento(evento: EventoDeLaAgenda): string {
-  return evento.clase === 'propia' ? evento.texto : evento.titulo;
+  if (evento.clase === 'propia') return evento.texto;
+  if (evento.clase === 'vencimiento') return evento.renglon;
+  return evento.titulo;
 }
 
 export function idDelProximoContacto(evento: EventoDeLaAgenda): string | null {
@@ -142,13 +161,28 @@ export function idDelProximoContacto(evento: EventoDeLaAgenda): string | null {
 }
 
 export function nombreDelEvento(evento: EventoDeLaAgenda): string {
-  return evento.clase === 'propia'
-    ? evento.texto
-    : `${DERIVADA[evento.categoria].accion}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
+  if (evento.clase === 'propia') return evento.texto;
+  if (evento.clase === 'vencimiento') {
+    return `${VENCIMIENTO.accion}${VENCIMIENTO.conector}${evento.renglon}`;
+  }
+  return `${DERIVADA[evento.categoria].accion}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
+}
+
+export function textoCortoDelEvento(evento: EventoDeLaAgenda): string {
+  if (evento.clase === 'propia') return evento.texto;
+  if (evento.clase === 'vencimiento') {
+    return `${VENCIMIENTO.corta}${VENCIMIENTO.conector}${evento.renglon}`;
+  }
+  return `${DERIVADA[evento.categoria].corta}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
 }
 
 export function detalleDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.proyecto ?? '';
+  if (evento.clase === 'vencimiento') {
+    const nombre = evento.nombreDelTesoro.trim();
+    const pesos = formatearPesos(evento.monto);
+    return nombre === '' ? pesos : `${pesos} de ${nombre}`;
+  }
   return [evento.cliente, evento.lugar].filter((parte) => parte.trim() !== '').join(', ');
 }
 

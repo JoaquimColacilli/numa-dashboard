@@ -4,10 +4,17 @@ import { formatearPesos } from '@/shared/lib';
 
 import type { ClaseDeMovimiento } from './clases';
 
+export interface LadoDeLaAyuda {
+  nombre: string;
+  saldo: Money;
+}
+
 export interface ContextoDeAyuda {
   saldos: SaldosPorTesoro;
   metaCocos: Money;
   monto: Money;
+  lados?: { desde: LadoDeLaAyuda; hacia: LadoDeLaAyuda };
+  tesoro?: LadoDeLaAyuda;
 }
 
 function comoQueda(saldo: Money, nombre: string): string {
@@ -22,6 +29,12 @@ function despuesDelPago(saldo: Money): string {
   return 'Con este pago quedás al día';
 }
 
+function entreTesoros(monto: Money, lados: ContextoDeAyuda['lados']): string {
+  if (!lados) return 'Pasa de un tesoro a otro: la plata no se va, cambia de bolsillo.';
+  const { desde, hacia } = lados;
+  return `Pasa de ${desde.nombre} a ${hacia.nombre}: la plata no se va, cambia de bolsillo. ${comoQueda(restar(desde.saldo, monto), desde.nombre)}, y ${hacia.nombre} en ${formatearPesos(sumar(hacia.saldo, monto))}.`;
+}
+
 export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoDeAyuda): string {
   const { saldos, monto, metaCocos } = contexto;
 
@@ -33,7 +46,7 @@ export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoD
     case 'gasto_hogar':
       return `Sale del hogar. ${comoQueda(restar(saldos.hogar, monto), 'El hogar')}.`;
     case 'gasto_maun':
-      return `Sale de la caja del taller. Si es de un mueble puntual conviene cargarlo como gasto del trabajo, así se descuenta de esa ganancia. ${comoQueda(restar(saldos.maun, monto), 'El taller')}.`;
+      return `Sale de la caja del taller. Si es de un mueble puntual conviene cargarlo como gasto del trabajo, así se descuenta del ingreso de ese trabajo. ${comoQueda(restar(saldos.maun, monto), 'El taller')}.`;
     case 'pago_diezmo':
       return `Sale de lo que el diezmo tiene apartado. ${despuesDelPago(restar(saldos.diezmo, monto))}.`;
     case 'aporte_cocos':
@@ -42,5 +55,11 @@ export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoD
       return `Sale de Cocos y vuelve a la caja del taller: no se va del taller, cambia de bolsillo. Cocos queda en ${formatearPesos(restar(saldos.cocos, monto))}.`;
     case 'gasto_cocos':
       return `Sale de Cocos y se va. ${comoQueda(restar(saldos.cocos, monto), 'Cocos')}.`;
+    case 'gasto_tesoro':
+      return contexto.tesoro === undefined
+        ? 'Sale del tesoro que elijas y se va.'
+        : `Sale de ${contexto.tesoro.nombre} y se va. ${comoQueda(restar(contexto.tesoro.saldo, monto), contexto.tesoro.nombre)}.`;
+    case 'entre_tesoros':
+      return entreTesoros(monto, contexto.lados);
   }
 }

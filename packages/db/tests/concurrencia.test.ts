@@ -458,6 +458,115 @@ describe('liquidaciones y pagos sobre el mismo household, con conexiones reales 
   });
 });
 
+const COBERTURA_DEL_MES = `insert into public.movimientos (fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, cubre_el_mes)
+  values ('2026-09-11', 'transferencia', 'hogar', 'maun', 100000, '2026-09-01')`;
+
+const FILA_VACIA = JSON.stringify({ pasos: [], reparto: [], sueldoPorTrabajo: false });
+
+describe('lo que cubre el mes y la fila contra las liquidaciones del mismo household, con conexiones reales y todo en rollback', () => {
+  it('una cobertura espera a la liquidación del mismo taller en la fila de ajustes: la liquidación suma el mes con ella entera o sin ella', async () => {
+    const cobro = await sesion();
+    const cobertura = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    await liquidarPreparada(cobro, datos);
+
+    await abrirTransaccion(cobertura);
+    await entrarAlHousehold(cobertura);
+    const pidCobertura = await pidDe(cobertura);
+    const alta = sinRechazoSuelto(cobertura.query(COBERTURA_DEL_MES));
+
+    expect(await esperarQueEspere(monitor, pidCobertura)).toContain(await pidDe(cobro));
+
+    await cobro.query('rollback');
+    await expect(alta).resolves.toBeDefined();
+  });
+
+  it('una liquidación espera a guardar_la_fila del mismo taller: no reparte con una fila que está cambiando', async () => {
+    const fila = await sesion();
+    const cobro = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(fila);
+    await entrarAlHousehold(fila);
+    await fila.query(
+      `select fila_version from public.guardar_la_fila(
+         (select fila_version from public.ajustes where household_id = $1),
+         $2::jsonb
+       )`,
+      [HOUSEHOLD_DEL_SEED, FILA_VACIA],
+    );
+
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    const pidCobro = await pidDe(cobro);
+    const resultado = sinRechazoSuelto(liquidarPreparada(cobro, datos));
+
+    expect(await esperarQueEspere(monitor, pidCobro)).toContain(await pidDe(fila));
+    expect(await locksSobrePagosYGastos(monitor, pidCobro)).toBe(0);
+
+    await fila.query('rollback');
+    await expect(resultado).resolves.toBeDefined();
+  });
+});
+
+const PAGO_DE_UN_COMPROMISO = `insert into public.movimientos (fecha, tipo, tesoro_origen, monto_centavos, categoria)
+  values ('2026-09-11', 'gasto', 'hogar', 100000, 'Alquiler')`;
+
+const GASTO_DEL_TRABAJO = `insert into public.movimientos (fecha, tipo, tesoro_origen, monto_centavos, categoria, proyecto_id)
+  values ('2026-09-11', 'gasto', 'maun', 100000, 'Flete', $1)`;
+
+describe('los movimientos contra las liquidaciones del mismo taller, con conexiones reales y todo en rollback', () => {
+  it('registrar el pago, un gasto desde un tesoro, espera a la liquidación del mismo taller: la liquidación mira su saldo entero o sin él', async () => {
+    const cobro = await sesion();
+    const pago = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    await liquidarPreparada(cobro, datos);
+
+    await abrirTransaccion(pago);
+    await entrarAlHousehold(pago);
+    const pidPago = await pidDe(pago);
+    const alta = sinRechazoSuelto(pago.query(PAGO_DE_UN_COMPROMISO));
+
+    expect(await esperarQueEspere(monitor, pidPago)).toContain(await pidDe(cobro));
+
+    await cobro.query('rollback');
+    await expect(alta).resolves.toBeDefined();
+  });
+
+  it('un movimiento con su trabajo, junto al cobro de ese trabajo, no se traba: toma el trabajo antes que los ajustes', async () => {
+    const cobro = await sesion();
+    const movimiento = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    await cobro.query('select 1 from public.proyectos where id = $1 for update', [
+      PROYECTO_DEL_SEED,
+    ]);
+
+    await abrirTransaccion(movimiento);
+    await entrarAlHousehold(movimiento);
+    const pidMovimiento = await pidDe(movimiento);
+    const alta = sinRechazoSuelto(movimiento.query(GASTO_DEL_TRABAJO, [PROYECTO_DEL_SEED]));
+
+    expect(await esperarQueEspere(monitor, pidMovimiento)).toContain(await pidDe(cobro));
+
+    await expect(liquidarPreparada(cobro, datos)).resolves.toBeDefined();
+    await cobro.query('rollback');
+    await expect(alta).resolves.toBeDefined();
+  });
+});
+
 const FOTO_DE_LA_VIDRIERA = `insert into public.fotos_de_la_vidriera (orden, tipo, bytes, ancho, alto)
   values ($1, 'image/webp', 1000, 900, 1200)`;
 

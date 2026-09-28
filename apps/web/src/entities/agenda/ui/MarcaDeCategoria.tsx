@@ -43,6 +43,7 @@ export function MarcaDeCategoria({
     circulo: `${CAJA[tamano]} rounded-pill ${fondo}`,
     barra: `${BARRA[tamano]} ${fondo}`,
     triangulo: `${CAJA[tamano]} ${fondo} [clip-path:polygon(50%_0%,100%_100%,0%_100%)]`,
+    reloj: `${CAJA[tamano]} ${fondo} [clip-path:polygon(0%_0%,100%_0%,58%_50%,100%_100%,0%_100%,42%_50%)]`,
   };
 
   return (

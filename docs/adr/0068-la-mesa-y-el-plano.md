@@ -31,6 +31,10 @@
   [ADR 0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md): las pantallas de sesión llevan
   el dibujo de Eliseo en una lámina de la marca, sobre el panel oscuro y afuera de una tarjeta (la
   regla que manda, §9, §11, §15 y cómo se suma una pose).
+- Enmendado el 2026-09-28 por el
+  [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cuadrícula del plano de los tesoros es
+  la única otra trama, siempre debajo de papel (la regla que manda); la tarjeta de la primera vez en
+  Tesoros lleva la escena `la-fila` (§9); y los tesoros pasan a tener ocho tintas (§10).
 
 ## Contexto
 
@@ -113,6 +117,13 @@ el panel de la marca de las pantallas de sesión es la excepción a «adentro de
 su título». Ahí la lámina va sobre el panel, que ya es su marco, en la fila del lema, y su texto es el
 `h1` del formulario de al lado. Sigue siendo una sola por pantalla y `aria-hidden`, y es una lámina
 propia, `deLaMarca`, porque la común desaparece o encandila sobre el panel oscuro.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md)**: la grilla
+de puntos sigue siendo solo de las láminas. El plano de los tesoros lleva otra trama, una cuadrícula de
+papel milimetrado (una línea cada 16 px y otra cada 80, en `--cuadricula-menor` y `--cuadricula-mayor`
+sobre `--color-lamina`), casi invisible y siempre debajo de papel opaco: ningún texto va sobre ella. No
+es una lámina, no lleva `data-lamina` y no cuenta para «a lo sumo una lámina por pantalla». No se usa
+en ningún otro lado.
 
 ### 1. El corte vuelve a moverse
 
@@ -347,28 +358,34 @@ desde el primer cuadro.
 se suman las pantallas de sesión, con el dibujo de Eliseo en el panel de la marca (las cinco filas
 de `Eliseo` al final de la tabla). El bloqueo no lleva dibujo: lleva la foto de la persona.
 
-| Dónde                            | Escena                            | Qué dibuja                                                                | Por qué                                                                 |
-| -------------------------------- | --------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Proyectos, Activos vacío         | `sin-proyectos`                   | el mueble en plano, de trazos, con su cota                                | un trabajo activo empieza siendo un plano que todavía no se construyó   |
-| Proyectos, Historial vacío       | `sin-historial`                   | el tablero entero, con los ejes por donde se va a cortar                  | el historial es lo cobrado, y cobrar es cortar el tablero               |
-| Consultas vacía                  | `sin-consultas`                   | el metro plegable                                                         | una consulta es la visita: antes que nada, se mide                      |
-| Seguimiento vacío                | `sin-seguimiento`                 | la hoja de un presupuesto con la esquina doblada                          | el seguimiento es un presupuesto que espera                             |
-| Clientes vacía                   | `sin-clientes`                    | la agenda del taller, cerrada, con su etiqueta y sus pestañas             | es lo que dice el título: «La agenda del taller, todavía vacía»         |
-| Finanzas sin movimientos         | `sin-movimientos`                 | la pila de tableros, sin tocar                                            | la plata del taller todavía no se movió                                 |
-| Opiniones, Resultados sin enviar | `sin-opiniones`                   | el mueble terminado con una etiqueta de tres circulitos sin marcar        | reemplaza los tres circulitos que ya estaban ahí, ahora con su mueble   |
-| Agenda vacía, en el celular      | `agenda-vacia`                    | la hoja del mes vacía, con un día rodeado a mano                          | es la agenda de papel del taller; la grilla de la compu ya es el dibujo |
-| Enlace muerto, «no está»         | `anulado`                         | la hoja con el plano tachado a mano                                       | lo que había ahí se dio de baja                                         |
-| Sin señal                        | `sin-senal`                       | la hoja con el plano de trazos                                            | el trabajo está, pero no llega: se ve el contorno y no el mueble        |
-| Error de carga y de los enlaces  | `se-corto`                        | la hoja partida en dos con el eje del corte                               | se cortó algo en el medio, y el enlace sigue sirviendo                  |
-| Gracias                          | `gracias`                         | la tarjeta de agradecimiento con la firma que se traza (ADR 0069)         | el cliente terminó; el taller le agradece de su puño                    |
-| «Tu mueble»                      | `TrabajoEnEtapa`                  | lo que está sobre la mesa en cada etapa, sin mueble (ADR 0069)            | el cliente ve en qué anda su trabajo, sea cual sea el mueble            |
-| Portada de Inicio                | `TableroCortado`, `TableroEntero` | el corte del mes, el tablero sin cortar o el tablero con las herramientas | es el gráfico mismo: qué parte de lo cobrado fue a cada tesoro          |
-| Despiece de la ficha             | `TableroCortado`                  | el tablero de un trabajo, de trazos o cortado                             | es el gráfico mismo, para un solo trabajo                               |
-| Entrá al taller                  | `Eliseo`, `trabajando`            | Eliseo atornilla la tapa de un mueble con el taladro, mirando el trabajo  | entrás a su taller y está trabajando; es la que más se ve: tranquila    |
-| Creá tu cuenta                   | `Eliseo`, `midiendo`              | mide una tabla sobre el mueble con la cinta y la marca de la mano         | medir es el primer paso de un mueble a medida, como la cuenta en la app |
-| Recuperá el acceso y el enlace   | `Eliseo`, `pensando`              | el puño bajo la barba y el mueble de trazos al lado                       | neutra: sirve igual para el error del enlace y para «Un segundo»        |
-| Revisá tu correo                 | `Eliseo`, `saludando`             | saluda, con la posición anterior de la mano en trazos                     | un «hasta ahora» mientras vas al correo: un registro, no un festejo     |
-| Listo, ya entraste               | `Eliseo`, `pulgar`                | el mueble terminado y el pulgar arriba, con la tilde que se traza una vez | el final del recorrido y el único festejo                               |
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md)**: se suma
+la tarjeta de la primera vez en Tesoros, con la escena `la-fila` (la última fila de la tabla). Es la
+única lámina de esa pantalla; el lienzo y el plano vertical van sobre la cuadrícula, que no es una
+lámina.
+
+| Dónde                            | Escena                            | Qué dibuja                                                                 | Por qué                                                                 |
+| -------------------------------- | --------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Proyectos, Activos vacío         | `sin-proyectos`                   | el mueble en plano, de trazos, con su cota                                 | un trabajo activo empieza siendo un plano que todavía no se construyó   |
+| Proyectos, Historial vacío       | `sin-historial`                   | el tablero entero, con los ejes por donde se va a cortar                   | el historial es lo cobrado, y cobrar es cortar el tablero               |
+| Consultas vacía                  | `sin-consultas`                   | el metro plegable                                                          | una consulta es la visita: antes que nada, se mide                      |
+| Seguimiento vacío                | `sin-seguimiento`                 | la hoja de un presupuesto con la esquina doblada                           | el seguimiento es un presupuesto que espera                             |
+| Clientes vacía                   | `sin-clientes`                    | la agenda del taller, cerrada, con su etiqueta y sus pestañas              | es lo que dice el título: «La agenda del taller, todavía vacía»         |
+| Finanzas sin movimientos         | `sin-movimientos`                 | la pila de tableros, sin tocar                                             | la plata del taller todavía no se movió                                 |
+| Opiniones, Resultados sin enviar | `sin-opiniones`                   | el mueble terminado con una etiqueta de tres circulitos sin marcar         | reemplaza los tres circulitos que ya estaban ahí, ahora con su mueble   |
+| Agenda vacía, en el celular      | `agenda-vacia`                    | la hoja del mes vacía, con un día rodeado a mano                           | es la agenda de papel del taller; la grilla de la compu ya es el dibujo |
+| Enlace muerto, «no está»         | `anulado`                         | la hoja con el plano tachado a mano                                        | lo que había ahí se dio de baja                                         |
+| Sin señal                        | `sin-senal`                       | la hoja con el plano de trazos                                             | el trabajo está, pero no llega: se ve el contorno y no el mueble        |
+| Error de carga y de los enlaces  | `se-corto`                        | la hoja partida en dos con el eje del corte                                | se cortó algo en el medio, y el enlace sigue sirviendo                  |
+| Gracias                          | `gracias`                         | la tarjeta de agradecimiento con la firma que se traza (ADR 0069)          | el cliente terminó; el taller le agradece de su puño                    |
+| «Tu mueble»                      | `TrabajoEnEtapa`                  | lo que está sobre la mesa en cada etapa, sin mueble (ADR 0069)             | el cliente ve en qué anda su trabajo, sea cual sea el mueble            |
+| Portada de Inicio                | `TableroCortado`, `TableroEntero` | el corte del mes, el tablero sin cortar o el tablero con las herramientas  | es el gráfico mismo: qué parte de lo cobrado fue a cada tesoro          |
+| Despiece de la ficha             | `TableroCortado`                  | el tablero de un trabajo, de trazos o cortado                              | es el gráfico mismo, para un solo trabajo                               |
+| Entrá al taller                  | `Eliseo`, `trabajando`            | Eliseo atornilla la tapa de un mueble con el taladro, mirando el trabajo   | entrás a su taller y está trabajando; es la que más se ve: tranquila    |
+| Creá tu cuenta                   | `Eliseo`, `midiendo`              | mide una tabla sobre el mueble con la cinta y la marca de la mano          | medir es el primer paso de un mueble a medida, como la cuenta en la app |
+| Recuperá el acceso y el enlace   | `Eliseo`, `pensando`              | el puño bajo la barba y el mueble de trazos al lado                        | neutra: sirve igual para el error del enlace y para «Un segundo»        |
+| Revisá tu correo                 | `Eliseo`, `saludando`             | saluda, con la posición anterior de la mano en trazos                      | un «hasta ahora» mientras vas al correo: un registro, no un festejo     |
+| Listo, ya entraste               | `Eliseo`, `pulgar`                | el mueble terminado y el pulgar arriba, con la tilde que se traza una vez  | el final del recorrido y el único festejo                               |
+| Tesoros, la primera vez          | `la-fila`                         | un tablero cortado a lo largo en tres pasos con globos y el reparto rayado | cada cobro baja por la fila: los pasos numerados y lo que sobra         |
 
 No llevan dibujo: los vacíos de una búsqueda o de un filtro (Finanzas con un filtro puesto es la caja
 punteada con «Nada con esos filtros»), un vacío adentro de una sección que tiene otras cosas (los pagos
@@ -383,6 +400,13 @@ dibuja es plata, y el canto de sus propias tarjetas (las marcas chicas de siempr
 progreso o los cuadraditos de la lista del despiece, siguen con su color): las cuatro de Inicio y «Estado del diezmo» son papel con
 5 px del color del tesoro abajo, en un `span` `aria-hidden` sin texto, y 4 px más de relleno abajo. El
 Hogar en negativo sigue con su losa, porque ahí el color es la alerta.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md)**: los
+tesoros que arma el dueño eligen entre ocho tintas, las cuatro de siempre más grana, mostaza, petróleo
+y ciruela, del mismo peso y con sus tintes en los dos temas. La regla del canto no cambia: cada tarjeta
+de Inicio, cada ficha del plano y cada pieza del tablero cortado llevan el canto en la tinta de su
+tesoro. Como dos tesoros pueden compartir tinta, el color nunca va solo: van siempre el nombre y el
+ícono.
 
 ### 11. El movimiento
 

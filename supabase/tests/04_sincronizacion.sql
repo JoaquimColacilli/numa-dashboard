@@ -1,6 +1,6 @@
 -- Contrato de bootstrap() y delta(): qué traen, qué no, y la ventana de solape del cursor.
 
-select plan(12);
+select plan(13);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -15,14 +15,20 @@ update public.movimientos set deleted_at = now() where id = 'aaaaaaaa-0000-7000-
 
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.bootstrap()) as k),
-  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'respuestas', 'respuestas_de_entrega'],
-  'bootstrap() trae el cursor y todas las tablas sincronizables'
+  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'tesoros'],
+  'bootstrap() trae el cursor y todas las tablas sincronizables, los tesoros y los repartos incluidos'
 );
 
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.delta(now())) as k),
-  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'respuestas', 'respuestas_de_entrega'],
+  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'tesoros'],
   'delta() trae las mismas claves que bootstrap()'
+);
+
+select is(
+  (select array_agg(e ->> 'clave' order by (e ->> 'orden')::int) from jsonb_array_elements(public.bootstrap() -> 'tesoros') as e),
+  array['hogar', 'maun', 'diezmo', 'cocos'],
+  'bootstrap() trae los cuatro tesoros de siempre del taller, con su clave'
 );
 
 select is(

@@ -1,3 +1,4 @@
+import { centavos, puntosBasicos, repartir, type Fila } from '@maun/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ClienteMaun } from './cliente.ts';
@@ -5,8 +6,12 @@ import { RespuestaInvalidaError } from './replica.ts';
 import {
   COLUMNAS_DE_LA_ENTREGA,
   COLUMNAS_DE_PROYECTO,
+  COLUMNAS_DE_TESORO,
+  guardarLaFilaDelTaller,
   guardarProyecto,
+  liquidarProyecto,
   leerProyectoGuardado,
+  pedidoDeLaFila,
   proponerLaEntrega,
   type ProyectoParaGuardar,
 } from './sincronizacion.ts';
@@ -168,5 +173,124 @@ describe('la entrega del trabajo', () => {
     for (const columna of COLUMNAS_DE_LA_ENTREGA) {
       expect(COLUMNAS_DE_PROYECTO).not.toContain(columna);
     }
+  });
+});
+
+describe('el cobro por la fila', () => {
+  const PEDIDO = {
+    proyectoId: 'p',
+    version: 4,
+    destino: 'cobrado',
+    fecha: '2026-09-27',
+    cobradoCentavos: 1000,
+    gastosCentavos: 0,
+    topeSueldoCentavos: 0,
+    topeFijosCentavos: 0,
+    diezmoBp: 1000,
+    diezmoCentavos: 100,
+    sueldoCentavos: 0,
+    fijosCentavos: 0,
+    remanenteCentavos: 900,
+    sueldoPrevioCentavos: 0,
+    fijosPrevioCentavos: 0,
+  } as const;
+
+  it('sin la fila, el pedido de siempre no manda los parámetros nuevos', async () => {
+    const { cliente, rpc } = clienteFalso({ id: 'p' });
+    await liquidarProyecto(cliente, PEDIDO);
+    const [nombre, argumentos] = rpc.mock.lastCall as unknown as [string, object];
+    expect(nombre).toBe('cobrar_proyecto');
+    expect(Object.keys(argumentos)).not.toContain('p_fila_version');
+  });
+
+  it('con la fila viajan la revisión, los repartos y lo del mes', async () => {
+    const { cliente, rpc } = clienteFalso({ id: 'p' });
+    const porLaFila = {
+      version: 3,
+      repartos: [{ id: 'r', posicion: 1, tesoro_id: 'uno', monto_centavos: 900 }],
+      previo: { uno: 0 },
+    };
+    await liquidarProyecto(cliente, { ...PEDIDO, destino: 'perdido', porLaFila });
+    expect(rpc).toHaveBeenLastCalledWith(
+      'cerrar_perdido',
+      expect.objectContaining({
+        p_diezmo_bp: 1000,
+        p_fila_version: 3,
+        p_repartos: porLaFila.repartos,
+        p_previo: porLaFila.previo,
+      }),
+    );
+  });
+
+  it('guardar la fila manda la revisión que se vio, o null para volver a la de siempre', async () => {
+    const { cliente, rpc } = clienteFalso({ id: 'a1', fila_version: 5 });
+    const fila: Fila = {
+      obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+      pasos: [],
+      reparto: [],
+      superavit: 'maun',
+      sueldoPorTrabajo: false,
+    };
+
+    expect(await guardarLaFilaDelTaller(cliente, 4, fila)).toEqual({ id: 'a1', fila_version: 5 });
+    expect(rpc).toHaveBeenLastCalledWith('guardar_la_fila', { p_version: 4, p_fila: fila });
+
+    await guardarLaFilaDelTaller(cliente, 5, null);
+    expect(rpc).toHaveBeenLastCalledWith('guardar_la_fila', { p_version: 5, p_fila: null });
+  });
+
+  it('un rechazo al guardar la fila sale como error', async () => {
+    const rechazo = { code: 'MN023', message: 'La fila no se pudo guardar.' };
+    const cliente = {
+      rpc: vi.fn(() => Promise.resolve({ data: null, error: rechazo })),
+    } as unknown as ClienteMaun;
+
+    await expect(guardarLaFilaDelTaller(cliente, 1, null)).rejects.toBe(rechazo);
+  });
+
+  it('el pedido lleva los repartos en el orden del cobro, sin el diezmo, y lo que vio cada paso y cada meta', () => {
+    const reparto = repartir({
+      obligaciones: [
+        { tesoro: 'brutos', porcentaje: puntosBasicos(350), base: 'cobrado', diezmo: false },
+        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', diezmo: true },
+      ],
+      pasos: [
+        {
+          tesoro: 'fijos',
+          clase: 'fijos',
+          objetivo: centavos(90_000_000),
+          porMes: true,
+          modo: 'saldo',
+          hastaLaMeta: false,
+        },
+      ],
+      reparto: [
+        { tesoro: 'stock', porcentaje: puntosBasicos(2000), hastaLaMeta: true },
+        { tesoro: 'maquinas', porcentaje: puntosBasicos(1000), hastaLaMeta: false },
+      ],
+      superavit: 'superavit',
+      cobrado: centavos(250_000_000),
+      gastos: centavos(50_000_000),
+      previo: new Map([['fijos', centavos(63_000_000)]]),
+      topes: new Map([['stock', centavos(5_000_000)]]),
+    });
+
+    expect(pedidoDeLaFila(reparto, 9, ['a', 'b', 'c', 'd', 'e'])).toEqual({
+      version: 9,
+      repartos: [
+        { id: 'a', posicion: 1, tesoro_id: 'brutos', monto_centavos: 8_750_000 },
+        { id: 'b', posicion: 2, tesoro_id: 'fijos', monto_centavos: 27_000_000 },
+        { id: 'c', posicion: 3, tesoro_id: 'stock', monto_centavos: 5_000_000 },
+        { id: 'd', posicion: 4, tesoro_id: 'maquinas', monto_centavos: 14_512_500 },
+        { id: 'e', posicion: 5, tesoro_id: 'superavit', monto_centavos: 125_612_500 },
+      ],
+      previo: { fijos: 63_000_000, stock: 5_000_000 },
+    });
+    expect(() => pedidoDeLaFila(reparto, 9, ['a'])).toThrow(RangeError);
+  });
+
+  it('un tesoro no manda su clave: esa es del sistema', () => {
+    expect(COLUMNAS_DE_TESORO).not.toContain('clave');
+    expect(COLUMNAS_DE_TESORO).not.toContain('household_id');
   });
 });
