@@ -1,4 +1,11 @@
-import type { EstadoLiquidado, EstadoProyecto, Fila } from '@maun/domain';
+import {
+  previoQueVio,
+  repartosDelCobro,
+  type EstadoLiquidado,
+  type EstadoProyecto,
+  type Fila,
+  type Reparto,
+} from '@maun/domain';
 
 import type { ColumnaDeMarca } from './agenda.ts';
 import type { ClienteMaun } from './cliente.ts';
@@ -1042,6 +1049,29 @@ export interface PedidoPorLaFila {
   version: number;
   repartos: readonly RepartoDelPedido[];
   previo: Readonly<Record<string, number>>;
+}
+
+export function pedidoDeLaFila(
+  liquidacion: Reparto,
+  version: number,
+  ids: readonly string[],
+): PedidoPorLaFila {
+  const repartos = repartosDelCobro(liquidacion);
+  if (ids.length !== repartos.length) {
+    throw new RangeError(
+      `El cobro lleva ${String(repartos.length)} repartos y vinieron ${String(ids.length)} ids.`,
+    );
+  }
+  return {
+    version,
+    repartos: repartos.map((reparto, indice) => ({
+      id: ids[indice] as string,
+      posicion: indice + 1,
+      tesoro_id: reparto.tesoro,
+      monto_centavos: reparto.monto,
+    })),
+    previo: previoQueVio(liquidacion),
+  };
 }
 
 export interface PedidoDeReversion {

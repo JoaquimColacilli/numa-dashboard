@@ -46,6 +46,14 @@ describe('leerEstadoDeLosAvisos', () => {
     });
   });
 
+  it('los vencimientos se avisan como los demás, con su propia preferencia', () => {
+    const avisos = { ...PREFERENCIAS_INICIALES, vencimientos: { activo: false, anticipacion: 3 } };
+    expect(
+      leerEstadoDeLosAvisos({ ...ESTADO, preferencias: { ...PREFERENCIAS, avisos } }).preferencias
+        ?.avisos.vencimientos,
+    ).toEqual({ activo: false, anticipacion: 3 });
+  });
+
   it('sin preferencias todavía, las deja en null', () => {
     expect(
       leerEstadoDeLosAvisos({
@@ -79,6 +87,16 @@ describe('leerEstadoDeLosAvisos', () => {
         preferencias: {
           ...PREFERENCIAS,
           avisos: { entregas: PREFERENCIAS_INICIALES.entregas },
+        },
+      },
+    ],
+    [
+      'falta el aviso de los vencimientos',
+      {
+        ...ESTADO,
+        preferencias: {
+          ...PREFERENCIAS,
+          avisos: { ...PREFERENCIAS_INICIALES, vencimientos: undefined },
         },
       },
     ],

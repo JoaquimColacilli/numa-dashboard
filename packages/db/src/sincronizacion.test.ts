@@ -1,3 +1,4 @@
+import { centavos, puntosBasicos, repartir, type Fila } from '@maun/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ClienteMaun } from './cliente.ts';
@@ -10,6 +11,7 @@ import {
   guardarProyecto,
   liquidarProyecto,
   leerProyectoGuardado,
+  pedidoDeLaFila,
   proponerLaEntrega,
   type ProyectoParaGuardar,
 } from './sincronizacion.ts';
@@ -222,7 +224,13 @@ describe('el cobro por la fila', () => {
 
   it('guardar la fila manda la revisión que se vio, o null para volver a la de siempre', async () => {
     const { cliente, rpc } = clienteFalso({ id: 'a1', fila_version: 5 });
-    const fila = { pasos: [], reparto: [], sueldoPorTrabajo: false };
+    const fila: Fila = {
+      obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+      pasos: [],
+      reparto: [],
+      superavit: 'maun',
+      sueldoPorTrabajo: false,
+    };
 
     expect(await guardarLaFilaDelTaller(cliente, 4, fila)).toEqual({ id: 'a1', fila_version: 5 });
     expect(rpc).toHaveBeenLastCalledWith('guardar_la_fila', { p_version: 4, p_fila: fila });
@@ -238,6 +246,47 @@ describe('el cobro por la fila', () => {
     } as unknown as ClienteMaun;
 
     await expect(guardarLaFilaDelTaller(cliente, 1, null)).rejects.toBe(rechazo);
+  });
+
+  it('el pedido lleva los repartos en el orden del cobro, sin el diezmo, y lo que vio cada paso y cada meta', () => {
+    const reparto = repartir({
+      obligaciones: [
+        { tesoro: 'brutos', porcentaje: puntosBasicos(350), base: 'cobrado', diezmo: false },
+        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', diezmo: true },
+      ],
+      pasos: [
+        {
+          tesoro: 'fijos',
+          clase: 'fijos',
+          objetivo: centavos(90_000_000),
+          porMes: true,
+          modo: 'saldo',
+          hastaLaMeta: false,
+        },
+      ],
+      reparto: [
+        { tesoro: 'stock', porcentaje: puntosBasicos(2000), hastaLaMeta: true },
+        { tesoro: 'maquinas', porcentaje: puntosBasicos(1000), hastaLaMeta: false },
+      ],
+      superavit: 'superavit',
+      cobrado: centavos(250_000_000),
+      gastos: centavos(50_000_000),
+      previo: new Map([['fijos', centavos(63_000_000)]]),
+      topes: new Map([['stock', centavos(5_000_000)]]),
+    });
+
+    expect(pedidoDeLaFila(reparto, 9, ['a', 'b', 'c', 'd', 'e'])).toEqual({
+      version: 9,
+      repartos: [
+        { id: 'a', posicion: 1, tesoro_id: 'brutos', monto_centavos: 8_750_000 },
+        { id: 'b', posicion: 2, tesoro_id: 'fijos', monto_centavos: 27_000_000 },
+        { id: 'c', posicion: 3, tesoro_id: 'stock', monto_centavos: 5_000_000 },
+        { id: 'd', posicion: 4, tesoro_id: 'maquinas', monto_centavos: 14_512_500 },
+        { id: 'e', posicion: 5, tesoro_id: 'superavit', monto_centavos: 125_612_500 },
+      ],
+      previo: { fijos: 63_000_000, stock: 5_000_000 },
+    });
+    expect(() => pedidoDeLaFila(reparto, 9, ['a'])).toThrow(RangeError);
   });
 
   it('un tesoro no manda su clave: esa es del sistema', () => {

@@ -1,28 +1,39 @@
 import {
   analisisDeEntregas,
+  BASES_DE_OBLIGACION,
+  estaLiquidado,
   fechaDeApertura,
   filaDeSiempre,
   leerLaFila,
+  MODOS_DE_PASO,
   restar,
   saldosDelLibro,
   saldosDelLibroPorId,
   sumar,
+  sumarTodos,
   type AnalisisDeEntregas,
   type AporteDelMes,
+  type BaseDeLaObligacion,
   type CambioDeFechaParaElAnalisis,
   type Cobertura,
   type DatosDelLibro,
+  type DatosDelMes,
+  type EntradaDeLaLiquidacion,
   type EstadoLiquidado,
   type Fila,
+  type GastoDeUnTesoro,
   type LiquidacionDelMes,
   type LiquidacionRegistrada,
+  type ModoDePaso,
   type Money,
   type SaldosPorId,
   type SaldosPorTesoro,
   type Tesoro,
+  type TesorosDelSistema,
   type TrabajoParaElAnalisis,
 } from '@maun/domain';
 
+import { gastosDeLosTesoros } from './agenda.ts';
 import { dinero } from './dinero.ts';
 import { ajustesDe, filasDe, type FilaDe, type Replica } from './replica.ts';
 
@@ -83,6 +94,20 @@ export function tesorosDeLaReplica(replica: Replica): TesoroDeLaReplica[] {
 
 export function idDeLaClave(replica: Replica, clave: Tesoro): string {
   return filasDe(replica, 'tesoros').find((fila) => fila.clave === clave)?.id ?? clave;
+}
+
+export function sistemaDeLaReplica(replica: Replica): TesorosDelSistema {
+  const tesoros = filasDe(replica, 'tesoros');
+  const idDe = (clave: Tesoro) => tesoros.find((fila) => fila.clave === clave)?.id ?? clave;
+  return { hogar: idDe('hogar'), maun: idDe('maun'), diezmo: idDe('diezmo') };
+}
+
+export function metasDeLaReplica(replica: Replica): Map<string, Money> {
+  const metas = new Map<string, Money>();
+  for (const tesoro of tesorosDeLaReplica(replica)) {
+    if (tesoro.meta !== null && tesoro.meta > 0) metas.set(tesoro.id, tesoro.meta);
+  }
+  return metas;
 }
 
 function movimientoConIds(replica: Replica, movimiento: FilaDe<'movimientos'>) {
@@ -191,6 +216,48 @@ export function totalesDelProyecto(replica: Replica, proyectoId: string): Totale
   return totalesPorProyecto(replica).get(proyectoId) ?? { cobrado: dinero(0), gastos: dinero(0) };
 }
 
+export interface InsumosDelTrabajo {
+  proyectoId: string;
+  entro: Money;
+  gastado: Money;
+  queda: Money;
+}
+
+export function insumosPorTrabajo(replica: Replica): Map<string, InsumosDelTrabajo> {
+  const totales = totalesPorProyecto(replica);
+  const insumos = new Map<string, InsumosDelTrabajo>();
+  for (const proyecto of filasDe(replica, 'proyectos')) {
+    if (estaLiquidado(proyecto.estado)) continue;
+    const { cobrado, gastos } = totales.get(proyecto.id) ?? {
+      cobrado: dinero(0),
+      gastos: dinero(0),
+    };
+    insumos.set(proyecto.id, {
+      proyectoId: proyecto.id,
+      entro: cobrado,
+      gastado: gastos,
+      queda: restar(cobrado, gastos),
+    });
+  }
+  return insumos;
+}
+
+export function insumosDelTrabajo(replica: Replica, proyectoId: string): InsumosDelTrabajo | null {
+  return insumosPorTrabajo(replica).get(proyectoId) ?? null;
+}
+
+export interface InsumosDelTaller {
+  total: Money;
+  trabajos: readonly InsumosDelTrabajo[];
+}
+
+export function insumosDelTaller(replica: Replica): InsumosDelTaller {
+  const trabajos = [...insumosPorTrabajo(replica).values()].filter(
+    (trabajo) => trabajo.entro !== 0 || trabajo.gastado !== 0,
+  );
+  return { total: sumarTodos(trabajos.map((trabajo) => trabajo.queda)), trabajos };
+}
+
 function liquidacionDe(proyecto: FilaDe<'proyectos'>): LiquidacionRegistrada | undefined {
   const {
     estado,
@@ -249,6 +316,21 @@ export function repartosDelProyecto(replica: Replica, proyectoId: string): FilaD
   return filasDe(replica, 'repartos')
     .filter((reparto) => reparto.proyecto_id === proyectoId)
     .sort((a, b) => a.posicion - b.posicion);
+}
+
+type RepartoQuizasSinModoNiBase = FilaDe<'repartos'> &
+  Partial<Record<'modo' | 'base', string | null>>;
+
+export function modoDelReparto(reparto: FilaDe<'repartos'>): ModoDePaso | null {
+  if (reparto.tipo !== 'paso') return null;
+  const modo = (reparto as RepartoQuizasSinModoNiBase).modo ?? null;
+  return MODOS_DE_PASO.find((uno) => uno === modo) ?? 'mes';
+}
+
+export function baseDelReparto(reparto: FilaDe<'repartos'>): BaseDeLaObligacion | null {
+  if (reparto.tipo !== 'obligacion') return null;
+  const base = (reparto as RepartoQuizasSinModoNiBase).base ?? null;
+  return BASES_DE_OBLIGACION.find((una) => una === base) ?? null;
 }
 
 export function liquidacionesDelMesDeLaReplica(
@@ -320,6 +402,20 @@ export function coberturasDeLaReplica(replica: Replica): Cobertura[] {
   return coberturas;
 }
 
+export function gastosDeLosTesorosDeLaReplica(replica: Replica): GastoDeUnTesoro[] {
+  return gastosDeLosTesoros(filasDe(replica, 'movimientos'), filasDe(replica, 'tesoros'));
+}
+
+export function datosDelMesDeLaReplica(replica: Replica): DatosDelMes {
+  return {
+    liquidaciones: liquidacionesDelMesDeLaReplica(replica),
+    coberturas: coberturasDeLaReplica(replica),
+    saldos: saldosPorIdDeLaReplica(replica),
+    metas: metasDeLaReplica(replica),
+    gastos: gastosDeLosTesorosDeLaReplica(replica),
+  };
+}
+
 export interface FilaDelTaller {
   fila: Fila;
   version: number;
@@ -329,7 +425,8 @@ export interface FilaDelTaller {
 
 export function filaDelTaller(replica: Replica): FilaDelTaller {
   const ajustes = ajustesDe(replica) as Partial<FilaDe<'ajustes'>> | undefined;
-  const guardada = leerLaFila(ajustes?.fila ?? null);
+  const sistema = sistemaDeLaReplica(replica);
+  const guardada = leerLaFila(ajustes?.fila ?? null, sistema);
   return {
     fila:
       guardada ??
@@ -339,7 +436,7 @@ export function filaDelTaller(replica: Replica): FilaDelTaller {
           costosFijos: dinero(ajustes?.costos_fijos_centavos ?? 0),
           sueldoTopeMensual: ajustes?.sueldo_tope_mensual ?? true,
         },
-        { hogar: idDeLaClave(replica, 'hogar'), maun: idDeLaClave(replica, 'maun') },
+        sistema,
       ),
     version: ajustes?.fila_version ?? 0,
     guardada: guardada !== null,
@@ -352,12 +449,21 @@ export interface FilaParaLiquidar {
   version: number;
 }
 
-function laReaperturaDeLaFila(valor: unknown): FilaParaLiquidar | null {
-  if (typeof valor !== 'object' || valor === null) return null;
-  const { version, fila } = valor as Record<string, unknown>;
-  const leida = leerLaFila(fila);
+export function reaperturaDeLaFila(
+  replica: Replica,
+  proyecto: FilaDe<'proyectos'>,
+): FilaParaLiquidar | null {
+  const valor = (proyecto as Partial<FilaDe<'proyectos'>>).reapertura_fila ?? null;
+  if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return null;
+  const { version, fila } = valor;
+  const leida = leerLaFila(fila, sistemaDeLaReplica(replica));
   if (leida === null || typeof version !== 'number' || !Number.isInteger(version)) return null;
   return { fila: leida, version };
+}
+
+export function filaDelCobro(replica: Replica, proyecto: FilaDe<'proyectos'>): Fila | null {
+  const guardada = (proyecto as Partial<FilaDe<'proyectos'>>).dist_fila ?? null;
+  return guardada === null ? null : leerLaFila(guardada, sistemaDeLaReplica(replica));
 }
 
 export function filaParaLiquidar(
@@ -366,9 +472,7 @@ export function filaParaLiquidar(
   destino: EstadoLiquidado,
 ): FilaParaLiquidar {
   if (destino === 'cobrado') {
-    const reapertura = laReaperturaDeLaFila(
-      (proyecto as Partial<FilaDe<'proyectos'>>).reapertura_fila ?? null,
-    );
+    const reapertura = reaperturaDeLaFila(replica, proyecto);
     if (reapertura !== null) return reapertura;
 
     const {
@@ -381,7 +485,7 @@ export function filaParaLiquidar(
       return {
         fila: filaDeSiempre(
           { sueldoMensual: dinero(sueldo), costosFijos: dinero(fijos), sueldoTopeMensual: mensual },
-          { hogar: idDeLaClave(replica, 'hogar'), maun: idDeLaClave(replica, 'maun') },
+          sistemaDeLaReplica(replica),
         ),
         version: 0,
       };
@@ -390,6 +494,47 @@ export function filaParaLiquidar(
 
   const { fila, version } = filaDelTaller(replica);
   return { fila, version };
+}
+
+export interface LoQueSeLiquida {
+  destino: EstadoLiquidado;
+  fecha: string;
+  cobrado?: Money;
+  gastos?: Money;
+}
+
+export interface EntradaDeLaReplica {
+  entrada: EntradaDeLaLiquidacion;
+  version: number;
+}
+
+export function entradaDeLaLiquidacion(
+  replica: Replica,
+  proyecto: FilaDe<'proyectos'>,
+  { destino, fecha, cobrado, gastos }: LoQueSeLiquida,
+): EntradaDeLaReplica {
+  const totales = totalesDelProyecto(replica, proyecto.id);
+  const { fila, version } = filaParaLiquidar(replica, proyecto, destino);
+  const ajustes = ajustesDe(replica);
+  return {
+    entrada: {
+      destino,
+      fecha,
+      cobrado: cobrado ?? totales.cobrado,
+      gastos: gastos ?? totales.gastos,
+      fila,
+      sistema: sistemaDeLaReplica(replica),
+      ajustes: {
+        perdidoConSueldo: ajustes?.perdido_con_sueldo ?? false,
+        perdidoConDiezmo: ajustes?.perdido_con_diezmo ?? true,
+      },
+      liquidaciones: liquidacionesDelMesDeLaReplica(replica, proyecto.id),
+      coberturas: coberturasDeLaReplica(replica),
+      saldos: saldosPorIdDeLaReplica(replica),
+      metas: metasDeLaReplica(replica),
+    },
+    version,
+  };
 }
 
 export interface DatosDelAnalisis {

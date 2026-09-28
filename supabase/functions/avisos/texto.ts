@@ -23,10 +23,22 @@ function cuando(dia: string, fecha: string): string {
   return `en ${String(dias)} días`;
 }
 
+export function pesos(centavos: number): string {
+  const absoluto = Math.abs(centavos);
+  const enteros = String(Math.floor(absoluto / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const resto = absoluto % 100;
+  const decimales = resto === 0 ? '' : `,${String(resto).padStart(2, '0')}`;
+  return `${centavos < 0 ? '-' : ''}$\u00a0${enteros}${decimales}`;
+}
+
+function queDice(evento: EventoDeLaAgenda): string {
+  if (evento.clase === 'propia') return evento.texto;
+  if (evento.clase === 'vencimiento') return `Vence: ${evento.renglon}, ${pesos(evento.monto)}`;
+  return `${ACCION[evento.categoria]}${evento.titulo}`;
+}
+
 function renglon(evento: EventoDeLaAgenda, dia: string): string {
-  const que =
-    evento.clase === 'propia' ? evento.texto : `${ACCION[evento.categoria]}${evento.titulo}`;
-  return `${que} (${cuando(dia, evento.fecha)})`;
+  return `${queDice(evento)} (${cuando(dia, evento.fecha)})`;
 }
 
 export function cargaDelAviso(eventos: readonly EventoDeLaAgenda[], dia: string): CargaDelAviso {

@@ -5,9 +5,16 @@ import webpush from 'web-push';
 
 import { baseDeSupabase, type AvisoPorMandar, type Base, type Suscripcion } from './base.ts';
 import { configuracionDelEntorno } from './entorno.ts';
-import { laSuscripcionMurio, mandarLaPrueba, mandarLosAvisos, type Enviador } from './envio.ts';
+import {
+  laSuscripcionMurio,
+  mandarLaPrueba,
+  mandarLosAvisos,
+  preferenciasCompletas,
+  rangoDelAviso,
+  type Enviador,
+} from './envio.ts';
 import { crearManejador } from './manejador.ts';
-import { cargaDelAviso } from './texto.ts';
+import { cargaDelAviso, pesos } from './texto.ts';
 
 const DIA = '2026-09-14';
 const VAPID = {
@@ -21,6 +28,7 @@ const PREFERENCIAS: PreferenciasDeAvisos = {
   visitas: { activo: true, anticipacion: 1 },
   presupuestos: { activo: true, anticipacion: 1 },
   seguimientos: { activo: true, anticipacion: 0 },
+  vencimientos: { activo: true, anticipacion: 0 },
   anotaciones: { activo: false, anticipacion: 0 },
 };
 
@@ -274,6 +282,237 @@ Deno.test(
     });
   },
 );
+
+const HOGAR = '00000000-0000-7000-8000-000000000001';
+const MAUN = '00000000-0000-7000-8000-000000000002';
+const DIEZMO = '00000000-0000-7000-8000-000000000003';
+const GASTOS_FIJOS = '00000000-0000-7000-8000-000000000010';
+
+interface Renglon {
+  nombre: string;
+  monto: number;
+  dia: number | null;
+}
+
+interface ConVencimientos {
+  dia?: string;
+  zona?: string;
+  preferencias?: Partial<PreferenciasDeAvisos>;
+  renglones?: Renglon[];
+  guardadaEn?: string;
+  gastos?: { categoria: string; fecha: string }[];
+}
+
+function conVencimientos(
+  id: string,
+  {
+    dia = DIA,
+    zona = 'America/Argentina/Buenos_Aires',
+    preferencias = PREFERENCIAS,
+    renglones = [
+      { nombre: 'Alquiler', monto: 50_000_000, dia: 14 },
+      { nombre: 'Luz', monto: 6_000_000, dia: 14 },
+      { nombre: 'Ayudante', monto: 34_000_000, dia: null },
+    ],
+    guardadaEn = '2026-09-01T12:00:00.123456+00:00',
+    gastos = [],
+  }: ConVencimientos = {},
+): AvisoPorMandar {
+  const fila = {
+    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+    pasos: [
+      {
+        tesoro: GASTOS_FIJOS,
+        clase: 'fijos',
+        tope: renglones.reduce((suma, renglon) => suma + renglon.monto, 0),
+        renglones,
+        desde: null,
+        modo: 'saldo',
+        hastaLaMeta: false,
+      },
+    ],
+    reparto: [],
+    superavit: MAUN,
+    sueldoPorTrabajo: false,
+  };
+  const tesoro = (tesoroId: string, clave: string | null, nombre: string) =>
+    ({ id: tesoroId, clave, nombre, archivado_at: null, deleted_at: null }) as never;
+  return {
+    ...suscripcion(id),
+    dia,
+    zona,
+    preferencias: preferencias as PreferenciasDeAvisos,
+    filas: {
+      proyectos: [],
+      clientes: [],
+      anotaciones: [],
+      proximos_contactos: [],
+      ajustes: [
+        {
+          id: 'a1',
+          fila,
+          fila_version: 3,
+          fila_guardada_at: guardadaEn,
+          deleted_at: null,
+        } as never,
+      ],
+      tesoros: [
+        tesoro(HOGAR, 'hogar', 'Hogar'),
+        tesoro(MAUN, 'maun', 'Maun'),
+        tesoro(DIEZMO, 'diezmo', 'Diezmo'),
+        tesoro(GASTOS_FIJOS, null, 'Gastos fijos'),
+      ],
+      movimientos: gastos.map(
+        (gasto, indice) =>
+          ({
+            id: `m${String(indice)}`,
+            tipo: 'gasto',
+            fecha: gasto.fecha,
+            tesoro_origen: null,
+            tesoro_destino: null,
+            desde_id: GASTOS_FIJOS,
+            hacia_id: null,
+            monto_centavos: 1,
+            categoria: gasto.categoria,
+            deleted_at: null,
+          }) as never,
+      ),
+    },
+  };
+}
+
+async function cuerposDe(avisos: AvisoPorMandar[]) {
+  const base = baseFalsa();
+  const enviar = enviadorQueContesta({});
+  const resultado = await mandarLosAvisos(avisos, base, enviar, VAPID);
+  return {
+    resultado,
+    anotados: base.registro.anotados,
+    cargas: enviar.cargas.map((carga) => JSON.parse(carga) as { titulo: string; cuerpo: string }),
+  };
+}
+
+Deno.test(
+  'el compromiso que vence hoy se avisa con su renglón y su monto, y el que ya se pagó en el mes no',
+  async () => {
+    const { resultado, cargas } = await cuerposDe([
+      conVencimientos('telefono', {
+        gastos: [
+          { categoria: 'luz ', fecha: '2026-09-02' },
+          { categoria: 'Alquiler', fecha: '2026-08-14' },
+        ],
+      }),
+    ]);
+
+    assert.deepEqual(resultado, { mandados: 1, sinNadaQueAvisar: 0, podados: 0, fallidos: 0 });
+    assert.deepEqual(cargas, [
+      {
+        titulo: 'Hoy tenés 1 cosa en la agenda',
+        cuerpo: 'Vence: Alquiler, $\u00a0500.000 (hoy)',
+        url: '/agenda',
+        etiqueta: `agenda-${DIA}`,
+      },
+    ]);
+  },
+);
+
+Deno.test('con los vencimientos apagados, o todo pagado, no hay nada que avisar', async () => {
+  const { resultado, anotados } = await cuerposDe([
+    conVencimientos('apagado', {
+      preferencias: { ...PREFERENCIAS, vencimientos: { activo: false, anticipacion: 0 } },
+    }),
+    conVencimientos('pagado', {
+      gastos: [
+        { categoria: 'Alquiler', fecha: '2026-09-10' },
+        { categoria: 'Luz', fecha: '2026-09-14' },
+      ],
+    }),
+    conVencimientos('sin-dias', { renglones: [{ nombre: 'Alquiler', monto: 1, dia: null }] }),
+  ]);
+
+  assert.deepEqual(resultado, { mandados: 0, sinNadaQueAvisar: 3, podados: 0, fallidos: 0 });
+  assert.deepEqual(anotados, [
+    ['apagado', DIA, false],
+    ['pagado', DIA, false],
+    ['sin-dias', DIA, false],
+  ]);
+});
+
+Deno.test('el que vence el 31 se avisa el último día de un mes de 30', async () => {
+  const { cargas } = await cuerposDe([
+    conVencimientos('telefono', {
+      dia: '2026-09-30',
+      renglones: [{ nombre: 'Cuota del auto', monto: 20_000_050, dia: 31 }],
+    }),
+  ]);
+
+  assert.equal(cargas[0]?.cuerpo, 'Vence: Cuota del auto, $\u00a0200.000,50 (hoy)');
+});
+
+Deno.test(
+  'con anticipación, el aviso mira también el mes que viene y dice en cuántos días vence',
+  async () => {
+    const renglones = [{ nombre: 'Alquiler', monto: 50_000_000, dia: 1 }];
+    const { cargas, resultado } = await cuerposDe([
+      conVencimientos('anticipado', {
+        dia: '2026-09-29',
+        renglones,
+        preferencias: { ...PREFERENCIAS, vencimientos: { activo: true, anticipacion: 3 } },
+      }),
+      conVencimientos('el-mismo-dia', { dia: '2026-09-29', renglones }),
+    ]);
+
+    assert.deepEqual(resultado, { mandados: 1, sinNadaQueAvisar: 1, podados: 0, fallidos: 0 });
+    assert.deepEqual(cargas[0], {
+      titulo: 'Lo que viene en la agenda',
+      cuerpo: 'Vence: Alquiler, $\u00a0500.000 (en 2 días)',
+      url: '/agenda',
+      etiqueta: 'agenda-2026-09-29',
+    });
+    assert.deepEqual(rangoDelAviso('2026-09-29', PREFERENCIAS), {
+      desde: '2026-09-29',
+      hasta: '2026-10-01',
+    });
+  },
+);
+
+Deno.test(
+  'unas preferencias guardadas antes de los vencimientos los avisan igual, prendidos y el mismo día',
+  async () => {
+    const { vencimientos: _vencimientos, ...deAntes } = PREFERENCIAS;
+    assert.deepEqual(preferenciasCompletas(deAntes).vencimientos, {
+      activo: true,
+      anticipacion: 0,
+    });
+
+    const { cargas } = await cuerposDe([conVencimientos('telefono', { preferencias: deAntes })]);
+    assert.equal(
+      cargas[0]?.cuerpo,
+      'Vence: Alquiler, $\u00a0500.000 (hoy)\nVence: Luz, $\u00a060.000 (hoy)',
+    );
+  },
+);
+
+Deno.test(
+  'el mes en que se guardó la fila se toma en la zona de la suscripción: antes de eso no vence nada',
+  async () => {
+    const guardadaEn = '2026-10-01T01:30:00.123456+00:00';
+    const renglones = [{ nombre: 'Alquiler', monto: 50_000_000, dia: 30 }];
+    const { resultado } = await cuerposDe([
+      conVencimientos('buenos-aires', { dia: '2026-09-30', guardadaEn, renglones }),
+      conVencimientos('utc', { dia: '2026-09-30', guardadaEn, renglones, zona: 'UTC' }),
+    ]);
+
+    assert.deepEqual(resultado, { mandados: 1, sinNadaQueAvisar: 1, podados: 0, fallidos: 0 });
+  },
+);
+
+Deno.test('los pesos van con puntos de miles, coma decimal y el signo pegado al número', () => {
+  assert.equal(pesos(50_000_000), '$\u00a0500.000');
+  assert.equal(pesos(12_345_678), '$\u00a0123.456,78');
+  assert.equal(pesos(5), '$\u00a00,05');
+  assert.equal(pesos(-100), '-$\u00a01');
+});
 
 Deno.test('el texto dice lo de hoy primero y resume lo que no entra', () => {
   const eventos = [
