@@ -1,6 +1,6 @@
 -- Metadatos, idempotencia, constraints de plata y las guardas que protegen lo congelado.
 
-select plan(55);
+select plan(78);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -476,6 +476,180 @@ select lives_ok(
       ('2026-09-01', 'ajuste', 'cocos', null, 100)
   $$,
   'las siete formas válidas de movimiento entran'
+);
+
+
+-- Los movimientos nombran sus tesoros por id (ADR 0078) ----------------------------------------------
+
+-- Dos tesoros del dueño, sin clave. Los cuatro de siempre se leen por su clave.
+insert into public.tesoros (id, nombre, tinta, icono) values
+  ('aaaaaaaa-0000-7000-8000-000000000051', 'Herramientas', 'grana', 'wrench'),
+  ('aaaaaaaa-0000-7000-8000-000000000052', 'Materiales', 'mostaza', 'package');
+
+select tests.guardar('hogar_a', (select id from public.tesoros where clave = 'hogar'));
+select tests.guardar('maun_a', (select id from public.tesoros where clave = 'maun'));
+select tests.guardar('diezmo_a', (select id from public.tesoros where clave = 'diezmo'));
+select tests.guardar('cocos_a', (select id from public.tesoros where clave = 'cocos'));
+
+select lives_ok(
+  $$ insert into public.movimientos (id, fecha, tipo, desde_id, hacia_id, monto_centavos) values ('aaaaaaaa-0000-7000-8000-000000000061', '2026-09-01', 'transferencia', 'aaaaaaaa-0000-7000-8000-000000000051', 'aaaaaaaa-0000-7000-8000-000000000052', 100) $$,
+  'una transferencia entre dos tesoros del dueño, que no tienen clave, entra'
+);
+
+select results_eq(
+  $$ select tesoro_origen::text, tesoro_destino::text from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000061' $$,
+  $$ values (null::text, null::text) $$,
+  'y queda con las dos claves en null: los checks miran los ids'
+);
+
+select throws_ok(
+  $$ insert into public.movimientos (fecha, tipo, desde_id, hacia_id, monto_centavos) values ('2026-09-01', 'transferencia', 'aaaaaaaa-0000-7000-8000-000000000051', 'aaaaaaaa-0000-7000-8000-000000000051', 100) $$,
+  '23514', null, 'una transferencia de un tesoro a sí mismo rebota también por id'
+);
+
+select throws_ok(
+  $$ insert into public.movimientos (fecha, tipo, desde_id, monto_centavos) values ('2026-09-01', 'pago_diezmo', 'aaaaaaaa-0000-7000-8000-000000000051', 100) $$,
+  '23514', null, 'el diezmo se sigue pagando desde el diezmo: un tesoro del dueño no tiene la clave'
+);
+
+select throws_ok(
+  format(
+    $$ insert into public.movimientos (fecha, tipo, desde_id, hacia_id, monto_centavos) values ('2026-09-01', 'aporte_cocos', %L, 'aaaaaaaa-0000-7000-8000-000000000052', 100) $$,
+    tests.id('maun_a')
+  ),
+  '23514', null, 'y un aporte sigue yendo a Cocos: a otro tesoro es una transferencia'
+);
+
+select lives_ok(
+  format(
+    $$ insert into public.movimientos (id, fecha, tipo, desde_id, monto_centavos) values ('aaaaaaaa-0000-7000-8000-000000000062', '2026-09-01', 'pago_diezmo', %L, 100) $$,
+    tests.id('diezmo_a')
+  ),
+  'el pago del diezmo que manda una app nueva, con el id y sin la clave, entra'
+);
+
+select is(
+  (select tesoro_origen::text from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000062'),
+  'diezmo',
+  'porque el trigger completa la clave desde el id antes de los checks'
+);
+
+-- Lo que manda una app sin actualizar: la clave, sin el id.
+insert into public.movimientos (id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos)
+  values ('aaaaaaaa-0000-7000-8000-000000000063', '2026-09-02', 'transferencia', 'maun', 'cocos', 100);
+
+select results_eq(
+  $$ select desde_id, hacia_id from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  format($$ values (%L::uuid, %L::uuid) $$, tests.id('maun_a'), tests.id('cocos_a')),
+  'lo que manda una app vieja, con la clave, queda también con los ids de sus tesoros'
+);
+
+-- La edición de una app vieja manda solo la clave que cambió. Sin seguir ese lado, el id viejo
+-- quedaría apuntando a Cocos.
+update public.movimientos set tesoro_destino = 'hogar' where id = 'aaaaaaaa-0000-7000-8000-000000000063';
+
+select results_eq(
+  $$ select tesoro_destino::text, hacia_id from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  format($$ values ('hogar', %L::uuid) $$, tests.id('hogar_a')),
+  'la edición de una app vieja que cambia la clave deja el id nuevo, no el viejo'
+);
+
+update public.movimientos set hacia_id = 'aaaaaaaa-0000-7000-8000-000000000052' where id = 'aaaaaaaa-0000-7000-8000-000000000063';
+
+select results_eq(
+  $$ select tesoro_destino::text, hacia_id from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  $$ values (null::text, 'aaaaaaaa-0000-7000-8000-000000000052'::uuid) $$,
+  'y la de una app nueva que cambia el id recalcula la clave: null para un tesoro del dueño'
+);
+
+select throws_ok(
+  format(
+    $$ update public.movimientos set tesoro_destino = 'cocos', hacia_id = %L where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+    tests.id('hogar_a')
+  ),
+  '23514', null, 'si cambian los dos lados y no dicen lo mismo, rebota como un check'
+);
+
+select throws_ok(
+  format(
+    $$ insert into public.movimientos (fecha, tipo, tesoro_destino, hacia_id, monto_centavos) values ('2026-09-02', 'ingreso', 'hogar', %L, 100) $$,
+    tests.id('maun_a')
+  ),
+  '23514', null, 'y un alta con la clave de un tesoro y el id de otro, también'
+);
+
+select lives_ok(
+  format(
+    $$ update public.movimientos set tesoro_destino = 'cocos', hacia_id = %L where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+    tests.id('cocos_a')
+  ),
+  'cambiar los dos a la vez, diciendo lo mismo, pasa'
+);
+
+-- La edición de una app nueva manda solo el id que cambió, también cuando lo saca: la clave vieja no
+-- lo puede volver a poner.
+select lives_ok(
+  $$ update public.movimientos set tipo = 'gasto', hacia_id = null where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  'una app nueva que pasa una transferencia a gasto manda el destino en null y la clave lo sigue'
+);
+
+select results_eq(
+  $$ select tesoro_destino::text, hacia_id from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  $$ values (null::text, null::uuid) $$,
+  'y el gasto queda sin destino: ni el id ni la clave de antes'
+);
+
+insert into public.movimientos (id, fecha, tipo, tesoro_origen, hacia_id, monto_centavos)
+  values ('aaaaaaaa-0000-7000-8000-000000000064', '2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100);
+
+select lives_ok(
+  $$ update public.movimientos set tipo = 'ingreso', desde_id = null where id = 'aaaaaaaa-0000-7000-8000-000000000064' $$,
+  'lo mismo del lado del origen: una transferencia que pasa a ingreso'
+);
+
+select results_eq(
+  $$ select tesoro_origen::text, desde_id from public.movimientos where id = 'aaaaaaaa-0000-7000-8000-000000000064' $$,
+  $$ values (null::text, null::uuid) $$,
+  'queda sin origen'
+);
+
+-- Sacar el id y poner la clave de otro tesoro en la misma edición no dice lo mismo: rebota.
+select throws_ok(
+  $$ update public.movimientos set desde_id = null, tesoro_origen = 'hogar' where id = 'aaaaaaaa-0000-7000-8000-000000000063' $$,
+  '23514', 'El tesoro de origen no coincide con su clave',
+  'un origen con el id en null y la clave de otro tesoro rebota como un check'
+);
+
+select throws_ok(
+  $$ update public.movimientos set hacia_id = null, tesoro_destino = 'cocos' where id = 'aaaaaaaa-0000-7000-8000-000000000064' $$,
+  '23514', 'El tesoro de destino no coincide con su clave',
+  'y un destino, igual'
+);
+
+
+-- La plata que cubre un mes --------------------------------------------------------------------------
+
+select throws_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_destino, monto_centavos, cubre_el_mes) values ('2026-09-02', 'ingreso', 'maun', 100, '2026-09-01') $$,
+  '23514', null, 'solo una transferencia cubre un mes: un ingreso no'
+);
+
+select throws_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-09-15') $$,
+  '23514', null, 'el mes que se cubre va como su primer día'
+);
+
+select throws_ok(
+  format(
+    $$ insert into public.movimientos (fecha, tipo, desde_id, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', %L, 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-09-01') $$,
+    tests.id('diezmo_a')
+  ),
+  '23514', null, 'y no se cubre con el diezmo, aunque venga solo con el id: esa plata no es del taller'
+);
+
+select lives_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-09-01') $$,
+  'una transferencia de Maun a un tesoro del dueño cubre septiembre'
 );
 
 
