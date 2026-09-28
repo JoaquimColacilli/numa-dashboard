@@ -20,10 +20,12 @@ import {
   ProyectosPage,
   ProyectoVistaClientePage,
 } from '@/pages/proyectos';
+import { TesorosPage } from '@/pages/tesoros';
 import {
   HOJAS_POR_RUTA,
   RUTA_DE_CONSULTAS,
   RUTA_DE_CONTACTO_NUEVO,
+  RUTA_DE_TESOROS,
   RUTA_DEL_ANALITICO,
   type PatronDeHoja,
 } from '@/shared/lib';
@@ -49,6 +51,7 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/clientes', element: <ClientesPage /> },
   { path: '/clientes/:id', element: <ClienteFichaPage /> },
   { path: '/finanzas', element: <FinanzasPage /> },
+  { path: RUTA_DE_TESOROS, element: <TesorosPage /> },
   { path: '/opiniones', element: <ResultadosPage /> },
   { path: '/opiniones/preguntas', element: <PreguntasPage /> },
   { path: '/diezmo', element: <DiezmoPage /> },

@@ -66,11 +66,19 @@ describe('destinoResaltado', () => {
     expect(NAV_MOVIL).toEqual(['inicio', 'proyectos', 'clientes', 'finanzas']);
   });
 
-  it('Opiniones entra en tablet y escritorio entre Finanzas y Diezmo, y en el celular se llega desde Inicio', () => {
-    expect(NAV_ESCRITORIO.slice(5, 8)).toEqual(['finanzas', 'opiniones', 'diezmo']);
-    expect(NAV_TABLET.slice(4, 7)).toEqual(['finanzas', 'opiniones', 'diezmo']);
+  it('Opiniones entra en tablet y escritorio entre Tesoros y Diezmo, y en el celular se llega desde Inicio', () => {
+    expect(NAV_ESCRITORIO.slice(5, 9)).toEqual(['finanzas', 'tesoros', 'opiniones', 'diezmo']);
+    expect(NAV_TABLET.slice(4, 8)).toEqual(['finanzas', 'tesoros', 'opiniones', 'diezmo']);
     expect(destinoResaltado('opiniones', NAV_ESCRITORIO)).toBe('opiniones');
     expect(destinoResaltado('opiniones', NAV_TABLET)).toBe('opiniones');
     expect(destinoResaltado('opiniones', NAV_MOVIL)).toBe('inicio');
+  });
+
+  it('Tesoros va después de Finanzas en tablet y escritorio, y en el celular resalta Inicio', () => {
+    expect(seccionDeLaRuta('/tesoros')).toBe('tesoros');
+    expect(destinoResaltado('tesoros', NAV_ESCRITORIO)).toBe('tesoros');
+    expect(destinoResaltado('tesoros', NAV_TABLET)).toBe('tesoros');
+    expect(destinoResaltado('tesoros', NAV_MOVIL)).toBe('inicio');
+    expect(NAV_MOVIL).not.toContain('tesoros');
   });
 });

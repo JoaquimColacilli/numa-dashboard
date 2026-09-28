@@ -24,6 +24,7 @@
     "@maun/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-persist-client": "catalog:",
+    "@xyflow/react": "catalog:",
     "downshift": "catalog:",
     "idb-keyval": "catalog:",
     "react": "catalog:",

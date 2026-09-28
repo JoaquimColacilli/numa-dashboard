@@ -248,6 +248,15 @@ export const CATALOGO: readonly Pantalla[] = [
     forma: 'hoja',
   },
   {
+    id: 'tesoros',
+    patron: '/tesoros',
+    nombre: 'Tesoros',
+    seccion: 'inicio',
+    raiz: false,
+    profundidad: 1,
+    forma: 'pantalla',
+  },
+  {
     id: 'resultados',
     patron: '/opiniones',
     nombre: 'Opiniones',

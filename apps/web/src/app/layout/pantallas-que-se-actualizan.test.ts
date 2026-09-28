@@ -12,6 +12,7 @@ describe('seActualizaTirando', () => {
       '/proyectos',
       '/clientes',
       '/finanzas',
+      '/tesoros',
       '/opiniones',
       '/diezmo',
     ]) {

@@ -80,6 +80,7 @@ const DESTINOS_DE_LA_BARRA_LATERAL = [
   'w-16',
   'w-14',
   'w-15',
+  'w-14',
   'w-17',
   'w-13',
   'w-13',
@@ -146,7 +147,7 @@ function riel(): Elemento {
       'mb-4.5 flex size-tap items-center justify-center rounded-pill bg-ink shadow-fab',
       mas('size-5'),
     ),
-    ...[0, 1, 2, 3, 4, 5, 6].map(destinoDelRiel),
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map(destinoDelRiel),
     caja('flex-1'),
     destinoDelRiel(-1),
   );

@@ -33,6 +33,7 @@ import { Navegacion } from './Navegacion';
 import { TirarParaActualizar } from './TirarParaActualizar';
 import { DESTINOS, seccionDeLaRuta } from './destinos';
 import { seActualizaTirando } from './pantallas-que-se-actualizan';
+import { esUnPlanoATodoElAncho } from './sin-molde';
 
 const RESPIRO = 12;
 
@@ -170,6 +171,7 @@ export function Marco() {
   const etiqueta = DESTINOS[seccion].etiqueta;
   const conElGesto =
     seActualizaTirando(visible.pathname) && !esRutaDeHoja(location.pathname) && !hayAlgoEnCurso;
+  const aTodoElAncho = ancho !== 'movil' && esUnPlanoATodoElAncho(visible.pathname);
 
   useEffect(() => {
     if (!montado.current) {
@@ -220,7 +222,9 @@ export function Marco() {
         ref={principal}
         tabIndex={-1}
         style={{ paddingBottom: `${String(holgura.contenido)}px` }}
-        className="min-h-0 flex-1 overflow-y-auto outline-none [scrollbar-gutter:stable_both-edges]"
+        className={`min-h-0 flex-1 overflow-y-auto outline-none ${
+          aTodoElAncho ? '' : '[scrollbar-gutter:stable_both-edges]'
+        }`}
       >
         {ancho === 'movil' && (
           <TirarParaActualizar
