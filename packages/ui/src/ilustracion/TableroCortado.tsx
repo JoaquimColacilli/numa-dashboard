@@ -5,9 +5,9 @@ import { ALTO_DE_ESCENA, ANCHO_DE_ESCENA, Lienzo } from './lienzo.tsx';
 import { PATA_DE_GALLO } from './mano.ts';
 import { Escuadra, Lapiz } from './objetos.tsx';
 import { limites, planoDelPiso, type Volumen } from './proyeccion.ts';
-import { Caja, Cota, EnElPlano, Rayado, type Relleno } from './trazos.tsx';
+import { Caja, Cota, EnElPlano, Rayado, type Relleno, type TintaDeTesoro } from './trazos.tsx';
 
-export type TonoDeLaPieza = 'hogar' | 'maun' | 'diezmo' | 'cocos' | 'sobrante';
+export type TonoDeLaPieza = TintaDeTesoro | 'sobrante';
 
 export interface PiezaDelTablero {
   id: string;

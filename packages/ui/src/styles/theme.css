@@ -185,6 +185,14 @@
   --color-diezmo-tint: var(--tesoro-diezmo-tint);
   --color-cocos: var(--tesoro-cocos);
   --color-cocos-tint: var(--tesoro-cocos-tint);
+  --color-grana: var(--tesoro-grana);
+  --color-grana-tint: var(--tesoro-grana-tint);
+  --color-mostaza: var(--tesoro-mostaza);
+  --color-mostaza-tint: var(--tesoro-mostaza-tint);
+  --color-petroleo: var(--tesoro-petroleo);
+  --color-petroleo-tint: var(--tesoro-petroleo-tint);
+  --color-ciruela: var(--tesoro-ciruela);
+  --color-ciruela-tint: var(--tesoro-ciruela-tint);
   --color-paper-notas: var(--paper-notas);
   --color-paper-notas-line: var(--paper-notas-line);
   --color-ag-entrega: var(--ag-entrega);
@@ -242,6 +250,24 @@
   --tesoro-diezmo-tint: #ebe9f8;
   --tesoro-cocos: #185fa5;
   --tesoro-cocos-tint: #e3ecf7;
+
+  /* Las tintas de los tesoros que arma el dueño (ADR 0078): cuatro más, del mismo peso que las de
+     los cuatro de siempre, para que un nombre escrito en su tinta se lea igual sobre el papel y
+     sobre su tinte. Como en la agenda, el color nunca va solo: cada tesoro lleva su nombre y su
+     ícono, y dos tesoros pueden compartir tinta. */
+  --tesoro-grana: #9c3348;
+  --tesoro-grana-tint: #ffeaec;
+  --tesoro-mostaza: #806a00;
+  --tesoro-mostaza-tint: #f5f0e0;
+  --tesoro-petroleo: #00697b;
+  --tesoro-petroleo-tint: #e0f4f9;
+  --tesoro-ciruela: #833a7b;
+  --tesoro-ciruela-tint: #faebf7;
+
+  /* La cuadrícula del plano de los tesoros (ADR 0078): papel milimetrado con una línea cada 16 px y
+     una más marcada cada 80. Es decoración y queda casi invisible; lo que se lee va encima, en papel. */
+  --cuadricula-menor: rgba(20, 20, 20, 0.055);
+  --cuadricula-mayor: rgba(20, 20, 20, 0.11);
 
   --paper-notas: #fcfbf8;
   --paper-notas-line: #e6e1d6;
@@ -627,6 +653,17 @@
     --tesoro-diezmo-tint: #221f37;
     --tesoro-cocos: #7ea8d4;
     --tesoro-cocos-tint: #1b2835;
+    --tesoro-grana: #e1969f;
+    --tesoro-grana-tint: #362123;
+    --tesoro-mostaza: #d0be79;
+    --tesoro-mostaza-tint: #2c2815;
+    --tesoro-petroleo: #73bbca;
+    --tesoro-petroleo-tint: #132c31;
+    --tesoro-ciruela: #cb97c3;
+    --tesoro-ciruela-tint: #31222f;
+
+    --cuadricula-menor: rgba(237, 237, 237, 0.05);
+    --cuadricula-mayor: rgba(237, 237, 237, 0.095);
 
     --paper-notas: #1a1916;
     --paper-notas-line: #2f2c26;
@@ -893,6 +930,22 @@
     fill: var(--tesoro-cocos);
   }
 
+  .ilustracion .grana {
+    fill: var(--tesoro-grana);
+  }
+
+  .ilustracion .mostaza {
+    fill: var(--tesoro-mostaza);
+  }
+
+  .ilustracion .petroleo {
+    fill: var(--tesoro-petroleo);
+  }
+
+  .ilustracion .ciruela {
+    fill: var(--tesoro-ciruela);
+  }
+
   .ilustracion .renglon {
     stroke: var(--il-renglon);
     stroke-width: 0.75;
@@ -917,6 +970,18 @@
     fill: var(--il-letra);
     font-size: 11px;
     font-weight: 500;
+  }
+
+  /* El número de un globo de referencia (ADR 0078): el orden de un paso, como en la lista de piezas
+     de un plano. Va adentro de un círculo chico, así que es más chico y más firme que una cota. */
+  .ilustracion .globo {
+    stroke: none;
+    fill: var(--il-tinta);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-anchor: middle;
   }
 }
 

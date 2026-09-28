@@ -21,10 +21,15 @@ const GRAMATICA = new Set([
   'maun',
   'diezmo',
   'cocos',
+  'grana',
+  'mostaza',
+  'petroleo',
+  'ciruela',
   'pelo',
   'renglon',
   'rotulo',
   'cota',
+  'globo',
 ]);
 
 function clasesUsadas(raiz: Element): string[] {
@@ -68,6 +73,16 @@ describe('Ilustracion', () => {
     expect(trazadas).toHaveLength(1);
     expect(trazadas[0]).toHaveAttribute('pathLength', '1');
     expect(trazadas[0]).toHaveClass('mano');
+  });
+
+  it('«la-fila» numera los pasos con globos, en orden, y deja rayado lo que no se reparte', () => {
+    const { container } = render(<Ilustracion nombre="la-fila" />);
+    const globos = [...container.querySelectorAll('text.globo')].map((globo) => globo.textContent);
+
+    expect(globos).toEqual(['1', '2', '3']);
+    expect(container.querySelectorAll('circle.cara.fina')).toHaveLength(3);
+    expect(container.querySelector('path.eje')).not.toBeNull();
+    expect(container.querySelector('.hogar, .maun, .diezmo, .cocos')).toBeNull();
   });
 
   it('dos escenas iguales en la misma pantalla no comparten recortes', () => {

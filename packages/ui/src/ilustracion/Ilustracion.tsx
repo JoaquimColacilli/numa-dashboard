@@ -4,6 +4,7 @@ import {
   AgendaVacia,
   Anulado,
   Gracias,
+  LaFila,
   SeCorto,
   SinClientes,
   SinConsultas,
@@ -36,6 +37,7 @@ const ESCENAS = {
   'se-corto': SeCorto,
   anulado: Anulado,
   gracias: Gracias,
+  'la-fila': LaFila,
 } as const satisfies Record<string, ComponentType<PropsDeLaEscena>>;
 
 export type NombreDeIlustracion = keyof typeof ESCENAS;
