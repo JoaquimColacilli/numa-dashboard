@@ -5,6 +5,14 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-09-28',
+    lineas: [
+      'Hay una pantalla nueva, Tesoros: armás cómo se reparte lo que deja cada trabajo, con topes por mes en el orden que quieras y lo que sobra por porcentajes.',
+      'Podés crear tesoros, probar un cobro y ver a dónde va cada peso antes de guardar.',
+      'Inicio muestra cómo va la fila del mes y, si faltan los gastos fijos, te deja cubrirlos desde otro tesoro.',
+    ],
+  },
+  {
     version: '2026-09-26.3',
     lineas: [
       'Las pantallas de entrar con tu mail y de recuperar la contraseña ahora tienen un dibujo tuyo en el taller: atornillando un mueble, midiendo una tabla, pensando o saludando.',
