@@ -1,6 +1,6 @@
-import { centavos, type SaldosPorTesoro } from '@maun/domain';
+import { CERO, centavos, type SaldosPorTesoro } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
 import {
   ayudaDelMovimiento,
@@ -8,33 +8,48 @@ import {
   claseDe,
   clasesDelGrupo,
   GRUPOS,
+  ladosDeLaFila,
+  ladosDelMovimiento,
   MUTACION_DE_BAJA_DE_MOVIMIENTO,
   MUTACION_DE_EDICION_DE_MOVIMIENTO,
   MUTACION_DE_MOVIMIENTO,
+  vaEntreTesoros,
   type ClaseDeMovimiento,
   type GrupoDeMovimiento,
+  type LadoDelMovimiento,
+  type LadosDelMovimiento,
 } from '@/entities/movimiento';
-import { mensajeDeSincronizacion, type CambiosDeMovimiento, type FilaDe } from '@/shared/api';
+import { tesoroDeLaClave, tesoroPorId, type TesoroDelTaller } from '@/entities/tesoro';
+import {
+  mensajeDeSincronizacion,
+  type CambiosDeMovimiento,
+  type FilaDe,
+  type Tesoro,
+} from '@/shared/api';
 import {
   formatearPesos,
   hayCambios,
   hoyLocal,
   metaDeAvisos,
+  nombreDelMes,
   TESORO,
+  TINTA,
   useEstadoSync,
   uuidv7,
 } from '@/shared/lib';
-import {
-  Button,
-  Campo,
-  FilaDeAcciones,
-  FondoDelElegido,
-  Hoja,
-  Icono,
-  MoneyInput,
-} from '@/shared/ui';
+import { Button, Campo, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared/ui';
 
 const UN_DIA_MS = 86_400_000;
+
+const FALTAN_LOS_LADOS = 'Elegí de qué tesoro sale la plata y a cuál entra.';
+
+const LUGAR_DEL_GRUPO: Readonly<Record<GrupoDeMovimiento, string>> = {
+  ingreso: 'col-span-2 @min-[30rem]:col-span-1',
+  gasto: 'col-span-2 @min-[30rem]:col-span-1',
+  diezmo: 'col-span-2 @min-[30rem]:col-span-1',
+  cocos: 'col-span-3 @min-[30rem]:col-span-1',
+  entre: 'col-span-3 @min-[30rem]:col-span-1',
+};
 
 function ayerLocal(hoy: string): string {
   return hoyLocal(new Date(new Date(`${hoy}T12:00:00`).getTime() - UN_DIA_MS));
@@ -44,37 +59,125 @@ function claseDeLaFila(fila: FilaDe<'movimientos'>): ClaseDeMovimiento {
   return claseDe(fila.tipo, fila.tesoro_origen, fila.tesoro_destino)?.id ?? 'gasto_hogar';
 }
 
+function saldosDeLosDeSiempre(tesoros: readonly TesoroDelTaller[]): SaldosPorTesoro {
+  const saldo = (clave: Tesoro) => tesoroDeLaClave(tesoros, clave)?.saldo ?? CERO;
+  return {
+    hogar: saldo('hogar'),
+    maun: saldo('maun'),
+    diezmo: saldo('diezmo'),
+    cocos: saldo('cocos'),
+  };
+}
+
+function idDelLado(
+  id: string | null | undefined,
+  clave: Tesoro | null,
+  tesoros: readonly TesoroDelTaller[],
+): string | undefined {
+  if (id !== null && id !== undefined) return id;
+  return clave === null ? undefined : tesoroDeLaClave(tesoros, clave)?.id;
+}
+
+function ladosIniciales(
+  movimiento: FilaDe<'movimientos'> | undefined,
+  clase: ClaseDeMovimiento,
+  tesoros: readonly TesoroDelTaller[],
+): { desde: string; hacia: string } {
+  if (movimiento && CLASE[clase].eligeLosLados) {
+    const fila = movimiento as Partial<FilaDe<'movimientos'>>;
+    const desde = idDelLado(fila.desde_id, movimiento.tesoro_origen, tesoros);
+    const hacia = idDelLado(fila.hacia_id, movimiento.tesoro_destino, tesoros);
+    if (desde !== undefined && hacia !== undefined) return { desde, hacia };
+  }
+  const elegibles = tesoros.filter((tesoro) => !tesoro.archivado && vaEntreTesoros(tesoro));
+  const desde = tesoroDeLaClave(elegibles, 'maun')?.id ?? elegibles[0]?.id ?? '';
+  const hacia =
+    elegibles.find((tesoro) => tesoro.clave === null && tesoro.id !== desde) ??
+    elegibles.find((tesoro) => tesoro.id !== desde);
+  return { desde, hacia: hacia?.id ?? '' };
+}
+
 function Segmentado({
   grupo,
+  soloEntreTesoros,
   alElegir,
 }: {
   grupo: GrupoDeMovimiento;
+  soloEntreTesoros: boolean;
   alElegir: (nuevo: GrupoDeMovimiento) => void;
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Tipo"
-      className="relative grid grid-cols-4 gap-0.5 rounded-pill bg-ink/6 p-1"
-    >
-      <FondoDelElegido elegido={grupo} />
-      {GRUPOS.map((opcion) => (
-        <button
-          key={opcion.id}
-          type="button"
-          role="radio"
-          aria-checked={grupo === opcion.id}
-          data-opcion={opcion.id}
-          onClick={() => {
-            alElegir(opcion.id);
-          }}
-          className={`relative min-h-tap rounded-pill text-label ${
-            grupo === opcion.id ? 'font-semibold text-ink' : 'font-medium text-text-2'
-          }`}
-        >
-          {opcion.etiqueta}
-        </button>
-      ))}
+    <div className="@container">
+      <div
+        role="radiogroup"
+        aria-label="Tipo"
+        className="grid grid-cols-6 gap-0.5 rounded-panel bg-ink/6 p-1 @min-[30rem]:grid-cols-5"
+      >
+        {GRUPOS.map((opcion) => (
+          <button
+            key={opcion.id}
+            type="button"
+            role="radio"
+            aria-checked={grupo === opcion.id}
+            disabled={soloEntreTesoros && opcion.id !== 'entre'}
+            onClick={() => {
+              alElegir(opcion.id);
+            }}
+            className={`min-h-tap rounded-[16px] px-1 text-label leading-tight disabled:opacity-40 ${LUGAR_DEL_GRUPO[opcion.id]} ${
+              grupo === opcion.id
+                ? 'bg-elevado font-semibold text-ink shadow-float'
+                : 'font-medium text-text-2'
+            }`}
+          >
+            {opcion.etiqueta}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ElegirTesoro({
+  etiqueta,
+  opciones,
+  elegido,
+  alElegir,
+}: {
+  etiqueta: string;
+  opciones: readonly TesoroDelTaller[];
+  elegido: string;
+  alElegir: (id: string) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={id} className="text-label text-text-2">
+        {etiqueta}
+      </span>
+      <div role="group" aria-labelledby={id} className="flex flex-wrap gap-2">
+        {opciones.map((tesoro) => {
+          const activo = tesoro.id === elegido;
+          return (
+            <button
+              key={tesoro.id}
+              type="button"
+              aria-pressed={activo}
+              onClick={() => {
+                alElegir(tesoro.id);
+              }}
+              className={`apretable flex min-h-tap items-center gap-2 rounded-pill border px-3 text-label font-medium ${
+                activo ? 'border-ink bg-ink text-paper' : 'border-border bg-paper text-ink'
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`size-2 flex-none rounded-pill ${activo ? 'bg-paper' : TINTA[tesoro.tinta].fondo}`}
+              />
+              {tesoro.nombre}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -82,7 +185,8 @@ function Segmentado({
 export interface HojaDeMovimientoProps {
   movimiento?: FilaDe<'movimientos'>;
   claseInicial?: ClaseDeMovimiento;
-  saldos: SaldosPorTesoro;
+  tesoros: readonly TesoroDelTaller[];
+  tesorosSincronizados: boolean;
   metaCocos: number;
   alCerrar: () => void;
 }
@@ -90,7 +194,8 @@ export interface HojaDeMovimientoProps {
 export function HojaDeMovimiento({
   movimiento,
   claseInicial,
-  saldos,
+  tesoros,
+  tesorosSincronizados,
   metaCocos,
   alCerrar,
 }: HojaDeMovimientoProps) {
@@ -105,6 +210,7 @@ export function HojaDeMovimiento({
       descripcion: movimiento?.descripcion ?? '',
       monto: movimiento?.monto_centavos ?? null,
       fecha: movimiento?.fecha ?? hoy,
+      ...ladosIniciales(movimiento, clase, tesoros),
     };
   });
   const [clase, setClase] = useState<ClaseDeMovimiento>(iniciales.clase);
@@ -112,7 +218,10 @@ export function HojaDeMovimiento({
   const [descripcion, setDescripcion] = useState(iniciales.descripcion);
   const [monto, setMonto] = useState<number | null>(iniciales.monto);
   const [fecha, setFecha] = useState(iniciales.fecha);
+  const [desde, setDesde] = useState(iniciales.desde);
+  const [hacia, setHacia] = useState(iniciales.hacia);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [errorDeLosLados, setErrorDeLosLados] = useState<string | undefined>(undefined);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
 
   const campoDeMonto = useRef<HTMLInputElement>(null);
@@ -133,19 +242,41 @@ export function HojaDeMovimiento({
   const enVuelo = crear.isPending || editar.isPending || borrar.isPending;
   const fallo: unknown = crear.error ?? editar.error ?? borrar.error;
 
+  const cubreElMes =
+    (movimiento as Partial<FilaDe<'movimientos'>> | undefined)?.cubre_el_mes ?? null;
+  const opciones = tesoros.filter(
+    (tesoro) =>
+      (!tesoro.archivado && vaEntreTesoros(tesoro)) ||
+      tesoro.id === iniciales.desde ||
+      tesoro.id === iniciales.hacia,
+  );
+  const origen = tesoroPorId(tesoros, desde);
+  const destino = tesoroPorId(tesoros, hacia);
+
   const datos = CLASE[clase];
-  const tinte = TESORO[datos.tesoro];
-  const escritos = monto ?? 0;
+  const tinte = datos.tesoro === null ? null : TESORO[datos.tesoro];
   const ayuda = ayudaDelMovimiento(clase, {
-    saldos,
+    saldos: saldosDeLosDeSiempre(tesoros),
     metaCocos: centavos(metaCocos),
-    monto: centavos(escritos),
+    monto: centavos(monto ?? 0),
+    lados:
+      origen && destino
+        ? {
+            desde: { nombre: origen.nombre, saldo: origen.saldo },
+            hacia: { nombre: destino.nombre, saldo: destino.saldo },
+          }
+        : undefined,
   });
+
+  function ladosElegidos(deLaClase: ClaseDeMovimiento, uno: string, otro: string): string {
+    return CLASE[deLaClase].eligeLosLados ? `${uno}→${otro}` : '';
+  }
 
   function elegirClase(nueva: ClaseDeMovimiento) {
     setClase(nueva);
     setCategoria(CLASE[nueva].categorias[0] ?? '');
     setError(undefined);
+    setErrorDeLosLados(undefined);
   }
 
   function elegirGrupo(grupo: GrupoDeMovimiento) {
@@ -153,20 +284,50 @@ export function HojaDeMovimiento({
     if (primera) elegirClase(primera.id);
   }
 
+  function elegirDesde(id: string) {
+    if (id === hacia) setHacia(desde);
+    setDesde(id);
+    setErrorDeLosLados(undefined);
+  }
+
+  function elegirHacia(id: string) {
+    setHacia(id);
+    setErrorDeLosLados(undefined);
+  }
+
+  function ladosParaGuardar(): LadosDelMovimiento | null {
+    if (datos.eligeLosLados) {
+      if (!origen || !destino || origen.id === destino.id) return null;
+      return ladosDelMovimiento(origen, destino, tesorosSincronizados);
+    }
+    const lado = (clave: Tesoro | null): LadoDelMovimiento | null | undefined =>
+      clave === null ? null : tesoroDeLaClave(tesoros, clave);
+    const deDesde = lado(datos.desde);
+    const deHacia = lado(datos.hacia);
+    const soloLaClave = (clave: Tesoro | null) => (clave === null ? null : { id: clave, clave });
+    return ladosDelMovimiento(
+      deDesde ?? soloLaClave(datos.desde),
+      deHacia ?? soloLaClave(datos.hacia),
+      tesorosSincronizados && deDesde !== undefined && deHacia !== undefined,
+    );
+  }
+
   function enviar(evento: SyntheticEvent<HTMLFormElement>) {
     evento.preventDefault();
     const importe = monto;
-    if (importe === null || importe === 0) {
-      setError('Escribí cuánta plata es, por ejemplo 12.500.');
-      return;
-    }
-    setError(undefined);
+    const lados = ladosParaGuardar();
+    setError(
+      importe === null || importe === 0
+        ? 'Escribí cuánta plata es, por ejemplo 12.500.'
+        : undefined,
+    );
+    setErrorDeLosLados(lados === null ? FALTAN_LOS_LADOS : undefined);
+    if (importe === null || importe === 0 || lados === null) return;
 
     const campos = {
       fecha,
       tipo: datos.tipo,
-      tesoro_origen: datos.desde,
-      tesoro_destino: datos.hacia,
+      ...lados,
       monto_centavos: importe,
       categoria,
       descripcion,
@@ -179,8 +340,7 @@ export function HojaDeMovimiento({
         previos: {
           fecha: movimiento.fecha,
           tipo: movimiento.tipo,
-          tesoro_origen: movimiento.tesoro_origen,
-          tesoro_destino: movimiento.tesoro_destino,
+          ...ladosDeLaFila(movimiento, tesorosSincronizados),
           monto_centavos: movimiento.monto_centavos,
           categoria: movimiento.categoria,
           descripcion: movimiento.descripcion,
@@ -207,13 +367,38 @@ export function HojaDeMovimiento({
       titulo={movimiento ? 'Editar el movimiento' : 'Cargar un movimiento'}
       alCerrar={alCerrar}
       conCambios={hayCambios(
-        { ...iniciales, descripcion: iniciales.descripcion.trim() },
-        { clase, categoria, descripcion: descripcion.trim(), monto, fecha },
+        {
+          clase: iniciales.clase,
+          categoria: iniciales.categoria,
+          descripcion: iniciales.descripcion.trim(),
+          monto: iniciales.monto,
+          fecha: iniciales.fecha,
+          lados: ladosElegidos(iniciales.clase, iniciales.desde, iniciales.hacia),
+        },
+        {
+          clase,
+          categoria,
+          descripcion: descripcion.trim(),
+          monto,
+          fecha,
+          lados: ladosElegidos(clase, desde, hacia),
+        },
       )}
     >
       <form noValidate onSubmit={enviar} className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
-          <Segmentado grupo={datos.grupo} alElegir={elegirGrupo} />
+          <Segmentado
+            grupo={datos.grupo}
+            soloEntreTesoros={cubreElMes !== null}
+            alElegir={elegirGrupo}
+          />
+
+          {cubreElMes !== null && (
+            <p className="text-label leading-relaxed text-text-2">
+              Cubre lo que faltaba para los gastos fijos de {nombreDelMes(cubreElMes).toLowerCase()}
+              , así que sigue siendo un pase entre tesoros.
+            </p>
+          )}
 
           {clasesDelGrupo(datos.grupo).length > 1 && (
             <div role="group" aria-label="Detalle del tipo" className="flex flex-wrap gap-2">
@@ -234,12 +419,38 @@ export function HojaDeMovimiento({
                   <span
                     aria-hidden
                     className={`size-2 rounded-pill ${
-                      clase === opcion.id ? 'bg-paper' : TESORO[opcion.tesoro].barra
+                      clase === opcion.id
+                        ? 'bg-paper'
+                        : opcion.tesoro === null
+                          ? 'bg-text-3'
+                          : TESORO[opcion.tesoro].barra
                     }`}
                   />
                   {opcion.corta}
                 </button>
               ))}
+            </div>
+          )}
+
+          {datos.eligeLosLados && (
+            <div className="flex flex-col gap-3">
+              <ElegirTesoro
+                etiqueta="Sale de"
+                opciones={opciones}
+                elegido={desde}
+                alElegir={elegirDesde}
+              />
+              <ElegirTesoro
+                etiqueta="Entra a"
+                opciones={opciones.filter((tesoro) => tesoro.id !== desde)}
+                elegido={hacia}
+                alElegir={elegirHacia}
+              />
+              {errorDeLosLados !== undefined && (
+                <p role="alert" className="text-label font-medium text-alerta">
+                  {errorDeLosLados}
+                </p>
+              )}
             </div>
           )}
 
@@ -341,10 +552,15 @@ export function HojaDeMovimiento({
           </div>
 
           <p
-            className={`flex items-start gap-2.5 rounded-field px-3.5 py-3 text-label leading-relaxed ${tinte.fondo}`}
+            className={`flex items-start gap-2.5 rounded-field px-3.5 py-3 text-label leading-relaxed ${
+              tinte === null ? 'bg-surface' : tinte.fondo
+            }`}
           >
-            <span aria-hidden className={`mt-0.5 flex-none ${tinte.texto}`}>
-              <Icono nombre={tinte.icono} tamano={18} />
+            <span
+              aria-hidden
+              className={`mt-0.5 flex-none ${tinte === null ? 'text-text-2' : tinte.texto}`}
+            >
+              <Icono nombre={tinte === null ? 'arrow-left-right' : tinte.icono} tamano={18} />
             </span>
             <span>{ayuda}</span>
           </p>

@@ -6,6 +6,10 @@ export {
 } from './api/mutacion';
 export { hayRedesCargadas } from './model/redes';
 export { FormularioDeCobro } from './ui/FormularioDeCobro';
-export { FormularioDeConfiguracion } from './ui/FormularioDeConfiguracion';
+export {
+  FormularioDeConfiguracion,
+  type FormularioDeConfiguracionProps,
+  type ParteDeLaConfiguracion,
+} from './ui/FormularioDeConfiguracion';
 export { FormularioDeRedes } from './ui/FormularioDeRedes';
 export { FormularioDeResena } from './ui/FormularioDeResena';
