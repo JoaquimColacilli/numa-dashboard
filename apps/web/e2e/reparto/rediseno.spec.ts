@@ -19,6 +19,7 @@ import {
   escribirAjustes,
   guardarProyectoPorRpc,
   hoyEnElTaller,
+  idDelTesoro,
   iniciarSesionDePrueba,
   leerAjustes,
   vaciarTaller,
@@ -56,6 +57,7 @@ const VACIAS = [
   'analitico',
   'clientes',
   'finanzas',
+  'tesoros',
   'opiniones',
   'agenda',
 ] as const;
@@ -94,6 +96,19 @@ const DESTINOS = [
 ] as const;
 
 const COBRADO_HOY = { indice: 20, gastos: 30_000_000 } as const;
+
+const CANTOS_DE_TESORO = [
+  'hogar',
+  'maun',
+  'diezmo',
+  'cocos',
+  'grana',
+  'mostaza',
+  'petroleo',
+  'ciruela',
+]
+  .map((tinta) => `.${tinta}`)
+  .join(', ');
 
 let sesion: SesionDePrueba;
 
@@ -341,7 +356,7 @@ async function fallasDeLaPortada(
   }
   if (estado === 'arranque') {
     if (manos !== 1) fallas.push(`${donde}: el arranque no tiene la marca de mano`);
-    for (const nombre of ['Configurar sueldo y metas', 'Cargar el primer proyecto']) {
+    for (const nombre of ['Cargar sueldo y costos fijos', 'Cargar el primer proyecto']) {
       const boton = portada.getByRole('button', { name: nombre });
       if ((await boton.count()) !== 1) {
         fallas.push(`${donde}: «${nombre}» no está adentro de la portada`);
@@ -579,6 +594,11 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
   }, testInfo) => {
     test.setTimeout(600_000);
     const fallas: string[] = [];
+    const [hogar, maun] = await Promise.all([
+      idDelTesoro(sesion, 'hogar'),
+      idDelTesoro(sesion, 'maun'),
+    ]);
+    const esperadas = ['diezmo', `paso-${hogar}`, `paso-${maun}`, 'resto'].sort();
     for (const ancho of [390, 1440]) {
       const context = await abrirContexto(browser, testInfo, { ancho });
       const page = await context.newPage();
@@ -598,7 +618,7 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
           nodos.map((nodo) => nodo.getAttribute('data-pieza') ?? ''),
         );
         const trazos = await lamina.locator('rect.trazos').count();
-        const pintadas = await lamina.locator('.hogar, .maun, .diezmo, .cocos').count();
+        const pintadas = await lamina.locator(CANTOS_DE_TESORO).count();
         const donde = `despiece ${clave} a ${String(ancho)}`;
         if (proyectado) {
           if (trazos === 0) fallas.push(`${donde}: en proyección no hay piezas de trazos`);
@@ -621,7 +641,6 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
             fallas.push(`${donde}: el centro de la pieza «${pieza}» no cae en la pieza`);
           }
         } else {
-          const esperadas = ['diezmo', 'fijos', 'remanente', 'sueldo'];
           if ([...ids].sort().join() !== esperadas.join()) {
             fallas.push(`${donde}: las piezas son ${ids.join(', ')}`);
           }
@@ -629,7 +648,7 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
           for (const id of ids) {
             const canto = await lamina
               .locator(`[data-pieza="${id}"]`)
-              .locator('.hogar, .maun, .diezmo')
+              .locator(CANTOS_DE_TESORO)
               .count();
             if (canto === 0)
               fallas.push(`${donde}: la pieza «${id}» no tiene el canto de su tesoro`);

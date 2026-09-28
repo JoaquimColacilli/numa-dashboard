@@ -6,6 +6,7 @@ import {
   guardarProyectoPorRpc,
   hoyEnElTaller,
   iniciarSesionDePrueba,
+  tesoroPorRest,
   vaciarTaller,
   type FilaDeMovimiento,
   type SesionDePrueba,
@@ -150,6 +151,13 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
   });
 
   const hoy = hoyEnElTaller();
+  const propio = await tesoroPorRest(sesion, {
+    nombre: 'Vacaciones en la costa',
+    descripcion: 'Dos semanas en enero',
+    tinta: 'petroleo',
+    icono: 'plane',
+    meta_centavos: centavos * 3,
+  });
   await movimientosPorRest(
     TESOROS.map((tesoro) =>
       tesoro === 'hogar' && escenario.hogarEnNegativo === true
@@ -173,6 +181,18 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
           },
     ),
   );
+  await movimientosPorRest([
+    {
+      fecha: hoy,
+      tipo: 'ingreso',
+      tesoro_origen: null,
+      tesoro_destino: null,
+      hacia_id: propio.id,
+      monto_centavos: centavos,
+      categoria: 'E2E',
+      descripcion: 'Saldo de prueba del tesoro propio',
+    },
+  ]);
 
   const clienteId = await crearCliente(sesion, 'E2E Cliente con montos largos');
   const proyectoId = crypto.randomUUID();
@@ -389,6 +409,9 @@ const TARJETAS_DE_PLATA = [
   'section[aria-label="Estado del diezmo"]',
   'section[aria-label="Proyección de Cocos"]',
   'section[aria-label="Seña para confirmar"]',
+  'section[aria-label^="La fila de "]',
+  'section[aria-label="Metas"]',
+  'section[aria-label^="Falta para "]',
 ].join(', ');
 
 interface TextoQueSeSale {

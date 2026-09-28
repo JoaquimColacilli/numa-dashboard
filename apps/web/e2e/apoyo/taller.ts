@@ -239,6 +239,9 @@ export interface FilaDeMovimiento {
   tipo: string;
   tesoro_origen: string | null;
   tesoro_destino: string | null;
+  desde_id?: string | null;
+  hacia_id?: string | null;
+  cubre_el_mes?: string | null;
   monto_centavos: number;
   categoria: string;
   descripcion: string;
@@ -265,7 +268,7 @@ export async function movimientosDelTaller({
 }: SesionDePrueba): Promise<FilaDeMovimiento[]> {
   return (await pedir(
     entorno,
-    '/rest/v1/movimientos?select=id,fecha,tipo,tesoro_origen,tesoro_destino,monto_centavos,categoria,descripcion&deleted_at=is.null&order=id',
+    '/rest/v1/movimientos?select=id,fecha,tipo,tesoro_origen,tesoro_destino,desde_id,hacia_id,cubre_el_mes,monto_centavos,categoria,descripcion&deleted_at=is.null&order=id',
     { accessToken },
   )) as FilaDeMovimiento[];
 }
@@ -541,6 +544,222 @@ export async function escribirLasRedes(
   await escribirAjustes(sesion, redes);
 }
 
+export type ClaveDeTesoro = 'hogar' | 'maun' | 'diezmo' | 'cocos';
+
+export interface FilaDeTesoro {
+  id: string;
+  clave: ClaveDeTesoro | null;
+  nombre: string;
+  descripcion: string;
+  tinta: string;
+  icono: string;
+  meta_centavos: number | null;
+  rinde_anual_bp: number | null;
+  orden: number;
+  archivado_at: string | null;
+}
+
+const COLUMNAS_DEL_TESORO =
+  'id,clave,nombre,descripcion,tinta,icono,meta_centavos,rinde_anual_bp,orden,archivado_at';
+
+export async function tesorosDelTaller(
+  { entorno, accessToken }: SesionDePrueba,
+  { conLosArchivados = false } = {},
+): Promise<FilaDeTesoro[]> {
+  const filtro = conLosArchivados ? '' : '&archivado_at=is.null';
+  return (await pedir(
+    entorno,
+    `/rest/v1/tesoros?select=${COLUMNAS_DEL_TESORO}&deleted_at=is.null${filtro}&order=orden,created_at,id`,
+    { accessToken },
+  )) as FilaDeTesoro[];
+}
+
+export async function idDelTesoro(sesion: SesionDePrueba, clave: ClaveDeTesoro): Promise<string> {
+  const tesoro = (await tesorosDelTaller(sesion)).find((uno) => uno.clave === clave);
+  if (tesoro === undefined) throw new Error(`el taller de prueba no tiene el tesoro ${clave}`);
+  return tesoro.id;
+}
+
+export interface TesoroParaCrear {
+  nombre: string;
+  descripcion?: string;
+  tinta?: string;
+  icono?: string;
+  meta_centavos?: number | null;
+  rinde_anual_bp?: number | null;
+  orden?: number;
+}
+
+export async function tesoroPorRest(
+  { entorno, accessToken }: SesionDePrueba,
+  datos: TesoroParaCrear,
+): Promise<FilaDeTesoro> {
+  const filas = (await pedir(entorno, `/rest/v1/tesoros?select=${COLUMNAS_DEL_TESORO}`, {
+    method: 'POST',
+    accessToken,
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      descripcion: '',
+      tinta: 'grana',
+      icono: 'vault',
+      orden: 10,
+      ...datos,
+    }),
+  })) as FilaDeTesoro[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el alta del tesoro no devolvió la fila');
+  return fila;
+}
+
+export async function saldoDelTesoro(
+  { entorno, accessToken }: SesionDePrueba,
+  tesoroId: string,
+): Promise<number> {
+  const asientos = (await pedir(
+    entorno,
+    `/rest/v1/libro_mayor?select=monto_centavos&tesoro_id=eq.${tesoroId}&ya_en_la_apertura=is.false`,
+    { accessToken },
+  )) as { monto_centavos: number }[];
+  return asientos.reduce((saldo, asiento) => saldo + asiento.monto_centavos, 0);
+}
+
+export async function archivarTesoroPorRest(
+  { entorno, accessToken }: SesionDePrueba,
+  tesoroId: string,
+): Promise<void> {
+  await pedir(entorno, `/rest/v1/tesoros?id=eq.${tesoroId}`, {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ archivado_at: new Date().toISOString() }),
+  });
+}
+
+export interface FilaGuardada {
+  fila: Record<string, unknown> | null;
+  fila_version: number;
+  fila_guardada_at: string | null;
+}
+
+export async function leerLaFila({ entorno, accessToken }: SesionDePrueba): Promise<FilaGuardada> {
+  const filas = (await pedir(
+    entorno,
+    '/rest/v1/ajustes?select=fila,fila_version,fila_guardada_at&deleted_at=is.null',
+    { accessToken },
+  )) as FilaGuardada[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el taller de prueba no tiene ajustes');
+  return fila;
+}
+
+export async function guardarLaFilaPorRpc(
+  { entorno, accessToken }: SesionDePrueba,
+  version: number,
+  fila: Record<string, unknown> | null,
+): Promise<FilaGuardada> {
+  return (await pedir(entorno, '/rest/v1/rpc/guardar_la_fila', {
+    method: 'POST',
+    accessToken,
+    body: JSON.stringify({ p_version: version, p_fila: fila }),
+  })) as FilaGuardada;
+}
+
+export async function sacarLaFila(sesion: SesionDePrueba): Promise<boolean> {
+  const { fila, fila_version } = await leerLaFila(sesion);
+  if (fila === null) return false;
+  await guardarLaFilaPorRpc(sesion, fila_version, null);
+  return true;
+}
+
+export async function archivarLosTesorosDelDueno(sesion: SesionDePrueba): Promise<number> {
+  const tesoros = await tesorosDelTaller(sesion);
+  const delDueno = tesoros.filter((tesoro) => tesoro.clave === null);
+  if (delDueno.length === 0) return 0;
+
+  const maun = tesoros.find((tesoro) => tesoro.clave === 'maun');
+  if (maun === undefined) throw new Error('el taller de prueba no tiene el tesoro maun');
+
+  const pases: string[] = [];
+  for (const tesoro of delDueno) {
+    const saldo = await saldoDelTesoro(sesion, tesoro.id);
+    if (saldo !== 0) {
+      const id = crypto.randomUUID();
+      await movimientosPorRest(sesion, [
+        {
+          id,
+          fecha: hoyEnElTaller(),
+          tipo: 'transferencia',
+          desde_id: saldo > 0 ? tesoro.id : maun.id,
+          hacia_id: saldo > 0 ? maun.id : tesoro.id,
+          monto_centavos: Math.abs(saldo),
+          categoria: '',
+          descripcion: `Lo que quedaba en ${tesoro.nombre}`,
+        },
+      ]);
+      pases.push(id);
+    }
+    await archivarTesoroPorRest(sesion, tesoro.id);
+  }
+  if (pases.length > 0) await vaciarMovimientos(sesion);
+  return delDueno.length;
+}
+
+export interface FilaDeReparto {
+  id: string;
+  posicion: number;
+  tesoro_id: string;
+  nombre: string;
+  tipo: 'paso' | 'parte';
+  clase: string | null;
+  objetivo_centavos: number | null;
+  previo_centavos: number | null;
+  tope_centavos: number | null;
+  por_mes: boolean | null;
+  porcentaje_bp: number | null;
+  monto_centavos: number;
+  fecha: string;
+  ya_en_la_apertura: boolean;
+}
+
+export async function repartosDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<FilaDeReparto[]> {
+  return (await pedir(
+    entorno,
+    `/rest/v1/repartos?select=id,posicion,tesoro_id,nombre,tipo,clase,objetivo_centavos,previo_centavos,tope_centavos,por_mes,porcentaje_bp,monto_centavos,fecha,ya_en_la_apertura&deleted_at=is.null&proyecto_id=eq.${proyectoId}&order=posicion`,
+    { accessToken },
+  )) as FilaDeReparto[];
+}
+
+export interface RepartoLeido {
+  tesoro: string;
+  clase: string | null;
+  objetivo: number | null;
+  previo: number | null;
+  monto: number;
+}
+
+export async function repartoDelCobro(
+  sesion: SesionDePrueba,
+  proyectoId: string,
+): Promise<RepartoLeido[]> {
+  const claves = new Map(
+    (await tesorosDelTaller(sesion, { conLosArchivados: true })).map((tesoro) => [
+      tesoro.id,
+      tesoro.clave ?? tesoro.nombre,
+    ]),
+  );
+  return (await repartosDe(sesion, proyectoId)).map((reparto) => ({
+    tesoro: claves.get(reparto.tesoro_id) ?? reparto.tesoro_id,
+    clase: reparto.clase,
+    objetivo: reparto.objetivo_centavos,
+    previo: reparto.previo_centavos,
+    monto: reparto.monto_centavos,
+  }));
+}
+
 export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarLaVidriera(sesion);
   await vaciarArchivos(sesion);
@@ -548,6 +767,8 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarMovimientos(sesion);
   await vaciarProyectos(sesion);
   await vaciarClientes(sesion);
+  await sacarLaFila(sesion);
+  await archivarLosTesorosDelDueno(sesion);
 }
 
 export async function crearCliente(

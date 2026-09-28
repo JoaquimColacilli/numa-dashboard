@@ -11,8 +11,11 @@ import {
   cobrarPorRpc,
   crearCliente,
   guardarProyectoPorRpc,
+  idDelTesoro,
   iniciarSesionDePrueba,
   movimientosDelTaller,
+  saldoDelTesoro,
+  tesoroPorRest,
   vaciarTaller,
   type SesionDePrueba,
 } from '../apoyo/taller';
@@ -35,6 +38,8 @@ test.beforeEach(async () => {
 interface Carga {
   grupo: string;
   clase?: string;
+  saleDe?: string;
+  entraA?: string;
   monto: string;
   descripcion: string;
   fecha?: string;
@@ -42,16 +47,28 @@ interface Carga {
 
 async function cargar(
   page: Page,
-  { grupo, clase, monto, descripcion, fecha }: Carga,
+  { grupo, clase, saleDe, entraA, monto, descripcion, fecha }: Carga,
 ): Promise<void> {
   await page.getByRole('button', { name: 'Cargar movimiento' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('radio', { name: grupo }).click();
+  const hoja = page.getByRole('dialog');
+  await expect(hoja).toBeVisible();
+  await hoja.getByRole('radio', { name: grupo, exact: true }).click();
   if (clase !== undefined) {
     await page
       .getByRole('group', { name: 'Detalle del tipo' })
       .getByRole('button', { name: clase, exact: true })
       .click();
+  }
+  for (const [lado, tesoro] of [
+    ['Sale de', saleDe],
+    ['Entra a', entraA],
+  ] as const) {
+    if (tesoro === undefined) continue;
+    const opcion = hoja
+      .getByRole('group', { name: lado, exact: true })
+      .getByRole('button', { name: tesoro, exact: true });
+    await opcion.click();
+    await expect(opcion).toHaveAttribute('aria-pressed', 'true');
   }
   await page.getByLabel('Cuánta plata').fill(monto);
   await page.getByLabel('Qué fue').fill(descripcion);
@@ -129,7 +146,7 @@ async function cobrarUnTrabajo(titulo: string, monto: number): Promise<string> {
   return id;
 }
 
-test('los ocho tipos manuales mueven los cuatro tesoros, con la contrapartida de los dos lados', async ({
+test('los nueve tipos manuales mueven los cuatro tesoros, con la contrapartida de los dos lados', async ({
   page,
 }) => {
   const antes = await saldosEnInicio(page);
@@ -163,11 +180,18 @@ test('los ocho tipos manuales mueven los cuatro tesoros, con la contrapartida de
   await cargar(page, { grupo: 'Cocos', clase: 'Retiro', monto: '5.000', descripcion: 'Retiro' });
   await cargar(page, { grupo: 'Cocos', clase: 'Gasto', monto: '1.000', descripcion: 'Sellos' });
   await cargar(page, { grupo: 'Diezmo', monto: '2.000', descripcion: 'Diezmo de septiembre' });
+  await cargar(page, {
+    grupo: 'Entre tesoros',
+    saleDe: 'Maun',
+    entraA: 'Hogar',
+    monto: '30.000',
+    descripcion: 'Para la casa',
+  });
 
   await expect(indicadorDeSync(page)).toBeHidden({ timeout: 30_000 });
 
   const filas = await movimientosDelTaller(sesion);
-  expect(filas).toHaveLength(8);
+  expect(filas).toHaveLength(9);
   expect(
     filas.map((fila) => [fila.tipo, fila.tesoro_origen, fila.tesoro_destino, fila.monto_centavos]),
   ).toEqual(
@@ -180,14 +204,70 @@ test('los ocho tipos manuales mueven los cuatro tesoros, con la contrapartida de
       ['transferencia', 'cocos', 'maun', 500_000],
       ['gasto', 'cocos', null, 100_000],
       ['pago_diezmo', 'diezmo', null, 200_000],
+      ['transferencia', 'maun', 'hogar', 3_000_000],
     ]),
   );
+  expect(filas.find((fila) => fila.descripcion === 'Para la casa')).toMatchObject({
+    desde_id: await idDelTesoro(sesion, 'maun'),
+    hacia_id: await idDelTesoro(sesion, 'hogar'),
+  });
 
   const despues = await saldosEnInicio(page);
-  expect(despues.hogar - antes.hogar).toBe(90_000);
-  expect(despues.maun - antes.maun).toBe(135_000);
+  expect(despues.hogar - antes.hogar).toBe(120_000);
+  expect(despues.maun - antes.maun).toBe(105_000);
   expect(despues.cocos - antes.cocos).toBe(44_000);
   expect(despues.diezmo - antes.diezmo).toBe(-2_000);
+});
+
+test('entre tesoros la plata va a un tesoro del dueño por su id, sin ofrecer el diezmo, y se ve en el libro', async ({
+  page,
+}) => {
+  const herramientas = await tesoroPorRest(sesion, {
+    nombre: 'Herramientas',
+    descripcion: 'Lo del taller nuevo',
+    tinta: 'mostaza',
+    icono: 'wrench',
+  });
+
+  await page.goto('/finanzas');
+  await page.getByRole('button', { name: 'Cargar movimiento' }).click();
+  const hoja = page.getByRole('dialog');
+  await hoja.getByRole('radio', { name: 'Entre tesoros', exact: true }).click();
+  const saleDe = hoja.getByRole('group', { name: 'Sale de', exact: true });
+  const entraA = hoja.getByRole('group', { name: 'Entra a', exact: true });
+  await expect(saleDe.getByRole('button', { name: 'Herramientas', exact: true })).toBeVisible();
+  for (const lado of [saleDe, entraA]) {
+    await expect(lado.getByRole('button', { name: 'Diezmo', exact: true })).toHaveCount(0);
+  }
+  await saleDe.getByRole('button', { name: 'Maun', exact: true }).click();
+  await entraA.getByRole('button', { name: 'Herramientas', exact: true }).click();
+  await expect(entraA.getByRole('button', { name: 'Herramientas', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await hoja.getByLabel('Cuánta plata').fill('45.000');
+  await hoja.getByLabel('Qué fue').fill('Seña de la plegadora');
+  await hoja.getByRole('button', { name: 'Cargar el movimiento' }).click();
+  await expect(hoja).toBeHidden();
+  await expect(indicadorDeSync(page)).toBeHidden({ timeout: 30_000 });
+
+  await esperarMovimientos(1);
+  const [fila] = await movimientosDelTaller(sesion);
+  expect(fila).toMatchObject({
+    tipo: 'transferencia',
+    tesoro_origen: 'maun',
+    tesoro_destino: null,
+    desde_id: await idDelTesoro(sesion, 'maun'),
+    hacia_id: herramientas.id,
+    monto_centavos: 4_500_000,
+  });
+  expect(await saldoDelTesoro(sesion, herramientas.id)).toBe(4_500_000);
+
+  const enElLibro = page.getByRole('button', { name: /Seña de la plegadora/ });
+  await expect(enElLibro).toContainText('Maun');
+  await expect(enElLibro).toContainText('Herramientas');
+  await page.getByRole('button', { name: 'Entre tesoros', exact: true }).click();
+  await expect(enElLibro).toBeVisible();
 });
 
 test('una transferencia es una sola fila que dice de dónde sale y a dónde entra', async ({

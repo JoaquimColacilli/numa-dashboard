@@ -10,6 +10,7 @@ import {
   iniciarSesionDePrueba,
   movimientosPorRest,
   pagosDe,
+  repartosDe,
   vaciarTaller,
   type SesionDePrueba,
 } from '../apoyo/taller';
@@ -203,9 +204,18 @@ test('un cobro de antes de la apertura queda en el libro con su fecha y no mueve
     fecha_cobro: '2026-07-10',
     reparto_ya_en_la_apertura: true,
     dist_diezmo_centavos: 7_000_000,
-    dist_sueldo_centavos: 50_000_000,
-    dist_fijos_centavos: 13_000_000,
+    dist_sueldo_centavos: 0,
+    dist_fijos_centavos: 0,
+    dist_remanente_centavos: 63_000_000,
   });
+  const repartos = await repartosDe(sesion, id);
+  expect(
+    repartos.map((reparto) => [reparto.clase, reparto.monto_centavos, reparto.ya_en_la_apertura]),
+  ).toEqual([
+    ['sueldo', 50_000_000, true],
+    ['fijos', 13_000_000, true],
+  ]);
+  expect(repartos.every((reparto) => reparto.fecha === '2026-07-10')).toBe(true);
 
   expect(await saldosEnInicio(page)).toEqual(antes);
 });
