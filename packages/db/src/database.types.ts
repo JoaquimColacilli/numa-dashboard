@@ -19,6 +19,9 @@ export type Database = {
           created_at: string;
           deleted_at: string | null;
           facebook_link: string;
+          fila: Json | null;
+          fila_guardada_at: string | null;
+          fila_version: number;
           household_id: string;
           id: string;
           instagram_link: string;
@@ -45,6 +48,9 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           facebook_link?: string;
+          fila?: Json | null;
+          fila_guardada_at?: string | null;
+          fila_version?: number;
           household_id?: string;
           id?: string;
           instagram_link?: string;
@@ -71,6 +77,9 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           facebook_link?: string;
+          fila?: Json | null;
+          fila_guardada_at?: string | null;
+          fila_version?: number;
           household_id?: string;
           id?: string;
           instagram_link?: string;
@@ -726,9 +735,12 @@ export type Database = {
         Row: {
           categoria: string;
           created_at: string;
+          cubre_el_mes: string | null;
           deleted_at: string | null;
           descripcion: string;
+          desde_id: string | null;
           fecha: string;
+          hacia_id: string | null;
           household_id: string;
           id: string;
           monto_centavos: number;
@@ -742,9 +754,12 @@ export type Database = {
         Insert: {
           categoria?: string;
           created_at?: string;
+          cubre_el_mes?: string | null;
           deleted_at?: string | null;
           descripcion?: string;
+          desde_id?: string | null;
           fecha: string;
+          hacia_id?: string | null;
           household_id?: string;
           id?: string;
           monto_centavos: number;
@@ -758,9 +773,12 @@ export type Database = {
         Update: {
           categoria?: string;
           created_at?: string;
+          cubre_el_mes?: string | null;
           deleted_at?: string | null;
           descripcion?: string;
+          desde_id?: string | null;
           fecha?: string;
+          hacia_id?: string | null;
           household_id?: string;
           id?: string;
           monto_centavos?: number;
@@ -772,6 +790,20 @@ export type Database = {
           version?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: 'movimientos_desde_fk';
+            columns: ['household_id', 'desde_id'];
+            isOneToOne: false;
+            referencedRelation: 'tesoros';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'movimientos_hacia_fk';
+            columns: ['household_id', 'hacia_id'];
+            isOneToOne: false;
+            referencedRelation: 'tesoros';
+            referencedColumns: ['household_id', 'id'];
+          },
           {
             foreignKeyName: 'movimientos_household_id_fkey';
             columns: ['household_id'];
@@ -1176,10 +1208,13 @@ export type Database = {
           dist_diezmo_centavos: number | null;
           dist_fijos_centavos: number | null;
           dist_fijos_previo_centavos: number | null;
+          dist_fila: Json | null;
+          dist_fila_version: number | null;
           dist_gastos_centavos: number | null;
           dist_liquidado_at: string | null;
           dist_objetivo_fijos_centavos: number | null;
           dist_objetivo_sueldo_centavos: number | null;
+          dist_previo: Json | null;
           dist_remanente_centavos: number | null;
           dist_sueldo_centavos: number | null;
           dist_sueldo_mensual: boolean | null;
@@ -1209,6 +1244,7 @@ export type Database = {
           presupuesto_pdf: boolean;
           presupuesto_vale_hasta: string | null;
           reapertura_fecha_cobro: string | null;
+          reapertura_fila: Json | null;
           reapertura_objetivo_fijos_centavos: number | null;
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
@@ -1242,10 +1278,13 @@ export type Database = {
           dist_diezmo_centavos?: number | null;
           dist_fijos_centavos?: number | null;
           dist_fijos_previo_centavos?: number | null;
+          dist_fila?: Json | null;
+          dist_fila_version?: number | null;
           dist_gastos_centavos?: number | null;
           dist_liquidado_at?: string | null;
           dist_objetivo_fijos_centavos?: number | null;
           dist_objetivo_sueldo_centavos?: number | null;
+          dist_previo?: Json | null;
           dist_remanente_centavos?: number | null;
           dist_sueldo_centavos?: number | null;
           dist_sueldo_mensual?: boolean | null;
@@ -1275,6 +1314,7 @@ export type Database = {
           presupuesto_pdf?: boolean;
           presupuesto_vale_hasta?: string | null;
           reapertura_fecha_cobro?: string | null;
+          reapertura_fila?: Json | null;
           reapertura_objetivo_fijos_centavos?: number | null;
           reapertura_objetivo_sueldo_centavos?: number | null;
           reapertura_sueldo_mensual?: boolean | null;
@@ -1308,10 +1348,13 @@ export type Database = {
           dist_diezmo_centavos?: number | null;
           dist_fijos_centavos?: number | null;
           dist_fijos_previo_centavos?: number | null;
+          dist_fila?: Json | null;
+          dist_fila_version?: number | null;
           dist_gastos_centavos?: number | null;
           dist_liquidado_at?: string | null;
           dist_objetivo_fijos_centavos?: number | null;
           dist_objetivo_sueldo_centavos?: number | null;
+          dist_previo?: Json | null;
           dist_remanente_centavos?: number | null;
           dist_sueldo_centavos?: number | null;
           dist_sueldo_mensual?: boolean | null;
@@ -1341,6 +1384,7 @@ export type Database = {
           presupuesto_pdf?: boolean;
           presupuesto_vale_hasta?: string | null;
           reapertura_fecha_cobro?: string | null;
+          reapertura_fila?: Json | null;
           reapertura_objetivo_fijos_centavos?: number | null;
           reapertura_objetivo_sueldo_centavos?: number | null;
           reapertura_sueldo_mensual?: boolean | null;
@@ -1442,6 +1486,97 @@ export type Database = {
             columns: ['household_id', 'respuesta_id'];
             isOneToOne: false;
             referencedRelation: 'respuestas';
+            referencedColumns: ['household_id', 'id'];
+          },
+        ];
+      };
+      repartos: {
+        Row: {
+          clase: string | null;
+          created_at: string;
+          deleted_at: string | null;
+          fecha: string;
+          household_id: string;
+          id: string;
+          monto_centavos: number;
+          nombre: string;
+          objetivo_centavos: number | null;
+          por_mes: boolean | null;
+          porcentaje_bp: number | null;
+          posicion: number;
+          previo_centavos: number | null;
+          proyecto_id: string;
+          tesoro_id: string;
+          tipo: string;
+          tope_centavos: number | null;
+          updated_at: string;
+          version: number;
+          ya_en_la_apertura: boolean;
+        };
+        Insert: {
+          clase?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          fecha: string;
+          household_id?: string;
+          id?: string;
+          monto_centavos: number;
+          nombre: string;
+          objetivo_centavos?: number | null;
+          por_mes?: boolean | null;
+          porcentaje_bp?: number | null;
+          posicion: number;
+          previo_centavos?: number | null;
+          proyecto_id: string;
+          tesoro_id: string;
+          tipo: string;
+          tope_centavos?: number | null;
+          updated_at?: string;
+          version?: number;
+          ya_en_la_apertura?: boolean;
+        };
+        Update: {
+          clase?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          fecha?: string;
+          household_id?: string;
+          id?: string;
+          monto_centavos?: number;
+          nombre?: string;
+          objetivo_centavos?: number | null;
+          por_mes?: boolean | null;
+          porcentaje_bp?: number | null;
+          posicion?: number;
+          previo_centavos?: number | null;
+          proyecto_id?: string;
+          tesoro_id?: string;
+          tipo?: string;
+          tope_centavos?: number | null;
+          updated_at?: string;
+          version?: number;
+          ya_en_la_apertura?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'repartos_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'repartos_proyecto_fk';
+            columns: ['household_id', 'proyecto_id'];
+            isOneToOne: false;
+            referencedRelation: 'proyectos';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'repartos_tesoro_fk';
+            columns: ['household_id', 'tesoro_id'];
+            isOneToOne: false;
+            referencedRelation: 'tesoros';
             referencedColumns: ['household_id', 'id'];
           },
         ];
@@ -1557,6 +1692,68 @@ export type Database = {
           },
         ];
       };
+      tesoros: {
+        Row: {
+          archivado_at: string | null;
+          clave: Database['public']['Enums']['tesoro'] | null;
+          created_at: string;
+          deleted_at: string | null;
+          descripcion: string;
+          household_id: string;
+          icono: string;
+          id: string;
+          meta_centavos: number | null;
+          nombre: string;
+          orden: number;
+          rinde_anual_bp: number | null;
+          tinta: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          archivado_at?: string | null;
+          clave?: Database['public']['Enums']['tesoro'] | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          descripcion?: string;
+          household_id?: string;
+          icono: string;
+          id?: string;
+          meta_centavos?: number | null;
+          nombre: string;
+          orden?: number;
+          rinde_anual_bp?: number | null;
+          tinta: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          archivado_at?: string | null;
+          clave?: Database['public']['Enums']['tesoro'] | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          descripcion?: string;
+          household_id?: string;
+          icono?: string;
+          id?: string;
+          meta_centavos?: number | null;
+          nombre?: string;
+          orden?: number;
+          rinde_anual_bp?: number | null;
+          tinta?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tesoros_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       libro_mayor: {
@@ -1565,6 +1762,7 @@ export type Database = {
           categoria: string | null;
           concepto: string | null;
           contrapartida: Database['public']['Enums']['tesoro'] | null;
+          contrapartida_id: string | null;
           descripcion: string | null;
           fecha: string | null;
           household_id: string | null;
@@ -1572,6 +1770,7 @@ export type Database = {
           origen: string | null;
           proyecto_id: string | null;
           tesoro: Database['public']['Enums']['tesoro'] | null;
+          tesoro_id: string | null;
           ya_en_la_apertura: boolean | null;
         };
         Relationships: [];
@@ -1596,9 +1795,12 @@ export type Database = {
           p_fecha: string;
           p_fijos_centavos: number;
           p_fijos_previo_centavos?: number;
+          p_fila_version?: number;
           p_gastos_centavos: number;
+          p_previo?: Json;
           p_proyecto_id: string;
           p_remanente_centavos: number;
+          p_repartos?: Json;
           p_sueldo_centavos: number;
           p_sueldo_previo_centavos?: number;
           p_tope_fijos_centavos: number;
@@ -1624,10 +1826,13 @@ export type Database = {
           dist_diezmo_centavos: number | null;
           dist_fijos_centavos: number | null;
           dist_fijos_previo_centavos: number | null;
+          dist_fila: Json | null;
+          dist_fila_version: number | null;
           dist_gastos_centavos: number | null;
           dist_liquidado_at: string | null;
           dist_objetivo_fijos_centavos: number | null;
           dist_objetivo_sueldo_centavos: number | null;
+          dist_previo: Json | null;
           dist_remanente_centavos: number | null;
           dist_sueldo_centavos: number | null;
           dist_sueldo_mensual: boolean | null;
@@ -1657,6 +1862,7 @@ export type Database = {
           presupuesto_pdf: boolean;
           presupuesto_vale_hasta: string | null;
           reapertura_fecha_cobro: string | null;
+          reapertura_fila: Json | null;
           reapertura_objetivo_fijos_centavos: number | null;
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
@@ -1686,9 +1892,12 @@ export type Database = {
           p_fecha_cobro: string;
           p_fijos_centavos: number;
           p_fijos_previo_centavos?: number;
+          p_fila_version?: number;
           p_gastos_centavos: number;
+          p_previo?: Json;
           p_proyecto_id: string;
           p_remanente_centavos: number;
+          p_repartos?: Json;
           p_sueldo_centavos: number;
           p_sueldo_previo_centavos?: number;
           p_tope_fijos_centavos: number;
@@ -1714,10 +1923,13 @@ export type Database = {
           dist_diezmo_centavos: number | null;
           dist_fijos_centavos: number | null;
           dist_fijos_previo_centavos: number | null;
+          dist_fila: Json | null;
+          dist_fila_version: number | null;
           dist_gastos_centavos: number | null;
           dist_liquidado_at: string | null;
           dist_objetivo_fijos_centavos: number | null;
           dist_objetivo_sueldo_centavos: number | null;
+          dist_previo: Json | null;
           dist_remanente_centavos: number | null;
           dist_sueldo_centavos: number | null;
           dist_sueldo_mensual: boolean | null;
@@ -1747,6 +1959,7 @@ export type Database = {
           presupuesto_pdf: boolean;
           presupuesto_vale_hasta: string | null;
           reapertura_fecha_cobro: string | null;
+          reapertura_fila: Json | null;
           reapertura_objetivo_fijos_centavos: number | null;
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
@@ -1780,6 +1993,44 @@ export type Database = {
       delta: { Args: { p_desde: string }; Returns: Json };
       encuesta_compartida: { Args: { p_token: string }; Returns: Json };
       estado_de_mis_avisos: { Args: { p_endpoint?: string }; Returns: Json };
+      guardar_la_fila: {
+        Args: { p_fila: Json; p_version: number };
+        Returns: {
+          cobro_alias: string;
+          cobro_cbu: string;
+          cobro_cuit: string;
+          cobro_link: string;
+          cobro_titular: string;
+          costos_fijos_centavos: number;
+          created_at: string;
+          deleted_at: string | null;
+          facebook_link: string;
+          fila: Json | null;
+          fila_guardada_at: string | null;
+          fila_version: number;
+          household_id: string;
+          id: string;
+          instagram_link: string;
+          meta_cocos_centavos: number;
+          perdido_con_diezmo: boolean;
+          perdido_con_sueldo: boolean;
+          presupuesto_vale_dias: number;
+          resena_link: string;
+          sena_bp: number;
+          sueldo_mensual_centavos: number;
+          sueldo_tope_mensual: boolean;
+          tasa_cocos_anual_bp: number;
+          tiktok_link: string;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'ajustes';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       guardar_preferencias_de_avisos: {
         Args: { p_avisos: Json; p_hora: string; p_zona: string };
         Returns: Json;
@@ -1819,10 +2070,13 @@ export type Database = {
           dist_diezmo_centavos: number | null;
           dist_fijos_centavos: number | null;
           dist_fijos_previo_centavos: number | null;
+          dist_fila: Json | null;
+          dist_fila_version: number | null;
           dist_gastos_centavos: number | null;
           dist_liquidado_at: string | null;
           dist_objetivo_fijos_centavos: number | null;
           dist_objetivo_sueldo_centavos: number | null;
+          dist_previo: Json | null;
           dist_remanente_centavos: number | null;
           dist_sueldo_centavos: number | null;
           dist_sueldo_mensual: boolean | null;
@@ -1852,6 +2106,7 @@ export type Database = {
           presupuesto_pdf: boolean;
           presupuesto_vale_hasta: string | null;
           reapertura_fecha_cobro: string | null;
+          reapertura_fila: Json | null;
           reapertura_objetivo_fijos_centavos: number | null;
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
@@ -1898,10 +2153,13 @@ export type Database = {
           dist_diezmo_centavos: number | null;
           dist_fijos_centavos: number | null;
           dist_fijos_previo_centavos: number | null;
+          dist_fila: Json | null;
+          dist_fila_version: number | null;
           dist_gastos_centavos: number | null;
           dist_liquidado_at: string | null;
           dist_objetivo_fijos_centavos: number | null;
           dist_objetivo_sueldo_centavos: number | null;
+          dist_previo: Json | null;
           dist_remanente_centavos: number | null;
           dist_sueldo_centavos: number | null;
           dist_sueldo_mensual: boolean | null;
@@ -1931,6 +2189,7 @@ export type Database = {
           presupuesto_pdf: boolean;
           presupuesto_vale_hasta: string | null;
           reapertura_fecha_cobro: string | null;
+          reapertura_fila: Json | null;
           reapertura_objetivo_fijos_centavos: number | null;
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
