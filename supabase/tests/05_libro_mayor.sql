@@ -1,6 +1,8 @@
--- El libro mayor: cada asiento en los tesoros que toca, con signo, y sin lo borrado.
+-- El libro mayor: cada asiento en los tesoros que toca, con signo, y sin lo borrado. Desde el ADR 0078
+-- lleva también los tesoros por id, así llegan los movimientos entre los tesoros del dueño. Los
+-- repartos de un cobro por la fila se prueban en 38_el_cobro_por_la_fila.sql.
 
-select plan(10);
+select plan(15);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -110,6 +112,75 @@ select is(
   (select count(distinct origen)::int from public.libro_mayor),
   4,
   'el campo origen distingue lo manual de lo derivado de proyectos: manual, pago, gasto_proyecto y distribucion'
+);
+
+
+-- Los tesoros por id (ADR 0078) ------------------------------------------------------------------
+
+select is(
+  (
+    select array_agg(a.attname::text || ' ' || format_type(a.atttypid, a.atttypmod) order by a.attnum)
+    from pg_attribute a
+    where a.attrelid = 'public.libro_mayor'::regclass and a.attnum > 0 and not a.attisdropped
+      and a.attname in ('tesoro_id', 'contrapartida_id')
+  ),
+  array['tesoro_id uuid', 'contrapartida_id uuid'],
+  'la vista suma al final el tesoro y la contrapartida por id'
+);
+
+select is_empty(
+  $$
+    select l.origen, l.asiento_id
+    from public.libro_mayor l
+    left join public.tesoros t on t.id = l.tesoro_id
+    left join public.tesoros c on c.id = l.contrapartida_id
+    where t.clave is distinct from l.tesoro or c.clave is distinct from l.contrapartida
+  $$,
+  'en cada asiento de los tesoros de siempre, el id y la clave nombran al mismo tesoro'
+);
+
+-- Dos tesoros del dueño, sin clave, y una transferencia entre ellos.
+insert into public.tesoros (id, nombre, tinta, icono) values
+  ('aaaaaaaa-0000-7000-8000-000000000021', 'Herramientas', 'grana', 'wrench'),
+  ('aaaaaaaa-0000-7000-8000-000000000022', 'Materiales', 'mostaza', 'package');
+insert into public.movimientos (id, fecha, tipo, desde_id, hacia_id, monto_centavos) values
+  ('aaaaaaaa-0000-7000-8000-000000000005', '2026-09-05', 'transferencia', 'aaaaaaaa-0000-7000-8000-000000000021', 'aaaaaaaa-0000-7000-8000-000000000022', 400);
+
+select results_eq(
+  $$
+    select tesoro::text, contrapartida::text, tesoro_id, contrapartida_id, monto_centavos
+    from public.libro_mayor
+    where asiento_id = 'aaaaaaaa-0000-7000-8000-000000000005'
+    order by monto_centavos
+  $$,
+  $$
+    values
+      (null::text, null::text, 'aaaaaaaa-0000-7000-8000-000000000021'::uuid, 'aaaaaaaa-0000-7000-8000-000000000022'::uuid, -400::bigint),
+      (null::text, null::text, 'aaaaaaaa-0000-7000-8000-000000000022'::uuid, 'aaaaaaaa-0000-7000-8000-000000000021'::uuid, 400::bigint)
+  $$,
+  'una transferencia entre dos tesoros del dueño llega al libro con sus dos lados por id y la clave en null'
+);
+
+select results_eq(
+  $$
+    select tesoro_id, sum(monto_centavos)::bigint
+    from public.libro_mayor
+    where tesoro_id in ('aaaaaaaa-0000-7000-8000-000000000021', 'aaaaaaaa-0000-7000-8000-000000000022')
+    group by tesoro_id
+    order by tesoro_id
+  $$,
+  $$
+    values
+      ('aaaaaaaa-0000-7000-8000-000000000021'::uuid, -400::bigint),
+      ('aaaaaaaa-0000-7000-8000-000000000022'::uuid, 400::bigint)
+  $$,
+  'y el saldo de cada uno sale de sumar por tesoro_id'
+);
+
+select results_eq(
+  $$ select tesoro::text, sum(monto_centavos)::bigint from public.libro_mayor where tesoro is not null group by tesoro order by tesoro::text $$,
+  $$ values ('cocos', 300::bigint), ('diezmo', 650::bigint), ('hogar', 7300::bigint), ('maun', -300::bigint) $$,
+  'y los saldos de los cuatro de siempre no cambian'
 );
 
 select * from finish();
