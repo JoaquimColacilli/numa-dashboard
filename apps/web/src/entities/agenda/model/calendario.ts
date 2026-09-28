@@ -77,37 +77,40 @@ function plural(cantidad: number, singular: string, varios: string): string {
 }
 
 interface CuentaDeLoPendiente {
-  compromisos: number;
+  citas: number;
+  vencimientos: number;
   anotadas: number;
   hechas: number;
 }
 
 function cuentaDeLoPendiente(eventos: readonly EventoDeLaAgenda[]): CuentaDeLoPendiente {
   const pendientes = eventos.filter((evento) => !estaHecha(evento));
-  const compromisos = pendientes.filter((evento) => evento.clase !== 'propia').length;
+  const deLaClase = (clase: EventoDeLaAgenda['clase']) =>
+    pendientes.filter((evento) => evento.clase === clase).length;
   return {
-    compromisos,
-    anotadas: pendientes.length - compromisos,
+    citas: deLaClase('derivada'),
+    vencimientos: deLaClase('vencimiento'),
+    anotadas: deLaClase('propia'),
     hechas: eventos.length - pendientes.length,
   };
 }
 
 export function resumenDelMes(eventos: readonly EventoDeLaAgenda[]): string {
   if (eventos.length === 0) return 'sin nada agendado';
-  const { compromisos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
-  const partes = [
-    plural(compromisos, 'compromiso', 'compromisos'),
-    plural(anotadas, 'anotación', 'anotaciones'),
-  ];
+  const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
+  const partes = [plural(citas, 'cita', 'citas')];
+  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
+  partes.push(plural(anotadas, 'anotación', 'anotaciones'));
   if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
   return partes.join(' · ');
 }
 
 export function resumenDelDia(eventos: readonly EventoDeLaAgenda[]): string {
-  const { compromisos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
+  const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
 
   const partes: string[] = [];
-  if (compromisos > 0) partes.push(plural(compromisos, 'compromiso', 'compromisos'));
+  if (citas > 0) partes.push(plural(citas, 'cita', 'citas'));
+  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
   if (anotadas > 0) partes.push(plural(anotadas, 'cosa anotada', 'cosas anotadas'));
   if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
   return partes.length === 0 ? 'Nada agendado' : partes.join(' · ');

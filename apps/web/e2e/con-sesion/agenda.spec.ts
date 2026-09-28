@@ -297,7 +297,7 @@ test('con datos resume el mes y muestra lo del día, y sin señal se ve igual', 
   });
   await abrirLaAgenda(page);
 
-  await expect(page.getByText('1 compromiso · 2 anotaciones')).toBeVisible();
+  await expect(page.getByText('1 cita · 2 anotaciones')).toBeVisible();
   if (isMobile) {
     await expect(page.getByRole('group', { name: 'Días del mes' })).toBeVisible();
     const hoy = page.getByRole('region', { name: diaEnPalabras(HOY) });
@@ -319,7 +319,7 @@ test('con datos resume el mes y muestra lo del día, y sin señal se ve igual', 
   await page.close();
   const reabierta = await context.newPage();
   await reabierta.goto('/agenda');
-  await expect(reabierta.getByText('1 compromiso · 2 anotaciones')).toBeVisible(CARGA);
+  await expect(reabierta.getByText('1 cita · 2 anotaciones')).toBeVisible(CARGA);
   await expect(laAnotacionDeHoy(reabierta, isMobile, 'E2E Retirar el pulpo')).toBeVisible();
   await reabierta.screenshot({
     path: testInfo.outputPath(`agenda-${isMobile ? 'celular' : 'escritorio'}-sin-senal.png`),
