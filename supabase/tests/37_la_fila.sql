@@ -41,14 +41,17 @@ exception
 end;
 $$;
 
--- Las piezas de una fila, como las arma la app.
+-- Las piezas de una fila, como las arma la app: con el diezmo al 10% sobre el ingreso como única
+-- obligación, todo por mes, sin metas y lo que sobra en Maun. Los tipos de tesoro, en
+-- 39_los_tipos_de_tesoro.sql.
 create function tests.paso(p_tesoro uuid, p_clase text, p_tope bigint, p_renglones jsonb default '[]')
 returns jsonb
 language sql
 immutable
 as $$
   select jsonb_build_object(
-    'tesoro', p_tesoro, 'clase', p_clase, 'tope', p_tope, 'renglones', p_renglones, 'desde', null
+    'tesoro', p_tesoro, 'clase', p_clase, 'tope', p_tope, 'renglones', p_renglones, 'desde', null,
+    'modo', 'mes', 'hastaLaMeta', false
   )
 $$;
 
@@ -57,15 +60,23 @@ returns jsonb
 language sql
 immutable
 as $$
-  select jsonb_build_object('tesoro', p_tesoro, 'porcentaje', p_porcentaje)
+  select jsonb_build_object('tesoro', p_tesoro, 'porcentaje', p_porcentaje, 'hastaLaMeta', false)
 $$;
 
 create function tests.fila(p_pasos jsonb, p_reparto jsonb default '[]', p_por_trabajo boolean default false)
 returns jsonb
 language sql
-immutable
+stable
 as $$
-  select jsonb_build_object('pasos', p_pasos, 'reparto', p_reparto, 'sueldoPorTrabajo', p_por_trabajo)
+  select jsonb_build_object(
+    'obligaciones', jsonb_build_array(
+      jsonb_build_object('tesoro', tests.id('diezmo'), 'porcentaje', 1000, 'base', 'ingreso')
+    ),
+    'pasos', p_pasos,
+    'reparto', p_reparto,
+    'superavit', tests.id('maun'),
+    'sueldoPorTrabajo', p_por_trabajo
+  )
 $$;
 
 create function tests.fila_uno()
@@ -280,8 +291,8 @@ select is(
   tests.rechazo_de($$
     select public.guardar_la_fila(tests.revision(), tests.fila(jsonb_build_array(tests.paso(tests.id('diezmo'), 'prioridad', 100))))
   $$),
-  'MN023 diezmo-en-la-fila',
-  'el diezmo no está en la fila: sale siempre primero'
+  'MN023 tesoro-repetido',
+  'el diezmo va entre las obligaciones: como paso, es un tesoro que ya está en la fila'
 );
 
 select is(
