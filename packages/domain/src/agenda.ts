@@ -1,22 +1,32 @@
 import type { FranjaDeEntrega } from './entrega.ts';
 import { faseDe, type EstadoProyecto } from './estados.ts';
-import { diasEntre, sumarDias } from './fechas.ts';
+import { diasEntre, esMes, mesesDelRango, sumarDias } from './fechas.ts';
+import { vencimientosDelPaso, type Fila, type GastoDeUnTesoro } from './fila.ts';
+import type { Money } from './money.ts';
 
 export const CATEGORIAS_DEL_TRABAJO = ['presupuesto', 'visita', 'entrega'] as const;
 
 export const CATEGORIAS_DERIVADAS = [...CATEGORIAS_DEL_TRABAJO, 'seguimiento'] as const;
 
+export const CATEGORIA_DEL_VENCIMIENTO = 'vencimiento';
+
 export const CATEGORIAS_PROPIAS = ['materiales', 'taller'] as const;
 
-export const CATEGORIAS_DE_AGENDA = [...CATEGORIAS_DERIVADAS, ...CATEGORIAS_PROPIAS] as const;
+export const CATEGORIAS_DE_AGENDA = [
+  ...CATEGORIAS_DERIVADAS,
+  CATEGORIA_DEL_VENCIMIENTO,
+  ...CATEGORIAS_PROPIAS,
+] as const;
 
 export type CategoriaDelTrabajo = (typeof CATEGORIAS_DEL_TRABAJO)[number];
 
 export type CategoriaDerivada = (typeof CATEGORIAS_DERIVADAS)[number];
 
+export type CategoriaDelVencimiento = typeof CATEGORIA_DEL_VENCIMIENTO;
+
 export type CategoriaPropia = (typeof CATEGORIAS_PROPIAS)[number];
 
-export type CategoriaDeAgenda = CategoriaDerivada | CategoriaPropia;
+export type CategoriaDeAgenda = CategoriaDerivada | CategoriaDelVencimiento | CategoriaPropia;
 
 export interface ProyectoDeLaAgenda {
   id: string;
@@ -61,11 +71,22 @@ export interface ProximoDeLaAgenda {
   importante: boolean;
 }
 
+export interface VencimientoDeLaAgenda {
+  id: string;
+  tesoro: string;
+  nombreDelTesoro: string;
+  renglon: string;
+  monto: Money;
+  fecha: string;
+  pagado: boolean;
+}
+
 export interface DatosDeLaAgenda {
   proyectos: readonly ProyectoDeLaAgenda[];
   clientes: readonly ClienteDeLaAgenda[];
   anotaciones: readonly AnotacionDeLaAgenda[];
   proximos: readonly ProximoDeLaAgenda[];
+  vencimientos: readonly VencimientoDeLaAgenda[];
 }
 
 export interface RangoDeLaAgenda {
@@ -103,7 +124,21 @@ export interface EventoPropio {
   importante: boolean;
 }
 
-export type EventoDeLaAgenda = EventoDerivado | EventoPropio;
+export interface EventoVencimiento {
+  clase: 'vencimiento';
+  id: string;
+  categoria: CategoriaDelVencimiento;
+  fecha: string;
+  hora: null;
+  tesoro: string;
+  nombreDelTesoro: string;
+  renglon: string;
+  monto: Money;
+  hecha: boolean;
+  importante: boolean;
+}
+
+export type EventoDeLaAgenda = EventoDerivado | EventoPropio | EventoVencimiento;
 
 const ESTADOS_CON_LA_ENTREGA_HECHA: readonly EstadoProyecto[] = ['entregado', 'cobrado'];
 
@@ -112,8 +147,9 @@ const PESO_DE_LA_CATEGORIA: Readonly<Record<CategoriaDeAgenda, number>> = {
   visita: 1,
   entrega: 2,
   seguimiento: 3,
-  materiales: 4,
-  taller: 5,
+  vencimiento: 4,
+  materiales: 5,
+  taller: 6,
 };
 
 function entregaHecha(estado: EstadoProyecto): boolean {
@@ -229,8 +265,26 @@ function propioDeLaAnotacion(
   };
 }
 
+function eventoDelVencimiento(vencimiento: VencimientoDeLaAgenda): EventoVencimiento {
+  return {
+    clase: 'vencimiento',
+    id: vencimiento.id,
+    categoria: CATEGORIA_DEL_VENCIMIENTO,
+    fecha: vencimiento.fecha,
+    hora: null,
+    tesoro: vencimiento.tesoro,
+    nombreDelTesoro: vencimiento.nombreDelTesoro,
+    renglon: vencimiento.renglon,
+    monto: vencimiento.monto,
+    hecha: vencimiento.pagado,
+    importante: false,
+  };
+}
+
 function textoDe(evento: EventoDeLaAgenda): string {
-  return evento.clase === 'propia' ? evento.texto : evento.titulo;
+  if (evento.clase === 'propia') return evento.texto;
+  if (evento.clase === 'vencimiento') return evento.renglon;
+  return evento.titulo;
 }
 
 function compararEventos(uno: EventoDeLaAgenda, otro: EventoDeLaAgenda): number {
@@ -279,6 +333,9 @@ export function eventosDeLaAgenda(
     const evento = derivadoDelSeguimiento(proximo, proyecto, clientes.get(proyecto.clienteId));
     if (adentro(evento.fecha)) eventos.push(evento);
   }
+  for (const vencimiento of datos.vencimientos) {
+    if (adentro(vencimiento.fecha)) eventos.push(eventoDelVencimiento(vencimiento));
+  }
   for (const anotacion of datos.anotaciones) {
     if (!adentro(anotacion.fecha)) continue;
     const proyecto =
@@ -287,6 +344,48 @@ export function eventosDeLaAgenda(
   }
 
   return eventos.sort(compararEventos);
+}
+
+export interface RangoDeMeses {
+  desde: string;
+  hasta: string;
+}
+
+export interface EntradaDeLosVencimientos {
+  fila: Fila;
+  nombres: ReadonlyMap<string, string>;
+  guardada: string | null;
+  gastos: readonly GastoDeUnTesoro[];
+}
+
+export function vencimientosDeLaFila(
+  entrada: EntradaDeLosVencimientos,
+  meses: RangoDeMeses,
+): VencimientoDeLaAgenda[] {
+  const lista = mesesDelRango(meses.desde, meses.hasta);
+  if (entrada.guardada !== null && !esMes(entrada.guardada)) {
+    throw new RangeError(`El mes del guardado va como AAAA-MM: ${entrada.guardada} no.`);
+  }
+
+  const vencimientos: VencimientoDeLaAgenda[] = [];
+  for (const paso of entrada.fila.pasos) {
+    const rige = paso.desde ?? entrada.guardada;
+    for (const mes of lista) {
+      if (rige !== null && mes < rige) continue;
+      for (const vencimiento of vencimientosDelPaso(paso, mes, entrada.gastos)) {
+        vencimientos.push({
+          id: `vencimiento:${paso.tesoro}:${String(vencimiento.indice)}:${vencimiento.fecha}`,
+          tesoro: paso.tesoro,
+          nombreDelTesoro: entrada.nombres.get(paso.tesoro) ?? '',
+          renglon: vencimiento.renglon,
+          monto: vencimiento.monto,
+          fecha: vencimiento.fecha,
+          pagado: vencimiento.pagado,
+        });
+      }
+    }
+  }
+  return vencimientos;
 }
 
 export interface RangoDeHoras {
@@ -355,7 +454,9 @@ export function diaPorHoras(
 }
 
 export function puedeArrastrarse(evento: EventoDeLaAgenda): boolean {
-  if (evento.hecha || evento.categoria === 'seguimiento') return false;
+  if (evento.clase === 'vencimiento' || evento.hecha || evento.categoria === 'seguimiento') {
+    return false;
+  }
   return evento.clase === 'propia' || !evento.comprometida;
 }
 
@@ -364,6 +465,7 @@ export const AVISOS_DE_LA_AGENDA = [
   'visitas',
   'presupuestos',
   'seguimientos',
+  'vencimientos',
   'anotaciones',
 ] as const;
 
@@ -385,6 +487,7 @@ export const PREFERENCIAS_INICIALES: PreferenciasDeAvisos = {
   visitas: { activo: true, anticipacion: 1 },
   presupuestos: { activo: true, anticipacion: 1 },
   seguimientos: { activo: true, anticipacion: 0 },
+  vencimientos: { activo: true, anticipacion: 0 },
   anotaciones: { activo: false, anticipacion: 0 },
 };
 
@@ -393,6 +496,7 @@ export const AVISO_DE_LA_CATEGORIA: Readonly<Record<CategoriaDeAgenda, AvisoDeLa
   visita: 'visitas',
   presupuesto: 'presupuestos',
   seguimiento: 'seguimientos',
+  vencimiento: 'vencimientos',
   materiales: 'anotaciones',
   taller: 'anotaciones',
 };

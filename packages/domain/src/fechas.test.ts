@@ -4,14 +4,50 @@ import {
   DIAS_HABILES_DE_ENTREGA,
   DIAS_HABILES_PARA_PRESUPUESTAR,
   diaDeLaSemana,
+  diaDelMes,
   diasEntre,
   entregaEstimada,
   esFechaQueExiste,
   mesDe,
+  mesesDelRango,
   sumarDias,
   sumarDiasHabiles,
   vencimientoDelPresupuesto,
 } from './fechas.ts';
+
+describe('mesesDelRango', () => {
+  it('son los meses de uno a otro, los dos incluidos, cruzando el año', () => {
+    expect(mesesDelRango('2026-11', '2027-02')).toEqual([
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+    ]);
+    expect(mesesDelRango('2026-09', '2026-09')).toEqual(['2026-09']);
+  });
+
+  it('rechaza un rango al revés o un mes mal escrito', () => {
+    expect(() => mesesDelRango('2026-10', '2026-09')).toThrow(RangeError);
+    expect(() => mesesDelRango('2026-9', '2026-10')).toThrow(RangeError);
+    expect(() => mesesDelRango('2026-09', '2026-13')).toThrow(RangeError);
+  });
+});
+
+describe('diaDelMes', () => {
+  it('es ese día del mes, o el último si el mes no lo tiene', () => {
+    expect(diaDelMes('2026-09', 10)).toBe('2026-09-10');
+    expect(diaDelMes('2026-09', 31)).toBe('2026-09-30');
+    expect(diaDelMes('2026-10', 31)).toBe('2026-10-31');
+    expect(diaDelMes('2027-02', 30)).toBe('2027-02-28');
+    expect(diaDelMes('2028-02', 30)).toBe('2028-02-29');
+    expect(diaDelMes('2026-12', 1)).toBe('2026-12-01');
+  });
+
+  it('rechaza un día fuera del 1 al 31 o un mes mal escrito', () => {
+    for (const dia of [0, 32, 1.5]) expect(() => diaDelMes('2026-09', dia)).toThrow(RangeError);
+    expect(() => diaDelMes('septiembre', 1)).toThrow(RangeError);
+  });
+});
 
 describe('esFechaQueExiste', () => {
   it('es una fecha AAAA-MM-DD que está en el calendario', () => {

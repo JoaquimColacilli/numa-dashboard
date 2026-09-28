@@ -110,3 +110,43 @@ export function mesDe(fecha: string): string {
   diaDesdeEpoca(fecha);
   return fecha.slice(0, 7);
 }
+
+const FORMATO_DEL_MES = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+export function esMes(mes: string): boolean {
+  return FORMATO_DEL_MES.test(mes);
+}
+
+function mesDesdeEpoca(mes: string): number {
+  const partes = FORMATO_DEL_MES.exec(mes);
+  if (partes === null) throw new RangeError(`Un mes va como AAAA-MM: ${mes} no.`);
+  return Number(partes[1]) * 12 + Number(partes[2]) - 1;
+}
+
+function mesDesdeNumero(numero: number): string {
+  const anio = String(Math.floor(numero / 12)).padStart(4, '0');
+  const mes = String((numero % 12) + 1).padStart(2, '0');
+  return `${anio}-${mes}`;
+}
+
+export function mesesDelRango(desde: string, hasta: string): string[] {
+  const inicio = mesDesdeEpoca(desde);
+  const fin = mesDesdeEpoca(hasta);
+  if (fin < inicio) {
+    throw new RangeError(
+      `El rango de meses va de un mes a otro igual o posterior: ${desde} a ${hasta} no.`,
+    );
+  }
+  const meses: string[] = [];
+  for (let numero = inicio; numero <= fin; numero += 1) meses.push(mesDesdeNumero(numero));
+  return meses;
+}
+
+export function diaDelMes(mes: string, dia: number): string {
+  const numero = mesDesdeEpoca(mes);
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) {
+    throw new RangeError(`El día del mes va del 1 al 31: ${String(dia)} no.`);
+  }
+  const ultimo = new Date(Date.UTC(Math.floor(numero / 12), (numero % 12) + 1, 0)).getUTCDate();
+  return `${mes}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`;
+}
