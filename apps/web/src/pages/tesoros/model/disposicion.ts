@@ -1,30 +1,45 @@
 import {
   CERO,
+  moverObligacion,
+  moverPaso,
   restar,
+  tipoDelPaso,
   type CambioDeLaFila,
+  type Fila,
   type FilaDelMes,
   type LiquidacionPorLaFila,
+  type MetaDelMes,
   type Money,
+  type ObligacionDeLaFila,
   type PasoDeLaFila,
   type PasoDelMes,
-  type PuntosBasicos,
+  type TipoDelPaso,
 } from '@maun/domain';
 import type { Edge, Node } from '@xyflow/react';
 
-import type { ParteDeLaEscala } from '@/entities/fila';
+import {
+  BASE_EN_PALABRAS,
+  DESCRIPCION_DE_LOS_INSUMOS,
+  DESCRIPCION_DEL_TIPO,
+  modoEnPalabras,
+  NOMBRE_DEL_TIPO,
+  type LugarEnLaFila,
+  type ParteDeLaEscala,
+} from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import {
   escalaDe,
+  FICHA_DE_LOS_INSUMOS,
   FICHA_DEL_DIEZMO,
   FICHA_DEL_ORIGEN,
   FICHA_DEL_REPARTO,
   FICHA_DEL_RESTO,
   FICHA_DEL_TITULO,
   FICHA_NUEVA,
+  fichaDeLaObligacion,
   fichaDeLaParte,
   fichaDelEstante,
   fichaDelPaso,
-  NOMBRE_DE_LA_CLASE,
   porciento,
   tesoroDe,
   type VistaDeLaFila,
@@ -32,18 +47,26 @@ import {
 import { formatearPesos, nombreDelMes } from '@/shared/lib';
 
 export const ANCHO_DE_FICHA = 272;
-export const ANCHO_DE_PARTE = 200;
+export const ANCHO_DE_PARTE = 216;
 export const ANCHO_DEL_ESTANTE = 208;
 export const ESPACIO = 40;
+export const ESPACIO_DEL_COBRO = 56;
 export const AL_COSTADO = 64;
 export const BAJADA_DEL_REPARTO = 64;
 export const ENTRE_PARTES = 16;
 export const ENTRE_ESTANTES = 12;
 export const RENGLON = 18;
+export const ANCHO_DEL_GLOBO = 44;
+export const ANCHO_DEL_TIPO = 40;
+export const AL_TIPO = 8;
+
+export const FICHA_DE_LA_SENA = 'sena';
 
 export const ALTO = {
-  origen: 56,
-  diezmo: 80,
+  sena: 56,
+  insumos: 84,
+  ingreso: 72,
+  obligacion: 104,
   paso: 104,
   reparto: 96,
   parte: 100,
@@ -54,9 +77,29 @@ export const ALTO = {
 
 export const RENGLONES_EN_LA_FICHA = 4;
 
-export function altoDelPaso(paso: Pick<PasoDeLaFila, 'clase' | 'renglones'>): number {
-  if (paso.clase !== 'fijos') return ALTO.paso;
-  return ALTO.paso + Math.min(paso.renglones.length, RENGLONES_EN_LA_FICHA) * RENGLON + 10;
+export const RENGLON_DEL_ROTULO = 16;
+
+export const GRUPOS_CON_FRANJA = ['obligaciones', 'compromisos', 'ahorros'] as const;
+
+export type GrupoConFranja = (typeof GRUPOS_CON_FRANJA)[number];
+
+export interface AltoDelPaso {
+  conDeuda?: boolean;
+  conMeta?: boolean;
+}
+
+export function altoDelPaso(
+  paso: Pick<PasoDeLaFila, 'clase' | 'renglones' | 'modo'>,
+  { conDeuda = false, conMeta = false }: AltoDelPaso = {},
+): number {
+  let alto: number = ALTO.paso;
+  if (paso.clase === 'fijos') {
+    alto += Math.min(paso.renglones.length, RENGLONES_EN_LA_FICHA) * RENGLON + 10;
+  }
+  if (paso.modo === 'saldo') alto += RENGLON_DEL_ROTULO;
+  if (conDeuda && paso.modo !== 'saldo') alto += RENGLON;
+  if (conMeta) alto += RENGLON;
+  return alto;
 }
 
 export function renglonesALaVista<T>(renglones: readonly T[]): readonly T[] {
@@ -77,23 +120,36 @@ interface Comun {
   mes: string;
 }
 
-export interface DatosDelOrigen extends Comun {
-  ganancia: Money;
+export type DatosDeLaSena = Comun;
+
+export interface DatosDeLosInsumos extends Comun {
+  total: Money;
+  trabajos: number;
+}
+
+export interface DatosDelIngreso extends Comun {
+  ingreso: Money;
   cobros: number;
   prueba: Money | null;
 }
 
-export interface DatosDelDiezmo extends Comun {
+export interface DatosDeLaObligacion extends Comun {
+  numero: number;
+  cuantos: number;
   tesoro: TesoroDelTaller;
-  porcentaje: PuntosBasicos;
-  delMes: Money;
+  obligacion: ObligacionDeLaFila;
+  diezmo: boolean;
+  aPagar: Money;
   prueba: Money | null;
+  arrastrando: boolean;
+  revision: Revision | null;
 }
 
 export interface PruebaDelPaso {
   monto: Money;
   quedaba: Money;
   falta: Money;
+  llegaALaMeta: boolean;
 }
 
 export interface DatosDelPaso extends Comun {
@@ -101,8 +157,10 @@ export interface DatosDelPaso extends Comun {
   cuantos: number;
   tesoro: TesoroDelTaller;
   paso: PasoDeLaFila;
+  tipo: TipoDelPaso;
   porTrabajo: boolean;
   delMes: PasoDelMes;
+  conDeuda: boolean;
   prueba: PruebaDelPaso | null;
   arrastrando: boolean;
   revision: Revision | null;
@@ -117,9 +175,12 @@ export interface DatosDelReparto extends Comun {
 export interface DatosDeLaParte extends Comun {
   tesoro: TesoroDelTaller;
   porcentaje: number;
-  resto: boolean;
+  superavit: boolean;
+  hastaLaMeta: boolean;
+  meta: MetaDelMes | null;
   delMes: Money;
   prueba: Money | null;
+  llegaALaMeta: boolean;
   revision: Revision | null;
 }
 
@@ -132,26 +193,46 @@ export interface DatosDelTitulo extends Comun {
   bajada: string;
 }
 
-export type NodoDelOrigen = Node<DatosDelOrigen, 'origen'>;
-export type NodoDelDiezmo = Node<DatosDelDiezmo, 'diezmo'>;
+export interface DatosDelTipo extends Comun {
+  grupo: GrupoConFranja;
+}
+
+export type NodoDeLaSena = Node<DatosDeLaSena, 'sena'>;
+export type NodoDeLosInsumos = Node<DatosDeLosInsumos, 'insumos'>;
+export type NodoDelIngreso = Node<DatosDelIngreso, 'ingreso'>;
+export type NodoDeLaObligacion = Node<DatosDeLaObligacion, 'obligacion'>;
 export type NodoDelPaso = Node<DatosDelPaso, 'paso'>;
 export type NodoDelReparto = Node<DatosDelReparto, 'reparto'>;
 export type NodoDeLaParte = Node<DatosDeLaParte, 'parte'>;
 export type NodoDelEstante = Node<DatosDelEstante, 'estante'>;
 export type NodoNuevo = Node<Comun, 'nuevo'>;
 export type NodoDelTitulo = Node<DatosDelTitulo, 'titulo'>;
+export type NodoDelTipo = Node<DatosDelTipo, 'tipo'>;
 
 export type NodoDelPlano =
-  | NodoDelOrigen
-  | NodoDelDiezmo
+  | NodoDeLaSena
+  | NodoDeLosInsumos
+  | NodoDelIngreso
+  | NodoDeLaObligacion
   | NodoDelPaso
   | NodoDelReparto
   | NodoDeLaParte
   | NodoDelEstante
   | NodoNuevo
-  | NodoDelTitulo;
+  | NodoDelTitulo
+  | NodoDelTipo;
 
-export type Tramo = 'cadena' | 'hacia-el-reparto' | 'reparto';
+export type Tramo = 'cadena' | 'hacia-el-reparto' | 'reparto' | 'cobro' | 'hacia-los-insumos';
+
+export type Flujo = 'cobro' | 'libre' | 'ganancia';
+
+export type FuenteDelTramo = 'origen' | 'obligacion' | TipoDelPaso;
+
+export interface LugarDelTramo {
+  fuente: FuenteDelTramo;
+  despuesDe: string | null;
+  lugares: readonly LugarEnLaFila[];
+}
 
 export interface DatosDeLaArista {
   [clave: string]: unknown;
@@ -161,8 +242,8 @@ export interface DatosDeLaArista {
   monto: Money | null;
   grosor: number;
   vacia: boolean;
-  sumable: boolean;
-  despuesDe: string | null;
+  flujo: Flujo | null;
+  lugar: LugarDelTramo | null;
 }
 
 export type AristaDelPlano = Edge<DatosDeLaArista, 'plata'>;
@@ -172,9 +253,25 @@ export interface Arrastre {
   hueco: number;
 }
 
+export interface InsumosEnElPlano {
+  total: Money;
+  trabajos: number;
+}
+
+export const SIN_INSUMOS: InsumosEnElPlano = { total: CERO, trabajos: 0 };
+
 export type VistaDelPlano = Pick<
   VistaDeLaFila,
-  'fila' | 'delMes' | 'tesoros' | 'estante' | 'sistema' | 'armando' | 'cambios' | 'revision' | 'mes'
+  | 'fila'
+  | 'base'
+  | 'delMes'
+  | 'tesoros'
+  | 'estante'
+  | 'sistema'
+  | 'armando'
+  | 'cambios'
+  | 'revision'
+  | 'mes'
 >;
 
 export interface EntradaDelPlano {
@@ -182,6 +279,8 @@ export interface EntradaDelPlano {
   prueba: LiquidacionPorLaFila | null;
   elegido: string | null;
   arrastre?: Arrastre | null;
+  insumos?: InsumosEnElPlano;
+  conNuevo?: boolean;
 }
 
 export interface Plano {
@@ -198,15 +297,41 @@ export function grosorDe(monto: Money | null, total: Money | null): number {
   return GROSOR_MINIMO + (GROSOR_MAXIMO - GROSOR_MINIMO) * Math.min(1, monto / total);
 }
 
+export type GrupoDelArrastre = 'obligacion' | TipoDelPaso;
+
+function grupoDelPaso(paso: Pick<PasoDeLaFila, 'clase'>): GrupoDelArrastre {
+  return tipoDelPaso(paso.clase);
+}
+
+function conHueco<T extends { tesoro: string }>(
+  lista: readonly T[],
+  arrastre: Arrastre | null,
+  grupo: (elemento: T) => string,
+): T[] {
+  if (arrastre === null) return [...lista];
+  const movido = lista.find((elemento) => elemento.tesoro === arrastre.tesoro);
+  if (movido === undefined) return [...lista];
+  const suyo = grupo(movido);
+  const resto = lista.filter((elemento) => elemento.tesoro !== arrastre.tesoro);
+  const inicio = resto.findIndex((elemento) => grupo(elemento) === suyo);
+  const delGrupo = resto.filter((elemento) => grupo(elemento) === suyo).length;
+  if (inicio === -1) return [...lista];
+  const lugar = inicio + Math.min(Math.max(0, arrastre.hueco), delGrupo);
+  return [...resto.slice(0, lugar), movido, ...resto.slice(lugar)];
+}
+
 export function ordenConHueco(
   pasos: readonly PasoDeLaFila[],
   arrastre: Arrastre | null,
 ): PasoDeLaFila[] {
-  if (arrastre === null) return [...pasos];
-  const movido = pasos.find((paso) => paso.tesoro === arrastre.tesoro);
-  if (movido === undefined) return [...pasos];
-  const resto = pasos.filter((paso) => paso.tesoro !== arrastre.tesoro);
-  return [...resto.slice(0, arrastre.hueco), movido, ...resto.slice(arrastre.hueco)];
+  return conHueco(pasos, arrastre, grupoDelPaso);
+}
+
+export function obligacionesConHueco(
+  obligaciones: readonly ObligacionDeLaFila[],
+  arrastre: Arrastre | null,
+): ObligacionDeLaFila[] {
+  return conHueco(obligaciones, arrastre, () => 'obligacion');
 }
 
 function delMesDe(mes: FilaDelMes, paso: PasoDeLaFila): PasoDelMes {
@@ -214,11 +339,17 @@ function delMesDe(mes: FilaDelMes, paso: PasoDeLaFila): PasoDelMes {
     mes.pasos.find((candidato) => candidato.tesoro === paso.tesoro) ?? {
       tesoro: paso.tesoro,
       clase: paso.clase,
+      tipo: tipoDelPaso(paso.clase),
+      modo: paso.modo,
       objetivo: paso.tope,
       recibido: CERO,
       cubierto: CERO,
-      falta: paso.tope,
-      completo: paso.tope === 0,
+      lleva: CERO,
+      falta: paso.modo === 'trabajo' ? null : paso.tope,
+      completo: paso.modo !== 'trabajo' && paso.tope === 0,
+      aPagar: null,
+      vencimientos: [],
+      meta: null,
     }
   );
 }
@@ -234,102 +365,317 @@ const SIN_TECLADO = {
 export function revisiones(
   cambios: readonly CambioDeLaFila[],
   numero: number,
+  base?: Pick<Fila, 'obligaciones' | 'pasos'>,
 ): Map<string, Revision> {
   const mapa = new Map<string, Revision>();
   for (const cambio of cambios) {
     let antes: string | null = null;
     if (cambio.tipo === 'cambia-el-tope') antes = formatearPesos(cambio.antes);
     if (cambio.tipo === 'cambia-el-porcentaje') antes = porciento(cambio.antes);
-    if (cambio.tipo === 'cambia-de-lugar') antes = `era el ${String(cambio.antes + 1)}`;
+    if (cambio.tipo === 'cambia-el-porcentaje-de-la-obligacion') antes = porciento(cambio.antes);
+    if (cambio.tipo === 'cambia-de-lugar-la-obligacion') {
+      antes = `era el ${String(cambio.antes + 1)}`;
+    }
+    if (cambio.tipo === 'cambia-de-lugar') {
+      antes = `era el ${String((base?.obligaciones.length ?? 0) + cambio.antes + 1)}`;
+    }
     const previa = mapa.get(cambio.tesoro);
     mapa.set(cambio.tesoro, { numero, antes: previa?.antes ?? antes });
   }
   return mapa;
 }
 
+export function etiquetaDeLaObligacion(
+  numero: number,
+  cuantos: number,
+  tesoro: Pick<TesoroDelTaller, 'nombre'>,
+  obligacion: ObligacionDeLaFila,
+  aPagar: Money,
+  diezmo: boolean,
+): string {
+  return `Obligación ${String(numero)} de ${String(cuantos)}: ${tesoro.nombre}, ${porciento(obligacion.porcentaje)} ${BASE_EN_PALABRAS[obligacion.base]}; a pagar ${formatearPesos(aPagar)}${diezmo ? '; no se puede sacar de la fila' : ''}`;
+}
+
+function estadoEnPalabras(delMes: PasoDelMes, conDeuda: boolean): string {
+  if (delMes.modo === 'trabajo') {
+    return `en el mes ${formatearPesos(delMes.recibido)}`;
+  }
+  const tiene =
+    delMes.modo === 'saldo'
+      ? `${conDeuda ? 'a pagar' : 'tiene'} ${formatearPesos(delMes.lleva)}`
+      : `lleva ${formatearPesos(delMes.lleva)}`;
+  const falta = delMes.falta ?? 0;
+  return falta > 0 ? `${tiene}, faltan ${formatearPesos(falta)}` : `${tiene}, completo`;
+}
+
 export function etiquetaDelPaso(
   numero: number,
   cuantos: number,
-  tesoro: TesoroDelTaller,
+  tesoro: Pick<TesoroDelTaller, 'nombre'>,
   paso: PasoDeLaFila,
   delMes: PasoDelMes,
+  conDeuda = false,
 ): string {
-  const lleva = delMes.recibido + delMes.cubierto;
-  return `Paso ${String(numero)} de ${String(cuantos)}: ${tesoro.nombre}, ${NOMBRE_DE_LA_CLASE[paso.clase].toLowerCase()}, hasta ${formatearPesos(paso.tope)} por mes; lleva ${formatearPesos(lleva)}`;
+  const tipo = tipoDelPaso(paso.clase);
+  const clase = paso.clase === 'sueldo' ? ', sueldo' : '';
+  const modo = modoEnPalabras(paso.modo, tipo);
+  const cifra =
+    paso.modo === 'trabajo'
+      ? `${formatearPesos(paso.tope)} ${modo}`
+      : paso.modo === 'saldo'
+        ? `hasta ${formatearPesos(paso.tope)}, ${modo}`
+        : `hasta ${formatearPesos(paso.tope)} ${modo}`;
+  return `${NOMBRE_DEL_TIPO[tipo]} ${String(numero)} de ${String(cuantos)}: ${tesoro.nombre}${clase}, ${cifra}; ${estadoEnPalabras(delMes, conDeuda)}`;
+}
+
+function etiquetaDeLaParte(
+  tesoro: Pick<TesoroDelTaller, 'nombre'>,
+  porcentaje: number,
+  hastaLaMeta: boolean,
+  meta: MetaDelMes | null,
+): string {
+  const deLaMeta =
+    meta === null
+      ? ''
+      : `; tiene ${formatearPesos(meta.saldo)} de su meta de ${formatearPesos(meta.meta)}`;
+  return `Ahorro: ${tesoro.nombre}, ${porciento(porcentaje)} de lo que sobra${hastaLaMeta && meta !== null ? ', hasta la meta' : ''}${deLaMeta}`;
+}
+
+export function textoDelIngreso(
+  delMes: Pick<FilaDelMes, 'ingreso' | 'cobros'>,
+  mes: string,
+  prueba: Money | null,
+): string {
+  if (prueba !== null) return `Prueba: un trabajo que deja ${formatearPesos(prueba)}`;
+  return `Ingreso de ${mes}: ${formatearPesos(delMes.ingreso)} en ${String(delMes.cobros)} ${delMes.cobros === 1 ? 'cobro' : 'cobros'}`;
+}
+
+export function textoDeLosInsumos(insumos: InsumosEnElPlano): string {
+  if (insumos.trabajos === 0) return 'Sin trabajos en curso';
+  return insumos.trabajos === 1
+    ? '1 trabajo en curso'
+    : `${String(insumos.trabajos)} trabajos en curso`;
 }
 
 function conMedidas(nodo: NodoDelPlano): NodoDelPlano {
   return { ...nodo, measured: { width: nodo.width ?? 0, height: nodo.height ?? 0 } };
 }
 
-export function armarElPlano({ vista, prueba, elegido, arrastre = null }: EntradaDelPlano): Plano {
-  const { fila, delMes, armando } = vista;
+interface EslabonDeLaCadena {
+  id: string;
+  fuente: FuenteDelTramo;
+  tesoro: string | null;
+  monto: Money | null;
+  flujo: Flujo | null;
+}
+
+const ORDEN_DEL_LUGAR: Readonly<Record<FuenteDelTramo, number>> = {
+  origen: 0,
+  obligacion: 0,
+  compromiso: 1,
+  'ahorro-fijo': 2,
+};
+
+const LUGARES_DE_LA_CADENA: readonly LugarEnLaFila[] = ['obligacion', 'compromiso', 'ahorro-fijo'];
+
+export function lugaresDelTramo(
+  desde: FuenteDelTramo,
+  hacia: FuenteDelTramo | 'reparto',
+): LugarEnLaFila[] {
+  const inicio = ORDEN_DEL_LUGAR[desde];
+  const fin = hacia === 'reparto' ? LUGARES_DE_LA_CADENA.length - 1 : ORDEN_DEL_LUGAR[hacia];
+  const lugares = LUGARES_DE_LA_CADENA.slice(inicio, Math.max(inicio, fin) + 1);
+  return hacia === 'reparto' ? [...lugares, 'reparto', 'superavit'] : lugares;
+}
+
+export function armarElPlano({
+  vista,
+  prueba,
+  elegido,
+  arrastre = null,
+  insumos = SIN_INSUMOS,
+  conNuevo = true,
+}: EntradaDelPlano): Plano {
+  const { fila, delMes, armando, sistema } = vista;
   const mes = nombreDelMes(vista.mes).toLowerCase();
   const comun = { armando, probando: prueba !== null, mes };
-  const marcas = armando ? revisiones(vista.cambios, vista.revision) : new Map<string, Revision>();
+  const marcas = armando
+    ? revisiones(vista.cambios, vista.revision, vista.base)
+    : new Map<string, Revision>();
   const marca = (tesoro: string) => marcas.get(tesoro) ?? null;
   const nodos: NodoDelPlano[] = [];
   const aristas: AristaDelPlano[] = [];
   const x = -ANCHO_DE_FICHA / 2;
   const xDeLaDerecha = ANCHO_DE_FICHA / 2 + AL_COSTADO;
   const neta = prueba?.neta ?? null;
+  const obligaciones = obligacionesConHueco(fila.obligaciones, arrastre);
   const pasos = ordenConHueco(fila.pasos, arrastre);
-  const diezmo = tesoroDe(vista, vista.sistema.diezmo);
-  let y = 0;
+  const cuantos = obligaciones.length + pasos.length;
+  const conDeudaEn = (tesoro: string) => tesoro !== sistema.hogar && tesoro !== sistema.maun;
 
   nodos.push({
-    id: FICHA_DEL_ORIGEN,
-    type: 'origen',
-    position: { x, y },
+    id: FICHA_DE_LA_SENA,
+    type: 'sena',
+    position: { x, y: 0 },
     width: ANCHO_DE_FICHA,
-    height: ALTO.origen,
+    height: ALTO.sena,
     draggable: false,
     selectable: false,
     focusable: false,
-    data: { ...comun, ganancia: delMes.ganancia, cobros: delMes.cobros, prueba: neta },
-    ariaLabel: 'Cada cobro entra acá',
+    data: comun,
+    ariaLabel: 'Seña de los trabajos en curso',
     domAttributes: { 'aria-roledescription': 'entrada', 'aria-describedby': undefined },
   });
-  y += ALTO.origen + ESPACIO;
-
-  const yDelDiezmo = y;
+  const yDeLosInsumos = (ALTO.sena - ALTO.insumos) / 2;
   nodos.push({
-    id: FICHA_DEL_DIEZMO,
-    type: 'diezmo',
-    position: { x, y },
-    width: ANCHO_DE_FICHA,
-    height: ALTO.diezmo,
+    id: FICHA_DE_LOS_INSUMOS,
+    type: 'insumos',
+    position: { x: xDeLaDerecha, y: yDeLosInsumos },
+    width: ANCHO_DEL_ESTANTE,
+    height: ALTO.insumos,
     draggable: false,
-    selected: elegido === FICHA_DEL_DIEZMO,
-    data: {
-      ...comun,
-      tesoro: diezmo,
-      porcentaje: (prueba?.diezmoBp ?? 1000) as PuntosBasicos,
-      delMes: delMes.diezmo,
-      prueba: prueba?.diezmo ?? null,
-    },
+    selected: elegido === FICHA_DE_LOS_INSUMOS,
+    data: { ...comun, total: insumos.total, trabajos: insumos.trabajos },
     ...accesible(
-      'paso fijo',
-      `${diezmo.nombre}, 10% de cada ganancia, siempre primero; ${formatearPesos(delMes.diezmo)} en ${mes}`,
+      DESCRIPCION_DE_LOS_INSUMOS,
+      `Insumos: ${formatearPesos(insumos.total)}, ${textoDeLosInsumos(insumos).toLowerCase()}`,
     ),
   });
-  let yDelUltimo = y;
-  let altoDelUltimo: number = ALTO.diezmo;
-  y += ALTO.diezmo + ESPACIO;
+  const sinMonto = {
+    armando,
+    etiqueta: null,
+    monto: null,
+    grosor: GROSOR_MINIMO,
+    vacia: false,
+    lugar: null,
+  };
+  aristas.push({
+    id: 'hacia-los-insumos',
+    type: 'plata',
+    source: FICHA_DE_LA_SENA,
+    sourceHandle: 'derecha',
+    target: FICHA_DE_LOS_INSUMOS,
+    targetHandle: 'izquierda',
+    selectable: false,
+    focusable: false,
+    data: { ...sinMonto, tramo: 'hacia-los-insumos', flujo: null },
+  });
 
-  let corriente: Money | null = prueba === null ? null : restar(prueba.neta, prueba.diezmo);
-  const cadena: { id: string; monto: Money | null; despuesDe: string | null }[] = [
-    { id: FICHA_DEL_ORIGEN, monto: neta, despuesDe: null },
-    { id: FICHA_DEL_DIEZMO, monto: corriente, despuesDe: null },
+  let y = ALTO.sena + ESPACIO_DEL_COBRO;
+  const yDelIngreso = y;
+  nodos.push({
+    id: FICHA_DEL_ORIGEN,
+    type: 'ingreso',
+    position: { x, y },
+    width: ANCHO_DE_FICHA,
+    height: ALTO.ingreso,
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    data: { ...comun, ingreso: delMes.ingreso, cobros: delMes.cobros, prueba: neta },
+    ariaLabel: textoDelIngreso(delMes, mes, neta),
+    domAttributes: { 'aria-roledescription': 'entrada', 'aria-describedby': undefined },
+  });
+  aristas.push({
+    id: 'se-cobra-el-trabajo',
+    type: 'plata',
+    source: FICHA_DE_LA_SENA,
+    sourceHandle: 'abajo',
+    target: FICHA_DEL_ORIGEN,
+    targetHandle: 'arriba',
+    selectable: false,
+    focusable: false,
+    data: { ...sinMonto, tramo: 'cobro', flujo: 'cobro' },
+  });
+  y += ALTO.ingreso + ESPACIO;
+
+  const cadena: EslabonDeLaCadena[] = [
+    { id: FICHA_DEL_ORIGEN, fuente: 'origen', tesoro: null, monto: neta, flujo: null },
   ];
+  let corriente: Money | null = neta === null ? null : neta > 0 ? neta : CERO;
+  const franjas: { grupo: GrupoConFranja; arriba: number; abajo: number }[] = [];
+  const anotarFranja = (grupo: GrupoConFranja, arriba: number, abajo: number) => {
+    const previa = franjas.find((franja) => franja.grupo === grupo);
+    if (previa === undefined) franjas.push({ grupo, arriba, abajo });
+    else previa.abajo = abajo;
+  };
 
-  pasos.forEach((paso, indice) => {
+  let yDelUltimo = yDelIngreso;
+  let altoDelUltimo: number = ALTO.ingreso;
+  const hayCompromisos = pasos.some((paso) => tipoDelPaso(paso.clase) === 'compromiso');
+
+  obligaciones.forEach((obligacion, indice) => {
+    const esDiezmo = obligacion.tesoro === sistema.diezmo;
+    const id = esDiezmo ? FICHA_DEL_DIEZMO : fichaDeLaObligacion(obligacion.tesoro);
+    const tesoro = tesoroDe(vista, obligacion.tesoro);
+    const delMesDeLaObligacion = delMes.obligaciones.find(
+      (candidata) => candidata.tesoro === obligacion.tesoro,
+    );
+    const aPagar = delMesDeLaObligacion?.aPagar ?? CERO;
+    const repartida = prueba?.obligaciones.find(
+      (candidata) => candidata.tesoro === obligacion.tesoro,
+    );
+    const esLaMovida = arrastre?.tesoro === obligacion.tesoro;
+    nodos.push({
+      id,
+      type: 'obligacion',
+      position: { x, y },
+      width: ANCHO_DE_FICHA,
+      height: ALTO.obligacion,
+      draggable: armando,
+      selected: elegido === id,
+      zIndex: esLaMovida ? 10 : undefined,
+      data: {
+        ...comun,
+        numero: indice + 1,
+        cuantos,
+        tesoro,
+        obligacion,
+        diezmo: esDiezmo,
+        aPagar,
+        prueba: repartida?.monto ?? null,
+        arrastrando: esLaMovida,
+        revision: marca(obligacion.tesoro),
+      },
+      ...accesible(
+        DESCRIPCION_DEL_TIPO.obligacion,
+        etiquetaDeLaObligacion(indice + 1, cuantos, tesoro, obligacion, aPagar, esDiezmo),
+      ),
+    });
+    if (corriente !== null && repartida !== undefined)
+      corriente = restar(corriente, repartida.monto);
+    const ultima = indice === obligaciones.length - 1;
+    cadena.push({
+      id,
+      fuente: 'obligacion',
+      tesoro: obligacion.tesoro,
+      monto: corriente,
+      flujo: ultima ? (hayCompromisos ? 'libre' : 'ganancia') : null,
+    });
+    anotarFranja('obligaciones', y, y + ALTO.obligacion);
+    yDelUltimo = y;
+    altoDelUltimo = ALTO.obligacion;
+    y += ALTO.obligacion + ESPACIO;
+  });
+
+  const ultimoCompromiso = pasos.reduce(
+    (ultimo, paso, indice) => (tipoDelPaso(paso.clase) === 'compromiso' ? indice : ultimo),
+    -1,
+  );
+  let yDelPrimerAhorro: number | null = null;
+  let abajoDelUltimoAhorro: number | null = null;
+
+  for (const [indice, paso] of pasos.entries()) {
+    const tipo = tipoDelPaso(paso.clase);
     const delMesDelPaso = delMesDe(delMes, paso);
+    const conDeuda = tipo === 'compromiso' && conDeudaEn(paso.tesoro);
+    const conMeta = tipo === 'ahorro-fijo' && delMesDelPaso.meta !== null;
     const repartido = prueba?.pasos.find((candidato) => candidato.tesoro === paso.tesoro);
     const tesoro = tesoroDe(vista, paso.tesoro);
-    const alto = altoDelPaso(paso);
+    const alto = altoDelPaso(paso, { conDeuda, conMeta });
     const id = fichaDelPaso(paso.tesoro);
     const esElMovido = arrastre?.tesoro === paso.tesoro;
+    const numero = obligaciones.length + indice + 1;
     nodos.push({
       id,
       type: 'paso',
@@ -342,27 +688,54 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
       data: {
         ...comun,
         revision: marca(paso.tesoro),
-        numero: indice + 1,
-        cuantos: pasos.length,
+        numero,
+        cuantos,
         tesoro,
         paso,
+        tipo,
         porTrabajo: paso.clase === 'sueldo' && fila.sueldoPorTrabajo,
         delMes: delMesDelPaso,
+        conDeuda,
         arrastrando: esElMovido,
         prueba:
           repartido === undefined
             ? null
-            : { monto: repartido.monto, quedaba: repartido.tope, falta: repartido.falta },
+            : {
+                monto: repartido.monto,
+                quedaba: repartido.tope,
+                falta: repartido.falta,
+                llegaALaMeta: repartido.llegaALaMeta,
+              },
       },
-      ...accesible('paso', etiquetaDelPaso(indice + 1, pasos.length, tesoro, paso, delMesDelPaso)),
+      ...accesible(
+        DESCRIPCION_DEL_TIPO[tipo],
+        etiquetaDelPaso(numero, cuantos, tesoro, paso, delMesDelPaso, conDeuda),
+      ),
     });
-    if (corriente !== null && repartido !== undefined) {
+    if (corriente !== null && repartido !== undefined)
       corriente = restar(corriente, repartido.monto);
+    cadena.push({
+      id,
+      fuente: tipo,
+      tesoro: paso.tesoro,
+      monto: corriente,
+      flujo: indice === ultimoCompromiso ? 'ganancia' : null,
+    });
+    if (tipo === 'compromiso') anotarFranja('compromisos', y, y + alto);
+    else {
+      yDelPrimerAhorro ??= y;
+      abajoDelUltimoAhorro = y + alto;
     }
-    cadena.push({ id, monto: corriente, despuesDe: paso.tesoro });
     yDelUltimo = y;
     altoDelUltimo = alto;
     y += alto + ESPACIO;
+  }
+
+  const conPlata = (monto: Money | null) => ({
+    etiqueta: monto === null ? null : formatearPesos(monto),
+    monto,
+    grosor: grosorDe(monto, neta),
+    vacia: monto !== null && monto <= 0,
   });
 
   for (let i = 0; i < cadena.length - 1; i += 1) {
@@ -381,12 +754,15 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
       data: {
         tramo: 'cadena',
         armando,
-        etiqueta: desde.monto === null ? null : formatearPesos(desde.monto),
-        monto: desde.monto,
-        grosor: grosorDe(desde.monto, neta),
-        vacia: desde.monto !== null && desde.monto <= 0,
-        sumable: i >= 1,
-        despuesDe: desde.despuesDe,
+        ...conPlata(desde.monto),
+        flujo: desde.flujo,
+        lugar: armando
+          ? {
+              fuente: desde.fuente,
+              despuesDe: desde.tesoro,
+              lugares: lugaresDelTramo(desde.fuente, hacia.fuente),
+            }
+          : null,
       },
     });
   }
@@ -427,19 +803,23 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
       data: {
         tramo: 'hacia-el-reparto',
         armando,
+        ...conPlata(monto),
         etiqueta: null,
-        monto,
-        grosor: grosorDe(monto, neta),
-        vacia: monto !== null && monto <= 0,
-        sumable: armando,
-        despuesDe: ultimo.despuesDe,
+        flujo: ultimo.flujo,
+        lugar: armando
+          ? {
+              fuente: ultimo.fuente,
+              despuesDe: ultimo.tesoro,
+              lugares: lugaresDelTramo(ultimo.fuente, 'reparto'),
+            }
+          : null,
       },
     });
   }
 
   const anchoDelAbanico = escala.length * ANCHO_DE_PARTE + (escala.length - 1) * ENTRE_PARTES;
   const centroDelReparto = xDeLaDerecha + ANCHO_DE_FICHA / 2;
-  let xDeLaParte = centroDelReparto - anchoDelAbanico / 2;
+  let xDeLaParte = Math.max(centroDelReparto - anchoDelAbanico / 2, x);
   const yDeLasPartes = Math.max(
     yDelReparto + ALTO.reparto + BAJADA_DEL_REPARTO,
     yDelUltimo + altoDelUltimo + ESPACIO,
@@ -447,12 +827,16 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
   for (const parte of escala) {
     const tesoro = tesoroDe(vista, parte.tesoro);
     const id = parte.resto ? FICHA_DEL_RESTO : fichaDeLaParte(parte.tesoro);
-    const monto = parte.resto
-      ? (prueba?.remanente ?? null)
-      : (prueba?.reparto.find((candidato) => candidato.tesoro === parte.tesoro)?.monto ?? null);
-    const recibido = parte.resto
-      ? delMes.enElTaller
-      : (delMes.reparto.find((candidato) => candidato.tesoro === parte.tesoro)?.recibido ?? CERO);
+    const repartida = parte.resto
+      ? undefined
+      : prueba?.reparto.find((candidato) => candidato.tesoro === parte.tesoro);
+    const monto = parte.resto ? (prueba?.remanente ?? null) : (repartida?.monto ?? null);
+    const delMesDeLaParte = delMes.reparto.find((candidato) => candidato.tesoro === parte.tesoro);
+    const recibido = parte.resto ? delMes.superavit.recibido : (delMesDeLaParte?.recibido ?? CERO);
+    const hastaLaMeta =
+      !parte.resto &&
+      (fila.reparto.find((candidata) => candidata.tesoro === parte.tesoro)?.hastaLaMeta ?? false);
+    const meta = parte.resto ? null : (delMesDeLaParte?.meta ?? null);
     nodos.push({
       id,
       type: 'parte',
@@ -466,15 +850,20 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
         revision: parte.resto ? null : marca(parte.tesoro),
         tesoro,
         porcentaje: parte.porcentaje,
-        resto: parte.resto,
+        superavit: parte.resto,
+        hastaLaMeta,
+        meta,
         delMes: recibido,
         prueba: monto,
+        llegaALaMeta: repartida?.llegaALaMeta ?? false,
       },
       ...accesible(
-        parte.resto ? 'lo que queda' : 'parte del reparto',
         parte.resto
-          ? `${tesoro.nombre} se queda con el resto, ${porciento(parte.porcentaje)}, y los centavos`
-          : `${tesoro.nombre}, ${porciento(parte.porcentaje)} de lo que sobra`,
+          ? DESCRIPCION_DEL_TIPO.superavit
+          : DESCRIPCION_DEL_TIPO['ahorro-por-porcentaje'],
+        parte.resto
+          ? `Superávit: ${tesoro.nombre} recibe el resto, ${porciento(parte.porcentaje)}, y los centavos`
+          : etiquetaDeLaParte(tesoro, parte.porcentaje, hastaLaMeta, meta),
       ),
     });
     aristas.push({
@@ -489,28 +878,52 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
       data: {
         tramo: 'reparto',
         armando,
+        ...conPlata(monto),
         etiqueta:
           monto === null
             ? parte.resto
               ? `resto ${porciento(parte.porcentaje)}`
               : porciento(parte.porcentaje)
             : formatearPesos(monto),
-        monto,
-        grosor: grosorDe(monto, neta),
-        vacia: monto !== null && monto <= 0,
-        sumable: false,
-        despuesDe: null,
+        flujo: null,
+        lugar: null,
       },
     });
     xDeLaParte += ANCHO_DE_PARTE + ENTRE_PARTES;
   }
 
+  const hayPartes = fila.reparto.length > 0;
+  if (yDelPrimerAhorro !== null || hayPartes) {
+    const arriba = yDelPrimerAhorro ?? yDeLasPartes;
+    const abajo = hayPartes ? yDeLasPartes + ALTO.parte : (abajoDelUltimoAhorro ?? arriba);
+    franjas.push({ grupo: 'ahorros', arriba, abajo });
+  }
+  const xDeLosTipos = x - ANCHO_DEL_GLOBO - AL_TIPO - ANCHO_DEL_TIPO;
+  for (const franja of franjas) {
+    nodos.push({
+      id: `tipo-${franja.grupo}`,
+      type: 'tipo',
+      position: { x: xDeLosTipos, y: franja.arriba },
+      width: ANCHO_DEL_TIPO,
+      height: franja.abajo - franja.arriba,
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      data: { ...comun, grupo: franja.grupo },
+      ...SIN_TECLADO,
+    });
+  }
+
   const estante = vista.estante;
   const altoDelEstante =
-    ALTO.titulo + 8 + estante.length * (ALTO.estante + ENTRE_ESTANTES) + ALTO.nuevo;
-  const entraArriba = yDelDiezmo + altoDelEstante <= yDelReparto - ESPACIO;
+    ALTO.titulo +
+    8 +
+    estante.length * (ALTO.estante + ENTRE_ESTANTES) +
+    (conNuevo ? ALTO.nuevo : -ENTRE_ESTANTES);
+  const yDelTitulo = Math.max(ALTO.sena, yDeLosInsumos + ALTO.insumos) + ESPACIO;
+  const entraArriba = yDelTitulo + altoDelEstante <= yDelReparto - ESPACIO;
   const xDelEstante = entraArriba ? xDeLaDerecha : xDeLaDerecha + ANCHO_DE_FICHA + AL_COSTADO;
-  let yDelEstante = yDelDiezmo - ALTO.titulo - 8;
+  let yDelEstante = yDelTitulo;
   nodos.push({
     id: FICHA_DEL_TITULO,
     type: 'titulo',
@@ -546,36 +959,72 @@ export function armarElPlano({ vista, prueba, elegido, arrastre = null }: Entrad
     });
     yDelEstante += ALTO.estante + ENTRE_ESTANTES;
   }
-  nodos.push({
-    id: FICHA_NUEVA,
-    type: 'nuevo',
-    position: { x: xDelEstante, y: yDelEstante },
-    width: ANCHO_DEL_ESTANTE,
-    height: ALTO.nuevo,
-    draggable: false,
-    selectable: false,
-    focusable: false,
-    data: comun,
-    ...SIN_TECLADO,
-  });
+  if (conNuevo) {
+    nodos.push({
+      id: FICHA_NUEVA,
+      type: 'nuevo',
+      position: { x: xDelEstante, y: yDelEstante },
+      width: ANCHO_DEL_ESTANTE,
+      height: ALTO.nuevo,
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      data: comun,
+      ...SIN_TECLADO,
+    });
+  }
 
   return { nodos: nodos.map(conMedidas), aristas };
 }
 
-export function centrosDeLosPasos(vista: VistaDelPlano): { tesoro: string; centro: number }[] {
+export interface CentroDeLaFicha {
+  tesoro: string;
+  grupo: GrupoDelArrastre;
+  centro: number;
+}
+
+export function centrosDeLasFichas(vista: VistaDelPlano): CentroDeLaFicha[] {
   const { nodos } = armarElPlano({ vista, prueba: null, elegido: null });
-  return nodos
-    .filter((nodo): nodo is NodoDelPaso => nodo.type === 'paso')
-    .map((nodo) => ({
-      tesoro: nodo.data.paso.tesoro,
-      centro: nodo.position.y + (nodo.height ?? 0) / 2,
-    }));
+  const centros: CentroDeLaFicha[] = [];
+  for (const nodo of nodos) {
+    const centro = nodo.position.y + (nodo.height ?? 0) / 2;
+    if (nodo.type === 'obligacion') {
+      centros.push({ tesoro: nodo.data.obligacion.tesoro, grupo: 'obligacion', centro });
+    }
+    if (nodo.type === 'paso') {
+      centros.push({ tesoro: nodo.data.paso.tesoro, grupo: nodo.data.tipo, centro });
+    }
+  }
+  return centros;
 }
 
 export function huecoDelArrastre(
-  centros: readonly { tesoro: string; centro: number }[],
+  centros: readonly CentroDeLaFicha[],
   tesoro: string,
   centro: number,
 ): number {
-  return centros.filter((otro) => otro.tesoro !== tesoro && otro.centro < centro).length;
+  const grupo = centros.find((otro) => otro.tesoro === tesoro)?.grupo;
+  return centros.filter(
+    (otro) => otro.tesoro !== tesoro && otro.grupo === grupo && otro.centro < centro,
+  ).length;
+}
+
+export function aplicarElArrastre(fila: Fila, arrastre: Arrastre): Fila {
+  const lugarDeLaObligacion = fila.obligaciones.findIndex(
+    (obligacion) => obligacion.tesoro === arrastre.tesoro,
+  );
+  if (lugarDeLaObligacion !== -1) {
+    const destino = Math.min(Math.max(0, arrastre.hueco), fila.obligaciones.length - 1);
+    return destino === lugarDeLaObligacion ? fila : moverObligacion(fila, arrastre.tesoro, destino);
+  }
+  const lugar = fila.pasos.findIndex((paso) => paso.tesoro === arrastre.tesoro);
+  const movido = fila.pasos[lugar];
+  if (movido === undefined) return fila;
+  const grupo = grupoDelPaso(movido);
+  const sin = fila.pasos.filter((paso) => paso.tesoro !== arrastre.tesoro);
+  const inicio = sin.findIndex((paso) => grupoDelPaso(paso) === grupo);
+  const delGrupo = sin.filter((paso) => grupoDelPaso(paso) === grupo).length;
+  if (inicio === -1) return fila;
+  const destino = inicio + Math.min(Math.max(0, arrastre.hueco), delGrupo);
+  return destino === lugar ? fila : moverPaso(fila, arrastre.tesoro, destino);
 }

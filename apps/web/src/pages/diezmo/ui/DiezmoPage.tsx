@@ -14,7 +14,7 @@ import {
 import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesoroDeLaClave, tesorosDelTaller } from '@/entities/tesoro';
-import { datosDelLibro } from '@/shared/api';
+import { datosDelLibro, filaDelTaller, sistemaDeLaReplica } from '@/shared/api';
 import {
   conFondo,
   formatearPesos,
@@ -25,6 +25,8 @@ import {
   useIr,
 } from '@/shared/lib';
 import { ConSalida, Icono, MontoQueEntra, Pagina, PrincipalYApoyo } from '@/shared/ui';
+
+import { obligacionDelDiezmo, todaviaSinDiezmo } from '../model/regla';
 
 const RUTA_DEL_PAGO = rutaDeMovimientoNuevo({ clase: 'pago_diezmo' });
 
@@ -146,8 +148,12 @@ export function DiezmoPage() {
           </h2>
           {dias.length === 0 ? (
             <p className="px-1 py-6 text-body leading-relaxed text-text-2">
-              Todavía no se generó diezmo. El 10% de cada ganancia se anota acá solo, cuando cobrás
-              un trabajo. Después lo vas cancelando con pagos.
+              {todaviaSinDiezmo(
+                obligacionDelDiezmo(
+                  filaDelTaller(replica).fila,
+                  sistemaDeLaReplica(replica).diezmo,
+                ),
+              )}
             </p>
           ) : (
             <ListaDelLibro

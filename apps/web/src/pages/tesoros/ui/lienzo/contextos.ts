@@ -1,5 +1,7 @@
 import { createContext } from 'react';
 
+import type { LugarDelTramo } from '../../model/disposicion';
+
 export interface AccionesDeLasFichas {
   editable: boolean;
   alNuevo: () => void;
@@ -13,7 +15,7 @@ export const ContextoDeLasFichas = createContext<AccionesDeLasFichas>({
 });
 
 export interface AccionesDeLasAristas {
-  sumarDespuesDe: ((despuesDe: string | null, boton: HTMLElement) => void) | null;
+  sumarEn: ((lugar: LugarDelTramo, boton: HTMLElement) => void) | null;
 }
 
-export const ContextoDeLasAristas = createContext<AccionesDeLasAristas>({ sumarDespuesDe: null });
+export const ContextoDeLasAristas = createContext<AccionesDeLasAristas>({ sumarEn: null });

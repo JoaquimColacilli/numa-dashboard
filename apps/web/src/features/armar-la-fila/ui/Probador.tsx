@@ -1,12 +1,17 @@
-import { centavos, type LiquidacionPorLaFila, type Money } from '@maun/domain';
+import { centavos, tipoDelPaso, type LiquidacionPorLaFila, type Money } from '@maun/domain';
+import type { ReactNode } from 'react';
 
-import { Globo, LineaDePuntos } from '@/entities/fila';
-import { formatearPesos, nombreDelMes, TINTA } from '@/shared/lib';
-import { Ayuda, Icono, MoneyInput } from '@/shared/ui';
+import { AyudaDeLoDeHoy, Globo, LineaDePuntos } from '@/entities/fila';
+import { formatearPesos, TINTA } from '@/shared/lib';
+import { Icono, MoneyInput } from '@/shared/ui';
 
-import { ATAJOS_DE_LA_PRUEBA, notaDelPasoEnLaPrueba } from '../model/prueba';
+import {
+  ATAJOS_DE_LA_PRUEBA,
+  notaDeLaParteEnLaPrueba,
+  notaDelPasoEnLaPrueba,
+} from '../model/prueba';
 import { porciento } from '../model/textos';
-import { tesoroDe, type PruebaEnPantalla, type VistaDeLaFila } from '../model/vista';
+import { pideLoCobrado, tesoroDe, type PruebaEnPantalla, type VistaDeLaFila } from '../model/vista';
 import { Segmentado } from './Seccion';
 
 export interface ProbadorProps {
@@ -17,46 +22,54 @@ export interface ProbadorProps {
   forma?: 'panel' | 'celular' | 'flotante';
 }
 
-export function AyudaDelMes({ mes }: { mes: string }) {
-  return (
-    <Ayuda que="Con qué mes se prueba">
-      <p>
-        <strong className="font-semibold">Con lo de {mes}:</strong> los topes ya tienen lo que entró
-        con los cobros del mes, así que ves qué pasaría con el próximo.
-      </p>
-      <p className="mt-1.5">
-        <strong className="font-semibold">Mes en cero:</strong> como si fuera el primer cobro del
-        mes, con todos los topes vacíos.
-      </p>
-    </Ayuda>
-  );
-}
+export const ETIQUETA_DE_LO_QUE_DEJA = 'Deja (cobrado menos gastos)';
+export const ETIQUETA_DEL_TRABAJO = 'Probá con un trabajo que deje';
 
 export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }: ProbadorProps) {
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const conCobrado = pideLoCobrado(vista.fila);
   const cambiarMonto = (monto: number | null) => {
     alProbar({ ...prueba, monto: monto === null ? null : centavos(monto) });
   };
+  const cambiarCobrado = (cobrado: number | null) => {
+    alProbar({ ...prueba, cobrado: cobrado === null ? null : centavos(cobrado) });
+  };
   const segmentado = (
     <Segmentado
-      etiqueta="Con qué mes probar"
+      etiqueta="Con qué se prueba"
       chico
       opciones={[
-        { id: 'mes', etiqueta: `Con lo de ${mes}` },
-        { id: 'cero', etiqueta: 'Mes en cero' },
+        { id: 'hoy', etiqueta: 'Con lo de hoy' },
+        { id: 'cero', etiqueta: 'Todo en cero' },
       ]}
-      elegido={prueba.mesEnCero ? 'cero' : 'mes'}
+      elegido={prueba.enCero ? 'cero' : 'hoy'}
       alElegir={(opcion) => {
-        alProbar({ ...prueba, mesEnCero: opcion === 'cero' });
+        alProbar({ ...prueba, enCero: opcion === 'cero' });
       }}
+    />
+  );
+  const seCobro = conCobrado && (
+    <MoneyInput
+      etiqueta="Se cobró"
+      ayuda="Todo lo que entró del trabajo, para lo que se calcula sobre lo que cobrás."
+      placeholder="$ 0"
+      value={prueba.cobrado}
+      onChange={cambiarCobrado}
     />
   );
 
   if (forma === 'flotante') {
     return (
       <div className="flex flex-col gap-2">
+        {conCobrado && (
+          <MoneyInput
+            etiqueta="Se cobró"
+            placeholder="$ 0"
+            value={prueba.cobrado}
+            onChange={cambiarCobrado}
+          />
+        )}
         <MoneyInput
-          etiqueta="Probá con un trabajo que deje"
+          etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
           placeholder="$ 0"
           value={prueba.monto}
           onChange={cambiarMonto}
@@ -68,7 +81,8 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
 
   return (
     <div className={`flex flex-col ${forma === 'celular' ? 'gap-2.5' : 'gap-3'}`}>
-      {forma === 'celular' ? (
+      {seCobro}
+      {forma === 'celular' && !conCobrado ? (
         <MoneyInput
           aria-label="Lo que deja el trabajo"
           placeholder="$ 0"
@@ -78,7 +92,7 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
         />
       ) : (
         <MoneyInput
-          etiqueta="Probá con un trabajo que deje"
+          etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
           placeholder="$ 0"
           value={prueba.monto}
           onChange={cambiarMonto}
@@ -115,8 +129,8 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
       ) : (
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">{segmentado}</div>
-          <span className="flex flex-none @max-[20rem]:hidden">
-            <AyudaDelMes mes={mes} />
+          <span className="flex flex-none">
+            <AyudaDeLoDeHoy />
           </span>
         </div>
       )}
@@ -157,7 +171,7 @@ function RenglonDeLaTabla({
   nombre: string;
   punto?: string;
   monto: Money;
-  nota?: string;
+  nota?: string | null;
   sangria?: boolean;
 }) {
   return (
@@ -181,7 +195,24 @@ function RenglonDeLaTabla({
           }
         />
       </div>
-      {nota !== undefined && <span className="ml-7 text-meta text-text-3">{nota}</span>}
+      {nota !== undefined && nota !== null && (
+        <span className="ml-7 text-meta text-text-3">{nota}</span>
+      )}
+    </li>
+  );
+}
+
+function Subtotal({ icono, nombre, monto }: { icono?: ReactNode; nombre: string; monto: Money }) {
+  return (
+    <li className="mt-1 flex items-center gap-2 border-t border-hairline pt-2">
+      <span aria-hidden className="mx-1 flex w-3.5 flex-none justify-center text-text-2">
+        {icono}
+      </span>
+      <LineaDePuntos
+        className="min-w-0 flex-1 text-label font-medium"
+        izquierda={nombre}
+        derecha={<span className="font-semibold text-ink">{formatearPesos(monto)}</span>}
+      />
     </li>
   );
 }
@@ -194,40 +225,52 @@ export function TablaDeLaPrueba({
   resultado: LiquidacionPorLaFila;
 }) {
   const suma =
-    resultado.diezmo +
+    resultado.obligaciones.reduce((total, obligacion) => total + obligacion.monto, 0) +
     resultado.pasos.reduce((total, paso) => total + paso.monto, 0) +
     resultado.reparto.reduce((total, parte) => total + parte.monto, 0) +
     resultado.remanente;
-  const maun = tesoroDe(vista, vista.sistema.maun);
+  const superavit = tesoroDe(vista, resultado.superavit ?? vista.sistema.maun);
   const restoBp = 10_000 - resultado.reparto.reduce((total, parte) => total + parte.porcentaje, 0);
   const cierra = suma === resultado.neta;
+  const cuantasObligaciones = resultado.obligaciones.length;
+  const compromisos = resultado.pasos.filter((paso) => tipoDelPaso(paso.clase) === 'compromiso');
+  const ahorros = resultado.pasos.filter((paso) => tipoDelPaso(paso.clase) === 'ahorro-fijo');
+  const renglonDelPaso = (paso: (typeof resultado.pasos)[number]) => (
+    <RenglonDeLaTabla
+      key={paso.tesoro}
+      numero={cuantasObligaciones + resultado.pasos.indexOf(paso) + 1}
+      nombre={tesoroDe(vista, paso.tesoro).nombre}
+      monto={paso.monto}
+      nota={notaDelPasoEnLaPrueba(paso)}
+    />
+  );
   return (
     <div className="rounded-field border border-hairline bg-surface-3 px-3 py-3">
       <ul aria-label="Cómo baja este cobro" className="flex flex-col gap-2">
-        <RenglonDeLaTabla
-          nombre={`Diezmo ${porciento(resultado.diezmoBp)}`}
-          punto={TINTA.diezmo.fondo}
-          monto={resultado.diezmo}
+        {resultado.obligaciones.map((obligacion, indice) => {
+          const tesoro = tesoroDe(vista, obligacion.tesoro);
+          return (
+            <RenglonDeLaTabla
+              key={obligacion.tesoro}
+              numero={indice + 1}
+              nombre={`${obligacion.diezmo ? 'Diezmo' : tesoro.nombre} ${porciento(obligacion.porcentaje)}`}
+              monto={obligacion.monto}
+            />
+          );
+        })}
+        {compromisos.length > 0 && (
+          <>
+            <Subtotal nombre="Ingreso libre" monto={resultado.libre} />
+            {compromisos.map(renglonDelPaso)}
+          </>
+        )}
+        <Subtotal nombre="Ganancia" monto={resultado.ganancia} />
+        {ahorros.map(renglonDelPaso)}
+        <Subtotal
+          icono={<Icono nombre="split" tamano={14} />}
+          nombre="Lo que sobra"
+          monto={resultado.sobrante}
         />
-        {resultado.pasos.map((paso, indice) => (
-          <RenglonDeLaTabla
-            key={paso.tesoro}
-            numero={indice + 1}
-            nombre={tesoroDe(vista, paso.tesoro).nombre}
-            monto={paso.monto}
-            nota={notaDelPasoEnLaPrueba(paso)}
-          />
-        ))}
-        <li className="mt-1 flex items-center gap-2 border-t border-hairline pt-2">
-          <Icono nombre="split" tamano={14} className="mx-1 flex-none text-text-2" />
-          <LineaDePuntos
-            className="min-w-0 flex-1 text-label font-medium"
-            izquierda="Lo que sobra"
-            derecha={
-              <span className="font-semibold text-ink">{formatearPesos(resultado.sobrante)}</span>
-            }
-          />
-        </li>
         {resultado.reparto.map((parte) => {
           const tesoro = tesoroDe(vista, parte.tesoro);
           return (
@@ -237,13 +280,14 @@ export function TablaDeLaPrueba({
               nombre={`${tesoro.nombre} ${porciento(parte.porcentaje)}`}
               punto={TINTA[tesoro.tinta].fondo}
               monto={parte.monto}
+              nota={notaDeLaParteEnLaPrueba(parte)}
             />
           );
         })}
         <RenglonDeLaTabla
           sangria
-          nombre={`${maun.nombre}, el resto ${porciento(restoBp)}`}
-          punto={TINTA[maun.tinta].fondo}
+          nombre={`${superavit.nombre}, el resto ${porciento(restoBp)}`}
+          punto={TINTA[superavit.tinta].fondo}
           monto={resultado.remanente}
         />
       </ul>
@@ -256,7 +300,7 @@ export function TablaDeLaPrueba({
           {cierra && (
             <>
               <Icono nombre="check" tamano={14} grosor={2.25} />
-              <span className="sr-only">da la ganancia</span>
+              <span className="sr-only">da el ingreso</span>
             </>
           )}
         </span>

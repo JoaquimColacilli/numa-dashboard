@@ -10,6 +10,7 @@ import {
 } from '@maun/domain';
 import { useMemo, useState } from 'react';
 
+import { vencimientosDeLaReplica } from '@/entities/agenda';
 import { avisosDeEntregas } from '@/entities/entrega';
 import { filaDelMesDelTaller } from '@/entities/fila';
 import {
@@ -20,20 +21,29 @@ import {
 } from '@/entities/movimiento';
 import { novedadesDeOpiniones } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { corteDelMes, entregaDelResumen, LiquidacionesSinConfirmar } from '@/entities/proyecto';
+import {
+  corteDelMes,
+  entregaDelResumen,
+  insumosDeLosTrabajos,
+  LiquidacionesSinConfirmar,
+} from '@/entities/proyecto';
 import { useNombreDeLaPersona, useSesionActiva } from '@/entities/sesion';
 import {
   tesoroDeLaClave,
+  tesoroPorId,
   tesorosDelTaller,
   tesorosSincronizados,
   tesorosVivos,
 } from '@/entities/tesoro';
+import { rangoDelFaltante } from '@/features/cubrir-el-faltante';
 import {
   ajustesDe,
   datosDelLibro,
   faltaConfigurar,
+  filaDelTaller,
   filasDe,
   saldosDeLaReplica,
+  sistemaDeLaReplica,
   type FilaDe,
   type Replica,
 } from '@/shared/api';
@@ -56,12 +66,14 @@ import {
 import { Avatar, ConSalida, Icono, Pagina, PrincipalYApoyo, type NombreDeIcono } from '@/shared/ui';
 
 import { faltaParaLosTopes, faltantesEnInicio } from '../model/la-fila';
-import { conLaMetaDeCocos } from '../model/tesoros';
+import { panoramaDelTaller } from '../model/panorama';
+import { conLaMetaDeCocos, tiposEnLasTarjetas } from '../model/tesoros';
 import { FaltanteDelMes } from './FaltanteDelMes';
 import { HojaDelPerfil } from './HojaDelPerfil';
 import { HoyEnLaAgenda } from './HoyEnLaAgenda';
 import { LaFilaDelMes } from './LaFilaDelMes';
 import { Metas } from './Metas';
+import { Panorama } from './Panorama';
 import { PortadaDeInicio } from './PortadaDeInicio';
 import { RespuestasDeEntrega } from './RespuestasDeEntrega';
 import { TarjetasDeLosTesoros } from './TarjetasDeLosTesoros';
@@ -107,13 +119,14 @@ function mensajeDelMes(
   if (sueldo === undefined) {
     const falta = faltaParaLosTopes(delMes);
     return falta <= 0
-      ? { texto: `Los topes de ${nombre} ya están cubiertos.`, alerta: false }
+      ? { texto: `Los compromisos y los ahorros de ${nombre} ya están cubiertos.`, alerta: false }
       : {
-          texto: `Faltan ${formatearPesos(falta)} para llenar los topes de ${nombre}.`,
+          texto: `Faltan ${formatearPesos(falta)} para llenar los compromisos y los ahorros de ${nombre}.`,
           alerta: true,
         };
   }
-  if (sueldo.falta <= 0) {
+  const faltaDelSueldo = sueldo.falta ?? CERO;
+  if (faltaDelSueldo <= 0) {
     return { texto: `El sueldo de ${nombre} ya está cubierto.`, alerta: false };
   }
   if (del.entroHogar === 0) {
@@ -123,7 +136,7 @@ function mensajeDelMes(
     };
   }
   return {
-    texto: `Faltan ${formatearPesos(sueldo.falta)} para cubrir el sueldo de ${nombre}.`,
+    texto: `Faltan ${formatearPesos(faltaDelSueldo)} para cubrir el sueldo de ${nombre}.`,
     alerta: true,
   };
 }
@@ -251,10 +264,28 @@ export function InicioPage() {
   const todos = tesorosDelTaller(replica);
   const tesoros = conLaMetaDeCocos(tesorosVivos(todos), metaCocos);
   const tintaDelDiezmo = tesoroDeLaClave(todos, 'diezmo')?.tinta ?? 'diezmo';
-  const delMes = filaDelMesDelTaller(replica, mes);
-  const faltantes = faltantesEnInicio(delMes, todos);
+  const { fila } = filaDelTaller(replica);
+  const delMes = filaDelMesDelTaller(replica, mes, fila);
+  const faltantes = faltantesEnInicio(
+    delMes,
+    todos,
+    vencimientosDeLaReplica(replica, rangoDelFaltante(hoy)),
+    hoy,
+  );
+  const libro = datosDelLibro(replica);
+  const insumos = insumosDeLosTrabajos(replica);
+  const panorama = panoramaDelTaller({
+    fila,
+    delMes,
+    sistema: sistemaDeLaReplica(replica),
+    tesoros: todos,
+    movimientos: libro.movimientos,
+    insumos: insumos.total,
+    trabajosConInsumos: insumos.trabajos.length,
+  });
+  const nombreDelSuperavit = tesoroPorId(todos, fila.superavit)?.nombre ?? 'Maun';
 
-  const asientos = asientosDelLibro(datosDelLibro(replica));
+  const asientos = asientosDelLibro(libro);
   const del = resumenMensual(asientos, mes);
   const delPrevio = resumenMensual(asientos, mesAnterior(mes));
   const diezmo = estadoDelDiezmo(asientos);
@@ -309,7 +340,14 @@ export function InicioPage() {
 
       <PortadaDeInicio hoy={hoy} corte={corte} arranque={arranque} />
 
-      <TarjetasDeLosTesoros tesoros={tesoros} diezmo={frase} />
+      {!arranque && <Panorama panorama={panorama} nombreDelSuperavit={nombreDelSuperavit} />}
+
+      <TarjetasDeLosTesoros
+        tesoros={tesoros}
+        diezmo={frase}
+        tipos={tiposEnLasTarjetas(fila, tesoros)}
+        insumos={insumos.total}
+      />
 
       <FaltanteDelMes
         faltantes={conFaltante ? faltantes : []}
@@ -413,7 +451,7 @@ export function InicioPage() {
               </p>
             )}
 
-            <LaFilaDelMes delMes={delMes} tesoros={todos} diezmo={tintaDelDiezmo} hoy={hoy} />
+            <LaFilaDelMes delMes={delMes} tesoros={todos} hoy={hoy} />
 
             <section
               aria-label={nombreDelMes(mes)}

@@ -23,6 +23,7 @@ const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 const HOY = '2026-09-27';
 
 const GUARDADA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
     {
       tesoro: HOGAR,
@@ -30,17 +31,21 @@ const GUARDADA: Fila = {
       tope: centavos(180_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(90_000_000),
       renglones: [
-        { nombre: 'Alquiler del galpón', monto: centavos(50_000_000) },
-        { nombre: 'Luz y gas', monto: centavos(6_000_000) },
-        { nombre: 'Ayudante', monto: centavos(34_000_000) },
+        { nombre: 'Alquiler del galpón', monto: centavos(50_000_000), dia: null },
+        { nombre: 'Luz y gas', monto: centavos(6_000_000), dia: null },
+        { nombre: 'Ayudante', monto: centavos(34_000_000), dia: null },
       ],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: MATERIALES,
@@ -48,9 +53,12 @@ const GUARDADA: Fila = {
       tope: centavos(30_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000) }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 
@@ -113,7 +121,12 @@ function montar({ monto }: { monto?: number } = {}) {
   const resultado =
     monto === undefined
       ? null
-      : probarLaFila(replica, vista.fila, { monto: centavos(monto), mesEnCero: false }, HOY);
+      : probarLaFila(
+          replica,
+          vista.fila,
+          { monto: centavos(monto), cobrado: null, enCero: false },
+          HOY,
+        );
   const alTocar = vi.fn();
   const alSumar = vi.fn();
   const alNuevo = vi.fn();
@@ -134,21 +147,41 @@ afterEach(() => {
   descartarElBorrador();
 });
 
+function fichasDe(region: HTMLElement): (string | null)[] {
+  return within(region)
+    .getAllByRole('button')
+    .filter((boton) => boton.hasAttribute('aria-roledescription'))
+    .map((ficha) => ficha.getAttribute('aria-label'));
+}
+
 describe('el plano vertical del celular', () => {
-  it('muestra la fila en orden, con el reparto y el estante, y cada ficha se toca', () => {
+  it('muestra los grupos con el nombre de su tipo, el reparto, el superávit y el estante, y cada ficha se toca', () => {
     const { alTocar, alNuevo } = montar();
     const fila = screen.getByRole('region', { name: 'La fila' });
-    const pasos = within(fila)
-      .getAllByRole('button')
-      .map((ficha) => ficha.getAttribute('aria-label'));
-    expect(pasos[0]).toMatch(/^Diezmo/);
-    expect(pasos[1]).toMatch(/^Paso 1 de 3: Hogar, sueldo/);
-    expect(pasos[2]).toMatch(/^Paso 2 de 3: Gastos fijos, gastos fijos/);
-    expect(pasos[3]).toMatch(/^Paso 3 de 3: Materiales, prioridad/);
-    expect(pasos[4]).toMatch(/^Lo que sobra se reparte: Cocos 50%, Maun 50%/);
+    const fichas = fichasDe(fila);
+    expect(fichas[0]).toMatch(/^Obligación 1 de 4: Diezmo, 10% sobre el ingreso/);
+    expect(fichas[1]).toMatch(/^Compromiso 2 de 4: Hogar, sueldo/);
+    expect(fichas[2]).toMatch(/^Compromiso 3 de 4: Gastos fijos/);
+    expect(fichas[3]).toMatch(/^Ahorro fijo 4 de 4: Materiales/);
+    expect(fichas[4]).toMatch(/^Lo que sobra se reparte: Cocos 50%, Maun 50%/);
+    expect(fichas[5]).toMatch(/^Ahorro: Cocos, 50% de lo que sobra/);
+    expect(fichas[6]).toMatch(/^Superávit: Maun recibe el resto/);
+    for (const grupo of ['Obligaciones', 'Compromisos', 'Ahorros']) {
+      expect(within(fila).getByText(grupo)).toBeInTheDocument();
+    }
+    expect(
+      within(fila).getByRole('button', { name: 'Qué son las obligaciones' }),
+    ).toBeInTheDocument();
+    expect(
+      within(fila).getByRole('button', { name: 'Qué son los compromisos' }),
+    ).toBeInTheDocument();
+    expect(within(fila).getByRole('button', { name: 'Qué son los ahorros' })).toBeInTheDocument();
     expect(within(fila).getByText('Alquiler del galpón')).toBeInTheDocument();
+    expect(
+      within(fila).getByText(/^Ingreso de septiembre: \$\s0 en 0 cobros$/),
+    ).toBeInTheDocument();
 
-    fireEvent.click(within(fila).getByRole('button', { name: /^Paso 3 de 3/ }));
+    fireEvent.click(within(fila).getByRole('button', { name: /^Ahorro fijo 4 de 4/ }));
     expect(alTocar).toHaveBeenCalledWith(`paso-${MATERIALES}`);
 
     const estante = screen.getByRole('region', { name: 'Estante' });
@@ -156,25 +189,34 @@ describe('el plano vertical del celular', () => {
     expect(within(estante).getByText('No reciben de los cobros')).toBeInTheDocument();
     fireEvent.click(within(estante).getByRole('button', { name: 'Nuevo tesoro' }));
     expect(alNuevo).toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Sumar un paso' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sumar acá' })).toBeNull();
   });
 
   it('en la prueba, cada flecha lleva lo que baja y cada paso lo que recibe', () => {
     montar({ monto: 200_000_000 });
     const fila = screen.getByRole('region', { name: 'La fila' });
-    expect(within(fila).getByText(/Probando con \$\s2\.000\.000/)).toBeInTheDocument();
+    expect(
+      within(fila).getByText(/^Prueba: un trabajo que deja \$\s2\.000\.000$/),
+    ).toBeInTheDocument();
     expect(within(fila).getByText(/^\+ \$\s1\.800\.000$/)).toBeInTheDocument();
     expect(within(fila).getAllByText(/^\$\s1\.800\.000$/)).toHaveLength(2);
-    expect(within(fila).getAllByText('completa el tope')).toHaveLength(1);
+    expect(within(fila).getByText('Ingreso libre')).toBeInTheDocument();
+    expect(within(fila).getByText('Ganancia')).toBeInTheDocument();
+    expect(within(fila).getAllByText('completa el monto')).toHaveLength(1);
     expect(within(fila).getAllByText('no le llega nada')).toHaveLength(2);
   });
 
-  it('editando, cada paso tiene Subir, Bajar y Editar, y cada flecha «Sumar un paso»', () => {
+  it('editando, cada obligación y cada paso tienen Subir, Bajar y Editar, y cada flecha «Sumar acá»', () => {
     empezarElBorrador('a', 4, GUARDADA);
     const { alSumar, alTocar } = montar();
-    expect(screen.getAllByRole('button', { name: 'Sumar un paso' })).toHaveLength(4);
+    expect(screen.getAllByRole('button', { name: 'Sumar acá' })).toHaveLength(5);
+    const diezmo = screen.getByRole('group', { name: 'Lugar de Diezmo' });
+    expect(within(diezmo).getByRole('button', { name: 'Subir' })).toBeDisabled();
+    expect(within(diezmo).getByRole('button', { name: 'Bajar' })).toBeDisabled();
     const hogar = screen.getByRole('group', { name: 'Lugar de Hogar' });
     expect(within(hogar).getByRole('button', { name: 'Subir' })).toBeDisabled();
+    const materiales = screen.getByRole('group', { name: 'Lugar de Materiales' });
+    expect(within(materiales).getByRole('button', { name: 'Subir' })).toBeDisabled();
 
     fireEvent.click(within(hogar).getByRole('button', { name: 'Bajar' }));
     expect(borradorDeLaFila()?.fila.pasos.map((paso) => paso.tesoro)).toEqual([
@@ -186,8 +228,11 @@ describe('el plano vertical del celular', () => {
     fireEvent.click(within(hogar).getByRole('button', { name: 'Editar' }));
     expect(alTocar).toHaveBeenCalledWith(`paso-${HOGAR}`);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Sumar un paso' })[0] as HTMLElement);
-    expect(alSumar).toHaveBeenCalledWith(null, expect.any(HTMLElement));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sumar acá' })[0] as HTMLElement);
+    expect(alSumar).toHaveBeenCalledWith(
+      { fuente: 'origen', despuesDe: null, lugares: ['obligacion'] },
+      expect.any(HTMLElement),
+    );
 
     const estante = screen.getByRole('region', { name: 'Estante' });
     expect(within(estante).getByText('Tiene')).toBeInTheDocument();

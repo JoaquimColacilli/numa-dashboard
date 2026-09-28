@@ -21,6 +21,7 @@ import {
   fechaConSuFranja,
   FORMA_DE_PAGO,
   gastosDelProyecto,
+  insumosDelProyecto,
   listoDelTrabajo,
   MarcaDeLiquidacion,
   MarcaDeListo,
@@ -76,6 +77,7 @@ import {
 
 import { FichaDeContacto } from './FichaDeContacto';
 import { FichaDeSeguimiento } from './FichaDeSeguimiento';
+import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({ clave, valor, extra }: { clave: string; valor: string; extra?: string }) {
   return (
@@ -145,6 +147,7 @@ export function ProyectoFichaPage() {
 
   const pagos = pagosDelProyecto(replica, proyecto.id);
   const gastos = gastosDelProyecto(replica, proyecto.id);
+  const insumos = insumosDelProyecto(replica, proyecto.id);
   const despiece = despieceDelProyecto(replica, proyecto, hoy);
   const liquidado = estaLiquidado(proyecto.estado);
   const hayAcciones =
@@ -343,6 +346,8 @@ export function ProyectoFichaPage() {
               propia={senaDelProyecto(proyecto) !== null}
             />
 
+            {insumos !== null && <InsumosDelTrabajo insumos={insumos} />}
+
             <AvanceDeLaObra resumen={resumen} hoy={hoy} />
 
             <LaEntregaDelTrabajo proyecto={proyecto} cliente={cliente?.nombre ?? ''} hoy={hoy} />
@@ -449,8 +454,8 @@ export function ProyectoFichaPage() {
             </div>
             {gastos.length === 0 ? (
               <p className="border-t border-hairline-soft pt-3 text-label text-text-2">
-                Sin gastos cargados. Todo lo que compres para este mueble va acá y se descuenta de
-                la ganancia.
+                Sin gastos cargados. Todo lo que compres para este mueble va acá y se descuenta del
+                ingreso del trabajo.
               </p>
             ) : (
               <>

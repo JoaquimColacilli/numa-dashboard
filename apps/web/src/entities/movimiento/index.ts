@@ -1,13 +1,19 @@
 export {
   CLASE,
   CLASES_EN_ORDEN,
+  categoriasDeLaClase,
   claseDe,
+  claseParaPagar,
   clasesDelGrupo,
+  gastaDesdeElTesoro,
   GRUPOS,
+  renglonesPorTesoro,
+  rutaParaRegistrarElPago,
   vaEntreTesoros,
   type ClaseDeMovimiento,
   type DatosDeClase,
   type GrupoDeMovimiento,
+  type PagoParaRegistrar,
 } from './model/clases';
 export { ayudaDelMovimiento, type ContextoDeAyuda, type LadoDeLaAyuda } from './model/ayuda';
 export { fraseDelDiezmo, type FraseDelDiezmo } from './model/diezmo';

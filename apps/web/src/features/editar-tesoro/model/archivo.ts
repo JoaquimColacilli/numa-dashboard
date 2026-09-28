@@ -1,10 +1,10 @@
-import { leerLaFila, tesorosDeLaFila } from '@maun/domain';
+import { tesorosDeLaFila } from '@maun/domain';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import {
   filaDelTaller,
   filasDe,
-  type FilaDe,
+  reaperturaDeLaFila,
   type MovimientoNuevo,
   type Replica,
 } from '@/shared/api';
@@ -17,12 +17,6 @@ export type PorQueNoSeArchiva =
 export const QUE_HACER_PARA_ARCHIVAR =
   'Sacalo de la fila, cobrá el trabajo reabierto que lo usa y pasá su plata a otro tesoro. Después archivalo.';
 
-function filaDeLaReapertura(valor: unknown): string[] {
-  if (typeof valor !== 'object' || valor === null) return [];
-  const fila = leerLaFila((valor as Record<string, unknown>).fila);
-  return fila === null ? [] : tesorosDeLaFila(fila);
-}
-
 export function porQueNoSeArchiva(
   replica: Replica,
   tesoro: Pick<TesoroDelTaller, 'id' | 'clave'>,
@@ -33,8 +27,8 @@ export function porQueNoSeArchiva(
   if (guardada && tesorosDeLaFila(fila).includes(tesoro.id)) return { motivo: 'en-la-fila' };
 
   for (const proyecto of filasDe(replica, 'proyectos')) {
-    const reapertura = (proyecto as Partial<FilaDe<'proyectos'>>).reapertura_fila ?? null;
-    if (filaDeLaReapertura(reapertura).includes(tesoro.id)) {
+    const reapertura = reaperturaDeLaFila(replica, proyecto);
+    if (reapertura !== null && tesorosDeLaFila(reapertura.fila).includes(tesoro.id)) {
       return { motivo: 'en-un-cobro-reabierto', trabajo: proyecto.titulo };
     }
   }

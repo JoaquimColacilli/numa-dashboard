@@ -1,4 +1,4 @@
-import { centavos, type Fila, type Liquidacion } from '@maun/domain';
+import { centavos, puntosBasicos, type Fila, type Liquidacion } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -30,6 +30,8 @@ const MAUN = '00000000-0000-7000-8000-000000000002';
 const DIEZMO = '00000000-0000-7000-8000-000000000003';
 const COCOS = '00000000-0000-7000-8000-000000000004';
 const FIJOS = '00000000-0000-7000-8000-000000000010';
+const IIBB = '00000000-0000-7000-8000-000000000011';
+const APARTE = '00000000-0000-7000-8000-000000000012';
 
 const METADATOS = {
   household_id: 'h',
@@ -87,21 +89,44 @@ const TESOROS = [
   tesoro(DIEZMO, 'diezmo', 'Diezmo', 'diezmo', 'church'),
   tesoro(COCOS, 'cocos', 'Cocos', 'cocos', 'piggy-bank'),
   tesoro(FIJOS, null, 'Gastos fijos', 'grana', 'receipt', 1),
+  tesoro(IIBB, null, 'Ingresos Brutos', 'mostaza', 'landmark', 2),
+  tesoro(APARTE, null, 'Superávit', 'petroleo', 'gift', 3),
 ];
 
 const FILA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
-    { tesoro: HOGAR, clase: 'sueldo', tope: centavos(300_000), renglones: [], desde: null },
+    {
+      tesoro: HOGAR,
+      clase: 'sueldo',
+      tope: centavos(300_000),
+      renglones: [],
+      desde: null,
+      modo: 'mes',
+      hastaLaMeta: false,
+    },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(200_000),
-      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000) }],
+      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000), dia: null }],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: 5000 as never }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
+};
+
+const CON_TODO: Fila = {
+  ...FILA,
+  obligaciones: [
+    { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
+    ...FILA.obligaciones,
+  ],
+  superavit: APARTE,
 };
 
 function taller({
@@ -177,6 +202,8 @@ function reparto(
     nombre: 'Hogar',
     tipo: 'paso',
     clase: 'sueldo',
+    modo: 'mes',
+    base: null,
     objetivo_centavos: 0,
     previo_centavos: 0,
     tope_centavos: 0,
@@ -261,7 +288,13 @@ describe('el despiece proyectado por la fila', () => {
     expect(despiece.modo).toBe('proyeccion');
     expect(despiece.neta).toBe(70_000_000);
     expect(resumen(despiece.piezas)).toEqual([
-      { id: 'diezmo', etiqueta: 'Diezmo 10%', nombre: 'Diezmo', tinta: 'diezmo', monto: 7_000_000 },
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 7_000_000,
+      },
       {
         id: `paso-${HOGAR}`,
         etiqueta: 'Sueldo',
@@ -288,7 +321,13 @@ describe('el despiece proyectado por la fila', () => {
     const despiece = despieceDelProyecto(replica, proyecto(), HOY);
 
     expect(resumen(despiece.piezas)).toEqual([
-      { id: 'diezmo', etiqueta: 'Diezmo 10%', nombre: 'Diezmo', tinta: 'diezmo', monto: 100_000 },
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 100_000,
+      },
       { id: `paso-${HOGAR}`, etiqueta: 'Sueldo', nombre: 'Hogar', tinta: 'hogar', monto: 300_000 },
       {
         id: `paso-${FIJOS}`,
@@ -314,6 +353,101 @@ describe('el despiece proyectado por la fila', () => {
       'parte',
       'resto',
     ]);
+  });
+
+  it('un compromiso que se renueva y ya tiene su monto, y un ahorro que llega a su meta, lo dicen', () => {
+    const MAQUINARIA = '00000000-0000-7000-8000-000000000013';
+    const fila: Fila = {
+      ...FILA,
+      pasos: FILA.pasos.map((paso) =>
+        paso.tesoro === FIJOS ? { ...paso, modo: 'saldo' as const } : paso,
+      ),
+      reparto: [{ tesoro: MAQUINARIA, porcentaje: puntosBasicos(5000), hastaLaMeta: true }],
+    };
+    let replica = aplicarFilaLocal(taller({ fila }), 'tesoros', {
+      ...tesoro(MAQUINARIA, null, 'Maquinaria', 'ciruela', 'wrench', 4),
+      meta_centavos: 150_000,
+    });
+    for (const [id, hacia, monto] of [
+      ['m1', FIJOS, 200_000],
+      ['m2', MAQUINARIA, 100_000],
+    ] as const) {
+      replica = aplicarFilaLocal(replica, 'movimientos', {
+        ...METADATOS,
+        id,
+        fecha: '2026-09-02',
+        tipo: 'ingreso',
+        tesoro_origen: null,
+        tesoro_destino: null,
+        desde_id: null,
+        hacia_id: hacia,
+        cubre_el_mes: null,
+        monto_centavos: monto,
+        categoria: 'Otro',
+        descripcion: '',
+        proyecto_id: null,
+      } as unknown as FilaDe<'movimientos'>);
+    }
+    const despiece = despieceDelProyecto(conPago(replica, 'p', 1_000_000), proyecto(), HOY);
+
+    expect(despiece.piezas.find((pieza) => pieza.id === `paso-${FIJOS}`)).toMatchObject({
+      monto: 0,
+      conSuSaldo: true,
+      cubierto: false,
+      llegaALaMeta: false,
+    });
+    expect(despiece.piezas.find((pieza) => pieza.id === `parte-${MAQUINARIA}`)).toMatchObject({
+      monto: 50_000,
+      llegaALaMeta: true,
+      cubierto: false,
+    });
+  });
+
+  it('con otra obligación y el superávit aparte, cada obligación en su lugar y el resto al superávit', () => {
+    const replica = conPago(taller({ fila: CON_TODO }), 'p', 1_000_000);
+    const despiece = despieceDelProyecto(replica, proyecto(), HOY);
+
+    expect(resumen(despiece.piezas)).toEqual([
+      {
+        id: `obligacion-${IIBB}`,
+        etiqueta: 'Ingresos Brutos 3,5% sobre lo que cobrás',
+        nombre: 'Ingresos Brutos',
+        tinta: 'mostaza',
+        monto: 35_000,
+      },
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 96_500,
+      },
+      { id: `paso-${HOGAR}`, etiqueta: 'Sueldo', nombre: 'Hogar', tinta: 'hogar', monto: 300_000 },
+      {
+        id: `paso-${FIJOS}`,
+        etiqueta: 'Gastos fijos',
+        nombre: 'Gastos fijos',
+        tinta: 'grana',
+        monto: 200_000,
+      },
+      {
+        id: `parte-${COCOS}`,
+        etiqueta: '50% de lo que sobra',
+        nombre: 'Cocos',
+        tinta: 'cocos',
+        monto: 184_250,
+      },
+      { id: 'resto', etiqueta: 'El resto', nombre: 'Superávit', tinta: 'petroleo', monto: 184_250 },
+    ]);
+    expect(despiece.piezas.map((pieza) => [pieza.tipo, pieza.tipoDeTesoro])).toEqual([
+      ['obligacion', 'obligacion'],
+      ['diezmo', 'obligacion'],
+      ['paso', 'compromiso'],
+      ['paso', 'compromiso'],
+      ['parte', 'ahorro-por-porcentaje'],
+      ['resto', 'superavit'],
+    ]);
+    expect(despiece.piezas.reduce((suma, pieza) => suma + pieza.monto, 0)).toBe(despiece.neta);
   });
 
   it('un paso que el mes ya llenó queda en cero y lo dice, sin pedir lo que falta', () => {
@@ -451,7 +585,13 @@ describe('el despiece real', () => {
 
     expect(despiece.modo).toBe('real');
     expect(resumen(despiece.piezas)).toEqual([
-      { id: 'diezmo', etiqueta: 'Diezmo 10%', nombre: 'Diezmo', tinta: 'diezmo', monto: 100_000 },
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 100_000,
+      },
       { id: `paso-${HOGAR}`, etiqueta: 'Sueldo', nombre: 'Hogar', tinta: 'hogar', monto: 300_000 },
       {
         id: `paso-${FIJOS}`,
@@ -486,6 +626,119 @@ describe('el despiece real', () => {
     ]);
   });
 
+  it('con otra obligación y el superávit aparte, los lee de sus repartos y el diezmo va en su lugar', () => {
+    const cobrado = proyecto({
+      ...COBRADO_POR_LA_FILA,
+      dist_diezmo_centavos: 96_500,
+      dist_remanente_centavos: 903_500,
+      dist_fila: CON_TODO as unknown as Proyecto['dist_fila'],
+    });
+    let replica = taller({ fila: CON_TODO });
+    replica = aplicarFilaLocal(replica, 'proyectos', cobrado);
+    for (const fila of [
+      reparto('o1', 1, {
+        tesoro_id: IIBB,
+        nombre: 'Ingresos Brutos',
+        tipo: 'obligacion',
+        clase: null,
+        modo: null,
+        base: 'cobrado',
+        objetivo_centavos: null,
+        previo_centavos: null,
+        tope_centavos: null,
+        por_mes: null,
+        porcentaje_bp: 350,
+        monto_centavos: 35_000,
+      }),
+      reparto('o2', 2, {
+        objetivo_centavos: 300_000,
+        tope_centavos: 300_000,
+        monto_centavos: 300_000,
+      }),
+      reparto('o3', 3, {
+        tesoro_id: FIJOS,
+        nombre: 'Gastos fijos',
+        clase: 'fijos',
+        objetivo_centavos: 200_000,
+        tope_centavos: 200_000,
+        monto_centavos: 200_000,
+      }),
+      reparto('o4', 4, {
+        tesoro_id: COCOS,
+        nombre: 'Cocos',
+        tipo: 'parte',
+        clase: null,
+        modo: null,
+        objetivo_centavos: null,
+        previo_centavos: null,
+        tope_centavos: null,
+        por_mes: null,
+        porcentaje_bp: 5000,
+        monto_centavos: 184_250,
+      }),
+      reparto('o5', 5, {
+        tesoro_id: APARTE,
+        nombre: 'Lo que sobra',
+        tipo: 'superavit',
+        clase: null,
+        modo: null,
+        objetivo_centavos: null,
+        previo_centavos: null,
+        tope_centavos: null,
+        por_mes: null,
+        monto_centavos: 184_250,
+      }),
+    ]) {
+      replica = aplicarFilaLocal(replica, 'repartos', fila);
+    }
+
+    const despiece = despieceDelProyecto(replica, cobrado, HOY);
+    expect(despiece.piezas.map((pieza) => [pieza.id, pieza.nombre, pieza.monto])).toEqual([
+      [`obligacion-${IIBB}`, 'Ingresos Brutos', 35_000],
+      ['diezmo', 'Diezmo', 96_500],
+      [`paso-${HOGAR}`, 'Hogar', 300_000],
+      [`paso-${FIJOS}`, 'Gastos fijos', 200_000],
+      [`parte-${COCOS}`, 'Cocos', 184_250],
+      ['resto', 'Lo que sobra', 184_250],
+    ]);
+    expect(despiece.piezas.map((pieza) => [pieza.etiqueta, pieza.tipoDeTesoro])).toEqual([
+      ['Ingresos Brutos 3,5% sobre lo que cobrás', 'obligacion'],
+      ['Diezmo 10% sobre el ingreso', 'obligacion'],
+      ['Sueldo', 'compromiso'],
+      ['Gastos fijos', 'compromiso'],
+      ['50% de lo que sobra', 'ahorro-por-porcentaje'],
+      ['El resto', 'superavit'],
+    ]);
+
+    const conOtroDiezmo = proyecto({
+      ...COBRADO_POR_LA_FILA,
+      dist_diezmo_bp: 1200,
+      dist_fila: {
+        ...CON_TODO,
+        obligaciones: [
+          { tesoro: DIEZMO, porcentaje: puntosBasicos(1200), base: 'cobrado' },
+          ...CON_TODO.obligaciones.filter((obligacion) => obligacion.tesoro !== DIEZMO),
+        ],
+      } as unknown as Proyecto['dist_fila'],
+    });
+    const otraReplica = aplicarFilaLocal(replica, 'proyectos', conOtroDiezmo);
+    expect(
+      despieceDelProyecto(otraReplica, conOtroDiezmo, HOY).piezas.find(
+        (pieza) => pieza.id === 'diezmo',
+      )?.etiqueta,
+    ).toBe('Diezmo 12% sobre lo que cobrás');
+    expect(
+      loQueVuelveAlReabrir(replica, cobrado).map(({ tesoro: id, monto }) => [id, monto]),
+    ).toEqual([
+      [IIBB, 35_000],
+      [DIEZMO, 96_500],
+      [HOGAR, 300_000],
+      [FIJOS, 200_000],
+      [COCOS, 184_250],
+      [APARTE, 184_250],
+    ]);
+  });
+
   const COBRADO_DE_ANTES = proyecto({
     estado: 'cobrado',
     fecha_cobro: '2026-09-10',
@@ -508,7 +761,13 @@ describe('el despiece real', () => {
 
     expect(despiece.modo).toBe('real');
     expect(resumen(despiece.piezas)).toEqual([
-      { id: 'diezmo', etiqueta: 'Diezmo 10%', nombre: 'Diezmo', tinta: 'diezmo', monto: 7_000_000 },
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 7_000_000,
+      },
       {
         id: `paso-${HOGAR}`,
         etiqueta: 'Sueldo',

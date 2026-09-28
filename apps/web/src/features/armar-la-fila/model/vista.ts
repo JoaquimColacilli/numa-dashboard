@@ -2,6 +2,7 @@ import {
   CERO,
   lugarLibreDelReparto,
   problemasDeLaFila,
+  tipoDelPaso,
   type CambioDeLaFila,
   type Fila,
   type FilaDelMes,
@@ -13,6 +14,7 @@ import {
 import {
   estanteDe,
   filaDelMesDelTaller,
+  NOMBRE_DEL_TIPO,
   pruebaDeUnCobro,
   type ParteDeLaEscala,
 } from '@/entities/fila';
@@ -33,9 +35,10 @@ import {
 import { mesDeLaFecha } from '@/shared/lib';
 
 import { cambiosDelBorrador, cuantosCambios, type BorradorDeLaFila } from './borrador';
-import { NOMBRE_DE_LA_CLASE } from './edicion';
 import {
+  FICHA_DEL_DIEZMO,
   FICHA_DEL_RESTO,
+  fichaDeLaObligacion,
   fichaDeLaParte,
   fichaDelEstante,
   fichaDelPaso,
@@ -95,7 +98,7 @@ export function vistaDeLaFila(
     problemas: armando
       ? problemasDeLaFila(
           fila,
-          tesoros.map(({ id, clave, archivado }) => ({ id, clave, archivado })),
+          tesoros.map(({ id, clave, archivado, meta }) => ({ id, clave, archivado, meta })),
         )
       : [],
     revision: (borrador?.version ?? delTaller.version) + 1,
@@ -115,10 +118,15 @@ export function vistaDeLaFila(
 
 export interface PruebaEnPantalla {
   monto: Money | null;
-  mesEnCero: boolean;
+  cobrado: Money | null;
+  enCero: boolean;
 }
 
-export const SIN_PRUEBA: PruebaEnPantalla = { monto: null, mesEnCero: false };
+export const SIN_PRUEBA: PruebaEnPantalla = { monto: null, cobrado: null, enCero: false };
+
+export function pideLoCobrado(fila: Pick<Fila, 'obligaciones'>): boolean {
+  return fila.obligaciones.some((obligacion) => obligacion.base === 'cobrado');
+}
 
 export function probarLaFila(
   replica: Replica,
@@ -130,7 +138,8 @@ export function probarLaFila(
   try {
     return pruebaDeUnCobro(replica, fila, {
       monto: prueba.monto,
-      mesEnCero: prueba.mesEnCero,
+      cobrado: pideLoCobrado(fila) ? prueba.cobrado : null,
+      enCero: prueba.enCero,
       hoy,
     });
   } catch {
@@ -174,7 +183,7 @@ export function loQueEstabaGuardado(replica: Replica): LoQueEstabaGuardado {
 export function escalaDe(
   vista: Pick<VistaDeLaFila, 'fila' | 'tesoros' | 'sistema'>,
 ): ParteDeLaEscala[] {
-  const maun = tesoroDe(vista, vista.sistema.maun);
+  const superavit = tesoroDe(vista, vista.fila.superavit);
   return [
     ...vista.fila.reparto.map((parte) => ({
       tesoro: parte.tesoro,
@@ -183,13 +192,14 @@ export function escalaDe(
       resto: false,
     })),
     {
-      tesoro: maun.id,
-      tinta: maun.tinta,
+      tesoro: superavit.id,
+      tinta: superavit.tinta,
       porcentaje: lugarLibreDelReparto(vista.fila),
       resto: true,
     },
   ];
 }
+
 export function fichaVigente(
   vista: Pick<VistaDeLaFila, 'fila' | 'estante' | 'sistema'>,
   id: string | null,
@@ -197,14 +207,46 @@ export function fichaVigente(
   if (id === null) return null;
   const ficha = queFichaEs(id);
   if (ficha === null) return null;
-  if (ficha.tipo === 'diezmo' || ficha.tipo === 'reparto' || ficha.tipo === 'resto') return id;
+  if (
+    ficha.tipo === 'diezmo' ||
+    ficha.tipo === 'reparto' ||
+    ficha.tipo === 'resto' ||
+    ficha.tipo === 'insumos'
+  ) {
+    return id;
+  }
   if (ficha.tesoro === null) return null;
   const tesoro = ficha.tesoro;
+  if (vista.fila.obligaciones.some((obligacion) => obligacion.tesoro === tesoro)) {
+    return tesoro === vista.sistema.diezmo ? FICHA_DEL_DIEZMO : fichaDeLaObligacion(tesoro);
+  }
   if (vista.fila.pasos.some((paso) => paso.tesoro === tesoro)) return fichaDelPaso(tesoro);
   if (vista.fila.reparto.some((parte) => parte.tesoro === tesoro)) return fichaDeLaParte(tesoro);
   if (vista.estante.some((suelto) => suelto.id === tesoro)) return fichaDelEstante(tesoro);
-  if (tesoro === vista.sistema.maun) return FICHA_DEL_RESTO;
+  if (tesoro === vista.fila.superavit) return FICHA_DEL_RESTO;
   return null;
+}
+
+export function fichaDelTesoro(
+  vista: Pick<VistaDeLaFila, 'fila' | 'estante' | 'sistema'>,
+  tesoro: string,
+): string | null {
+  return fichaVigente(vista, fichaDelEstante(tesoro));
+}
+
+export function numeroEnLaFila(fila: Pick<Fila, 'obligaciones' | 'pasos'>, tesoro: string): number {
+  const obligacion = fila.obligaciones.findIndex((una) => una.tesoro === tesoro);
+  if (obligacion !== -1) return obligacion + 1;
+  const paso = fila.pasos.findIndex((uno) => uno.tesoro === tesoro);
+  return paso === -1 ? 0 : fila.obligaciones.length + paso + 1;
+}
+
+export function cuantosEnLaFila(fila: Pick<Fila, 'obligaciones' | 'pasos'>): number {
+  return fila.obligaciones.length + fila.pasos.length;
+}
+
+export function lugarEnLaFila(fila: Pick<Fila, 'obligaciones' | 'pasos'>, tesoro: string): string {
+  return `${String(numeroEnLaFila(fila, tesoro))} de ${String(cuantosEnLaFila(fila))}`;
 }
 
 export interface EncabezadoDeLaFicha {
@@ -222,22 +264,23 @@ export function encabezadoDeLaFicha(
   if (ficha === null)
     return { titulo: 'La fila', bajada: 'Cómo se reparte cada cobro', tesoro: null };
   if (ficha.tipo === 'paso') {
-    const lugar = vista.fila.pasos.findIndex((paso) => paso.tesoro === ficha.tesoro);
-    const paso = vista.fila.pasos[lugar];
-    const donde = `Paso ${String(lugar + 1)} de ${String(vista.fila.pasos.length)}`;
+    const paso = vista.fila.pasos.find((uno) => uno.tesoro === ficha.tesoro);
+    const tesoro = tesoroDe(vista, ficha.tesoro);
+    if (paso === undefined) return { titulo: tesoro.nombre, bajada: 'En la fila', tesoro };
+    const tipo = NOMBRE_DEL_TIPO[tipoDelPaso(paso.clase)];
+    const donde = `${tipo} · ${lugarEnLaFila(vista.fila, paso.tesoro)}`;
     return {
-      titulo: tesoroDe(vista, ficha.tesoro).nombre,
-      bajada:
-        paso === undefined
-          ? 'Paso de la fila'
-          : conClase
-            ? `${donde} · ${NOMBRE_DE_LA_CLASE[paso.clase]}`
-            : donde,
-      tesoro: tesoroDe(vista, ficha.tesoro),
+      titulo: tesoro.nombre,
+      bajada: conClase && paso.clase === 'sueldo' ? `${donde} · Sueldo` : donde,
+      tesoro,
     };
   }
-  if (ficha.tipo === 'parte' || ficha.tipo === 'reparto' || ficha.tipo === 'resto') {
-    return { titulo: 'Lo que sobra', bajada: 'Se reparte por porcentaje', tesoro: null };
+  if (ficha.tipo === 'parte' || ficha.tipo === 'reparto') {
+    return { titulo: 'Lo que sobra', bajada: 'Ahorros por porcentaje', tesoro: null };
+  }
+  if (ficha.tipo === 'resto') {
+    const superavit = tesoroDe(vista, vista.fila.superavit);
+    return { titulo: superavit.nombre, bajada: 'Superávit · El resto', tesoro: superavit };
   }
   if (ficha.tipo === 'estante') {
     return {
@@ -246,9 +289,17 @@ export function encabezadoDeLaFicha(
       tesoro: tesoroDe(vista, ficha.tesoro),
     };
   }
-  if (ficha.tipo === 'diezmo') {
-    const diezmo = tesoroDe(vista, vista.sistema.diezmo);
-    return { titulo: diezmo.nombre, bajada: 'Primero, siempre', tesoro: diezmo };
+  if (ficha.tipo === 'obligacion' || ficha.tipo === 'diezmo') {
+    const id = ficha.tesoro ?? vista.sistema.diezmo;
+    const tesoro = tesoroDe(vista, id);
+    return {
+      titulo: tesoro.nombre,
+      bajada: `Obligación · ${lugarEnLaFila(vista.fila, id)}`,
+      tesoro,
+    };
+  }
+  if (ficha.tipo === 'insumos') {
+    return { titulo: 'Insumos', bajada: 'Lo que queda de cada seña', tesoro: null };
   }
   return { titulo: 'La fila', bajada: 'Cómo se reparte cada cobro', tesoro: null };
 }

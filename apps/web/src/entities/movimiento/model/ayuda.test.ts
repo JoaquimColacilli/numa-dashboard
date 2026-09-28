@@ -51,6 +51,24 @@ describe('la ayuda de un pase entre tesoros', () => {
     ).toBe('Pasa de un tesoro a otro: la plata no se va, cambia de bolsillo.');
   });
 
+  it('un gasto de un tesoro nombra el tesoro y dice cómo queda', () => {
+    expect(
+      ayudaDelMovimiento('gasto_tesoro', {
+        saldos: SALDOS,
+        metaCocos: centavos(0),
+        monto: centavos(50_000_000),
+        tesoro: { nombre: 'Alquiler', saldo: centavos(63_000_000) },
+      }),
+    ).toBe(`Sale de Alquiler y se va. Alquiler queda en ${formatearPesos(centavos(13_000_000))}.`);
+    expect(
+      ayudaDelMovimiento('gasto_tesoro', {
+        saldos: SALDOS,
+        metaCocos: centavos(0),
+        monto: centavos(0),
+      }),
+    ).toBe('Sale del tesoro que elijas y se va.');
+  });
+
   it('las ocho de siempre siguen leyendo los saldos por su clave', () => {
     expect(
       ayudaDelMovimiento('gasto_hogar', {

@@ -176,7 +176,7 @@ export function fraseDelCorte(corte: CorteDelMes | null, mes: string): string {
     .filter((parte) => parte.monto > 0)
     .map((parte) => `${parteDelTablero(parte.monto, corte.tablero)} ${aDondeVa(parte)}`);
   if (partes.length === 0) {
-    return `${cerrados}, y los gastos se comieron lo cobrado: no quedó ganancia para repartir.`;
+    return `${cerrados}, y los gastos se comieron lo cobrado: no quedó ingreso para repartir.`;
   }
 
   const gastos = corte.gastos > 0 ? ' Lo demás fueron gastos.' : '';

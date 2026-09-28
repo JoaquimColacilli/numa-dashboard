@@ -1,6 +1,7 @@
 import {
   calcularPorLaFila,
-  centavos,
+  maximo,
+  restar,
   filaDelMes,
   tesorosDeLaFila,
   type AjustesDelReparto,
@@ -9,14 +10,13 @@ import {
   type LiquidacionPorLaFila,
   type Money,
   type PasoDelMes,
-  type Tesoro,
 } from '@maun/domain';
 
 import {
   ajustesDe,
-  coberturasDeLaReplica,
+  datosDelMesDeLaReplica,
   filaDelTaller,
-  liquidacionesDelMesDeLaReplica,
+  sistemaDeLaReplica,
   type Replica,
 } from '@/shared/api';
 
@@ -33,54 +33,58 @@ export function filaDelMesDelTaller(
   mes: string,
   fila: Fila = filaDelTaller(replica).fila,
 ): FilaDelMes {
-  return filaDelMes(
-    fila,
-    liquidacionesDelMesDeLaReplica(replica),
-    coberturasDeLaReplica(replica),
-    mes,
-  );
+  return filaDelMes(fila, sistemaDeLaReplica(replica), datosDelMesDeLaReplica(replica), mes);
 }
 
 export interface PruebaDeUnCobro {
   monto: Money;
-  mesEnCero: boolean;
+  cobrado?: Money | null;
+  enCero: boolean;
   hoy: string;
+}
+
+export interface CobradoYGastos {
+  cobrado: Money;
+  gastos: Money;
+}
+
+export function cobradoYGastosDeLaPrueba(deja: Money, cobrado?: Money | null): CobradoYGastos {
+  const total = cobrado === null || cobrado === undefined ? deja : maximo(cobrado, deja);
+  return { cobrado: total, gastos: restar(total, deja) };
 }
 
 export function pruebaDeUnCobro(
   replica: Replica,
   fila: Fila,
-  { monto, mesEnCero, hoy }: PruebaDeUnCobro,
+  { monto, cobrado, enCero, hoy }: PruebaDeUnCobro,
 ): LiquidacionPorLaFila {
+  const datos = datosDelMesDeLaReplica(replica);
   return calcularPorLaFila({
     destino: 'cobrado',
     fecha: hoy,
-    cobrado: monto,
-    gastos: centavos(0),
+    ...cobradoYGastosDeLaPrueba(monto, cobrado),
     fila,
+    sistema: sistemaDeLaReplica(replica),
     ajustes: ajustesDelReparto(replica),
-    liquidaciones: mesEnCero ? [] : liquidacionesDelMesDeLaReplica(replica),
-    coberturas: mesEnCero ? [] : coberturasDeLaReplica(replica),
+    liquidaciones: enCero ? [] : datos.liquidaciones,
+    coberturas: enCero ? [] : datos.coberturas,
+    saldos: enCero ? new Map<string, Money>() : datos.saldos,
+    metas: datos.metas,
   });
 }
 
 interface TesoroDelEstante {
   id: string;
-  clave: Tesoro | null;
   archivado: boolean;
 }
 
 export function estanteDe<T extends TesoroDelEstante>(fila: Fila, tesoros: readonly T[]): T[] {
   const enLaFila = new Set(tesorosDeLaFila(fila));
-  return tesoros.filter(
-    (tesoro) =>
-      !tesoro.archivado &&
-      tesoro.clave !== 'diezmo' &&
-      tesoro.clave !== 'maun' &&
-      !enLaFila.has(tesoro.id),
-  );
+  return tesoros.filter((tesoro) => !tesoro.archivado && !enLaFila.has(tesoro.id));
 }
 
 export function faltantesDeGastosFijos(mes: FilaDelMes): PasoDelMes[] {
-  return mes.pasos.filter((paso) => paso.clase === 'fijos' && paso.falta > 0);
+  return mes.pasos.filter(
+    (paso) => paso.clase === 'fijos' && paso.falta !== null && paso.falta > 0,
+  );
 }

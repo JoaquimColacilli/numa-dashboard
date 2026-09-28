@@ -59,7 +59,7 @@ const FILTROS: readonly { id: Filtro; etiqueta: string }[] = [
 const DURACION_DEL_AVISO_DEL_DIA_MS = 5000;
 
 const MES_VACIO =
-  'Las visitas y las entregas aparecen solas cuando cargás un contacto o un proyecto. Lo que comprás o hacés en el taller lo anotás vos.';
+  'Las visitas y las entregas aparecen solas cuando cargás un contacto o un proyecto, y los vencimientos cuando le ponés día de pago a un compromiso en Tesoros. Lo que comprás o hacés en el taller lo anotás vos.';
 
 function pasaElFiltro(evento: EventoDeLaAgenda, filtro: Filtro): boolean {
   if (filtro === 'todo') return true;
@@ -282,12 +282,23 @@ export function AgendaPage() {
     setAvisoDelDia({ texto: aviso.texto, accion: aviso.accion ?? null });
   }, []);
   const accionesBaseDelDia = useAccionesDeLaAgenda(avisarEnElDia);
+  const soltarElDia = () => {
+    setDiaAbierto(null);
+    setAvisoDelDia(null);
+  };
   const accionesDelDia: AccionesDeLaAgenda = {
     ...accionesBaseDelDia,
     alRegistrar: (evento) => {
-      setDiaAbierto(null);
-      setAvisoDelDia(null);
+      soltarElDia();
       setRegistrando(evento);
+    },
+    alRegistrarElPago: (evento) => {
+      soltarElDia();
+      accionesBaseDelDia.alRegistrarElPago?.(evento);
+    },
+    alAbrirVencimiento: (evento) => {
+      soltarElDia();
+      accionesBaseDelDia.alAbrirVencimiento?.(evento);
     },
   };
 
@@ -329,7 +340,10 @@ export function AgendaPage() {
     };
   }, [diaAbierto]);
 
-  const datos = useMemo(() => datosDeLaAgendaDeLaReplica(replica), [replica]);
+  const datos = useMemo(
+    () => datosDeLaAgendaDeLaReplica(replica, rangoDeLaGrilla(mes)),
+    [replica, mes],
+  );
   const eventos = useMemo(() => eventosDeLaAgenda(datos, rangoDeLaGrilla(mes)), [datos, mes]);
   const fechasDeLaGrilla = useMemo(
     () =>

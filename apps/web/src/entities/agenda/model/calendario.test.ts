@@ -1,4 +1,9 @@
-import type { EventoDerivado, EventoPropio } from '@maun/domain';
+import {
+  centavos,
+  type EventoDerivado,
+  type EventoPropio,
+  type EventoVencimiento,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,9 +25,12 @@ import {
   resumenDelDia,
   resumenDelMes,
   semanasDelMes,
+  textoCortoDelEvento,
   textoDeLoHecho,
+  textoDelEvento,
   urgenciaDelEvento,
 } from './calendario';
+import { CATEGORIA } from './categorias';
 
 const HOY = '2026-09-14';
 
@@ -61,6 +69,55 @@ function propio(cambios: Partial<EventoPropio> = {}): EventoPropio {
     ...cambios,
   };
 }
+
+function vencimiento(cambios: Partial<EventoVencimiento> = {}): EventoVencimiento {
+  return {
+    clase: 'vencimiento',
+    id: 'vencimiento:fijos:0:2026-09-10',
+    categoria: 'vencimiento',
+    fecha: '2026-09-10',
+    hora: null,
+    tesoro: 'fijos',
+    nombreDelTesoro: 'Gastos fijos',
+    renglon: 'Alquiler',
+    monto: centavos(27_000_000),
+    hecha: false,
+    importante: false,
+    ...cambios,
+  };
+}
+
+describe('un vencimiento', () => {
+  it('se nombra por su renglón, con el monto y el tesoro de donde se paga', () => {
+    const alquiler = vencimiento();
+    expect(textoDelEvento(alquiler)).toBe('Alquiler');
+    expect(nombreDelEvento(alquiler)).toBe('Vence: Alquiler');
+    expect(textoCortoDelEvento(alquiler)).toBe('Vence: Alquiler');
+    expect(detalleDelEvento(alquiler).replace(/\s/g, ' ')).toBe('$ 270.000 de Gastos fijos');
+    expect(textoDeLoHecho(vencimiento({ hecha: true }))).toBe('pagado');
+  });
+
+  it('cuenta como compromiso del día, y el que pasó sin pagarse venció', () => {
+    expect(resumenDelDia([vencimiento(), propio()])).toBe('1 compromiso · 1 cosa anotada');
+    expect(urgenciaDelEvento(vencimiento(), '2026-09-12')).toEqual({
+      texto: 'venció hace 2 días',
+      tono: 'alerta',
+    });
+    expect(urgenciaDelEvento(vencimiento(), '2026-09-09')).toEqual({
+      texto: 'es mañana',
+      tono: 'atencion',
+    });
+    expect(urgenciaDelEvento(vencimiento({ hecha: true }), '2026-09-12')).toBeNull();
+  });
+
+  it('tiene su propia marca, distinta de las otras seis', () => {
+    const formas = Object.values(CATEGORIA).map((categoria) => categoria.forma);
+    expect(CATEGORIA.vencimiento.forma).toBe('reloj');
+    expect(formas.filter((forma) => forma === 'reloj')).toHaveLength(1);
+    expect(new Set(formas).size).toBe(formas.length);
+    expect(CATEGORIA.vencimiento.texto).toBe('text-ag-vencimiento');
+  });
+});
 
 describe('el calendario de lunes a domingo', () => {
   it('sabe qué día de la semana es cada fecha, con el lunes primero', () => {

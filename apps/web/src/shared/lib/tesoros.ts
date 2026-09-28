@@ -35,7 +35,7 @@ export const TESORO: Readonly<Record<Tesoro, DatosDelTesoro>> = {
   diezmo: {
     id: 'diezmo',
     nombre: 'Diezmo',
-    descripcion: 'Lo apartado de cada ganancia',
+    descripcion: 'Lo apartado de cada ingreso',
     icono: 'church',
     fondo: 'bg-diezmo-tint',
     texto: 'text-diezmo',

@@ -1,79 +1,134 @@
-import { centavos, puntosBasicos, type Fila, type PasoDeLaFila } from '@maun/domain';
+import {
+  centavos,
+  MONTO_MAXIMO_DE_LA_FILA,
+  puntosBasicos,
+  TOPE_DE_OBLIGACIONES,
+  type Fila,
+  type PasoDeLaFila,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
+  dondeEntra,
   fraseDelLibre,
   opcionesDeLugar,
   porcentajeSugerido,
   revisarElLugar,
-  tituloDelPaso,
+  SUGERENCIAS_DEL_LUGAR,
+  type LoQueSePide,
 } from './lugar';
 
 function paso(tesoro: string): PasoDeLaFila {
-  return { tesoro, clase: 'prioridad', tope: centavos(100), renglones: [], desde: null };
+  return {
+    tesoro,
+    clase: 'prioridad',
+    tope: centavos(100),
+    renglones: [],
+    desde: null,
+    modo: 'mes',
+    hastaLaMeta: false,
+  };
 }
 
-const FILA: Fila = {
-  pasos: [paso('a')],
-  reparto: [
-    { tesoro: 'b', porcentaje: puntosBasicos(5000) },
-    { tesoro: 'c', porcentaje: puntosBasicos(3000) },
-  ],
+function parte(tesoro: string, porcentaje: number) {
+  return { tesoro, porcentaje: puntosBasicos(porcentaje), hastaLaMeta: false };
+}
+
+const SIN_PASOS = {
+  obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' as const }],
+  superavit: 'maun',
   sueldoPorTrabajo: false,
 };
 
+const FILA: Fila = {
+  ...SIN_PASOS,
+  pasos: [paso('a')],
+  reparto: [parte('b', 5000), parte('c', 3000)],
+};
+
+const PIDE: LoQueSePide = { monto: null, porcentaje: '', base: 'ingreso', antesDelDiezmo: false };
+
 describe('dónde va un tesoro nuevo', () => {
-  it('ofrece el estante, un paso al final y el reparto mientras entren', () => {
-    expect(opcionesDeLugar(FILA).map((opcion) => [opcion.id, opcion.sePuede])).toEqual([
-      ['estante', true],
-      ['paso', true],
-      ['reparto', true],
+  it('ofrece el estante y los cinco lugares de la fila, cada uno con lo que es', () => {
+    const opciones = opcionesDeLugar(FILA, 'Maun');
+    expect(opciones.map((opcion) => [opcion.id, opcion.titulo, opcion.sePuede])).toEqual([
+      ['estante', 'Al estante', true],
+      ['obligacion', 'Como obligación', true],
+      ['compromiso', 'Como compromiso', true],
+      ['ahorro-fijo', 'Como ahorro fijo', true],
+      ['reparto', 'En el reparto', true],
+      ['superavit', 'Que reciba lo que sobra', true],
     ]);
+    expect(opciones.at(-1)?.detalle).toBe('Recibe lo que sobra, en lugar de Maun');
   });
 
-  it('no ofrece un paso con la fila llena ni el reparto que ya suma 100%', () => {
+  it('no ofrece lo que ya está lleno, y dice por qué', () => {
     const llena: Fila = {
+      ...SIN_PASOS,
+      obligaciones: Array.from({ length: TOPE_DE_OBLIGACIONES }, (_, indice) => ({
+        tesoro: `o${String(indice)}`,
+        porcentaje: puntosBasicos(100),
+        base: 'ingreso' as const,
+      })),
       pasos: Array.from({ length: 12 }, (_, indice) => paso(String(indice))),
-      reparto: [{ tesoro: 'b', porcentaje: puntosBasicos(10_000) }],
-      sueldoPorTrabajo: false,
+      reparto: [parte('b', 10_000)],
     };
-    const [, comoPaso, enElReparto] = opcionesDeLugar(llena);
-    expect(comoPaso).toMatchObject({ sePuede: false, detalle: 'Entran hasta 12 pasos.' });
-    expect(enElReparto).toMatchObject({ sePuede: false, detalle: 'El reparto ya suma 100%.' });
+    const [, obligacion, compromiso, ahorroFijo, reparto] = opcionesDeLugar(llena);
+    expect(obligacion).toMatchObject({ sePuede: false, detalle: 'Entran hasta 6 obligaciones.' });
+    expect(compromiso).toMatchObject({
+      sePuede: false,
+      detalle: 'Entran hasta 12 compromisos y ahorros fijos.',
+    });
+    expect(ahorroFijo).toMatchObject({ sePuede: false });
+    expect(reparto).toMatchObject({ sePuede: false, detalle: 'El reparto ya suma 100%.' });
 
     const ocho: Fila = {
+      ...SIN_PASOS,
       pasos: [],
-      reparto: Array.from({ length: 8 }, (_, indice) => ({
-        tesoro: String(indice),
-        porcentaje: puntosBasicos(100),
-      })),
-      sueldoPorTrabajo: false,
+      reparto: Array.from({ length: 8 }, (_, indice) => parte(String(indice), 100)),
     };
-    expect(opcionesDeLugar(ocho)[2]).toMatchObject({
+    expect(opcionesDeLugar(ocho)[4]).toMatchObject({
       sePuede: false,
       detalle: 'El reparto admite hasta 8 tesoros.',
     });
   });
 
-  it('el paso dice dónde va a quedar: al final, al principio o después del paso desde donde se pidió', () => {
-    const tres: Fila = { ...FILA, pasos: [paso('a'), paso('b'), paso('c')] };
-    const nombres: Record<string, string> = { a: 'Hogar', b: 'Gastos fijos', c: 'Materiales' };
-    const nombreDe = (tesoro: string) => nombres[tesoro] ?? '';
-    const titulo = (despuesDe?: string | null) =>
-      opcionesDeLugar(tres, despuesDe, nombreDe).find((opcion) => opcion.id === 'paso')?.titulo;
-    expect(titulo()).toBe('Como paso, al final');
-    expect(titulo('c')).toBe('Como paso, al final');
-    expect(titulo(null)).toBe('Como paso 1, al principio');
-    expect(titulo('b')).toBe('Como paso 3, después de Gastos fijos');
-    expect(titulo('a')).toBe('Como paso 2, después de Hogar');
-    expect(tituloDelPaso({ pasos: [] }, null, nombreDe)).toBe('Como paso, al final');
+  it('dice dónde entra adentro de su tipo: al final, al principio o después de quien se pidió', () => {
+    const nombreDe = (tesoro: string) => (tesoro === 'a' ? 'Hogar' : '');
+    expect(dondeEntra('compromiso', undefined, nombreDe)).toBe('Al final de su tipo');
+    expect(dondeEntra('obligacion', null, nombreDe)).toBe('Al principio de su tipo');
+    expect(dondeEntra('ahorro-fijo', 'a', nombreDe)).toBe('Después de Hogar');
+    expect(dondeEntra('reparto', 'a', nombreDe)).toBeNull();
+    expect(dondeEntra('superavit', undefined, nombreDe)).toBeNull();
+    expect(dondeEntra('estante', undefined, nombreDe)).toBeNull();
   });
 
-  it('sugiere hasta 10% y dice cuánto queda libre', () => {
+  it('sugiere nombres según el lugar, e Ingresos Brutos sobre lo que cobrás y antes del diezmo', () => {
+    expect(SUGERENCIAS_DEL_LUGAR.obligacion).toEqual([
+      { nombre: 'Ingresos Brutos', icono: 'landmark', base: 'cobrado', antesDelDiezmo: true },
+    ]);
+    const nombres = (lugar: keyof typeof SUGERENCIAS_DEL_LUGAR) =>
+      SUGERENCIAS_DEL_LUGAR[lugar].map((sugerencia) => sugerencia.nombre);
+    expect(nombres('compromiso')).toEqual(['Gastos fijos', 'Sueldos', 'Alquiler', 'Cuotas']);
+    expect(nombres('ahorro-fijo')).toEqual([
+      'Stock del taller',
+      'Maquinaria',
+      'Vehículo',
+      'Inmueble',
+    ]);
+    expect(nombres('reparto')).toEqual(nombres('ahorro-fijo'));
+    expect(nombres('superavit')).toEqual(['Superávit']);
+    expect(nombres('estante')).toEqual([]);
+  });
+
+  it('sugiere hasta 10% y dice cuánto queda libre y quién se queda con el resto', () => {
     expect(porcentajeSugerido(2000)).toBe('10');
     expect(porcentajeSugerido(550)).toBe('5,5');
     expect(fraseDelLibre(2000, '10')).toBe(
       'Queda libre el 20% del reparto: con 10%, Maun se queda con el otro 10%.',
+    );
+    expect(fraseDelLibre(2000, '10', 'Superávit')).toBe(
+      'Queda libre el 20% del reparto: con 10%, Superávit se queda con el otro 10%.',
     );
     expect(fraseDelLibre(2000, '20')).toBe(
       'Queda libre el 20% del reparto: con 20%, el reparto llega al 100%.',
@@ -81,21 +136,43 @@ describe('dónde va un tesoro nuevo', () => {
     expect(fraseDelLibre(2000, '30')).toBe('Queda libre el 20% del reparto.');
   });
 
-  it('arma el lugar con su tope o su porcentaje, y frena lo que no se puede', () => {
-    expect(revisarElLugar('estante', null, '', FILA)).toEqual({ dondeVa: { lugar: 'estante' } });
-    expect(revisarElLugar('paso', 30_000_000, '', FILA)).toEqual({
-      dondeVa: { lugar: 'paso', tope: 30_000_000 },
+  it('arma el lugar con su monto o su porcentaje, y frena lo que no se puede', () => {
+    expect(revisarElLugar('estante', PIDE, FILA)).toEqual({ dondeVa: { lugar: 'estante' } });
+    expect(revisarElLugar('superavit', PIDE, FILA)).toEqual({ dondeVa: { lugar: 'superavit' } });
+    expect(revisarElLugar('compromiso', { ...PIDE, monto: 30_000_000 }, FILA)).toEqual({
+      dondeVa: { lugar: 'compromiso', monto: 30_000_000 },
     });
-    expect(revisarElLugar('paso', null, '', FILA).errores?.tope).toBe(
-      'Poné hasta cuánto recibe por mes.',
+    expect(revisarElLugar('ahorro-fijo', { ...PIDE, monto: 5_000_000 }, FILA)).toEqual({
+      dondeVa: { lugar: 'ahorro-fijo', monto: 5_000_000 },
+    });
+    expect(revisarElLugar('ahorro-fijo', PIDE, FILA).errores?.monto).toBe(
+      'Poné hasta cuánto recibe.',
     );
-    expect(revisarElLugar('paso', 0, '', FILA).errores?.tope).toBeDefined();
-    expect(revisarElLugar('reparto', null, '12,5', FILA)).toEqual({
+    expect(revisarElLugar('compromiso', { ...PIDE, monto: 0 }, FILA).errores?.monto).toBeDefined();
+    expect(
+      revisarElLugar('compromiso', { ...PIDE, monto: MONTO_MAXIMO_DE_LA_FILA + 1 }, FILA).errores
+        ?.monto,
+    ).toBe('El monto no puede ser tan grande.');
+    expect(
+      revisarElLugar(
+        'obligacion',
+        { ...PIDE, porcentaje: '3,5', base: 'cobrado', antesDelDiezmo: true },
+        FILA,
+      ),
+    ).toEqual({
+      dondeVa: { lugar: 'obligacion', porcentaje: 350, base: 'cobrado', antesDelDiezmo: true },
+    });
+    expect(revisarElLugar('obligacion', PIDE, FILA).errores?.porcentaje).toBe(
+      'Poné un porcentaje de 0,01 a 100.',
+    );
+    expect(revisarElLugar('reparto', { ...PIDE, porcentaje: '12,5' }, FILA)).toEqual({
       dondeVa: { lugar: 'reparto', porcentaje: 1250 },
     });
-    expect(revisarElLugar('reparto', null, '25', FILA).errores?.porcentaje).toBe(
+    expect(revisarElLugar('reparto', { ...PIDE, porcentaje: '25' }, FILA).errores?.porcentaje).toBe(
       'Poné un porcentaje de 0,01 a 20, lo que queda libre.',
     );
-    expect(revisarElLugar('reparto', null, '0', FILA).errores?.porcentaje).toBeDefined();
+    expect(
+      revisarElLugar('reparto', { ...PIDE, porcentaje: '0' }, FILA).errores?.porcentaje,
+    ).toBeDefined();
   });
 });

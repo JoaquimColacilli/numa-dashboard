@@ -7,7 +7,8 @@ import type {
 
 import type { NombreDeIcono } from '@/shared/ui';
 
-export type FormaDeLaMarca = 'cuadrado' | 'punteado' | 'rombo' | 'circulo' | 'barra' | 'triangulo';
+export type FormaDeLaMarca =
+  'cuadrado' | 'punteado' | 'rombo' | 'circulo' | 'barra' | 'triangulo' | 'reloj';
 
 export interface DatosDeLaCategoria {
   etiqueta: string;
@@ -50,6 +51,14 @@ export const CATEGORIA: Readonly<Record<CategoriaDeAgenda, DatosDeLaCategoria>> 
     texto: 'text-ag-seguimiento',
     fondo: 'bg-ag-seguimiento',
     borde: 'border-ag-seguimiento',
+  },
+  vencimiento: {
+    etiqueta: 'Vencimiento',
+    icono: 'receipt',
+    forma: 'reloj',
+    texto: 'text-ag-vencimiento',
+    fondo: 'bg-ag-vencimiento',
+    borde: 'border-ag-vencimiento',
   },
   materiales: {
     etiqueta: 'Materiales',
@@ -116,6 +125,30 @@ export const DERIVADA: Readonly<Record<CategoriaDerivada, DatosDeLaDerivada>> = 
     abrir: 'Abrir el seguimiento',
     hecha: 'ya le escribiste',
   },
+};
+
+export interface DatosDelVencimiento {
+  accion: string;
+  corta: string;
+  conector: string;
+  origen: string;
+  hecha: string;
+  pagado: string;
+  registrar: string;
+  verEnTesoros: string;
+  masAdelante: string;
+}
+
+export const VENCIMIENTO: DatosDelVencimiento = {
+  accion: 'Vence',
+  corta: 'Vence',
+  conector: ': ',
+  origen: 'Sale del día de pago de un compromiso de la fila',
+  hecha: 'pagado',
+  pagado: 'Pagado',
+  registrar: 'Registrar el pago',
+  verEnTesoros: 'Ver en Tesoros',
+  masAdelante: 'El pago se registra desde el mes en que vence.',
 };
 
 export const ESTA_COMPROMETIDA =

@@ -1,4 +1,7 @@
+import type { Fila, Money } from '@maun/domain';
+
 import type { Tesoro, TipoMovimiento } from '@/shared/api';
+import { rutaDeMovimientoNuevo } from '@/shared/lib';
 
 export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos' | 'entre';
 
@@ -7,6 +10,7 @@ export type ClaseDeMovimiento =
   | 'ingreso_maun'
   | 'gasto_hogar'
   | 'gasto_maun'
+  | 'gasto_tesoro'
   | 'pago_diezmo'
   | 'aporte_cocos'
   | 'retiro_cocos'
@@ -23,6 +27,7 @@ export interface DatosDeClase {
   hacia: Tesoro | null;
   tesoro: Tesoro | null;
   eligeLosLados: boolean;
+  eligeElTesoro: boolean;
   categorias: readonly string[];
   ejemplo: string;
 }
@@ -46,6 +51,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: 'hogar',
     tesoro: 'hogar',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: ['Docencia', 'Changas', 'Regalos', 'Venta personal', 'Otro'],
     ejemplo: 'Docencia de septiembre',
   },
@@ -59,6 +65,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: 'maun',
     tesoro: 'maun',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: ['Cobro suelto', 'Venta de sobrantes', 'Otro'],
     ejemplo: 'Venta de recortes de melamina',
   },
@@ -72,6 +79,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: null,
     tesoro: 'hogar',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: [
       'Supermercado',
       'Servicios',
@@ -95,6 +103,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: null,
     tesoro: 'maun',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: [
       'Materiales',
       'Herramientas',
@@ -106,6 +115,20 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     ],
     ejemplo: 'Alquiler, hoja de sierra, seguro…',
   },
+  gasto_tesoro: {
+    id: 'gasto_tesoro',
+    grupo: 'gasto',
+    etiqueta: 'Gasto de un tesoro',
+    corta: 'De un tesoro',
+    tipo: 'gasto',
+    desde: null,
+    hacia: null,
+    tesoro: null,
+    eligeLosLados: false,
+    eligeElTesoro: true,
+    categorias: ['Compra', 'Imprevisto', 'Regalo', 'Otro'],
+    ejemplo: 'El alquiler de septiembre',
+  },
   pago_diezmo: {
     id: 'pago_diezmo',
     grupo: 'diezmo',
@@ -116,6 +139,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: null,
     tesoro: 'diezmo',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: [],
     ejemplo: 'Diezmo de septiembre',
   },
@@ -129,6 +153,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: 'cocos',
     tesoro: 'cocos',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: [],
     ejemplo: 'Aporte del mes',
   },
@@ -142,6 +167,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: 'maun',
     tesoro: 'cocos',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: [],
     ejemplo: 'Retiro para comprar la plegadora',
   },
@@ -155,6 +181,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: null,
     tesoro: 'cocos',
     eligeLosLados: false,
+    eligeElTesoro: false,
     categorias: ['Compra del inmueble', 'Escritura y sellos', 'Mudanza', 'Otro'],
     ejemplo: 'Seña del terreno',
   },
@@ -168,6 +195,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     hacia: null,
     tesoro: null,
     eligeLosLados: true,
+    eligeElTesoro: false,
     categorias: [],
     ejemplo: 'Para los materiales del mes',
   },
@@ -178,6 +206,7 @@ export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
   'ingreso_maun',
   'gasto_hogar',
   'gasto_maun',
+  'gasto_tesoro',
   'pago_diezmo',
   'aporte_cocos',
   'retiro_cocos',
@@ -208,4 +237,65 @@ export function claseDe(
 
 export function vaEntreTesoros(tesoro: { clave: Tesoro | null }): boolean {
   return tesoro.clave !== 'diezmo';
+}
+
+export function gastaDesdeElTesoro(tesoro: { clave: Tesoro | null; archivado: boolean }): boolean {
+  return tesoro.clave === null && !tesoro.archivado;
+}
+
+export function renglonesPorTesoro(fila: Fila): Map<string, string[]> {
+  return new Map(
+    fila.pasos
+      .filter((paso) => paso.clase === 'fijos')
+      .map((paso) => [
+        paso.tesoro,
+        paso.renglones.map((renglon) => renglon.nombre.trim()).filter((nombre) => nombre !== ''),
+      ]),
+  );
+}
+
+export function categoriasDeLaClase(
+  clase: ClaseDeMovimiento,
+  renglones: readonly string[] = [],
+): readonly string[] {
+  if (!CLASE[clase].eligeElTesoro || renglones.length === 0) return CLASE[clase].categorias;
+  return [...new Set([...renglones, 'Otro'])];
+}
+
+export function claseParaPagar(tesoro: { clave: Tesoro | null }): ClaseDeMovimiento {
+  switch (tesoro.clave) {
+    case 'maun':
+      return 'gasto_maun';
+    case 'diezmo':
+      return 'pago_diezmo';
+    case 'hogar':
+      return 'gasto_hogar';
+    case 'cocos':
+      return 'gasto_cocos';
+    case null:
+      return 'gasto_tesoro';
+  }
+}
+
+export interface PagoParaRegistrar {
+  tesoro: { id: string; clave: Tesoro | null };
+  monto: Money | null;
+  categoria: string | null;
+  fecha?: string | null;
+}
+
+export function rutaParaRegistrarElPago({
+  tesoro,
+  monto,
+  categoria,
+  fecha = null,
+}: PagoParaRegistrar): string {
+  const clase = claseParaPagar(tesoro);
+  return rutaDeMovimientoNuevo({
+    clase,
+    ...(CLASE[clase].eligeElTesoro ? { tesoro: tesoro.id } : {}),
+    ...(monto !== null && monto > 0 ? { monto } : {}),
+    ...(categoria === null || clase === 'pago_diezmo' ? {} : { categoria }),
+    ...(fecha === null ? {} : { fecha }),
+  });
 }

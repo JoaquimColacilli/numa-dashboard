@@ -4,6 +4,7 @@ import { useId, useState, type SyntheticEvent } from 'react';
 import { MUTACION_DE_MOVIMIENTO } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ChipDelTesoro, tesoroPorId, tesorosDelTaller } from '@/entities/tesoro';
+import { filaDelTaller } from '@/shared/api';
 import { formatearPesos, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared/ui';
 
@@ -55,6 +56,9 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
   if (!paso) return null;
 
   const enPalabras = mesEnPalabras(mes);
+  const seRenueva = filaDelTaller(replica).fila.pasos.some(
+    (unPaso) => unPaso.tesoro === tesoroDelPaso && unPaso.modo === 'saldo',
+  );
   const revision = revisarLaCobertura(fuentes, candidatos, faltante);
 
   function elegir(tesoroId: string, elegido: boolean) {
@@ -92,7 +96,11 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
   return (
     <Hoja
       titulo="Cubrir los gastos fijos"
-      bajada={`Faltan ${formatearPesos(faltante)} en ${enPalabras}`}
+      bajada={
+        seRenueva
+          ? `Faltan ${formatearPesos(faltante)} para completar su monto`
+          : `Faltan ${formatearPesos(faltante)} en ${enPalabras}`
+      }
       antes={<ChipDelTesoro tesoro={paso} />}
       alCerrar={alCerrar}
       conCambios={!mismasFuentes(iniciales, fuentes)}
@@ -100,8 +108,9 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
       <form noValidate onSubmit={enviar} className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
           <p className="text-body leading-relaxed text-text-2">
-            Elegí de qué tesoro sale lo que falta. Lo que pases cuenta para el tope de {enPalabras}:
-            el próximo cobro no lo vuelve a llenar.
+            {seRenueva
+              ? 'Elegí de qué tesoro sale lo que falta. Lo que pases queda en el tesoro: el próximo cobro solo junta lo que siga faltando.'
+              : `Elegí de qué tesoro sale lo que falta. Lo que pases cuenta para el tope de ${enPalabras}: el próximo cobro no lo vuelve a llenar.`}
           </p>
 
           <ul aria-label="De qué tesoro sale" className="flex flex-col gap-2">

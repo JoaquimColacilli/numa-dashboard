@@ -1,4 +1,10 @@
-import { centavos, type Fila } from '@maun/domain';
+import {
+  centavos,
+  planDeLaLiquidacion,
+  previoQueVio,
+  puntosBasicos,
+  type Fila,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -13,9 +19,8 @@ import type { Proyecto } from './catalogos';
 import {
   ajusteDelReparto,
   cobroPorLaFila,
-  loDelMesQueVio,
+  cuantosRepartos,
   pedidoPorLaFila,
-  planDelCobro,
   proyectoLiquidadoPorLaFila,
   repartosLiquidados,
 } from './por-la-fila';
@@ -28,6 +33,8 @@ const MAUN = '00000000-0000-7000-8000-000000000002';
 const DIEZMO = '00000000-0000-7000-8000-000000000003';
 const COCOS = '00000000-0000-7000-8000-000000000004';
 const FIJOS = '00000000-0000-7000-8000-000000000010';
+const IIBB = '00000000-0000-7000-8000-000000000011';
+const APARTE = '00000000-0000-7000-8000-000000000012';
 
 const IDS = ['r-uno', 'r-dos', 'r-tres'] as const;
 
@@ -39,18 +46,32 @@ const METADATOS = {
   version: 1,
 } as const;
 
+const DEL_DIEZMO = { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' } as const;
+
 const FILA: Fila = {
+  obligaciones: [DEL_DIEZMO],
   pasos: [
-    { tesoro: HOGAR, clase: 'sueldo', tope: centavos(300_000), renglones: [], desde: null },
+    {
+      tesoro: HOGAR,
+      clase: 'sueldo',
+      tope: centavos(300_000),
+      renglones: [],
+      desde: null,
+      modo: 'mes',
+      hastaLaMeta: false,
+    },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(200_000),
-      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000) }],
+      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000), dia: 10 }],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: 5000 as never }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 
@@ -114,6 +135,8 @@ function taller({ fila = FILA }: { fila?: Fila | null } = {}): Replica {
     tesoro(DIEZMO, 'diezmo', 'Diezmo', 'diezmo'),
     tesoro(COCOS, 'cocos', 'Cocos', 'cocos'),
     tesoro(FIJOS, null, 'Gastos fijos', 'grana'),
+    tesoro(IIBB, null, 'Ingresos Brutos', 'mostaza'),
+    tesoro(APARTE, null, 'Superávit', 'petroleo'),
   ]) {
     replica = aplicarFilaLocal(replica, 'tesoros', fila);
   }
@@ -150,6 +173,8 @@ function taller({ fila = FILA }: { fila?: Fila | null } = {}): Replica {
     nombre: 'Hogar',
     tipo: 'paso',
     clase: 'sueldo',
+    modo: 'mes',
+    base: null,
     objetivo_centavos: 300_000,
     previo_centavos: 0,
     tope_centavos: 300_000,
@@ -166,6 +191,12 @@ function cobro(replica = taller()) {
   return cobroPorLaFila(replica, proyecto(), HOY);
 }
 
+const CON_TODO: Fila = {
+  ...FILA,
+  obligaciones: [{ tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' }, DEL_DIEZMO],
+  superavit: APARTE,
+};
+
 describe('el cobro por la fila', () => {
   it('baja por la fila guardada con lo que el mes ya llevaba, y sale con su revisión', () => {
     const { liquidacion, version } = cobro();
@@ -178,7 +209,8 @@ describe('el cobro por la fila', () => {
       [COCOS, 250_000],
     ]);
     expect(liquidacion.remanente).toBe(250_000);
-    expect(loDelMesQueVio(liquidacion)).toEqual({ [HOGAR]: 100_000, [FIJOS]: 0 });
+    expect(previoQueVio(liquidacion)).toEqual({ [HOGAR]: 100_000, [FIJOS]: 0 });
+    expect(cuantosRepartos(liquidacion)).toBe(3);
   });
 
   it('un reabierto que se había cobrado por la fila vuelve con esa fila y esa revisión', () => {
@@ -195,6 +227,22 @@ describe('el cobro por la fila', () => {
     const { liquidacion, version } = cobroPorLaFila(taller(), reabierto, HOY);
     expect(version).toBe(2);
     expect(liquidacion.reparto).toEqual([]);
+  });
+
+  it('con el pago que se carga al cobrar, reparte también eso', () => {
+    const { liquidacion } = cobroPorLaFila(taller(), proyecto(), HOY, {
+      pagoExtra: centavos(500_000),
+    });
+    expect(liquidacion.cobrado).toBe(1_500_000);
+  });
+
+  it('con otra obligación y el superávit aparte, lleva un reparto por cada uno', () => {
+    const { liquidacion } = cobro(taller({ fila: CON_TODO }));
+    expect(liquidacion.obligaciones.map((uno) => [uno.tesoro, uno.monto])).toEqual([
+      [IIBB, 35_000],
+      [DIEZMO, 96_500],
+    ]);
+    expect(cuantosRepartos(liquidacion)).toBe(5);
   });
 });
 
@@ -242,6 +290,19 @@ describe('pedidoPorLaFila', () => {
     expect(pedido).toMatchObject({ sueldoCentavos: 0, fijosCentavos: 0, yaEnLaApertura: true });
   });
 
+  it('el diezmo va en sus columnas; las otras obligaciones y el superávit aparte, en los repartos', () => {
+    const elCobro = cobro(taller({ fila: CON_TODO }));
+    const pedido = pedidoPorLaFila(proyecto(), elCobro, ['a', 'b', 'c', 'd', 'e']);
+    expect(pedido).toMatchObject({ diezmoBp: 1000, diezmoCentavos: 96_500 });
+    expect(pedido.porLaFila?.repartos.map((uno) => [uno.posicion, uno.tesoro_id])).toEqual([
+      [1, IIBB],
+      [2, HOGAR],
+      [3, FIJOS],
+      [4, COCOS],
+      [5, APARTE],
+    ]);
+  });
+
   it('sin un id por reparto no arma el pedido', () => {
     expect(() => pedidoPorLaFila(proyecto(), cobro(), ['r-uno'])).toThrow(RangeError);
   });
@@ -264,6 +325,8 @@ describe('repartosLiquidados', () => {
       household_id: 'h',
       proyecto_id: 'p',
       clase: 'sueldo',
+      modo: 'mes',
+      base: null,
       objetivo_centavos: 300_000,
       previo_centavos: 100_000,
       tope_centavos: 200_000,
@@ -277,11 +340,48 @@ describe('repartosLiquidados', () => {
     });
     expect(filas[2]).toMatchObject({
       clase: null,
+      modo: null,
       objetivo_centavos: null,
       tope_centavos: null,
       por_mes: null,
       porcentaje_bp: 5000,
       monto_centavos: 250_000,
+    });
+  });
+
+  it('una obligación lleva su porcentaje y su base, y el superávit aparte solo su monto', () => {
+    const elCobro = cobro(taller({ fila: CON_TODO }));
+    const pedido = pedidoPorLaFila(proyecto(), elCobro, ['a', 'b', 'c', 'd', 'e']);
+    const filas = repartosLiquidados(
+      taller({ fila: CON_TODO }),
+      proyecto(),
+      elCobro,
+      pedido,
+      AHORA,
+    );
+    expect(filas.map((fila) => [fila.id, fila.tipo, fila.nombre])).toEqual([
+      ['a', 'obligacion', 'Ingresos Brutos'],
+      ['b', 'paso', 'Hogar'],
+      ['c', 'paso', 'Gastos fijos'],
+      ['d', 'parte', 'Cocos'],
+      ['e', 'superavit', 'Superávit'],
+    ]);
+    expect(filas[0]).toMatchObject({
+      clase: null,
+      modo: null,
+      base: 'cobrado',
+      porcentaje_bp: 350,
+      tope_centavos: null,
+      monto_centavos: 35_000,
+    });
+    expect(filas[4]).toMatchObject({
+      clase: null,
+      modo: null,
+      base: null,
+      porcentaje_bp: null,
+      tope_centavos: null,
+      por_mes: null,
+      monto_centavos: elCobro.liquidacion.remanente,
     });
   });
 });
@@ -328,7 +428,7 @@ describe('ajusteDelReparto', () => {
   function lasDos() {
     const elCobro = cobro();
     const pedido = pedidoPorLaFila(proyecto(), elCobro, IDS);
-    const plan = planDelCobro(elCobro.liquidacion);
+    const plan = planDeLaLiquidacion(elCobro.liquidacion);
     return { elCobro, pedido, plan };
   }
 
@@ -352,12 +452,39 @@ describe('ajusteDelReparto', () => {
           esperado: 200_000,
           quedo: 0,
           yaLlevabaElMes: 300_000,
+          modo: 'mes',
         },
-        { tesoro: COCOS, nombre: 'Cocos', esperado: 250_000, quedo: 350_000, yaLlevabaElMes: 0 },
+        {
+          tesoro: COCOS,
+          nombre: 'Cocos',
+          esperado: 250_000,
+          quedo: 350_000,
+          yaLlevabaElMes: 0,
+          modo: null,
+        },
       ],
       remanenteEsperado: 250_000,
       remanenteQuedo: 350_000,
+      superavit: null,
     });
+  });
+
+  it('una parte que la base vio con otro tope para su meta también es un ajuste', () => {
+    const { elCobro, pedido, plan } = lasDos();
+    const devuelta = {
+      ...proyectoLiquidadoPorLaFila(proyecto(), elCobro, AHORA),
+      dist_previo: { [HOGAR]: 100_000, [FIJOS]: 0, [COCOS]: 50_000 },
+    };
+    expect(ajusteDelReparto(devuelta, pedido, plan, nombres)?.diferencias).toEqual([
+      {
+        tesoro: COCOS,
+        nombre: 'Cocos',
+        esperado: 250_000,
+        quedo: 50_000,
+        yaLlevabaElMes: 0,
+        modo: null,
+      },
+    ]);
   });
 
   it('un cobro por el camino de antes no se compara por la fila', () => {

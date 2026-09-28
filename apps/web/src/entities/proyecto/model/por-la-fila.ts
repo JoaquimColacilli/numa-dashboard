@@ -2,21 +2,25 @@ import {
   aportesDelReparto,
   calcularPorLaFila,
   columnasDeSiempre,
+  loVistoEsOtro,
+  previoDeLoVisto,
+  previoQueVio,
   repartir,
+  repartosDelCobro,
   sumar,
   type EstadoLiquidado,
   type Fila,
   type LiquidacionPorLaFila,
+  type ModoDePaso,
   type Money,
   type PlanDelReparto,
+  type RepartoDelCobro,
 } from '@maun/domain';
 
 import {
-  ajustesDe,
-  coberturasDeLaReplica,
   dinero,
-  filaParaLiquidar,
-  liquidacionesDelMesDeLaReplica,
+  entradaDeLaLiquidacion,
+  pedidoDeLaFila,
   porLaFila,
   tesorosDeLaReplica,
   totalesDelProyecto,
@@ -44,40 +48,17 @@ export function cobroPorLaFila(
   fecha: string,
   { destino = 'cobrado', pagoExtra = dinero(0) }: OpcionesDelCobro = {},
 ): CobroPorLaFila {
-  const { cobrado, gastos } = totalesDelProyecto(replica, proyecto.id);
-  const { fila, version } = filaParaLiquidar(replica, proyecto, destino);
-  const ajustes = ajustesDe(replica);
-  const liquidacion = calcularPorLaFila({
+  const { cobrado } = totalesDelProyecto(replica, proyecto.id);
+  const { entrada, version } = entradaDeLaLiquidacion(replica, proyecto, {
     destino,
     fecha,
     cobrado: sumar(cobrado, pagoExtra),
-    gastos,
-    fila,
-    ajustes: {
-      perdidoConSueldo: ajustes?.perdido_con_sueldo ?? false,
-      perdidoConDiezmo: ajustes?.perdido_con_diezmo ?? true,
-    },
-    liquidaciones: liquidacionesDelMesDeLaReplica(replica, proyecto.id),
-    coberturas: coberturasDeLaReplica(replica),
   });
-  return { liquidacion, fila, version };
+  return { liquidacion: calcularPorLaFila(entrada), fila: entrada.fila, version };
 }
 
-export function planDelCobro(liquidacion: LiquidacionPorLaFila): PlanDelReparto {
-  return {
-    diezmoBp: liquidacion.diezmoBp,
-    pasos: liquidacion.pasos.map(({ tesoro, clase, objetivo, porMes }) => ({
-      tesoro,
-      clase,
-      objetivo,
-      porMes,
-    })),
-    reparto: liquidacion.reparto.map(({ tesoro, porcentaje }) => ({ tesoro, porcentaje })),
-  };
-}
-
-export function loDelMesQueVio(liquidacion: LiquidacionPorLaFila): Record<string, number> {
-  return Object.fromEntries(liquidacion.pasos.map((paso) => [paso.tesoro, paso.previo]));
+export function cuantosRepartos(liquidacion: LiquidacionPorLaFila): number {
+  return repartosDelCobro(liquidacion).length;
 }
 
 export function pedidoPorLaFila(
@@ -87,12 +68,6 @@ export function pedidoPorLaFila(
   yaEnLaApertura = false,
 ): PedidoDeLiquidacion {
   const columnas = columnasDeSiempre(liquidacion);
-  const aportes = aportesDelReparto(liquidacion);
-  if (ids.length !== aportes.length) {
-    throw new RangeError(
-      `El cobro lleva ${String(aportes.length)} repartos y vinieron ${String(ids.length)} ids.`,
-    );
-  }
   return {
     proyectoId: proyecto.id,
     version: proyecto.version,
@@ -110,16 +85,7 @@ export function pedidoPorLaFila(
     sueldoPrevioCentavos: columnas.sueldoPrevio,
     fijosPrevioCentavos: columnas.fijosPrevio,
     yaEnLaApertura,
-    porLaFila: {
-      version,
-      repartos: aportes.map((aporte, indice) => ({
-        id: ids[indice] as string,
-        posicion: indice + 1,
-        tesoro_id: aporte.tesoro,
-        monto_centavos: aporte.monto,
-      })),
-      previo: loDelMesQueVio(liquidacion),
-    },
+    porLaFila: pedidoDeLaFila(liquidacion, version, ids),
   };
 }
 
@@ -153,7 +119,7 @@ export function proyectoLiquidadoPorLaFila(
     dist_liquidado_at: liquidadaEn,
     dist_fila_version: version,
     dist_fila: fila as unknown as Proyecto['dist_fila'],
-    dist_previo: loDelMesQueVio(liquidacion),
+    dist_previo: previoQueVio(liquidacion),
     reparto_ya_en_la_apertura: yaEnLaApertura,
     reapertura_objetivo_sueldo_centavos: null,
     reapertura_objetivo_fijos_centavos: null,
@@ -161,6 +127,54 @@ export function proyectoLiquidadoPorLaFila(
     reapertura_fecha_cobro: null,
     reapertura_fila: null,
   };
+}
+
+type ColumnasDelTipo = Pick<
+  FilaDe<'repartos'>,
+  | 'clase'
+  | 'modo'
+  | 'base'
+  | 'objetivo_centavos'
+  | 'previo_centavos'
+  | 'tope_centavos'
+  | 'por_mes'
+  | 'porcentaje_bp'
+>;
+
+const SIN_COLUMNAS_DEL_TIPO: ColumnasDelTipo = {
+  clase: null,
+  modo: null,
+  base: null,
+  objetivo_centavos: null,
+  previo_centavos: null,
+  tope_centavos: null,
+  por_mes: null,
+  porcentaje_bp: null,
+};
+
+function columnasDelTipo(reparto: RepartoDelCobro): ColumnasDelTipo {
+  switch (reparto.tipo) {
+    case 'obligacion':
+      return { ...SIN_COLUMNAS_DEL_TIPO, base: reparto.base, porcentaje_bp: reparto.porcentaje };
+    case 'paso':
+      return {
+        ...SIN_COLUMNAS_DEL_TIPO,
+        clase: reparto.clase,
+        modo: reparto.modo,
+        objetivo_centavos: reparto.objetivo,
+        previo_centavos: reparto.previo,
+        tope_centavos: reparto.tope,
+        por_mes: reparto.porMes,
+      };
+    case 'parte':
+      return {
+        ...SIN_COLUMNAS_DEL_TIPO,
+        tope_centavos: reparto.tope,
+        porcentaje_bp: reparto.porcentaje,
+      };
+    case 'superavit':
+      return SIN_COLUMNAS_DEL_TIPO;
+  }
 }
 
 export function repartosLiquidados(
@@ -172,56 +186,26 @@ export function repartosLiquidados(
 ): FilaDe<'repartos'>[] {
   const nombres = new Map(tesorosDeLaReplica(replica).map((tesoro) => [tesoro.id, tesoro.nombre]));
   const ids = (pedido.porLaFila?.repartos ?? []).map((reparto) => reparto.id);
-  const comun = {
-    household_id: proyecto.household_id,
-    proyecto_id: proyecto.id,
-    fecha: liquidacion.fecha,
-    ya_en_la_apertura: pedido.yaEnLaApertura ?? false,
-    created_at: liquidadaEn,
-    updated_at: liquidadaEn,
-    deleted_at: null,
-    version: 1,
-  };
-  const pasos = liquidacion.pasos.map((paso, indice) => ({
-    ...comun,
-    id: ids[indice] as string,
-    posicion: indice + 1,
-    tesoro_id: paso.tesoro,
-    nombre: nombres.get(paso.tesoro) ?? '',
-    tipo: 'paso',
-    clase: paso.clase,
-    objetivo_centavos: paso.objetivo,
-    previo_centavos: paso.previo,
-    tope_centavos: paso.tope,
-    por_mes: paso.porMes,
-    porcentaje_bp: null,
-    monto_centavos: paso.monto,
-  }));
-  const partes = liquidacion.reparto.map((parte, indice) => ({
-    ...comun,
-    id: ids[liquidacion.pasos.length + indice] as string,
-    posicion: liquidacion.pasos.length + indice + 1,
-    tesoro_id: parte.tesoro,
-    nombre: nombres.get(parte.tesoro) ?? '',
-    tipo: 'parte',
-    clase: null,
-    objetivo_centavos: null,
-    previo_centavos: null,
-    tope_centavos: null,
-    por_mes: null,
-    porcentaje_bp: parte.porcentaje,
-    monto_centavos: parte.monto,
-  }));
-  return [...pasos, ...partes] satisfies FilaDe<'repartos'>[];
-}
-
-function previoGuardado(valor: unknown): Map<string, Money> {
-  const previo = new Map<string, Money>();
-  if (typeof valor !== 'object' || valor === null) return previo;
-  for (const [tesoro, monto] of Object.entries(valor as Record<string, unknown>)) {
-    if (typeof monto === 'number' && Number.isSafeInteger(monto)) previo.set(tesoro, dinero(monto));
-  }
-  return previo;
+  return repartosDelCobro(liquidacion).map(
+    (reparto, indice) =>
+      ({
+        household_id: proyecto.household_id,
+        proyecto_id: proyecto.id,
+        fecha: liquidacion.fecha,
+        ya_en_la_apertura: pedido.yaEnLaApertura ?? false,
+        created_at: liquidadaEn,
+        updated_at: liquidadaEn,
+        deleted_at: null,
+        version: 1,
+        id: ids[indice] as string,
+        posicion: indice + 1,
+        tesoro_id: reparto.tesoro,
+        nombre: nombres.get(reparto.tesoro) ?? '',
+        tipo: reparto.tipo,
+        ...columnasDelTipo(reparto),
+        monto_centavos: reparto.monto,
+      }) satisfies FilaDe<'repartos'>,
+  );
 }
 
 export interface DiferenciaDelReparto {
@@ -230,12 +214,14 @@ export interface DiferenciaDelReparto {
   esperado: Money;
   quedo: Money;
   yaLlevabaElMes: Money;
+  modo: ModoDePaso | null;
 }
 
 export interface AjusteDelReparto {
   diferencias: readonly DiferenciaDelReparto[];
   remanenteEsperado: Money;
   remanenteQuedo: Money;
+  superavit: string | null;
 }
 
 export function ajusteDelReparto(
@@ -246,24 +232,20 @@ export function ajusteDelReparto(
 ): AjusteDelReparto | undefined {
   const enviado = pedido.porLaFila;
   if (enviado === undefined || !porLaFila(fila)) return undefined;
-  const base = previoGuardado((fila as Partial<FilaDe<'proyectos'>>).dist_previo);
-  const cambio = [...base].some(([tesoro, monto]) => (enviado.previo[tesoro] ?? 0) !== monto);
-  if (!cambio) return undefined;
+  const base = (fila as Partial<FilaDe<'proyectos'>>).dist_previo ?? null;
+  if (!loVistoEsOtro(plan, enviado.previo, base)) return undefined;
 
-  const esperado = repartir({
-    ...plan,
-    cobrado: dinero(pedido.cobradoCentavos),
-    gastos: dinero(pedido.gastosCentavos),
-    previo: new Map(
-      Object.entries(enviado.previo).map(([tesoro, monto]) => [tesoro, dinero(monto)]),
-    ),
-  });
-  const quedo = repartir({
-    ...plan,
-    cobrado: dinero(pedido.cobradoCentavos),
-    gastos: dinero(pedido.gastosCentavos),
-    previo: base,
-  });
+  const conLoVisto = (visto: unknown) =>
+    repartir({
+      ...plan,
+      ...previoDeLoVisto(plan, visto),
+      cobrado: dinero(pedido.cobradoCentavos),
+      gastos: dinero(pedido.gastosCentavos),
+    });
+  const esperado = conLoVisto(enviado.previo);
+  const quedo = conLoVisto(base);
+  const deLaBase = previoDeLoVisto(plan, base).previo;
+  const modos = new Map(plan.pasos.map((paso) => [paso.tesoro, paso.modo]));
 
   const diferencias: DiferenciaDelReparto[] = [];
   const montosQueQuedaron = new Map(aportesDelReparto(quedo).map((uno) => [uno.tesoro, uno.monto]));
@@ -275,7 +257,8 @@ export function ajusteDelReparto(
       nombre: nombres.get(aporte.tesoro) ?? '',
       esperado: aporte.monto,
       quedo: monto,
-      yaLlevabaElMes: base.get(aporte.tesoro) ?? dinero(0),
+      yaLlevabaElMes: deLaBase.get(aporte.tesoro) ?? dinero(0),
+      modo: modos.get(aporte.tesoro) ?? null,
     });
   }
   if (diferencias.length === 0) return undefined;
@@ -284,5 +267,6 @@ export function ajusteDelReparto(
     diferencias,
     remanenteEsperado: esperado.remanente,
     remanenteQuedo: quedo.remanente,
+    superavit: plan.superavit,
   };
 }

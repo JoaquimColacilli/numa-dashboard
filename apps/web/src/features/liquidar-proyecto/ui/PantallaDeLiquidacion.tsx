@@ -1,4 +1,9 @@
-import { centavos, esAnteriorALaApertura, type EstadoLiquidado } from '@maun/domain';
+import {
+  centavos,
+  esAnteriorALaApertura,
+  planDeLaLiquidacion,
+  type EstadoLiquidado,
+} from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -7,6 +12,7 @@ import { CasillaDeLaApertura } from '@/entities/movimiento';
 import {
   ajustesDeLaReplica,
   cobroPorLaFila,
+  cuantosRepartos,
   datosActualesDelProyecto,
   despieceDelCobro,
   DistribucionDespiece,
@@ -15,7 +21,6 @@ import {
   MUTACION_DE_LIQUIDACION,
   MUTACION_DE_PROYECTO,
   pedidoPorLaFila,
-  planDelCobro,
   proyectoLiquidadoPorLaFila,
   repartoEnLaAperturaPropuesto,
   repartosLiquidados,
@@ -67,10 +72,15 @@ function ayudaDelDia(destino: EstadoLiquidado, fecha: string): string {
     : `El día en que la seña pasa a ser del taller. El reparto se cuenta en ${mes}.`;
 }
 
-function aCadaTesoro(montos: readonly MontoDelTesoro[]): string {
+function aCadaTesoro(montos: readonly Pick<MontoDelTesoro, 'monto' | 'nombre'>[]): string {
   return COMO_LISTA.format(
     montos.map((tesoro) => `${formatearPesos(tesoro.monto)} a ${tesoro.nombre}`),
   );
+}
+
+function comoSeReparte(montos: readonly MontoDelTesoro[]): string {
+  if (montos.length === 0) return '';
+  return ` ${montos.length === 1 ? 'Va' : 'Van'} ${aCadaTesoro(montos)}.`;
 }
 
 function idsDelCobro(cantidad: number): string[] {
@@ -206,7 +216,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       });
     }
 
-    const ids = idsDelCobro(liquidacion.pasos.length + liquidacion.reparto.length);
+    const ids = idsDelCobro(cuantosRepartos(liquidacion));
     const pedido = pedidoPorLaFila(proyecto, cobro, ids, repartoEnLaApertura);
     const liquidadaEn = new Date().toISOString();
     liquidar.mutate({
@@ -215,13 +225,21 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       previo: proyecto,
       titulo: proyecto.titulo,
       repartos: repartosLiquidados(replica, proyecto, cobro, pedido, liquidadaEn),
-      plan: planDelCobro(liquidacion),
+      plan: planDeLaLiquidacion(liquidacion),
     });
 
     ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienLiquidado' });
   }
 
   const aRepartir = loQueRecibeCadaTesoro(despiece);
+  const superavit = despiece.piezas.find((pieza) => pieza.tipo === 'resto');
+  const loQueSobra =
+    liquidacion.superavit === null || superavit === undefined
+      ? 'queda en el taller'
+      : `va a ${superavit.nombre}`;
+  const otrasObligaciones = despiece.piezas.filter(
+    (pieza) => pieza.tipo === 'obligacion' && pieza.monto > 0,
+  );
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -330,10 +348,12 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
               {ajustes.perdidoConDiezmo
                 ? `De ahí sale el diezmo: ${formatearPesos(liquidacion.diezmo)}.`
                 : 'Esta seña no paga diezmo, según está configurado el taller.'}{' '}
+              {otrasObligaciones.length > 0 &&
+                `Las demás obligaciones salen igual: ${aCadaTesoro(otrasObligaciones)}. `}
               {ajustes.perdidoConSueldo
                 ? 'Y también paga sueldo, según está configurado el taller.'
                 : 'No paga sueldo: un presupuesto que no prosperó no es un trabajo.'}{' '}
-              Lo demás baja por la fila como en cualquier cobro, y lo que sobra queda en el taller.
+              Lo demás baja por la fila como en cualquier cobro, y lo que sobra {loQueSobra}.
             </p>
           ) : (
             <p className="mt-1.5 max-w-[48rem]">
@@ -378,15 +398,15 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
         <p className="mt-2 max-w-[520px] text-meta leading-relaxed text-text-3">
           {despiece.neta > 0 ? (
             <>
-              Se reparten {formatearPesos(despiece.neta)} de ganancia neta: {aCadaTesoro(aRepartir)}
-              .{' '}
+              Se reparte el ingreso de este trabajo: {formatearPesos(despiece.neta)} (lo cobrado
+              menos los gastos).{comoSeReparte(aRepartir)}{' '}
               {repartoEnLaApertura
                 ? 'Queda en el libro con su fecha, pero no mueve los tesoros: ya estaba en tus saldos.'
                 : 'Los saldos de los tesoros se mueven con esto.'}
             </>
           ) : (
             <>
-              No hay ganancia que repartir: no se mueve ningún tesoro y la pérdida queda anotada en
+              No hay ingreso que repartir: no se mueve ningún tesoro y la pérdida queda anotada en
               la caja del taller.
             </>
           )}{' '}

@@ -137,9 +137,8 @@ export {
 export {
   ajusteDelReparto,
   cobroPorLaFila,
-  loDelMesQueVio,
+  cuantosRepartos,
   pedidoPorLaFila,
-  planDelCobro,
   proyectoLiquidadoPorLaFila,
   repartosLiquidados,
   type AjusteDelReparto,
@@ -147,6 +146,13 @@ export {
   type DiferenciaDelReparto,
   type OpcionesDelCobro,
 } from './model/por-la-fila';
+export {
+  fraseDeLosInsumos,
+  insumosDeLosTrabajos,
+  insumosDelProyecto,
+  type InsumosDeLosTrabajos,
+  type InsumosDeUnTrabajo,
+} from './model/insumos';
 export {
   ajusteDeLaLiquidacion,
   datosActualesDelProyecto,

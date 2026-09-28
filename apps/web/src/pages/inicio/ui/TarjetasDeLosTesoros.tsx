@@ -1,3 +1,4 @@
+import { CERO, type Money } from '@maun/domain';
 import type { ReactNode } from 'react';
 
 import type { FraseDelDiezmo } from '@/entities/movimiento';
@@ -19,18 +20,24 @@ function encabezado(frase: FraseDelDiezmo): string {
 
 function Tarjeta({
   tesoro,
+  tipo,
   diezmo,
+  insumos,
   caracteres,
   alElegir,
 }: {
   tesoro: TesoroDelTaller;
+  tipo: string | null;
   diezmo: FraseDelDiezmo;
+  insumos: Money;
   caracteres: number;
   alElegir: () => void;
 }) {
   const esElDiezmo = tesoro.clave === 'diezmo';
   const enNegativo = tesoro.saldo < 0 && !esElDiezmo;
-  const detalle = enNegativo ? 'gastó más de lo que entró' : detalleDeLaTarjeta(tesoro, diezmo);
+  const detalle = enNegativo
+    ? 'gastó más de lo que entró'
+    : detalleDeLaTarjeta(tesoro, diezmo, insumos);
 
   return (
     <button
@@ -42,18 +49,28 @@ function Tarjeta({
           : 'border border-hairline bg-paper pb-4 @min-[20rem]:pb-[18px]'
       }`}
     >
-      <span className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1 self-start pb-3">
-        <span
-          className={`flex min-w-0 items-center gap-2 text-label font-semibold ${
-            enNegativo ? 'text-negativo-texto' : TINTA[tesoro.tinta].texto
-          }`}
-        >
-          <Icono nombre={enNegativo ? 'triangle-alert' : tesoro.icono} tamano={18} />
-          {tesoro.nombre}
+      <span className="flex w-full flex-col items-start gap-0.5 self-start pb-3">
+        <span className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span
+            className={`flex min-w-0 items-center gap-2 text-label font-semibold ${
+              enNegativo ? 'text-negativo-texto' : TINTA[tesoro.tinta].texto
+            }`}
+          >
+            <Icono nombre={enNegativo ? 'triangle-alert' : tesoro.icono} tamano={18} />
+            {tesoro.nombre}
+          </span>
+          {enNegativo && (
+            <span className="rounded-control border border-current px-1.5 text-badge font-semibold whitespace-nowrap">
+              en negativo
+            </span>
+          )}
         </span>
-        {enNegativo && (
-          <span className="rounded-control border border-current px-1.5 text-badge font-semibold whitespace-nowrap">
-            en negativo
+        {tipo !== null && (
+          <span
+            data-tipo-del-tesoro
+            className={`text-meta ${enNegativo ? 'text-negativo-texto/80' : 'text-text-2'}`}
+          >
+            {tipo}
           </span>
         )}
       </span>
@@ -89,9 +106,16 @@ function Tarjeta({
 export interface TarjetasDeLosTesorosProps {
   tesoros: readonly TesoroDelTaller[];
   diezmo: FraseDelDiezmo;
+  tipos?: ReadonlyMap<string, string>;
+  insumos?: Money;
 }
 
-export function TarjetasDeLosTesoros({ tesoros, diezmo }: TarjetasDeLosTesorosProps) {
+export function TarjetasDeLosTesoros({
+  tesoros,
+  diezmo,
+  tipos,
+  insumos = CERO,
+}: TarjetasDeLosTesorosProps) {
   const ir = useIr();
 
   const caracteres = caracteresDe(
@@ -108,7 +132,9 @@ export function TarjetasDeLosTesoros({ tesoros, diezmo }: TarjetasDeLosTesorosPr
     <Tarjeta
       key={tesoro.id}
       tesoro={tesoro}
+      tipo={tipos?.get(tesoro.id) ?? null}
       diezmo={diezmo}
+      insumos={tesoro.clave === 'maun' ? insumos : CERO}
       caracteres={caracteres}
       alElegir={() => {
         ir(tesoro.clave === 'diezmo' ? RUTA_DE_DIEZMO : rutaDeFinanzasDelTesoro(tesoro));

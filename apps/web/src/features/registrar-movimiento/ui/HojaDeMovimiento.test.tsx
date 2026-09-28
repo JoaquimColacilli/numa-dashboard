@@ -278,3 +278,117 @@ describe('la hoja de un movimiento entre tesoros', () => {
     expect(screen.getByText(/gastos fijos de septiembre/)).toBeInTheDocument();
   });
 });
+
+function categorias(): string[] {
+  return within(screen.getByRole('combobox', { name: 'Categoría' }))
+    .getAllByRole('option')
+    .map((opcion) => opcion.textContent);
+}
+
+describe('la hoja de un gasto de un tesoro', () => {
+  it('es la décima clase: sale de un tesoro del dueño, con los renglones si es un compromiso', () => {
+    montar({
+      claseInicial: 'gasto_tesoro',
+      renglones: new Map([[ID.materiales, ['Placas', 'Herrajes']]]),
+    });
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual([
+      'Del hogar',
+      'Del taller',
+      'De un tesoro',
+    ]);
+    expect(nombresDe(grupo('Sale de'))).toEqual(['Materiales']);
+    expect(categorias()).toEqual(['Placas', 'Herrajes', 'Otro']);
+    expect(screen.getByText(/Sale de Materiales y se va/)).toBeInTheDocument();
+  });
+
+  it('abre con el tesoro, el monto y la categoría puestos, y manda el gasto desde su id', () => {
+    const { enviados, alCerrar } = montar({
+      claseInicial: 'gasto_tesoro',
+      tesoroInicial: ID.materiales,
+      montoInicial: 50_000_000,
+      categoriaInicial: 'Alquiler',
+    });
+    expect(categorias()).toContain('Alquiler');
+    cargar();
+
+    expect(alCerrar).toHaveBeenCalled();
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'gasto',
+      tesoro_origen: null,
+      desde_id: ID.materiales,
+      tesoro_destino: null,
+      hacia_id: null,
+      monto_centavos: 50_000_000,
+      categoria: 'Alquiler',
+    });
+  });
+
+  it('desde Maun el pago va como gasto del taller, con la categoría que se le pasó', () => {
+    const { enviados } = montar({
+      claseInicial: 'gasto_maun',
+      montoInicial: 10_000,
+      categoriaInicial: 'Costos fijos',
+    });
+    cargar();
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'gasto',
+      tesoro_origen: 'maun',
+      desde_id: ID.maun,
+      categoria: 'Costos fijos',
+      monto_centavos: 10_000,
+    });
+  });
+
+  it('el pago de un vencimiento de un mes que ya pasó arranca con su día; uno que no llegó, no', () => {
+    const { enviados } = montar({
+      claseInicial: 'gasto_tesoro',
+      tesoroInicial: ID.materiales,
+      montoInicial: 50_000_000,
+      categoriaInicial: 'Alquiler',
+      fechaInicial: '2026-08-10',
+    });
+    expect(screen.getByLabelText('Otra fecha')).toHaveValue('2026-08-10');
+    cargar();
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      fecha: '2026-08-10',
+      categoria: 'Alquiler',
+    });
+    cleanup();
+
+    montar({ claseInicial: 'gasto_tesoro', fechaInicial: '2999-01-01' });
+    expect(screen.getByLabelText('Otra fecha')).not.toHaveValue('2999-01-01');
+  });
+
+  it('al editar un gasto de un tesoro arranca con ese tesoro elegido', () => {
+    montar({
+      movimiento: movimiento({
+        tipo: 'gasto',
+        tesoro_origen: null,
+        desde_id: ID.materiales,
+        hacia_id: null,
+        categoria: 'Compra',
+      }),
+    });
+    expect(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'De un tesoro' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(grupo('Sale de')).getByRole('button', { name: 'Materiales' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('sin un tesoro del dueño no se ofrece', () => {
+    montar({ tesoros: DE_SIEMPRE, tesorosSincronizados: false });
+    fireEvent.click(screen.getByRole('radio', { name: 'Gasto' }));
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del hogar', 'Del taller']);
+  });
+
+  it('sin tesoro elegido no carga y lo dice', () => {
+    const { enviados } = montar({ claseInicial: 'gasto_tesoro', tesoros: DE_SIEMPRE });
+    escribirElMonto('1.000');
+    cargar();
+    expect(screen.getByText('Elegí de qué tesoro sale la plata.')).toBeInTheDocument();
+    expect(enviados()).toEqual([]);
+  });
+});

@@ -23,6 +23,7 @@ import { loQueEstabaGuardado, tesoroDe, type VistaDeLaFila } from '../model/vist
 export interface HojaDeGuardarLaFilaProps {
   vista: VistaDeLaFila;
   monto: Money | null;
+  cobrado?: Money | null;
   alCerrar: () => void;
   alGuardar?: () => void;
 }
@@ -49,6 +50,7 @@ function RenglonDelCambio({ icono, children }: { icono: NombreDeIcono; children:
 export function HojaDeGuardarLaFila({
   vista: laDeAhora,
   monto,
+  cobrado = null,
   alCerrar,
   alGuardar,
 }: HojaDeGuardarLaFilaProps) {
@@ -64,7 +66,12 @@ export function HojaDeGuardarLaFila({
     if (borrador === null) return [];
     try {
       const probar = (fila: typeof borrador.fila) =>
-        pruebaDeUnCobro(replica, fila, { monto: cobro, mesEnCero: false, hoy: vista.hoy });
+        pruebaDeUnCobro(replica, fila, {
+          monto: cobro,
+          cobrado: monto !== null && monto > 0 ? cobrado : null,
+          enCero: false,
+          hoy: vista.hoy,
+        });
       return comparacionDeLaFila(
         probar(borrador.base),
         probar(borrador.fila),
@@ -115,7 +122,11 @@ export function HojaDeGuardarLaFila({
                 </RenglonDelCambio>
               )}
               {vista.cambios.map((cambio) => {
-                const { icono, despuesDelNombre } = renglonDelCambio(cambio);
+                const { icono, despuesDelNombre } = renglonDelCambio(cambio, {
+                  antes: vista.base,
+                  despues: vista.fila,
+                  nombreDe: (tesoro) => tesoroDe(vista, tesoro).nombre,
+                });
                 return (
                   <RenglonDelCambio key={`${cambio.tipo}-${cambio.tesoro}`} icono={icono}>
                     <Nombre vista={vista} tesoro={cambio.tesoro} />
@@ -192,8 +203,8 @@ export function HojaDeGuardarLaFila({
             >
               <Icono nombre="triangle-alert" tamano={16} className="mt-0.5 flex-none" />
               <span>
-                <Nombre vista={vista} tesoro={paso.tesoro} /> queda con tope {formatearPesos(0)}: no
-                recibe nada hasta que le pongas uno.
+                <Nombre vista={vista} tesoro={paso.tesoro} /> queda con monto {formatearPesos(0)}:
+                no recibe nada hasta que le pongas uno.
               </span>
             </p>
           ))}
@@ -201,7 +212,7 @@ export function HojaDeGuardarLaFila({
           <p className="flex items-start gap-2.5 text-label leading-relaxed text-text-2">
             <Icono nombre="info" tamano={16} className="mt-0.5 flex-none" />
             Los cambios valen desde el próximo cobro. Los repartos que ya hiciste no cambian, y lo
-            que ya entró en {mes} sigue contando para los topes.
+            que ya entró en {mes} sigue contando.
           </p>
         </div>
 

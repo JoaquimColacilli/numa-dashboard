@@ -6,6 +6,7 @@ import {
   CostosDeCotizar,
   EstadoBadge,
   gastosDelProyecto,
+  insumosDelProyecto,
   opcionesDelProyecto,
   pagosDelProyecto,
   presupuestoVencido,
@@ -53,6 +54,8 @@ import {
   PanelDeAvisos,
   PrincipalYApoyo,
 } from '@/shared/ui';
+
+import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
   clave,
@@ -103,6 +106,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
   const { proyecto, cliente } = resumen;
   const pagos = pagosDelProyecto(replica, proyecto.id);
   const gastos = gastosDelProyecto(replica, proyecto.id);
+  const insumos = insumosDelProyecto(replica, proyecto.id);
   const ultimaActividad = ultimasActividades(replica).get(proyecto.id) ?? proyecto.updated_at;
   const situacion = situacionDelContacto(proyecto, ultimaActividad, hoy, resumen.cobrado);
   const nombre = cliente?.nombre ?? resumen.nombreDelCliente;
@@ -212,6 +216,10 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
             sena={senaDelTrabajo(replica, proyecto, resumen.cobrado)}
             propia={senaDelProyecto(proyecto) !== null}
           />
+
+          {insumos !== null && (insumos.entro !== 0 || insumos.gastado !== 0) && (
+            <InsumosDelTrabajo insumos={insumos} />
+          )}
 
           {etapa !== 'a_presupuestar' && <CostosDeCotizar proyecto={proyecto} />}
 

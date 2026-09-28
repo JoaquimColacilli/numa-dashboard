@@ -1,17 +1,20 @@
 import { eventosDeLaAgenda } from '@maun/domain';
 
-import { MarcaConAnillo, nombreDelEvento } from '@/entities/agenda';
+import { MarcaConAnillo, nombreDelEvento, rutaDelVencimiento } from '@/entities/agenda';
 import { datosDeLaAgendaDeLaReplica, type Replica } from '@/shared/api';
-import { RUTA_DE_AGENDA, rutaDelProyecto, Ir } from '@/shared/lib';
+import { formatearPesos, RUTA_DE_AGENDA, rutaDelProyecto, Ir } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 const MAXIMO = 3;
 
+const ENLACE =
+  'flex min-h-tap min-w-0 flex-1 items-center gap-2 text-body underline decoration-hairline underline-offset-2 hover:decoration-ink';
+
 export function HoyEnLaAgenda({ replica, hoy }: { replica: Replica; hoy: string }) {
-  const pendientes = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica), {
-    desde: hoy,
-    hasta: hoy,
-  }).filter((evento) => !evento.hecha);
+  const rango = { desde: hoy, hasta: hoy };
+  const pendientes = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica, rango), rango).filter(
+    (evento) => !evento.hecha,
+  );
 
   return (
     <section
@@ -41,11 +44,15 @@ export function HoyEnLaAgenda({ replica, hoy }: { replica: Replica; hoy: string 
                 importante={evento.clase === 'propia' && evento.importante}
               />
               {evento.clase === 'derivada' ? (
-                <Ir
-                  a={rutaDelProyecto(evento.proyectoId)}
-                  className="flex min-h-tap min-w-0 flex-1 items-center text-body underline decoration-hairline underline-offset-2 hover:decoration-ink"
-                >
+                <Ir a={rutaDelProyecto(evento.proyectoId)} className={ENLACE}>
                   <span className="truncate">{nombreDelEvento(evento)}</span>
+                </Ir>
+              ) : evento.clase === 'vencimiento' ? (
+                <Ir a={rutaDelVencimiento(evento)} className={ENLACE}>
+                  <span className="truncate">{nombreDelEvento(evento)}</span>
+                  <span className="ml-auto flex-none text-label text-text-2 tabular-nums">
+                    {formatearPesos(evento.monto)}
+                  </span>
                 </Ir>
               ) : (
                 <span className="min-w-0 flex-1 truncate text-body">{nombreDelEvento(evento)}</span>

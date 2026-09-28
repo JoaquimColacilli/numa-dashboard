@@ -1,18 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
+import { lugaresParaSumar, TITULO_DEL_LUGAR, type LugarEnLaFila } from '@/entities/fila';
 import { ChipDelTesoro } from '@/entities/tesoro';
 import {
   editarLaFila,
-  fichaDelPaso,
-  sumarComoPaso,
-  tesoroDe,
+  fichaEnElLugar,
+  sumarEnElLugar,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
 import { formatearPesos } from '@/shared/lib';
 import { ConSalida, Icono, RESPALDO_DE_LA_SALIDA_MS, useSalida } from '@/shared/ui';
 
+import type { LugarDelTramo } from '../model/disposicion';
+import { despuesDePara, encabezadoDelMenu } from '../model/uniones';
+
 export interface PedidoDeSumar {
-  despuesDe: string | null;
+  tramo: LugarDelTramo;
   boton: HTMLElement;
 }
 
@@ -21,16 +24,11 @@ export interface MenuParaSumarProps {
   vista: VistaDeLaFila;
   alCerrar: () => void;
   alElegir: (id: string) => void;
-  alPedirNuevo: (despuesDe: string | null) => void;
+  alPedirNuevo: (lugar: LugarEnLaFila, despuesDe: string | null | undefined) => void;
 }
 
-const ANCHO_DEL_MENU = 280;
+const ANCHO_DEL_MENU = 300;
 const MARGEN = 12;
-
-function lugarDelPedido(vista: VistaDeLaFila, despuesDe: string | null): number {
-  if (despuesDe === null) return 1;
-  return vista.fila.pasos.findIndex((paso) => paso.tesoro === despuesDe) + 2;
-}
 
 function Menu({
   pedido,
@@ -44,11 +42,15 @@ function Menu({
   const alTerminar = salida?.alTerminar;
   const menu = useRef<HTMLDivElement>(null);
   const [lugar, setLugar] = useState<{ left: number; top: number } | null>(null);
-  const numero = lugarDelPedido(vista, pedido.despuesDe);
-  const despuesDe =
-    pedido.despuesDe === null
-      ? 'después del diezmo'
-      : `después de ${tesoroDe(vista, pedido.despuesDe).nombre}`;
+  const lugares = pedido.tramo.lugares;
+  const [elegido, setElegido] = useState<LugarEnLaFila>(lugares[0] ?? 'reparto');
+  const encabezado = encabezadoDelMenu(vista, elegido, pedido.tramo);
+  const candidatos = vista.estante.filter(
+    (suelto) =>
+      lugaresParaSumar(vista.fila, suelto.id, suelto.clave).find(
+        (posible) => posible.lugar === elegido,
+      )?.sePuede ?? false,
+  );
 
   useLayoutEffect(() => {
     const elemento = menu.current;
@@ -62,11 +64,13 @@ function Menu({
     const abajo = caja.top - 8 + alto <= window.innerHeight - MARGEN;
     const top = abajo ? Math.max(MARGEN, caja.top - 8) : Math.max(MARGEN, caja.bottom - alto + 8);
     setLugar({ left, top });
-  }, [pedido]);
+  }, [pedido, elegido]);
 
   useEffect(() => {
     if (saliendo) return;
-    menu.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    menu.current
+      ?.querySelector<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]')
+      ?.focus();
     const alPresionar = (evento: globalThis.KeyboardEvent) => {
       if (evento.key === 'Escape') {
         evento.preventDefault();
@@ -100,6 +104,9 @@ function Menu({
     };
   }, [saliendo, alTerminar, pedido.boton]);
 
+  const conIndice = (indice: number) => ({ '--indice': indice }) as CSSProperties;
+  const antesDeLosTesoros = lugares.length > 1 ? lugares.length : 0;
+
   return (
     <>
       <button
@@ -112,7 +119,7 @@ function Menu({
       <div
         ref={menu}
         role="menu"
-        aria-label={`Sumar como paso ${String(numero)}`}
+        aria-label={`Sumar un tesoro: ${encabezado}`}
         inert={saliendo}
         data-saliendo={saliendo ? '' : undefined}
         style={{
@@ -120,24 +127,53 @@ function Menu({
           top: lugar?.top ?? 0,
           visibility: lugar === null ? 'hidden' : undefined,
         }}
-        className={`menu-del-mas fixed z-40 flex w-[280px] origin-top-left flex-col gap-0.5 rounded-panel bg-ink p-1.5 text-paper shadow-menu ${
+        className={`menu-del-mas fixed z-40 flex w-[300px] origin-top-left flex-col gap-0.5 rounded-panel bg-ink p-1.5 text-paper shadow-menu ${
           saliendo ? 'pointer-events-none' : ''
         }`}
       >
-        <p className="px-3 pt-2 pb-1.5 text-meta text-paper/65">
-          Sumar como paso {numero}, {despuesDe}
-        </p>
-        {vista.estante.map((suelto, indice) => (
+        <p className="px-3 pt-2 pb-1.5 text-meta text-paper/65">{encabezado}</p>
+        {lugares.length > 1 && (
+          <>
+            <div role="group" aria-label="Cómo entra" className="flex flex-col gap-0.5">
+              {lugares.map((uno, posicion) => (
+                <button
+                  key={uno}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={elegido === uno}
+                  style={conIndice(posicion)}
+                  onClick={() => {
+                    setElegido(uno);
+                  }}
+                  className="accion-del-menu flex min-h-tap items-center gap-3 rounded-field px-3 text-left text-body hover:bg-paper/10"
+                >
+                  <span aria-hidden className="flex w-5 flex-none justify-center">
+                    {elegido === uno && <Icono nombre="check" tamano={16} grosor={2.25} />}
+                  </span>
+                  {TITULO_DEL_LUGAR[uno]}
+                </button>
+              ))}
+            </div>
+            <span aria-hidden className="mx-3 my-1 h-px bg-paper/15" />
+          </>
+        )}
+        {candidatos.map((suelto, posicion) => (
           <button
             key={suelto.id}
             type="button"
             role="menuitem"
-            style={{ '--indice': indice } as CSSProperties}
+            style={conIndice(antesDeLosTesoros + posicion)}
             onClick={() => {
+              const despuesDe = despuesDePara(elegido, pedido.tramo);
               editarLaFila(vista, (fila) =>
-                sumarComoPaso(fila, suelto.id, suelto.clave, pedido.despuesDe),
+                sumarEnElLugar(
+                  fila,
+                  { id: suelto.id, clave: suelto.clave, meta: suelto.meta },
+                  elegido,
+                  despuesDe,
+                ),
               );
-              alElegir(fichaDelPaso(suelto.id));
+              alElegir(fichaEnElLugar(elegido, suelto.id, vista.sistema.diezmo));
               alCerrar();
             }}
             className="accion-del-menu flex min-h-tap items-center gap-3 rounded-field px-3 py-1.5 text-left hover:bg-paper/10"
@@ -151,15 +187,15 @@ function Menu({
             </span>
           </button>
         ))}
-        {vista.estante.length > 0 && <span aria-hidden className="mx-3 my-1 h-px bg-paper/15" />}
+        {candidatos.length > 0 && <span aria-hidden className="mx-3 my-1 h-px bg-paper/15" />}
         <button
           type="button"
           role="menuitem"
           disabled={!vista.sincronizados}
-          style={{ '--indice': vista.estante.length } as CSSProperties}
+          style={conIndice(antesDeLosTesoros + candidatos.length)}
           onClick={() => {
             alCerrar();
-            alPedirNuevo(pedido.despuesDe);
+            alPedirNuevo(elegido, despuesDePara(elegido, pedido.tramo));
           }}
           className="accion-del-menu flex min-h-tap items-center gap-3 rounded-field px-3 text-left text-body hover:bg-paper/10 disabled:text-paper/40"
         >

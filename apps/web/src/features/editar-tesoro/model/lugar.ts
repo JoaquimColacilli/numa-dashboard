@@ -3,21 +3,33 @@ import {
   lugarLibreDelReparto,
   MONTO_MAXIMO_DE_LA_FILA,
   puntosBasicos,
+  TOPE_DE_OBLIGACIONES,
   TOPE_DE_PARTES,
   TOPE_DE_PASOS,
+  type BaseDeLaObligacion,
   type Fila,
   type Money,
   type PuntosBasicos,
 } from '@maun/domain';
 
+import { lugaresParaSumar, type LugarEnLaFila } from '@/entities/fila';
 import { formatearPorcentaje, parsearPorcentaje } from '@/shared/lib';
+import type { NombreDeIcono } from '@/shared/ui';
 
-export type LugarDelTesoro = 'estante' | 'paso' | 'reparto';
+export type LugarDelTesoro = 'estante' | LugarEnLaFila;
 
 export type DondeVa =
   | { lugar: 'estante' }
-  | { lugar: 'paso'; tope: Money }
-  | { lugar: 'reparto'; porcentaje: PuntosBasicos };
+  | {
+      lugar: 'obligacion';
+      porcentaje: PuntosBasicos;
+      base: BaseDeLaObligacion;
+      antesDelDiezmo: boolean;
+    }
+  | { lugar: 'compromiso'; monto: Money }
+  | { lugar: 'ahorro-fijo'; monto: Money }
+  | { lugar: 'reparto'; porcentaje: PuntosBasicos }
+  | { lugar: 'superavit' };
 
 export interface OpcionDeLugar {
   id: LugarDelTesoro;
@@ -28,30 +40,55 @@ export interface OpcionDeLugar {
 
 const PORCENTAJE_SUGERIDO = 1000;
 
+const UN_TESORO_NUEVO = '00000000-0000-0000-0000-000000000000';
+
 export function libreEnElReparto(fila: Pick<Fila, 'reparto'>): PuntosBasicos {
   return lugarLibreDelReparto(fila);
 }
 
-export function tituloDelPaso(
-  fila: Pick<Fila, 'pasos'>,
-  despuesDe: string | null | undefined,
-  nombreDe: (tesoro: string) => string,
+function detalleDelLugar(
+  fila: Fila,
+  lugar: LugarEnLaFila,
+  sePuede: boolean,
+  nombreDelSuperavit: string,
 ): string {
-  if (despuesDe === undefined || fila.pasos.length === 0) return 'Como paso, al final';
-  if (despuesDe === null) return 'Como paso 1, al principio';
-  const lugar = fila.pasos.findIndex((paso) => paso.tesoro === despuesDe);
-  if (lugar === -1 || lugar === fila.pasos.length - 1) return 'Como paso, al final';
-  return `Como paso ${String(lugar + 2)}, después de ${nombreDe(despuesDe)}`;
+  switch (lugar) {
+    case 'obligacion':
+      return sePuede
+        ? 'Un porcentaje de cada cobro, como Ingresos Brutos'
+        : `Entran hasta ${String(TOPE_DE_OBLIGACIONES)} obligaciones.`;
+    case 'compromiso':
+      return sePuede
+        ? 'Junta lo que tenés que pagar, como el alquiler'
+        : `Entran hasta ${String(TOPE_DE_PASOS)} compromisos y ahorros fijos.`;
+    case 'ahorro-fijo':
+      return sePuede
+        ? 'Un monto fijo que apartás de la ganancia'
+        : `Entran hasta ${String(TOPE_DE_PASOS)} compromisos y ahorros fijos.`;
+    case 'reparto':
+      if (fila.reparto.length >= TOPE_DE_PARTES) {
+        return `El reparto admite hasta ${String(TOPE_DE_PARTES)} tesoros.`;
+      }
+      return libreEnElReparto(fila) <= 0
+        ? 'El reparto ya suma 100%.'
+        : 'Un porcentaje de lo que sobra';
+    case 'superavit':
+      return `Recibe lo que sobra, en lugar de ${nombreDelSuperavit}`;
+  }
 }
 
-export function opcionesDeLugar(
-  fila: Pick<Fila, 'pasos' | 'reparto'>,
-  despuesDe?: string | null,
-  nombreDe: (tesoro: string) => string = (tesoro) => tesoro,
-): OpcionDeLugar[] {
-  const libre = libreEnElReparto(fila);
-  const pasoLleno = fila.pasos.length >= TOPE_DE_PASOS;
-  const repartoLleno = fila.reparto.length >= TOPE_DE_PARTES;
+export function dondeEntra(
+  lugar: LugarDelTesoro,
+  despuesDe: string | null | undefined,
+  nombreDe: (tesoro: string) => string,
+): string | null {
+  if (lugar === 'estante' || lugar === 'reparto' || lugar === 'superavit') return null;
+  if (despuesDe === undefined) return 'Al final de su tipo';
+  if (despuesDe === null) return 'Al principio de su tipo';
+  return `Después de ${nombreDe(despuesDe)}`;
+}
+
+export function opcionesDeLugar(fila: Fila, nombreDelSuperavit = 'Maun'): OpcionDeLugar[] {
   return [
     {
       id: 'estante',
@@ -59,22 +96,12 @@ export function opcionesDeLugar(
       detalle: 'No recibe de los cobros: lo sumás a la fila después',
       sePuede: true,
     },
-    {
-      id: 'paso',
-      titulo: tituloDelPaso(fila, despuesDe, nombreDe),
-      detalle: pasoLleno ? `Entran hasta ${String(TOPE_DE_PASOS)} pasos.` : 'Con un tope por mes',
-      sePuede: !pasoLleno,
-    },
-    {
-      id: 'reparto',
-      titulo: 'En el reparto',
-      detalle: repartoLleno
-        ? `El reparto admite hasta ${String(TOPE_DE_PARTES)} tesoros.`
-        : libre <= 0
-          ? 'El reparto ya suma 100%.'
-          : 'Con un porcentaje de lo que sobra',
-      sePuede: !repartoLleno && libre > 0,
-    },
+    ...lugaresParaSumar(fila, UN_TESORO_NUEVO, null).map(({ lugar, titulo, sePuede }) => ({
+      id: lugar,
+      titulo,
+      detalle: detalleDelLugar(fila, lugar, sePuede, nombreDelSuperavit),
+      sePuede,
+    })),
   ];
 }
 
@@ -82,7 +109,7 @@ export function porcentajeSugerido(libre: number): string {
   return formatearPorcentaje(Math.min(PORCENTAJE_SUGERIDO, Math.max(0, libre)));
 }
 
-export function fraseDelLibre(libre: number, texto: string): string {
+export function fraseDelLibre(libre: number, texto: string, nombreDelSuperavit = 'Maun'): string {
   const inicio = `Queda libre el ${formatearPorcentaje(libre)}% del reparto`;
   const porcentaje = parsearPorcentaje(texto, libre);
   if (porcentaje === undefined || porcentaje <= 0) return `${inicio}.`;
@@ -90,43 +117,99 @@ export function fraseDelLibre(libre: number, texto: string): string {
   if (resto <= 0) {
     return `${inicio}: con ${formatearPorcentaje(porcentaje)}%, el reparto llega al 100%.`;
   }
-  return `${inicio}: con ${formatearPorcentaje(porcentaje)}%, Maun se queda con el otro ${formatearPorcentaje(resto)}%.`;
+  return `${inicio}: con ${formatearPorcentaje(porcentaje)}%, ${nombreDelSuperavit} se queda con el otro ${formatearPorcentaje(resto)}%.`;
 }
 
+export interface SugerenciaDeNombre {
+  nombre: string;
+  icono: NombreDeIcono;
+  base?: BaseDeLaObligacion;
+  antesDelDiezmo?: boolean;
+}
+
+const DE_AHORRO: readonly SugerenciaDeNombre[] = [
+  { nombre: 'Stock del taller', icono: 'package' },
+  { nombre: 'Maquinaria', icono: 'wrench' },
+  { nombre: 'Vehículo', icono: 'car' },
+  { nombre: 'Inmueble', icono: 'building-2' },
+];
+
+export const SUGERENCIAS_DEL_LUGAR: Readonly<
+  Record<LugarDelTesoro, readonly SugerenciaDeNombre[]>
+> = {
+  estante: [],
+  obligacion: [
+    { nombre: 'Ingresos Brutos', icono: 'landmark', base: 'cobrado', antesDelDiezmo: true },
+  ],
+  compromiso: [
+    { nombre: 'Gastos fijos', icono: 'receipt' },
+    { nombre: 'Sueldos', icono: 'coins' },
+    { nombre: 'Alquiler', icono: 'building-2' },
+    { nombre: 'Cuotas', icono: 'landmark' },
+  ],
+  'ahorro-fijo': DE_AHORRO,
+  reparto: DE_AHORRO,
+  superavit: [{ nombre: 'Superávit', icono: 'piggy-bank' }],
+};
+
 export interface ErroresDelLugar {
-  tope?: string;
+  monto?: string;
   porcentaje?: string;
+}
+
+export interface LoQueSePide {
+  monto: number | null;
+  porcentaje: string;
+  base: BaseDeLaObligacion;
+  antesDelDiezmo: boolean;
 }
 
 export type LugarRevisado =
   { dondeVa: DondeVa; errores?: undefined } | { dondeVa?: undefined; errores: ErroresDelLugar };
 
+function montoRevisado(monto: number | null): Money | string {
+  if (monto === null || monto <= 0) return 'Poné hasta cuánto recibe.';
+  if (monto > MONTO_MAXIMO_DE_LA_FILA) return 'El monto no puede ser tan grande.';
+  return centavos(monto);
+}
+
 export function revisarElLugar(
   lugar: LugarDelTesoro,
-  tope: number | null,
-  porcentaje: string,
-  fila: Pick<Fila, 'pasos' | 'reparto'>,
+  { monto, porcentaje, base, antesDelDiezmo }: LoQueSePide,
+  fila: Pick<Fila, 'reparto'>,
 ): LugarRevisado {
-  if (lugar === 'paso') {
-    if (tope === null || tope <= 0) {
-      return { errores: { tope: 'Poné hasta cuánto recibe por mes.' } };
+  switch (lugar) {
+    case 'estante':
+      return { dondeVa: { lugar: 'estante' } };
+    case 'superavit':
+      return { dondeVa: { lugar: 'superavit' } };
+    case 'compromiso':
+    case 'ahorro-fijo': {
+      const revisado = montoRevisado(monto);
+      return typeof revisado === 'string'
+        ? { errores: { monto: revisado } }
+        : { dondeVa: { lugar, monto: revisado } };
     }
-    if (tope > MONTO_MAXIMO_DE_LA_FILA) {
-      return { errores: { tope: 'El tope no puede ser tan grande.' } };
-    }
-    return { dondeVa: { lugar: 'paso', tope: centavos(tope) } };
-  }
-  if (lugar === 'reparto') {
-    const libre = libreEnElReparto(fila);
-    const bp = parsearPorcentaje(porcentaje, libre);
-    if (bp === undefined || bp <= 0) {
+    case 'obligacion': {
+      const bp = parsearPorcentaje(porcentaje, 10_000);
+      if (bp === undefined || bp <= 0) {
+        return { errores: { porcentaje: 'Poné un porcentaje de 0,01 a 100.' } };
+      }
       return {
-        errores: {
-          porcentaje: `Poné un porcentaje de 0,01 a ${formatearPorcentaje(libre)}, lo que queda libre.`,
-        },
+        dondeVa: { lugar, porcentaje: puntosBasicos(bp), base, antesDelDiezmo },
       };
     }
-    return { dondeVa: { lugar: 'reparto', porcentaje: puntosBasicos(bp) } };
+    case 'reparto': {
+      const libre = libreEnElReparto(fila);
+      const bp = parsearPorcentaje(porcentaje, libre);
+      if (bp === undefined || bp <= 0) {
+        return {
+          errores: {
+            porcentaje: `Poné un porcentaje de 0,01 a ${formatearPorcentaje(libre)}, lo que queda libre.`,
+          },
+        };
+      }
+      return { dondeVa: { lugar, porcentaje: puntosBasicos(bp) } };
+    }
   }
-  return { dondeVa: { lugar: 'estante' } };
 }

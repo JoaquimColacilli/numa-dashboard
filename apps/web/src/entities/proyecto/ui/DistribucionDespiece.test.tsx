@@ -1,5 +1,5 @@
 import { centavos, type Money } from '@maun/domain';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatearPesos, type TintaDeTesoro } from '@/shared/lib';
@@ -21,6 +21,16 @@ function pantallaDe(ancho: number) {
   }));
 }
 
+const TIPO_DEL_TESORO: Readonly<
+  Record<PiezaDelDespiece['tipo'], PiezaDelDespiece['tipoDeTesoro']>
+> = {
+  diezmo: 'obligacion',
+  obligacion: 'obligacion',
+  paso: 'compromiso',
+  parte: 'ahorro-por-porcentaje',
+  resto: 'superavit',
+};
+
 function pieza(
   id: string,
   tipo: PiezaDelDespiece['tipo'],
@@ -34,6 +44,7 @@ function pieza(
   return {
     id,
     tipo,
+    tipoDeTesoro: TIPO_DEL_TESORO[tipo],
     etiqueta,
     tesoro,
     nombre,
@@ -42,6 +53,8 @@ function pieza(
     monto: centavos(monto),
     falta: centavos(0),
     cubierto: false,
+    conSuSaldo: false,
+    llegaALaMeta: false,
     parte: base === 0 ? 0 : monto / base,
   };
 }
@@ -60,7 +73,16 @@ function despiece(modo: Despiece['modo'], cobrado: number, gastos: number): Desp
     gastos: centavos(gastos),
     neta: centavos(neta),
     piezas: [
-      pieza('diezmo', 'diezmo', 'Diezmo 10%', 'diezmo-1', 'Diezmo', 'diezmo', diezmo, base),
+      pieza(
+        'diezmo',
+        'diezmo',
+        'Diezmo 10% sobre el ingreso',
+        'diezmo-1',
+        'Diezmo',
+        'diezmo',
+        diezmo,
+        base,
+      ),
       pieza(`paso-${HOGAR}`, 'paso', 'Sueldo', HOGAR, 'Hogar', 'hogar', sueldo, base),
       pieza(`paso-${FIJOS}`, 'paso', 'Gastos fijos', FIJOS, 'Gastos fijos', 'grana', fijos, base),
       pieza(`parte-${COCOS}`, 'parte', '50% de lo que sobra', COCOS, 'Cocos', 'cocos', cocos, base),
@@ -70,7 +92,7 @@ function despiece(modo: Despiece['modo'], cobrado: number, gastos: number): Desp
 }
 
 function region(): HTMLElement {
-  return screen.getByRole('region', { name: 'Distribución de la ganancia' });
+  return screen.getByRole('region', { name: 'Distribución del ingreso' });
 }
 
 function renglon(texto: string): HTMLElement {
@@ -88,7 +110,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('la distribución de la ganancia', () => {
+describe('la distribución del ingreso', () => {
   it('cobrado, es el tablero cortado en una pieza por paso y por parte, cada una en su tinta', () => {
     const cobrado = despiece('real', 72_500_000, 14_500_000);
     render(<DistribucionDespiece despiece={cobrado} />);
@@ -108,7 +130,7 @@ describe('la distribución de la ganancia', () => {
     );
     expect(region().querySelectorAll('[data-pieza]')).toHaveLength(5);
     expect(region().querySelector('[data-pieza="diezmo"] > title')?.textContent).toBe(
-      `Diezmo 10%: ${formatearPesos(centavos(5_800_000))}`,
+      `Diezmo 10% sobre el ingreso: ${formatearPesos(centavos(5_800_000))}`,
     );
     expect(region().querySelector(`[data-pieza="paso-${HOGAR}"] > title`)?.textContent).toBe(
       `Sueldo a Hogar: ${formatearPesos(centavos(27_840_000))}`,
@@ -127,9 +149,35 @@ describe('la distribución de la ganancia', () => {
     expect(renglon('Sueldo')).toHaveTextContent('a HOGAR');
     expect(renglon('50% de lo que sobra')).toHaveTextContent('a COCOS');
     expect(renglon('El resto')).toHaveTextContent('a MAUN');
-    expect(renglon('Diezmo 10%')).not.toHaveTextContent(/ a /);
+    expect(renglon('Diezmo 10% sobre el ingreso')).not.toHaveTextContent(/ a /);
     expect(renglon('Gastos fijos')).not.toHaveTextContent('a GASTOS FIJOS');
     expect(region()).not.toHaveTextContent('cuatro tesoros');
+  });
+
+  it('habla del ingreso y agrupa las líneas por tipo, en el orden de la fila', () => {
+    render(<DistribucionDespiece despiece={despiece('real', 72_500_000, 14_500_000)} />);
+
+    expect(region()).toHaveTextContent('Ingreso');
+    expect(region()).not.toHaveTextContent(/ganancia/i);
+    const grupos = within(region()).getAllByRole('group');
+    expect(grupos.map((grupo) => grupo.getAttribute('aria-label'))).toEqual([
+      'Obligaciones',
+      'Compromisos',
+      'Ahorros',
+      'Superávit',
+    ]);
+    expect(
+      grupos.map((grupo) =>
+        within(grupo)
+          .getAllByRole('listitem')
+          .map((renglon) => renglon.querySelector('.font-medium')?.textContent),
+      ),
+    ).toEqual([
+      ['Diezmo 10% sobre el ingreso'],
+      ['Sueldo', 'Gastos fijos'],
+      ['50% de lo que sobra'],
+      ['El resto'],
+    ]);
   });
 
   it('se corta con el corte solo cuando se pide', () => {
@@ -186,6 +234,24 @@ describe('la distribución de la ganancia', () => {
     expect(sueldo).toHaveTextContent('ya lo cubrieron otros cobros del mes');
     expect(sueldo).not.toHaveTextContent('faltan');
     expect(region().querySelectorAll('[data-pieza]')).toHaveLength(4);
+  });
+
+  it('un ahorro que frenó en su meta lo dice, y un compromiso que se renueva y ya tiene su monto también', () => {
+    const base = despiece('proyeccion', 72_500_000, 14_500_000);
+    const conMeta: Despiece = {
+      ...base,
+      piezas: base.piezas.map((una) =>
+        una.id === `parte-${COCOS}`
+          ? { ...una, llegaALaMeta: true }
+          : una.id === `paso-${FIJOS}`
+            ? { ...una, monto: centavos(0), parte: 0, conSuSaldo: true }
+            : una,
+      ),
+    };
+    render(<DistribucionDespiece despiece={conMeta} />);
+    expect(renglon('50% de lo que sobra')).toHaveTextContent('llegó a la meta');
+    expect(renglon('Gastos fijos')).toHaveTextContent('ya tiene su monto');
+    expect(renglon('Gastos fijos')).not.toHaveTextContent('ya lo cubrieron');
   });
 
   it('un paso que no llegó a su tope dice cuánto le falta', () => {

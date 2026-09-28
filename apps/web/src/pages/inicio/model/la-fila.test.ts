@@ -1,16 +1,28 @@
-import { centavos, puntosBasicos, type FilaDelMes, type PasoDelMes } from '@maun/domain';
+import {
+  centavos,
+  puntosBasicos,
+  tipoDelPaso,
+  type FilaDelMes,
+  type ObligacionDelMes,
+  type ParteDelMes,
+  type PasoDelMes,
+  type VencimientoDeLaAgenda,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
 
 import {
+  cuantoLleva,
   faltaParaLosTopes,
   faltantesEnInicio,
   fraseDeLoQueSobra,
   fraseDeLosDiasQueQuedan,
-  gananciaDelMes,
+  ingresoDelMes,
   nombreEnLaFrase,
+  obligacionesEnInicio,
   pasosEnInicio,
+  textoDeLaObligacion,
   textoDelEstado,
 } from './la-fila';
 
@@ -44,9 +56,11 @@ const TESOROS = [
   tesoro('maun', 'maun', 'Maun', 'maun'),
   tesoro('diezmo', 'diezmo', 'Diezmo', 'diezmo'),
   tesoro('cocos', 'cocos', 'Cocos', 'cocos'),
+  tesoro('iibb', null, 'Ingresos Brutos', 'petroleo'),
   tesoro('fijos', null, 'Gastos fijos', 'grana'),
   tesoro('materiales', null, 'Materiales', 'mostaza'),
   tesoro('inmuebles', null, 'Inmuebles', 'ciruela'),
+  tesoro('superavit', null, 'Superávit', 'petroleo'),
 ];
 
 function paso(
@@ -54,45 +68,98 @@ function paso(
   clase: PasoDelMes['clase'],
   objetivo: number,
   recibido: number,
-  cubierto = 0,
+  extra: Partial<PasoDelMes> = {},
 ): PasoDelMes {
-  const falta = Math.max(0, objetivo - recibido - cubierto);
+  const falta = Math.max(0, objetivo - recibido);
   return {
     tesoro: tesoroId,
     clase,
+    tipo: tipoDelPaso(clase),
+    modo: 'mes',
     objetivo: centavos(objetivo),
     recibido: centavos(recibido),
-    cubierto: centavos(cubierto),
+    cubierto: centavos(0),
+    lleva: centavos(recibido),
     falta: centavos(falta),
     completo: falta === 0,
+    aPagar: null,
+    vencimientos: [],
+    meta: null,
+    ...extra,
   };
 }
+
+function parte(tesoroId: string, porcentaje: number, recibido = 0): ParteDelMes {
+  return {
+    tesoro: tesoroId,
+    porcentaje: puntosBasicos(porcentaje),
+    hastaLaMeta: false,
+    recibido: centavos(recibido),
+    meta: null,
+  };
+}
+
+const DIEZMO: ObligacionDelMes = {
+  tesoro: 'diezmo',
+  porcentaje: puntosBasicos(1000),
+  base: 'ingreso',
+  diezmo: true,
+  apartado: centavos(27_000_000),
+  aPagar: centavos(27_000_000),
+};
 
 const SEPTIEMBRE: FilaDelMes = {
   mes: '2026-09',
   cobros: 2,
-  ganancia: centavos(270_000_000),
+  ingreso: centavos(270_000_000),
   diezmo: centavos(27_000_000),
+  apartado: centavos(27_000_000),
+  obligaciones: [DIEZMO],
   pasos: [
     paso('hogar', 'sueldo', 180_000_000, 180_000_000),
     paso('fijos', 'fijos', 90_000_000, 63_000_000),
     paso('materiales', 'prioridad', 30_000_000, 0),
   ],
-  reparto: [
-    { tesoro: 'cocos', porcentaje: puntosBasicos(5000), recibido: centavos(0) },
-    { tesoro: 'inmuebles', porcentaje: puntosBasicos(3000), recibido: centavos(0) },
-  ],
+  reparto: [parte('cocos', 5000), parte('inmuebles', 3000)],
+  superavit: { tesoro: 'maun', recibido: centavos(0) },
   enElTaller: centavos(0),
   repartoEmpezo: false,
 };
 
-describe('la fila del mes en Inicio', () => {
-  it('sigue el orden de la fila, con el número de cada paso y su clase cuando no es su nombre', () => {
+describe('la fila del mes en Inicio, por tipo', () => {
+  it('las obligaciones van primero, con su porcentaje, sobre qué se calculan y lo que queda a pagar', () => {
+    const conIngresosBrutos: FilaDelMes = {
+      ...SEPTIEMBRE,
+      obligaciones: [
+        {
+          tesoro: 'iibb',
+          porcentaje: puntosBasicos(350),
+          base: 'cobrado',
+          diezmo: false,
+          apartado: centavos(9_450_000),
+          aPagar: centavos(0),
+        },
+        DIEZMO,
+      ],
+    };
+    const obligaciones = obligacionesEnInicio(conIngresosBrutos, TESOROS);
+    expect(obligaciones.map((una) => [una.numero, una.nombre, una.regla])).toEqual([
+      [1, 'Ingresos Brutos', '3,5% sobre lo que cobrás'],
+      [2, 'Diezmo', '10% sobre el ingreso'],
+    ]);
+    expect(obligaciones.map((una) => llano(textoDeLaObligacion(una)))).toEqual([
+      'Al día',
+      'A pagar $ 270.000',
+    ]);
+    expect(pasosEnInicio(conIngresosBrutos, TESOROS).map((uno) => uno.numero)).toEqual([3, 4, 5]);
+  });
+
+  it('los pasos siguen el número de las obligaciones y dicen cómo se llenan', () => {
     const pasos = pasosEnInicio(SEPTIEMBRE, TESOROS);
-    expect(pasos.map((uno) => [uno.numero, uno.nombre, uno.clase, uno.tinta])).toEqual([
-      [1, 'Hogar', 'sueldo', 'hogar'],
-      [2, 'Gastos fijos', null, 'grana'],
-      [3, 'Materiales', 'prioridad', 'mostaza'],
+    expect(pasos.map((uno) => [uno.numero, uno.tipo, uno.nombre, uno.clase, uno.tinta])).toEqual([
+      [2, 'compromiso', 'Hogar', 'sueldo', 'hogar'],
+      [3, 'compromiso', 'Gastos fijos', 'por mes', 'grana'],
+      [4, 'ahorro-fijo', 'Materiales', 'por mes', 'mostaza'],
     ]);
     expect(pasos.map((uno) => [uno.lleva, uno.tope, uno.estado])).toEqual([
       [180_000_000, 180_000_000, 'cubierto'],
@@ -106,12 +173,58 @@ describe('la fila del mes en Inicio', () => {
     ]);
   });
 
-  it('lo que se cubrió con otro tesoro cuenta para lo que lleva el paso', () => {
-    const [fijos] = pasosEnInicio(
-      { ...SEPTIEMBRE, pasos: [paso('fijos', 'fijos', 90_000_000, 63_000_000, 27_000_000)] },
+  it('un compromiso que se renueva, un ahorro por trabajo y uno que llegó a su meta', () => {
+    const pasos = pasosEnInicio(
+      {
+        ...SEPTIEMBRE,
+        pasos: [
+          paso('fijos', 'fijos', 90_000_000, 0, {
+            modo: 'saldo',
+            lleva: centavos(63_000_000),
+            falta: centavos(27_000_000),
+          }),
+          paso('materiales', 'prioridad', 10_000_000, 20_000_000, {
+            modo: 'trabajo',
+            lleva: centavos(0),
+            falta: null,
+          }),
+          paso('inmuebles', 'prioridad', 30_000_000, 5_000_000, {
+            falta: centavos(0),
+            meta: {
+              meta: centavos(30_000_000),
+              saldo: centavos(30_000_000),
+              falta: centavos(0),
+              hastaLaMeta: true,
+              llego: true,
+            },
+          }),
+        ],
+      },
       TESOROS,
     );
-    expect(fijos).toMatchObject({ lleva: 90_000_000, falta: 0, estado: 'cubierto' });
+    expect(pasos.map((uno) => uno.clase)).toEqual([
+      'se renueva al pagar',
+      'por trabajo',
+      'por mes · hasta la meta',
+    ]);
+    expect(pasos.map((uno) => llano(textoDelEstado(uno)))).toEqual([
+      'Faltan $ 270.000',
+      'Recibió $ 200.000 este mes',
+      'Llegó a la meta',
+    ]);
+    expect(pasos.map((uno) => llano(cuantoLleva(uno)))).toEqual([
+      '$ 630.000 de $ 900.000',
+      '$ 100.000 por cobro',
+      '$ 50.000 de $ 300.000',
+    ]);
+  });
+
+  it('los costos fijos de la fila de siempre se nombran así', () => {
+    const [maun] = pasosEnInicio(
+      { ...SEPTIEMBRE, pasos: [paso('maun', 'fijos', 90_000_000, 0)] },
+      TESOROS,
+    );
+    expect(maun).toMatchObject({ nombre: 'Maun', clase: 'costos fijos' });
   });
 
   it('un tesoro que ya no está se muestra igual, con un nombre genérico', () => {
@@ -119,43 +232,42 @@ describe('la fila del mes en Inicio', () => {
       { ...SEPTIEMBRE, pasos: [paso('otro', 'prioridad', 100, 0)] },
       TESOROS,
     );
-    expect(perdido).toMatchObject({ nombre: 'Tesoro', clase: 'prioridad', tinta: 'maun' });
+    expect(perdido).toMatchObject({ nombre: 'Tesoro', tinta: 'maun' });
   });
 
-  it('cuenta la ganancia del mes en sus cobros', () => {
-    expect(llano(gananciaDelMes(SEPTIEMBRE))).toBe('$ 2.700.000 de ganancia en 2 cobros');
-    expect(llano(gananciaDelMes({ ...SEPTIEMBRE, cobros: 1 }))).toBe(
-      '$ 2.700.000 de ganancia en un cobro',
+  it('cuenta el ingreso del mes en sus cobros', () => {
+    expect(llano(ingresoDelMes(SEPTIEMBRE))).toBe('$ 2.700.000 de ingreso en 2 cobros');
+    expect(llano(ingresoDelMes({ ...SEPTIEMBRE, cobros: 1 }))).toBe(
+      '$ 2.700.000 de ingreso en un cobro',
     );
-    expect(gananciaDelMes({ ...SEPTIEMBRE, cobros: 0, ganancia: centavos(0) })).toBe(
+    expect(ingresoDelMes({ ...SEPTIEMBRE, cobros: 0, ingreso: centavos(0) })).toBe(
       'Todavía no hubo cobros este mes',
     );
   });
+});
 
-  it('lo que sobra dice cuánto falta para los topes y cómo se va a repartir', () => {
+describe('lo que sobra', () => {
+  it('dice cuánto falta para los compromisos y los ahorros fijos y cómo se va a repartir', () => {
     expect(faltaParaLosTopes(SEPTIEMBRE)).toBe(57_000_000);
     expect(llano(fraseDeLoQueSobra(SEPTIEMBRE, TESOROS))).toBe(
-      'Se reparte cuando se llenan los topes: faltan $ 570.000. Cocos 50%, Inmuebles 30% y Maun el resto.',
+      'Se reparte cuando se llenan los compromisos y los ahorros fijos: faltan $ 570.000. Cocos 50%, Inmuebles 30% y Maun el resto.',
     );
   });
 
-  it('con los topes llenos, lo próximo se reparte', () => {
+  it('con todo lleno, lo próximo se reparte', () => {
     const llenos = {
       ...SEPTIEMBRE,
       pasos: [paso('hogar', 'sueldo', 100, 100), paso('fijos', 'fijos', 50, 60)],
     };
     expect(llano(fraseDeLoQueSobra(llenos, TESOROS))).toBe(
-      'Los topes ya están llenos: lo que deje el próximo cobro se reparte. Cocos 50%, Inmuebles 30% y Maun el resto.',
+      'Los compromisos ya están llenos: lo que deje el próximo cobro se reparte. Cocos 50%, Inmuebles 30% y Maun el resto.',
     );
   });
 
   it('cuando el reparto ya empezó, dice lo que ya se repartió', () => {
     const repartido: FilaDelMes = {
       ...SEPTIEMBRE,
-      reparto: [
-        { tesoro: 'cocos', porcentaje: puntosBasicos(5000), recibido: centavos(30_000_000) },
-        { tesoro: 'inmuebles', porcentaje: puntosBasicos(3000), recibido: centavos(18_000_000) },
-      ],
+      reparto: [parte('cocos', 5000, 30_000_000), parte('inmuebles', 3000, 18_000_000)],
       repartoEmpezo: true,
     };
     expect(llano(fraseDeLoQueSobra(repartido, TESOROS))).toBe(
@@ -163,45 +275,132 @@ describe('la fila del mes en Inicio', () => {
     );
   });
 
-  it('sin reparto, lo que sobra queda en Maun', () => {
-    const sinReparto = { ...SEPTIEMBRE, reparto: [] };
-    expect(llano(fraseDeLoQueSobra(sinReparto, TESOROS))).toBe(
-      'Cuando se llenan los topes, lo que sobra queda en Maun: faltan $ 570.000.',
+  it('con el superávit en otro tesoro, el resto va ahí', () => {
+    const aparte: FilaDelMes = {
+      ...SEPTIEMBRE,
+      superavit: { tesoro: 'superavit', recibido: centavos(0) },
+      reparto: [{ ...parte('inmuebles', 2000), hastaLaMeta: true, meta: null }],
+    };
+    expect(llano(fraseDeLoQueSobra(aparte, TESOROS))).toBe(
+      'Se reparte cuando se llenan los compromisos y los ahorros fijos: faltan $ 570.000. Inmuebles 20% y Superávit el resto.',
     );
-    expect(fraseDeLoQueSobra({ ...sinReparto, pasos: [] }, TESOROS)).toBe(
-      'Los topes ya están llenos: lo que sobra de cada cobro queda en Maun.',
+    expect(
+      llano(
+        fraseDeLoQueSobra(
+          {
+            ...aparte,
+            reparto: [parte('inmuebles', 2000, 5_000_000)],
+            repartoEmpezo: true,
+          },
+          TESOROS,
+        ),
+      ),
+    ).toBe('Ya se repartieron $ 50.000: Inmuebles $ 50.000. El resto fue a Superávit.');
+    expect(
+      llano(
+        fraseDeLoQueSobra(
+          {
+            ...aparte,
+            reparto: [
+              {
+                ...parte('inmuebles', 2000),
+                hastaLaMeta: true,
+                meta: {
+                  meta: centavos(30_000_000),
+                  saldo: centavos(25_000_000),
+                  falta: centavos(5_000_000),
+                  hastaLaMeta: true,
+                  llego: false,
+                },
+              },
+            ],
+          },
+          TESOROS,
+        ),
+      ),
+    ).toBe(
+      'Se reparte cuando se llenan los compromisos y los ahorros fijos: faltan $ 570.000. Inmuebles 20% hasta su meta y Superávit el resto.',
     );
   });
 
-  it('con el reparto al 100%, Maun no se nombra', () => {
+  it('sin reparto, lo que sobra va al superávit', () => {
+    const sinReparto = { ...SEPTIEMBRE, reparto: [] };
+    expect(llano(fraseDeLoQueSobra(sinReparto, TESOROS))).toBe(
+      'Cuando se llenan los compromisos y los ahorros fijos, lo que sobra queda en Maun: faltan $ 570.000.',
+    );
+    expect(fraseDeLoQueSobra({ ...sinReparto, pasos: [] }, TESOROS)).toBe(
+      'Lo que sobra de cada cobro queda en Maun.',
+    );
+    expect(
+      fraseDeLoQueSobra(
+        {
+          ...sinReparto,
+          pasos: [paso('materiales', 'prioridad', 100, 100)],
+          superavit: { tesoro: 'superavit', recibido: centavos(0) },
+        },
+        TESOROS,
+      ),
+    ).toBe('Los ahorros fijos ya están llenos: lo que sobra de cada cobro va a Superávit.');
+  });
+
+  it('con el reparto al 100%, el superávit no se nombra', () => {
     const entero: FilaDelMes = {
       ...SEPTIEMBRE,
-      reparto: [
-        { tesoro: 'cocos', porcentaje: puntosBasicos(6000), recibido: centavos(0) },
-        { tesoro: 'inmuebles', porcentaje: puntosBasicos(4000), recibido: centavos(0) },
-      ],
+      reparto: [parte('cocos', 6000), parte('inmuebles', 4000)],
     };
     expect(llano(fraseDeLoQueSobra(entero, TESOROS))).toBe(
-      'Se reparte cuando se llenan los topes: faltan $ 570.000. Cocos 60% y Inmuebles 40%.',
+      'Se reparte cuando se llenan los compromisos y los ahorros fijos: faltan $ 570.000. Cocos 60% y Inmuebles 40%.',
     );
   });
 });
 
-describe('el faltante de los gastos fijos', () => {
-  it('aparece solo con un paso de gastos fijos incompleto: la prioridad que falta espera su turno', () => {
-    expect(faltantesEnInicio(SEPTIEMBRE, TESOROS)).toEqual([
-      { tesoro: 'fijos', nombre: 'gastos fijos', falta: 27_000_000 },
+function vencimiento(fecha: string, pagado = false): VencimientoDeLaAgenda {
+  return {
+    id: `vencimiento:fijos:0:${fecha}`,
+    tesoro: 'fijos',
+    nombreDelTesoro: 'Gastos fijos',
+    renglon: 'Alquiler',
+    monto: centavos(50_000_000),
+    fecha,
+    pagado,
+  };
+}
+
+describe('el faltante de los compromisos', () => {
+  it('aparece solo con un compromiso de gastos fijos incompleto: el ahorro que falta espera su turno', () => {
+    expect(faltantesEnInicio(SEPTIEMBRE, TESOROS, [], '2026-09-27')).toEqual([
+      { tesoro: 'fijos', nombre: 'gastos fijos', modo: 'mes', falta: 27_000_000, vence: null },
     ]);
 
     const conLosFijosLlenos = {
       ...SEPTIEMBRE,
       pasos: [
         paso('hogar', 'sueldo', 180_000_000, 10_000_000),
-        paso('fijos', 'fijos', 90_000_000, 63_000_000, 27_000_000),
+        paso('fijos', 'fijos', 90_000_000, 90_000_000),
         paso('materiales', 'prioridad', 30_000_000, 0),
       ],
     };
-    expect(faltantesEnInicio(conLosFijosLlenos, TESOROS)).toEqual([]);
+    expect(faltantesEnInicio(conLosFijosLlenos, TESOROS, [], '2026-09-27')).toEqual([]);
+  });
+
+  it('mira también los que se renuevan al pagar y nombra lo que vence en los próximos 7 días', () => {
+    const [alquiler] = faltantesEnInicio(
+      {
+        ...SEPTIEMBRE,
+        pasos: [
+          paso('fijos', 'fijos', 90_000_000, 0, {
+            modo: 'saldo',
+            lleva: centavos(63_000_000),
+            falta: centavos(27_000_000),
+          }),
+        ],
+      },
+      TESOROS,
+      [vencimiento('2026-09-03', true), vencimiento('2026-10-03')],
+      '2026-09-28',
+    );
+    expect(alquiler).toMatchObject({ modo: 'saldo', falta: 27_000_000 });
+    expect(alquiler?.vence?.fecha).toBe('2026-10-03');
   });
 
   it('nombra el paso en minúscula si es un nombre común, y a Maun por sus costos fijos', () => {

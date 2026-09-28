@@ -83,6 +83,7 @@ export function PlanoCompleto({
           revision={vista.delTaller.version}
           rige={rige}
           relleno={RELLENO}
+          insumos={pantalla.insumosEnElPlano}
         />
       </div>
     </dialog>,

@@ -44,10 +44,10 @@ function masDias(fecha: string, dias: number): string {
 }
 
 function proximoEnLaAgenda(replica: Replica, hoy: string): string {
-  const [proximo] = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica), {
-    desde: hoy,
-    hasta: masDias(hoy, DIAS_QUE_MIRA_LA_AGENDA),
-  }).filter((evento) => !evento.hecha);
+  const rango = { desde: hoy, hasta: masDias(hoy, DIAS_QUE_MIRA_LA_AGENDA) };
+  const [proximo] = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica, rango), rango).filter(
+    (evento) => !evento.hecha,
+  );
   if (proximo === undefined) return 'Nada agendado por ahora';
   const etiqueta = etiquetaDelDia(proximo.fecha, hoy);
   const cuando =

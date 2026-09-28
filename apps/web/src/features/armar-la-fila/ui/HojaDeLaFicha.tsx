@@ -1,6 +1,7 @@
 import { ChipDelTesoro } from '@/entities/tesoro';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
+import { FICHA_DE_LOS_INSUMOS } from '../model/fichas';
 import { encabezadoDeLaFicha } from '../model/vista';
 import { PanelDeDetalle, type PanelDeDetalleProps } from './PanelDeDetalle';
 
@@ -25,7 +26,10 @@ export function HojaDeLaFicha({ alCerrar, ...props }: HojaDeLaFichaProps) {
             aria-hidden
             className="flex size-7 flex-none items-center justify-center rounded-control bg-surface-2 text-ink"
           >
-            <Icono nombre="split" tamano={16} />
+            <Icono
+              nombre={props.elegido === FICHA_DE_LOS_INSUMOS ? 'hand-coins' : 'split'}
+              tamano={16}
+            />
           </span>
         ) : (
           <ChipDelTesoro tesoro={tesoro} />

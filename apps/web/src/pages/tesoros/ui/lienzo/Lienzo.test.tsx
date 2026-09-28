@@ -23,6 +23,7 @@ const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 const HOY = '2026-09-27';
 
 const GUARDADA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
     {
       tesoro: HOGAR,
@@ -30,6 +31,8 @@ const GUARDADA: Fila = {
       tope: centavos(180_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: MATERIALES,
@@ -37,9 +40,12 @@ const GUARDADA: Fila = {
       tope: centavos(30_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000) }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 

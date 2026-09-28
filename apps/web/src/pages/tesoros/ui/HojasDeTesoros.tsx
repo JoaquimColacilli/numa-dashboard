@@ -23,9 +23,7 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
             lugarInicial={pedido.lugar}
             despuesDe={pedido.despuesDe}
             alCerrar={cerrar}
-            alCrear={(tesoro, dondeVa) => {
-              pantalla.alCrear(tesoro, dondeVa, pedido.despuesDe);
-            }}
+            alCrear={pantalla.alCrear}
           />
         )}
       </ConSalida>
@@ -43,7 +41,7 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
           <HojaDeCubrir
             tesoroDelPaso={pedido.paso.tesoro}
             mes={vista.mes}
-            faltante={pedido.paso.falta}
+            faltante={pedido.paso.falta ?? 0}
             alCerrar={cerrar}
           />
         )}
@@ -53,6 +51,7 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
           <HojaDeGuardarLaFila
             vista={vista}
             monto={pantalla.prueba.monto}
+            cobrado={pantalla.prueba.cobrado}
             alCerrar={cerrar}
             alGuardar={() => {
               pantalla.elegir(null);
@@ -75,6 +74,8 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
             alEditarTesoro={(tesoro) => {
               pantalla.abrir({ tipo: 'editar', tesoro });
             }}
+            alRegistrarElPago={pantalla.registrarElPago}
+            insumos={pantalla.insumos}
             alCerrar={() => {
               pantalla.elegir(null);
               cerrar();

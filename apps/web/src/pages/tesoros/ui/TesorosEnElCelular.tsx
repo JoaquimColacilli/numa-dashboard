@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { AyudaDeLaPrueba, AyudaDeLosInsumos } from '@/entities/fila';
+import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
 import { BarraDeEdicionCelular, Probador, sePuedeEditar } from '@/features/armar-la-fila';
-import { nombreDelMes } from '@/shared/lib';
-import { Ayuda, Icono, Pagina } from '@/shared/ui';
+import { formatearPesos, Ir, rutaDelProyecto } from '@/shared/lib';
+import { Icono, Pagina } from '@/shared/ui';
 
 import type { PantallaDeTesoros } from '../model/pantalla';
 import { Bienvenida } from './Bienvenida';
@@ -10,12 +12,71 @@ import { MenuParaSumar, type PedidoDeSumar } from './MenuParaSumar';
 import { PlanoCompleto } from './PlanoCompleto';
 import { PlanoVertical } from './PlanoVertical';
 
+function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
+  const cuantos = insumos.trabajos.length;
+  return (
+    <section
+      aria-label="Insumos"
+      className="flex flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className="flex size-9 flex-none items-center justify-center rounded-field bg-surface-2 text-ink"
+        >
+          <Icono nombre="hand-coins" tamano={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-1.5 text-body-lg leading-snug font-semibold">
+            Insumos
+            <AyudaDeLosInsumos />
+          </h2>
+          <p className="text-label text-text-2">
+            {cuantos === 0
+              ? 'Sin trabajos en curso'
+              : `Lo que queda de la seña de ${String(cuantos)} ${cuantos === 1 ? 'trabajo en curso' : 'trabajos en curso'}`}
+          </p>
+        </div>
+        <span className="flex-none text-body-lg font-semibold tabular-nums">
+          {formatearPesos(insumos.total)}
+        </span>
+      </div>
+      {cuantos > 0 && (
+        <ul className="-mx-2 flex flex-col border-t border-hairline-soft pt-1">
+          {insumos.trabajos.map((trabajo) => (
+            <li key={trabajo.proyectoId}>
+              <Ir
+                a={rutaDelProyecto(trabajo.proyectoId)}
+                className="flex min-h-tap items-center justify-between gap-3 rounded-field px-2 py-1"
+              >
+                <span className="min-w-0 truncate text-body">
+                  {trabajo.titulo === '' ? 'Un trabajo' : trabajo.titulo}
+                </span>
+                <span className="flex-none text-label font-semibold tabular-nums">
+                  {fraseDeLosInsumos(trabajo) ?? formatearPesos(trabajo.queda)}
+                </span>
+              </Ir>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }) {
   const { vista } = pantalla;
   const [pedido, setPedido] = useState<PedidoDeSumar | null>(null);
   const [completo, setCompleto] = useState(false);
   const botonDelPlano = useRef<HTMLButtonElement>(null);
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const desdeElEnlace = pantalla.desdeElEnlace;
+
+  useEffect(() => {
+    if (desdeElEnlace === null) return;
+    document
+      .querySelector(`[data-ficha="${desdeElEnlace}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }, [desdeElEnlace]);
 
   const tocar = (id: string) => {
     pantalla.elegir(id);
@@ -71,6 +132,8 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
         />
       )}
 
+      {!vista.armando && <TarjetaDeLosInsumos insumos={pantalla.insumos} />}
+
       {!vista.armando && (
         <section
           aria-label="Probar un cobro"
@@ -78,12 +141,7 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
         >
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-body-lg font-semibold">Probá un cobro</h2>
-            <Ayuda que="Cómo se prueba un cobro">
-              Escribí lo que te dejaría un trabajo y la fila muestra por dónde baja cada peso.{' '}
-              <strong className="font-semibold">Con lo de {mes}</strong> tiene en cuenta lo que ya
-              entró; <strong className="font-semibold">mes en cero</strong> arranca con los topes
-              vacíos.
-            </Ayuda>
+            <AyudaDeLaPrueba />
           </div>
           <Probador
             vista={vista}
@@ -99,12 +157,13 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
         vista={vista}
         resultado={pantalla.resultado}
         elegido={pantalla.elegido}
+        insumos={pantalla.insumosEnElPlano}
         alTocar={tocar}
-        alSumar={(despuesDe, boton) => {
-          setPedido({ despuesDe, boton });
+        alSumar={(tramo, boton) => {
+          setPedido({ tramo, boton });
         }}
         alNuevo={() => {
-          pantalla.abrir({ tipo: 'nuevo', lugar: 'estante', despuesDe: undefined });
+          pantalla.abrir({ tipo: 'nuevo', lugar: 'estante' });
         }}
       />
 
@@ -115,8 +174,8 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
           setPedido(null);
         }}
         alElegir={tocar}
-        alPedirNuevo={(despuesDe) => {
-          pantalla.abrir({ tipo: 'nuevo', lugar: 'paso', despuesDe });
+        alPedirNuevo={(lugar, despuesDe) => {
+          pantalla.abrir({ tipo: 'nuevo', lugar, despuesDe });
         }}
       />
 

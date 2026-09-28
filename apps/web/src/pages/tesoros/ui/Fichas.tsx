@@ -1,31 +1,47 @@
+import type { Money } from '@maun/domain';
 import type { ReactNode } from 'react';
 
 import {
+  AyudaDeLaGanancia,
+  AyudaDelGrupo,
+  AyudaDelIngresoLibre,
+  AyudaDelMapa,
+  BASE_EN_PALABRAS,
   EscalaDelReparto,
   Globo,
   GloboConGuia,
   LineaDePuntos,
   MarcaDeRevision,
   MarcasDeCorte,
+  modoEnPalabras,
   NivelDelMes,
+  NOMBRE_DEL_GRUPO,
+  NOMBRE_DEL_TIPO,
   RotuloDelPlano,
 } from '@/entities/fila';
 import { CantoDelTesoro, ChipDelTesoro } from '@/entities/tesoro';
-import { NOMBRE_DE_LA_CLASE, porciento } from '@/features/armar-la-fila';
+import { LLEGO_A_LA_META, notaDelPasoEnLaPrueba, porciento } from '@/features/armar-la-fila';
 import { formatearPesos, TINTA } from '@/shared/lib';
-import { Icono } from '@/shared/ui';
+import { Icono, type NombreDeIcono } from '@/shared/ui';
 
 import {
   renglonesALaVista,
+  textoDeLosInsumos,
+  textoDelIngreso,
+  type DatosDeLaObligacion,
   type DatosDeLaParte,
-  type DatosDelDiezmo,
+  type DatosDeLosInsumos,
   type DatosDelEstante,
-  type DatosDelOrigen,
+  type DatosDelIngreso,
   type DatosDelPaso,
   type DatosDelReparto,
   type DatosDelTitulo,
+  type Flujo,
+  type GrupoConFranja,
   type Revision,
 } from '../model/disposicion';
+
+const EN_EL_LIENZO = 'pointer-events-auto nodrag nopan';
 
 export interface FichaProps {
   children: ReactNode;
@@ -70,14 +86,18 @@ function Encabezado({
   claseDelNombre,
   cifra,
   rotulo,
+  despuesDelRotulo,
   unidad,
+  unidadAncha = false,
 }: {
   chip: ReactNode;
   nombre: string;
   claseDelNombre: string;
   cifra: ReactNode;
   rotulo: ReactNode;
+  despuesDelRotulo?: string | null;
   unidad?: ReactNode;
+  unidadAncha?: boolean;
 }) {
   return (
     <div className="flex items-start gap-2.5">
@@ -91,9 +111,20 @@ function Encabezado({
             {cifra}
           </span>
         </div>
-        <div className="mt-px flex items-baseline justify-between gap-2">
-          <RotuloDelPlano className="truncate">{rotulo}</RotuloDelPlano>
-          {unidad !== undefined && <RotuloDelPlano className="flex-none">{unidad}</RotuloDelPlano>}
+        <div className="mt-px flex items-start justify-between gap-2">
+          <RotuloDelPlano className="flex h-[1lh] min-w-0 flex-1 flex-wrap items-baseline overflow-hidden">
+            <span className="flex-none">{rotulo}</span>
+            {despuesDelRotulo !== undefined && despuesDelRotulo !== null && (
+              <span className="flex-none whitespace-pre"> · {despuesDelRotulo}</span>
+            )}
+          </RotuloDelPlano>
+          {unidad !== undefined && (
+            <RotuloDelPlano
+              className={`flex-none text-right ${unidadAncha ? 'max-w-[68%]' : 'max-w-[48%]'}`}
+            >
+              {unidad}
+            </RotuloDelPlano>
+          )}
         </div>
       </div>
     </div>
@@ -109,65 +140,161 @@ function Antes({ revision }: { revision: Revision | null }) {
   );
 }
 
-export function CuerpoDelOrigen({ data }: { data: DatosDelOrigen }) {
+function SimboloDeEntrada() {
+  return (
+    <span aria-hidden className="relative flex size-8 flex-none items-center justify-center">
+      <span className="absolute inset-0 rounded-pill border-[1.5px] border-ink" />
+      <span className="absolute inset-[7px] rounded-pill border border-ink" />
+      <span className="size-1.5 rounded-pill bg-ink" />
+    </span>
+  );
+}
+
+export function CuerpoDeLaSena() {
   return (
     <div className="relative flex h-full w-full items-center gap-3 rounded-pill border-[1.5px] border-ink bg-paper pr-5 pl-3 text-left text-ink">
-      <span aria-hidden className="relative flex size-8 flex-none items-center justify-center">
-        <span className="absolute inset-0 rounded-pill border-[1.5px] border-ink" />
-        <span className="absolute inset-[7px] rounded-pill border border-ink" />
-        <span className="size-1.5 rounded-pill bg-ink" />
+      <SimboloDeEntrada />
+      <span className="min-w-0 flex-1 text-body-sm leading-tight font-semibold">
+        Seña de los trabajos en curso
       </span>
+    </div>
+  );
+}
+
+export function CuerpoDelIngreso({ data }: { data: DatosDelIngreso }) {
+  return (
+    <div className="relative flex h-full w-full items-center gap-3 rounded-pill border-[1.5px] border-ink bg-paper pr-4 pl-3 text-left text-ink">
+      <SimboloDeEntrada />
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-body leading-snug font-semibold">Cada cobro</span>
-        <span className="truncate text-meta text-text-2">
-          {data.prueba !== null
-            ? `Probando con ${formatearPesos(data.prueba)}`
-            : data.cobros === 0
-              ? 'La ganancia de cada trabajo'
-              : `${formatearPesos(data.ganancia)} en ${String(data.cobros)} ${data.cobros === 1 ? 'cobro' : 'cobros'}`}
+        <span className="flex items-center justify-between gap-2">
+          <span className="text-body leading-snug font-semibold">Ingreso</span>
+          <AyudaDelMapa className={EN_EL_LIENZO} />
+        </span>
+        <span className="text-meta leading-snug text-text-2">
+          {textoDelIngreso({ ingreso: data.ingreso, cobros: data.cobros }, data.mes, data.prueba)}
         </span>
       </span>
     </div>
   );
 }
 
-export function CuerpoDelDiezmo({ data, elegida }: { data: DatosDelDiezmo; elegida: boolean }) {
+function ChipNeutro({ icono }: { icono: NombreDeIcono }) {
   return (
-    <Ficha elegida={elegida} className="px-3.5 pt-3 pb-4">
+    <span
+      aria-hidden
+      className="flex size-7 flex-none items-center justify-center rounded-control bg-surface-2 text-ink"
+    >
+      <Icono nombre={icono} tamano={16} />
+    </span>
+  );
+}
+
+export function CuerpoDeLosInsumos({
+  data,
+  elegida,
+}: {
+  data: DatosDeLosInsumos;
+  elegida: boolean;
+}) {
+  return (
+    <Ficha elegida={elegida} punteada className="px-3 pt-3 pb-3">
+      <div className="flex items-start gap-2.5">
+        <ChipNeutro icono="hand-coins" />
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-body leading-snug font-semibold">Insumos</span>
+          <span className="block truncate text-meta text-text-2">{textoDeLosInsumos(data)}</span>
+        </div>
+      </div>
+      <div className="mt-2 text-meta text-text-2">
+        <LineaDePuntos
+          izquierda="Queda"
+          derecha={<span className="font-medium text-ink">{formatearPesos(data.total)}</span>}
+        />
+      </div>
+    </Ficha>
+  );
+}
+
+export function Candado() {
+  return (
+    <span title="El diezmo no se puede sacar de la fila" className="inline-flex">
+      <Icono nombre="lock" tamano={10} grosor={2.25} />
+    </span>
+  );
+}
+
+export function CuerpoDeLaObligacion({
+  data,
+  elegida,
+  enLienzo,
+}: {
+  data: DatosDeLaObligacion;
+  elegida: boolean;
+  enLienzo: boolean;
+}) {
+  const { tesoro, obligacion, prueba } = data;
+  const vacia = prueba !== null && prueba <= 0;
+  const conAntes = data.revision !== null && data.revision.antes !== null;
+  return (
+    <Ficha
+      elegida={elegida}
+      punteada={vacia}
+      revision={data.revision}
+      className={`px-3.5 pt-3 pb-4 ${data.arrastrando ? 'shadow-float' : ''}`}
+      afuera={<GloboDeLaFicha numero={data.numero} enLienzo={enLienzo} />}
+    >
       <Encabezado
-        chip={<ChipDelTesoro tesoro={data.tesoro} />}
-        nombre={data.tesoro.nombre}
-        claseDelNombre={TINTA[data.tesoro.tinta].texto}
-        cifra={porciento(data.porcentaje)}
+        chip={<ChipDelTesoro tesoro={tesoro} />}
+        nombre={tesoro.nombre}
+        claseDelNombre={TINTA[tesoro.tinta].texto}
+        cifra={porciento(obligacion.porcentaje)}
         rotulo={
-          <span className="flex items-center gap-1">
-            <Icono nombre="lock" tamano={10} grosor={2.25} />
-            Siempre primero
-          </span>
+          data.diezmo ? (
+            <span className="inline-flex items-center gap-1">
+              <Candado />
+              {NOMBRE_DEL_TIPO.obligacion}
+            </span>
+          ) : (
+            NOMBRE_DEL_TIPO.obligacion
+          )
         }
+        unidad={conAntes ? <Antes revision={data.revision} /> : undefined}
       />
-      <div className="mt-1.5 text-meta text-text-2">
-        {data.prueba === null ? (
+      <div className="mt-1.5 flex flex-col gap-0.5 text-meta text-text-2">
+        <span className="truncate first-letter:uppercase">{BASE_EN_PALABRAS[obligacion.base]}</span>
+        {prueba === null ? (
           <LineaDePuntos
-            izquierda={`En ${data.mes}`}
-            derecha={<span className="font-medium text-ink">{formatearPesos(data.delMes)}</span>}
+            izquierda="A pagar"
+            derecha={<span className="font-medium text-ink">{formatearPesos(data.aPagar)}</span>}
           />
         ) : (
           <LineaDePuntos
             izquierda="De este cobro"
             derecha={
-              <span className="font-semibold text-ink">+ {formatearPesos(data.prueba)}</span>
+              <span className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}>
+                + {formatearPesos(prueba)}
+              </span>
             }
           />
         )}
       </div>
-      <CantoDelTesoro tinta={data.tesoro.tinta} />
+      <CantoDelTesoro tinta={tesoro.tinta} punteado={vacia} />
     </Ficha>
   );
 }
 
+function GloboDeLaFicha({ numero, enLienzo }: { numero: number; enLienzo: boolean }) {
+  return enLienzo ? (
+    <GloboConGuia numero={numero} />
+  ) : (
+    <span className="absolute -top-2.5 -left-2.5 z-10">
+      <Globo numero={numero} />
+    </span>
+  );
+}
+
 function EstadoDelPaso({ falta, tope }: { falta: number; tope: number }) {
-  if (tope <= 0) return <span className="text-text-3">sin tope todavía</span>;
+  if (tope <= 0) return <span className="text-text-3">sin monto todavía</span>;
   return falta <= 0 ? (
     <span className="flex items-center gap-1 font-semibold text-ink">
       <Icono nombre="check" tamano={13} grosor={2.25} />
@@ -175,6 +302,175 @@ function EstadoDelPaso({ falta, tope }: { falta: number; tope: number }) {
     </span>
   ) : (
     <span className="font-semibold text-ink tabular-nums">faltan {formatearPesos(falta)}</span>
+  );
+}
+
+function RenglonDelPaso({
+  nombre,
+  monto,
+  dia,
+  pagado,
+}: {
+  nombre: string;
+  monto: number;
+  dia: number | null;
+  pagado: boolean;
+}) {
+  return (
+    <LineaDePuntos
+      izquierda={
+        <span className="inline-flex min-w-0 items-baseline gap-1">
+          <span className="truncate">{nombre === '' ? 'Sin nombre' : nombre}</span>
+          {dia !== null && (
+            <span className="flex-none text-text-3">
+              · vence el {dia}
+              {pagado && (
+                <>
+                  <Icono
+                    nombre="check"
+                    tamano={12}
+                    grosor={2.5}
+                    className="ml-0.5 inline align-[-1px] text-ink"
+                  />
+                  <span className="sr-only"> pagado</span>
+                </>
+              )}
+            </span>
+          )}
+        </span>
+      }
+      derecha={formatearPesos(monto)}
+    />
+  );
+}
+
+function MetaDelAhorro({
+  tinta,
+  meta,
+  hastaLaMeta,
+  nombre,
+}: {
+  tinta: DatosDelPaso['tesoro']['tinta'];
+  meta: NonNullable<DatosDelPaso['delMes']['meta']>;
+  hastaLaMeta: boolean;
+  nombre: string;
+}) {
+  const avance = meta.meta <= 0 ? 0 : Math.min(100, Math.floor((meta.saldo / meta.meta) * 100));
+  return (
+    <div className="flex h-4.5 items-center gap-2 text-meta text-text-2">
+      <span
+        role="meter"
+        aria-label={`${nombre}, su meta`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={avance}
+        aria-valuetext={`${String(avance)}% de ${formatearPesos(meta.meta)}`}
+        className="relative h-1 w-12 flex-none overflow-hidden rounded-[2px] bg-surface-2"
+      >
+        <span
+          className={`absolute inset-y-0 left-0 ${TINTA[tinta].fondo}`}
+          style={{ width: `${String(avance)}%` }}
+        />
+      </span>
+      <span className="min-w-0 flex-1 truncate tabular-nums">
+        {avance}% de {formatearPesos(meta.meta)}
+      </span>
+      {hastaLaMeta && <span className="flex-none">hasta la meta</span>}
+    </div>
+  );
+}
+
+function PieDelPaso({ data }: { data: DatosDelPaso }) {
+  const { tesoro, paso, delMes, prueba, conDeuda } = data;
+  const vacioEnLaPrueba = prueba !== null && prueba.monto <= 0;
+  const lleva = delMes.lleva;
+  if (paso.modo === 'trabajo') {
+    return (
+      <div className="flex flex-col gap-0.5 text-meta text-text-2">
+        {prueba === null ? (
+          <LineaDePuntos
+            izquierda={`En ${data.mes}`}
+            derecha={
+              <span className="font-medium text-ink">{formatearPesos(delMes.recibido)}</span>
+            }
+          />
+        ) : (
+          <LineaDePuntos
+            izquierda="De este cobro"
+            derecha={
+              <span className={`font-semibold ${vacioEnLaPrueba ? 'text-text-3' : 'text-ink'}`}>
+                + {formatearPesos(prueba.monto)}
+              </span>
+            }
+          />
+        )}
+        <span className="truncate">
+          {prueba !== null && prueba.llegaALaMeta
+            ? LLEGO_A_LA_META
+            : `Recibe ${formatearPesos(paso.tope)} en cada cobro`}
+        </span>
+      </div>
+    );
+  }
+  const enSaldo = paso.modo === 'saldo';
+  const deLaIzquierda = enSaldo
+    ? `${conDeuda ? 'a pagar' : 'tiene'} ${formatearPesos(lleva)}`
+    : `lleva ${formatearPesos(lleva)}`;
+  return (
+    <div>
+      <NivelDelMes
+        tinta={tesoro.tinta}
+        lleva={lleva}
+        prueba={prueba?.monto ?? 0}
+        tope={paso.tope}
+        etiqueta={enSaldo ? `${tesoro.nombre}, lo que tiene` : `${tesoro.nombre} en ${data.mes}`}
+        texto={
+          paso.tope <= 0
+            ? 'Sin monto todavía'
+            : `${formatearPesos(lleva)} de ${formatearPesos(paso.tope)}`
+        }
+      />
+      <div className="mt-1 flex items-baseline justify-between gap-2 text-meta">
+        {prueba === null ? (
+          <>
+            <span className="text-text-2 tabular-nums">{deLaIzquierda}</span>
+            <EstadoDelPaso falta={delMes.falta ?? 0} tope={paso.tope} />
+          </>
+        ) : vacioEnLaPrueba ? (
+          <>
+            <span className="text-text-2">+ {formatearPesos(prueba.monto)}</span>
+            <span className="text-text-2">
+              {prueba.llegaALaMeta
+                ? LLEGO_A_LA_META
+                : prueba.quedaba <= 0
+                  ? 'ya estaba completo'
+                  : 'no le llega nada'}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-ink tabular-nums">
+              + {formatearPesos(prueba.monto)}
+            </span>
+            <span className="text-text-2 tabular-nums">
+              {notaDelPasoEnLaPrueba({
+                tope: prueba.quedaba,
+                falta: prueba.falta,
+                llegaALaMeta: prueba.llegaALaMeta,
+              })}
+            </span>
+          </>
+        )}
+      </div>
+      {conDeuda && !enSaldo && delMes.aPagar !== null && (
+        <div className="mt-0.5 text-meta text-text-2">
+          <LineaDePuntos
+            izquierda="A pagar"
+            derecha={<span className="font-medium text-ink">{formatearPesos(delMes.aPagar)}</span>}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -187,15 +483,17 @@ export function CuerpoDelPaso({
   elegida: boolean;
   enLienzo: boolean;
 }) {
-  const { tesoro, paso, delMes, prueba } = data;
-  const lleva = delMes.recibido + delMes.cubierto;
+  const { tesoro, paso, delMes, prueba, tipo } = data;
   const vacioEnLaPrueba = prueba !== null && prueba.monto <= 0;
   const renglones = renglonesALaVista(paso.renglones);
   const mas = paso.renglones.length - renglones.length;
-  const clase = NOMBRE_DE_LA_CLASE[paso.clase];
-  const antes = <Antes revision={data.revision} />;
   const conAntes = data.revision !== null && data.revision.antes !== null;
-  const unidad = conAntes ? antes : data.porTrabajo ? 'por trabajo' : 'por mes';
+  const modo = data.porTrabajo ? 'por trabajo' : modoEnPalabras(paso.modo, tipo);
+  const pagados = new Map(
+    delMes.vencimientos.map((vencimiento) => [vencimiento.indice, vencimiento]),
+  );
+  const despues =
+    paso.clase === 'sueldo' ? 'Sueldo' : paso.clase === 'fijos' ? 'Renglón por renglón' : null;
 
   return (
     <Ficha
@@ -203,35 +501,26 @@ export function CuerpoDelPaso({
       punteada={vacioEnLaPrueba}
       revision={data.revision}
       className={`px-3.5 pt-3 pb-4 ${data.arrastrando ? 'shadow-float' : ''}`}
-      afuera={
-        enLienzo ? (
-          <GloboConGuia numero={data.numero} />
-        ) : (
-          <span className="absolute -top-2.5 -left-2.5 z-10">
-            <Globo numero={data.numero} />
-          </span>
-        )
-      }
+      afuera={<GloboDeLaFicha numero={data.numero} enLienzo={enLienzo} />}
     >
       <Encabezado
         chip={<ChipDelTesoro tesoro={tesoro} />}
         nombre={tesoro.nombre}
         claseDelNombre={TINTA[tesoro.tinta].texto}
         cifra={formatearPesos(paso.tope)}
-        rotulo={
-          clase.toLowerCase() === tesoro.nombre.toLowerCase()
-            ? `${String(paso.renglones.length)} ${paso.renglones.length === 1 ? 'renglón' : 'renglones'}`
-            : clase
-        }
-        unidad={unidad}
+        rotulo={NOMBRE_DEL_TIPO[tipo]}
+        despuesDelRotulo={despues}
+        unidad={conAntes ? <Antes revision={data.revision} /> : modo}
       />
       {paso.clase === 'fijos' && renglones.length > 0 && (
         <ul className="mt-2 flex flex-col border-t border-hairline-soft pt-1.5 text-meta text-text-2">
           {renglones.map((renglon, indice) => (
             <li key={`${renglon.nombre}-${String(indice)}`} className="h-4.5">
-              <LineaDePuntos
-                izquierda={renglon.nombre === '' ? 'Sin nombre' : renglon.nombre}
-                derecha={formatearPesos(renglon.monto)}
+              <RenglonDelPaso
+                nombre={renglon.nombre}
+                monto={renglon.monto}
+                dia={renglon.dia}
+                pagado={pagados.get(indice)?.pagado ?? false}
               />
             </li>
           ))}
@@ -239,60 +528,20 @@ export function CuerpoDelPaso({
         </ul>
       )}
       <div className="mt-2.5">
-        <NivelDelMes
-          tinta={tesoro.tinta}
-          lleva={lleva}
-          prueba={prueba?.monto ?? 0}
-          tope={paso.tope}
-          etiqueta={`${tesoro.nombre} en ${data.mes}`}
-          texto={
-            paso.tope <= 0
-              ? 'Sin tope todavía'
-              : `${formatearPesos(lleva)} de ${formatearPesos(paso.tope)}`
-          }
-        />
-        <div className="mt-1 flex items-baseline justify-between gap-2 text-meta">
-          {prueba === null ? (
-            <>
-              <span className="text-text-2 tabular-nums">lleva {formatearPesos(lleva)}</span>
-              <EstadoDelPaso falta={delMes.falta} tope={paso.tope} />
-            </>
-          ) : vacioEnLaPrueba ? (
-            <>
-              <span className="text-text-2">+ {formatearPesos(prueba.monto)}</span>
-              <span className="text-text-2">
-                {prueba.quedaba <= 0 ? 'ya estaba completo' : 'no le llega nada'}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="font-semibold text-ink tabular-nums">
-                + {formatearPesos(prueba.monto)}
-              </span>
-              {prueba.falta <= 0 ? (
-                <span className="text-text-2">completa el tope</span>
-              ) : (
-                <span className="text-text-2 tabular-nums">
-                  le faltan {formatearPesos(prueba.falta)}
-                </span>
-              )}
-            </>
-          )}
-        </div>
+        <PieDelPaso data={data} />
+        {tipo === 'ahorro-fijo' && delMes.meta !== null && (
+          <div className="mt-0.5">
+            <MetaDelAhorro
+              tinta={tesoro.tinta}
+              meta={delMes.meta}
+              hastaLaMeta={paso.hastaLaMeta}
+              nombre={tesoro.nombre}
+            />
+          </div>
+        )}
       </div>
       <CantoDelTesoro tinta={tesoro.tinta} punteado={vacioEnLaPrueba} />
     </Ficha>
-  );
-}
-
-export function ChipNeutro({ icono }: { icono: 'split' }) {
-  return (
-    <span
-      aria-hidden
-      className="flex size-7 flex-none items-center justify-center rounded-control bg-surface-2 text-ink"
-    >
-      <Icono nombre={icono} tamano={16} />
-    </span>
   );
 }
 
@@ -307,7 +556,7 @@ export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; ele
         rotulo={
           data.prueba === null ? 'Se reparte' : data.prueba > 0 ? 'Se reparte así' : 'No sobra nada'
         }
-        unidad={data.prueba === null ? 'a tesoros' : 'de este cobro'}
+        unidad={data.prueba === null ? 'a ahorros' : 'de este cobro'}
       />
       <div className="mt-2.5">
         <EscalaDelReparto partes={data.escala} />
@@ -316,16 +565,12 @@ export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; ele
   );
 }
 
-function metaDe(tesoro: DatosDeLaParte['tesoro']): string {
-  if (tesoro.meta === null || tesoro.meta <= 0) return formatearPesos(tesoro.saldo);
-  const avance = Math.max(0, Math.floor((tesoro.saldo / tesoro.meta) * 100));
-  return `${String(avance)}% de ${formatearPesos(tesoro.meta)}`;
-}
-
 export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegida: boolean }) {
-  const { tesoro } = data;
+  const { tesoro, meta } = data;
   const vacia = data.prueba !== null && data.prueba <= 0;
-  const conMeta = tesoro.meta !== null && tesoro.meta > 0;
+  const conAntes = data.revision !== null && data.revision.antes !== null;
+  const avance =
+    meta === null || meta.meta <= 0 ? 0 : Math.min(100, Math.floor((meta.saldo / meta.meta) * 100));
   return (
     <Ficha elegida={elegida} punteada={vacia} revision={data.revision} className="px-3 pt-3 pb-4">
       <Encabezado
@@ -333,10 +578,17 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
         nombre={tesoro.nombre}
         claseDelNombre={TINTA[tesoro.tinta].texto}
         cifra={porciento(data.porcentaje)}
-        rotulo={data.resto ? 'El resto' : 'Del sobrante'}
+        rotulo={
+          data.superavit ? NOMBRE_DEL_TIPO.superavit : NOMBRE_DEL_TIPO['ahorro-por-porcentaje']
+        }
+        unidadAncha
         unidad={
-          data.revision !== null && data.revision.antes !== null ? (
+          conAntes ? (
             <Antes revision={data.revision} />
+          ) : data.superavit ? (
+            'El resto'
+          ) : data.hastaLaMeta && meta !== null ? (
+            'Hasta la meta'
           ) : undefined
         }
       />
@@ -348,7 +600,7 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
           />
         ) : (
           <LineaDePuntos
-            izquierda="De este cobro"
+            izquierda={data.llegaALaMeta ? LLEGO_A_LA_META : 'De este cobro'}
             derecha={
               <span className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}>
                 + {formatearPesos(data.prueba)}
@@ -356,7 +608,24 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
             }
           />
         )}
-        <LineaDePuntos izquierda={conMeta ? 'Meta' : 'Tiene'} derecha={metaDe(tesoro)} />
+        {meta === null ? (
+          <LineaDePuntos izquierda="Tiene" derecha={formatearPesos(tesoro.saldo)} />
+        ) : (
+          <span className="flex h-4.5 items-center gap-2">
+            <span
+              aria-hidden
+              className="relative h-1 w-10 flex-none overflow-hidden rounded-[2px] bg-surface-2"
+            >
+              <span
+                className={`absolute inset-y-0 left-0 ${TINTA[tesoro.tinta].fondo}`}
+                style={{ width: `${String(avance)}%` }}
+              />
+            </span>
+            <span className="min-w-0 flex-1 truncate tabular-nums">
+              {avance}% de {formatearPesos(meta.meta)}
+            </span>
+          </span>
+        )}
       </div>
       <CantoDelTesoro tinta={tesoro.tinta} punteado={vacia} />
     </Ficha>
@@ -400,23 +669,29 @@ export function CuerpoDelEstante({
 
 export function CuerpoNuevoTesoro({
   alTocar,
+  alEnfocar,
   deshabilitado = false,
-  children,
+  enLienzo = false,
 }: {
   alTocar: () => void;
+  alEnfocar?: (boton: HTMLButtonElement) => void;
   deshabilitado?: boolean;
-  children?: ReactNode;
+  enLienzo?: boolean;
 }) {
   return (
     <button
       type="button"
       disabled={deshabilitado}
       onClick={alTocar}
-      className="nodrag relative flex h-full w-full items-center justify-center gap-2 rounded-lamina border border-dashed border-text-3 bg-paper text-label font-medium text-text-2 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:hover:border-text-3 disabled:hover:text-text-2"
+      onFocus={(evento) => {
+        alEnfocar?.(evento.currentTarget);
+      }}
+      className={`relative flex h-full w-full items-center justify-center gap-2 rounded-lamina border border-dashed border-text-3 bg-paper text-label font-medium text-text-2 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:hover:border-text-3 disabled:hover:text-text-2 ${
+        enLienzo ? EN_EL_LIENZO : ''
+      }`}
     >
       <Icono nombre="plus" tamano={16} grosor={2} />
       Nuevo tesoro
-      {children}
     </button>
   );
 }
@@ -426,6 +701,62 @@ export function TituloDelEstante({ data }: { data: DatosDelTitulo }) {
     <div className="flex h-full items-end gap-2 pb-0.5">
       <RotuloDelPlano className="font-semibold text-ink">{data.texto}</RotuloDelPlano>
       <span className="text-meta text-text-3">{data.bajada}</span>
+    </div>
+  );
+}
+
+export function FranjaDelTipo({ grupo }: { grupo: GrupoConFranja }) {
+  return (
+    <div className="relative flex h-full w-full items-center justify-end pr-3.5">
+      <span className="flex flex-col items-center gap-2">
+        <AyudaDelGrupo grupo={grupo} className={EN_EL_LIENZO} />
+        <RotuloDelPlano className="rotate-180 font-semibold whitespace-nowrap text-text-2 [writing-mode:vertical-rl]">
+          {NOMBRE_DEL_GRUPO[grupo]}
+        </RotuloDelPlano>
+      </span>
+      <span
+        aria-hidden
+        className="absolute inset-y-0 right-0 w-1.5 rounded-l-[3px] border-y border-l border-text-3"
+      />
+    </div>
+  );
+}
+
+export function RotuloDelFlujo({
+  flujo,
+  monto,
+  enLienzo = false,
+}: {
+  flujo: Flujo;
+  monto: Money | null;
+  enLienzo?: boolean;
+}) {
+  const nombre =
+    flujo === 'cobro' ? 'Se cobra el trabajo' : flujo === 'libre' ? 'Ingreso libre' : 'Ganancia';
+  const clases = enLienzo ? EN_EL_LIENZO : '';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-control border bg-paper py-px pr-1 pl-1.5 whitespace-nowrap ${
+        flujo !== 'cobro' && monto !== null ? 'border-ink/30' : 'border-hairline'
+      } ${flujo === 'cobro' ? 'pr-1.5' : ''}`}
+    >
+      <RotuloDelPlano className="font-semibold">{nombre}</RotuloDelPlano>
+      {flujo !== 'cobro' && monto !== null && (
+        <span className="text-badge font-semibold text-ink tabular-nums">
+          {formatearPesos(monto)}
+        </span>
+      )}
+      {flujo === 'libre' && <AyudaDelIngresoLibre className={clases} />}
+      {flujo === 'ganancia' && <AyudaDeLaGanancia className={clases} />}
+    </span>
+  );
+}
+
+export function TituloDelGrupo({ grupo }: { grupo: GrupoConFranja }) {
+  return (
+    <div className="flex items-center gap-1.5 px-1 pb-2">
+      <RotuloDelPlano className="font-semibold text-ink">{NOMBRE_DEL_GRUPO[grupo]}</RotuloDelPlano>
+      <AyudaDelGrupo grupo={grupo} />
     </div>
   );
 }

@@ -287,6 +287,7 @@ function escribirElMovimiento(
     moverLaAnotacion(cliente, evento, fecha);
     return true;
   }
+  if (evento.clase === 'vencimiento') return false;
   return moverElTrabajo(cliente, evento, fecha, hoy);
 }
 
@@ -304,9 +305,9 @@ export function mover(
     clave: `agenda-movido-${evento.id}`,
     tono: 'hecho',
     texto:
-      evento.clase === 'propia'
-        ? `${nombreDelEvento(evento)} pasó al ${diaEnPalabras(fecha)}.`
-        : `${nombreDelEvento(evento)}: al ${diaEnPalabras(fecha)}. Le cambiaste ${DERIVADA[evento.categoria].queCambia}.`,
+      evento.clase === 'derivada'
+        ? `${nombreDelEvento(evento)}: al ${diaEnPalabras(fecha)}. Le cambiaste ${DERIVADA[evento.categoria].queCambia}.`
+        : `${nombreDelEvento(evento)} pasó al ${diaEnPalabras(fecha)}.`,
     accion: {
       etiqueta: DESHACER,
       alTocar: () => {

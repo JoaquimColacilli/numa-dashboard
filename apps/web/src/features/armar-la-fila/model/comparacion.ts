@@ -13,10 +13,10 @@ export function aportesPorTesoro(
   const sumarAl = (tesoro: string, monto: Money) => {
     aportes.set(tesoro, sumar(aportes.get(tesoro) ?? CERO, monto));
   };
-  sumarAl(sistema.diezmo, liquidacion.diezmo);
+  for (const obligacion of liquidacion.obligaciones) sumarAl(obligacion.tesoro, obligacion.monto);
   for (const paso of liquidacion.pasos) sumarAl(paso.tesoro, paso.monto);
   for (const parte of liquidacion.reparto) sumarAl(parte.tesoro, parte.monto);
-  sumarAl(sistema.maun, liquidacion.remanente);
+  sumarAl(liquidacion.superavit ?? sistema.maun, liquidacion.remanente);
   return aportes;
 }
 

@@ -1,10 +1,24 @@
 import { useState } from 'react';
 
-import { HojaDeCubrir } from '@/features/cubrir-el-faltante';
-import { formatearPesos, nombreDelMes } from '@/shared/lib';
+import { fraseDelFaltante, HojaDeCubrir } from '@/features/cubrir-el-faltante';
+import { formatearPesos } from '@/shared/lib';
 import { Button, ConSalida, Icono } from '@/shared/ui';
 
 import { fraseDeLosDiasQueQuedan, type FaltanteEnInicio } from '../model/la-fila';
+
+function FraseConElMonto({ faltante, mes }: { faltante: FaltanteEnInicio; mes: string }) {
+  const frase = fraseDelFaltante(faltante, mes);
+  const monto = formatearPesos(faltante.falta);
+  const donde = frase.indexOf(monto);
+  if (donde < 0) return <>{frase}</>;
+  return (
+    <>
+      {frase.slice(0, donde)}
+      <span className="font-semibold tabular-nums">{monto}</span>
+      {frase.slice(donde + monto.length)}
+    </>
+  );
+}
 
 export interface FaltanteDelMesProps {
   faltantes: readonly FaltanteEnInicio[];
@@ -15,7 +29,6 @@ export interface FaltanteDelMesProps {
 
 export function FaltanteDelMes({ faltantes, mes, hoy, sePuedeCubrir }: FaltanteDelMesProps) {
   const [cubriendo, setCubriendo] = useState<FaltanteEnInicio | null>(null);
-  const enElMes = nombreDelMes(mes).toLowerCase();
   const dias = fraseDeLosDiasQueQuedan(hoy);
 
   return (
@@ -31,13 +44,11 @@ export function FaltanteDelMes({ faltantes, mes, hoy, sePuedeCubrir }: FaltanteD
               <span aria-hidden className="mt-2 size-2 flex-none rounded-pill bg-atencion" />
               <div className="min-w-0">
                 <p className="text-body-lg leading-normal">
-                  Faltan{' '}
-                  <span className="font-semibold tabular-nums">
-                    {formatearPesos(faltante.falta)}
-                  </span>{' '}
-                  para {faltante.nombre} de {enElMes}.
+                  <FraseConElMonto faltante={faltante} mes={mes} />
                 </p>
-                {dias !== null && <p className="mt-0.5 text-label text-text-2">{dias}</p>}
+                {dias !== null && faltante.vence === null && faltante.modo === 'mes' && (
+                  <p className="mt-0.5 text-label text-text-2">{dias}</p>
+                )}
               </div>
             </div>
             {sePuedeCubrir && (

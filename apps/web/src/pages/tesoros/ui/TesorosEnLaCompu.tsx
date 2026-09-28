@@ -5,6 +5,7 @@ import {
   BarraDeEdicion,
   BotonEditarTesoro,
   encabezadoDeLaFicha,
+  FICHA_DE_LOS_INSUMOS,
   PanelDeDetalle,
   Probador,
   sePuedeEditar,
@@ -110,7 +111,10 @@ function PanelDeAbajo({
               aria-hidden
               className="flex size-7 flex-none items-center justify-center rounded-control bg-surface-2 text-ink"
             >
-              <Icono nombre="split" tamano={16} />
+              <Icono
+                nombre={elegido === FICHA_DE_LOS_INSUMOS ? 'hand-coins' : 'split'}
+                tamano={16}
+              />
             </span>
           ) : (
             <ChipDelTesoro tesoro={tesoro} />
@@ -148,6 +152,8 @@ function PanelDeAbajo({
             pantalla.abrir({ tipo: 'cubrir', paso });
           }}
           alEditarTesoro={editar}
+          alRegistrarElPago={pantalla.registrarElPago}
+          insumos={pantalla.insumos}
           enHoja
         />
       </div>
@@ -205,6 +211,8 @@ export function TesorosEnLaCompu({
       alEditarTesoro={(tesoro) => {
         pantalla.abrir({ tipo: 'editar', tesoro });
       }}
+      alRegistrarElPago={pantalla.registrarElPago}
+      insumos={pantalla.insumos}
       arriba={bienvenida(true)}
     />
   );
@@ -224,9 +232,10 @@ export function TesorosEnLaCompu({
             revision={vista.delTaller.version}
             rige={rigeDesde(vista.delTaller.guardada, vista.delTaller.guardadaEn)}
             relleno={ancho === 'tablet' ? RELLENO_DE_LA_TABLET : RELLENO_DE_LA_COMPU}
+            insumos={pantalla.insumosEnElPlano}
             alineado={ancho === 'tablet' ? 'arriba' : 'centro'}
-            alSumar={(despuesDe, boton) => {
-              setPedido({ despuesDe, boton });
+            alSumar={(tramo, boton) => {
+              setPedido({ tramo, boton });
             }}
             alPedirNuevo={({ despuesDe, lugar }) => {
               pantalla.abrir({ tipo: 'nuevo', lugar, despuesDe });
@@ -284,8 +293,8 @@ export function TesorosEnLaCompu({
           setPedido(null);
         }}
         alElegir={pantalla.elegir}
-        alPedirNuevo={(despuesDe) => {
-          pantalla.abrir({ tipo: 'nuevo', lugar: 'paso', despuesDe });
+        alPedirNuevo={(lugar, despuesDe) => {
+          pantalla.abrir({ tipo: 'nuevo', lugar, despuesDe });
         }}
       />
     </div>

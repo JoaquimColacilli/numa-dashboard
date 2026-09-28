@@ -66,12 +66,12 @@ function ingreso(hacia: string, clave: string | null, monto: number) {
   };
 }
 
-function replicaDelTaller(): Replica {
+function replicaDelTaller(fila: unknown = null): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.households = { h: { id: 'h', nombre: 'Taller MAUN' } };
   tablas.ajustes = {
-    a: { id: 'a', household_id: 'h', meta_cocos_centavos: 0, tasa_cocos_anual_bp: 0, fila: null },
+    a: { id: 'a', household_id: 'h', meta_cocos_centavos: 0, tasa_cocos_anual_bp: 0, fila },
   };
   const tesoros = [
     filaDeTesoro(HOGAR, 'hogar', 'Hogar', 'hogar'),
@@ -92,12 +92,12 @@ function replicaDelTaller(): Replica {
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
-function montar(tesoroDelPaso = FIJOS, faltante = 27_000_000) {
+function montar(tesoroDelPaso = FIJOS, faltante = 27_000_000, fila: unknown = null) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
-      <ProveedorDeReplica replica={replicaDelTaller()}>
+      <ProveedorDeReplica replica={replicaDelTaller(fila)}>
         <HojaDeCubrir
           tesoroDelPaso={tesoroDelPaso}
           mes="2026-09"
@@ -145,6 +145,29 @@ afterEach(() => {
 });
 
 describe('cubrir el faltante de los gastos fijos', () => {
+  it('con un compromiso que se renueva al pagar, habla de su monto y no del mes', () => {
+    montar(FIJOS, 27_000_000, {
+      pasos: [
+        {
+          tesoro: FIJOS,
+          clase: 'fijos',
+          tope: 90_000_000,
+          renglones: [{ nombre: 'Alquiler', monto: 90_000_000, dia: 10 }],
+          desde: null,
+          modo: 'saldo',
+          hastaLaMeta: false,
+        },
+      ],
+      reparto: [],
+      sueldoPorTrabajo: false,
+    });
+    expect(
+      screen.getByText(`Faltan ${pesos(27_000_000)} para completar su monto`),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Lo que pases queda en el tesoro/)).toBeInTheDocument();
+    expect(screen.queryByText(/en septiembre/)).not.toBeInTheDocument();
+  });
+
   it('viene con Maun elegido y todo el faltante, sin el diezmo ni el mismo paso', () => {
     montar();
     expect(screen.getByRole('heading', { name: 'Cubrir los gastos fijos' })).toBeInTheDocument();

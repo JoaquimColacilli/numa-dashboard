@@ -4,6 +4,7 @@ import { useContext } from 'react';
 import { Icono } from '@/shared/ui';
 
 import type { AristaDelPlano } from '../../model/disposicion';
+import { RotuloDelFlujo } from '../Fichas';
 import { ContextoDeLasAristas } from './contextos';
 
 const PUNTA = 8;
@@ -25,7 +26,7 @@ export function AristaDePlata({
   targetPosition,
   data,
 }: EdgeProps<AristaDelPlano>) {
-  const { sumarDespuesDe } = useContext(ContextoDeLasAristas);
+  const { sumarEn } = useContext(ContextoDeLasAristas);
   const deCostado = targetPosition === Position.Left;
   const [camino, xMedio, yMedio] = getSmoothStepPath({
     sourceX,
@@ -42,7 +43,9 @@ export function AristaDePlata({
   const probando = data.monto !== null;
   const conBanda = probando && !data.vacia && data.grosor > 2;
   const tinta = probando && !data.vacia ? 'var(--color-ink)' : 'var(--color-text-3)';
-  const conBoton = data.armando && data.sumable && sumarDespuesDe !== null;
+  const lugar = data.lugar;
+  const conBoton = data.armando && lugar !== null && sumarEn !== null;
+  const horizontal = data.tramo === 'hacia-el-reparto' || data.tramo === 'hacia-los-insumos';
 
   let xDeLaEtiqueta = xMedio;
   let yDeLaEtiqueta = yMedio;
@@ -50,7 +53,7 @@ export function AristaDePlata({
   if (data.tramo === 'reparto') {
     xDeLaEtiqueta = targetX;
     yDeLaEtiqueta = targetY - 19;
-  } else if (data.tramo === 'hacia-el-reparto') {
+  } else if (horizontal) {
     corrimiento = conBoton ? '-50%, calc(-100% - 16px)' : '-50%, calc(-100% - 6px)';
   } else if (conBoton) {
     corrimiento = '18px, -50%';
@@ -77,34 +80,45 @@ export function AristaDePlata({
       />
       <polygon points={punta(targetX, targetY, targetPosition)} fill={tinta} />
       <EdgeLabelRenderer>
-        {data.etiqueta !== null && (
+        {data.flujo !== null ? (
           <div
-            aria-hidden
-            className={`nodrag nopan absolute rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
-              probando && data.vacia
-                ? 'border-hairline text-text-3'
-                : probando
-                  ? 'border-ink/30 font-semibold text-ink'
-                  : 'border-hairline font-semibold text-ink'
-            }`}
+            className="nodrag nopan absolute"
             style={{
               transform: `translate(${corrimiento}) translate(${String(xDeLaEtiqueta)}px, ${String(yDeLaEtiqueta)}px)`,
             }}
           >
-            {data.etiqueta}
+            <RotuloDelFlujo flujo={data.flujo} monto={data.monto} enLienzo />
           </div>
+        ) : (
+          data.etiqueta !== null && (
+            <div
+              aria-hidden
+              className={`nodrag nopan absolute rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
+                probando && data.vacia
+                  ? 'border-hairline text-text-3'
+                  : probando
+                    ? 'border-ink/30 font-semibold text-ink'
+                    : 'border-hairline font-semibold text-ink'
+              }`}
+              style={{
+                transform: `translate(${corrimiento}) translate(${String(xDeLaEtiqueta)}px, ${String(yDeLaEtiqueta)}px)`,
+              }}
+            >
+              {data.etiqueta}
+            </div>
+          )
         )}
         {conBoton && (
           <button
             type="button"
-            aria-label="Sumar un paso acá"
-            title="Sumar un paso acá"
+            aria-label="Sumar un tesoro acá"
+            title="Sumar un tesoro acá"
             className="nodrag nopan pointer-events-auto absolute flex size-6 items-center justify-center rounded-pill border border-ink bg-paper text-ink before:absolute before:-inset-2.5 hover:bg-ink hover:text-paper"
             style={{
               transform: `translate(-50%, -50%) translate(${String(xMedio)}px, ${String(yMedio)}px)`,
             }}
             onClick={(evento) => {
-              sumarDespuesDe(data.despuesDe, evento.currentTarget);
+              sumarEn(lugar, evento.currentTarget);
             }}
           >
             <Icono nombre="plus" tamano={14} grosor={2} />

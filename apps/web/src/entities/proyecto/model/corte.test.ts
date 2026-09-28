@@ -491,7 +491,7 @@ describe('fraseDelCorte', () => {
 
   it('si los gastos se comieron lo cobrado, lo dice', () => {
     expect(fraseDelCorte(corte(1, 10_000_000, [], 10_000_000), SEPTIEMBRE)).toBe(
-      'Un trabajo cerrado en septiembre, y los gastos se comieron lo cobrado: no quedó ganancia para repartir.',
+      'Un trabajo cerrado en septiembre, y los gastos se comieron lo cobrado: no quedó ingreso para repartir.',
     );
   });
 

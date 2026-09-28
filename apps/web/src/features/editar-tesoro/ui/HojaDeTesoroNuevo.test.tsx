@@ -11,7 +11,7 @@ import {
   type TesoroNuevo,
 } from '@/shared/api';
 
-import type { DondeVa } from '../model/lugar';
+import type { DondeVa, LugarDelTesoro } from '../model/lugar';
 import { HojaDeTesoroNuevo } from './HojaDeTesoroNuevo';
 
 vi.mock('@/shared/api', async (importar) => ({
@@ -58,15 +58,32 @@ function replicaDelTaller(): Replica {
 }
 
 const FILA: Fila = {
+  obligaciones: [
+    {
+      tesoro: '01900000-0000-7000-8000-000000000003',
+      porcentaje: puntosBasicos(1000),
+      base: 'ingreso',
+    },
+  ],
   pasos: [],
-  reparto: [{ tesoro: '01900000-0000-7000-8000-000000000006', porcentaje: puntosBasicos(8000) }],
+  reparto: [
+    {
+      tesoro: '01900000-0000-7000-8000-000000000006',
+      porcentaje: puntosBasicos(8000),
+      hastaLaMeta: false,
+    },
+  ],
+  superavit: '01900000-0000-7000-8000-000000000002',
   sueldoPorTrabajo: false,
 };
 
-function montar(props: { fila?: Fila } = {}) {
+function montar(
+  props: { fila?: Fila; lugarInicial?: LugarDelTesoro; despuesDe?: string | null } = {},
+) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
-  const alCrear = vi.fn<(tesoro: TesoroNuevo, dondeVa: DondeVa) => void>();
+  const alCrear =
+    vi.fn<(tesoro: TesoroNuevo, dondeVa: DondeVa, despuesDe: string | null | undefined) => void>();
   render(
     <QueryClientProvider client={queryClient}>
       <ProveedorDeReplica replica={replicaDelTaller()}>
@@ -157,30 +174,102 @@ describe('la hoja de un tesoro nuevo', () => {
       rinde_anual_bp: null,
       orden: 5,
     });
-    expect(alCrear).toHaveBeenCalledWith(alta?.variables, { lugar: 'reparto', porcentaje: 1500 });
+    expect(alCrear).toHaveBeenCalledWith(
+      alta?.variables,
+      { lugar: 'reparto', porcentaje: 1500 },
+      undefined,
+    );
     expect(alCerrar).toHaveBeenCalledOnce();
   });
 
-  it('como paso pide el tope y lo entrega', () => {
+  it('«Dónde va» ofrece el estante y los cinco lugares de la fila', () => {
+    montar({ fila: FILA });
+    const donde = screen.getByRole('group', { name: 'Dónde va' });
+    expect(
+      within(donde)
+        .getAllByRole('radio')
+        .map((opcion) => (opcion as HTMLInputElement).value),
+    ).toEqual(['estante', 'obligacion', 'compromiso', 'ahorro-fijo', 'reparto', 'superavit']);
+    expect(within(donde).getByRole('radio', { name: /Al estante/ })).toBeChecked();
+    expect(
+      within(donde).getByRole('radio', { name: /Recibe lo que sobra, en lugar de Maun/ }),
+    ).toBeEnabled();
+  });
+
+  it('como compromiso sugiere nombres, pide el monto y lo entrega', () => {
     const { alCrear, encoladas } = montar({ fila: FILA });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), {
-      target: { value: 'Materiales' },
-    });
-    fireEvent.click(screen.getByRole('radio', { name: /Como paso, al final/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Como compromiso/ }));
+    const sugeridos = screen.getByRole('group', { name: 'Nombres sugeridos' });
+    expect(
+      within(sugeridos)
+        .getAllByRole('button')
+        .map((boton) => boton.textContent),
+    ).toEqual(['Gastos fijos', 'Sueldos', 'Alquiler', 'Cuotas']);
+    fireEvent.click(within(sugeridos).getByRole('button', { name: 'Alquiler' }));
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveValue('Alquiler');
+    expect(within(sugeridos).getByRole('button', { name: 'Alquiler' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
     fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
-    expect(screen.getByRole('textbox', { name: 'Tope por mes' })).toHaveAccessibleDescription(
-      /Poné hasta cuánto recibe por mes\./,
+    expect(screen.getByRole('textbox', { name: 'Monto' })).toHaveAccessibleDescription(
+      /Poné hasta cuánto recibe\./,
     );
     expect(encoladas()).toEqual([]);
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Tope por mes' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Monto' }), {
       target: { value: '300.000' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
-    expect(alCrear).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Materiales' }), {
-      lugar: 'paso',
-      tope: centavos(30_000_000),
+    expect(alCrear).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: 'Alquiler', icono: 'building-2' }),
+      { lugar: 'compromiso', monto: centavos(30_000_000) },
+      undefined,
+    );
+  });
+
+  it('como obligación, «Ingresos Brutos» se calcula sobre lo que cobrás y va antes del diezmo', () => {
+    const { alCrear } = montar({ fila: FILA });
+    fireEvent.click(screen.getByRole('radio', { name: /Como obligación/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresos Brutos' }));
+    const base = screen.getByRole('radiogroup', { name: 'Sobre qué se calcula' });
+    expect(within(base).getByRole('radio', { name: 'Lo que cobrás' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('switch', { name: 'Antes del diezmo' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Porcentaje (%)' }), {
+      target: { value: '3,5' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
+    expect(alCrear).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: 'Ingresos Brutos', icono: 'landmark' }),
+      { lugar: 'obligacion', porcentaje: 350, base: 'cobrado', antesDelDiezmo: true },
+      undefined,
+    );
+  });
+
+  it('pedida desde un lugar de la fila, entra ahí y lo dice', () => {
+    const { alCrear } = montar({ fila: FILA, lugarInicial: 'compromiso', despuesDe: null });
+    expect(screen.getByRole('radio', { name: /Como compromiso/ })).toBeChecked();
+    expect(screen.getByText('Al principio de su tipo')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), {
+      target: { value: 'Luz' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Monto' }), {
+      target: { value: '50.000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
+    expect(alCrear).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: 'Luz' }),
+      { lugar: 'compromiso', monto: centavos(5_000_000) },
+      null,
+    );
   });
 
   it('al estante no toca la fila', () => {
@@ -189,8 +278,10 @@ describe('la hoja de un tesoro nuevo', () => {
       target: { value: 'Auto' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
-    expect(alCrear).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Auto' }), {
-      lugar: 'estante',
-    });
+    expect(alCrear).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: 'Auto' }),
+      { lugar: 'estante' },
+      undefined,
+    );
   });
 });

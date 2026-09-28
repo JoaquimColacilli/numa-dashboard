@@ -1,4 +1,4 @@
-import { useId, type Ref } from 'react';
+import { useId, type ReactNode, type Ref } from 'react';
 
 import { ChipDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
 import { NOMBRE_DE_LA_TINTA, TINTA } from '@/shared/lib';
@@ -24,6 +24,7 @@ export interface CamposDelTesoroProps {
   conMeta: boolean;
   conRinde: boolean;
   campoDelNombre?: Ref<HTMLInputElement>;
+  debajoDelNombre?: ReactNode;
 }
 
 export function CamposDelTesoro({
@@ -35,6 +36,7 @@ export function CamposDelTesoro({
   conMeta,
   conRinde,
   campoDelNombre,
+  debajoDelNombre,
 }: CamposDelTesoroProps) {
   const id = useId();
   const tinta = TINTA[borrador.tinta];
@@ -73,6 +75,7 @@ export function CamposDelTesoro({
           cambiar({ nombre: evento.target.value });
         }}
       />
+      {debajoDelNombre}
       <Campo
         etiqueta="Para qué es"
         value={borrador.descripcion}

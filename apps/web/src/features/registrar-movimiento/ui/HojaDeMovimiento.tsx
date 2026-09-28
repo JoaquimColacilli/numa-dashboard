@@ -4,9 +4,11 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
 import {
   ayudaDelMovimiento,
+  categoriasDeLaClase,
   CLASE,
   claseDe,
   clasesDelGrupo,
+  gastaDesdeElTesoro,
   GRUPOS,
   ladosDeLaFila,
   ladosDelMovimiento,
@@ -42,6 +44,8 @@ import { Button, Campo, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared
 const UN_DIA_MS = 86_400_000;
 
 const FALTAN_LOS_LADOS = 'Elegí de qué tesoro sale la plata y a cuál entra.';
+
+const FALTA_EL_TESORO = 'Elegí de qué tesoro sale la plata.';
 
 const LUGAR_DEL_GRUPO: Readonly<Record<GrupoDeMovimiento, string>> = {
   ingreso: 'col-span-2 @min-[30rem]:col-span-1',
@@ -95,6 +99,16 @@ function ladosIniciales(
     elegibles.find((tesoro) => tesoro.clave === null && tesoro.id !== desde) ??
     elegibles.find((tesoro) => tesoro.id !== desde);
   return { desde, hacia: hacia?.id ?? '' };
+}
+
+function tesoroInicialDelGasto(
+  movimiento: FilaDe<'movimientos'> | undefined,
+  propuesto: string | undefined,
+  tesoros: readonly TesoroDelTaller[],
+): string {
+  if (movimiento) return (movimiento as Partial<FilaDe<'movimientos'>>).desde_id ?? '';
+  if (propuesto !== undefined && tesoroPorId(tesoros, propuesto) !== undefined) return propuesto;
+  return tesoros.find(gastaDesdeElTesoro)?.id ?? '';
 }
 
 function Segmentado({
@@ -185,6 +199,11 @@ function ElegirTesoro({
 export interface HojaDeMovimientoProps {
   movimiento?: FilaDe<'movimientos'>;
   claseInicial?: ClaseDeMovimiento;
+  tesoroInicial?: string;
+  montoInicial?: number;
+  categoriaInicial?: string;
+  fechaInicial?: string;
+  renglones?: ReadonlyMap<string, readonly string[]>;
   tesoros: readonly TesoroDelTaller[];
   tesorosSincronizados: boolean;
   metaCocos: number;
@@ -194,6 +213,11 @@ export interface HojaDeMovimientoProps {
 export function HojaDeMovimiento({
   movimiento,
   claseInicial,
+  tesoroInicial,
+  montoInicial,
+  categoriaInicial,
+  fechaInicial,
+  renglones,
   tesoros,
   tesorosSincronizados,
   metaCocos,
@@ -201,15 +225,22 @@ export function HojaDeMovimiento({
 }: HojaDeMovimientoProps) {
   const hoy = hoyLocal();
   const ayer = ayerLocal(hoy);
+  const categoriasDe = (deLaClase: ClaseDeMovimiento, tesoro: string) =>
+    categoriasDeLaClase(deLaClase, renglones?.get(tesoro));
 
   const [iniciales] = useState(() => {
     const clase = movimiento ? claseDeLaFila(movimiento) : (claseInicial ?? 'gasto_hogar');
+    const tesoroDelGasto = tesoroInicialDelGasto(movimiento, tesoroInicial, tesoros);
     return {
       clase,
-      categoria: movimiento?.categoria ?? CLASE[clase].categorias[0] ?? '',
+      categoria:
+        movimiento?.categoria ?? categoriaInicial ?? categoriasDe(clase, tesoroDelGasto)[0] ?? '',
       descripcion: movimiento?.descripcion ?? '',
-      monto: movimiento?.monto_centavos ?? null,
-      fecha: movimiento?.fecha ?? hoy,
+      monto: movimiento?.monto_centavos ?? montoInicial ?? null,
+      fecha:
+        movimiento?.fecha ??
+        (fechaInicial !== undefined && fechaInicial <= hoy ? fechaInicial : hoy),
+      tesoroDelGasto,
       ...ladosIniciales(movimiento, clase, tesoros),
     };
   });
@@ -220,6 +251,7 @@ export function HojaDeMovimiento({
   const [fecha, setFecha] = useState(iniciales.fecha);
   const [desde, setDesde] = useState(iniciales.desde);
   const [hacia, setHacia] = useState(iniciales.hacia);
+  const [tesoroDelGasto, setTesoroDelGasto] = useState(iniciales.tesoroDelGasto);
   const [error, setError] = useState<string | undefined>(undefined);
   const [errorDeLosLados, setErrorDeLosLados] = useState<string | undefined>(undefined);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
@@ -252,9 +284,23 @@ export function HojaDeMovimiento({
   );
   const origen = tesoroPorId(tesoros, desde);
   const destino = tesoroPorId(tesoros, hacia);
+  const opcionesDelGasto = tesoros.filter(
+    (tesoro) => gastaDesdeElTesoro(tesoro) || tesoro.id === iniciales.tesoroDelGasto,
+  );
+  const delGasto = tesoroPorId(opcionesDelGasto, tesoroDelGasto);
 
   const datos = CLASE[clase];
-  const tinte = datos.tesoro === null ? null : TESORO[datos.tesoro];
+  const categorias = categoriasDe(clase, tesoroDelGasto);
+  const tinte =
+    datos.eligeElTesoro && delGasto !== undefined
+      ? {
+          fondo: TINTA[delGasto.tinta].tinte,
+          texto: TINTA[delGasto.tinta].texto,
+          icono: delGasto.icono,
+        }
+      : datos.tesoro === null
+        ? null
+        : TESORO[datos.tesoro];
   const ayuda = ayudaDelMovimiento(clase, {
     saldos: saldosDeLosDeSiempre(tesoros),
     metaCocos: centavos(metaCocos),
@@ -266,16 +312,29 @@ export function HojaDeMovimiento({
             hacia: { nombre: destino.nombre, saldo: destino.saldo },
           }
         : undefined,
+    tesoro: delGasto === undefined ? undefined : { nombre: delGasto.nombre, saldo: delGasto.saldo },
   });
 
-  function ladosElegidos(deLaClase: ClaseDeMovimiento, uno: string, otro: string): string {
-    return CLASE[deLaClase].eligeLosLados ? `${uno}→${otro}` : '';
+  function ladosElegidos(
+    deLaClase: ClaseDeMovimiento,
+    uno: string,
+    otro: string,
+    delTesoro: string,
+  ): string {
+    if (CLASE[deLaClase].eligeLosLados) return `${uno}→${otro}`;
+    return CLASE[deLaClase].eligeElTesoro ? delTesoro : '';
   }
 
   function elegirClase(nueva: ClaseDeMovimiento) {
     setClase(nueva);
-    setCategoria(CLASE[nueva].categorias[0] ?? '');
+    setCategoria(categoriasDe(nueva, tesoroDelGasto)[0] ?? '');
     setError(undefined);
+    setErrorDeLosLados(undefined);
+  }
+
+  function elegirTesoroDelGasto(id: string) {
+    setTesoroDelGasto(id);
+    setCategoria(categoriasDe('gasto_tesoro', id)[0] ?? '');
     setErrorDeLosLados(undefined);
   }
 
@@ -300,6 +359,10 @@ export function HojaDeMovimiento({
       if (!origen || !destino || origen.id === destino.id) return null;
       return ladosDelMovimiento(origen, destino, tesorosSincronizados);
     }
+    if (datos.eligeElTesoro) {
+      if (delGasto === undefined) return null;
+      return ladosDelMovimiento(delGasto, null, tesorosSincronizados);
+    }
     const lado = (clave: Tesoro | null): LadoDelMovimiento | null | undefined =>
       clave === null ? null : tesoroDeLaClave(tesoros, clave);
     const deDesde = lado(datos.desde);
@@ -321,7 +384,9 @@ export function HojaDeMovimiento({
         ? 'Escribí cuánta plata es, por ejemplo 12.500.'
         : undefined,
     );
-    setErrorDeLosLados(lados === null ? FALTAN_LOS_LADOS : undefined);
+    setErrorDeLosLados(
+      lados === null ? (datos.eligeElTesoro ? FALTA_EL_TESORO : FALTAN_LOS_LADOS) : undefined,
+    );
     if (importe === null || importe === 0 || lados === null) return;
 
     const campos = {
@@ -373,7 +438,12 @@ export function HojaDeMovimiento({
           descripcion: iniciales.descripcion.trim(),
           monto: iniciales.monto,
           fecha: iniciales.fecha,
-          lados: ladosElegidos(iniciales.clase, iniciales.desde, iniciales.hacia),
+          lados: ladosElegidos(
+            iniciales.clase,
+            iniciales.desde,
+            iniciales.hacia,
+            iniciales.tesoroDelGasto,
+          ),
         },
         {
           clase,
@@ -381,7 +451,7 @@ export function HojaDeMovimiento({
           descripcion: descripcion.trim(),
           monto,
           fecha,
-          lados: ladosElegidos(clase, desde, hacia),
+          lados: ladosElegidos(clase, desde, hacia, tesoroDelGasto),
         },
       )}
     >
@@ -402,33 +472,38 @@ export function HojaDeMovimiento({
 
           {clasesDelGrupo(datos.grupo).length > 1 && (
             <div role="group" aria-label="Detalle del tipo" className="flex flex-wrap gap-2">
-              {clasesDelGrupo(datos.grupo).map((opcion) => (
-                <button
-                  key={opcion.id}
-                  type="button"
-                  aria-pressed={clase === opcion.id}
-                  onClick={() => {
-                    elegirClase(opcion.id);
-                  }}
-                  className={`apretable flex min-h-tap items-center gap-2 rounded-pill border px-3 text-label font-medium ${
-                    clase === opcion.id
-                      ? 'border-ink bg-ink text-paper'
-                      : 'border-border bg-paper text-ink'
-                  }`}
-                >
-                  <span
-                    aria-hidden
-                    className={`size-2 rounded-pill ${
+              {clasesDelGrupo(datos.grupo)
+                .filter(
+                  (opcion) =>
+                    !opcion.eligeElTesoro || opcionesDelGasto.length > 0 || clase === opcion.id,
+                )
+                .map((opcion) => (
+                  <button
+                    key={opcion.id}
+                    type="button"
+                    aria-pressed={clase === opcion.id}
+                    onClick={() => {
+                      elegirClase(opcion.id);
+                    }}
+                    className={`apretable flex min-h-tap items-center gap-2 rounded-pill border px-3 text-label font-medium ${
                       clase === opcion.id
-                        ? 'bg-paper'
-                        : opcion.tesoro === null
-                          ? 'bg-text-3'
-                          : TESORO[opcion.tesoro].barra
+                        ? 'border-ink bg-ink text-paper'
+                        : 'border-border bg-paper text-ink'
                     }`}
-                  />
-                  {opcion.corta}
-                </button>
-              ))}
+                  >
+                    <span
+                      aria-hidden
+                      className={`size-2 rounded-pill ${
+                        clase === opcion.id
+                          ? 'bg-paper'
+                          : opcion.tesoro === null
+                            ? 'bg-text-3'
+                            : TESORO[opcion.tesoro].barra
+                      }`}
+                    />
+                    {opcion.corta}
+                  </button>
+                ))}
             </div>
           )}
 
@@ -445,6 +520,22 @@ export function HojaDeMovimiento({
                 opciones={opciones.filter((tesoro) => tesoro.id !== desde)}
                 elegido={hacia}
                 alElegir={elegirHacia}
+              />
+              {errorDeLosLados !== undefined && (
+                <p role="alert" className="text-label font-medium text-alerta">
+                  {errorDeLosLados}
+                </p>
+              )}
+            </div>
+          )}
+
+          {datos.eligeElTesoro && (
+            <div className="flex flex-col gap-3">
+              <ElegirTesoro
+                etiqueta="Sale de"
+                opciones={opcionesDelGasto}
+                elegido={tesoroDelGasto}
+                alElegir={elegirTesoroDelGasto}
               />
               {errorDeLosLados !== undefined && (
                 <p role="alert" className="text-label font-medium text-alerta">
@@ -494,7 +585,7 @@ export function HojaDeMovimiento({
             }}
           />
 
-          {datos.categorias.length > 0 && (
+          {categorias.length > 0 && (
             <label className="flex flex-col gap-1.5">
               <span className="text-label text-text-2">Categoría</span>
               <select
@@ -504,12 +595,12 @@ export function HojaDeMovimiento({
                 }}
                 className="h-field rounded-field border border-border bg-paper px-3 text-body-lg text-ink"
               >
-                {datos.categorias.map((opcion) => (
+                {categorias.map((opcion) => (
                   <option key={opcion} value={opcion}>
                     {opcion}
                   </option>
                 ))}
-                {!datos.categorias.includes(categoria) && categoria !== '' && (
+                {!categorias.includes(categoria) && categoria !== '' && (
                   <option value={categoria}>{categoria}</option>
                 )}
               </select>

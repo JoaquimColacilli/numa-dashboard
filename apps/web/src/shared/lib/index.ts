@@ -179,6 +179,8 @@ export {
   rutaDeEdicion,
   rutaDeFinanzasDelTesoro,
   rutaDeMovimientoNuevo,
+  movimientoPropuesto,
+  type MovimientoPropuesto,
   rutaDelCliente,
   rutaDelMovimiento,
   rutaDelProyecto,

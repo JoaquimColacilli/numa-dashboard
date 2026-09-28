@@ -1,4 +1,4 @@
-import { moverPaso, type LiquidacionPorLaFila } from '@maun/domain';
+import type { LiquidacionPorLaFila } from '@maun/domain';
 import {
   Background,
   BackgroundVariant,
@@ -30,21 +30,29 @@ import {
 import {
   deshacerElBorrador,
   editarLaFila,
+  FICHA_DEL_DIEZMO,
   fichaDelEstante,
+  moverLaObligacion,
   moverUnLugar,
+  puedeSalirDeLaFila,
   queFichaEs,
   rehacerElBorrador,
   sacar,
   tesoroDe,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
+import type { LugarDelTesoro } from '@/features/editar-tesoro';
 
 import {
+  aplicarElArrastre,
   armarElPlano,
-  centrosDeLosPasos,
+  centrosDeLasFichas,
   huecoDelArrastre,
+  SIN_INSUMOS,
   type AristaDelPlano,
   type Arrastre,
+  type InsumosEnElPlano,
+  type LugarDelTramo,
   type NodoDelPlano,
 } from '../../model/disposicion';
 import {
@@ -55,23 +63,20 @@ import {
   type Alineado,
   type Relleno,
 } from '../../model/encuadre';
-import {
-  anuncioDelMovimiento,
-  aplicarLaUnion,
-  fraseDeLaUnion,
-  unionDe,
-  type LugarDelNuevo,
-} from '../../model/uniones';
+import { anuncioDelMovimiento, aplicarLaUnion, fraseDeLaUnion, unionDe } from '../../model/uniones';
 import { AristaDePlata } from './Aristas';
 import { ContextoDeLasAristas, ContextoDeLasFichas } from './contextos';
 import {
-  NodoDiezmo,
   NodoEstante,
+  NodoIngreso,
+  NodoInsumos,
   NodoNuevoTesoro,
-  NodoOrigen,
+  NodoObligacion,
   NodoParte,
   NodoPaso,
   NodoReparto,
+  NodoSena,
+  NodoTipo,
   NodoTitulo,
 } from './Nodos';
 import { RotuloConZoom, ZoomEnCss, ZoomFlotante } from './Zoom';
@@ -79,8 +84,8 @@ import { RotuloConZoom, ZoomEnCss, ZoomFlotante } from './Zoom';
 export type RellenoDelLienzo = Relleno;
 
 export interface PedidoDeTesoroNuevo {
-  despuesDe: string | null | undefined;
-  lugar: LugarDelNuevo | 'estante';
+  lugar: LugarDelTesoro;
+  despuesDe?: string | null;
 }
 
 export interface LienzoProps {
@@ -93,8 +98,9 @@ export interface LienzoProps {
   revision: number;
   rige: string;
   relleno: RellenoDelLienzo;
+  insumos?: InsumosEnElPlano;
   alineado?: Alineado;
-  alSumar?: (despuesDe: string | null, boton: HTMLElement) => void;
+  alSumar?: (lugar: LugarDelTramo, boton: HTMLElement) => void;
   alPedirNuevo?: (pedido: PedidoDeTesoroNuevo) => void;
   tapadoDesde?: () => number | null;
   flotaDesde?: () => number | null;
@@ -122,15 +128,24 @@ function enfocarLaFicha(id: string | null, intentos = INTENTOS_DEL_FOCO): void {
 }
 
 const TIPOS_DE_NODO = {
-  origen: NodoOrigen,
-  diezmo: NodoDiezmo,
+  sena: NodoSena,
+  insumos: NodoInsumos,
+  ingreso: NodoIngreso,
+  obligacion: NodoObligacion,
   paso: NodoPaso,
   reparto: NodoReparto,
   parte: NodoParte,
   estante: NodoEstante,
   nuevo: NodoNuevoTesoro,
   titulo: NodoTitulo,
+  tipo: NodoTipo,
 };
+
+function tesoroQueSeMueve(id: string, diezmo: string): string | null {
+  if (id === FICHA_DEL_DIEZMO) return diezmo;
+  const ficha = queFichaEs(id);
+  return ficha?.tipo === 'paso' || ficha?.tipo === 'obligacion' ? ficha.tesoro : null;
+}
 
 const TIPOS_DE_ARISTA = { plata: AristaDePlata };
 
@@ -198,6 +213,7 @@ function LienzoInterno({
   revision,
   rige,
   relleno,
+  insumos = SIN_INSUMOS,
   alineado = 'centro',
   alSumar,
   alPedirNuevo,
@@ -217,8 +233,16 @@ function LienzoInterno({
   );
 
   const plano = useMemo(
-    () => armarElPlano({ vista: vistaDelPlano, prueba: resultado, elegido, arrastre }),
-    [vistaDelPlano, resultado, elegido, arrastre],
+    () =>
+      armarElPlano({
+        vista: vistaDelPlano,
+        prueba: resultado,
+        elegido,
+        arrastre,
+        insumos,
+        conNuevo: editable,
+      }),
+    [vistaDelPlano, resultado, elegido, arrastre, insumos, editable],
   );
 
   const actual = useRef({
@@ -315,17 +339,22 @@ function LienzoInterno({
     correr();
   }, [elegido, plano.nodos, correr]);
 
-  const centros = useMemo(() => centrosDeLosPasos(vistaDelPlano), [vistaDelPlano]);
+  const centros = useMemo(() => centrosDeLasFichas(vistaDelPlano), [vistaDelPlano]);
 
   const nodos = useMemo(
     () =>
-      plano.nodos.map((nodo) =>
-        arrastre !== null && nodo.type === 'paso' && nodo.data.paso.tesoro === arrastre.tesoro
-          ? yDelArrastrado === null
-            ? nodo
-            : { ...nodo, position: { x: nodo.position.x, y: yDelArrastrado }, dragging: true }
-          : nodo,
-      ),
+      plano.nodos.map((nodo) => {
+        if (arrastre === null || yDelArrastrado === null) return nodo;
+        const tesoro =
+          nodo.type === 'paso'
+            ? nodo.data.paso.tesoro
+            : nodo.type === 'obligacion'
+              ? nodo.data.obligacion.tesoro
+              : null;
+        return tesoro === arrastre.tesoro
+          ? { ...nodo, position: { x: nodo.position.x, y: yDelArrastrado }, dragging: true }
+          : nodo;
+      }),
     [plano.nodos, arrastre, yDelArrastrado],
   );
 
@@ -338,15 +367,13 @@ function LienzoInterno({
           else if (cambio.id === actual.current.elegido && elegida === undefined) elegida = null;
         }
         if (cambio.type === 'position' && cambio.dragging === true && cambio.position) {
-          const ficha = queFichaEs(cambio.id);
-          if (ficha?.tipo !== 'paso') continue;
+          const tesoro = tesoroQueSeMueve(cambio.id, actual.current.vista.sistema.diezmo);
+          if (tesoro === null) continue;
           const alto = plano.nodos.find((nodo) => nodo.id === cambio.id)?.height ?? 0;
-          const hueco = huecoDelArrastre(centros, ficha.tesoro, cambio.position.y + alto / 2);
+          const hueco = huecoDelArrastre(centros, tesoro, cambio.position.y + alto / 2);
           setYDelArrastrado(cambio.position.y);
           setArrastre((previo) =>
-            previo?.tesoro === ficha.tesoro && previo.hueco === hueco
-              ? previo
-              : { tesoro: ficha.tesoro, hueco },
+            previo?.tesoro === tesoro && previo.hueco === hueco ? previo : { tesoro, hueco },
           );
         }
       }
@@ -357,37 +384,42 @@ function LienzoInterno({
 
   const alSoltarLaFicha = useCallback(() => {
     if (arrastre === null) return;
-    const { tesoro, hueco } = arrastre;
-    editarLaFila(vista, (fila) => {
-      const lugar = fila.pasos.findIndex((paso) => paso.tesoro === tesoro);
-      if (lugar === -1 || lugar === hueco) return fila;
-      return moverPaso(fila, tesoro, Math.min(hueco, fila.pasos.length - 1));
-    });
+    const suelto = arrastre;
+    editarLaFila(vista, (fila) => aplicarElArrastre(fila, suelto));
     setArrastre(null);
     setYDelArrastrado(null);
   }, [arrastre, vista]);
 
-  const esValida = useCallback<IsValidConnection>(
-    (conexion) =>
+  const esValida = useCallback<IsValidConnection>((conexion) => {
+    const { vista: laVista } = actual.current;
+    return (
       unionDe(
-        actual.current.vista.fila,
-        actual.current.vista.tesoros,
+        laVista.fila,
+        laVista.tesoros,
+        laVista.sistema.diezmo,
         conexion.source,
         conexion.target,
-      ) !== null,
-    [],
-  );
+      ) !== null
+    );
+  }, []);
 
   const alConectar = useCallback(
     (conexion: Connection) => {
       const { vista: laVista } = actual.current;
-      const union = unionDe(laVista.fila, laVista.tesoros, conexion.source, conexion.target);
+      const diezmo = laVista.sistema.diezmo;
+      const union = unionDe(
+        laVista.fila,
+        laVista.tesoros,
+        diezmo,
+        conexion.source,
+        conexion.target,
+      );
       if (union === null) return;
       if (union.tipo === 'nuevo') {
-        alPedirNuevo?.({ despuesDe: union.despuesDe, lugar: union.lugar });
+        alPedirNuevo?.({ lugar: union.lugar, despuesDe: union.despuesDe });
         return;
       }
-      const aplicada = aplicarLaUnion(laVista.fila, laVista.tesoros, union);
+      const aplicada = aplicarLaUnion(laVista.fila, laVista.tesoros, diezmo, union);
       editarLaFila(laVista, () => aplicada.fila);
       alElegir(aplicada.elegir);
     },
@@ -396,9 +428,13 @@ function LienzoInterno({
 
   const describir = useCallback<Describir>((desde, hacia) => {
     const { vista: laVista } = actual.current;
-    const union = hacia === null ? null : unionDe(laVista.fila, laVista.tesoros, desde, hacia);
+    const diezmo = laVista.sistema.diezmo;
+    const union =
+      hacia === null ? null : unionDe(laVista.fila, laVista.tesoros, diezmo, desde, hacia);
     return fraseDeLaUnion(
       laVista.fila,
+      laVista.tesoros,
+      diezmo,
       (tesoro) => tesoroDe(laVista, tesoro).nombre,
       union,
       hacia !== null,
@@ -407,12 +443,12 @@ function LienzoInterno({
 
   const anunciar = useCallback((direccion: string): string => {
     const { vista: laVista, elegido: laElegida } = actual.current;
-    const ficha = laElegida === null ? null : queFichaEs(laElegida);
-    if (ficha?.tipo !== 'paso') return 'Solo los pasos de la fila cambian de lugar.';
+    const tesoro = laElegida === null ? null : tesoroQueSeMueve(laElegida, laVista.sistema.diezmo);
+    if (tesoro === null) return 'Solo las obligaciones y los pasos de la fila cambian de lugar.';
     return anuncioDelMovimiento(
       laVista.fila,
-      ficha.tesoro,
-      tesoroDe(laVista, ficha.tesoro).nombre,
+      tesoro,
+      tesoroDe(laVista, tesoro).nombre,
       direccion === 'up' ? -1 : 1,
     );
   }, []);
@@ -421,7 +457,7 @@ function LienzoInterno({
     () => ({
       'node.a11yDescription.default': 'Enter o espacio elige la ficha y Escape la suelta.',
       'node.a11yDescription.keyboardDisabled':
-        'Enter o espacio elige la ficha y Escape la suelta. Mientras editás la fila, Alt con las flechas de arriba y abajo cambia de lugar el paso elegido y Suprimir lo saca de la fila.',
+        'Enter o espacio elige la ficha y Escape la suelta. Mientras editás la fila, Alt con las flechas de arriba y abajo cambia de lugar la ficha elegida adentro de su tipo y Suprimir la saca de la fila.',
       'node.a11yDescription.ariaLiveMessage': ({ direction }) => anunciar(direction),
       'edge.a11yDescription.default': 'Flecha por donde baja la plata.',
       'controls.ariaLabel': 'Controles del plano',
@@ -463,11 +499,15 @@ function LienzoInterno({
       return;
     }
     evento.preventDefault();
-    const ficha = elegido === null ? null : queFichaEs(elegido);
+    const tesoro = elegido === null ? null : tesoroQueSeMueve(elegido, vista.sistema.diezmo);
     const hacia = evento.key === 'ArrowUp' ? -1 : 1;
     store.setState({ ariaLiveMessage: anunciar(hacia === -1 ? 'up' : 'down') });
-    if (ficha?.tipo !== 'paso') return;
-    editarLaFila(vista, (fila) => moverUnLugar(fila, ficha.tesoro, hacia));
+    if (tesoro === null) return;
+    editarLaFila(vista, (fila) =>
+      fila.obligaciones.some((obligacion) => obligacion.tesoro === tesoro)
+        ? moverLaObligacion(fila, tesoro, hacia)
+        : moverUnLugar(fila, tesoro, hacia),
+    );
   };
 
   const alTeclear = (evento: KeyboardEvent<HTMLDivElement>) => {
@@ -495,7 +535,10 @@ function LienzoInterno({
     }
     if (evento.key === 'Delete' && armando && elegido !== null) {
       const ficha = queFichaEs(elegido);
-      if (ficha?.tipo === 'paso' || ficha?.tipo === 'parte') {
+      if (
+        (ficha?.tipo === 'paso' || ficha?.tipo === 'parte' || ficha?.tipo === 'obligacion') &&
+        puedeSalirDeLaFila(ficha.tesoro, vista.sistema.diezmo)
+      ) {
         evento.preventDefault();
         const tesoro = ficha.tesoro;
         editarLaFila(vista, (fila) => sacar(fila, tesoro));
@@ -510,14 +553,14 @@ function LienzoInterno({
       editable,
       puedeCrear: vista.sincronizados,
       alNuevo: () => {
-        alPedirNuevo?.({ despuesDe: undefined, lugar: 'estante' });
+        alPedirNuevo?.({ lugar: 'estante' });
       },
     }),
     [editable, vista.sincronizados, alPedirNuevo],
   );
 
   const aristas = useMemo(
-    () => ({ sumarDespuesDe: armando && alSumar !== undefined ? alSumar : null }),
+    () => ({ sumarEn: armando && alSumar !== undefined ? alSumar : null }),
     [armando, alSumar],
   );
 

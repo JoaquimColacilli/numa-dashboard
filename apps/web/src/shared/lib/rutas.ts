@@ -89,10 +89,40 @@ export function rutaDeFinanzasDelTesoro(tesoro: TesoroDeLaRuta): string {
 
 export const RUTA_DE_MOVIMIENTO_NUEVO = '/finanzas/nuevo';
 
-export function rutaDeMovimientoNuevo(opciones: { clase?: string } = {}): string {
-  return opciones.clase === undefined
-    ? RUTA_DE_MOVIMIENTO_NUEVO
-    : `${RUTA_DE_MOVIMIENTO_NUEVO}?${new URLSearchParams({ clase: opciones.clase }).toString()}`;
+export interface MovimientoPropuesto {
+  clase?: string;
+  tesoro?: string;
+  monto?: number;
+  categoria?: string;
+  fecha?: string;
+}
+
+const LARGO_MAXIMO_DE_LA_CATEGORIA = 80;
+
+export function rutaDeMovimientoNuevo(opciones: MovimientoPropuesto = {}): string {
+  const parametros = new URLSearchParams();
+  if (opciones.clase !== undefined) parametros.set('clase', opciones.clase);
+  if (opciones.tesoro !== undefined) parametros.set('tesoro', opciones.tesoro);
+  if (opciones.monto !== undefined) parametros.set('monto', String(opciones.monto));
+  if (opciones.categoria !== undefined) parametros.set('categoria', opciones.categoria);
+  if (opciones.fecha !== undefined) parametros.set('fecha', opciones.fecha);
+  const texto = parametros.toString();
+  return texto === '' ? RUTA_DE_MOVIMIENTO_NUEVO : `${RUTA_DE_MOVIMIENTO_NUEVO}?${texto}`;
+}
+
+export function movimientoPropuesto(parametros: URLSearchParams): MovimientoPropuesto {
+  const clase = parametros.get('clase');
+  const tesoro = parametros.get('tesoro');
+  const monto = Number(parametros.get('monto') ?? '');
+  const categoria = parametros.get('categoria')?.trim() ?? '';
+  const fecha = fechaDelEnlace(parametros.get('fecha'));
+  return {
+    ...(clase === null ? {} : { clase }),
+    ...(tesoro === null || !FORMA_DE_UN_ID.test(tesoro) ? {} : { tesoro }),
+    ...(Number.isSafeInteger(monto) && monto > 0 ? { monto } : {}),
+    ...(categoria === '' || categoria.length > LARGO_MAXIMO_DE_LA_CATEGORIA ? {} : { categoria }),
+    ...(fecha === undefined ? {} : { fecha }),
+  };
 }
 
 export function rutaDelMovimiento(id: string): string {

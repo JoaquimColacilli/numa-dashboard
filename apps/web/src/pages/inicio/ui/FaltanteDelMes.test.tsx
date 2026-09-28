@@ -49,7 +49,23 @@ function replicaDelTaller(): Replica {
 const GASTOS_FIJOS: FaltanteEnInicio = {
   tesoro: FIJOS,
   nombre: 'gastos fijos',
+  modo: 'mes',
   falta: centavos(27_000_000),
+  vence: null,
+};
+
+const ALQUILER_QUE_VENCE: FaltanteEnInicio = {
+  ...GASTOS_FIJOS,
+  modo: 'saldo',
+  vence: {
+    id: `vencimiento:${FIJOS}:0:2026-10-03`,
+    tesoro: FIJOS,
+    nombreDelTesoro: 'Gastos fijos',
+    renglon: 'Alquiler',
+    monto: centavos(50_000_000),
+    fecha: '2026-10-03',
+    pagado: false,
+  },
 };
 
 function montar(faltantes: readonly FaltanteEnInicio[], hoy: string, sePuedeCubrir = true) {
@@ -114,6 +130,25 @@ describe('el faltante de los gastos fijos en Inicio', () => {
     expect(
       within(aviso).getByRole('button', { name: 'Elegir de qué tesoro sacar' }),
     ).toBeInTheDocument();
+  });
+
+  it('si un renglón sin pagar vence en los próximos 7 días, lo nombra y no cuenta los días del mes', () => {
+    montar([ALQUILER_QUE_VENCE], '2026-09-28');
+
+    const aviso = screen.getByRole('region', { name: 'Falta para gastos fijos' });
+    const parrafos = within(aviso).getAllByRole('paragraph');
+    expect(parrafos).toHaveLength(1);
+    expect(llano(parrafos[0]?.textContent ?? null)).toBe(
+      'Vence el alquiler el 3 y faltan $ 270.000.',
+    );
+    expect(within(aviso).getByText(/270\.000/)).toHaveClass('font-semibold');
+  });
+
+  it('uno que se renueva al pagar no habla del mes', () => {
+    montar([{ ...ALQUILER_QUE_VENCE, vence: null }], '2026-09-28');
+    const aviso = screen.getByRole('region', { name: 'Falta para gastos fijos' });
+    expect(within(aviso).getAllByRole('paragraph')).toHaveLength(1);
+    expect(llano(aviso.textContent)).toContain('Faltan $ 270.000 para gastos fijos.');
   });
 
   it('sin los tesoros del taller todavía, avisa pero no ofrece cubrir', () => {

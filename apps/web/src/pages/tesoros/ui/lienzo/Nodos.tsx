@@ -1,24 +1,29 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, useReactFlow, useStoreApi, type NodeProps } from '@xyflow/react';
 import { useContext } from 'react';
 
 import type {
+  NodoDeLaObligacion,
   NodoDeLaParte,
-  NodoDelDiezmo,
+  NodoDeLosInsumos,
   NodoDelEstante,
-  NodoDelOrigen,
+  NodoDelIngreso,
   NodoDelPaso,
   NodoDelReparto,
+  NodoDelTipo,
   NodoDelTitulo,
   NodoNuevo,
 } from '../../model/disposicion';
 import {
+  CuerpoDeLaObligacion,
   CuerpoDeLaParte,
-  CuerpoDelDiezmo,
+  CuerpoDeLaSena,
+  CuerpoDeLosInsumos,
   CuerpoDelEstante,
-  CuerpoDelOrigen,
+  CuerpoDelIngreso,
   CuerpoDelPaso,
   CuerpoDelReparto,
   CuerpoNuevoTesoro,
+  FranjaDelTipo,
   TituloDelEstante,
 } from '../Fichas';
 import { ContextoDeLasFichas } from './contextos';
@@ -94,19 +99,37 @@ function Manijas({
   );
 }
 
-export function NodoOrigen({ data }: NodeProps<NodoDelOrigen>) {
+export function NodoSena() {
   return (
     <div className="relative h-full w-full">
-      <CuerpoDelOrigen data={data} />
-      <Manijas armando={false} elegida={false} entrada={false} />
+      <CuerpoDeLaSena />
+      <Manijas armando={false} elegida={false} entrada={false} alCostado />
     </div>
   );
 }
 
-export function NodoDiezmo({ data, selected }: NodeProps<NodoDelDiezmo>) {
+export function NodoInsumos({ data, selected }: NodeProps<NodoDeLosInsumos>) {
   return (
     <div className="relative h-full w-full">
-      <CuerpoDelDiezmo data={data} elegida={selected} />
+      <CuerpoDeLosInsumos data={data} elegida={selected} />
+      <Manijas armando={false} elegida={false} entrada={false} salida={false} desdeElCostado />
+    </div>
+  );
+}
+
+export function NodoIngreso({ data }: NodeProps<NodoDelIngreso>) {
+  return (
+    <div className="relative h-full w-full">
+      <CuerpoDelIngreso data={data} />
+      <Manijas armando={false} elegida={false} alCostado />
+    </div>
+  );
+}
+
+export function NodoObligacion({ data, selected }: NodeProps<NodoDeLaObligacion>) {
+  return (
+    <div className="relative h-full w-full">
+      <CuerpoDeLaObligacion data={data} elegida={selected} enLienzo />
       <Manijas armando={data.armando} elegida={selected} alCostado />
     </div>
   );
@@ -148,11 +171,43 @@ export function NodoEstante({ data, selected }: NodeProps<NodoDelEstante>) {
   );
 }
 
-export function NodoNuevoTesoro({ data }: NodeProps<NodoNuevo>) {
-  const { alNuevo, puedeCrear, editable } = useContext(ContextoDeLasFichas);
+export function NodoNuevoTesoro({
+  data,
+  positionAbsoluteX,
+  positionAbsoluteY,
+  width,
+  height,
+}: NodeProps<NodoNuevo>) {
+  const { alNuevo, puedeCrear } = useContext(ContextoDeLasFichas);
+  const store = useStoreApi();
+  const { setCenter } = useReactFlow();
+  const alEnfocar = (boton: HTMLButtonElement) => {
+    if (!boton.matches(':focus-visible')) return;
+    const { transform, width: anchoDelLienzo, height: altoDelLienzo } = store.getState();
+    const [corrimientoX, corrimientoY, zoom] = transform;
+    const ancho = (width ?? 0) * zoom;
+    const alto = (height ?? 0) * zoom;
+    const izquierda = corrimientoX + positionAbsoluteX * zoom;
+    const arriba = corrimientoY + positionAbsoluteY * zoom;
+    const seVe =
+      izquierda >= 0 &&
+      arriba >= 0 &&
+      izquierda + ancho <= anchoDelLienzo &&
+      arriba + alto <= altoDelLienzo;
+    if (seVe) return;
+    void setCenter(positionAbsoluteX + (width ?? 0) / 2, positionAbsoluteY + (height ?? 0) / 2, {
+      zoom,
+      duration: 0,
+    });
+  };
   return (
     <div className="relative h-full w-full">
-      <CuerpoNuevoTesoro alTocar={alNuevo} deshabilitado={!editable || !puedeCrear} />
+      <CuerpoNuevoTesoro
+        alTocar={alNuevo}
+        alEnfocar={alEnfocar}
+        deshabilitado={!puedeCrear}
+        enLienzo
+      />
       <Manijas armando={data.armando} elegida={false} salida={false} />
     </div>
   );
@@ -160,4 +215,8 @@ export function NodoNuevoTesoro({ data }: NodeProps<NodoNuevo>) {
 
 export function NodoTitulo({ data }: NodeProps<NodoDelTitulo>) {
   return <TituloDelEstante data={data} />;
+}
+
+export function NodoTipo({ data }: NodeProps<NodoDelTipo>) {
+  return <FranjaDelTipo grupo={data.grupo} />;
 }

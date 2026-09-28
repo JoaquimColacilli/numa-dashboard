@@ -7,6 +7,7 @@ import {
   PREFIJO_DE_LA_ENCUESTA_PUBLICA,
   RUTA_DE_LA_ENCUESTA_PUBLICA,
   fechaDelEnlace,
+  movimientoPropuesto,
   PREFIJO_DE_LA_VISTA_PUBLICA,
   PARAMETRO_DE_ENTREGA,
   PARAMETRO_DE_TESORO,
@@ -17,6 +18,7 @@ import {
   rutaDeFinanzasDelTesoro,
   rutaDelCliente,
   rutaDelProyecto,
+  rutaDeMovimientoNuevo,
   rutaDeProyectoNuevo,
   tesoroDelParametro,
 } from './rutas';
@@ -92,6 +94,53 @@ describe('el día que viaja en el enlace a cargar un contacto o un proyecto', ()
     const proyecto = new URL(rutaDeProyectoNuevo('2026-10-01'), 'https://maun.test');
     expect(fechaDelEnlace(contacto.searchParams.get(PARAMETRO_DE_VISITA))).toBe('2026-09-15');
     expect(fechaDelEnlace(proyecto.searchParams.get(PARAMETRO_DE_ENTREGA))).toBe('2026-10-01');
+  });
+});
+
+describe('la hoja de un movimiento con lo que viene puesto', () => {
+  const ALQUILER = '01923456-7890-7abc-8def-0123456789ab';
+
+  it('arma el enlace con la clase, el tesoro, el monto y la categoría, y sin nada va sola', () => {
+    expect(rutaDeMovimientoNuevo()).toBe('/finanzas/nuevo');
+    expect(rutaDeMovimientoNuevo({ clase: 'pago_diezmo' })).toBe(
+      '/finanzas/nuevo?clase=pago_diezmo',
+    );
+    const url = new URL(
+      rutaDeMovimientoNuevo({
+        clase: 'gasto_tesoro',
+        tesoro: ALQUILER,
+        monto: 50_000_000,
+        categoria: 'Alquiler del taller',
+      }),
+      'https://maun.test',
+    );
+    expect(movimientoPropuesto(url.searchParams)).toEqual({
+      clase: 'gasto_tesoro',
+      tesoro: ALQUILER,
+      monto: 50_000_000,
+      categoria: 'Alquiler del taller',
+    });
+  });
+
+  it('de los parámetros deja afuera lo que no se lee', () => {
+    expect(
+      movimientoPropuesto(
+        new URLSearchParams({ tesoro: 'alquiler', monto: '12,5', categoria: '   ' }),
+      ),
+    ).toEqual({});
+    expect(movimientoPropuesto(new URLSearchParams({ monto: '-3' }))).toEqual({});
+    expect(movimientoPropuesto(new URLSearchParams({ fecha: '2026-02-30' }))).toEqual({});
+  });
+
+  it('lleva el día del pago cuando se registra uno de un mes que ya pasó', () => {
+    const url = new URL(
+      rutaDeMovimientoNuevo({ clase: 'gasto_maun', fecha: '2026-08-10' }),
+      'https://maun.test',
+    );
+    expect(movimientoPropuesto(url.searchParams)).toEqual({
+      clase: 'gasto_maun',
+      fecha: '2026-08-10',
+    });
   });
 });
 

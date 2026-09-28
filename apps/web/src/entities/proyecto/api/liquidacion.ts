@@ -25,7 +25,11 @@ import {
 } from '@/shared/lib';
 
 import { ajusteDeLaLiquidacion } from '../model/liquidacion';
-import { ajusteDelReparto } from '../model/por-la-fila';
+import {
+  ajusteDelReparto,
+  type AjusteDelReparto,
+  type DiferenciaDelReparto,
+} from '../model/por-la-fila';
 import { rutaDelProyecto } from '../model/rutas';
 
 export const CLAVE_DE_LIQUIDACION = ['proyectos', 'liquidar'] as const;
@@ -104,6 +108,29 @@ function anotarElRechazo(
   });
 }
 
+function porQueCambio(diferencia: DiferenciaDelReparto): string {
+  if (diferencia.modo === 'saldo') {
+    return `, porque ya tenía ${formatearPesos(diferencia.yaLlevabaElMes)}`;
+  }
+  if (diferencia.modo === 'mes' && diferencia.yaLlevabaElMes > 0) {
+    return `, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación`;
+  }
+  return '';
+}
+
+function ajusteQueSePuedeLeer(
+  fila: FilaDe<'proyectos'>,
+  pedido: PedidoDeLiquidacion,
+  plan: PlanDelReparto,
+  nombres: ReadonlyMap<string, string>,
+): AjusteDelReparto | undefined {
+  try {
+    return ajusteDelReparto(fila, pedido, plan, nombres);
+  } catch {
+    return undefined;
+  }
+}
+
 function detalleDelAjuste({
   pedido,
   plan,
@@ -114,14 +141,15 @@ function detalleDelAjuste({
       const nombres = new Map(
         (repartos ?? []).map((reparto) => [reparto.tesoro_id, reparto.nombre]),
       );
-      const ajuste = ajusteDelReparto(fila, pedido, plan, nombres);
+      const ajuste = ajusteQueSePuedeLeer(fila, pedido, plan, nombres);
       if (!ajuste) return undefined;
       const lineas = ajuste.diferencias
         .map(
           (diferencia) =>
-            `${diferencia.nombre}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación.`,
+            `${diferencia.nombre}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}${porQueCambio(diferencia)}.`,
         )
         .join(' ');
+      if (ajuste.superavit !== null) return lineas;
       return `${lineas} La diferencia quedó en el taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`;
     }
 

@@ -1,3 +1,4 @@
+import { AVISOS_DE_LA_AGENDA } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +8,7 @@ import {
   esHora,
   otrosDispositivos,
   pasosParaDesbloquear,
+  QUE_AVISA,
 } from './textos';
 
 const AHORA = new Date(2026, 8, 14, 9, 0);
@@ -44,6 +46,15 @@ describe('anticipacionesDe', () => {
     expect(anticipacionesDe('anotaciones', 0)).toEqual([0, 1]);
     expect(anticipacionesDe('seguimientos', 0)).toEqual([0, 1]);
     expect(anticipacionesDe('entregas', 2)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('los vencimientos se avisan hasta tres días antes, con su marca de la agenda', () => {
+    expect(anticipacionesDe('vencimientos', 0)).toEqual([0, 1, 2, 3]);
+    expect(QUE_AVISA.vencimientos).toMatchObject({
+      etiqueta: 'Vencimientos',
+      categoria: 'vencimiento',
+    });
+    expect(Object.keys(QUE_AVISA).sort()).toEqual([...AVISOS_DE_LA_AGENDA].sort());
   });
 
   it('una anticipación guardada fuera de las opciones se sigue viendo', () => {

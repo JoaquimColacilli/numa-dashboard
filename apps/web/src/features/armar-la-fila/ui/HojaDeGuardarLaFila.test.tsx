@@ -14,12 +14,16 @@ import {
   empezarElBorrador,
 } from '../model/borrador';
 import {
+  conDia,
+  conModo,
   conRenglones,
+  conSuperavit,
   conTope,
   moverUnLugar,
   sacar,
   sumarAlFinal,
   sumarAlReparto,
+  sumarComoObligacion,
 } from '../model/edicion';
 import { vistaDeLaFila } from '../model/vista';
 import { HojaDeGuardarLaFila } from './HojaDeGuardarLaFila';
@@ -40,6 +44,7 @@ const INMUEBLES = '01900000-0000-7000-8000-000000000008';
 const HOY = '2026-09-27';
 
 const GUARDADA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
     {
       tesoro: HOGAR,
@@ -47,13 +52,17 @@ const GUARDADA: Fila = {
       tope: centavos(100_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(10_000_000),
-      renglones: [{ nombre: 'Luz', monto: centavos(10_000_000) }],
+      renglones: [{ nombre: 'Luz', monto: centavos(10_000_000), dia: null }],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: MATERIALES,
@@ -61,12 +70,15 @@ const GUARDADA: Fila = {
       tope: centavos(30_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
   reparto: [
-    { tesoro: COCOS, porcentaje: puntosBasicos(5000) },
-    { tesoro: INMUEBLES, porcentaje: puntosBasicos(3000) },
+    { tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false },
+    { tesoro: INMUEBLES, porcentaje: puntosBasicos(3000), hastaLaMeta: false },
   ],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 
@@ -182,14 +194,16 @@ describe('la hoja de guardar la fila', () => {
     empezarElBorrador('a', 4, GUARDADA);
     cambiarElBorrador(conTope(fila(), MATERIALES, centavos(35_000_000)));
     cambiarElBorrador(sumarAlFinal(fila(), HERRAMIENTAS, null, centavos(10_000_000)));
-    cambiarElBorrador(moverUnLugar(fila(), FIJOS, 1));
+    cambiarElBorrador(moverUnLugar(fila(), FIJOS, -1));
     cambiarElBorrador(
-      conRenglones(fila(), FIJOS, [{ nombre: 'Luz y gas', monto: centavos(10_000_000) }]),
+      conRenglones(fila(), FIJOS, [
+        { nombre: 'Luz y gas', monto: centavos(10_000_000), dia: null },
+      ]),
     );
     cambiarElBorrador(sacar(fila(), INMUEBLES));
     cambiarElBorrador({
       ...fila(),
-      reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(6000) }],
+      reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(6000), hastaLaMeta: false }],
     });
     montar();
 
@@ -207,8 +221,44 @@ describe('la hoja de guardar la fila', () => {
       ].sort(),
     );
     expect(screen.getByText(/: de \$\s?300\.000 a \$\s?350\.000 por mes\./)).toBeInTheDocument();
-    expect(screen.getByText(/entra como paso 4, con \$\s?100\.000 por mes\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/entra como ahorro fijo 5, con \$\s?100\.000 por mes\./),
+    ).toBeInTheDocument();
     expect(screen.getByText(/sale del reparto y vuelve al estante\./)).toBeInTheDocument();
+  });
+
+  it('las obligaciones, los modos, los días y el superávit llevan su renglón', () => {
+    empezarElBorrador('a', 4, GUARDADA);
+    cambiarElBorrador(
+      sumarComoObligacion(fila(), HERRAMIENTAS, {
+        porcentaje: puntosBasicos(350),
+        base: 'cobrado',
+        posicion: 0,
+      }),
+    );
+    cambiarElBorrador(conModo(fila(), FIJOS, 'saldo'));
+    cambiarElBorrador(conDia(fila(), FIJOS, 0, 10));
+    cambiarElBorrador(sacar(fila(), INMUEBLES));
+    cambiarElBorrador(conSuperavit(fila(), INMUEBLES));
+    montar();
+
+    const renglones = within(screen.getByRole('region', { name: /Cambia/ })).getAllByRole(
+      'listitem',
+    );
+    expect(renglones.map((renglon) => renglon.textContent.replace(/\s/g, ' '))).toEqual([
+      'Herramientas entra como obligación 1, con el 3,5% sobre lo que cobrás.',
+      'Gastos fijos cambia los días de pago.',
+      'Gastos fijos ahora se renueva al pagar.',
+      'Inmuebles sale del reparto y vuelve al estante.',
+      'Inmuebles recibe lo que sobra, en lugar de Maun.',
+    ]);
+    expect(iconosDeLosCambios()).toEqual([
+      'lucide-plus',
+      'lucide-calendar',
+      'lucide-refresh-cw',
+      'lucide-minus',
+      'lucide-coins',
+    ]);
   });
 
   it('sacar un paso de la fila y sumar un tesoro al reparto llevan su renglón', () => {
@@ -250,11 +300,11 @@ describe('la hoja de guardar la fila', () => {
     expect(screen.getByText(/Con un cobro de \$\s?3\.000\.000/)).toBeInTheDocument();
   });
 
-  it('avisa sin frenar si un paso queda con tope $ 0', () => {
+  it('avisa sin frenar si un paso queda con monto $ 0', () => {
     empezarElBorrador('a', 4, GUARDADA);
     cambiarElBorrador(sumarAlFinal(fila(), HERRAMIENTAS, null));
     montar();
-    expect(screen.getByText(/queda con tope \$\s?0/)).toBeInTheDocument();
+    expect(screen.getByText(/queda con monto \$\s?0/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar la fila' })).toBeEnabled();
   });
 
@@ -267,6 +317,8 @@ describe('la hoja de guardar la fila', () => {
 
     const [guardado] = encoladas();
     expect(guardado?.ajustesId).toBe('a');
+    expect(guardado?.fila?.obligaciones).toEqual(GUARDADA.obligaciones);
+    expect(guardado?.fila?.superavit).toBe(MAUN);
     expect(guardado?.version).toBe(4);
     expect(guardado?.fila?.pasos.find((paso) => paso.tesoro === MATERIALES)).toMatchObject({
       tope: 35_000_000,

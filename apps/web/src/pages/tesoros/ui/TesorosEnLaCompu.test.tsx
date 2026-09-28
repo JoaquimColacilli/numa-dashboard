@@ -1,6 +1,7 @@
 import { centavos, puntosBasicos, type Fila } from '@maun/domain';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProveedorDeReplica } from '@/entities/replica';
@@ -42,6 +43,7 @@ const MATERIALES = '01900000-0000-7000-8000-000000000006';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 
 const GUARDADA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
     {
       tesoro: HOGAR,
@@ -49,13 +51,17 @@ const GUARDADA: Fila = {
       tope: centavos(180_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(90_000_000),
-      renglones: [{ nombre: 'Alquiler del galpón', monto: centavos(90_000_000) }],
+      renglones: [{ nombre: 'Alquiler del galpón', monto: centavos(90_000_000), dia: null }],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
     {
       tesoro: MATERIALES,
@@ -63,9 +69,12 @@ const GUARDADA: Fila = {
       tope: centavos(30_000_000),
       renglones: [],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000) }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 
@@ -132,12 +141,22 @@ function Pantalla() {
   );
 }
 
-function montar() {
+function Ubicacion() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="ubicacion">{`${pathname}${search}`}</output>;
+}
+
+function montar(entrada = '/tesoros') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <ProveedorDeReplica replica={replicaDelTaller()}>
-        <Pantalla />
+        <MemoryRouter initialEntries={[entrada]}>
+          <Routes>
+            <Route path="/tesoros" element={<Pantalla />} />
+            <Route path="/finanzas/nuevo" element={<Ubicacion />} />
+          </Routes>
+        </MemoryRouter>
       </ProveedorDeReplica>
     </QueryClientProvider>,
   );
@@ -201,7 +220,7 @@ describe('Tesoros en la tablet vertical', () => {
     montar();
     fireEvent.click(screen.getByRole('button', { name: `Elegir paso-${MATERIALES}` }));
     const panel = screen.getByRole('region', { name: 'Materiales' });
-    const ayuda = within(panel).getByRole('button', { name: 'Qué es cada clase de paso' });
+    const ayuda = within(panel).getByRole('button', { name: 'Qué es cada tipo de paso' });
     const globo = document.getElementById(ayuda.getAttribute('popovertarget') ?? '') as HTMLElement;
     fireEvent.click(ayuda);
     expect(globo).toHaveAttribute('data-abierto');
@@ -225,7 +244,29 @@ describe('Tesoros en la tablet vertical', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     const panel = screen.getByRole('region', { name: 'Materiales' });
-    expect(within(panel).getByText('Paso 3 de 3 · Prioridad')).toBeInTheDocument();
+    expect(within(panel).getByText('Ahorro fijo · 4 de 4')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Sacar de la fila' })).toBeInTheDocument();
+  });
+
+  it('con ?tesoro= al entrar, ese tesoro queda elegido y su panel abierto', () => {
+    montar(`/tesoros?tesoro=${FIJOS}`);
+    const panel = screen.getByRole('region', { name: 'Gastos fijos' });
+    expect(within(panel).getByText('Compromiso · 3 de 4')).toBeInTheDocument();
+  });
+
+  it('«Registrar el pago» de un renglón abre el gasto de ese tesoro con el monto y el renglón', () => {
+    montar(`/tesoros?tesoro=${FIJOS}`);
+    const panel = screen.getByRole('region', { name: 'Gastos fijos' });
+    fireEvent.click(
+      within(panel).getByRole('button', { name: 'Registrar el pago de Alquiler del galpón' }),
+    );
+    const ubicacion = new URL(screen.getByTestId('ubicacion').textContent, 'https://numa.test');
+    expect(ubicacion.pathname).toBe('/finanzas/nuevo');
+    expect(Object.fromEntries(ubicacion.searchParams)).toEqual({
+      clase: 'gasto_tesoro',
+      tesoro: FIJOS,
+      monto: '90000000',
+      categoria: 'Alquiler del galpón',
+    });
   });
 });

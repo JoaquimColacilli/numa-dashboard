@@ -3,23 +3,38 @@ import type { KeyboardEvent, ReactNode } from 'react';
 
 import {
   editarLaFila,
-  FICHA_DEL_DIEZMO,
   FICHA_DEL_REPARTO,
+  FICHA_DEL_ORIGEN,
+  moverLaObligacion,
   moverUnLugar,
+  puedeMoverse,
+  puedeMoverseLaObligacion,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
 import { Icono } from '@/shared/ui';
 
-import { armarElPlano, type AristaDelPlano, type NodoDelPlano } from '../model/disposicion';
 import {
+  armarElPlano,
+  SIN_INSUMOS,
+  type AristaDelPlano,
+  type GrupoConFranja,
+  type InsumosEnElPlano,
+  type LugarDelTramo,
+  type NodoDeLaObligacion,
+  type NodoDelPaso,
+  type NodoDelPlano,
+} from '../model/disposicion';
+import {
+  CuerpoDeLaObligacion,
   CuerpoDeLaParte,
-  CuerpoDelDiezmo,
   CuerpoDelEstante,
-  CuerpoDelOrigen,
+  CuerpoDelIngreso,
   CuerpoDelPaso,
   CuerpoDelReparto,
   CuerpoNuevoTesoro,
+  RotuloDelFlujo,
   TituloDelEstante,
+  TituloDelGrupo,
 } from './Fichas';
 
 function Punta() {
@@ -40,8 +55,9 @@ function Conector({
   const datos = arista?.data;
   const probando = datos?.monto !== null && datos?.monto !== undefined;
   const vacia = datos?.vacia === true;
+  const flujo = datos?.flujo ?? null;
   return (
-    <div className="relative flex h-9 flex-col items-center">
+    <div className={`relative flex flex-col items-center ${flujo === null ? 'h-9' : 'h-11'}`}>
       <span
         aria-hidden
         className={`w-0 flex-1 border-l-[1.5px] ${
@@ -49,7 +65,16 @@ function Conector({
         }`}
       />
       <Punta />
-      {probando && datos.etiqueta !== null && alSumar === undefined && (
+      {flujo !== null && (
+        <span
+          className={`absolute top-1/2 -translate-y-1/2 ${
+            alSumar === undefined ? 'left-1/2 ml-3' : 'left-0'
+          }`}
+        >
+          <RotuloDelFlujo flujo={flujo} monto={datos?.monto ?? null} />
+        </span>
+      )}
+      {flujo === null && probando && datos.etiqueta !== null && alSumar === undefined && (
         <span
           aria-hidden
           className={`absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
@@ -68,7 +93,7 @@ function Conector({
           className="absolute top-1/2 left-1/2 flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-pill border border-ink bg-paper px-2.5 text-meta font-medium whitespace-nowrap text-ink before:absolute before:-inset-y-2 before:inset-x-0"
         >
           <Icono nombre="plus" tamano={14} grosor={2} />
-          Sumar un paso
+          Sumar acá
         </button>
       )}
     </div>
@@ -132,13 +157,14 @@ function Tocable({
     <div
       role="button"
       tabIndex={0}
+      data-ficha={nodo.id}
       aria-label={nodo.ariaLabel}
       aria-roledescription={nodo.domAttributes?.['aria-roledescription']}
       onClick={() => {
         alTocar(nodo.id);
       }}
       onKeyDown={alTeclear}
-      className="block w-full cursor-pointer rounded-lamina text-left"
+      className="block w-full scroll-mt-24 cursor-pointer rounded-lamina text-left"
     >
       {children}
     </div>
@@ -149,32 +175,52 @@ export interface PlanoVerticalProps {
   vista: VistaDeLaFila;
   resultado: LiquidacionPorLaFila | null;
   elegido: string | null;
+  insumos?: InsumosEnElPlano;
   alTocar: (id: string) => void;
-  alSumar: (despuesDe: string | null, boton: HTMLElement) => void;
+  alSumar: (tramo: LugarDelTramo, boton: HTMLElement) => void;
   alNuevo: () => void;
+}
+
+type FichaDeLaCadena = NodoDeLaObligacion | NodoDelPaso;
+
+function grupoDe(nodo: FichaDeLaCadena): GrupoConFranja {
+  if (nodo.type === 'obligacion') return 'obligaciones';
+  return nodo.data.tipo === 'compromiso' ? 'compromisos' : 'ahorros';
 }
 
 export function PlanoVertical({
   vista,
   resultado,
   elegido,
+  insumos = SIN_INSUMOS,
   alTocar,
   alSumar,
   alNuevo,
 }: PlanoVerticalProps) {
-  const { nodos, aristas } = armarElPlano({ vista, prueba: resultado, elegido });
+  const { nodos, aristas } = armarElPlano({ vista, prueba: resultado, elegido, insumos });
   const armando = vista.armando;
   const hacia = (id: string) => aristas.find((arista) => arista.target === id);
   const de = <T extends NodoDelPlano['type']>(tipo: T) =>
     nodos.filter((nodo): nodo is Extract<NodoDelPlano, { type: T }> => nodo.type === tipo);
-  const origen = de('origen')[0];
-  const diezmo = de('diezmo')[0];
+  const ingreso = de('ingreso')[0];
   const reparto = de('reparto')[0];
   const titulo = de('titulo')[0];
-  const pasos = de('paso');
+  const cadena: FichaDeLaCadena[] = nodos.filter(
+    (nodo): nodo is FichaDeLaCadena => nodo.type === 'obligacion' || nodo.type === 'paso',
+  );
   const partes = de('parte');
   const estante = de('estante');
   const hayResultado = resultado !== null;
+  const conSumar = (arista: AristaDelPlano | undefined) => {
+    const lugar = arista?.data?.lugar ?? null;
+    return armando && lugar !== null
+      ? (boton: HTMLElement) => {
+          alSumar(lugar, boton);
+        }
+      : undefined;
+  };
+  const hayAhorrosSueltos =
+    vista.fila.reparto.length > 0 && !cadena.some((nodo) => grupoDe(nodo) === 'ahorros');
 
   return (
     <div className="flex flex-col gap-4">
@@ -182,67 +228,67 @@ export function PlanoVertical({
         aria-label="La fila"
         className="cuadricula rounded-panel border border-hairline px-4 pt-5 pb-5"
       >
-        {origen !== undefined && (
-          <div className="h-14">
-            <CuerpoDelOrigen data={origen.data} />
+        {ingreso !== undefined && (
+          <div className="h-[72px]">
+            <CuerpoDelIngreso data={ingreso.data} />
           </div>
         )}
-        <Conector arista={hacia(FICHA_DEL_DIEZMO)} />
-        {diezmo !== undefined && (
-          <Tocable nodo={diezmo} alTocar={alTocar}>
-            <CuerpoDelDiezmo data={diezmo.data} elegida={false} />
-          </Tocable>
-        )}
-        {pasos.map((paso, indice) => {
-          const tesoro = paso.data.paso.tesoro;
-          const anterior = indice === 0 ? null : (pasos[indice - 1]?.data.paso.tesoro ?? null);
+        {cadena.map((nodo, indice) => {
+          const anterior = cadena[indice - 1];
+          const grupo = grupoDe(nodo);
+          const empiezaElGrupo = anterior === undefined || grupoDe(anterior) !== grupo;
+          const arista = aristas.find(
+            (candidata) =>
+              candidata.target === nodo.id &&
+              candidata.source === (anterior?.id ?? FICHA_DEL_ORIGEN),
+          );
+          const tesoro =
+            nodo.type === 'obligacion' ? nodo.data.obligacion.tesoro : nodo.data.paso.tesoro;
+          const esObligacion = nodo.type === 'obligacion';
+          const puede = esObligacion ? puedeMoverseLaObligacion : puedeMoverse;
+          const mover = esObligacion ? moverLaObligacion : moverUnLugar;
           return (
-            <div key={paso.id}>
-              <Conector
-                arista={hacia(paso.id)}
-                alSumar={
-                  armando
-                    ? (boton) => {
-                        alSumar(anterior, boton);
-                      }
-                    : undefined
-                }
-              />
-              <Tocable nodo={paso} alTocar={alTocar}>
-                <CuerpoDelPaso data={paso.data} elegida={false} enLienzo={false} />
+            <div key={nodo.id}>
+              <Conector arista={arista} alSumar={conSumar(arista)} />
+              {empiezaElGrupo && <TituloDelGrupo grupo={grupo} />}
+              <Tocable nodo={nodo} alTocar={alTocar}>
+                {nodo.type === 'obligacion' ? (
+                  <CuerpoDeLaObligacion
+                    data={nodo.data}
+                    elegida={elegido === nodo.id}
+                    enLienzo={false}
+                  />
+                ) : (
+                  <CuerpoDelPaso data={nodo.data} elegida={elegido === nodo.id} enLienzo={false} />
+                )}
               </Tocable>
               {armando && (
                 <Controles
-                  nombre={paso.data.tesoro.nombre}
-                  arriba={indice > 0}
-                  abajo={indice < pasos.length - 1}
+                  nombre={nodo.data.tesoro.nombre}
+                  arriba={puede(vista.fila, tesoro, -1)}
+                  abajo={puede(vista.fila, tesoro, 1)}
                   alSubir={() => {
-                    editarLaFila(vista, (fila) => moverUnLugar(fila, tesoro, -1));
+                    editarLaFila(vista, (fila) => mover(fila, tesoro, -1));
                   }}
                   alBajar={() => {
-                    editarLaFila(vista, (fila) => moverUnLugar(fila, tesoro, 1));
+                    editarLaFila(vista, (fila) => mover(fila, tesoro, 1));
                   }}
                   alEditar={() => {
-                    alTocar(paso.id);
+                    alTocar(nodo.id);
                   }}
                 />
               )}
             </div>
           );
         })}
-        <Conector
-          arista={aristas.find((arista) => arista.target === FICHA_DEL_REPARTO)}
-          alSumar={
-            armando
-              ? (boton) => {
-                  alSumar(pasos.at(-1)?.data.paso.tesoro ?? null, boton);
-                }
-              : undefined
-          }
-        />
+        {(() => {
+          const arista = hacia(FICHA_DEL_REPARTO);
+          return <Conector arista={arista} alSumar={conSumar(arista)} />;
+        })()}
+        {hayAhorrosSueltos && <TituloDelGrupo grupo="ahorros" />}
         {reparto !== undefined && (
           <Tocable nodo={reparto} alTocar={alTocar}>
-            <CuerpoDelReparto data={reparto.data} elegida={false} />
+            <CuerpoDelReparto data={reparto.data} elegida={elegido === reparto.id} />
           </Tocable>
         )}
         <ul className="relative ml-4 flex flex-col gap-3 pt-3">
@@ -273,7 +319,7 @@ export function PlanoVertical({
                   </svg>
                 </span>
                 <Tocable nodo={parte} alTocar={alTocar}>
-                  <CuerpoDeLaParte data={parte.data} elegida={false} />
+                  <CuerpoDeLaParte data={parte.data} elegida={elegido === parte.id} />
                 </Tocable>
               </li>
             );
@@ -289,7 +335,11 @@ export function PlanoVertical({
         )}
         {estante.map((suelto) => (
           <Tocable key={suelto.id} nodo={suelto} alTocar={alTocar}>
-            <CuerpoDelEstante data={suelto.data} elegida={false} conFlechas={false} />
+            <CuerpoDelEstante
+              data={suelto.data}
+              elegida={elegido === suelto.id}
+              conFlechas={false}
+            />
           </Tocable>
         ))}
         <div className="h-14">

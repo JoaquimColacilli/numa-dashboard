@@ -1,104 +1,181 @@
 import {
+  CERO,
   lugarLibreDelReparto,
+  moverObligacion,
   moverPaso,
+  tipoDelPaso,
+  TOPE_DE_OBLIGACIONES,
   TOPE_DE_PARTES,
   TOPE_DE_PASOS,
   type Fila,
+  type TipoDelPaso,
 } from '@maun/domain';
 
+import {
+  NOMBRE_DEL_TIPO,
+  puedeIrAlReparto,
+  puedeSerAhorroFijo,
+  puedeSerCompromiso,
+  puedeSerObligacion,
+  TITULO_DEL_LUGAR,
+  type LugarEnLaFila,
+} from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import {
-  entraOtroPaso,
   FICHA_DEL_DIEZMO,
   FICHA_DEL_REPARTO,
   FICHA_NUEVA,
+  fichaDeLaObligacion,
   fichaDeLaParte,
   fichaDelPaso,
-  puedeIrAlReparto,
+  numeroEnLaFila,
   queFichaEs,
   sumarAlReparto,
-  sumarComoPaso,
+  sumarComoObligacion,
+  sumarComoTipo,
+  tesoroDe,
+  type VistaDeLaFila,
 } from '@/features/armar-la-fila';
 
-export type LugarDelNuevo = 'paso' | 'reparto';
+import type { LugarDelTramo } from './disposicion';
+
+export function despuesDePara(
+  lugar: LugarEnLaFila,
+  tramo: LugarDelTramo,
+): string | null | undefined {
+  switch (lugar) {
+    case 'obligacion':
+      return tramo.fuente === 'obligacion' ? tramo.despuesDe : null;
+    case 'compromiso':
+      return tramo.fuente === 'compromiso' ? tramo.despuesDe : null;
+    case 'ahorro-fijo':
+      return tramo.fuente === 'compromiso' || tramo.fuente === 'ahorro-fijo'
+        ? tramo.despuesDe
+        : null;
+    case 'reparto':
+    case 'superavit':
+      return undefined;
+  }
+}
+
+export function encabezadoDelMenu(
+  vista: Pick<VistaDeLaFila, 'tesoros'>,
+  lugar: LugarEnLaFila,
+  tramo: LugarDelTramo,
+): string {
+  const despuesDe = despuesDePara(lugar, tramo);
+  const titulo = TITULO_DEL_LUGAR[lugar];
+  if (despuesDe === undefined) return titulo;
+  if (despuesDe === null) return `${titulo}, al principio`;
+  return `${titulo}, después de ${tesoroDe(vista, despuesDe).nombre}`;
+}
+
+export type LugarDeLaUnion = 'obligacion' | TipoDelPaso | 'reparto';
 
 export type Union =
-  | { tipo: 'nuevo'; despuesDe: string | null; lugar: LugarDelNuevo }
-  | { tipo: 'reparto'; tesoro: string }
-  | { tipo: 'paso'; tesoro: string; despuesDe: string | null }
-  | { tipo: 'mover'; tesoro: string; despuesDe: string | null };
+  | { tipo: 'nuevo'; lugar: LugarDeLaUnion; despuesDe: string | null }
+  | { tipo: 'sumar'; lugar: LugarDeLaUnion; tesoro: string; despuesDe: string | null }
+  | { tipo: 'mover'; lugar: 'obligacion' | TipoDelPaso; tesoro: string; despuesDe: string };
 
-function despuesDeLaFicha(origen: string): string | null | undefined {
-  if (origen === FICHA_DEL_DIEZMO) return null;
-  const ficha = queFichaEs(origen);
-  return ficha?.tipo === 'paso' ? ficha.tesoro : undefined;
+type TesoroDeLaUnion = Pick<TesoroDelTaller, 'id' | 'clave' | 'meta'>;
+
+interface Origen {
+  lugar: LugarDeLaUnion;
+  despuesDe: string | null;
+}
+
+function lugarDeLaFicha(fila: Fila, diezmo: string, id: string): Origen | null {
+  if (id === FICHA_DEL_REPARTO) return { lugar: 'reparto', despuesDe: null };
+  if (id === FICHA_DEL_DIEZMO) return { lugar: 'obligacion', despuesDe: diezmo };
+  const ficha = queFichaEs(id);
+  if (ficha?.tipo === 'obligacion') return { lugar: 'obligacion', despuesDe: ficha.tesoro };
+  if (ficha?.tipo === 'paso') {
+    const paso = fila.pasos.find((candidato) => candidato.tesoro === ficha.tesoro);
+    return paso === undefined ? null : { lugar: tipoDelPaso(paso.clase), despuesDe: ficha.tesoro };
+  }
+  return null;
+}
+
+function hayLugar(fila: Fila, lugar: LugarDeLaUnion): boolean {
+  if (lugar === 'obligacion') return fila.obligaciones.length < TOPE_DE_OBLIGACIONES;
+  if (lugar === 'reparto') {
+    return fila.reparto.length < TOPE_DE_PARTES && lugarLibreDelReparto(fila) > 0;
+  }
+  return fila.pasos.length < TOPE_DE_PASOS;
+}
+
+function puedeIr(
+  fila: Fila,
+  lugar: LugarDeLaUnion,
+  tesoro: string,
+  clave: TesoroDelTaller['clave'],
+): boolean {
+  switch (lugar) {
+    case 'obligacion':
+      return puedeSerObligacion(fila, tesoro, clave);
+    case 'compromiso':
+      return puedeSerCompromiso(fila, tesoro, clave);
+    case 'ahorro-fijo':
+      return puedeSerAhorroFijo(fila, tesoro, clave);
+    case 'reparto':
+      return puedeIrAlReparto(fila, tesoro, clave);
+  }
 }
 
 export function unionDe(
   fila: Fila,
-  tesoros: readonly Pick<TesoroDelTaller, 'id' | 'clave'>[],
+  tesoros: readonly TesoroDeLaUnion[],
+  diezmo: string,
   origen: string,
   destino: string,
 ): Union | null {
   if (origen === destino) return null;
-  const desdeElReparto = origen === FICHA_DEL_REPARTO;
-  const despuesDe = despuesDeLaFicha(origen);
-  if (!desdeElReparto && despuesDe === undefined) return null;
-  const hayLugarEnElReparto =
-    fila.reparto.length < TOPE_DE_PARTES && lugarLibreDelReparto(fila) > 0;
+  const desde = lugarDeLaFicha(fila, diezmo, origen);
+  if (desde === null) return null;
 
   if (destino === FICHA_NUEVA) {
-    if (desdeElReparto) {
-      return hayLugarEnElReparto ? { tipo: 'nuevo', despuesDe: null, lugar: 'reparto' } : null;
-    }
-    return fila.pasos.length < TOPE_DE_PASOS
-      ? { tipo: 'nuevo', despuesDe: despuesDe ?? null, lugar: 'paso' }
+    return hayLugar(fila, desde.lugar)
+      ? { tipo: 'nuevo', lugar: desde.lugar, despuesDe: desde.despuesDe }
       : null;
   }
 
   const ficha = queFichaEs(destino);
-  if (ficha === null || ficha.tesoro === null) return null;
-  const tesoro = ficha.tesoro;
-
-  if (ficha.tipo === 'estante') {
-    const clave = tesoros.find((candidato) => candidato.id === tesoro)?.clave ?? null;
-    if (desdeElReparto) {
-      return puedeIrAlReparto(fila, tesoro, clave) ? { tipo: 'reparto', tesoro } : null;
-    }
-    if (clave === 'diezmo' || !entraOtroPaso(fila, tesoro)) return null;
-    return { tipo: 'paso', tesoro, despuesDe: despuesDe ?? null };
+  if (ficha?.tipo === 'estante') {
+    const clave = tesoros.find((candidato) => candidato.id === ficha.tesoro)?.clave ?? null;
+    return puedeIr(fila, desde.lugar, ficha.tesoro, clave)
+      ? { tipo: 'sumar', lugar: desde.lugar, tesoro: ficha.tesoro, despuesDe: desde.despuesDe }
+      : null;
   }
 
-  if (ficha.tipo === 'paso' && !desdeElReparto) {
-    if (despuesDe === tesoro) return null;
-    return { tipo: 'mover', tesoro, despuesDe: despuesDe ?? null };
+  const hasta = lugarDeLaFicha(fila, diezmo, destino);
+  if (
+    hasta === null ||
+    hasta.lugar === 'reparto' ||
+    desde.lugar !== hasta.lugar ||
+    desde.despuesDe === null ||
+    hasta.despuesDe === null
+  ) {
+    return null;
   }
-  return null;
+  const lugar = hasta.lugar;
+  const tesoro = hasta.despuesDe;
+  const despuesDe = desde.despuesDe;
+  if (lugar === 'obligacion') {
+    const sin = fila.obligaciones.filter((obligacion) => obligacion.tesoro !== tesoro);
+    const actual = fila.obligaciones.findIndex((obligacion) => obligacion.tesoro === tesoro);
+    return sin.findIndex((obligacion) => obligacion.tesoro === despuesDe) + 1 === actual
+      ? null
+      : { tipo: 'mover', lugar, tesoro, despuesDe };
+  }
+  return lugarAlSoltar(fila, tesoro, despuesDe) ===
+    fila.pasos.findIndex((paso) => paso.tesoro === tesoro)
+    ? null
+    : { tipo: 'mover', lugar, tesoro, despuesDe };
 }
 
 export function lugarAlSoltar(fila: Fila, tesoro: string, despuesDe: string | null): number {
   const sin = fila.pasos.filter((paso) => paso.tesoro !== tesoro);
   return despuesDe === null ? 0 : sin.findIndex((paso) => paso.tesoro === despuesDe) + 1;
-}
-
-export function fraseDeLaUnion(
-  fila: Fila,
-  nombreDe: (tesoro: string) => string,
-  union: Union | null,
-  hayDestino: boolean,
-): string {
-  if (!hayDestino) return 'Llevala hasta un tesoro';
-  if (union === null) return 'Ahí no se puede unir';
-  switch (union.tipo) {
-    case 'nuevo':
-      return 'Soltá para crear un tesoro acá';
-    case 'reparto':
-      return `Soltá: ${nombreDe(union.tesoro)} entra al reparto`;
-    case 'paso':
-      return `Soltá: ${nombreDe(union.tesoro)} entra como paso ${String(lugarAlSoltar(fila, union.tesoro, union.despuesDe) + 1)}`;
-    case 'mover':
-      return `Soltá: ${nombreDe(union.tesoro)} pasa a ser el paso ${String(lugarAlSoltar(fila, union.tesoro, union.despuesDe) + 1)}`;
-  }
 }
 
 export interface UnionAplicada {
@@ -108,25 +185,96 @@ export interface UnionAplicada {
 
 export function aplicarLaUnion(
   fila: Fila,
-  tesoros: readonly Pick<TesoroDelTaller, 'id' | 'clave'>[],
+  tesoros: readonly TesoroDeLaUnion[],
+  diezmo: string,
   union: Exclude<Union, { tipo: 'nuevo' }>,
 ): UnionAplicada {
-  const clave = tesoros.find((candidato) => candidato.id === union.tesoro)?.clave ?? null;
-  switch (union.tipo) {
-    case 'reparto':
-      return { fila: sumarAlReparto(fila, union.tesoro), elegir: fichaDeLaParte(union.tesoro) };
-    case 'paso':
+  const datos = tesoros.find((candidato) => candidato.id === union.tesoro);
+  const clave = datos?.clave ?? null;
+  const meta = datos?.meta ?? null;
+  const fichaDeLaObligacionDe = (tesoro: string) =>
+    tesoro === diezmo ? FICHA_DEL_DIEZMO : fichaDeLaObligacion(tesoro);
+  if (union.tipo === 'mover') {
+    if (union.lugar === 'obligacion') {
+      const sin = fila.obligaciones.filter((obligacion) => obligacion.tesoro !== union.tesoro);
+      const posicion = sin.findIndex((obligacion) => obligacion.tesoro === union.despuesDe) + 1;
       return {
-        fila: sumarComoPaso(fila, union.tesoro, clave, union.despuesDe),
-        elegir: fichaDelPaso(union.tesoro),
+        fila: moverObligacion(fila, union.tesoro, posicion),
+        elegir: fichaDeLaObligacionDe(union.tesoro),
       };
-    case 'mover':
+    }
+    return {
+      fila: moverPaso(fila, union.tesoro, lugarAlSoltar(fila, union.tesoro, union.despuesDe)),
+      elegir: fichaDelPaso(union.tesoro),
+    };
+  }
+  switch (union.lugar) {
+    case 'obligacion': {
+      const posicion =
+        union.despuesDe === null
+          ? 0
+          : fila.obligaciones.findIndex((obligacion) => obligacion.tesoro === union.despuesDe) + 1;
       return {
-        fila: moverPaso(fila, union.tesoro, lugarAlSoltar(fila, union.tesoro, union.despuesDe)),
+        fila: sumarComoObligacion(fila, union.tesoro, { posicion }),
+        elegir: fichaDeLaObligacionDe(union.tesoro),
+      };
+    }
+    case 'reparto':
+      return {
+        fila: sumarAlReparto(fila, union.tesoro, undefined, meta),
+        elegir: fichaDeLaParte(union.tesoro),
+      };
+    case 'compromiso':
+    case 'ahorro-fijo':
+      return {
+        fila: sumarComoTipo(fila, union.lugar, union.tesoro, clave, CERO, {
+          despuesDe: union.despuesDe,
+          meta,
+        }),
         elegir: fichaDelPaso(union.tesoro),
       };
   }
 }
+
+const CON_ARTICULO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
+  obligacion: 'la obligación',
+  compromiso: 'el compromiso',
+  'ahorro-fijo': 'el ahorro fijo',
+};
+
+export function fraseDeLaUnion(
+  fila: Fila,
+  tesoros: readonly TesoroDeLaUnion[],
+  diezmo: string,
+  nombreDe: (tesoro: string) => string,
+  union: Union | null,
+  hayDestino: boolean,
+): string {
+  if (!hayDestino) return 'Llevala hasta un tesoro';
+  if (union === null) return 'Ahí no se puede unir';
+  if (union.tipo === 'nuevo') return 'Soltá para crear un tesoro acá';
+  const nombre = nombreDe(union.tesoro);
+  if (union.lugar === 'reparto') return `Soltá: ${nombre} entra al reparto`;
+  const despues = aplicarLaUnion(fila, tesoros, diezmo, union).fila;
+  const numero = String(numeroEnLaFila(despues, union.tesoro));
+  if (union.tipo === 'mover')
+    return `Soltá: ${nombre} pasa a ser ${CON_ARTICULO[union.lugar]} ${numero}`;
+  const tipo =
+    union.lugar === 'obligacion' ? 'obligación' : NOMBRE_DEL_TIPO[union.lugar].toLowerCase();
+  return `Soltá: ${nombre} entra como ${tipo} ${numero}`;
+}
+
+const PRIMERO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
+  obligacion: 'la primera obligación',
+  compromiso: 'el primer compromiso',
+  'ahorro-fijo': 'el primer ahorro fijo',
+};
+
+const ULTIMO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
+  obligacion: 'la última obligación',
+  compromiso: 'el último compromiso',
+  'ahorro-fijo': 'el último ahorro fijo',
+};
 
 export function anuncioDelMovimiento(
   fila: Fila,
@@ -134,10 +282,26 @@ export function anuncioDelMovimiento(
   nombre: string,
   hacia: -1 | 1,
 ): string {
-  const lugar = fila.pasos.findIndex((paso) => paso.tesoro === tesoro);
-  if (lugar === -1) return 'Solo los pasos de la fila cambian de lugar.';
+  const lugarDeLaObligacion = fila.obligaciones.findIndex(
+    (obligacion) => obligacion.tesoro === tesoro,
+  );
+  const lugarDelPaso = fila.pasos.findIndex((paso) => paso.tesoro === tesoro);
+  const paso = fila.pasos[lugarDelPaso];
+  if (lugarDeLaObligacion === -1 && paso === undefined) {
+    return 'Solo las obligaciones y los pasos de la fila cambian de lugar.';
+  }
+  const grupo = paso === undefined ? 'obligacion' : tipoDelPaso(paso.clase);
+  const delGrupo =
+    paso === undefined
+      ? fila.obligaciones.map((obligacion) => obligacion.tesoro)
+      : fila.pasos
+          .filter((candidato) => tipoDelPaso(candidato.clase) === grupo)
+          .map((candidato) => candidato.tesoro);
+  const lugar = delGrupo.indexOf(tesoro);
   const destino = lugar + hacia;
-  if (destino < 0) return `${nombre} ya es el primer paso.`;
-  if (destino >= fila.pasos.length) return `${nombre} ya es el último paso.`;
-  return `${nombre} pasa a ser el paso ${String(destino + 1)} de ${String(fila.pasos.length)}.`;
+  if (destino < 0) return `${nombre} ya es ${PRIMERO[grupo]}.`;
+  if (destino >= delGrupo.length) return `${nombre} ya es ${ULTIMO[grupo]}.`;
+  const cuantos = fila.obligaciones.length + fila.pasos.length;
+  const numero = numeroEnLaFila(fila, tesoro) + hacia;
+  return `${nombre} pasa a ser ${CON_ARTICULO[grupo]} ${String(numero)} de ${String(cuantos)}.`;
 }

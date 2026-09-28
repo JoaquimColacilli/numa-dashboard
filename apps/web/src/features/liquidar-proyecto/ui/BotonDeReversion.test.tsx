@@ -91,6 +91,8 @@ function reparto(
     nombre,
     tipo,
     clase: tipo === 'paso' ? 'prioridad' : null,
+    modo: tipo === 'paso' ? 'mes' : null,
+    base: null,
     objetivo_centavos: tipo === 'paso' ? monto : null,
     previo_centavos: tipo === 'paso' ? 0 : null,
     tope_centavos: tipo === 'paso' ? monto : null,

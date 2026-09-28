@@ -1,22 +1,32 @@
-import { conDesde, type Fila, type PasoDelMes } from '@maun/domain';
+import { centavos, conDesde, type Fila, type Money, type PasoDelMes } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
 
+import { rutaParaRegistrarElPago, type PagoParaRegistrar } from '@/entities/movimiento';
+import { insumosDeLosTrabajos } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
   editarLaFila,
   empezarAEditar,
   empezarElBorrador,
+  FICHA_DEL_RESTO,
+  fichaDeLaObligacion,
   fichaDeLaParte,
   fichaDelEstante,
   fichaDelPaso,
+  fichaDelTesoro,
   fichaVigente,
+  lugarDelDiezmo,
   loQueEstabaGuardado,
   MUTACION_DE_LA_FILA,
   probarLaFila,
   SIN_PRUEBA,
   sumarAlReparto,
-  sumarComoPaso,
+  sumarComoAhorroFijo,
+  sumarComoCompromiso,
+  sumarComoObligacion,
+  conSuperavit,
   useBorradorDeLaFila,
   vistaDeLaFila,
   type GuardadoDeLaFila,
@@ -26,37 +36,89 @@ import {
 import { MUTACION_DE_AJUSTES } from '@/features/configurar-taller';
 import type { DondeVa, EdicionDeLoDeCocos, LugarDelTesoro } from '@/features/editar-tesoro';
 import { ajustesDe, type Replica, type TesoroNuevo } from '@/shared/api';
-import { hoyEnElTaller, metaDeAvisos, useAlgoEnCurso } from '@/shared/lib';
+import {
+  conFondo,
+  hoyEnElTaller,
+  metaDeAvisos,
+  PARAMETRO_DE_TESORO,
+  useAlgoEnCurso,
+  useIr,
+} from '@/shared/lib';
 
+import type { InsumosEnElPlano } from './disposicion';
 import { anotarQueSeEntendio, yaSeEntendio } from './rotulo';
 
 export type HojaDeTesoros =
-  | { tipo: 'nuevo'; lugar: LugarDelTesoro; despuesDe: string | null | undefined }
+  | { tipo: 'nuevo'; lugar: LugarDelTesoro; despuesDe?: string | null }
   | { tipo: 'editar'; tesoro: string }
   | { tipo: 'cubrir'; paso: PasoDelMes }
   | { tipo: 'guardar' }
   | { tipo: 'ficha'; id: string };
 
+export interface ElNuevo {
+  id: string;
+  nombre: string;
+  meta: Money | null;
+}
+
+function posicionDeLaObligacion(
+  fila: Fila,
+  diezmo: string,
+  antesDelDiezmo: boolean,
+  despuesDe: string | null | undefined,
+): number {
+  if (antesDelDiezmo) {
+    const lugar = lugarDelDiezmo(fila, diezmo);
+    return lugar === -1 ? 0 : lugar;
+  }
+  if (despuesDe === undefined) return fila.obligaciones.length;
+  if (despuesDe === null) return 0;
+  return fila.obligaciones.findIndex((obligacion) => obligacion.tesoro === despuesDe) + 1;
+}
+
 export function ubicarElNuevo(
   fila: Fila,
-  tesoro: string,
+  nuevo: ElNuevo,
   dondeVa: DondeVa,
   despuesDe: string | null | undefined,
+  diezmo: string,
 ): { fila: Fila; elegir: string } {
-  if (dondeVa.lugar === 'paso') {
-    const antes = despuesDe === undefined ? (fila.pasos.at(-1)?.tesoro ?? null) : despuesDe;
-    return {
-      fila: sumarComoPaso(fila, tesoro, null, antes, dondeVa.tope),
-      elegir: fichaDelPaso(tesoro),
-    };
+  switch (dondeVa.lugar) {
+    case 'estante':
+      return { fila, elegir: fichaDelEstante(nuevo.id) };
+    case 'obligacion':
+      return {
+        fila: sumarComoObligacion(fila, nuevo.id, {
+          porcentaje: dondeVa.porcentaje,
+          base: dondeVa.base,
+          posicion: posicionDeLaObligacion(fila, diezmo, dondeVa.antesDelDiezmo, despuesDe),
+        }),
+        elegir: fichaDeLaObligacion(nuevo.id),
+      };
+    case 'compromiso':
+      return {
+        fila: sumarComoCompromiso(fila, nuevo.id, null, dondeVa.monto, {
+          ...(despuesDe === undefined ? {} : { despuesDe }),
+          renglon: nuevo.nombre,
+        }),
+        elegir: fichaDelPaso(nuevo.id),
+      };
+    case 'ahorro-fijo':
+      return {
+        fila: sumarComoAhorroFijo(fila, nuevo.id, null, dondeVa.monto, {
+          ...(despuesDe === undefined ? {} : { despuesDe }),
+          meta: nuevo.meta,
+        }),
+        elegir: fichaDelPaso(nuevo.id),
+      };
+    case 'reparto':
+      return {
+        fila: sumarAlReparto(fila, nuevo.id, dondeVa.porcentaje, nuevo.meta),
+        elegir: fichaDeLaParte(nuevo.id),
+      };
+    case 'superavit':
+      return { fila: conSuperavit(fila, nuevo.id), elegir: FICHA_DEL_RESTO };
   }
-  if (dondeVa.lugar === 'reparto') {
-    return {
-      fila: sumarAlReparto(fila, tesoro, dondeVa.porcentaje),
-      elegir: fichaDeLaParte(tesoro),
-    };
-  }
-  return { fila, elegir: fichaDelEstante(tesoro) };
 }
 
 function guardarDeUna(
@@ -91,13 +153,30 @@ export function useTabletAncha(): boolean {
   return useSyncExternalStore(suscribirAlAncho, esAncha, esAncha);
 }
 
+export function fichaDelParametro(
+  vista: Pick<VistaDeLaFila, 'fila' | 'estante' | 'sistema' | 'tesoros'>,
+  valor: string | null,
+): string | null {
+  if (valor === null || valor === '') return null;
+  const tesoro =
+    vista.tesoros.find((uno) => uno.id === valor) ??
+    vista.tesoros.find((uno) => uno.clave !== null && uno.clave === valor);
+  return tesoro === undefined ? null : fichaDelTesoro(vista, tesoro.id);
+}
+
 export function usePantallaDeTesoros() {
   const replica = useReplicaDelTaller();
   const hoy = hoyEnElTaller();
   const ajustesId = ajustesDe(replica)?.id ?? null;
   const borrador = useBorradorDeLaFila(ajustesId);
   const vista = useMemo(() => vistaDeLaFila(replica, borrador, hoy), [replica, borrador, hoy]);
-  const [pedido, setElegido] = useState<string | null>(null);
+  const [parametros] = useSearchParams();
+  const location = useLocation();
+  const ir = useIr();
+  const [desdeElEnlace] = useState(() =>
+    fichaDelParametro(vista, parametros.get(PARAMETRO_DE_TESORO)),
+  );
+  const [pedido, setElegido] = useState<string | null>(desdeElEnlace);
   const elegido = useMemo(() => fichaVigente(vista, pedido), [vista, pedido]);
   const [prueba, setPrueba] = useState<PruebaEnPantalla>(SIN_PRUEBA);
   const [hoja, setHoja] = useState<HojaDeTesoros | null>(null);
@@ -105,6 +184,11 @@ export function usePantallaDeTesoros() {
   const resultado = useMemo(
     () => probarLaFila(replica, vista.fila, prueba, hoy),
     [replica, vista.fila, prueba, hoy],
+  );
+  const insumos = useMemo(() => insumosDeLosTrabajos(replica), [replica]);
+  const insumosEnElPlano = useMemo<InsumosEnElPlano>(
+    () => ({ total: insumos.total, trabajos: insumos.trabajos.length }),
+    [insumos],
   );
 
   useAlgoEnCurso(vista.armando && vista.cuantos > 0);
@@ -136,19 +220,33 @@ export function usePantallaDeTesoros() {
     setEntendido(true);
   }, []);
 
+  const registrarElPago = useCallback(
+    (pago: PagoParaRegistrar) => {
+      ir(rutaParaRegistrarElPago(pago), { state: conFondo(location) });
+    },
+    [ir, location],
+  );
+
   const alCrear = useCallback(
     (tesoro: TesoroNuevo, dondeVa: DondeVa, despuesDe: string | null | undefined) => {
-      const ubicado = ubicarElNuevo(vista.fila, tesoro.id, dondeVa, despuesDe);
+      const nuevo: ElNuevo = {
+        id: tesoro.id,
+        nombre: tesoro.nombre,
+        meta: tesoro.meta_centavos === null ? null : centavos(tesoro.meta_centavos),
+      };
+      const diezmo = vista.sistema.diezmo;
+      const ubicado = ubicarElNuevo(vista.fila, nuevo, dondeVa, despuesDe, diezmo);
       setElegido(ubicado.elegir);
       if (dondeVa.lugar === 'estante') return;
+      const ubicar = (fila: Fila) => ubicarElNuevo(fila, nuevo, dondeVa, despuesDe, diezmo).fila;
       if (vista.armando) {
-        editarLaFila(vista, (fila) => ubicarElNuevo(fila, tesoro.id, dondeVa, despuesDe).fila);
+        editarLaFila(vista, ubicar);
         return;
       }
       if (vista.delTaller.fila.sueldoPorTrabajo) {
         if (vista.ajustesId === null) return;
         empezarElBorrador(vista.ajustesId, vista.delTaller.version, vista.delTaller.fila);
-        editarLaFila(vista, (fila) => ubicarElNuevo(fila, tesoro.id, dondeVa, despuesDe).fila);
+        editarLaFila(vista, ubicar);
         return;
       }
       guardarDeUna(replica, vista, ubicado.fila, (variables) => {
@@ -170,9 +268,12 @@ export function usePantallaDeTesoros() {
     vista,
     elegido,
     elegir,
+    desdeElEnlace,
     prueba,
     probar: setPrueba,
     resultado,
+    insumos,
+    insumosEnElPlano,
     hoja,
     abrir,
     cerrar,
@@ -181,6 +282,7 @@ export function usePantallaDeTesoros() {
     entender,
     alCrear,
     alGuardarLoDeCocos,
+    registrarElPago,
   };
 }
 

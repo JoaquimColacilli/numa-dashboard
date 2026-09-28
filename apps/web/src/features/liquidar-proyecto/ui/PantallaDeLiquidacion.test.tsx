@@ -1,4 +1,4 @@
-import { centavos, type Fila } from '@maun/domain';
+import { centavos, puntosBasicos, type Fila } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -36,17 +36,29 @@ const METADATOS = {
 } as const;
 
 const FILA: Fila = {
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
   pasos: [
-    { tesoro: HOGAR, clase: 'sueldo', tope: centavos(300_000), renglones: [], desde: null },
+    {
+      tesoro: HOGAR,
+      clase: 'sueldo',
+      tope: centavos(300_000),
+      renglones: [],
+      desde: null,
+      modo: 'mes',
+      hastaLaMeta: false,
+    },
     {
       tesoro: FIJOS,
       clase: 'fijos',
       tope: centavos(200_000),
-      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000) }],
+      renglones: [{ nombre: 'Alquiler', monto: centavos(200_000), dia: null }],
       desde: '2026-09',
+      modo: 'mes',
+      hastaLaMeta: false,
     },
   ],
-  reparto: [{ tesoro: COCOS, porcentaje: 5000 as never }],
+  reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
+  superavit: MAUN,
   sueldoPorTrabajo: false,
 };
 
@@ -186,23 +198,29 @@ describe('cobrar por la fila', () => {
   it('muestra una línea por paso y por parte con su tesoro, y lo que recibe cada uno', () => {
     montar(taller());
 
-    const despiece = screen.getByRole('region', { name: 'Distribución de la ganancia' });
+    const despiece = screen.getByRole('region', { name: 'Distribución del ingreso' });
     const renglones = within(despiece).getAllByRole('listitem');
     expect(renglones.map((renglon) => renglon.firstElementChild?.nextSibling?.textContent)).toEqual(
       [
-        'Diezmo 10%',
+        'Diezmo 10% sobre el ingreso',
         'Sueldoa HOGAR',
         'Gastos fijos',
         '50% de lo que sobraa COCOS',
         'El restoa MAUN',
       ],
     );
+    expect(
+      within(despiece)
+        .getAllByRole('group')
+        .map((grupo) => grupo.getAttribute('aria-label')),
+    ).toEqual(['Obligaciones', 'Compromisos', 'Ahorros', 'Superávit']);
     expect(despiece).not.toHaveTextContent('cuatro tesoros');
     expect(
-      screen.getByText(/^Se reparten/, { exact: false }).textContent.replace(/\s+/g, ' '),
-    ).toContain(
-      '$ 1.000 a Diezmo, $ 3.000 a Hogar, $ 2.000 a Gastos fijos, $ 2.000 a Cocos y $ 2.000 a Maun',
+      screen.getByText(/^Se reparte el ingreso/, { exact: false }).textContent.replace(/\s+/g, ' '),
+    ).toBe(
+      'Se reparte el ingreso de este trabajo: $ 10.000 (lo cobrado menos los gastos). Van $ 1.000 a Diezmo, $ 3.000 a Hogar, $ 2.000 a Gastos fijos, $ 2.000 a Cocos y $ 2.000 a Maun. Los saldos de los tesoros se mueven con esto. Si te equivocaste, se reabre desde la ficha y el reparto se deshace.',
     );
+    expect(screen.queryByText(/ganancia/i)).toBeNull();
     expect(botonDeCobrar()).toBeEnabled();
   });
 
@@ -247,7 +265,10 @@ describe('cobrar por la fila', () => {
       dist_remanente_centavos: 900_000,
     });
     expect(plan?.pasos.map((paso) => paso.tesoro)).toEqual([HOGAR, FIJOS]);
-    expect(plan?.reparto).toEqual([{ tesoro: COCOS, porcentaje: 5000 }]);
+    expect(plan?.reparto).toEqual([{ tesoro: COCOS, porcentaje: 5000, hastaLaMeta: false }]);
+    expect(plan?.obligaciones).toEqual([
+      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', diezmo: true },
+    ]);
   });
 
   it('sin los tesoros del taller todavía, no deja cobrar y dice por qué', () => {

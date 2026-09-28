@@ -201,8 +201,8 @@ export function AjustesPage() {
 
         <SeccionEnFila id="titulo-avisos-de-la-agenda" titulo="Avisos de la agenda">
           <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-            Un recordatorio a la mañana con las entregas, las visitas y los presupuestos que vencen.
-            Se activa en cada dispositivo.
+            Un recordatorio a la mañana con las entregas, las visitas, los presupuestos y los pagos
+            que vencen. Se activa en cada dispositivo.
           </p>
           <Ir
             a={RUTA_DE_AVISOS}
@@ -238,15 +238,15 @@ export function AjustesPage() {
             bajada={
               filaGuardada ? undefined : (
                 <p className="text-label leading-relaxed text-text-2">
-                  Con esto se arma la fila de cada cobro: primero el diezmo, después tu sueldo y los
-                  costos fijos, y lo que sobra queda en Maun.
+                  Con esto se arma la fila de cada cobro: primero el diezmo, después los compromisos
+                  (tu sueldo y los costos fijos), y lo que sobra queda en Maun.
                 </p>
               )
             }
           >
             {filaGuardada ? (
               <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-                El sueldo y los gastos fijos se arman en la fila de Tesoros.
+                Tu sueldo y los compromisos se arman en la fila de Tesoros.
               </p>
             ) : (
               <FormularioDeConfiguracion
