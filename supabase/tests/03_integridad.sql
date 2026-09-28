@@ -1,6 +1,6 @@
 -- Metadatos, idempotencia, constraints de plata y las guardas que protegen lo congelado.
 
-select plan(78);
+select plan(82);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -650,6 +650,42 @@ select throws_ok(
 select lives_ok(
   $$ insert into public.movimientos (fecha, tipo, tesoro_origen, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-09-01') $$,
   'una transferencia de Maun a un tesoro del dueño cubre septiembre'
+);
+
+
+-- Todo movimiento toma los ajustes (ADR 0078, los tipos de tesoro) ------------------------------------
+
+-- Un gasto desde un compromiso que se renueva al pagar cambia el saldo que mira la liquidación. Se ve
+-- en la fila de ajustes: un lock de fila deja en xmax la transacción que lo tiene (la de este archivo
+-- o su subtransacción, según cómo lo corra el runner). B nació en esta transacción y nadie más la ve,
+-- así que el lock es del gasto. Que otra sesión espere lo prueba concurrencia.test.ts.
+select tests.salir();
+
+select is(
+  (select xmax::text from public.ajustes where household_id = tests.id('household_b')),
+  '0',
+  'antes de mover plata, nadie tomó los ajustes de B'
+);
+
+insert into public.movimientos (household_id, fecha, tipo, tesoro_origen, monto_centavos, categoria)
+  values (tests.id('household_b'), '2026-09-02', 'gasto', 'hogar', 100, 'Supermercado');
+
+select ok(
+  (select xmax::text <> '0' and version = 1 from public.ajustes where household_id = tests.id('household_b')),
+  'un gasto cualquiera, sin cubrir ningún mes, toma los ajustes del taller sin cambiarlos: una liquidación lo ve entero o no lo ve'
+);
+
+select tests.entrar_como(tests.id('a'));
+
+select lives_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, monto_centavos, categoria, proyecto_id) values ('2026-09-02', 'gasto', 'maun', 100, 'Flete', 'aaaaaaaa-0000-7000-8000-000000000040') $$,
+  'un gasto con su trabajo toma primero el trabajo y después los ajustes, y el dueño puede tomar los dos'
+);
+
+select throws_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, monto_centavos, proyecto_id) values ('2026-09-02', 'gasto', 'maun', 100, 'aaaaaaaa-0000-7000-8000-000000000099') $$,
+  '23503', null,
+  'con un trabajo que no existe no hay nada que tomar: la foreign key lo rechaza, como siempre'
 );
 
 
