@@ -13,7 +13,9 @@
 - Enmendada el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la agenda
   también muestra lo que sale de la fila de los tesoros, el vencimiento de cada renglón con día de pago
   de un compromiso. Es una tercera clase de evento y tampoco se guarda. Ver la nota después de «Por qué
-  no se guarda».
+  no se guarda». El resumen del mes y del día deja de llamar «compromisos» a lo que sale de los
+  trabajos, porque compromiso es ahora un tipo de tesoro: cuenta citas, vencimientos (si hay) y
+  anotaciones.
 
 ## Contexto
 
@@ -125,6 +127,8 @@ la lista del celular, y en la celda de la grilla.
   En la capa y en la hoja, lo hecho va en su propia lista, «Hecho».
 - **Cuentas.** El encabezado del día cuenta lo pendiente y dice aparte lo hecho («2 cosas anotadas · 1
   hecha»). Lo mismo el resumen del mes y el nombre del botón del día en la grilla («2 cosas y 1 hecha»).
+  Lo que sale de los trabajos se cuenta como citas y lo que sale de la fila, como vencimientos (ADR
+  0078): «1 cita · 1 vencimiento · 2 cosas anotadas».
 - **Un día con todo hecho** no dice que está libre: dice que no queda nada pendiente.
 - **No depende del gris.** El texto está tachado, la casilla está marcada, y la fila y el chip de la
   celda dicen «hecha» para el lector de pantalla.

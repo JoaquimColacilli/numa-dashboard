@@ -6,6 +6,8 @@
   paralelo), al [0028](0028-la-huella-se-pide-cada-vez-que-se-sale.md) (el primer cuadro con el
   bloqueo puesto) y al [0031](0031-ninguna-pantalla-de-sesion-encierra.md) (dónde se ven «Abriendo la
   app», «Trayendo los datos del taller» y lo que aparece a los 15 s).
+- Enmendada el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la forma de
+  Inicio suma el panorama entre la portada y los tesoros, con las clases de `Panorama`.
 
 ## Contexto
 
@@ -139,8 +141,8 @@ Los cinco `Cargando` del arranque y del acceso (`EsperandoElCache`, `RutaConSesi
 - **Tiene la forma de la pantalla que viene.** El marco en su ancho, donde lo pone `Navegacion`: la
   barra de abajo con el «+» por debajo de 768 px, el riel entre 768 y 1279, la barra lateral desde
   1280, con los mismos cortes en píxeles que `Navegacion`. Adentro, la forma de Inicio: la fecha y el
-  título, la portada con su lámina (la grilla de puntos, sin dibujo), los cuatro tesoros con su canto de
-  color, y el mes con los accesos. Sin sesión guardada, la forma del acceso; con el bloqueo puesto en
+  título, la portada con su lámina (la grilla de puntos, sin dibujo), el panorama con sus cuatro cifras
+  (ADR 0078), los cuatro tesoros con su canto de color, y el mes con los accesos. Sin sesión guardada, la forma del acceso; con el bloqueo puesto en
   un celular, la de la pantalla de bloqueo.
 - **Tiene el contraste de una pantalla de verdad**: tarjetas de papel con su borde sobre la mesa, el
   canto de los tesoros, los botones en tinta, y rayas en tinta al 7, 10 y 14 % donde va el texto. Está

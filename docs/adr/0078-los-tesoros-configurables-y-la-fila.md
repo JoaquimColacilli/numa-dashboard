@@ -12,7 +12,8 @@
   `dist_previo`), al [0018](0018-finanzas-el-diezmo-y-los-movimientos-a-mano.md) (la novena clase,
   «Entre tesoros», y la décima, «Gasto de un tesoro»), al
   [0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md) (el vencimiento de un compromiso, una
-  tercera clase de evento que sale de la fila), al
+  tercera clase de evento que sale de la fila, y el resumen del mes y del día, que cuenta citas,
+  vencimientos y anotaciones), al
   [0036](0036-avisos-por-dispositivo-fuera-de-la-replica.md) (el aviso de los vencimientos), al
   [0062](0062-el-reparto-en-la-compu.md) (`/tesoros` es la única pantalla del marco sin `Pagina` en la
   tablet y en la compu), al [0068](0068-la-mesa-y-el-plano.md) (la cuadrícula del plano, las cuatro
@@ -20,7 +21,7 @@
   guardada cuenta el sueldo por mes).
 - Sigue al [0074](0074-lo-que-responde-al-tocar.md) (el lienzo no anima nada y los botones usan
   `apretable`) y al [0075](0075-la-app-abre-sin-pantalla-en-blanco.md) (el esqueleto sigue con cuatro
-  tarjetas).
+  tarjetas y le guarda lugar al panorama de Inicio).
 - Suma, el mismo día, «Los tipos de tesoro de Eliseo»: la fila se ordena por los tipos de tesoro que
   él dibujó en un tablero de Miro.
 
@@ -622,14 +623,17 @@ comparando `dist_previo` con lo que se mandó, y `anotarElAjuste` avisa como hoy
 > Con los tipos de tesoro:
 >
 > - **Inicio**
->   - suma el panorama («Para pagar», «Ahorros», «Superávit», «Insumos de los trabajos»);
+>   - suma el panorama («Para pagar», «Ahorros», «Superávit», «Insumos de los trabajos»), y el
+>     esqueleto de arranque le guarda su lugar;
 >   - pone el tipo en cada tarjeta y los insumos en la de Maun;
 >   - muestra el faltante de los compromisos que se renuevan, con el vencimiento de los próximos 7 días;
 >   - arma «La fila de septiembre» por tipo;
 >   - suma los vencimientos del día a «Hoy en la agenda».
 > - **La Agenda** muestra cada vencimiento en su día, con la séptima marca (un reloj de arena) y la
 >   tinta `--ag-vencimiento` (7,66:1 en claro, 8,16:1 en oscuro), «Pagado» o «Registrar el pago», y
->   «Ver en Tesoros».
+>   «Ver en Tesoros». El resumen del mes y del día ya no dice «compromisos», que ahora es un tipo de
+>   tesoro: cuenta las citas (lo que sale de los trabajos), los vencimientos, si hay, y las anotaciones
+>   («2 citas · 1 vencimiento · 3 anotaciones»).
 > - **Avisos** suma «Vencimientos».
 > - **La ficha del trabajo** muestra sus insumos.
 > - **El despiece** va por tipo, en «Distribución del ingreso».
@@ -815,8 +819,8 @@ y todo lo que se puede elegir se elige desde Tesoros:
    - **Ingresos Brutos no viene cargado**, porque no todos lo pagan igual. Si lo suma, entra antes del
      diezmo, porque así lo escribió él («Ingresos brutos tal vez se podría definir antes que diezmos»), y
      el diezmo pasa a calcularse sobre lo que queda. Va sobre lo cobrado, porque en el régimen general
-     se liquida sobre lo facturado, no sobre lo que deja el trabajo. Las dos cosas quedan para confirmar
-     con Eliseo.
+     se liquida sobre lo facturado, no sobre lo que deja el trabajo. Eliseo confirmó las dos cosas el
+     2026-09-28.
    - **Si paga Ingresos Brutos adentro del monotributo, va como compromiso.** En la Provincia de Buenos
      Aires, el monotributo unificado cobra junto con el nacional «El impuesto sobre los Ingresos Brutos
      provincial», con «una cuota fija mensual de acuerdo con la categoría del Monotributo»
@@ -998,6 +1002,12 @@ y todo lo que se puede elegir se elige desde Tesoros:
 - **El esqueleto de arranque sigue con cuatro tarjetas** ([ADR 0075](0075-la-app-abre-sin-pantalla-en-blanco.md)).
   Con más tesoros, las demás aparecen cuando llega la réplica: el script del `head` no lee IndexedDB, y
   un marcador más en `forma.ts` no vale lo que cuesta.
+- **El esqueleto de arranque le guarda lugar al panorama**, entre la portada y las tarjetas, con las
+  clases de `Panorama` (`esqueleto.test.tsx` las ata). Con montos de largo común (once caracteres, como
+  «$ 1.327.000») mide lo mismo que el panorama de verdad, a 0,1 px, de 320 a 1440 de ancho: el
+  renglón de más de «Insumos de los trabajos», que se parte en las celdas de menos de 129 px, lo pone
+  una consulta de contenedor. Con montos más largos la letra se achica y el panorama queda hasta 14 px
+  más bajo que su lugar.
 - **El libro guarda los nombres de antes.** Un reparto lleva el nombre del tesoro del día del cobro, y
   un tesoro archivado sigue apareciendo con ese nombre en lo que ya recibió.
 - **El taller de prueba de los e2e se deja sin fila.** `vaciarTaller` vuelve a la fila de siempre con
@@ -1023,6 +1033,7 @@ Con los tipos de tesoro:
 7. **La escala del plano en la compu.** Con la fila típica de Eliseo el plano entra a 1:1,6: la letra
    chica de las fichas queda en unos 7 px en una pantalla común. Se eligió ver la fila entera, que es el
    panorama que él pidió; si le cuesta leer, se compacta o se pone un piso de 0,8 con desplazamiento.
+   Eliseo confirmó el 2026-09-28 que lo lee bien en la PC del taller.
 8. **El candado de `ajustes` en cada movimiento** serializa todas las escrituras del taller detrás de
    cada liquidación, para una garantía que solo necesitan los tesoros que se renuevan o se reponen, y un
    update masivo sobre movimientos de trabajos distintos puede cortarse con 40P01. Para un solo usuario
@@ -1102,15 +1113,18 @@ Con los tipos de tesoro, en la web:
 - Qué tesoros quiere de entrada (las maquetas usan Materiales, Inmuebles y Herramientas) y con qué metas.
 - Si cubrir el faltante desde Cocos tiene que pedir una confirmación más. Hoy la hoja dice qué cuesta y deja hacerlo.
 - Si la hoja de guardar tiene que avisar que, el mes en que los gastos fijos salen de Maun, ese paso se vuelve a llenar (objeción 2).
-- Si Ingresos Brutos va sobre lo cobrado y antes del diezmo. Así quedó: antes del diezmo porque así lo
-  escribió él, y sobre lo cobrado porque así se liquida en el régimen general. Si lo paga adentro del
-  monotributo, es una cuota fija por mes y va como compromiso. Ingresos Brutos no viene cargado.
-
-- Si lee bien el plano a 1:1,6 en la PC del taller.
 - Si le sirve que «Pagado» salga de la categoría del gasto.
 - La descripción del diezmo que se ve en Tesoros sale de la base y todavía dice «Lo apartado de cada
   ganancia». Cambiarla en los talleres que existen es un update de datos de producción y no se hizo.
-- El resumen del mes de la Agenda dice «compromisos» por las citas, y ahora choca con el tipo de tesoro.
+
+## Lo que confirmó Eliseo
+
+El 2026-09-28:
+
+- Ingresos Brutos va sobre lo cobrado y antes del diezmo, como quedó: antes del diezmo porque así lo
+  escribió él, y sobre lo cobrado porque así se liquida en el régimen general. Si lo paga adentro del
+  monotributo, es una cuota fija por mes y va como compromiso. Ingresos Brutos sigue sin venir cargado.
+- Lee bien el plano a 1:1,6 en la PC del taller (objeción 7).
 
 ## Verificación
 
