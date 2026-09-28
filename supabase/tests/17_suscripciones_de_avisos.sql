@@ -2,7 +2,7 @@
 -- la cuenta, y que nada de esto sea parte de la réplica del household ni se lea por fuera de las
 -- funciones.
 
-select plan(27);
+select plan(33);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
@@ -44,7 +44,7 @@ select is(
     'preferencias', jsonb_build_object(
       'zona', 'America/Argentina/Buenos_Aires',
       'hora', '07:30',
-      'avisos', '{"entregas": {"activo": true, "anticipacion": 2}, "visitas": {"activo": true, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 1}, "seguimientos": {"activo": true, "anticipacion": 0}, "anotaciones": {"activo": false, "anticipacion": 0}}'::jsonb
+      'avisos', '{"entregas": {"activo": true, "anticipacion": 2}, "visitas": {"activo": true, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 1}, "seguimientos": {"activo": true, "anticipacion": 0}, "vencimientos": {"activo": true, "anticipacion": 0}, "anotaciones": {"activo": false, "anticipacion": 0}}'::jsonb
     )
   ),
   'registrar el dispositivo lo deja suscripto y crea las preferencias con la zona que eligió'
@@ -169,6 +169,12 @@ select is(
 );
 
 select is(
+  public.estado_de_mis_avisos(null) -> 'preferencias' -> 'avisos' -> 'vencimientos',
+  '{"activo": true, "anticipacion": 0}'::jsonb,
+  'y con los vencimientos prendidos para el mismo día'
+);
+
+select is(
   public.guardar_preferencias_de_avisos(
     'America/Argentina/Cordoba',
     '06:30',
@@ -178,10 +184,38 @@ select is(
   'con las cinco claves, el seguimiento se apaga y se guarda como está'
 );
 
+select is(
+  public.estado_de_mis_avisos(null) -> 'preferencias' -> 'avisos' -> 'vencimientos',
+  '{"activo": true, "anticipacion": 0}'::jsonb,
+  'lo guardado con las cinco claves de antes se lee con los vencimientos prendidos para el mismo día'
+);
+
+select is(
+  public.guardar_preferencias_de_avisos(
+    'America/Argentina/Cordoba',
+    '06:30',
+    '{"entregas": {"activo": true, "anticipacion": 3}, "visitas": {"activo": false, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 0}, "seguimientos": {"activo": false, "anticipacion": 1}, "vencimientos": {"activo": false, "anticipacion": 2}, "anotaciones": {"activo": true, "anticipacion": 1}}'
+  ) -> 'preferencias' -> 'avisos' -> 'vencimientos',
+  '{"activo": false, "anticipacion": 2}'::jsonb,
+  'con las seis claves, los vencimientos se apagan o se adelantan y se guardan como están'
+);
+
 select throws_ok(
   $$ select public.guardar_preferencias_de_avisos('America/Argentina/Cordoba', '06:30', '{"entregas": {"activo": true, "anticipacion": 3}, "visitas": {"activo": false, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 0}, "seguimientos": {"activo": false, "anticipacion": 1}, "anotaciones": {"activo": true, "anticipacion": 1}, "otra": {"activo": true, "anticipacion": 1}}') $$,
   '22023', 'Las preferencias de avisos no tienen la forma esperada',
   'una clave que no existe se rechaza'
+);
+
+select throws_ok(
+  $$ select public.guardar_preferencias_de_avisos('America/Argentina/Cordoba', '06:30', '{"entregas": {"activo": true, "anticipacion": 3}, "visitas": {"activo": false, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 0}, "vencimientos": {"activo": false, "anticipacion": 1}, "anotaciones": {"activo": true, "anticipacion": 1}}') $$,
+  '22023', 'Las preferencias de avisos no tienen la forma esperada',
+  'los vencimientos sin el seguimiento no son ninguna de las formas: una app que conoce los vencimientos conoce el seguimiento'
+);
+
+select throws_ok(
+  $$ select public.guardar_preferencias_de_avisos('America/Argentina/Cordoba', '06:30', '{"entregas": {"activo": true, "anticipacion": 3}, "visitas": {"activo": false, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 0}, "seguimientos": {"activo": false, "anticipacion": 1}, "vencimientos": {"activo": false, "anticipacion": 4}, "anotaciones": {"activo": true, "anticipacion": 1}}') $$,
+  '22023', 'Las preferencias de avisos no tienen la forma esperada',
+  'y los vencimientos se avisan con hasta tres días, como los demás'
 );
 
 select throws_ok(
@@ -229,6 +263,12 @@ select is(
   (select count(*)::int from private.suscripciones_de_avisos where user_id in (tests.id('a'), tests.id('b'))),
   1,
   'al final queda una sola suscripción: el teléfono, de B'
+);
+
+select is(
+  (select avisos -> 'vencimientos' from private.preferencias_de_avisos where user_id = tests.id('b')),
+  '{"activo": true, "anticipacion": 0}'::jsonb,
+  'las preferencias nuevas nacen con los vencimientos prendidos para el mismo día: los trae el default de la columna'
 );
 
 select * from finish();
