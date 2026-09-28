@@ -1492,12 +1492,14 @@ export type Database = {
       };
       repartos: {
         Row: {
+          base: string | null;
           clase: string | null;
           created_at: string;
           deleted_at: string | null;
           fecha: string;
           household_id: string;
           id: string;
+          modo: string | null;
           monto_centavos: number;
           nombre: string;
           objetivo_centavos: number | null;
@@ -1514,12 +1516,14 @@ export type Database = {
           ya_en_la_apertura: boolean;
         };
         Insert: {
+          base?: string | null;
           clase?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           fecha: string;
           household_id?: string;
           id?: string;
+          modo?: string | null;
           monto_centavos: number;
           nombre: string;
           objetivo_centavos?: number | null;
@@ -1536,12 +1540,14 @@ export type Database = {
           ya_en_la_apertura?: boolean;
         };
         Update: {
+          base?: string | null;
           clase?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           fecha?: string;
           household_id?: string;
           id?: string;
+          modo?: string | null;
           monto_centavos?: number;
           nombre?: string;
           objetivo_centavos?: number | null;
