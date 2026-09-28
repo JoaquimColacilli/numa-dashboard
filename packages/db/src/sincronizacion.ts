@@ -1,4 +1,4 @@
-import type { EstadoLiquidado, EstadoProyecto } from '@maun/domain';
+import type { EstadoLiquidado, EstadoProyecto, Fila } from '@maun/domain';
 
 import type { ColumnaDeMarca } from './agenda.ts';
 import type { ClienteMaun } from './cliente.ts';
@@ -12,6 +12,9 @@ export type MovimientoNuevo = Pick<
   | 'tipo'
   | 'tesoro_origen'
   | 'tesoro_destino'
+  | 'desde_id'
+  | 'hacia_id'
+  | 'cubre_el_mes'
   | 'monto_centavos'
   | 'categoria'
   | 'descripcion'
@@ -81,6 +84,80 @@ export async function guardarNombreDelTaller(
   return data;
 }
 
+export async function guardarLaFilaDelTaller(
+  cliente: ClienteMaun,
+  version: number,
+  fila: Fila | null,
+): Promise<FilaDe<'ajustes'>> {
+  const { data, error } = await cliente.rpc('guardar_la_fila', {
+    p_version: version,
+    p_fila: fila as unknown as Json,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export const COLUMNAS_DE_TESORO = [
+  'nombre',
+  'descripcion',
+  'tinta',
+  'icono',
+  'meta_centavos',
+  'rinde_anual_bp',
+  'orden',
+] as const;
+
+export type ColumnaDeTesoro = (typeof COLUMNAS_DE_TESORO)[number];
+
+export type DatosDeTesoro = Pick<FilaDe<'tesoros'>, ColumnaDeTesoro>;
+
+export type TesoroNuevo = DatosDeTesoro & { id: string };
+
+export type CambiosDeTesoro = Partial<DatosDeTesoro>;
+
+export async function guardarTesoroNuevo(
+  cliente: ClienteMaun,
+  nuevo: TesoroNuevo,
+): Promise<FilaDe<'tesoros'>> {
+  const { data, error } = await cliente
+    .from('tesoros')
+    .upsert(nuevo, { onConflict: 'id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function guardarCambiosDeTesoro(
+  cliente: ClienteMaun,
+  id: string,
+  cambios: CambiosDeTesoro,
+): Promise<FilaDe<'tesoros'>> {
+  const { data, error } = await cliente
+    .from('tesoros')
+    .update(cambios)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function archivarTesoro(
+  cliente: ClienteMaun,
+  id: string,
+  archivadoEn: string | null,
+): Promise<FilaDe<'tesoros'>> {
+  const { data, error } = await cliente
+    .from('tesoros')
+    .update({ archivado_at: archivadoEn })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function guardarMovimiento(
   cliente: ClienteMaun,
   movimiento: MovimientoNuevo,
@@ -99,6 +176,8 @@ export const COLUMNAS_DE_MOVIMIENTO = [
   'tipo',
   'tesoro_origen',
   'tesoro_destino',
+  'desde_id',
+  'hacia_id',
   'monto_centavos',
   'categoria',
   'descripcion',
@@ -949,6 +1028,20 @@ export interface PedidoDeLiquidacion {
   sueldoPrevioCentavos: number;
   fijosPrevioCentavos: number;
   yaEnLaApertura?: boolean;
+  porLaFila?: PedidoPorLaFila;
+}
+
+export interface RepartoDelPedido {
+  id: string;
+  posicion: number;
+  tesoro_id: string;
+  monto_centavos: number;
+}
+
+export interface PedidoPorLaFila {
+  version: number;
+  repartos: readonly RepartoDelPedido[];
+  previo: Readonly<Record<string, number>>;
 }
 
 export interface PedidoDeReversion {
@@ -976,6 +1069,13 @@ export async function liquidarProyecto(
     p_sueldo_previo_centavos: pedido.sueldoPrevioCentavos,
     p_fijos_previo_centavos: pedido.fijosPrevioCentavos,
     p_ya_en_la_apertura: pedido.yaEnLaApertura ?? false,
+    ...(pedido.porLaFila === undefined
+      ? {}
+      : {
+          p_fila_version: pedido.porLaFila.version,
+          p_repartos: pedido.porLaFila.repartos as unknown as Json,
+          p_previo: pedido.porLaFila.previo as unknown as Json,
+        }),
   };
 
   const { data, error } =

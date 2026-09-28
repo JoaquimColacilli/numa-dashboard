@@ -710,12 +710,15 @@ export async function migrar(
     liquidaciones.map((hecha) => [hecha.proyecto.id, hecha.liquidacion]),
   );
   const datos: DatosDelLibro = {
+    tesoros: [],
     movimientos: [...movimientos, ...filasDeApertura].map((fila) => ({
       id: fila.id,
       fecha: fila.fecha,
       tipo: fila.tipo,
       tesoroOrigen: fila.tesoro_origen,
       tesoroDestino: fila.tesoro_destino,
+      desdeId: null,
+      haciaId: null,
       monto: centavos(fila.monto_centavos),
       categoria: fila.categoria,
       descripcion: fila.descripcion,
@@ -748,6 +751,7 @@ export async function migrar(
         repartoYaEnLaApertura: false,
       };
     }),
+    repartos: [],
   };
   const enDominio = saldosDelLibro(datos);
   if (!iguales(saldos.final, enDominio)) {
