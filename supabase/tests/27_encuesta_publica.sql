@@ -129,7 +129,8 @@ select set_eq(
     'sena_bp', 'entrega_hora', 'visita_hora',
     'costo_madera_centavos', 'costo_herrajes_centavos', 'costo_flete_centavos',
     'costo_ayudante_centavos', 'presupuesto_vale_hasta',
-    'listo_el', 'entrega_comprometida', 'entrega_comprometida_franja', 'tipo_de_proyecto'
+    'listo_el', 'entrega_comprometida', 'entrega_comprometida_franja', 'tipo_de_proyecto',
+    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila'
   ],
   'toda columna de proyectos está clasificada para la encuesta: viaja el título y nada más'
 );
@@ -171,7 +172,8 @@ select set_eq(
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
     'tasa_cocos_anual_bp', 'sueldo_tope_mensual', 'perdido_con_sueldo', 'perdido_con_diezmo',
     'sena_bp', 'cobro_alias', 'cobro_cbu', 'cobro_titular', 'cobro_cuit', 'cobro_link',
-    'presupuesto_vale_dias', 'instagram_link', 'facebook_link', 'tiktok_link'
+    'presupuesto_vale_dias', 'instagram_link', 'facebook_link', 'tiktok_link',
+    'fila', 'fila_version', 'fila_guardada_at'
   ],
   'toda columna de ajustes está clasificada para la encuesta'
 );
