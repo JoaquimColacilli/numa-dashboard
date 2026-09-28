@@ -5,6 +5,7 @@ import {
   asientosDelLibro,
   asientosDelMes,
   entradasYSalidas,
+  entradasYSalidasPorId,
   esAnteriorALaApertura,
   estadoDelDiezmo,
   fechaDeApertura,
@@ -12,6 +13,8 @@ import {
   mueveLosTesoros,
   proyeccionCocos,
   saldosDelLibro,
+  saldosDelLibroPorId,
+  saldosPorId,
   saldosPorTesoro,
   type Asiento,
   type DatosDelLibro,
@@ -19,6 +22,7 @@ import {
   type MovimientoDelLibro,
   type PagoDelLibro,
   type ProyectoDelLibro,
+  type RepartoDelLibro,
   type Tesoro,
 } from './libroMayor.ts';
 import { centavos, type Money } from './money.ts';
@@ -26,7 +30,15 @@ import { centavos, type Money } from './money.ts';
 const $ = (valor: number): Money => centavos(valor);
 
 function datos(partes: Partial<DatosDelLibro>): DatosDelLibro {
-  return { movimientos: [], pagos: [], gastos: [], proyectos: [], ...partes };
+  return {
+    tesoros: [],
+    movimientos: [],
+    pagos: [],
+    gastos: [],
+    proyectos: [],
+    repartos: [],
+    ...partes,
+  };
 }
 
 function movimiento(partes: Partial<MovimientoDelLibro>): MovimientoDelLibro {
@@ -36,6 +48,8 @@ function movimiento(partes: Partial<MovimientoDelLibro>): MovimientoDelLibro {
     tipo: 'ingreso',
     tesoroOrigen: null,
     tesoroDestino: 'hogar',
+    desdeId: null,
+    haciaId: null,
     monto: $(1000),
     categoria: '',
     descripcion: '',
@@ -373,6 +387,8 @@ describe('lineasDelLibro', () => {
         fecha: '2026-09-01',
         desde: 'cocos',
         hacia: 'maun',
+        desdeId: 'cocos',
+        haciaId: 'maun',
         monto: 300_000,
         concepto: 'transferencia',
         categoria: '',
@@ -629,5 +645,253 @@ describe('estadoDelDiezmo', () => {
       generado: 0,
       pagado: 0,
     });
+  });
+});
+
+describe('la cuenta por id de tesoro', () => {
+  const TESOROS_DEL_TALLER = [
+    { id: 't-hogar', clave: 'hogar' as const },
+    { id: 't-maun', clave: 'maun' as const },
+    { id: 't-diezmo', clave: 'diezmo' as const },
+    { id: 't-cocos', clave: 'cocos' as const },
+    { id: 't-fijos', clave: null },
+    { id: 't-materiales', clave: null },
+  ];
+
+  function reparto(partes: Partial<RepartoDelLibro>): RepartoDelLibro {
+    return {
+      id: 'r1',
+      proyectoId: 'p1',
+      tesoroId: 't-fijos',
+      clase: 'fijos',
+      monto: $(900_000),
+      fecha: '2026-09-10',
+      yaEnLaApertura: false,
+      ...partes,
+    };
+  }
+
+  it('un movimiento de antes, con la clave sola, lleva el id de su tesoro', () => {
+    const [linea] = lineasDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        movimientos: [
+          movimiento({ tipo: 'transferencia', tesoroOrigen: 'maun', tesoroDestino: 'cocos' }),
+        ],
+      }),
+    );
+
+    expect(linea).toMatchObject({
+      desde: 'maun',
+      hacia: 'cocos',
+      desdeId: 't-maun',
+      haciaId: 't-cocos',
+    });
+  });
+
+  it('uno con el id solo recupera la clave de los de siempre, y los del dueño no tienen', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        movimientos: [
+          movimiento({
+            id: 'm1',
+            tipo: 'transferencia',
+            tesoroOrigen: null,
+            tesoroDestino: null,
+            desdeId: 't-maun',
+            haciaId: 't-materiales',
+          }),
+        ],
+      }),
+    );
+
+    expect(lineas.map((linea) => [linea.desde, linea.hacia, linea.desdeId, linea.haciaId])).toEqual(
+      [['maun', null, 't-maun', 't-materiales']],
+    );
+  });
+
+  it('un id que no está entre los tesoros no tiene clave, salvo que sea una clave', () => {
+    const [linea] = lineasDelLibro(
+      datos({
+        movimientos: [
+          movimiento({
+            tipo: 'transferencia',
+            tesoroOrigen: null,
+            tesoroDestino: null,
+            desdeId: 'hogar',
+            haciaId: 'otro',
+          }),
+        ],
+      }),
+    );
+
+    expect(linea).toMatchObject({ desde: 'hogar', hacia: null, desdeId: 'hogar', haciaId: 'otro' });
+  });
+
+  it('entre dos tesoros del dueño: dos asientos por id, sin clave, que las cuatro claves no ven', () => {
+    const asientos = asientosDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        movimientos: [
+          movimiento({
+            tipo: 'transferencia',
+            tesoroOrigen: null,
+            tesoroDestino: null,
+            desdeId: 't-fijos',
+            haciaId: 't-materiales',
+            monto: $(40_000),
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      asientos.map((asiento) => [
+        asiento.tesoro,
+        asiento.tesoroId,
+        asiento.contrapartidaId,
+        asiento.monto,
+      ]),
+    ).toEqual([
+      [null, 't-materiales', 't-fijos', 40_000],
+      [null, 't-fijos', 't-materiales', -40_000],
+    ]);
+    expect(saldosPorTesoro(asientos)).toEqual({ hogar: 0, maun: 0, diezmo: 0, cocos: 0 });
+    expect(saldosPorId(asientos)).toEqual(
+      new Map([
+        ['t-materiales', 40_000],
+        ['t-fijos', -40_000],
+      ]),
+    );
+  });
+
+  it('los pagos, los gastos y la distribución de siempre apuntan a los ids de su clave', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        proyectos: [
+          proyecto({
+            estado: 'cobrado',
+            fechaCobro: '2026-09-10',
+            diezmo: $(70_000),
+            sueldo: $(500_000),
+          }),
+        ],
+        pagos: [pago({})],
+        gastos: [gasto({})],
+      }),
+    );
+
+    expect(lineas.map((linea) => [linea.origen, linea.desdeId, linea.haciaId])).toEqual([
+      ['pago', null, 't-maun'],
+      ['gasto_proyecto', 't-maun', null],
+      ['distribucion', 't-maun', 't-diezmo'],
+      ['distribucion', 't-maun', 't-hogar'],
+    ]);
+  });
+
+  it('cada reparto de un cobro por la fila pasa de Maun a su tesoro', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        proyectos: [proyecto({ estado: 'cobrado', fechaCobro: '2026-09-10' })],
+        repartos: [
+          reparto({ id: 'r1', tesoroId: 't-hogar', clase: 'sueldo', monto: $(1_800_000) }),
+          reparto({ id: 'r2', tesoroId: 't-fijos', clase: 'fijos', monto: $(900_000) }),
+          reparto({ id: 'r3', tesoroId: 't-cocos', clase: null, monto: $(123_456) }),
+        ],
+      }),
+    );
+
+    expect(
+      lineas.map((linea) => [
+        linea.origen,
+        linea.asientoId,
+        linea.desde,
+        linea.hacia,
+        linea.haciaId,
+        linea.concepto,
+        linea.monto,
+      ]),
+    ).toEqual([
+      ['reparto', 'r1', 'maun', 'hogar', 't-hogar', 'sueldo', 1_800_000],
+      ['reparto', 'r2', 'maun', null, 't-fijos', 'fijos', 900_000],
+      ['reparto', 'r3', 'maun', 'cocos', 't-cocos', 'reparto', 123_456],
+    ]);
+    expect(lineas[0]).toMatchObject({
+      fecha: '2026-09-10',
+      categoria: 'Distribución',
+      descripcion: 'Placard',
+      proyectoId: 'p1',
+    });
+  });
+
+  it('lo que queda en Maun, un reparto en cero y el de un proyecto sin liquidar no mueven nada', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        proyectos: [
+          proyecto({ id: 'p1', estado: 'cobrado', fechaCobro: '2026-09-10' }),
+          proyecto({ id: 'p2', estado: 'entregado' }),
+        ],
+        repartos: [
+          reparto({ id: 'r1', tesoroId: 't-maun', clase: 'fijos' }),
+          reparto({ id: 'r2', tesoroId: 't-fijos', monto: $(0) }),
+          reparto({ id: 'r3', proyectoId: 'p2' }),
+          reparto({ id: 'r4', proyectoId: 'no-esta' }),
+        ],
+      }),
+    );
+
+    expect(lineas).toEqual([]);
+  });
+
+  it('un reparto ya en la apertura queda en el libro y no mueve los tesoros', () => {
+    const conRepartos = datos({
+      tesoros: TESOROS_DEL_TALLER,
+      proyectos: [proyecto({ estado: 'cobrado', fechaCobro: '2026-09-10' })],
+      repartos: [
+        reparto({ id: 'r1', monto: $(900_000) }),
+        reparto({ id: 'r2', tesoroId: 't-materiales', monto: $(50_000), yaEnLaApertura: true }),
+      ],
+    });
+
+    expect(saldosDelLibroPorId(conRepartos)).toEqual(
+      new Map([
+        ['t-fijos', 900_000],
+        ['t-maun', -900_000],
+      ]),
+    );
+    expect(saldosDelLibro(conRepartos)).toEqual({ hogar: 0, maun: -900_000, diezmo: 0, cocos: 0 });
+  });
+
+  it('lo que entró y lo que salió de un tesoro también se cuenta por id', () => {
+    const asientos = asientosDelLibro(
+      datos({
+        tesoros: TESOROS_DEL_TALLER,
+        movimientos: [
+          movimiento({
+            id: 'm1',
+            tesoroDestino: null,
+            haciaId: 't-materiales',
+            monto: $(300_000),
+          }),
+          movimiento({
+            id: 'm2',
+            tipo: 'gasto',
+            tesoroDestino: null,
+            desdeId: 't-materiales',
+            monto: $(120_000),
+          }),
+        ],
+      }),
+    );
+
+    expect(entradasYSalidasPorId(asientos, 't-materiales')).toEqual({
+      entro: 300_000,
+      salio: 120_000,
+    });
+    expect(entradasYSalidasPorId(asientos, 't-cocos')).toEqual({ entro: 0, salio: 0 });
   });
 });

@@ -1,9 +1,12 @@
 import {
+  aportesDelReparto,
   asientosDelLibro,
   calcularDistribucion,
   calcularLiquidacion,
+  calcularPorLaFila,
   calcularSena,
   centavos,
+  columnasDeSiempre,
   DIEZMO,
   ESTADOS,
   esEstado,
@@ -13,15 +16,21 @@ import {
   esLinkDeLaRed,
   esLinkDeResena,
   esNombreDeNecesidad,
+  filaDeSiempre,
   formasDeCobro,
   LARGO_MAXIMO_DEL_NOMBRE,
+  leerLaFila,
   pagosPorDelante,
+  planDelReparto,
+  primerProblemaDeLaFila,
   puedeCambiarEstado,
   puedeLiquidar,
   puedeRevertir,
   puntosBasicos,
   REDES_DEL_TALLER,
+  repartir,
   revisarLaRed,
+  saldosPorId,
   saldosPorTesoro,
   SEGMENTOS_QUE_NO_SON_UN_PERFIL,
   TESOROS,
@@ -30,24 +39,44 @@ import {
   validarRespuestaDeEntrega,
   type AjustesDeLiquidacion,
   type Asiento,
+  type ClaseDePaso,
   type Distribucion,
   type EntradaCascada,
   type EstadoLiquidado,
   type EstadoProyecto,
+  type Fila,
   type FormaDeCobro,
   type FormaDeCoordinar,
   type Liquidacion,
+  type LiquidacionPorLaFila,
   type LiquidacionRegistrada,
   type PreguntaDeLaEncuesta,
   type Reapertura,
   type RedDelTaller,
+  type TesoroDeLaFila,
 } from '@maun/domain';
 import type pg from 'pg';
 
-import type { Tesoro, TipoMovimiento } from '../src/enums.ts';
-import { aplicarLote, leerLote, replicaVacia, type Replica } from '../src/replica.ts';
+import type { TipoMovimiento } from '../src/enums.ts';
+import {
+  ajustesDe,
+  aplicarLote,
+  filaPorId,
+  leerLote,
+  quitarFilaLocal,
+  replicaVacia,
+  type Replica,
+} from '../src/replica.ts';
 import { leerProyectoGuardado, type ProyectoGuardado } from '../src/sincronizacion.ts';
-import { datosDelLibro, totalesDelProyecto } from '../src/vistas.ts';
+import {
+  coberturasDeLaReplica,
+  datosDelLibro,
+  filaDelTaller,
+  filaParaLiquidar,
+  liquidacionesDelMesDeLaReplica,
+  tesorosDeLaReplica,
+  totalesDelProyecto,
+} from '../src/vistas.ts';
 
 export const HOUSEHOLD_DEL_SEED = '5eed0000-0000-7000-8000-000000000001';
 
@@ -1148,6 +1177,807 @@ export async function compararRangos(cliente: pg.Client): Promise<string[]> {
   return diferencias;
 }
 
+const RECHAZOS_DE_RANGO: ReadonlySet<string> = new Set(['22004', '22023', '22003']);
+
+const IDS_DE_LA_FILA: readonly string[] = Array.from(
+  { length: 12 },
+  (_, i) => `00000000-0000-7000-8000-${String(i + 1).padStart(12, '0')}`,
+);
+
+function idDeLaFila(indice: number): string {
+  return IDS_DE_LA_FILA[indice] ?? '';
+}
+
+const TESOROS_DE_LA_FILA: readonly TesoroDeLaFila[] = [
+  { id: idDeLaFila(0), clave: 'hogar', archivado: false },
+  { id: idDeLaFila(1), clave: 'maun', archivado: false },
+  { id: idDeLaFila(2), clave: 'diezmo', archivado: false },
+  { id: idDeLaFila(3), clave: 'cocos', archivado: false },
+  ...IDS_DE_LA_FILA.slice(4, 10).map((id) => ({ id, clave: null, archivado: false })),
+  { id: idDeLaFila(10), clave: null, archivado: true },
+];
+
+function codigoDelError(error: unknown): string {
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : 'sin código';
+}
+
+const RECHAZO_DE_LA_GEMELA = `create or replace function pg_temp.rechazo_de_la_gemela(
+    p_sql text, p_caso jsonb, p_extra jsonb
+  )
+  returns text
+  language plpgsql
+  as $cuerpo$
+  begin
+    if p_extra is null then
+      execute p_sql using array[p_caso];
+    else
+      execute p_sql using array[p_caso], p_extra;
+    end if;
+    return null;
+  exception
+    when others then
+      return sqlstate;
+  end;
+  $cuerpo$`;
+
+async function filasEnLote(
+  cliente: pg.Client,
+  sql: string,
+  parametros: unknown[],
+): Promise<Record<string, unknown>[] | string> {
+  await cliente.query('savepoint lote');
+  try {
+    const { rows } = await cliente.query<Record<string, unknown>>(sql, parametros);
+    await cliente.query('release savepoint lote');
+    return rows;
+  } catch (error) {
+    await cliente.query('rollback to savepoint lote');
+    await cliente.query('release savepoint lote');
+    return codigoDelError(error);
+  }
+}
+
+type EnTs<T> = { valor: T } | { rechazo: string };
+
+function enTs<T>(calculo: () => T): EnTs<T> {
+  try {
+    return { valor: calculo() };
+  } catch (error) {
+    return { rechazo: error instanceof RangeError ? 'rango' : String(error) };
+  }
+}
+
+function ordenado(valor: unknown): unknown {
+  if (Array.isArray(valor)) return valor.map(ordenado);
+  if (typeof valor === 'object' && valor !== null) {
+    return Object.fromEntries(
+      Object.entries(valor)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([clave, dato]) => [clave, ordenado(dato)]),
+    );
+  }
+  return valor;
+}
+
+function canonico(valor: unknown): string {
+  return JSON.stringify(ordenado(valor));
+}
+
+function textos(valores: readonly unknown[]): number[] {
+  return valores.map((valor) => Number(valor));
+}
+
+interface Gemela<C, T> {
+  nombre: string;
+  casos: readonly C[];
+  ts: (caso: C) => T;
+  sql: string;
+  enJson: (caso: C) => string;
+  extra?: unknown;
+  deSql: (fila: Record<string, unknown>) => string;
+  deTs: (valor: T) => string;
+}
+
+async function codigosEnSql<C, T>(
+  cliente: pg.Client,
+  gemela: Gemela<C, T>,
+  casos: readonly C[],
+): Promise<(string | null)[]> {
+  if (casos.length === 0) return [];
+  const { rows } = await cliente.query<{ codigo: string | null }>(
+    `select pg_temp.rechazo_de_la_gemela($1, c.caso, $3::jsonb) as codigo
+     from unnest($2::jsonb[]) with ordinality as c (caso, orden)
+     order by c.orden`,
+    [
+      gemela.sql,
+      casos.map(gemela.enJson),
+      gemela.extra === undefined ? null : JSON.stringify(gemela.extra),
+    ],
+  );
+  return rows.map((fila) => fila.codigo);
+}
+
+async function compararGemela<C, T>(cliente: pg.Client, gemela: Gemela<C, T>): Promise<string[]> {
+  const describir = (caso: C) => JSON.stringify(caso).slice(0, 240);
+  const calculados = gemela.casos.map((caso) => ({ caso, ts: enTs(() => gemela.ts(caso)) }));
+  const aceptados = calculados.flatMap(({ caso, ts }) =>
+    'valor' in ts ? [{ caso, valor: ts.valor }] : [],
+  );
+  const rechazados = calculados.flatMap(({ caso, ts }) =>
+    'rechazo' in ts ? [{ caso, rechazo: ts.rechazo }] : [],
+  );
+  const diferencias: string[] = [];
+
+  const casosAceptados = aceptados.map(({ caso }) => caso);
+  const filas = await filasEnLote(
+    cliente,
+    gemela.sql,
+    gemela.extra === undefined
+      ? [casosAceptados.map(gemela.enJson)]
+      : [casosAceptados.map(gemela.enJson), JSON.stringify(gemela.extra)],
+  );
+  if (typeof filas === 'string') {
+    const codigos = await codigosEnSql(cliente, gemela, casosAceptados);
+    codigos.forEach((codigo, i) => {
+      if (codigo === null) return;
+      diferencias.push(
+        `${gemela.nombre} ${describir(casosAceptados[i] as C)}: TS acepta, SQL rechaza con ${codigo}`,
+      );
+    });
+    if (diferencias.length === 0) {
+      diferencias.push(`${gemela.nombre}: el lote rechazó con ${filas} y ningún caso solo`);
+    }
+  } else if (filas.length !== aceptados.length) {
+    diferencias.push(
+      `${gemela.nombre}: SQL devolvió ${String(filas.length)} filas para ${String(aceptados.length)} casos`,
+    );
+  } else {
+    filas.forEach((fila, i) => {
+      const aceptado = aceptados[i];
+      if (aceptado === undefined) return;
+      const sql = gemela.deSql(fila);
+      const ts = gemela.deTs(aceptado.valor);
+      if (sql !== ts) {
+        diferencias.push(`${gemela.nombre} ${describir(aceptado.caso)}: SQL ${sql}, TS ${ts}`);
+      }
+    });
+  }
+
+  const codigos = await codigosEnSql(
+    cliente,
+    gemela,
+    rechazados.map(({ caso }) => caso),
+  );
+  rechazados.forEach(({ caso, rechazo }, i) => {
+    if (rechazo !== 'rango') {
+      diferencias.push(
+        `${gemela.nombre} ${describir(caso)}: TS no rechaza con RangeError: ${rechazo}`,
+      );
+      return;
+    }
+    const codigo = codigos[i] ?? null;
+    if (codigo === null || !RECHAZOS_DE_RANGO.has(codigo)) {
+      diferencias.push(
+        `${gemela.nombre} ${describir(caso)}: TS rechaza, SQL ${codigo === null ? 'acepta' : `rechaza con ${codigo}`}`,
+      );
+    }
+  });
+  return diferencias;
+}
+
+const ENTEROS_FIJOS: readonly string[] = [
+  '0',
+  '-0',
+  '1',
+  '-1',
+  '2.0',
+  '1e2',
+  '1E2',
+  '0.1e1',
+  '0.5',
+  '-0.5',
+  '1e-7',
+  '4.5e15',
+  '9007199254740991',
+  '-9007199254740991',
+  '9007199254740991.0',
+  '9007199254740992',
+  '-9007199254740992',
+  '9007199254740993',
+  '12345678901234567890',
+  '1e400',
+  '"3"',
+  '""',
+  'true',
+  'false',
+  'null',
+  '{}',
+  '[]',
+  '[1]',
+  '{"a": 1}',
+];
+
+function enterosAlAzar(): string[] {
+  const siguiente = generador(20_260_927);
+  const casos: string[] = [];
+  for (let i = 0; i < 600; i++) {
+    const forma = i % 3;
+    const valor =
+      forma === 0
+        ? siguiente(2_000_000_000) - 1_000_000_000
+        : forma === 1
+          ? (siguiente(2_000_000) - 1_000_000) / 8
+          : siguiente(4_194_304) * 4_294_967_296 + siguiente(4_294_967_296);
+    casos.push(JSON.stringify(valor));
+  }
+  return casos;
+}
+
+function enteroEnTs(texto: string): number | null {
+  const fila = leerLaFila({
+    pasos: [],
+    reparto: [{ tesoro: idDeLaFila(4), porcentaje: JSON.parse(texto) as unknown }],
+    sueldoPorTrabajo: false,
+  });
+  return fila?.reparto[0]?.porcentaje ?? null;
+}
+
+interface CasoDelReparto {
+  cobrado: number;
+  gastos: number;
+  diezmoBp: number;
+  pasos: { objetivo: number; previo: number; porMes: boolean }[];
+  porcentajes: number[];
+}
+
+const REPARTOS_FIJOS: readonly CasoDelReparto[] = [
+  { cobrado: 0, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [] },
+  {
+    cobrado: 200_000_000,
+    gastos: 20_000_000,
+    diezmoBp: 1000,
+    pasos: [
+      { objetivo: 100_000_000, previo: 0, porMes: true },
+      { objetivo: 30_000_000, previo: 0, porMes: true },
+      { objetivo: 5_000_000, previo: 0, porMes: true },
+    ],
+    porcentajes: [5000, 3000],
+  },
+  {
+    cobrado: 50_000_000,
+    gastos: 80_000_000,
+    diezmoBp: 1000,
+    pasos: [{ objetivo: 100_000_000, previo: 0, porMes: true }],
+    porcentajes: [5000],
+  },
+  {
+    cobrado: 60_000_000,
+    gastos: 0,
+    diezmoBp: 1000,
+    pasos: [
+      { objetivo: 100_000_000, previo: 100_000_000, porMes: true },
+      { objetivo: 30_000_000, previo: 8_000_000, porMes: true },
+      { objetivo: 5_000_000, previo: 9_000_000, porMes: false },
+    ],
+    porcentajes: [10_000],
+  },
+  { cobrado: 9_007_199_254_740_991, gastos: 0, diezmoBp: 0, pasos: [], porcentajes: [1] },
+  {
+    cobrado: 9_007_199_254_735,
+    gastos: 0,
+    diezmoBp: 1000,
+    pasos: [{ objetivo: 9_007_199_254_740_991, previo: 9_007_199_254_740_991, porMes: true }],
+    porcentajes: [],
+  },
+  { cobrado: -1, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [] },
+  { cobrado: 0, gastos: -1, diezmoBp: 1000, pasos: [], porcentajes: [] },
+  { cobrado: 9_007_199_254_740_992, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [] },
+  { cobrado: 100, gastos: 0, diezmoBp: -1, pasos: [], porcentajes: [] },
+  { cobrado: 100, gastos: 0, diezmoBp: 10_001, pasos: [], porcentajes: [] },
+  {
+    cobrado: 100,
+    gastos: 0,
+    diezmoBp: 1000,
+    pasos: [{ objetivo: -1, previo: 0, porMes: true }],
+    porcentajes: [],
+  },
+  {
+    cobrado: 100,
+    gastos: 0,
+    diezmoBp: 1000,
+    pasos: [{ objetivo: 10, previo: -1, porMes: true }],
+    porcentajes: [],
+  },
+  {
+    cobrado: 100,
+    gastos: 0,
+    diezmoBp: 1000,
+    pasos: [{ objetivo: 9_007_199_254_740_992, previo: 0, porMes: false }],
+    porcentajes: [],
+  },
+  { cobrado: 100, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [0] },
+  { cobrado: 100, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [-1] },
+  { cobrado: 100, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [10_001] },
+  { cobrado: 100, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [5000, 5001] },
+  { cobrado: 9_007_199_254_740_991, gastos: 0, diezmoBp: 1000, pasos: [], porcentajes: [] },
+  { cobrado: 9_007_199_254_740_991, gastos: 0, diezmoBp: 0, pasos: [], porcentajes: [2] },
+];
+
+function repartosAlAzar(): CasoDelReparto[] {
+  const siguiente = generador(20_260_928);
+  const importe = (): number => {
+    const forma = siguiente(7);
+    if (forma < 5) return siguiente(90_000_000_000);
+    if (forma === 5) return [0, 1, 2, 99, 10_000, 9_007_199_254_740_991][siguiente(6)] ?? 0;
+    return siguiente(1_099_511_627_776);
+  };
+  const casos: CasoDelReparto[] = [];
+  for (let i = 0; i < 1_500; i++) {
+    const diezmoBp =
+      siguiente(4) === 0 ? siguiente(10_016) - 5 : ([0, 1000, 1000, 10_000][siguiente(4)] ?? 1000);
+    const pasos = Array.from({ length: siguiente(7) }, () => ({
+      objetivo: importe(),
+      previo: siguiente(3) === 0 ? 0 : importe(),
+      porMes: siguiente(2) === 0,
+    }));
+    const porcentajes = Array.from({ length: siguiente(6) }, () =>
+      siguiente(7) < 6 ? 1 + siguiente(2500) : siguiente(10_005) - 2,
+    );
+    casos.push({ cobrado: importe(), gastos: importe(), diezmoBp, pasos, porcentajes });
+  }
+  return casos;
+}
+
+function repartirEnTs(caso: CasoDelReparto) {
+  const pasos = caso.pasos.map((paso, i) => ({
+    tesoro: idDeLaFila(i),
+    clase: 'prioridad' as const,
+    objetivo: centavos(paso.objetivo),
+    porMes: paso.porMes,
+    previo: centavos(paso.previo),
+  }));
+  return repartir({
+    cobrado: centavos(caso.cobrado),
+    gastos: centavos(caso.gastos),
+    diezmoBp: puntosBasicos(caso.diezmoBp),
+    pasos: pasos.map(({ tesoro, clase, objetivo, porMes }) => ({
+      tesoro,
+      clase,
+      objetivo,
+      porMes,
+    })),
+    reparto: caso.porcentajes.map((porcentaje, i) => ({
+      tesoro: idDeLaFila(6 + i),
+      porcentaje: puntosBasicos(porcentaje),
+    })),
+    previo: new Map(pasos.map((paso) => [paso.tesoro, paso.previo])),
+  });
+}
+
+const REPARTIR_EN_SQL = `select r.neta_centavos::text as neta, r.diezmo_centavos::text as diezmo,
+    r.topes::text[] as topes, r.montos::text[] as montos, r.sobrante_centavos::text as sobrante,
+    r.partes::text[] as partes, r.remanente_centavos::text as remanente
+  from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+  cross join lateral private.repartir_por_la_fila(
+    (c.caso ->> 'cobrado')::bigint,
+    (c.caso ->> 'gastos')::bigint,
+    (c.caso ->> 'diezmoBp')::integer,
+    array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'objetivos') with ordinality as e (v, n) order by e.n),
+    array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'previos') with ordinality as e (v, n) order by e.n),
+    array(select e.v::boolean from jsonb_array_elements_text(c.caso -> 'porMes') with ordinality as e (v, n) order by e.n),
+    array(select e.v::integer from jsonb_array_elements_text(c.caso -> 'porcentajes') with ordinality as e (v, n) order by e.n)
+  ) as r
+  order by c.orden`;
+
+function casoDelRepartoEnJson(caso: CasoDelReparto): string {
+  return JSON.stringify({
+    cobrado: caso.cobrado,
+    gastos: caso.gastos,
+    diezmoBp: caso.diezmoBp,
+    objetivos: caso.pasos.map((paso) => paso.objetivo),
+    previos: caso.pasos.map((paso) => paso.previo),
+    porMes: caso.pasos.map((paso) => paso.porMes),
+    porcentajes: caso.porcentajes,
+  });
+}
+
+type CasoDeSiempre = [number, number, boolean];
+
+function filasDeSiempreAlAzar(): CasoDeSiempre[] {
+  const casos: CasoDeSiempre[] = [
+    [0, 0, true],
+    [0, 0, false],
+    [1, 0, true],
+    [0, 1, false],
+    [100_000_000, 30_000_000, true],
+    [180_000_000, 0, false],
+    [9_007_199_254_740_991, 9_007_199_254_740_991, false],
+    [9_007_199_254_740_992, 0, true],
+    [0, 9_007_199_254_740_992, false],
+    [-1, 0, true],
+    [0, -1, false],
+  ];
+  const siguiente = generador(20_260_929);
+  for (let i = 0; i < 300; i++) {
+    casos.push([
+      siguiente(3) === 0 ? 0 : siguiente(90_000_000_000),
+      siguiente(3) === 0 ? 0 : siguiente(9_000_000_000),
+      siguiente(2) === 0,
+    ]);
+  }
+  return casos;
+}
+
+const NOMBRES_DE_RENGLON: readonly string[] = [
+  'Alquiler',
+  'Luz',
+  'Ayudante',
+  ' ',
+  '   ',
+  '',
+  'ñandú',
+  '\tLuz',
+  ' Luz ',
+  'a'.repeat(40),
+  'b'.repeat(41),
+  'ñ'.repeat(40),
+  'ñ'.repeat(41),
+];
+
+function filasAlAzar(): unknown[] {
+  const siguiente = generador(20_260_930);
+  const de = <T>(opciones: readonly T[]): T => opciones[siguiente(opciones.length)] as T;
+  const texto = (): string =>
+    Array.from({ length: siguiente(46) }, () => String.fromCharCode(32 + siguiente(95))).join('');
+  const monto = (): unknown =>
+    siguiente(15) < 14
+      ? 1 + siguiente(500_000_000)
+      : de([0, -1, 1_000_000_000_000, 1_000_000_000_001, 1.5, 2 ** 60]);
+  const id = (): unknown =>
+    siguiente(9) < 8
+      ? idDeLaFila(siguiente(12))
+      : de(['00000000-0000-7000-8000-000000000099', 'MAUN', 7]);
+  const paso = (): unknown => {
+    const renglones = Array.from({ length: siguiente(5) }, () => ({
+      nombre: siguiente(3) === 0 ? texto() : de(NOMBRES_DE_RENGLON),
+      monto: monto(),
+    }));
+    const sumables = renglones.every((renglon) => Number.isSafeInteger(renglon.monto));
+    const tope =
+      siguiente(2) === 0 && sumables
+        ? renglones.reduce((suma, renglon) => suma + Number(renglon.monto), 0)
+        : monto();
+    const forma = siguiente(9);
+    const desde = forma < 6 ? null : forma < 8 ? de(['2026-09', '2026-13', '09-2026']) : 202609;
+    const clase = siguiente(9) < 8 ? de(['sueldo', 'fijos', 'prioridad']) : de(['otra', 3]);
+    const armado = { tesoro: id(), clase, tope, renglones };
+    return siguiente(31) === 0 ? armado : { ...armado, desde };
+  };
+  const parte = (): unknown => ({
+    tesoro: id(),
+    porcentaje: siguiente(7) < 6 ? 1 + siguiente(4000) : de([0, 10_000, 10_001, 2.5]),
+  });
+  const filas: unknown[] = [
+    null,
+    [],
+    'fila',
+    { pasos: [], reparto: [] },
+    {
+      pasos: Array.from({ length: 13 }, () => ({
+        tesoro: idDeLaFila(5),
+        clase: 'prioridad',
+        tope: 1,
+        renglones: [],
+        desde: null,
+      })),
+      reparto: [],
+      sueldoPorTrabajo: false,
+    },
+    {
+      pasos: [],
+      reparto: Array.from({ length: 9 }, () => ({ tesoro: idDeLaFila(6), porcentaje: 1 })),
+      sueldoPorTrabajo: false,
+    },
+    {
+      pasos: [
+        {
+          tesoro: idDeLaFila(4),
+          clase: 'fijos',
+          tope: 13,
+          renglones: Array.from({ length: 13 }, (_, i) => ({
+            nombre: `Renglón ${String(i)}`,
+            monto: 1,
+          })),
+          desde: null,
+        },
+      ],
+      reparto: [],
+      sueldoPorTrabajo: false,
+    },
+    {
+      pasos: [],
+      reparto: [
+        { tesoro: idDeLaFila(4), porcentaje: 6000 },
+        { tesoro: idDeLaFila(5), porcentaje: 4001 },
+      ],
+      sueldoPorTrabajo: false,
+    },
+    {
+      pasos: [
+        {
+          tesoro: idDeLaFila(0),
+          clase: 'sueldo',
+          tope: 100_000_000,
+          renglones: [],
+          desde: '2026-09',
+        },
+        {
+          tesoro: idDeLaFila(4),
+          clase: 'fijos',
+          tope: 30_000_000,
+          renglones: [
+            { nombre: 'Alquiler', monto: 20_000_000 },
+            { nombre: 'Luz', monto: 10_000_000 },
+          ],
+          desde: null,
+        },
+        { tesoro: idDeLaFila(5), clase: 'prioridad', tope: 0, renglones: [], desde: null },
+      ],
+      reparto: [
+        { tesoro: idDeLaFila(3), porcentaje: 5000 },
+        { tesoro: idDeLaFila(6), porcentaje: 5000 },
+      ],
+      sueldoPorTrabajo: false,
+    },
+  ];
+  for (let i = 0; i < 2_000; i++) {
+    if (siguiente(21) === 0) {
+      filas.push(de(filas.slice(0, 6)));
+      continue;
+    }
+    filas.push({
+      pasos: Array.from({ length: siguiente(6) }, paso),
+      reparto: Array.from({ length: siguiente(5) }, parte),
+      sueldoPorTrabajo: siguiente(9) === 0,
+    });
+  }
+  return filas.map((fila) => JSON.parse(JSON.stringify(fila)) as unknown);
+}
+
+interface CasoDelPlan {
+  destino: EstadoLiquidado;
+  fila: unknown;
+  conSueldo: boolean;
+  conDiezmo: boolean;
+}
+
+function planesAlAzar(): CasoDelPlan[] {
+  const siguiente = generador(20_260_931);
+  const casos: CasoDelPlan[] = [];
+  for (let i = 0; i < 600; i++) {
+    const indices = [4, 5, 6, 7, 8, 9].filter(() => siguiente(3) === 0).slice(0, 4);
+    const pasos = indices.map((indice) => {
+      const clase = siguiente(2) === 0 ? 'fijos' : 'prioridad';
+      const tope = 1 + siguiente(500_000_000);
+      return {
+        tesoro: idDeLaFila(indice),
+        clase,
+        tope,
+        renglones: clase === 'fijos' ? [{ nombre: 'Alquiler', monto: tope }] : [],
+        desde: null,
+      };
+    });
+    const sueldo =
+      siguiente(3) === 0
+        ? []
+        : [
+            {
+              tesoro: idDeLaFila(0),
+              clase: 'sueldo',
+              tope: siguiente(500_000_000),
+              renglones: [],
+              desde: null,
+            },
+          ];
+    casos.push({
+      destino: siguiente(2) === 0 ? 'cobrado' : 'perdido',
+      fila: {
+        pasos: [...sueldo, ...pasos],
+        reparto: [10, 11]
+          .filter(() => siguiente(2) === 0)
+          .map((indice) => ({ tesoro: idDeLaFila(indice), porcentaje: 1500 })),
+        sueldoPorTrabajo: siguiente(2) === 0,
+      },
+      conSueldo: siguiente(2) === 0,
+      conDiezmo: siguiente(2) === 0,
+    });
+  }
+  return casos;
+}
+
+function planEnTs(caso: CasoDelPlan) {
+  const fila = leerLaFila(caso.fila);
+  if (fila === null) throw new Error('el caso del plan no es una fila');
+  return planDelReparto(caso.destino, fila, {
+    perdidoConSueldo: caso.conSueldo,
+    perdidoConDiezmo: caso.conDiezmo,
+  });
+}
+
+const VECTORES_DE_REDONDEO: readonly (readonly [
+  number,
+  readonly number[],
+  readonly number[],
+  number,
+])[] = [
+  [5, [7000, 3000], [3, 1], 1],
+  [100, [3333, 3333, 3334], [33, 33, 33], 1],
+  [100, [3333, 3333, 3333], [33, 33, 33], 1],
+  [101, [5000, 5000], [50, 50], 1],
+  [0, [5000], [0], 0],
+];
+
+async function compararVectoresDeRedondeo(cliente: pg.Client): Promise<string[]> {
+  const diferencias: string[] = [];
+  for (const [sobrante, porcentajes, partes, remanente] of VECTORES_DE_REDONDEO) {
+    const { rows } = await cliente.query<{ partes: string[]; remanente: string }>(
+      `select r.partes::text[] as partes, r.remanente_centavos::text as remanente
+       from private.repartir_por_la_fila($1, 0, 0, '{}', '{}', '{}', $2::integer[]) as r`,
+      [sobrante, porcentajes],
+    );
+    const ts = repartir({
+      cobrado: centavos(sobrante),
+      gastos: centavos(0),
+      diezmoBp: puntosBasicos(0),
+      pasos: [],
+      reparto: porcentajes.map((porcentaje, i) => ({
+        tesoro: idDeLaFila(i),
+        porcentaje: puntosBasicos(porcentaje),
+      })),
+      previo: new Map(),
+    });
+    const esperado = JSON.stringify([partes, remanente]);
+    const enSql = JSON.stringify([textos(rows[0]?.partes ?? []), Number(rows[0]?.remanente)]);
+    const enDominio = JSON.stringify([ts.reparto.map((parte) => parte.monto), ts.remanente]);
+    if (enSql !== esperado || enDominio !== esperado) {
+      diferencias.push(
+        `redondeo de ${String(sobrante)} al ${porcentajes.join('/')}: esperado ${esperado}, SQL ${enSql}, TS ${enDominio}`,
+      );
+    }
+  }
+  return diferencias;
+}
+
+export async function compararFila(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+
+  const enteros = await compararGemela<string, number | null>(cliente, {
+    nombre: 'entero de JSON',
+    casos: [...ENTEROS_FIJOS, ...enterosAlAzar()],
+    ts: enteroEnTs,
+    sql: `select private.entero_de_json(c.valor)::text as entero
+          from unnest($1::jsonb[]) with ordinality as c (valor, orden)
+          order by c.orden`,
+    enJson: (texto) => texto,
+    deSql: (fila) => (typeof fila.entero === 'string' ? fila.entero : 'null'),
+    deTs: (valor) => (valor === null ? 'null' : String(valor)),
+  });
+
+  const repartos = await compararGemela(cliente, {
+    nombre: 'reparto por la fila',
+    casos: [...REPARTOS_FIJOS, ...repartosAlAzar()],
+    ts: repartirEnTs,
+    sql: REPARTIR_EN_SQL,
+    enJson: casoDelRepartoEnJson,
+    deSql: (fila) =>
+      JSON.stringify([
+        Number(fila.neta),
+        Number(fila.diezmo),
+        textos(fila.topes as unknown[]),
+        textos(fila.montos as unknown[]),
+        Number(fila.sobrante),
+        textos(fila.partes as unknown[]),
+        Number(fila.remanente),
+      ]),
+    deTs: (reparto) =>
+      JSON.stringify([
+        reparto.neta,
+        reparto.diezmo,
+        reparto.pasos.map((paso) => paso.tope),
+        reparto.pasos.map((paso) => paso.monto),
+        reparto.sobrante,
+        reparto.reparto.map((parte) => parte.monto),
+        reparto.remanente,
+      ]),
+  });
+
+  const deSiempre = await compararGemela(cliente, {
+    nombre: 'fila de siempre',
+    casos: filasDeSiempreAlAzar(),
+    ts: ([sueldo, fijos, mensual]) =>
+      filaDeSiempre(
+        {
+          sueldoMensual: centavos(sueldo),
+          costosFijos: centavos(fijos),
+          sueldoTopeMensual: mensual,
+        },
+        { hogar: idDeLaFila(0), maun: idDeLaFila(1) },
+      ),
+    sql: `select private.fila_de_siempre(
+            (c.caso ->> 0)::bigint, (c.caso ->> 1)::bigint, (c.caso ->> 2)::boolean,
+            ($2::jsonb ->> 'hogar')::uuid, ($2::jsonb ->> 'maun')::uuid
+          ) as fila
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    extra: { hogar: idDeLaFila(0), maun: idDeLaFila(1) },
+    deSql: (fila) => canonico(fila.fila),
+    deTs: (fila) => canonico(fila),
+  });
+
+  const problemas = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'problema de la fila',
+    casos: filasAlAzar(),
+    ts: (fila) => primerProblemaDeLaFila(fila, TESOROS_DE_LA_FILA),
+    sql: `select private.problema_de_la_fila(c.fila, $2::jsonb) as problema
+          from unnest($1::jsonb[]) with ordinality as c (fila, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    extra: TESOROS_DE_LA_FILA,
+    deSql: (fila) => (typeof fila.problema === 'string' ? fila.problema : 'null'),
+    deTs: (problema) => String(problema),
+  });
+
+  const planes = await compararGemela(cliente, {
+    nombre: 'plan del reparto',
+    casos: planesAlAzar(),
+    ts: planEnTs,
+    sql: `select r.diezmo_bp, r.tesoros::text[] as tesoros, r.clases, r.objetivos::text[] as objetivos,
+                 r.por_mes, r.tesoros_del_reparto::text[] as tesoros_del_reparto, r.porcentajes
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          cross join lateral private.plan_del_reparto(
+            c.caso ->> 'destino', c.caso -> 'fila', (c.caso ->> 'conSueldo')::boolean,
+            (c.caso ->> 'conDiezmo')::boolean
+          ) as r
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) =>
+      JSON.stringify([
+        fila.diezmo_bp,
+        fila.tesoros,
+        fila.clases,
+        textos(fila.objetivos as unknown[]),
+        fila.por_mes,
+        fila.tesoros_del_reparto,
+        fila.porcentajes,
+      ]),
+    deTs: (plan) =>
+      JSON.stringify([
+        plan.diezmoBp,
+        plan.pasos.map((paso) => paso.tesoro),
+        plan.pasos.map((paso) => paso.clase),
+        plan.pasos.map((paso) => paso.objetivo),
+        plan.pasos.map((paso) => paso.porMes),
+        plan.reparto.map((parte) => parte.tesoro),
+        plan.reparto.map((parte) => parte.porcentaje),
+      ]),
+  });
+
+  return [
+    ...enteros,
+    ...repartos,
+    ...deSiempre,
+    ...problemas,
+    ...planes,
+    ...(await compararVectoresDeRedondeo(cliente)),
+  ];
+}
+
 export async function compararEstados(cliente: pg.Client): Promise<string[]> {
   const { rows } = await cliente.query<{ estados: string[] }>(
     `select array_agg(e.enumlabel::text order by e.enumsortorder) as estados
@@ -1216,9 +2046,15 @@ export interface FilaProyecto {
   reapertura_sueldo_mensual: boolean | null;
   reapertura_fecha: string | null;
   en_la_apertura: boolean;
+  fila_version: number | null;
+  fila: unknown;
+  previo_del_mes: unknown;
+  reapertura_fila: unknown;
 }
 
 const COLUMNAS = `p.id, p.estado::text as estado, p.version, p.fecha_cobro::text as fecha_cobro,
+  p.dist_fila_version as fila_version, p.dist_fila as fila, p.dist_previo as previo_del_mes,
+  p.reapertura_fila,
   p.dist_cobrado_centavos::text as cobrado, p.dist_gastos_centavos::text as gastos,
   p.dist_diezmo_bp as diezmo_bp,
   p.dist_tope_sueldo_centavos::text as tope_sueldo, p.dist_tope_fijos_centavos::text as tope_fijos,
@@ -1290,6 +2126,42 @@ function esperadoAlLiquidar(liquidacion: Liquidacion, enLaApertura: boolean): st
     null,
     enLaApertura,
   ]);
+}
+
+function esperadoPorLaFila(liquidacion: LiquidacionPorLaFila, enLaApertura: boolean): string {
+  const columnasDeLaFila = columnasDeSiempre(liquidacion);
+  return JSON.stringify([
+    liquidacion.destino,
+    liquidacion.fecha,
+    liquidacion.cobrado,
+    liquidacion.gastos,
+    columnasDeLaFila.diezmoBp,
+    columnasDeLaFila.topeSueldo,
+    columnasDeLaFila.topeFijos,
+    columnasDeLaFila.diezmo,
+    columnasDeLaFila.sueldo,
+    columnasDeLaFila.fijos,
+    columnasDeLaFila.remanente,
+    columnasDeLaFila.objetivoSueldo,
+    columnasDeLaFila.objetivoFijos,
+    columnasDeLaFila.sueldoMensual,
+    columnasDeLaFila.sueldoPrevio,
+    columnasDeLaFila.fijosPrevio,
+    true,
+    null,
+    null,
+    null,
+    null,
+    enLaApertura,
+  ]);
+}
+
+function filaCongelada(fila: FilaProyecto): string {
+  return canonico([fila.fila_version, fila.fila, fila.previo_del_mes, fila.reapertura_fila]);
+}
+
+function previoQueVio(liquidacion: LiquidacionPorLaFila): Record<string, number> {
+  return Object.fromEntries(liquidacion.pasos.map((paso) => [paso.tesoro, paso.previo]));
 }
 
 function esperadoAlRevertir(antes: FilaProyecto, hacia: EstadoProyecto): string {
@@ -1385,6 +2257,28 @@ async function totales(
   return { cobrado: Number(rows[0]?.cobrado), gastos: Number(rows[0]?.gastos) };
 }
 
+async function loRepartidoPorLaFila(
+  cliente: pg.Client,
+  householdId: string,
+): Promise<Map<string, { sueldo: number; fijos: number }>> {
+  const { rows } = await cliente.query<{ proyecto_id: string; sueldo: string; fijos: string }>(
+    `select r.proyecto_id,
+            coalesce(sum(r.monto_centavos) filter (where r.clase = 'sueldo'), 0)::text as sueldo,
+            coalesce(sum(r.monto_centavos) filter (where r.clase = 'fijos' and t.clave = 'maun'), 0)::text as fijos
+     from public.repartos r
+     join public.tesoros t on t.household_id = r.household_id and t.id = r.tesoro_id
+     where r.household_id = $1 and r.deleted_at is null and r.tipo = 'paso'
+     group by r.proyecto_id`,
+    [householdId],
+  );
+  return new Map(
+    rows.map((fila) => [
+      fila.proyecto_id,
+      { sueldo: Number(fila.sueldo), fijos: Number(fila.fijos) },
+    ]),
+  );
+}
+
 export interface LiquidacionPreparada {
   proyectoId: string;
   version: number;
@@ -1421,9 +2315,22 @@ export async function prepararLiquidacion(
   const deLasOtras = (filas: readonly FilaProyecto[]) =>
     filas.map(registrada).filter((liquidacion) => liquidacion !== null);
 
-  const esperado = calcularLiquidacion({ ...entrada, liquidaciones: deLasOtras(otras) });
+  const repartido = otras.some((fila) => fila.fila_version !== null)
+    ? await loRepartidoPorLaFila(cliente, householdId)
+    : new Map<string, { sueldo: number; fijos: number }>();
+  const conSusRepartos = (fila: FilaProyecto): LiquidacionRegistrada | null => {
+    const registro = registrada(fila);
+    if (registro === null || fila.fila_version === null) return registro;
+    const suyo = repartido.get(fila.id);
+    return { ...registro, sueldo: centavos(suyo?.sueldo ?? 0), fijos: centavos(suyo?.fijos ?? 0) };
+  };
+
+  const esperado = calcularLiquidacion({
+    ...entrada,
+    liquidaciones: otras.map(conSusRepartos).filter((liquidacion) => liquidacion !== null),
+  });
   const vista =
-    sinVer.length === 0
+    sinVer.length === 0 && otras.every((fila) => fila.fila_version === null)
       ? esperado
       : calcularLiquidacion({
           ...entrada,
@@ -1484,12 +2391,33 @@ interface ProyectoDeEscenario {
 
 interface MovimientoDeEscenario {
   tipo: TipoMovimiento;
-  origen: Tesoro | null;
-  destino: Tesoro | null;
+  origen: string | null;
+  destino: string | null;
   monto: number;
   fecha: string;
   categoria?: string;
   descripcion?: string;
+  borrado?: boolean;
+}
+
+interface PasoDeLaFilaDeEscenario {
+  tesoro: string;
+  clase: ClaseDePaso;
+  tope?: number;
+  renglones?: readonly (readonly [string, number])[];
+}
+
+interface FilaDeEscenario {
+  pasos: readonly PasoDeLaFilaDeEscenario[];
+  reparto: readonly (readonly [string, number])[];
+}
+
+interface CoberturaDeEscenario {
+  desde: string;
+  hacia: string;
+  monto: number;
+  mes: string;
+  fecha: string;
   borrado?: boolean;
 }
 
@@ -1500,10 +2428,13 @@ type Paso =
       fecha: string;
       sinVer?: string[];
       enLaApertura?: boolean;
+      porLaFila?: boolean;
     }
   | { revertir: EstadoProyecto; proyecto: string }
   | { pago: number; proyecto: string }
-  | { ajustes: { sueldo?: number; fijos?: number } };
+  | { ajustes: { sueldo?: number; fijos?: number } }
+  | { fila: FilaDeEscenario | null }
+  | { cubrir: CoberturaDeEscenario };
 
 export interface EscenarioDeLiquidacion {
   nombre: string;
@@ -1512,6 +2443,7 @@ export interface EscenarioDeLiquidacion {
   pasos: Paso[];
   movimientos?: MovimientoDeEscenario[];
   apertura?: string;
+  tesoros?: readonly string[];
 }
 
 function unCobro(
@@ -1532,6 +2464,275 @@ function unCobro(
 function entregado(...pagos: number[]): ProyectoDeEscenario {
   return { estado: 'entregado', pagos, gastos: [] };
 }
+
+const TESOROS_DE_LA_FILA_COMPLETA: readonly string[] = ['Gastos fijos', 'Materiales', 'Inmuebles'];
+
+const FILA_COMPLETA: FilaDeEscenario = {
+  pasos: [
+    { tesoro: 'hogar', clase: 'sueldo', tope: 100_000_000 },
+    {
+      tesoro: 'Gastos fijos',
+      clase: 'fijos',
+      renglones: [
+        ['Alquiler', 20_000_000],
+        ['Luz', 7_500_000],
+        ['Ayudante', 2_500_000],
+      ],
+    },
+    { tesoro: 'Materiales', clase: 'prioridad', tope: 5_000_000 },
+  ],
+  reparto: [
+    ['cocos', 5000],
+    ['Inmuebles', 3000],
+  ],
+};
+
+const FILA_CAMBIADA: FilaDeEscenario = {
+  pasos: [
+    { tesoro: 'hogar', clase: 'sueldo', tope: 100_000_000 },
+    {
+      tesoro: 'Gastos fijos',
+      clase: 'fijos',
+      renglones: [
+        ['Alquiler', 20_000_000],
+        ['Luz', 7_500_000],
+        ['Ayudante', 2_500_000],
+      ],
+    },
+    { tesoro: 'Materiales', clase: 'prioridad', tope: 8_000_000 },
+  ],
+  reparto: [['cocos', 6000]],
+};
+
+const MENSUAL = { sueldo: 100_000_000, fijos: 30_000_000, sueldoTopeMensual: true };
+
+const ESCENARIOS_POR_LA_FILA: EscenarioDeLiquidacion[] = [
+  {
+    nombre:
+      'por la fila: sueldo, gastos fijos con renglones y prioridad, y un reparto por debajo de 100%',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: MENSUAL,
+    proyectos: {
+      p1: { estado: 'entregado', pagos: [200_000_000], gastos: [20_000_000] },
+      p2: entregado(60_000_000),
+      p3: entregado(33_333_333),
+      p4: { estado: 'entregado', pagos: [10_000_000], gastos: [15_000_000] },
+    },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-10', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-20', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p3', fecha: '2026-10-02', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p4', fecha: '2026-10-05', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'por la fila: el reparto al 100%, con los centavos del redondeo en Maun',
+    tesoros: ['Inmuebles', 'Herramientas'],
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(50_000_007), p2: entregado(1_234_567) },
+    pasos: [
+      {
+        fila: {
+          pasos: [{ tesoro: 'hogar', clase: 'sueldo', tope: 10_000_000 }],
+          reparto: [
+            ['cocos', 3333],
+            ['Inmuebles', 3333],
+            ['Herramientas', 3334],
+          ],
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-10', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-11', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'por la fila: lo que se pasa para cubrir el mes cuenta para su tope, y lo de otro mes o lo borrado no',
+    tesoros: ['Gastos fijos'],
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(50_000_000), p2: entregado(30_000_000) },
+    pasos: [
+      {
+        fila: {
+          pasos: [
+            { tesoro: 'Gastos fijos', clase: 'fijos', renglones: [['Alquiler', 30_000_000]] },
+          ],
+          reparto: [],
+        },
+      },
+      {
+        cubrir: {
+          desde: 'maun',
+          hacia: 'Gastos fijos',
+          monto: 12_000_000,
+          mes: '2026-09-01',
+          fecha: '2026-09-05',
+        },
+      },
+      {
+        cubrir: {
+          desde: 'hogar',
+          hacia: 'Gastos fijos',
+          monto: 4_000_000,
+          mes: '2026-10-01',
+          fecha: '2026-09-06',
+        },
+      },
+      {
+        cubrir: {
+          desde: 'cocos',
+          hacia: 'Gastos fijos',
+          monto: 2_000_000,
+          mes: '2026-09-01',
+          fecha: '2026-09-07',
+          borrado: true,
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-15', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-10-03', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'por la fila: un perdido lleva el diezmo y el sueldo en cero, reactivarlo no deja foto y volver a cerrarlo es otro evento',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: MENSUAL,
+    proyectos: {
+      lead: { estado: 'presupuesto_enviado', pagos: [40_000_000], gastos: [] },
+      obra: { estado: 'en_curso', pagos: [150_000_000], gastos: [30_000_000] },
+      p1: entregado(100_000_000),
+    },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      { liquidar: 'perdido', proyecto: 'lead', fecha: '2026-09-05', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-10', porLaFila: true },
+      { revertir: 'contacto', proyecto: 'lead' },
+      { liquidar: 'perdido', proyecto: 'lead', fecha: '2026-10-01', porLaFila: true },
+      { liquidar: 'perdido', proyecto: 'obra', fecha: '2026-10-02', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'por la fila: un perdido con sueldo y sin diezmo, y un cobro después en el mismo mes',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: { ...MENSUAL, perdidoConSueldo: true, perdidoConDiezmo: false },
+    proyectos: {
+      obra: { estado: 'en_curso', pagos: [150_000_000], gastos: [30_000_000] },
+      p: entregado(80_000_000),
+    },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      { liquidar: 'perdido', proyecto: 'obra', fecha: '2026-09-07', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p', fecha: '2026-09-08', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'por la fila: reabrir un cobro, cambiar la fila y volver a cobrarlo con la fila de su foto',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(120_000_000), p2: entregado(80_000_000) },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03', porLaFila: true },
+      { revertir: 'entregado', proyecto: 'p1' },
+      { pago: 30_000_000, proyecto: 'p1' },
+      { fila: FILA_CAMBIADA },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-10', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'por la fila: un cobro y un perdido con lo del mes viejo se ajustan',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: MENSUAL,
+    proyectos: {
+      p1: entregado(150_000_000),
+      p2: entregado(90_000_000),
+      lead: { estado: 'presupuesto_enviado', pagos: [30_000_000], gastos: [] },
+    },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-20', porLaFila: true, sinVer: ['p1'] },
+      {
+        liquidar: 'perdido',
+        proyecto: 'lead',
+        fecha: '2026-09-25',
+        porLaFila: true,
+        sinVer: ['p1', 'p2'],
+      },
+    ],
+  },
+  {
+    nombre:
+      'sin fila guardada: una app nueva cobra por la fila de siempre, entre cobros de una app vieja',
+    ajustes: { sueldo: 50_000_000, fijos: 25_000_000, sueldoTopeMensual: true },
+    proyectos: {
+      p0: entregado(30_000_000),
+      p1: entregado(40_000_000),
+      p2: entregado(60_000_000),
+      p3: entregado(20_000_000),
+    },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p0', fecha: '2026-11-02' },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-11-05', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-11-10' },
+      { liquidar: 'cobrado', proyecto: 'p3', fecha: '2026-11-20', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'sin fila guardada y con el sueldo por trabajo: la fila de siempre no topea el sueldo',
+    ajustes: { sueldo: 50_000_000, fijos: 25_000_000 },
+    proyectos: { p1: entregado(70_000_000), p2: entregado(100_000_000) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-20', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'reabrir un cobro de antes y volver a cobrarlo por la fila: la de siempre armada con su foto',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: { sueldo: 50_000_000, fijos: 25_000_000, sueldoTopeMensual: true },
+    proyectos: { p1: entregado(70_000_000), p2: entregado(100_000_000) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03' },
+      { revertir: 'entregado', proyecto: 'p1' },
+      { fila: FILA_COMPLETA },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-10', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-03', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'por la fila: un cobro de antes de la apertura, marcado, y volver a la fila de siempre',
+    apertura: '2026-09-14',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: MENSUAL,
+    proyectos: {
+      viejo: {
+        estado: 'entregado',
+        pagos: [160_000_000],
+        gastos: [],
+        fechaDeLosPagos: '2026-07-01',
+        pagosEnLaApertura: true,
+      },
+      nuevo: entregado(50_000_000),
+    },
+    pasos: [
+      { fila: FILA_COMPLETA },
+      {
+        liquidar: 'cobrado',
+        proyecto: 'viejo',
+        fecha: '2026-07-01',
+        porLaFila: true,
+        enLaApertura: true,
+      },
+      { fila: null },
+      { liquidar: 'cobrado', proyecto: 'nuevo', fecha: '2026-09-20', porLaFila: true },
+    ],
+  },
+];
 
 export const ESCENARIOS_DE_LIQUIDACION: EscenarioDeLiquidacion[] = [
   unCobro('con pérdida', [10_000_000], [15_000_000], 180_000_000, 25_000_000),
@@ -1765,6 +2966,7 @@ export const ESCENARIOS_DE_LIQUIDACION: EscenarioDeLiquidacion[] = [
       { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-11-20', sinVer: ['p1'] },
     ],
   },
+  ...ESCENARIOS_POR_LA_FILA,
 ];
 
 interface Contexto {
@@ -1772,18 +2974,68 @@ interface Contexto {
   usuarioId: string;
   clienteId: string;
   ids: Map<string, string>;
+  tesoros: Map<string, string>;
+  nuevoId: () => string;
+  verificar: boolean;
+}
+
+const TINTAS_DE_ESCENARIO = ['grana', 'mostaza', 'petroleo', 'ciruela'] as const;
+
+function esClaveDeTesoro(nombre: string): boolean {
+  return (TESOROS as readonly string[]).includes(nombre);
+}
+
+function idDelTesoro(tesoros: ReadonlyMap<string, string>, nombre: string): string {
+  const id = tesoros.get(nombre);
+  if (id === undefined) throw new Error(`el escenario no tiene el tesoro ${nombre}`);
+  return id;
+}
+
+function ladoDelMovimiento(
+  tesoros: ReadonlyMap<string, string>,
+  nombre: string | null,
+): { clave: string | null; id: string | null } {
+  if (nombre === null) return { clave: null, id: null };
+  if (esClaveDeTesoro(nombre)) return { clave: nombre, id: null };
+  return { clave: null, id: idDelTesoro(tesoros, nombre) };
+}
+
+function filaDelEscenario(fila: FilaDeEscenario, tesoros: ReadonlyMap<string, string>): Fila {
+  return {
+    pasos: fila.pasos.map((paso) => {
+      const renglones = (paso.renglones ?? []).map(([nombre, monto]) => ({
+        nombre,
+        monto: centavos(monto),
+      }));
+      const suma = renglones.reduce((total, renglon) => total + renglon.monto, 0);
+      return {
+        tesoro: idDelTesoro(tesoros, paso.tesoro),
+        clase: paso.clase,
+        tope: centavos(paso.tope ?? suma),
+        renglones,
+        desde: null,
+      };
+    }),
+    reparto: fila.reparto.map(([tesoro, porcentaje]) => ({
+      tesoro: idDelTesoro(tesoros, tesoro),
+      porcentaje: puntosBasicos(porcentaje),
+    })),
+    sueldoPorTrabajo: false,
+  };
 }
 
 async function prepararEscenario(
   cliente: pg.Client,
   escenario: EscenarioDeLiquidacion,
 ): Promise<Contexto> {
-  await cliente.query("select set_config('maun.hoy_en_el_taller', '2099-12-31', true)");
   const { rows: usuario } = await cliente.query<{ id: string }>(
-    `insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
-     values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-             'comparacion@maun.test', '', now(), now())
-     returning id`,
+    `with nuevo as (
+       insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+       values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+               'comparacion@maun.test', '', now(), now())
+       returning id
+     )
+     select id, set_config('maun.hoy_en_el_taller', '2099-12-31', true) from nuevo`,
   );
   const userId = usuario[0]?.id ?? '';
   const { rows: household } = await cliente.query<{ id: string }>(
@@ -1792,11 +3044,17 @@ async function prepararEscenario(
   );
   const householdId = household[0]?.id ?? '';
   const { ajustes } = escenario;
-  await cliente.query(
-    `update public.ajustes set
-       sueldo_mensual_centavos = $2, costos_fijos_centavos = $3, sueldo_tope_mensual = $4,
-       perdido_con_sueldo = $5, perdido_con_diezmo = $6
-     where household_id = $1`,
+  const { rows: clienteDelTaller } = await cliente.query<{ id: string }>(
+    `with cambiados as (
+       update public.ajustes set
+         sueldo_mensual_centavos = $2, costos_fijos_centavos = $3, sueldo_tope_mensual = $4,
+         perdido_con_sueldo = $5, perdido_con_diezmo = $6
+       where household_id = $1
+       returning household_id
+     )
+     insert into public.clientes (household_id, nombre)
+     select household_id, 'Cliente' from cambiados
+     returning id`,
     [
       householdId,
       ajustes.sueldo,
@@ -1806,10 +3064,26 @@ async function prepararEscenario(
       ajustes.perdidoConDiezmo ?? true,
     ],
   );
-  const { rows: clienteDelTaller } = await cliente.query<{ id: string }>(
-    `insert into public.clientes (household_id, nombre) values ($1, 'Cliente') returning id`,
-    [householdId],
+  const nombresDeTesoros = escenario.tesoros ?? [];
+  const { rows: filasDeTesoros } = await cliente.query<{ nombre: string; id: string }>(
+    `with nuevos as (
+       insert into public.tesoros (household_id, nombre, tinta, icono, orden)
+       select $1, t.nombre, t.tinta, 'vault', t.orden - 1
+       from unnest($2::text[], $3::text[]) with ordinality as t (nombre, tinta, orden)
+       returning nombre, id
+     )
+     select nombre, id from nuevos
+     union all
+     select clave::text, id from public.tesoros where household_id = $1 and clave is not null`,
+    [
+      householdId,
+      nombresDeTesoros,
+      nombresDeTesoros.map(
+        (_, orden) => TINTAS_DE_ESCENARIO[orden % TINTAS_DE_ESCENARIO.length] ?? 'grana',
+      ),
+    ],
   );
+  const tesoros = new Map(filasDeTesoros.map((fila) => [fila.nombre, fila.id]));
   if (escenario.apertura !== undefined) {
     await cliente.query(
       `insert into public.movimientos
@@ -1818,84 +3092,388 @@ async function prepararEscenario(
       [householdId, escenario.apertura],
     );
   }
-  const ids = new Map<string, string>();
-  for (const [clave, proyecto] of Object.entries(escenario.proyectos)) {
-    const { rows } = await cliente.query<{ id: string }>(
-      `insert into public.proyectos (household_id, cliente_id, titulo, estado)
-       values ($1, $2, $3, $4) returning id`,
-      [householdId, clienteDelTaller[0]?.id, clave, proyecto.estado],
+
+  const proyectos = Object.entries(escenario.proyectos);
+  const { rows: filasDeProyectos } = await cliente.query<{ titulo: string; id: string }>(
+    `insert into public.proyectos (household_id, cliente_id, titulo, estado)
+     select $1, $2, p.titulo, p.estado::public.estado_proyecto
+     from unnest($3::text[], $4::text[]) with ordinality as p (titulo, estado, orden)
+     order by p.orden
+     returning titulo, id`,
+    [
+      householdId,
+      clienteDelTaller[0]?.id,
+      proyectos.map(([clave]) => clave),
+      proyectos.map(([, proyecto]) => proyecto.estado),
+    ],
+  );
+  const ids = new Map(filasDeProyectos.map((fila) => [fila.titulo, fila.id]));
+  const idDe = (clave: string) => ids.get(clave) ?? '';
+
+  const enSeguimiento = proyectos.filter(([, proyecto]) => proyecto.estado === 'en_seguimiento');
+  if (enSeguimiento.length > 0) {
+    await cliente.query(
+      `insert into public.proximos_contactos (household_id, proyecto_id, fecha, etapa_previa)
+       select $1, p.id, '2026-09-01', 'presupuesto_enviado' from unnest($2::uuid[]) as p (id)`,
+      [householdId, enSeguimiento.map(([clave]) => idDe(clave))],
     );
-    const proyectoId = rows[0]?.id ?? '';
-    ids.set(clave, proyectoId);
-    if (proyecto.estado === 'en_seguimiento') {
-      await cliente.query(
-        `insert into public.proximos_contactos (household_id, proyecto_id, fecha, etapa_previa)
-         values ($1, $2, '2026-09-01', 'presupuesto_enviado')`,
-        [householdId, proyectoId],
-      );
-    }
-    for (const [tabla, montos, borrado] of [
-      ['pagos', proyecto.pagos, false],
-      ['gastos', proyecto.gastos, false],
-      ['pagos', proyecto.pagosBorrados ?? [], true],
-      ['gastos', proyecto.gastosBorrados ?? [], true],
-    ] as const) {
-      for (const monto of montos) {
-        if (tabla === 'pagos') {
-          await cliente.query(
-            `insert into public.pagos
-               (household_id, proyecto_id, fecha, monto_centavos, deleted_at, ya_en_la_apertura)
-             values ($1, $2, $3, $4, $5, $6)`,
-            [
-              householdId,
-              proyectoId,
-              proyecto.fechaDeLosPagos ?? '2026-08-01',
-              monto,
-              borrado ? '2026-08-15T00:00:00Z' : null,
-              proyecto.pagosEnLaApertura === true,
-            ],
-          );
-          continue;
-        }
-        await cliente.query(
-          `insert into public.gastos (household_id, proyecto_id, fecha, monto_centavos, deleted_at)
-           values ($1, $2, '2026-08-01', $3, $4)`,
-          [householdId, proyectoId, monto, borrado ? '2026-08-15T00:00:00Z' : null],
-        );
-      }
-    }
-    if (proyecto.borrado === true) {
-      await cliente.query(
-        `update public.proyectos set deleted_at = '2026-08-20T00:00:00Z' where id = $1`,
-        [proyectoId],
-      );
-    }
   }
 
-  for (const movimiento of escenario.movimientos ?? []) {
+  const pagos = proyectos.flatMap(([clave, proyecto]) =>
+    [
+      ...proyecto.pagos.map((monto) => [monto, null] as const),
+      ...(proyecto.pagosBorrados ?? []).map((monto) => [monto, '2026-08-15T00:00:00Z'] as const),
+    ].map(([monto, borrado]) => ({
+      proyecto: idDe(clave),
+      fecha: proyecto.fechaDeLosPagos ?? '2026-08-01',
+      monto,
+      borrado,
+      enLaApertura: proyecto.pagosEnLaApertura === true,
+    })),
+  );
+  if (pagos.length > 0) {
     await cliente.query(
-      `insert into public.movimientos
-         (household_id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, categoria, descripcion, deleted_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `insert into public.pagos (household_id, proyecto_id, fecha, monto_centavos, deleted_at, ya_en_la_apertura)
+       select $1, p.proyecto, p.fecha, p.monto, p.borrado, p.en_la_apertura
+       from unnest($2::uuid[], $3::date[], $4::bigint[], $5::timestamptz[], $6::boolean[])
+         with ordinality as p (proyecto, fecha, monto, borrado, en_la_apertura, orden)
+       order by p.orden`,
       [
         householdId,
-        movimiento.fecha,
-        movimiento.tipo,
-        movimiento.origen,
-        movimiento.destino,
-        movimiento.monto,
-        movimiento.categoria ?? '',
-        movimiento.descripcion ?? '',
-        movimiento.borrado === true ? '2026-08-25T00:00:00Z' : null,
+        pagos.map((pago) => pago.proyecto),
+        pagos.map((pago) => pago.fecha),
+        pagos.map((pago) => pago.monto),
+        pagos.map((pago) => pago.borrado),
+        pagos.map((pago) => pago.enLaApertura),
       ],
     );
   }
 
-  await cliente.query("select set_config('request.jwt.claims', $1, true)", [
-    JSON.stringify({ sub: userId, role: 'authenticated' }),
-  ]);
-  await cliente.query("select set_config('role', 'authenticated', true)");
-  return { householdId, usuarioId: userId, clienteId: clienteDelTaller[0]?.id ?? '', ids };
+  const gastos = proyectos.flatMap(([clave, proyecto]) =>
+    [
+      ...proyecto.gastos.map((monto) => [monto, null] as const),
+      ...(proyecto.gastosBorrados ?? []).map((monto) => [monto, '2026-08-15T00:00:00Z'] as const),
+    ].map(([monto, borrado]) => ({ proyecto: idDe(clave), monto, borrado })),
+  );
+  if (gastos.length > 0) {
+    await cliente.query(
+      `insert into public.gastos (household_id, proyecto_id, fecha, monto_centavos, deleted_at)
+       select $1, g.proyecto, '2026-08-01', g.monto, g.borrado
+       from unnest($2::uuid[], $3::bigint[], $4::timestamptz[]) with ordinality as g (proyecto, monto, borrado, orden)
+       order by g.orden`,
+      [
+        householdId,
+        gastos.map((gasto) => gasto.proyecto),
+        gastos.map((gasto) => gasto.monto),
+        gastos.map((gasto) => gasto.borrado),
+      ],
+    );
+  }
+
+  const borrados = proyectos.filter(([, proyecto]) => proyecto.borrado === true);
+  if (borrados.length > 0) {
+    await cliente.query(
+      `update public.proyectos set deleted_at = '2026-08-20T00:00:00Z' where id = any ($1::uuid[])`,
+      [borrados.map(([clave]) => idDe(clave))],
+    );
+  }
+
+  const movimientos = escenario.movimientos ?? [];
+  if (movimientos.length > 0) {
+    const lados = movimientos.map((movimiento) => ({
+      desde: ladoDelMovimiento(tesoros, movimiento.origen),
+      hacia: ladoDelMovimiento(tesoros, movimiento.destino),
+    }));
+    await cliente.query(
+      `insert into public.movimientos
+         (household_id, fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos,
+          categoria, descripcion, deleted_at)
+       select $1, m.fecha, m.tipo::public.tipo_movimiento, m.origen::public.tesoro, m.destino::public.tesoro,
+              m.desde, m.hacia, m.monto, m.categoria, m.descripcion, m.borrado
+       from unnest(
+         $2::date[], $3::text[], $4::text[], $5::text[], $6::uuid[], $7::uuid[], $8::bigint[],
+         $9::text[], $10::text[], $11::timestamptz[]
+       ) with ordinality as m (fecha, tipo, origen, destino, desde, hacia, monto, categoria, descripcion, borrado, orden)
+       order by m.orden`,
+      [
+        householdId,
+        movimientos.map((movimiento) => movimiento.fecha),
+        movimientos.map((movimiento) => movimiento.tipo),
+        lados.map((lado) => lado.desde.clave),
+        lados.map((lado) => lado.hacia.clave),
+        lados.map((lado) => lado.desde.id),
+        lados.map((lado) => lado.hacia.id),
+        movimientos.map((movimiento) => movimiento.monto),
+        movimientos.map((movimiento) => movimiento.categoria ?? ''),
+        movimientos.map((movimiento) => movimiento.descripcion ?? ''),
+        movimientos.map((movimiento) =>
+          movimiento.borrado === true ? '2026-08-25T00:00:00Z' : null,
+        ),
+      ],
+    );
+  }
+
+  await cliente.query(
+    "select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)",
+    [JSON.stringify({ sub: userId, role: 'authenticated' })],
+  );
+  let emitidos = 0;
+  const nuevoId = () => {
+    emitidos += 1;
+    return `22222222-0000-7000-8000-${String(emitidos).padStart(12, '0')}`;
+  };
+  return {
+    householdId,
+    usuarioId: userId,
+    clienteId: clienteDelTaller[0]?.id ?? '',
+    ids,
+    tesoros,
+    nuevoId,
+    verificar: true,
+  };
+}
+
+async function guardarLaFilaDelEscenario(
+  cliente: pg.Client,
+  contexto: Contexto,
+  deEscenario: FilaDeEscenario | null,
+): Promise<string[]> {
+  const { version } = filaDelTaller(await replicaDeLaBase(cliente, contexto.usuarioId));
+  const fila = deEscenario === null ? null : filaDelEscenario(deEscenario, contexto.tesoros);
+  const { rows } = await cliente.query<{ version: number; fila: unknown }>(
+    'select fila_version as version, fila from public.guardar_la_fila($1, $2::jsonb)',
+    [version, fila === null ? null : JSON.stringify(fila)],
+  );
+  const enBase = canonico([rows[0]?.version, rows[0]?.fila]);
+  const esperado = canonico([version + 1, fila]);
+  return enBase === esperado ? [] : [`guardar la fila: base ${enBase}, esperado ${esperado}`];
+}
+
+async function cubrirElMes(
+  cliente: pg.Client,
+  contexto: Contexto,
+  cobertura: CoberturaDeEscenario,
+): Promise<void> {
+  const { rows } = await cliente.query<{ id: string }>(
+    `insert into public.movimientos (fecha, tipo, desde_id, hacia_id, monto_centavos, cubre_el_mes)
+     values ($1, 'transferencia', $2, $3, $4, $5) returning id`,
+    [
+      cobertura.fecha,
+      idDelTesoro(contexto.tesoros, cobertura.desde),
+      idDelTesoro(contexto.tesoros, cobertura.hacia),
+      cobertura.monto,
+      cobertura.mes,
+    ],
+  );
+  if (cobertura.borrado === true) {
+    await cliente.query('update public.movimientos set deleted_at = now() where id = $1', [
+      rows[0]?.id,
+    ]);
+  }
+}
+
+interface FilaDeReparto {
+  id: string;
+  posicion: number;
+  tesoro_id: string;
+  nombre: string;
+  tipo: string;
+  clase: string | null;
+  objetivo: string | null;
+  previo: string | null;
+  tope: string | null;
+  por_mes: boolean | null;
+  porcentaje_bp: number | null;
+  monto: string;
+  fecha: string;
+  ya_en_la_apertura: boolean;
+}
+
+async function repartosVivos(cliente: pg.Client, proyectoId: string): Promise<string[]> {
+  const { rows } = await cliente.query<FilaDeReparto>(
+    `select id, posicion, tesoro_id, nombre, tipo, clase, objetivo_centavos::text as objetivo,
+            previo_centavos::text as previo, tope_centavos::text as tope, por_mes, porcentaje_bp,
+            monto_centavos::text as monto, fecha::text as fecha, ya_en_la_apertura
+     from public.repartos
+     where proyecto_id = $1 and deleted_at is null
+     order by posicion`,
+    [proyectoId],
+  );
+  return rows.map((fila) =>
+    JSON.stringify([
+      fila.id,
+      fila.posicion,
+      fila.tesoro_id,
+      fila.nombre,
+      fila.tipo,
+      fila.clase,
+      entero(fila.objetivo),
+      entero(fila.previo),
+      entero(fila.tope),
+      fila.por_mes,
+      fila.porcentaje_bp,
+      Number(fila.monto),
+      fila.fecha,
+      fila.ya_en_la_apertura,
+    ]),
+  );
+}
+
+function repartosEsperados(
+  liquidacion: LiquidacionPorLaFila,
+  ids: readonly string[],
+  nombres: ReadonlyMap<string, string>,
+  enLaApertura: boolean,
+): string[] {
+  const pasos = liquidacion.pasos.map((paso, i) =>
+    JSON.stringify([
+      ids[i],
+      i + 1,
+      paso.tesoro,
+      nombres.get(paso.tesoro) ?? '',
+      'paso',
+      paso.clase,
+      paso.objetivo,
+      paso.previo,
+      paso.tope,
+      paso.porMes,
+      null,
+      paso.monto,
+      liquidacion.fecha,
+      enLaApertura,
+    ]),
+  );
+  const partes = liquidacion.reparto.map((parte, i) =>
+    JSON.stringify([
+      ids[liquidacion.pasos.length + i],
+      liquidacion.pasos.length + i + 1,
+      parte.tesoro,
+      nombres.get(parte.tesoro) ?? '',
+      'parte',
+      null,
+      null,
+      null,
+      null,
+      null,
+      parte.porcentaje,
+      parte.monto,
+      liquidacion.fecha,
+      enLaApertura,
+    ]),
+  );
+  return [...pasos, ...partes];
+}
+
+async function liquidarPorLaFila(
+  cliente: pg.Client,
+  contexto: Contexto,
+  paso: {
+    liquidar: EstadoLiquidado;
+    proyecto: string;
+    fecha: string;
+    sinVer?: string[];
+    enLaApertura?: boolean;
+  },
+  proyectoId: string,
+): Promise<string[]> {
+  const replica = await replicaDeLaBase(cliente, contexto.usuarioId);
+  const proyecto = filaPorId(replica, 'proyectos', proyectoId);
+  if (proyecto === undefined) return [`${paso.liquidar} ${paso.proyecto}: no está en la réplica`];
+  const sinVer = (paso.sinVer ?? []).map((clave) => contexto.ids.get(clave) ?? '');
+  const loQueVe = sinVer.reduce((vista, id) => quitarFilaLocal(vista, 'proyectos', id), replica);
+  const { fila, version } = filaParaLiquidar(replica, proyecto, paso.liquidar);
+  const ajustes = ajustesDe(replica);
+  const { cobrado, gastos } = totalesDelProyecto(replica, proyectoId);
+  const calcular = (desde: Replica) =>
+    calcularPorLaFila({
+      destino: paso.liquidar,
+      fecha: paso.fecha,
+      cobrado,
+      gastos,
+      fila,
+      ajustes: {
+        perdidoConSueldo: ajustes?.perdido_con_sueldo ?? false,
+        perdidoConDiezmo: ajustes?.perdido_con_diezmo ?? true,
+      },
+      liquidaciones: liquidacionesDelMesDeLaReplica(desde, proyectoId),
+      coberturas: coberturasDeLaReplica(desde),
+    });
+  const esperado = calcular(replica);
+  const vista = calcular(loQueVe);
+
+  const aportes = aportesDelReparto(vista);
+  const ids = aportes.map(() => contexto.nuevoId());
+  const repartos = aportes.map((aporte, i) => ({
+    id: ids[i],
+    posicion: i + 1,
+    tesoro_id: aporte.tesoro,
+    monto_centavos: aporte.monto,
+  }));
+  const columnasDelPedido = columnasDeSiempre(vista);
+  const enLaApertura = paso.enLaApertura === true;
+  const comunes = [
+    proyectoId,
+    proyecto.version,
+    paso.fecha,
+    vista.cobrado,
+    vista.gastos,
+    columnasDelPedido.topeSueldo,
+    columnasDelPedido.topeFijos,
+    columnasDelPedido.diezmo,
+    columnasDelPedido.sueldo,
+    columnasDelPedido.fijos,
+    columnasDelPedido.remanente,
+  ];
+  const finales = [
+    columnasDelPedido.sueldoPrevio,
+    columnasDelPedido.fijosPrevio,
+    enLaApertura,
+    version,
+    JSON.stringify(repartos),
+    JSON.stringify(previoQueVio(vista)),
+  ];
+  const { rows } =
+    paso.liquidar === 'cobrado'
+      ? await cliente.query<FilaProyecto>(
+          `select ${COLUMNAS} from public.cobrar_proyecto(
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb
+           ) p`,
+          [...comunes, ...finales],
+        )
+      : await cliente.query<FilaProyecto>(
+          `select ${COLUMNAS} from public.cerrar_perdido(
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18::jsonb
+           ) p`,
+          [...comunes, columnasDelPedido.diezmoBp, ...finales],
+        );
+  const congeladoEnBase = rows[0];
+  const quien = `${paso.liquidar} por la fila ${paso.proyecto}`;
+  if (congeladoEnBase === undefined) return [`${quien}: sin fila`];
+  if (!contexto.verificar) return [];
+
+  const nombres = new Map(tesorosDeLaReplica(replica).map((tesoro) => [tesoro.id, tesoro.nombre]));
+  const diferencias: string[] = [];
+  const enBase = congelado(congeladoEnBase);
+  const enDominio = esperadoPorLaFila(esperado, enLaApertura);
+  if (enBase !== enDominio) diferencias.push(`${quien}: base ${enBase}, dominio ${enDominio}`);
+  const filaEnBase = filaCongelada(congeladoEnBase);
+  const filaEnDominio = canonico([version, fila, previoQueVio(esperado), null]);
+  if (filaEnBase !== filaEnDominio) {
+    diferencias.push(`${quien}: la fila en la base ${filaEnBase}, en el dominio ${filaEnDominio}`);
+  }
+  const repartosEnBase = (await repartosVivos(cliente, proyectoId)).join(' ');
+  const repartosEnDominio = repartosEsperados(esperado, ids, nombres, enLaApertura).join(' ');
+  if (repartosEnBase !== repartosEnDominio) {
+    diferencias.push(
+      `${quien}: repartos en la base ${repartosEnBase}, en el dominio ${repartosEnDominio}`,
+    );
+  }
+  if (congeladoEnBase.fecha_cobro !== paso.fecha) {
+    diferencias.push(
+      `${quien}: se pidió el ${paso.fecha} y quedó el ${String(congeladoEnBase.fecha_cobro)}`,
+    );
+  }
+  return diferencias;
 }
 
 async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): Promise<string[]> {
@@ -1907,6 +3485,13 @@ async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): P
        where household_id = $1`,
       [contexto.householdId, paso.ajustes.sueldo ?? null, paso.ajustes.fijos ?? null],
     );
+    return [];
+  }
+
+  if ('fila' in paso) return guardarLaFilaDelEscenario(cliente, contexto, paso.fila);
+
+  if ('cubrir' in paso) {
+    await cubrirElMes(cliente, contexto, paso.cubrir);
     return [];
   }
 
@@ -1934,10 +3519,29 @@ async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): P
           );
     const enBase = rows[0] === undefined ? 'sin fila' : congelado(rows[0]);
     const esperado = esperadoAlRevertir(antes, paso.revertir);
-    return enBase === esperado
-      ? []
-      : [`revertir ${paso.proyecto}: base ${enBase}, esperado ${esperado}`];
+    const foto =
+      antes.estado === 'cobrado' && antes.fila_version !== null
+        ? { version: antes.fila_version, fila: antes.fila }
+        : null;
+    const filaEnBase = rows[0] === undefined ? 'sin fila' : filaCongelada(rows[0]);
+    const filaEsperada = canonico([null, null, null, foto]);
+    const quedaron = contexto.verificar ? await repartosVivos(cliente, proyectoId) : [];
+    return [
+      ...(enBase === esperado
+        ? []
+        : [`revertir ${paso.proyecto}: base ${enBase}, esperado ${esperado}`]),
+      ...(filaEnBase === filaEsperada
+        ? []
+        : [
+            `revertir ${paso.proyecto}: la fila en la base ${filaEnBase}, esperada ${filaEsperada}`,
+          ]),
+      ...(quedaron.length === 0
+        ? []
+        : [`revertir ${paso.proyecto}: quedaron repartos vivos ${quedaron.join(' ')}`]),
+    ];
   }
+
+  if (paso.porLaFila === true) return liquidarPorLaFila(cliente, contexto, paso, proyectoId);
 
   const preparada = await prepararLiquidacion(
     cliente,
@@ -1957,9 +3561,26 @@ async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): P
       : [
           `${paso.liquidar} ${paso.proyecto}: se pidió el ${paso.fecha} y quedó el ${String(rows[0]?.fecha_cobro)}`,
         ];
+  const filaEnBase = rows[0] === undefined ? 'sin fila' : filaCongelada(rows[0]);
+  const sinFila = canonico([null, null, null, null]);
+  const repartos = contexto.verificar ? await repartosVivos(cliente, proyectoId) : [];
+  const sinNadaDeLaFila = [
+    ...(filaEnBase === sinFila
+      ? []
+      : [`${paso.liquidar} ${paso.proyecto}: por el camino de antes quedó la fila ${filaEnBase}`]),
+    ...(repartos.length === 0
+      ? []
+      : [
+          `${paso.liquidar} ${paso.proyecto}: por el camino de antes quedaron repartos ${repartos.join(' ')}`,
+        ]),
+  ];
   return enBase === enDominio
-    ? conSuFecha
-    : [`${paso.liquidar} ${paso.proyecto}: base ${enBase}, dominio ${enDominio}`, ...conSuFecha];
+    ? [...conSuFecha, ...sinNadaDeLaFila]
+    : [
+        `${paso.liquidar} ${paso.proyecto}: base ${enBase}, dominio ${enDominio}`,
+        ...conSuFecha,
+        ...sinNadaDeLaFila,
+      ];
 }
 
 export async function compararLiquidaciones(cliente: pg.Client): Promise<string[]> {
@@ -2023,8 +3644,10 @@ interface FilaDelLibro {
   origen: string;
   asiento_id: string;
   fecha: string;
-  tesoro: string;
+  tesoro: string | null;
   contrapartida: string | null;
+  tesoro_id: string;
+  contrapartida_id: string | null;
   monto_centavos: string;
   concepto: string;
   categoria: string;
@@ -2034,8 +3657,9 @@ interface FilaDelLibro {
 }
 
 const COLUMNAS_DEL_LIBRO = `origen, asiento_id, fecha::text as fecha, tesoro::text as tesoro,
-  contrapartida::text as contrapartida, monto_centavos::text as monto_centavos,
-  concepto, categoria, descripcion, proyecto_id, ya_en_la_apertura`;
+  contrapartida::text as contrapartida, tesoro_id, contrapartida_id,
+  monto_centavos::text as monto_centavos, concepto, categoria, descripcion, proyecto_id,
+  ya_en_la_apertura`;
 
 function comoTextoSql(fila: FilaDelLibro): string {
   return JSON.stringify([
@@ -2044,6 +3668,8 @@ function comoTextoSql(fila: FilaDelLibro): string {
     fila.fecha,
     fila.tesoro,
     fila.contrapartida,
+    fila.tesoro_id,
+    fila.contrapartida_id,
     Number(fila.monto_centavos),
     fila.concepto,
     fila.categoria,
@@ -2060,6 +3686,8 @@ function comoTextoTs(asiento: Asiento): string {
     asiento.fecha,
     asiento.tesoro,
     asiento.contrapartida,
+    asiento.tesoroId,
+    asiento.contrapartidaId,
     asiento.monto,
     asiento.concepto,
     asiento.categoria,
@@ -2091,13 +3719,16 @@ async function asientosDeLaReplica(cliente: pg.Client, usuarioId: string): Promi
   return asientosDelLibro(datosDelLibro(await replicaDeLaBase(cliente, usuarioId)));
 }
 
-async function compararApertura(cliente: pg.Client, contexto: Contexto): Promise<string[]> {
+async function compararApertura(
+  cliente: pg.Client,
+  contexto: Contexto,
+  replica: Replica,
+): Promise<string[]> {
   const { rows } = await cliente.query<{ fecha: string | null }>(
     'select private.fecha_de_apertura($1)::text as fecha',
     [contexto.householdId],
   );
   const enSql = rows[0]?.fecha ?? null;
-  const replica = await replicaDeLaBase(cliente, contexto.usuarioId);
   const enTs = fechaDeApertura(datosDelLibro(replica).movimientos);
   return enSql === enTs ? [] : [`apertura: SQL ${String(enSql)}, TS ${String(enTs)}`];
 }
@@ -2124,12 +3755,31 @@ async function compararSaldos(
     [householdId],
   );
   const enTs = saldosPorTesoro(asientos);
-  return TESOROS.flatMap((tesoro) => {
+  const porClave = TESOROS.flatMap((tesoro) => {
     const enSql = Number(rows.find((fila) => fila.tesoro === tesoro)?.saldo ?? NaN);
     return enSql === enTs[tesoro]
       ? []
       : [`saldo de ${tesoro}: SQL ${String(enSql)}, TS ${String(enTs[tesoro])}`];
   });
+
+  const { rows: porIdEnSql } = await cliente.query<{ tesoro_id: string; saldo: string }>(
+    `select l.tesoro_id, sum(l.monto_centavos)::text as saldo
+     from public.libro_mayor l
+     where l.household_id = $1 and not l.ya_en_la_apertura
+     group by l.tesoro_id`,
+    [householdId],
+  );
+  const enSqlPorId = new Map(porIdEnSql.map((fila) => [fila.tesoro_id, Number(fila.saldo)]));
+  const enTsPorId = saldosPorId(asientos);
+  const ids = [...new Set([...enSqlPorId.keys(), ...enTsPorId.keys()])].sort();
+  const porId = ids.flatMap((id) => {
+    const enSql = enSqlPorId.get(id);
+    const enDominio = enTsPorId.get(id);
+    return enSql === enDominio
+      ? []
+      : [`saldo del tesoro ${id}: SQL ${String(enSql)}, TS ${String(enDominio)}`];
+  });
+  return [...porClave, ...porId];
 }
 
 const MOVIMIENTOS_DE_TODOS_LOS_TIPOS: MovimientoDeEscenario[] = [
@@ -2277,6 +3927,60 @@ export const ESCENARIOS_DEL_LIBRO: EscenarioDeLiquidacion[] = [
     ],
     movimientos: MOVIMIENTOS_DE_TODOS_LOS_TIPOS,
   },
+  {
+    nombre: 'los movimientos entre los tesoros del dueño llegan al libro por id, sin clave',
+    tesoros: ['Herramientas', 'Viajes'],
+    ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
+    proyectos: {},
+    pasos: [],
+    movimientos: [
+      ...MOVIMIENTOS_DE_TODOS_LOS_TIPOS,
+      {
+        tipo: 'ingreso',
+        origen: null,
+        destino: 'Herramientas',
+        monto: 5_000_000,
+        fecha: '2026-09-01',
+      },
+      {
+        tipo: 'transferencia',
+        origen: 'maun',
+        destino: 'Herramientas',
+        monto: 3_000_000,
+        fecha: '2026-09-02',
+      },
+      {
+        tipo: 'transferencia',
+        origen: 'Herramientas',
+        destino: 'Viajes',
+        monto: 2_000_000,
+        fecha: '2026-09-03',
+      },
+      { tipo: 'gasto', origen: 'Viajes', destino: null, monto: 500_000, fecha: '2026-09-04' },
+      {
+        tipo: 'transferencia',
+        origen: 'Viajes',
+        destino: 'hogar',
+        monto: 1_000_000,
+        fecha: '2026-09-05',
+      },
+      {
+        tipo: 'ajuste',
+        origen: null,
+        destino: 'Herramientas',
+        monto: 100_000,
+        fecha: '2026-09-06',
+      },
+      {
+        tipo: 'transferencia',
+        origen: 'Herramientas',
+        destino: 'Viajes',
+        monto: 9_000_000,
+        fecha: '2026-09-07',
+        borrado: true,
+      },
+    ],
+  },
 ];
 
 export async function compararLibroMayor(cliente: pg.Client): Promise<string[]> {
@@ -2284,14 +3988,15 @@ export async function compararLibroMayor(cliente: pg.Client): Promise<string[]> 
   for (const escenario of [...ESCENARIOS_DEL_LIBRO, ...ESCENARIOS_DE_LIQUIDACION]) {
     await cliente.query('savepoint libro');
     try {
-      const contexto = await prepararEscenario(cliente, escenario);
+      const contexto = { ...(await prepararEscenario(cliente, escenario)), verificar: false };
       for (const paso of escenario.pasos) await correrPaso(cliente, contexto, paso);
-      const asientos = await asientosDeLaReplica(cliente, contexto.usuarioId);
+      const replica = await replicaDeLaBase(cliente, contexto.usuarioId);
+      const asientos = asientosDelLibro(datosDelLibro(replica));
       const filas = await leerLibro(cliente, contexto.householdId);
       const delEscenario = [
         ...diferenciasDeMultiset(filas.map(comoTextoSql), asientos.map(comoTextoTs)),
         ...(await compararSaldos(cliente, contexto.householdId, asientos)),
-        ...(await compararApertura(cliente, contexto)),
+        ...(await compararApertura(cliente, contexto, replica)),
       ];
       diferencias.push(...delEscenario.map((linea) => `"${escenario.nombre}", ${linea}`));
     } catch (error) {
@@ -2585,6 +4290,7 @@ export async function compararDominioYSql(cliente: pg.Client): Promise<string[]>
     ...(await compararValidacionDeRespuestas(cliente)),
     ...(await compararValidacionDeRespuestasDeEntrega(cliente)),
     ...(await compararRangos(cliente)),
+    ...(await compararFila(cliente)),
     ...(await compararEstados(cliente)),
     ...(await compararTransiciones(cliente)),
     ...(await compararLiquidaciones(cliente)),
