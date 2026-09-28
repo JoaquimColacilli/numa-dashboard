@@ -1,7 +1,9 @@
+import { centavos } from '@maun/domain';
 import { render, screen, within } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { Panorama } from '@/pages/inicio';
 import { PantallaDeAcceso } from '@/shared/ui';
 
 import HTML from '../../../index.html?raw';
@@ -9,9 +11,13 @@ import CONFIGURACION from '../../../vite.config.ts?raw';
 import { EsqueletoDeArranque } from './EsqueletoDeArranque';
 import {
   ABRIENDO_LA_APP,
+  CIFRA_DEL_PANORAMA,
+  CIFRAS_DEL_PANORAMA,
   conElEsqueleto,
   htmlDelEsqueleto,
   RAIZ_VACIA,
+  SECCION_DEL_PANORAMA,
+  TITULO_DEL_PANORAMA,
   TRAYENDO_LOS_DATOS,
 } from './esqueleto';
 
@@ -141,6 +147,66 @@ describe('el dibujo del panel del acceso', () => {
     expect(clasesDe(placa?.parentElement)).toEqual(esperado.hueco);
     expect(clasesDe(placa?.parentElement?.parentElement)).toEqual(esperado.envoltorio);
     expect(esperado.lamina).toEqual(expect.arrayContaining(clasesDe(placa)));
+  });
+});
+
+describe('el lugar del panorama de Inicio', () => {
+  const clases = (texto: string) => texto.split(' ');
+  const clasesDe = (nodo: Element | null | undefined) => [...(nodo?.classList ?? [])];
+
+  it('va entre la portada y los tesoros, con cuatro cifras', () => {
+    render(<EsqueletoDeArranque que={ABRIENDO_LA_APP} forma="marco" />);
+    const seccion = [...esqueleto().querySelectorAll('div')].find(
+      (nodo) => nodo.className === SECCION_DEL_PANORAMA,
+    );
+
+    expect(seccion).toHaveAttribute('aria-hidden', 'true');
+    expect(seccion?.previousElementSibling?.querySelector('.lamina')).not.toBeNull();
+    expect(seccion?.nextElementSibling?.querySelector('.bg-hogar')).not.toBeNull();
+    expect(
+      [...(seccion?.querySelectorAll('div') ?? [])].filter(
+        (nodo) => nodo.className === CIFRA_DEL_PANORAMA,
+      ),
+    ).toHaveLength(4);
+  });
+
+  it('mide lo mismo porque lleva las clases del panorama de verdad', () => {
+    render(
+      <Panorama
+        panorama={{
+          paraPagar: centavos(132_700_000),
+          ahorros: centavos(413_100_000),
+          superavit: centavos(36_500_000),
+          insumos: centavos(82_000_000),
+          compromisoDeMaun: centavos(0),
+          tesorosParaPagar: 3,
+          tesorosDeAhorro: 4,
+          tesoroDelSuperavit: 's',
+          trabajosConInsumos: 2,
+        }}
+        nombreDelSuperavit="Maun"
+      />,
+    );
+    const seccion = screen.getByRole('region', { name: 'Panorama' });
+    const cifra = seccion.querySelector('[data-cifra-del-panorama]');
+
+    expect(clasesDe(seccion)).toEqual(expect.arrayContaining(clases(SECCION_DEL_PANORAMA)));
+    expect(clasesDe(seccion.querySelector('h2'))).toEqual(
+      expect.arrayContaining(clases(TITULO_DEL_PANORAMA)),
+    );
+    expect(clasesDe(seccion.querySelector('dl'))).toEqual(clases(CIFRAS_DEL_PANORAMA));
+    expect(clasesDe(cifra)).toEqual(clases(CIFRA_DEL_PANORAMA));
+    expect(clasesDe(cifra?.querySelector('dt'))).toEqual(
+      expect.arrayContaining(['self-end', 'text-meta', 'leading-tight']),
+    );
+    expect(clasesDe(cifra?.querySelector('[data-monto]'))).toEqual(
+      expect.arrayContaining(['text-monto-que-entra', 'leading-tight']),
+    );
+    expect(cifra?.querySelector('[data-monto]')?.parentElement).toHaveClass(
+      'flex',
+      'min-w-0',
+      'flex-col',
+    );
   });
 });
 
