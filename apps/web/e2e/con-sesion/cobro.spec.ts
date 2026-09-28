@@ -116,7 +116,7 @@ test('el despiece se ve antes de cobrar y la distribución queda congelada despu
   await page.goto(`/proyectos/${id}`);
   await page.getByRole('button', { name: /^Cobrar/ }).click();
 
-  const despiece = page.getByRole('region', { name: 'Distribución de la ganancia' });
+  const despiece = page.getByRole('region', { name: 'Distribución del ingreso' });
   await expect(despiece).toContainText('$ 700.000');
   await expect(despiece).toContainText('Diezmo 10%');
   await expect(despiece).toContainText('$ 70.000');
@@ -242,7 +242,7 @@ test('el sueldo se cuenta por mes: con el mes cubierto, el reparto lo dice y Aju
   await page.goto(`/proyectos/${dos.id}`);
   await listoParaCortar(page);
   const sueldo = page
-    .getByRole('region', { name: 'Distribución de la ganancia' })
+    .getByRole('region', { name: 'Distribución del ingreso' })
     .getByRole('listitem')
     .filter({ hasText: 'Sueldo' });
   await expect(sueldo).toContainText('ya lo cubrieron otros cobros del mes');
@@ -441,7 +441,7 @@ test.describe('con prefers-reduced-motion', () => {
     });
     expect(duraciones).toEqual([0, 0]);
 
-    const despiece = page.getByRole('region', { name: 'Distribución de la ganancia' });
+    const despiece = page.getByRole('region', { name: 'Distribución del ingreso' });
     await expect(despiece).toContainText('$ 500.000');
     await expect(despiece).toContainText('$ 130.000');
     await esperarEstado(id, 'cobrado');

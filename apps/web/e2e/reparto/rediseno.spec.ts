@@ -589,7 +589,7 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
     expect(fallas, fallas.join('\n')).toEqual([]);
   });
 
-  test('la distribución de la ganancia es el tablero: cortado con el canto de cada tesoro al cobrar, y de trazos en proyección', async ({
+  test('la distribución del ingreso es el tablero: cortado con el canto de cada tesoro al cobrar, y de trazos en proyección', async ({
     browser,
   }, testInfo) => {
     test.setTimeout(600_000);
@@ -610,7 +610,7 @@ test.describe.serial('con pocos datos y un trabajo cobrado hoy', () => {
         await pantalla('obra').listo(page);
         await asentar(page);
         const lamina = page
-          .getByRole('region', { name: 'Distribución de la ganancia' })
+          .getByRole('region', { name: 'Distribución del ingreso' })
           .locator('[data-lamina]');
         await expect(lamina).toHaveCount(1, CARGA);
         const piezas = lamina.locator('[data-pieza]');
