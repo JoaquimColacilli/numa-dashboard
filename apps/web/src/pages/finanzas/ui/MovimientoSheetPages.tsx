@@ -3,8 +3,9 @@ import { Navigate, useParams, useSearchParams } from 'react-router';
 
 import { CLASES_EN_ORDEN, type ClaseDeMovimiento } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { tesorosDelTaller, tesorosSincronizados } from '@/entities/tesoro';
 import { HojaDeMovimiento } from '@/features/registrar-movimiento';
-import { ajustesDe, filaPorId, saldosDeLaReplica } from '@/shared/api';
+import { ajustesDe, filaPorId } from '@/shared/api';
 import { RUTA_DE_FINANZAS, useCerrarHoja } from '@/shared/lib';
 
 function esClase(valor: string | null): valor is ClaseDeMovimiento {
@@ -20,7 +21,8 @@ export function MovimientoNuevoPage() {
   return (
     <HojaDeMovimiento
       claseInicial={esClase(clase) ? clase : undefined}
-      saldos={saldosDeLaReplica(replica)}
+      tesoros={tesorosDelTaller(replica)}
+      tesorosSincronizados={tesorosSincronizados(replica)}
       metaCocos={ajustesDe(replica)?.meta_cocos_centavos ?? 0}
       alCerrar={cerrar}
     />
@@ -40,7 +42,8 @@ export function MovimientoEdicionPage() {
   return (
     <HojaDeMovimiento
       movimiento={movimiento}
-      saldos={saldosDeLaReplica(replica)}
+      tesoros={tesorosDelTaller(replica)}
+      tesorosSincronizados={tesorosSincronizados(replica)}
       metaCocos={ajustesDe(replica)?.meta_cocos_centavos ?? 0}
       alCerrar={cerrar}
     />

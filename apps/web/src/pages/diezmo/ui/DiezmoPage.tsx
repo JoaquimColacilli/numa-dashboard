@@ -13,6 +13,7 @@ import {
 } from '@/entities/movimiento';
 import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { tesoroDeLaClave, tesorosDelTaller } from '@/entities/tesoro';
 import { datosDelLibro } from '@/shared/api';
 import {
   conFondo,
@@ -41,14 +42,16 @@ export function DiezmoPage() {
   const estado = estadoDelDiezmo(asientos);
   const frase = fraseDelDiezmo(estado);
 
+  const tesoros = useMemo(() => tesorosDelTaller(replica), [replica]);
+  const diezmo = tesoroDeLaClave(tesoros, 'diezmo')?.id ?? 'diezmo';
   const lineas = useMemo(
     () =>
-      lineasDelTaller(replica).filter(
-        (linea) => linea.desde === 'diezmo' || linea.hacia === 'diezmo',
+      lineasDelTaller(replica, tesoros).filter(
+        (linea) => linea.desdeId === diezmo || linea.haciaId === diezmo,
       ),
-    [replica],
+    [replica, tesoros, diezmo],
   );
-  const dias = agruparPorDia(lineas, 'diezmo');
+  const dias = agruparPorDia(lineas, diezmo);
   const pagadoPct =
     estado.generado <= 0 ? 100 : Math.min(100, Math.round((estado.pagado / estado.generado) * 100));
 
@@ -149,7 +152,7 @@ export function DiezmoPage() {
           ) : (
             <ListaDelLibro
               dias={dias}
-              tesoro="diezmo"
+              tesoro={diezmo}
               hoy={hoy}
               sinConfirmar={(linea) =>
                 linea.origen === 'manual'

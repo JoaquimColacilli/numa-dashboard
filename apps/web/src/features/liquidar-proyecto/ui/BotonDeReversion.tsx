@@ -5,12 +5,14 @@ import { useState } from 'react';
 import {
   ESTADO,
   filaRevertida,
+  loQueVuelveAlReabrir,
   MUTACION_DE_REVERSION,
   pedidoDeReversion,
   type Proyecto,
 } from '@/entities/proyecto';
-import { mensajeDeSincronizacion } from '@/shared/api';
-import { fechaLarga, formatearPesos, hoyEnElTaller } from '@/shared/lib';
+import { useReplicaDelTaller } from '@/entities/replica';
+import { mensajeDeSincronizacion, repartosDelProyecto } from '@/shared/api';
+import { fechaLarga, formatearPesos, hoyEnElTaller, TINTA } from '@/shared/lib';
 import { Button, FilaDeAcciones, Icono } from '@/shared/ui';
 
 const POR_DEFECTO: EstadoProyecto = 'presupuesto_enviado';
@@ -20,14 +22,14 @@ export interface BotonDeReversionProps {
 }
 
 export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
+  const replica = useReplicaDelTaller();
   const revertir = useMutation(MUTACION_DE_REVERSION);
   const [abierto, setAbierto] = useState(false);
   const [hacia, setHacia] = useState<EstadoProyecto>(POR_DEFECTO);
 
   const esCobro = proyecto.estado === 'cobrado';
   const destino = esCobro ? 'entregado' : hacia;
-  const diezmo = proyecto.dist_diezmo_centavos ?? 0;
-  const sueldo = proyecto.dist_sueldo_centavos ?? 0;
+  const vuelve = loQueVuelveAlReabrir(replica, proyecto);
 
   function confirmar(): void {
     revertir.mutate({
@@ -35,6 +37,7 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
       optimista: filaRevertida(proyecto, destino, new Date().toISOString()),
       previo: proyecto,
       titulo: proyecto.titulo,
+      repartos: repartosDelProyecto(replica, proyecto.id),
     });
     setAbierto(false);
   }
@@ -74,30 +77,48 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
         {esCobro ? '¿Reabrís el cobro?' : '¿Reactivás el presupuesto?'}
       </h3>
 
-      <p className="mt-1.5 text-label leading-relaxed text-text-2">
-        {proyecto.reparto_ya_en_la_apertura && (diezmo > 0 || sueldo > 0) ? (
-          <>
-            Este reparto ya estaba en tus saldos cuando empezaste con la app, así que deshacerlo no
-            mueve plata de los tesoros. Los pagos y los gastos vuelven a poder editarse.
-          </>
-        ) : diezmo > 0 || sueldo > 0 ? (
-          <>
-            Se deshace el reparto: vuelven {formatearPesos(diezmo)} del diezmo y{' '}
-            {formatearPesos(sueldo)} del hogar a la caja del taller.{' '}
-            {proyecto.fecha_cobro !== null && (
-              <>
-                El mes de {fechaLarga(proyecto.fecha_cobro, hoyEnElTaller())} deja de contar esta
-                liquidación, y el que le falte de costos fijos queda a la vista.
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            Este reparto no movió ningún tesoro, así que deshacerlo tampoco mueve plata. Los pagos y
-            los gastos vuelven a poder editarse.
-          </>
-        )}
-      </p>
+      {proyecto.reparto_ya_en_la_apertura && vuelve.length > 0 ? (
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">
+          Este reparto ya estaba en tus saldos cuando empezaste con la app, así que deshacerlo no
+          mueve plata de los tesoros. Los pagos y los gastos vuelven a poder editarse.
+        </p>
+      ) : vuelve.length > 0 ? (
+        <>
+          <p className="mt-1.5 text-label leading-relaxed text-text-2">
+            Se deshace el reparto. Esto vuelve de cada tesoro a la caja del taller:
+          </p>
+          <ul aria-label="Lo que vuelve a la caja del taller" className="mt-1.5 list-none">
+            {vuelve.map((tesoro) => (
+              <li
+                key={tesoro.tesoro}
+                className="flex items-center gap-2.5 border-t border-hairline-soft py-2 text-label first:border-t-0"
+              >
+                <span
+                  aria-hidden
+                  className={`size-3 flex-none rounded-[3px] ${TINTA[tesoro.tinta].fondo}`}
+                />
+                <span className={`min-w-0 flex-1 font-medium ${TINTA[tesoro.tinta].texto}`}>
+                  {tesoro.nombre}
+                </span>
+                <span className="flex-none font-semibold tabular-nums">
+                  {formatearPesos(tesoro.monto)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {proyecto.fecha_cobro !== null && (
+            <p className="mt-1.5 text-label leading-relaxed text-text-2">
+              El mes de {fechaLarga(proyecto.fecha_cobro, hoyEnElTaller())} deja de contar esta
+              liquidación, y lo que les falte a los topes de la fila queda a la vista.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">
+          Este reparto no movió ningún tesoro, así que deshacerlo tampoco mueve plata. Los pagos y
+          los gastos vuelven a poder editarse.
+        </p>
+      )}
 
       {esCobro ? (
         <p className="mt-2 text-meta leading-relaxed text-text-3">
@@ -105,8 +126,8 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
           {proyecto.fecha_cobro !== null
             ? ` (${fechaLarga(proyecto.fecha_cobro, hoyEnElTaller())})`
             : ''}{' '}
-          viene puesto y lo podés corregir. Los objetivos siguen siendo los de este cobro: corregir
-          un gasto no te reescribe el sueldo con los ajustes de hoy.
+          viene puesto y lo podés corregir. Se vuelve a cobrar con la misma fila de este cobro:
+          corregir un gasto no te reescribe los topes ni el reparto con la fila de hoy.
         </p>
       ) : (
         <>
@@ -130,7 +151,7 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
           <p className="mt-2 text-meta leading-relaxed text-text-3">
             A diferencia de reabrir un cobro, esto <strong>no guarda la fecha</strong>: un
             presupuesto que revive está vivo otra vez, y si más adelante lo volvés a dar por perdido
-            es un cierre nuevo, con el día que elijas y los ajustes de ese momento.
+            es un cierre nuevo, con el día que elijas y la fila de ese momento.
           </p>
         </>
       )}

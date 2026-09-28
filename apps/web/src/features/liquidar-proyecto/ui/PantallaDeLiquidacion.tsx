@@ -6,20 +6,25 @@ import { EnlaceACliente } from '@/entities/cliente';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import {
   ajustesDeLaReplica,
+  cobroPorLaFila,
   datosActualesDelProyecto,
-  despieceDeLaLiquidacion,
+  despieceDelCobro,
   DistribucionDespiece,
   fechaDelCobroPropuesta,
-  filaLiquidada,
-  liquidacionProyectada,
+  loQueRecibeCadaTesoro,
   MUTACION_DE_LIQUIDACION,
   MUTACION_DE_PROYECTO,
-  pedidoDeLiquidacion,
+  pedidoPorLaFila,
+  planDelCobro,
+  proyectoLiquidadoPorLaFila,
   repartoEnLaAperturaPropuesto,
+  repartosLiquidados,
   rutaDelProyecto,
+  type MontoDelTesoro,
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { tesorosSincronizados } from '@/entities/tesoro';
 import {
   aperturaDeLaReplica,
   mensajeDeSincronizacion,
@@ -53,11 +58,23 @@ const TEXTOS = {
   },
 } as const;
 
+const COMO_LISTA = new Intl.ListFormat('es', { style: 'long', type: 'conjunction' });
+
 function ayudaDelDia(destino: EstadoLiquidado, fecha: string): string {
   const mes = `${nombreDelMes(mesDeLaFecha(fecha)).toLowerCase()} de ${fecha.slice(0, 4)}`;
   return destino === 'cobrado'
-    ? `El día en que terminó de entrar la plata. El sueldo y los costos fijos se cuentan en ${mes}.`
+    ? `El día en que terminó de entrar la plata. Los topes de la fila se cuentan en ${mes}.`
     : `El día en que la seña pasa a ser del taller. El reparto se cuenta en ${mes}.`;
+}
+
+function aCadaTesoro(montos: readonly MontoDelTesoro[]): string {
+  return COMO_LISTA.format(
+    montos.map((tesoro) => `${formatearPesos(tesoro.monto)} a ${tesoro.nombre}`),
+  );
+}
+
+function idsDelCobro(cantidad: number): string[] {
+  return Array.from({ length: cantidad }, () => uuidv7());
 }
 
 function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
@@ -155,15 +172,14 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const pagoEnLaApertura = pagoAntes && enLaApertura;
   const repartoEnLaApertura = repartoAntes && enLaApertura;
 
-  const liquidacion = liquidacionProyectada(replica, proyecto, fechaValida, {
-    destino,
-    pagoExtra,
-  });
-  const despiece = despieceDeLaLiquidacion(liquidacion);
+  const cobro = cobroPorLaFila(replica, proyecto, fechaValida, { destino, pagoExtra });
+  const { liquidacion } = cobro;
+  const despiece = despieceDelCobro(replica, cobro);
   const ajustes = ajustesDeLaReplica(replica);
+  const conTesoros = tesorosSincronizados(replica);
 
   const enCurso = liquidar.isPending && !liquidar.isPaused;
-  const listo = errorDelPago === undefined && errorDelDia === undefined;
+  const listo = errorDelPago === undefined && errorDelDia === undefined && conTesoros;
 
   function confirmar(): void {
     if (!listo) return;
@@ -190,23 +206,22 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       });
     }
 
-    const pedido = pedidoDeLiquidacion(proyecto, liquidacion, repartoEnLaApertura);
+    const ids = idsDelCobro(liquidacion.pasos.length + liquidacion.reparto.length);
+    const pedido = pedidoPorLaFila(proyecto, cobro, ids, repartoEnLaApertura);
+    const liquidadaEn = new Date().toISOString();
     liquidar.mutate({
       pedido,
-      optimista: filaLiquidada(
-        proyecto,
-        liquidacion,
-        new Date().toISOString(),
-        repartoEnLaApertura,
-      ),
+      optimista: proyectoLiquidadoPorLaFila(proyecto, cobro, liquidadaEn, repartoEnLaApertura),
       previo: proyecto,
       titulo: proyecto.titulo,
+      repartos: repartosLiquidados(replica, proyecto, cobro, pedido, liquidadaEn),
+      plan: planDelCobro(liquidacion),
     });
 
     ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienLiquidado' });
   }
 
-  const aRepartir = despiece.piezas.filter((pieza) => pieza.monto > 0);
+  const aRepartir = loQueRecibeCadaTesoro(despiece);
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -318,7 +333,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
               {ajustes.perdidoConSueldo
                 ? 'Y también paga sueldo, según está configurado el taller.'
                 : 'No paga sueldo: un presupuesto que no prosperó no es un trabajo.'}{' '}
-              El resto queda en el taller.
+              Lo demás baja por la fila como en cualquier cobro, y lo que sobra queda en el taller.
             </p>
           ) : (
             <p className="mt-1.5 max-w-[48rem]">
@@ -342,6 +357,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           className="w-full sm:w-auto"
           cargando={enCurso}
           disabled={!listo}
+          aria-describedby={conTesoros ? undefined : 'trayendo-los-tesoros'}
           onClick={confirmar}
         >
           <Icono nombre="hand-coins" tamano={18} />
@@ -349,13 +365,20 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           {despiece.neta > 0 ? ` ${formatearPesos(despiece.neta)}` : ''}
         </Button>
 
+        {!conTesoros && (
+          <p
+            id="trayendo-los-tesoros"
+            className="mt-2 max-w-[520px] text-label font-medium text-atencion"
+          >
+            Estamos trayendo los tesoros del taller. Sin ellos el reparto no puede salir: el botón
+            se habilita apenas lleguen.
+          </p>
+        )}
+
         <p className="mt-2 max-w-[520px] text-meta leading-relaxed text-text-3">
           {despiece.neta > 0 ? (
             <>
-              Se reparten {formatearPesos(despiece.neta)} de ganancia neta:{' '}
-              {aRepartir
-                .map((pieza) => `${formatearPesos(pieza.monto)} ${pieza.etiqueta.toLowerCase()}`)
-                .join(', ')}
+              Se reparten {formatearPesos(despiece.neta)} de ganancia neta: {aCadaTesoro(aRepartir)}
               .{' '}
               {repartoEnLaApertura
                 ? 'Queda en el libro con su fecha, pero no mueve los tesoros: ya estaba en tus saldos.'
@@ -364,7 +387,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           ) : (
             <>
               No hay ganancia que repartir: no se mueve ningún tesoro y la pérdida queda anotada en
-              el remanente del taller.
+              la caja del taller.
             </>
           )}{' '}
           {destino === 'cobrado'
