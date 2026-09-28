@@ -1,6 +1,6 @@
 # @maun/domain
 
-Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`cascada.ts`), los topes y la liquidación (`liquidacion.ts`), la seña esperada (`sena.ts`), el margen contra los costos estimados (`costos.ts`), el catálogo de lo que hace falta (`necesidades.ts`), la máquina de estados del proyecto (`estados.ts`), las fechas (`fechas.ts`), el libro mayor (`libroMayor.ts`), el CUIT (`cuit.ts`), los datos para cobrar (`cobro.ts`), la agenda con lo que se avisa (`agenda.ts`), la vista del cliente (`vistaCliente.ts`), hasta cuándo vale un presupuesto (`vigencia.ts`), las opiniones de los clientes (`opiniones.ts` y `encuesta.ts`), la respuesta del cliente sobre la entrega (`entrega.ts`), el analítico de entregas (`analitico.ts`) y la vidriera del taller con sus redes (`vidriera.ts`). Las decisiones están en el ADR 0011, las de la agenda en el 0034, las de la seña en el 0043, las de los costos, lo que hace falta y el día por horas en el 0045, las de la vista del cliente en el 0046 y el 0067, las de los datos para transferir en el 0048, las de las opiniones en el 0057 y las de la vidriera en el 0076.
+Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`cascada.ts`), los topes y la liquidación (`liquidacion.ts`), la seña esperada (`sena.ts`), el margen contra los costos estimados (`costos.ts`), el catálogo de lo que hace falta (`necesidades.ts`), la máquina de estados del proyecto (`estados.ts`), las fechas (`fechas.ts`), el libro mayor (`libroMayor.ts`), el CUIT (`cuit.ts`), los datos para cobrar (`cobro.ts`), la agenda con lo que se avisa (`agenda.ts`), la vista del cliente (`vistaCliente.ts`), hasta cuándo vale un presupuesto (`vigencia.ts`), las opiniones de los clientes (`opiniones.ts` y `encuesta.ts`), la respuesta del cliente sobre la entrega (`entrega.ts`), el analítico de entregas (`analitico.ts`), la vidriera del taller con sus redes (`vidriera.ts`) y la fila de los tesoros (`fila.ts`). Las decisiones están en el ADR 0011, las de la agenda en el 0034, las de la seña en el 0043, las de los costos, lo que hace falta y el día por horas en el 0045, las de la vista del cliente en el 0046 y el 0067, las de los datos para transferir en el 0048, las de las opiniones en el 0057, las de la vidriera en el 0076 y las de la fila en el 0078.
 
 ## Pureza (la aplican las herramientas)
 
@@ -33,6 +33,23 @@ No se replican los errores del sistema viejo: el sueldo que suma a HOGAR sin res
 `resumenDelMes` es lo que se muestra por mes: objetivo, liquidado y lo que falta, de sueldo y de fijos.
 
 `sueldoDelMes` es lo que mide la barra «Sueldo del mes» de Inicio: el sueldo que pagaron los cobros del mes contra **un** sueldo, el del mes según `resumenDelMes` (el de los ajustes para el mes en curso; el objetivo del último cobro para un mes cerrado). **No suma un sueldo por cobro**: el sueldo que se asigna el dueño es lo que el hogar necesita por mes, y desde el ADR 0072 el reparto también lo topea por mes. Un mes con cobros por proyecto (el seed, o lo congelado antes del cambio) puede pagar de más. Si los cobros pagan más, lo pagado pasa lo esperado y la pantalla lo nombra (ADR 0056, que corrige al 0011). `cobros` cuenta los cobros del mes que pagaron sueldo, no los que tenían objetivo. Ni `resumenDelMes` ni `sueldoDelMes` tienen gemela en SQL: nada en la base los consume.
+
+## La fila (ADR 0078)
+
+`fila.ts` es cómo reparte cada cobro desde que el dueño arma sus tesoros: el diezmo, los pasos con su tope por mes en el orden que él puso, y el reparto por porcentajes de lo que sobra, con el resto en Maun. La cascada y los topes de arriba siguen: los usa una app sin actualizar, y la fila de siempre da lo mismo que ellos.
+
+- **La fila nombra los tesoros por id**, nunca por clave: `filaDeSiempre(ajustes, { hogar, maun })` la arma con los ids de Hogar y de Maun, el sueldo a Hogar y los costos fijos a un paso de Maun con un renglón. `fila.test.ts` la compara en 4.000 casos contra `calcularDistribucion` con `topesDeLaLiquidacion`: si cambia una de las dos, ese test lo dice.
+- **Las reglas viven en `problemasDeLaFila`**, con sus 24 códigos: Hogar solo sueldo y el sueldo solo Hogar, Maun solo gastos fijos y nunca en el reparto, cada tesoro una vez, los gastos fijos con renglones cuya suma es el tope, los porcentajes hasta 100%, y los topes (`TOPE_DE_PASOS`, `TOPE_DE_PARTES`, `TOPE_DE_RENGLONES`, `LARGO_MAXIMO_DEL_RENGLON`, `MONTO_MAXIMO_DE_LA_FILA`). Una fila guardada no puede ser `sueldoPorTrabajo`: ese modo existe solo en la fila de siempre (ADR 0072). La pantalla muestra los textos y la base rechaza con `MN023`.
+- **Cada parte del reparto se redondea hacia abajo al centavo** (`repartir`), y el resto con esos centavos queda en Maun. No es el mitad hacia arriba de `aplicarPorcentaje`, que sigue para el diezmo: así la parte de un tesoro no depende de las demás.
+- **Lo del mes se suma, no se guarda**: `previoDelMes` junta las liquidaciones del mes (las de antes, con sus `aportes`, y las de la fila) y las coberturas, y `filaDelMes` dice cómo va cada paso. `calcularPorLaFila` es lo que la app llama antes de cobrar y lo que la base congela; `columnasDeSiempre` llena las columnas de siempre de `proyectos` para un cobro por la fila.
+- **Editar devuelve una fila nueva**: `ponerPaso`, `moverPaso`, `ponerDespues`, `ponerEnElReparto`, `sacarDeLaFila`, `cambiarElPaso` y `conDesde`. `cambiosDeLaFila(antes, despues)` es la lista de lo que cambió, la que muestra la hoja de guardar.
+- **Sus gemelas son cinco** (abajo, en «Gemelos en SQL»), y el comparador las ata con casos con semilla y los vectores de redondeo.
+
+## El libro por tesoro (ADR 0078)
+
+- **`libroMayor.ts` lleva la cuenta por id de tesoro.** `DatosDelLibro` suma `tesoros` (`{ id, clave }`) y `repartos`, cada movimiento trae `desdeId` y `haciaId`, y cada línea y cada asiento llevan el id además de la clave, que es null en los tesoros del dueño. Si a un movimiento le falta el id, sale de la clave, como en la base: una réplica guardada antes de las columnas trae solo la clave.
+- **Los repartos de un cobro por la fila son líneas de origen `reparto`**, de Maun a su tesoro, salvo Maun y los ceros, como en la vista.
+- **`saldosPorTesoro` sigue devolviendo las cuatro claves**, porque lo usa la migración del sistema viejo; `saldosPorId`, `saldosDelLibroPorId` y `entradasYSalidasPorId` son los de cualquier tesoro. `Tesoro` sigue siendo el tipo de las cuatro claves.
 
 ## La seña
 
@@ -156,6 +173,8 @@ fija caso por caso; una etapa o una variante nueva entra ahí.
 - **`esNombreDeNecesidad` contra el `check` `necesidades_nombre_valido`** (`compararNombreDeNecesidad`, ADR 0060).
 - **`validarRespuestaDeEntrega` contra `private.validar_respuesta_de_entrega`** (`compararValidacionDeRespuestasDeEntrega`, ADR 0071), en `20260925120100_la_puerta_de_la_entrega.sql`.
 - **`esLinkDeInstagram`, `esLinkDeFacebook` y `esLinkDeTiktok` contra los `check` de `ajustes`** (`compararLinksDeLasRedes`, ADR 0076), en `20260926120000_la_vidriera_del_taller.sql`.
+- **`fila.ts` contra `private.entero_de_json`, `private.repartir_por_la_fila`, `private.fila_de_siempre`, `private.problema_de_la_fila` y `private.plan_del_reparto`** (`compararFila`, y las liquidaciones por la fila de `ESCENARIOS_DE_LIQUIDACION`, ADR 0078), en `20260927120200_la_fila.sql`. Rechazan con 22004, 22023 y 22003 donde el dominio tira `RangeError`.
+- **`asientosDelLibro` por id contra `libro_mayor.tesoro_id`** (`compararLibroMayor`, ADR 0078): los saldos se comparan por id de tesoro.
 
 `lineasDelLibro` **no tiene gemela en SQL y no la necesita**: es la forma sin partir de lo mismo, y
 `asientosDelLibro` es literalmente `lineasDelLibro(...).flatMap(asientosDeLaLinea)`. Nada en la base

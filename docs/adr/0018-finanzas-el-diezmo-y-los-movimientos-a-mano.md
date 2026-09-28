@@ -2,6 +2,11 @@
 
 Estado: **aceptada**. Fecha: 2026-09-12.
 
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): el formulario suma una
+  novena clase, «Entre tesoros», una transferencia entre dos tesoros cualesquiera; el filtro por tesoro
+  acepta cualquier tesoro por id; y el libro lleva cada lado por id de tesoro. Ver la nota al final de
+  la sección 1.
+
 ## Contexto
 
 Este es el paso que cierra la paridad con el HTML viejo: después de esto, todo lo que el dueño sabe
@@ -36,6 +41,14 @@ y Entre tesoros.**
 
 El neto del día se calcula sobre el tesoro filtrado cuando hay uno, y sobre el taller entero cuando no
 lo hay (y ahí las transferencias valen cero, porque no cambian nada).
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** Con los tesoros que arma
+el dueño, un lado del libro se nombra por id (`desdeId`, `haciaId`) y la clave queda para los cuatro de
+siempre. Las ocho clases no cambian y se suma la novena, **«Entre tesoros»**: una transferencia entre dos
+tesoros cualesquiera, con los dos selectores, que no ofrecen el diezmo. El formulario sigue sin poder
+armar una combinación que el `check` rechace: ahora el `check` mira los ids. El filtro por tesoro
+(`?tesoro=`) acepta cualquier tesoro por id y los cuatro de siempre siguen entrando por su clave, para
+no romper los enlaces. El filtro por sentido sigue con sus cuatro opciones.
 
 ### 2. El diezmo no se muestra como un saldo con signo
 

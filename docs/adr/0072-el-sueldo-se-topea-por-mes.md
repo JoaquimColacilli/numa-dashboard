@@ -6,6 +6,9 @@
   proyecto, y resuelve la objeción de plata del
   [0056](0056-el-sueldo-del-mes-se-mide-contra-un-sueldo.md). Usa lo que construyó el
   [0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md): el acumulado del mes que vio la app.
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): con una fila guardada el
+  sueldo es siempre un paso con tope por mes. `sueldo_tope_mensual` solo decide en la fila de siempre,
+  la de un taller que nunca guardó la suya. Ver la nota en «Decisión».
 
 ## Qué se reportó
 
@@ -69,6 +72,17 @@ modo.
 
 **La app no puede cambiar el modo.** No hay grant, como hasta ahora. Una regla sobre la plata del
 dueño que cambia a mitad de mes se decide con un ADR y una migración, como esta.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** El sueldo pasa a ser un
+paso de la fila, siempre de Hogar, con su tope por mes. El modo por trabajo existe solo en la fila de
+siempre, que es la que reparte mientras el taller no guarda la suya: ahí `sueldo_tope_mensual` sigue
+decidiendo, y el seed sigue por proyecto. Una fila guardada cuenta el sueldo por mes. Guardar la fila
+es lo único de la app que cambia el modo, y solo en un taller que estaba por trabajo: al empezar a
+editar, el borrador lo pasa a mensual y la hoja de guardar lo dice. Es una decisión explícita del
+dueño, que vale desde el próximo cobro, y no un grant sobre la columna. Con fila guardada, cambiar
+`sueldo_tope_mensual` no cambia el reparto. Sin fila, un cambio del sueldo, de los fijos o del modo sube
+la revisión de la fila (`contar_la_revision_de_la_fila`), así que un cobro armado antes rebota con
+`MN006`, como hasta ahora.
 
 **Lo que muestra la app:**
 

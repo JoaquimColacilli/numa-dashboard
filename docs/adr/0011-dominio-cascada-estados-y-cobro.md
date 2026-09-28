@@ -6,6 +6,8 @@ Estado: aceptada, 2026-09-11. Actualizada el mismo día con los topes mensuales,
 
 **Corregida el 2026-09-25 por el [ADR 0072](0072-el-sueldo-se-topea-por-mes.md)**: el tope de sueldo pasa a ser por mes, como los fijos, en todos los talleres menos el seed. «El tope de sueldo se queda por proyecto» queda como historia de por qué no se hizo antes. «Pasar el sueldo a tope mensual» es lo que se hizo, y su costo sin conexión ya lo había resuelto el [ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md).
 
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cascada pasa a ser un caso de la fila. Cada cobro baja por la fila del taller (el diezmo, los pasos con su tope por mes y el reparto por porcentajes), y la fila de siempre da lo mismo que la cascada. `fila.ts` y sus cinco gemelas de SQL se suman a lo que no puede divergir. Ver la nota en «Lo que impide que las dos implementaciones diverjan».
+
 ## Contexto
 
 La regla central del negocio, la cascada que reparte la ganancia de un proyecto, se necesita en dos lugares:
@@ -280,6 +282,13 @@ Lo que implicaría, para cuando se haga:
   Cada test falla si falta el lock que prueba. Que la suma del mes venga después del lock de ajustes sí se prueba: mientras espera, la segunda sesión no tiene ningún lock de lectura sobre `proyectos`. Lo que no se prueba contra la base real es la rama commiteada (lo que ve la segunda sesión después de esperar), porque exigiría commitear en producción. La cubren pgTAP en una sola transacción y la semántica de READ COMMITTED.
 
 - `packages/domain` tiene cobertura del 100%, exigida por la configuración de Vitest.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** La cascada, los topes y `calcularLiquidacion` siguen, con sus gemelas, y son lo que usa una app sin actualizar. Lo nuevo es la fila:
+
+- **`packages/domain/src/fila.ts` y sus cinco gemelas** (`private.entero_de_json`, `private.repartir_por_la_fila`, `private.fila_de_siempre`, `private.problema_de_la_fila` y `private.plan_del_reparto`) son otro par que no puede divergir. `compararFila` las ata en `scripts/comparacion.ts` con casos con semilla y los vectores de redondeo, y `ESCENARIOS_DE_LIQUIDACION` suma liquidaciones por la fila paso a paso. `filaDeSiempre` da lo mismo que `calcularDistribucion` con `topesDeLaLiquidacion`, y lo prueba `fila.test.ts` en 4.000 casos.
+- **El redondeo del reparto es otro.** El diezmo sigue redondeando mitad hacia arriba. Cada parte del reparto por porcentajes se redondea hacia abajo al centavo, y el resto con esos centavos queda en Maun: así la parte de un tesoro no depende de las demás.
+- **Lo que el mes ya lleva se sigue sumando bajo el lock**, sin guardarlo (sección (a)), y cada camino suma lo del otro. Por la fila, cada paso suma `dist_sueldo` (Hogar) y `dist_fijos` (Maun) de las liquidaciones de antes, las filas vivas de `repartos` de su tesoro y las transferencias que cubren el mes. Por el camino de antes, el que usa una app sin actualizar, el sueldo suma además los repartos de los pasos de sueldo, y los fijos los de los pasos de gastos fijos de Maun: si no, una app vieja que cobra después de una nueva en el mismo mes paga el sueldo dos veces.
+- **Los locks suman dos esperas**: una cobertura del mes y `guardar_la_fila` toman `ajustes` como una liquidación. `concurrencia.test.ts` prueba que una cobertura espera a la liquidación en curso y que una liquidación espera a `guardar_la_fila`.
 
 ## Alternativas descartadas
 

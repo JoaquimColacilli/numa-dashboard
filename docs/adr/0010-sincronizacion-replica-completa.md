@@ -2,6 +2,11 @@
 
 Estado: aceptada, 2026-09-11. La base (ids, metadatos, bootstrap, delta, guardas) queda hecha en la fase 2A; la cola de salida, la réplica del cliente y los indicadores, en la 2C.
 
+- Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la réplica suma `tesoros` y
+  `repartos`, la cola suma cuatro mutaciones (crear, editar y archivar un tesoro, y guardar la fila), la
+  fila optimista de `ajustes` sube la revisión de la fila como el trigger, y la tabla de códigos suma
+  `MN023`, `MN024` y `MN025`. Los locks suman dos esperas, con sus tests en `concurrencia.test.ts`.
+
 ## Contexto
 
 El taller tiene mala señal: la app tiene que seguir andando sin conexión y lo que se cargue no se puede perder. Hay un usuario y un dataset chico. El brief estimaba "unos pocos miles de filas, bastante menos de un megabyte", y la medición lo corrige (ADR 0009): un año de datos son unas 2.400 filas del libro, y `bootstrap()` las devuelve en 1,2 MB de JSON, 96 KB comprimidos. Diez años son 10 MB, 950 KB comprimidos.
@@ -84,9 +89,19 @@ La alternativa de un contador asignado en el commit es más exacta, pero pide un
 | `MN020` | La respuesta del cliente sobre la entrega no sirve: la forma, el motivo que dice el `detail`, o el tope de 20 respuestas (ADR 0071).                                                                                                                   |
 | `MN021` | No se puede proponer la entrega: el mueble no está listo, la entrega ya está comprometida o el día no es desde mañana (ADR 0071).                                                                                                                      |
 | `MN022` | La vidriera del taller ya tiene 12 fotos vivas: no entra otra, ni al sumarla ni al restaurarla. El trigger bloquea la fila del household antes de contar (ADR 0076).                                                                                   |
+| `MN023` | La fila que se quiso guardar no se puede guardar: un tesoro que no existe o está archivado, uno repetido, un tope o un porcentaje fuera de rango. El código del problema va en el `detail`, que la app no lee (ADR 0078).                              |
+| `MN024` | No se puede archivar el tesoro: está en la fila guardada, en la foto de un cobro reabierto de un proyecto vivo, o tiene saldo (ADR 0078).                                                                                                              |
+| `MN025` | Se liquidó sin la revisión de la fila con una fila guardada, o se volvió a cobrar sin ella un reabierto que se había cobrado por la fila: lo manda una app sin actualizar (ADR 0078).                                                                  |
 | `42501` | El usuario no tiene household asignado, o no tiene permiso.                                                                                                                                                                                            |
 
 **Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** La tabla llegaba hasta `MN015`: de `MN016` a `MN021` estaban solo en sus ADR (0063, 0064 y 0071). Se suman acá, con `MN022`, el tope de la vidriera.
+
+**Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md).** `MN023` a `MN025` son de los
+tesoros y la fila. Una app sin actualizar muestra el mensaje del `raise` tal cual, así que ninguno dice
+«versión». Los locks suman dos esperas, las dos con el mismo orden de siempre (el proyecto y después
+`ajustes`): una transferencia que cubre el faltante de un mes toma `ajustes` antes de escribir, y
+`guardar_la_fila` también, así que una liquidación del mismo taller ve la cobertura o la fila nueva
+enteras, o no las ve. `concurrencia.test.ts` prueba las dos con conexiones reales.
 
 **La UI no miente.** Cuatro estados, visibles y siempre correctos: sin conexión, N cambios pendientes, N cambios rechazados y sincronizado. Nunca "guardado" para algo que está en la cola.
 
