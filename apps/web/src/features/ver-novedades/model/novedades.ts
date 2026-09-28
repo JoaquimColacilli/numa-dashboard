@@ -7,9 +7,10 @@ export const NOVEDADES: readonly Novedad[] = [
   {
     version: '2026-09-28',
     lineas: [
-      'Hay una pantalla nueva, Tesoros: armás cómo se reparte lo que deja cada trabajo, con topes por mes en el orden que quieras y lo que sobra por porcentajes.',
-      'Podés crear tesoros, probar un cobro y ver a dónde va cada peso antes de guardar.',
-      'Inicio muestra cómo va la fila del mes y, si faltan los gastos fijos, te deja cubrirlos desde otro tesoro.',
+      'Hay una pantalla nueva, Tesoros: armás cómo se reparte el ingreso de cada trabajo entre obligaciones, compromisos, ahorros y superávit, en el orden que quieras.',
+      'Sumá Ingresos Brutos a las obligaciones, ponele día de pago a cada compromiso y la agenda te avisa cuándo vence.',
+      'Los ahorros pueden juntar hasta su meta, y lo que no entra va al superávit.',
+      'Inicio muestra cuánto tenés para pagar, ahorrado y libre, y cuánto queda de la seña de cada trabajo en curso.',
     ],
   },
   {
