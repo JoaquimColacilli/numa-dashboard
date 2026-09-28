@@ -3,12 +3,16 @@
 -- guardada, y con fila guardada rebota con MN025.
 --
 -- Taller A: sueldo 100M y costos fijos 30M por mes. Sin fila guardada reparte con la fila de siempre:
--- el sueldo a Hogar y los costos fijos a un paso de Maun. La fila que después guarda (F1):
+-- el diezmo como única obligación, el sueldo a Hogar y los costos fijos a un paso de Maun. La fila que
+-- después guarda (F1), con la forma de los tipos de tesoro y todo por mes, sin metas:
+--   el diezmo al 10% sobre el ingreso;
 --   1. Hogar, sueldo, tope 100M
 --   2. Gastos fijos, con alquiler 20M y luz 10M: tope 30M
 --   3. Materiales, prioridad, tope 5M
---   y lo que sobra: 50% a Cocos, 30% a Inmuebles y el 20% que queda en Maun.
--- Más adelante guarda otra (F2): Materiales con tope 8M y 60% a Cocos, sin Inmuebles.
+--   y lo que sobra: 50% a Cocos, 30% a Inmuebles y el 20% que queda en Maun, el superávit.
+-- Más adelante guarda otra (F2): Materiales con tope 8M y 60% a Cocos, sin Inmuebles. Las
+-- obligaciones de otro tipo, los otros modos, las metas y el superávit aparte están en
+-- 39_los_tipos_de_tesoro.sql.
 --
 -- Cada cobro cae en su propio mes, así lo que el mes ya llevaba se lee en el comentario de cada caso.
 -- Las cuentas son las de fila.ts: el diezmo es el 10% redondeado, cada paso recibe hasta lo que le
@@ -16,7 +20,7 @@
 -- fila, las columnas de siempre van con columnasDeSiempre: topes, sueldo y fijos en 0, y el
 -- remanente con lo que pasa por Maun antes del reparto (neta − diezmo).
 
-select plan(85);
+select plan(86);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
@@ -25,6 +29,7 @@ select tests.guardar('household_b', private.crear_household('Taller B', tests.id
 
 select tests.guardar('hogar', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'hogar'));
 select tests.guardar('maun', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'maun'));
+select tests.guardar('diezmo', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'diezmo'));
 select tests.guardar('cocos', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'cocos'));
 
 
@@ -59,21 +64,54 @@ as $$
   select jsonb_object_agg(tests.id(u.t)::text, u.m) from unnest(p_tesoros, p_montos) as u (t, m)
 $$;
 
-create function tests.fila_de_siempre(p_sueldo bigint, p_fijos bigint)
+-- Un paso, una parte y la obligación del diezmo, con la forma que manda la app: por mes, sin meta.
+create function tests.paso(p_tesoro text, p_clase text, p_tope bigint, p_renglones jsonb, p_desde text)
 returns jsonb
 language sql
 stable
 as $$
   select jsonb_build_object(
-    'pasos', jsonb_build_array(
-      jsonb_build_object('tesoro', tests.id('hogar'), 'clase', 'sueldo', 'tope', p_sueldo, 'renglones', '[]'::jsonb, 'desde', null),
-      jsonb_build_object(
-        'tesoro', tests.id('maun'), 'clase', 'fijos', 'tope', p_fijos,
-        'renglones', jsonb_build_array(jsonb_build_object('nombre', 'Costos fijos', 'monto', p_fijos)), 'desde', null
-      )
+    'tesoro', tests.id(p_tesoro), 'clase', p_clase, 'tope', p_tope, 'renglones', p_renglones,
+    'desde', p_desde, 'modo', 'mes', 'hastaLaMeta', false
+  )
+$$;
+
+create function tests.parte(p_tesoro text, p_porcentaje integer)
+returns jsonb
+language sql
+stable
+as $$
+  select jsonb_build_object('tesoro', tests.id(p_tesoro), 'porcentaje', p_porcentaje, 'hastaLaMeta', false)
+$$;
+
+create function tests.fila(p_pasos jsonb, p_reparto jsonb)
+returns jsonb
+language sql
+stable
+as $$
+  select jsonb_build_object(
+    'obligaciones', jsonb_build_array(
+      jsonb_build_object('tesoro', tests.id('diezmo'), 'porcentaje', 1000, 'base', 'ingreso')
     ),
-    'reparto', '[]'::jsonb,
+    'pasos', p_pasos,
+    'reparto', p_reparto,
+    'superavit', tests.id('maun'),
     'sueldoPorTrabajo', false
+  )
+$$;
+
+-- La de siempre, como la arma private.fila_de_siempre(): el renglón de los costos fijos sin día.
+create function tests.fila_de_siempre(p_sueldo bigint, p_fijos bigint)
+returns jsonb
+language sql
+stable
+as $$
+  select tests.fila(
+    jsonb_build_array(
+      tests.paso('hogar', 'sueldo', p_sueldo, '[]', null),
+      tests.paso('maun', 'fijos', p_fijos, jsonb_build_array(jsonb_build_object('nombre', 'Costos fijos', 'monto', p_fijos, 'dia', null)), null)
+    ),
+    '[]'
   )
 $$;
 
@@ -82,21 +120,17 @@ returns jsonb
 language sql
 stable
 as $$
-  select jsonb_build_object(
-    'pasos', jsonb_build_array(
-      jsonb_build_object('tesoro', tests.id('hogar'), 'clase', 'sueldo', 'tope', 100000000, 'renglones', '[]'::jsonb, 'desde', null),
-      jsonb_build_object(
-        'tesoro', tests.id('fijos'), 'clase', 'fijos', 'tope', 30000000,
-        'renglones', '[{"nombre": "Alquiler", "monto": 20000000}, {"nombre": "Luz", "monto": 10000000}]'::jsonb,
-        'desde', '2026-09'
+  select tests.fila(
+    jsonb_build_array(
+      tests.paso('hogar', 'sueldo', 100000000, '[]', null),
+      tests.paso(
+        'fijos', 'fijos', 30000000,
+        '[{"nombre": "Alquiler", "monto": 20000000, "dia": 10}, {"nombre": "Luz", "monto": 10000000, "dia": null}]',
+        '2026-09'
       ),
-      jsonb_build_object('tesoro', tests.id('materiales'), 'clase', 'prioridad', 'tope', 5000000, 'renglones', '[]'::jsonb, 'desde', null)
+      tests.paso('materiales', 'prioridad', 5000000, '[]', null)
     ),
-    'reparto', jsonb_build_array(
-      jsonb_build_object('tesoro', tests.id('cocos'), 'porcentaje', 5000),
-      jsonb_build_object('tesoro', tests.id('inmuebles'), 'porcentaje', 3000)
-    ),
-    'sueldoPorTrabajo', false
+    jsonb_build_array(tests.parte('cocos', 5000), tests.parte('inmuebles', 3000))
   )
 $$;
 
@@ -105,18 +139,17 @@ returns jsonb
 language sql
 stable
 as $$
-  select jsonb_build_object(
-    'pasos', jsonb_build_array(
-      jsonb_build_object('tesoro', tests.id('hogar'), 'clase', 'sueldo', 'tope', 100000000, 'renglones', '[]'::jsonb, 'desde', null),
-      jsonb_build_object(
-        'tesoro', tests.id('fijos'), 'clase', 'fijos', 'tope', 30000000,
-        'renglones', '[{"nombre": "Alquiler", "monto": 20000000}, {"nombre": "Luz", "monto": 10000000}]'::jsonb,
-        'desde', '2026-09'
+  select tests.fila(
+    jsonb_build_array(
+      tests.paso('hogar', 'sueldo', 100000000, '[]', null),
+      tests.paso(
+        'fijos', 'fijos', 30000000,
+        '[{"nombre": "Alquiler", "monto": 20000000, "dia": 10}, {"nombre": "Luz", "monto": 10000000, "dia": null}]',
+        '2026-09'
       ),
-      jsonb_build_object('tesoro', tests.id('materiales'), 'clase', 'prioridad', 'tope', 8000000, 'renglones', '[]'::jsonb, 'desde', '2026-12')
+      tests.paso('materiales', 'prioridad', 8000000, '[]', '2026-12')
     ),
-    'reparto', jsonb_build_array(jsonb_build_object('tesoro', tests.id('cocos'), 'porcentaje', 6000)),
-    'sueldoPorTrabajo', false
+    jsonb_build_array(tests.parte('cocos', 6000))
   )
 $$;
 
@@ -164,7 +197,8 @@ as $$
   )
 $$;
 
--- Los repartos vivos de un proyecto y cómo se esperan, renglón por renglón.
+-- Los repartos vivos de un proyecto y cómo se esperan, renglón por renglón. Un paso guarda cómo se
+-- llena: acá todos por mes.
 create function tests.repartos_de(p_proyecto uuid)
 returns jsonb
 language sql
@@ -173,8 +207,8 @@ as $$
   select coalesce(
     jsonb_agg(
       jsonb_build_array(
-        r.id, r.posicion, r.tesoro_id, r.nombre, r.tipo, r.clase, r.objetivo_centavos, r.previo_centavos,
-        r.tope_centavos, r.por_mes, r.porcentaje_bp, r.monto_centavos, r.fecha, r.ya_en_la_apertura
+        r.id, r.posicion, r.tesoro_id, r.nombre, r.tipo, r.clase, r.modo, r.objetivo_centavos, r.previo_centavos,
+        r.tope_centavos, r.por_mes, r.porcentaje_bp, r.base, r.monto_centavos, r.fecha, r.ya_en_la_apertura
       )
       order by r.posicion
     ),
@@ -193,8 +227,8 @@ language sql
 stable
 as $$
   select jsonb_build_array(
-    tests.rid(p_n), p_posicion, tests.id(p_tesoro), p_nombre, 'paso', p_clase, p_objetivo, p_previo, p_tope,
-    true, null, p_monto, p_fecha, false
+    tests.rid(p_n), p_posicion, tests.id(p_tesoro), p_nombre, 'paso', p_clase, 'mes', p_objetivo, p_previo, p_tope,
+    true, null, null, p_monto, p_fecha, false
   )
 $$;
 
@@ -206,8 +240,8 @@ language sql
 stable
 as $$
   select jsonb_build_array(
-    tests.rid(p_n), p_posicion, tests.id(p_tesoro), p_nombre, 'parte', null, null, null, null,
-    null, p_porcentaje, p_monto, p_fecha, false
+    tests.rid(p_n), p_posicion, tests.id(p_tesoro), p_nombre, 'parte', null, null, null, null, null,
+    null, p_porcentaje, null, p_monto, p_fecha, false
   )
 $$;
 
@@ -1263,17 +1297,34 @@ select ok(
   not exists (
     select 1
     from unnest(array[
-      'private.lo_del_mes_es_otro(jsonb, jsonb)',
+      'private.lo_del_mes_es_otro(uuid[], uuid[], jsonb, jsonb)',
       'private.entero_de_json(jsonb)',
-      'private.repartir_por_la_fila(bigint, bigint, integer, bigint[], bigint[], boolean[], integer[])',
-      'private.fila_de_siempre(bigint, bigint, boolean, uuid, uuid)',
+      'private.repartir_por_la_fila(bigint, bigint, integer[], text[], bigint[], bigint[], boolean[], integer[], bigint[])',
+      'private.fila_de_siempre(bigint, bigint, boolean, uuid, uuid, uuid)',
       'private.problema_de_la_fila(jsonb, jsonb)',
-      'private.plan_del_reparto(text, jsonb, boolean, boolean)'
+      'private.plan_del_reparto(text, jsonb, boolean, boolean, uuid, uuid)',
+      'private.previo_del_mes(uuid[], bigint[], text[], boolean[], uuid[], boolean[], jsonb, jsonb, jsonb)'
     ]) as f (firma)
     cross join unnest(array['anon', 'authenticated']) as r (rol)
     where has_function_privilege(r.rol, f.firma, 'execute')
   ),
-  'ni anon ni authenticated ejecutan las gemelas de la fila ni la comparación de lo del mes: solo las llama la liquidación'
+  'ni anon ni authenticated ejecutan las gemelas de la fila ni la comparación de lo que vio la app: solo las llama la liquidación'
+);
+
+select is_empty(
+  $$
+    select p.oid::regprocedure::text
+    from pg_proc p
+    where p.pronamespace = 'private'::regnamespace
+      and p.proname in ('lo_del_mes_es_otro', 'repartir_por_la_fila', 'fila_de_siempre', 'plan_del_reparto')
+      and p.oid::regprocedure::text not in (
+        'private.lo_del_mes_es_otro(uuid[],uuid[],jsonb,jsonb)',
+        'private.repartir_por_la_fila(bigint,bigint,integer[],text[],bigint[],bigint[],boolean[],integer[],bigint[])',
+        'private.fila_de_siempre(bigint,bigint,boolean,uuid,uuid,uuid)',
+        'private.plan_del_reparto(text,jsonb,boolean,boolean,uuid,uuid)'
+      )
+  $$,
+  'de cada gemela que cambió de firma queda una sola versión: la de los tipos de tesoro'
 );
 
 select tests.salir();

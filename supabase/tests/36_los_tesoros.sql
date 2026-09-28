@@ -259,13 +259,21 @@ select is(count(*), 0::bigint, 'ni A archiva el de B') from u;
 insert into public.tesoros (id, nombre, tinta, icono)
   values ('aaaaaaaa-0000-7000-8000-000000000103', 'Inmuebles', 'petroleo', 'building-2');
 
--- Herramientas es un paso de prioridad con tope de 1M e Inmuebles lleva el 10% de lo que sobra.
+-- Herramientas es un ahorro fijo con 1M por mes e Inmuebles lleva el 10% de lo que sobra. El diezmo
+-- es la única obligación y lo que sobra queda en Maun. Las obligaciones y el superávit que no se
+-- archivan están en 39_los_tipos_de_tesoro.sql.
 select fila_version
 from public.guardar_la_fila(
   (select fila_version from public.ajustes),
-  '{"pasos": [{"tesoro": "aaaaaaaa-0000-7000-8000-000000000101", "clase": "prioridad", "tope": 1000000, "renglones": [], "desde": null}],
-    "reparto": [{"tesoro": "aaaaaaaa-0000-7000-8000-000000000103", "porcentaje": 1000}],
-    "sueldoPorTrabajo": false}'
+  jsonb_build_object(
+    'obligaciones', jsonb_build_array(
+      jsonb_build_object('tesoro', (select id from public.tesoros where clave = 'diezmo'), 'porcentaje', 1000, 'base', 'ingreso')
+    ),
+    'pasos', '[{"tesoro": "aaaaaaaa-0000-7000-8000-000000000101", "clase": "prioridad", "tope": 1000000, "renglones": [], "desde": null, "modo": "mes", "hastaLaMeta": false}]'::jsonb,
+    'reparto', '[{"tesoro": "aaaaaaaa-0000-7000-8000-000000000103", "porcentaje": 1000, "hastaLaMeta": false}]'::jsonb,
+    'superavit', (select id from public.tesoros where clave = 'maun'),
+    'sueldoPorTrabajo', false
+  )
 );
 
 select throws_ok(
@@ -330,7 +338,15 @@ select is(
 select fila_version
 from public.guardar_la_fila(
   (select fila_version from public.ajustes),
-  '{"pasos": [], "reparto": [], "sueldoPorTrabajo": false}'
+  jsonb_build_object(
+    'obligaciones', jsonb_build_array(
+      jsonb_build_object('tesoro', (select id from public.tesoros where clave = 'diezmo'), 'porcentaje', 1000, 'base', 'ingreso')
+    ),
+    'pasos', '[]'::jsonb,
+    'reparto', '[]'::jsonb,
+    'superavit', (select id from public.tesoros where clave = 'maun'),
+    'sueldoPorTrabajo', false
+  )
 );
 
 select is(
