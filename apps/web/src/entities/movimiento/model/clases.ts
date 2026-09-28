@@ -1,6 +1,6 @@
 import type { Tesoro, TipoMovimiento } from '@/shared/api';
 
-export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos';
+export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos' | 'entre';
 
 export type ClaseDeMovimiento =
   | 'ingreso_hogar'
@@ -10,7 +10,8 @@ export type ClaseDeMovimiento =
   | 'pago_diezmo'
   | 'aporte_cocos'
   | 'retiro_cocos'
-  | 'gasto_cocos';
+  | 'gasto_cocos'
+  | 'entre_tesoros';
 
 export interface DatosDeClase {
   id: ClaseDeMovimiento;
@@ -20,7 +21,8 @@ export interface DatosDeClase {
   tipo: TipoMovimiento;
   desde: Tesoro | null;
   hacia: Tesoro | null;
-  tesoro: Tesoro;
+  tesoro: Tesoro | null;
+  eligeLosLados: boolean;
   categorias: readonly string[];
   ejemplo: string;
 }
@@ -30,6 +32,7 @@ export const GRUPOS: readonly { id: GrupoDeMovimiento; etiqueta: string }[] = [
   { id: 'gasto', etiqueta: 'Gasto' },
   { id: 'diezmo', etiqueta: 'Diezmo' },
   { id: 'cocos', etiqueta: 'Cocos' },
+  { id: 'entre', etiqueta: 'Entre tesoros' },
 ];
 
 export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
@@ -42,6 +45,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: null,
     hacia: 'hogar',
     tesoro: 'hogar',
+    eligeLosLados: false,
     categorias: ['Docencia', 'Changas', 'Regalos', 'Venta personal', 'Otro'],
     ejemplo: 'Docencia de septiembre',
   },
@@ -54,6 +58,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: null,
     hacia: 'maun',
     tesoro: 'maun',
+    eligeLosLados: false,
     categorias: ['Cobro suelto', 'Venta de sobrantes', 'Otro'],
     ejemplo: 'Venta de recortes de melamina',
   },
@@ -66,6 +71,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'hogar',
     hacia: null,
     tesoro: 'hogar',
+    eligeLosLados: false,
     categorias: [
       'Supermercado',
       'Servicios',
@@ -88,6 +94,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'maun',
     hacia: null,
     tesoro: 'maun',
+    eligeLosLados: false,
     categorias: [
       'Materiales',
       'Herramientas',
@@ -108,6 +115,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'diezmo',
     hacia: null,
     tesoro: 'diezmo',
+    eligeLosLados: false,
     categorias: [],
     ejemplo: 'Diezmo de septiembre',
   },
@@ -120,6 +128,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'maun',
     hacia: 'cocos',
     tesoro: 'cocos',
+    eligeLosLados: false,
     categorias: [],
     ejemplo: 'Aporte del mes',
   },
@@ -132,6 +141,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'cocos',
     hacia: 'maun',
     tesoro: 'cocos',
+    eligeLosLados: false,
     categorias: [],
     ejemplo: 'Retiro para comprar la plegadora',
   },
@@ -144,8 +154,22 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     desde: 'cocos',
     hacia: null,
     tesoro: 'cocos',
+    eligeLosLados: false,
     categorias: ['Compra del inmueble', 'Escritura y sellos', 'Mudanza', 'Otro'],
     ejemplo: 'Seña del terreno',
+  },
+  entre_tesoros: {
+    id: 'entre_tesoros',
+    grupo: 'entre',
+    etiqueta: 'Entre tesoros',
+    corta: 'Entre tesoros',
+    tipo: 'transferencia',
+    desde: null,
+    hacia: null,
+    tesoro: null,
+    eligeLosLados: true,
+    categorias: [],
+    ejemplo: 'Para los materiales del mes',
   },
 };
 
@@ -158,6 +182,7 @@ export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
   'aporte_cocos',
   'retiro_cocos',
   'gasto_cocos',
+  'entre_tesoros',
 ];
 
 export function clasesDelGrupo(grupo: GrupoDeMovimiento): DatosDeClase[] {
@@ -169,7 +194,18 @@ export function claseDe(
   desde: Tesoro | null,
   hacia: Tesoro | null,
 ): DatosDeClase | undefined {
-  return CLASES_EN_ORDEN.map((id) => CLASE[id]).find(
-    (clase) => clase.tipo === tipo && clase.desde === desde && clase.hacia === hacia,
+  const clases = CLASES_EN_ORDEN.map((id) => CLASE[id]);
+  return (
+    clases.find(
+      (clase) =>
+        !clase.eligeLosLados &&
+        clase.tipo === tipo &&
+        clase.desde === desde &&
+        clase.hacia === hacia,
+    ) ?? clases.find((clase) => clase.eligeLosLados && clase.tipo === tipo)
   );
+}
+
+export function vaEntreTesoros(tesoro: { clave: Tesoro | null }): boolean {
+  return tesoro.clave !== 'diezmo';
 }

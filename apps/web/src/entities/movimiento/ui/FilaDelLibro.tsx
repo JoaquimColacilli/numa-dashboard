@@ -1,25 +1,23 @@
-import type { Tesoro } from '@maun/domain';
-
-import { formatearPesos, TESORO } from '@/shared/lib';
+import { formatearPesos, TINTA } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
-import { efectoDeLaLinea, type LineaDelTaller } from '../model/libro';
+import { efectoDeLaLinea, type LineaDelTaller, type TesoroDeLaLinea } from '../model/libro';
 
-function Lados({ desde, hacia }: { desde: Tesoro; hacia: Tesoro }) {
+function Lados({ desde, hacia }: { desde: TesoroDeLaLinea; hacia: TesoroDeLaLinea }) {
   return (
-    <span className="flex items-center gap-1">
-      <span className={`font-semibold ${TESORO[desde].texto}`}>{TESORO[desde].nombre}</span>
+    <span className="flex min-w-0 flex-wrap items-center gap-x-1">
+      <span className={`font-semibold ${TINTA[desde.tinta].texto}`}>{desde.nombre}</span>
       <span aria-hidden className="text-text-3">
         →
       </span>
-      <span className={`font-semibold ${TESORO[hacia].texto}`}>{TESORO[hacia].nombre}</span>
+      <span className={`font-semibold ${TINTA[hacia.tinta].texto}`}>{hacia.nombre}</span>
     </span>
   );
 }
 
 export interface FilaDelLibroProps {
   linea: LineaDelTaller;
-  tesoro: Tesoro | 'todos';
+  tesoro: string;
   sinConfirmar: boolean;
   alAbrir: () => void;
 }
@@ -28,7 +26,8 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
   const mueve = linea.sentido === 'mueve';
   const efecto = efectoDeLaLinea(linea, tesoro);
   const neutro = (mueve && efecto === 0) || linea.yaEnLaApertura;
-  const datos = TESORO[linea.tesoroPrincipal];
+  const principal = linea.tesoroPrincipal;
+  const tinta = TINTA[principal.tinta];
 
   const importe = neutro
     ? formatearPesos(linea.monto)
@@ -43,10 +42,10 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
       <span
         aria-hidden
         className={`flex size-7 flex-none items-center justify-center rounded-field ${
-          mueve ? 'bg-surface text-text-2' : `${datos.fondo} ${datos.texto}`
+          mueve ? 'bg-surface text-text-2' : `${tinta.tinte} ${tinta.texto}`
         }`}
       >
-        <Icono nombre={mueve ? 'arrow-left-right' : datos.icono} tamano={15} />
+        <Icono nombre={mueve ? 'arrow-left-right' : principal.icono} tamano={15} />
       </span>
 
       <span className="min-w-0 flex-1">
@@ -54,8 +53,8 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
           {linea.detalle === '' ? linea.etiqueta : linea.detalle}
         </span>
         <span className="flex flex-wrap items-center gap-x-2 text-meta text-text-3">
-          {mueve && linea.desde !== null && linea.hacia !== null ? (
-            <Lados desde={linea.desde} hacia={linea.hacia} />
+          {mueve && linea.tesoroDesde !== null && linea.tesoroHacia !== null ? (
+            <Lados desde={linea.tesoroDesde} hacia={linea.tesoroHacia} />
           ) : (
             <span>{linea.etiqueta}</span>
           )}

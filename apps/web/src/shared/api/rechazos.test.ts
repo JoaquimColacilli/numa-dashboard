@@ -78,11 +78,43 @@ describe('los MN00x traducidos a castellano de taller', () => {
     );
   });
 
-  it('MN006 al cobrar: los números cambiaron', () => {
+  it('MN006 al cobrar: los números cambiaron, o cambió la fila', () => {
     expect(texto('MN006', { operacion: 'cobro', sujeto: 'Placard' })).toBe(
-      'Los números cambiaron desde que viste el reparto. Se cargó un pago o un gasto, o cambiaron ' +
-        'el sueldo o los costos fijos. Abrí el cobro otra vez: el reparto se calcula de nuevo con lo ' +
-        'que hay ahora, y lo revisás antes de confirmar.',
+      'Los números cambiaron desde que viste el reparto. Se cargó un pago o un gasto, cambiaron ' +
+        'el sueldo o los costos fijos, o cambió la fila. Abrí el cobro otra vez: el reparto se ' +
+        'calcula de nuevo con lo que hay ahora, y lo revisás antes de confirmar.',
+    );
+  });
+
+  it('MN006 al guardar la fila: cambió mientras la editabas', () => {
+    expect(texto('MN006', { operacion: 'fila' })).toBe(
+      'La fila cambió mientras la editabas. Se guardó en otro dispositivo o cambiaron los Ajustes. ' +
+        'Mirá cómo quedó y volvé a hacer tus cambios.',
+    );
+  });
+
+  it('MN023: la fila no se pudo guardar, sin mostrar el código del problema', () => {
+    expect(texto('MN023', { operacion: 'fila' })).toBe(
+      'La fila no se pudo guardar. Revisala y probá de nuevo.',
+    );
+  });
+
+  it('MN024: no se pudo archivar el tesoro, con su nombre si lo hay', () => {
+    const queHacer =
+      'Sacalo de la fila, cobrá el trabajo reabierto que lo usa y pasá su plata a otro tesoro. ' +
+      'Después archivalo.';
+    expect(texto('MN024', { operacion: 'tesoro', sujeto: 'Herramientas' })).toBe(
+      `No se pudo archivar Herramientas. ${queHacer}`,
+    );
+    expect(texto('MN024', { operacion: 'tesoro' })).toBe(
+      `No se pudo archivar el tesoro. ${queHacer}`,
+    );
+  });
+
+  it('MN025: un cobro que quedó de antes de actualizar la app', () => {
+    expect(texto('MN025', { operacion: 'cobro', sujeto: 'Placard' })).toBe(
+      'Este cobro quedó de antes de actualizar la app. Abrí el cobro otra vez: el reparto se ' +
+        'calcula con tu fila y lo revisás antes de confirmar.',
     );
   });
 

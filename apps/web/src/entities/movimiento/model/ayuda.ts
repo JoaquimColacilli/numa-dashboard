@@ -4,10 +4,16 @@ import { formatearPesos } from '@/shared/lib';
 
 import type { ClaseDeMovimiento } from './clases';
 
+export interface LadoDeLaAyuda {
+  nombre: string;
+  saldo: Money;
+}
+
 export interface ContextoDeAyuda {
   saldos: SaldosPorTesoro;
   metaCocos: Money;
   monto: Money;
+  lados?: { desde: LadoDeLaAyuda; hacia: LadoDeLaAyuda };
 }
 
 function comoQueda(saldo: Money, nombre: string): string {
@@ -20,6 +26,12 @@ function despuesDelPago(saldo: Money): string {
   if (saldo > 0) return `Después de este pago te van a quedar ${formatearPesos(saldo)} por pagar`;
   if (saldo < 0) return `Con este pago te pasás ${formatearPesos(restar(CERO, saldo))}`;
   return 'Con este pago quedás al día';
+}
+
+function entreTesoros(monto: Money, lados: ContextoDeAyuda['lados']): string {
+  if (!lados) return 'Pasa de un tesoro a otro: la plata no se va, cambia de bolsillo.';
+  const { desde, hacia } = lados;
+  return `Pasa de ${desde.nombre} a ${hacia.nombre}: la plata no se va, cambia de bolsillo. ${comoQueda(restar(desde.saldo, monto), desde.nombre)}, y ${hacia.nombre} en ${formatearPesos(sumar(hacia.saldo, monto))}.`;
 }
 
 export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoDeAyuda): string {
@@ -42,5 +54,7 @@ export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoD
       return `Sale de Cocos y vuelve a la caja del taller: no se va del taller, cambia de bolsillo. Cocos queda en ${formatearPesos(restar(saldos.cocos, monto))}.`;
     case 'gasto_cocos':
       return `Sale de Cocos y se va. ${comoQueda(restar(saldos.cocos, monto), 'Cocos')}.`;
+    case 'entre_tesoros':
+      return entreTesoros(monto, contexto.lados);
   }
 }

@@ -162,6 +162,8 @@ export {
   PREFIJO_DE_LA_ENCUESTA_PUBLICA,
   RUTA_DE_LA_ENCUESTA_PUBLICA,
   PARAMETRO_DE_TESORO,
+  parametroDelTesoro,
+  type TesoroDeLaRuta,
   PREFIJO_DE_LA_VISTA_PUBLICA,
   PARAMETRO_DE_RESPUESTA,
   RUTA_DE_OPINIONES,
@@ -193,6 +195,7 @@ export {
   RUTA_DE_AVISOS,
   RUTA_DE_CONTACTO_NUEVO,
   RUTA_DE_DIEZMO,
+  RUTA_DE_TESOROS,
   RUTA_DE_FINANZAS,
   RUTA_DE_MOVIMIENTO_NUEVO,
   RUTA_DE_PROYECTO_NUEVO,
@@ -202,7 +205,19 @@ export {
   RUTA_DEL_ANALITICO,
   RUTA_DEL_HISTORIAL,
 } from './rutas';
-export { TESORO, TESOROS_EN_ORDEN, type DatosDelTesoro } from './tesoros';
+export {
+  ICONOS_DE_TESORO,
+  iconoDelTesoro,
+  NOMBRE_DE_LA_TINTA,
+  TESORO,
+  TESOROS_EN_ORDEN,
+  TINTA,
+  TINTAS_DE_TESORO,
+  tintaDelTesoro,
+  type ClasesDeLaTinta,
+  type DatosDelTesoro,
+  type TintaDeTesoro,
+} from './tesoros';
 export { formatearPorcentaje, parsearPorcentaje, SENA_MAXIMA_BP } from './porcentaje';
 export {
   anotarAviso,

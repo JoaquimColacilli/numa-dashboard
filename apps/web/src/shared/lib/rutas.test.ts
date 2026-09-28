@@ -11,6 +11,7 @@ import {
   PARAMETRO_DE_ENTREGA,
   PARAMETRO_DE_TESORO,
   PARAMETRO_DE_VISITA,
+  parametroDelTesoro,
   rutaDeContactoNuevo,
   RUTA_DE_LA_VISTA_PUBLICA,
   rutaDeFinanzasDelTesoro,
@@ -28,22 +29,45 @@ describe('las fichas de un trabajo y de un cliente', () => {
 });
 
 describe('el filtro de tesoro en la URL de Finanzas', () => {
+  const MATERIALES = '01923456-7890-7abc-8def-0123456789ab';
+
   it('cada tesoro arma su enlace a Finanzas con el filtro puesto', () => {
     expect(rutaDeFinanzasDelTesoro('hogar')).toBe('/finanzas?tesoro=hogar');
     expect(rutaDeFinanzasDelTesoro('cocos')).toBe('/finanzas?tesoro=cocos');
   });
 
-  it('del parámetro sale el tesoro, y cualquier otra cosa es todos', () => {
+  it('los cuatro de siempre van por su clave aunque se pasen con su id, y los demás por su id', () => {
+    expect(
+      rutaDeFinanzasDelTesoro({ id: '0192aaaa-0000-7000-8000-000000000001', clave: 'maun' }),
+    ).toBe('/finanzas?tesoro=maun');
+    expect(rutaDeFinanzasDelTesoro({ id: MATERIALES, clave: null })).toBe(
+      `/finanzas?tesoro=${MATERIALES}`,
+    );
+    expect(parametroDelTesoro({ id: MATERIALES, clave: null })).toBe(MATERIALES);
+    expect(parametroDelTesoro('diezmo')).toBe('diezmo');
+  });
+
+  it('del parámetro sale una clave o un id, y cualquier otra cosa es todos', () => {
     expect(tesoroDelParametro('maun')).toBe('maun');
     expect(tesoroDelParametro('diezmo')).toBe('diezmo');
+    expect(tesoroDelParametro(MATERIALES)).toBe(MATERIALES);
     expect(tesoroDelParametro(null)).toBe('todos');
+    expect(tesoroDelParametro('')).toBe('todos');
     expect(tesoroDelParametro('HOGAR')).toBe('todos');
     expect(tesoroDelParametro('todos')).toBe('todos');
+    expect(tesoroDelParametro('materiales')).toBe('todos');
+    expect(tesoroDelParametro(MATERIALES.toUpperCase())).toBe('todos');
+    expect(tesoroDelParametro(`${MATERIALES}x`)).toBe('todos');
   });
 
   it('el enlace y la lectura usan el mismo parámetro', () => {
     const url = new URL(rutaDeFinanzasDelTesoro('maun'), 'https://maun.test');
     expect(tesoroDelParametro(url.searchParams.get(PARAMETRO_DE_TESORO))).toBe('maun');
+    const propio = new URL(
+      rutaDeFinanzasDelTesoro({ id: MATERIALES, clave: null }),
+      'https://maun.test',
+    );
+    expect(tesoroDelParametro(propio.searchParams.get(PARAMETRO_DE_TESORO))).toBe(MATERIALES);
   });
 });
 

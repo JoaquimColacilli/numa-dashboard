@@ -1,16 +1,27 @@
 import type { ReactNode } from 'react';
 
-import { fechaLarga, formatearPesos, rutaDelProyecto, TESORO, Ir } from '@/shared/lib';
+import { fechaLarga, formatearPesos, rutaDelProyecto, TINTA, Ir } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
-import { MOTIVO_DEL_BLOQUEO, type LineaDelTaller } from '../model/libro';
+import { MOTIVO_DEL_BLOQUEO, type LineaDelTaller, type TesoroDeLaLinea } from '../model/libro';
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-t border-hairline-soft py-2">
       <dt className="text-label text-text-2">{etiqueta}</dt>
-      <dd className="text-body font-medium tabular-nums">{children}</dd>
+      <dd className="text-right text-body font-medium tabular-nums">{children}</dd>
     </div>
+  );
+}
+
+function Lado({ tesoro, afuera }: { tesoro: TesoroDeLaLinea | null; afuera: string }) {
+  if (tesoro === null) return afuera;
+  const tinta = TINTA[tesoro.tinta];
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span aria-hidden className={`size-2 flex-none rounded-pill ${tinta.fondo}`} />
+      <span className={tinta.texto}>{tesoro.nombre}</span>
+    </span>
   );
 }
 
@@ -38,10 +49,10 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
         <dl className="flex flex-col">
           <Dato etiqueta="Fecha">{fechaLarga(linea.fecha, hoy)}</Dato>
           <Dato etiqueta="Sale de">
-            {linea.desde === null ? 'de afuera del taller' : TESORO[linea.desde].nombre}
+            <Lado tesoro={linea.tesoroDesde} afuera="de afuera del taller" />
           </Dato>
           <Dato etiqueta="Entra a">
-            {linea.hacia === null ? 'se va del taller' : TESORO[linea.hacia].nombre}
+            <Lado tesoro={linea.tesoroHacia} afuera="se va del taller" />
           </Dato>
           {linea.categoria !== '' && <Dato etiqueta="Categoría">{linea.categoria}</Dato>}
         </dl>

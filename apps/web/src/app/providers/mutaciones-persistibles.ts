@@ -84,6 +84,15 @@ import {
 } from '@/entities/opinion';
 import { CLAVE_DEL_PERFIL, MUTACION_DEL_PERFIL } from '@/entities/sesion';
 import {
+  CLAVE_DE_ARCHIVO_DE_TESORO,
+  CLAVE_DE_TESORO,
+  CLAVE_DE_TESORO_NUEVO,
+  MUTACION_DE_ARCHIVO_DE_TESORO,
+  MUTACION_DE_TESORO,
+  MUTACION_DE_TESORO_NUEVO,
+} from '@/entities/tesoro';
+import { CLAVE_DE_LA_FILA, MUTACION_DE_LA_FILA } from '@/features/armar-la-fila';
+import {
   CLAVE_DE_BAJA_DE_LA_VIDRIERA,
   CLAVE_DE_FOTO_DE_LA_VIDRIERA,
   CLAVE_DE_ORDEN_DE_LA_VIDRIERA,
@@ -228,6 +237,18 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_BAJA_DE_LA_VIDRIERA, MUTACION_DE_BAJA_DE_LA_VIDRIERA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_TESORO_NUEVO, MUTACION_DE_TESORO_NUEVO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_TESORO, MUTACION_DE_TESORO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_ARCHIVO_DE_TESORO, MUTACION_DE_ARCHIVO_DE_TESORO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_LA_FILA, MUTACION_DE_LA_FILA);
   },
 ];
 

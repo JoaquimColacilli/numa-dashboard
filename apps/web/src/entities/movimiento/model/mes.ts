@@ -12,8 +12,14 @@ export interface ResumenMensual {
   facturoTaller: Money;
 }
 
+function esUnPaseEntreTesoros(asiento: Asiento): boolean {
+  return asiento.origen === 'manual' && asiento.contrapartidaId !== null;
+}
+
 export function resumenMensual(asientos: readonly Asiento[], mes: string): ResumenMensual {
-  const delMes = asientosDelMes(asientos, mes).filter((asiento) => asiento.concepto !== 'ajuste');
+  const delMes = asientosDelMes(asientos, mes).filter(
+    (asiento) => asiento.concepto !== 'ajuste' && !esUnPaseEntreTesoros(asiento),
+  );
   const hogar = entradasYSalidas(delMes, 'hogar');
   return {
     entroHogar: hogar.entro,

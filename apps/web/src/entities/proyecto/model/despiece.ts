@@ -1,34 +1,49 @@
 import {
-  calcularLiquidacion,
   centavos,
   esAnteriorALaApertura,
   estaLiquidado,
   puntosBasicos,
+  restar,
   sumar,
   type AjustesDeLiquidacion,
   type Distribucion,
-  type EstadoLiquidado,
-  type Liquidacion,
   type Money,
   type Reapertura,
-  type Tesoro,
 } from '@maun/domain';
 
 import {
   ajustesDe,
   dinero,
   filasDe,
-  liquidacionesDeLaReplica,
-  totalesDelProyecto,
+  idDeLaClave,
+  porLaFila,
+  repartosDelProyecto,
+  tesorosDeLaReplica,
   type Replica,
 } from '@/shared/api';
+import {
+  formatearPorcentaje,
+  iconoDelTesoro,
+  TESORO,
+  TESOROS_EN_ORDEN,
+  tintaDelTesoro,
+  type TintaDeTesoro,
+} from '@/shared/lib';
+import type { NombreDeIcono } from '@/shared/ui';
 
 import type { Proyecto } from './catalogos';
+import { cobroPorLaFila, type CobroPorLaFila } from './por-la-fila';
+
+export type TipoDePieza = 'diezmo' | 'paso' | 'parte' | 'resto';
 
 export interface PiezaDelDespiece {
-  id: 'diezmo' | 'sueldo' | 'fijos' | 'remanente';
+  id: string;
+  tipo: TipoDePieza;
   etiqueta: string;
-  tesoro: Tesoro;
+  tesoro: string;
+  nombre: string;
+  tinta: TintaDeTesoro;
+  icono: NombreDeIcono;
   monto: Money;
   falta: Money;
   cubierto: boolean;
@@ -41,6 +56,14 @@ export interface Despiece {
   gastos: Money;
   neta: Money;
   piezas: readonly PiezaDelDespiece[];
+}
+
+export interface MontoDelTesoro {
+  tesoro: string;
+  nombre: string;
+  tinta: TintaDeTesoro;
+  icono: NombreDeIcono;
+  monto: Money;
 }
 
 const AJUSTES_EN_CERO: AjustesDeLiquidacion = {
@@ -107,86 +130,153 @@ export function repartoEnLaAperturaPropuesto(
   return (proyecto as Partial<Proyecto>).reparto_ya_en_la_apertura === true;
 }
 
-export interface OpcionesDeProyeccion {
-  destino?: EstadoLiquidado;
-  pagoExtra?: Money;
+const NOMBRE_DE_LA_CLASE: Readonly<Record<string, string>> = {
+  sueldo: 'Sueldo',
+  fijos: 'Gastos fijos',
+  prioridad: 'Prioridad',
+};
+
+interface DatosDelTesoro {
+  nombre: string;
+  tinta: TintaDeTesoro;
+  icono: NombreDeIcono;
 }
 
-export function liquidacionProyectada(
-  replica: Replica,
-  proyecto: Proyecto,
-  fecha: string,
-  { destino = 'cobrado', pagoExtra = centavos(0) }: OpcionesDeProyeccion = {},
-): Liquidacion {
-  const { cobrado, gastos } = totalesDelProyecto(replica, proyecto.id);
-  return calcularLiquidacion({
-    destino,
-    fecha,
-    cobrado: sumar(cobrado, pagoExtra),
-    gastos,
-    ajustes: ajustesDeLaReplica(replica),
-    reapertura: reaperturaDe(proyecto),
-    liquidaciones: liquidacionesDeLaReplica(replica, proyecto.id),
-  });
-}
+type DatosPorId = (id: string) => DatosDelTesoro;
 
-export function despieceDeLaLiquidacion(liquidacion: Liquidacion): Despiece {
-  return {
-    modo: 'proyeccion',
-    cobrado: liquidacion.cobrado,
-    gastos: liquidacion.gastos,
-    neta: liquidacion.neta,
-    piezas: piezasDe(liquidacion, liquidacion.objetivos),
+function datosDeLosTesoros(replica: Replica): DatosPorId {
+  const porId = new Map(tesorosDeLaReplica(replica).map((tesoro) => [tesoro.id, tesoro]));
+  return (id) => {
+    const tesoro = porId.get(id);
+    if (tesoro !== undefined) {
+      return {
+        nombre: tesoro.nombre,
+        tinta: tintaDelTesoro(tesoro.tinta),
+        icono: iconoDelTesoro(tesoro.icono),
+      };
+    }
+    const clave = TESOROS_EN_ORDEN.find((una) => una === id);
+    if (clave !== undefined) {
+      const datos = TESORO[clave];
+      return { nombre: datos.nombre, tinta: clave, icono: datos.icono };
+    }
+    return { nombre: 'Tesoro', tinta: 'maun', icono: 'vault' };
   };
 }
 
-interface ObjetivosDelDespiece {
-  sueldo: Money;
-  fijos: Money;
+interface PasoDelCorte {
+  tesoro: string;
+  nombre: string | null;
+  clase: string | null;
+  objetivo: Money;
+  tope: Money;
+  monto: Money;
 }
 
-function piezasDe(distribucion: Distribucion, objetivos: ObjetivosDelDespiece): PiezaDelDespiece[] {
-  const base = distribucion.neta > 0 ? distribucion.neta : 0;
-  const parte = (monto: Money) => (base === 0 ? 0 : monto / base);
+interface ParteDelCorte {
+  tesoro: string;
+  nombre: string | null;
+  porcentaje: number;
+  monto: Money;
+}
 
-  return [
+interface Corte {
+  cobrado: Money;
+  gastos: Money;
+  neta: Money;
+  diezmoBp: number;
+  diezmo: Money;
+  pasos: readonly PasoDelCorte[];
+  partes: readonly ParteDelCorte[];
+  resto: Money;
+}
+
+function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte): Despiece {
+  const datos = datosDeLosTesoros(replica);
+  const base = corte.neta > 0 ? corte.neta : 0;
+  const parte = (monto: Money) => (base === 0 || monto <= 0 ? 0 : monto / base);
+  const conNombre = (tesoro: string, nombre: string | null): DatosDelTesoro => {
+    const propios = datos(tesoro);
+    return nombre === null || nombre.trim() === '' ? propios : { ...propios, nombre };
+  };
+
+  const diezmo = idDeLaClave(replica, 'diezmo');
+  const maun = idDeLaClave(replica, 'maun');
+
+  const piezas: PiezaDelDespiece[] = [
     {
       id: 'diezmo',
-      etiqueta: 'Diezmo 10%',
-      tesoro: 'diezmo',
-      monto: distribucion.diezmo,
+      tipo: 'diezmo',
+      etiqueta: `Diezmo ${formatearPorcentaje(corte.diezmoBp)}%`,
+      tesoro: diezmo,
+      ...datos(diezmo),
+      monto: corte.diezmo,
       falta: centavos(0),
       cubierto: false,
-      parte: parte(distribucion.diezmo),
+      parte: parte(corte.diezmo),
     },
-    {
-      id: 'sueldo',
-      etiqueta: 'Sueldo',
-      tesoro: 'hogar',
-      monto: distribucion.sueldo,
-      falta: distribucion.faltaSueldo,
-      cubierto: objetivos.sueldo > 0 && distribucion.topeSueldo === 0,
-      parte: parte(distribucion.sueldo),
-    },
-    {
-      id: 'fijos',
-      etiqueta: 'Costos fijos',
-      tesoro: 'maun',
-      monto: distribucion.fijos,
-      falta: distribucion.faltaFijos,
-      cubierto: objetivos.fijos > 0 && distribucion.topeFijos === 0,
-      parte: parte(distribucion.fijos),
-    },
-    {
-      id: 'remanente',
-      etiqueta: 'Remanente del taller',
-      tesoro: 'maun',
-      monto: distribucion.remanente,
+    ...corte.pasos.map((paso) => ({
+      id: `paso-${paso.tesoro}`,
+      tipo: 'paso' as const,
+      etiqueta:
+        (paso.clase === null ? undefined : NOMBRE_DE_LA_CLASE[paso.clase]) ?? 'Tope del mes',
+      tesoro: paso.tesoro,
+      ...conNombre(paso.tesoro, paso.nombre),
+      monto: paso.monto,
+      falta: paso.tope > paso.monto ? restar(paso.tope, paso.monto) : centavos(0),
+      cubierto: paso.objetivo > 0 && paso.tope === 0,
+      parte: parte(paso.monto),
+    })),
+    ...corte.partes.map((una) => ({
+      id: `parte-${una.tesoro}`,
+      tipo: 'parte' as const,
+      etiqueta: `${formatearPorcentaje(una.porcentaje)}% de lo que sobra`,
+      tesoro: una.tesoro,
+      ...conNombre(una.tesoro, una.nombre),
+      monto: una.monto,
       falta: centavos(0),
       cubierto: false,
-      parte: parte(distribucion.remanente > 0 ? distribucion.remanente : centavos(0)),
+      parte: parte(una.monto),
+    })),
+    {
+      id: 'resto',
+      tipo: 'resto',
+      etiqueta: 'El resto',
+      tesoro: maun,
+      ...datos(maun),
+      monto: corte.resto,
+      falta: centavos(0),
+      cubierto: false,
+      parte: parte(corte.resto),
     },
   ];
+
+  return { modo, cobrado: corte.cobrado, gastos: corte.gastos, neta: corte.neta, piezas };
+}
+
+export function despieceDelCobro(replica: Replica, { liquidacion }: CobroPorLaFila): Despiece {
+  return despieceDelCorte(replica, 'proyeccion', {
+    cobrado: liquidacion.cobrado,
+    gastos: liquidacion.gastos,
+    neta: liquidacion.neta,
+    diezmoBp: liquidacion.diezmoBp,
+    diezmo: liquidacion.diezmo,
+    pasos: liquidacion.pasos.map((paso) => ({
+      tesoro: paso.tesoro,
+      nombre: null,
+      clase: paso.clase,
+      objetivo: paso.objetivo,
+      tope: paso.tope,
+      monto: paso.monto,
+    })),
+    partes: liquidacion.reparto.map((una) => ({
+      tesoro: una.tesoro,
+      nombre: null,
+      porcentaje: una.porcentaje,
+      monto: una.monto,
+    })),
+    resto: liquidacion.remanente,
+  });
 }
 
 export function distribucionCongelada(proyecto: Proyecto): Distribucion | null {
@@ -211,31 +301,114 @@ export function distribucionCongelada(proyecto: Proyecto): Distribucion | null {
   };
 }
 
-export function despieceDelProyecto(replica: Replica, proyecto: Proyecto, hoy: string): Despiece {
-  const congelada = distribucionCongelada(proyecto);
-  if (congelada !== null) {
-    return {
-      modo: 'real',
-      cobrado: congelada.cobrado,
-      gastos: congelada.gastos,
-      neta: congelada.neta,
-      piezas: piezasDe(congelada, {
-        sueldo: dinero(proyecto.dist_objetivo_sueldo_centavos ?? 0),
-        fijos: dinero(proyecto.dist_objetivo_fijos_centavos ?? 0),
-      }),
-    };
-  }
-
-  const proyectada = liquidacionProyectada(
-    replica,
-    proyecto,
-    fechaDelCobroPropuesta(replica, proyecto, hoy),
-  );
+function corteDeLosRepartos(replica: Replica, proyecto: Proyecto, congelada: Distribucion): Corte {
+  const repartos = repartosDelProyecto(replica, proyecto.id);
+  let repartido = centavos(0);
+  for (const reparto of repartos) repartido = sumar(repartido, dinero(reparto.monto_centavos));
   return {
-    modo: 'proyeccion',
-    cobrado: proyectada.cobrado,
-    gastos: proyectada.gastos,
-    neta: proyectada.neta,
-    piezas: piezasDe(proyectada, proyectada.objetivos),
+    cobrado: congelada.cobrado,
+    gastos: congelada.gastos,
+    neta: congelada.neta,
+    diezmoBp: congelada.diezmoBp,
+    diezmo: congelada.diezmo,
+    pasos: repartos
+      .filter((reparto) => reparto.tipo === 'paso')
+      .map((reparto) => ({
+        tesoro: reparto.tesoro_id,
+        nombre: reparto.nombre,
+        clase: reparto.clase,
+        objetivo: dinero(reparto.objetivo_centavos ?? 0),
+        tope: dinero(reparto.tope_centavos ?? reparto.monto_centavos),
+        monto: dinero(reparto.monto_centavos),
+      })),
+    partes: repartos
+      .filter((reparto) => reparto.tipo === 'parte')
+      .map((reparto) => ({
+        tesoro: reparto.tesoro_id,
+        nombre: reparto.nombre,
+        porcentaje: reparto.porcentaje_bp ?? 0,
+        monto: dinero(reparto.monto_centavos),
+      })),
+    resto: restar(restar(congelada.neta, congelada.diezmo), repartido),
   };
+}
+
+function corteDeLasColumnas(replica: Replica, proyecto: Proyecto, congelada: Distribucion): Corte {
+  return {
+    cobrado: congelada.cobrado,
+    gastos: congelada.gastos,
+    neta: congelada.neta,
+    diezmoBp: congelada.diezmoBp,
+    diezmo: congelada.diezmo,
+    pasos: [
+      {
+        tesoro: idDeLaClave(replica, 'hogar'),
+        nombre: null,
+        clase: 'sueldo',
+        objetivo: dinero(proyecto.dist_objetivo_sueldo_centavos ?? 0),
+        tope: congelada.topeSueldo,
+        monto: congelada.sueldo,
+      },
+      {
+        tesoro: idDeLaClave(replica, 'maun'),
+        nombre: null,
+        clase: 'fijos',
+        objetivo: dinero(proyecto.dist_objetivo_fijos_centavos ?? 0),
+        tope: congelada.topeFijos,
+        monto: congelada.fijos,
+      },
+    ],
+    partes: [],
+    resto: congelada.remanente,
+  };
+}
+
+function despieceCongelado(replica: Replica, proyecto: Proyecto): Despiece | null {
+  const congelada = distribucionCongelada(proyecto);
+  if (congelada === null) return null;
+  return despieceDelCorte(
+    replica,
+    'real',
+    porLaFila(proyecto)
+      ? corteDeLosRepartos(replica, proyecto, congelada)
+      : corteDeLasColumnas(replica, proyecto, congelada),
+  );
+}
+
+export function despieceDelProyecto(replica: Replica, proyecto: Proyecto, hoy: string): Despiece {
+  return (
+    despieceCongelado(replica, proyecto) ??
+    despieceDelCobro(
+      replica,
+      cobroPorLaFila(replica, proyecto, fechaDelCobroPropuesta(replica, proyecto, hoy)),
+    )
+  );
+}
+
+export function loQueRecibeCadaTesoro(despiece: Despiece): MontoDelTesoro[] {
+  const porTesoro = new Map<string, MontoDelTesoro>();
+  for (const pieza of despiece.piezas) {
+    if (pieza.monto <= 0) continue;
+    const previo = porTesoro.get(pieza.tesoro);
+    porTesoro.set(
+      pieza.tesoro,
+      previo === undefined
+        ? {
+            tesoro: pieza.tesoro,
+            nombre: pieza.nombre,
+            tinta: pieza.tinta,
+            icono: pieza.icono,
+            monto: pieza.monto,
+          }
+        : { ...previo, monto: sumar(previo.monto, pieza.monto) },
+    );
+  }
+  return [...porTesoro.values()];
+}
+
+export function loQueVuelveAlReabrir(replica: Replica, proyecto: Proyecto): MontoDelTesoro[] {
+  const congelado = despieceCongelado(replica, proyecto);
+  if (congelado === null) return [];
+  const maun = idDeLaClave(replica, 'maun');
+  return loQueRecibeCadaTesoro(congelado).filter((tesoro) => tesoro.tesoro !== maun);
 }

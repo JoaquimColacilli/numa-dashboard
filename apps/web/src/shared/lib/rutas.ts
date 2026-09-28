@@ -66,16 +66,25 @@ export const RUTA_DE_FINANZAS = '/finanzas';
 
 export const PARAMETRO_DE_TESORO = 'tesoro';
 
-function esTesoro(valor: string | null): valor is Tesoro {
-  return valor !== null && (TESOROS_EN_ORDEN as readonly string[]).includes(valor);
+const FORMA_DE_UN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function esTesoro(valor: string): valor is Tesoro {
+  return (TESOROS_EN_ORDEN as readonly string[]).includes(valor);
 }
 
-export function tesoroDelParametro(valor: string | null): Tesoro | 'todos' {
-  return esTesoro(valor) ? valor : 'todos';
+export function tesoroDelParametro(valor: string | null): string {
+  if (valor === null) return 'todos';
+  return esTesoro(valor) || FORMA_DE_UN_ID.test(valor) ? valor : 'todos';
 }
 
-export function rutaDeFinanzasDelTesoro(tesoro: Tesoro): string {
-  return `${RUTA_DE_FINANZAS}?${new URLSearchParams({ [PARAMETRO_DE_TESORO]: tesoro }).toString()}`;
+export type TesoroDeLaRuta = Tesoro | { id: string; clave: Tesoro | null };
+
+export function parametroDelTesoro(tesoro: TesoroDeLaRuta): string {
+  return typeof tesoro === 'string' ? tesoro : (tesoro.clave ?? tesoro.id);
+}
+
+export function rutaDeFinanzasDelTesoro(tesoro: TesoroDeLaRuta): string {
+  return `${RUTA_DE_FINANZAS}?${new URLSearchParams({ [PARAMETRO_DE_TESORO]: parametroDelTesoro(tesoro) }).toString()}`;
 }
 
 export const RUTA_DE_MOVIMIENTO_NUEVO = '/finanzas/nuevo';
@@ -91,6 +100,8 @@ export function rutaDelMovimiento(id: string): string {
 }
 
 export const RUTA_DE_DIEZMO = '/diezmo';
+
+export const RUTA_DE_TESOROS = '/tesoros';
 
 export const RUTA_DE_AJUSTES = '/ajustes';
 

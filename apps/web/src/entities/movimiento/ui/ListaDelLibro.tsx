@@ -1,5 +1,3 @@
-import type { Tesoro } from '@maun/domain';
-
 import { fechaLarga, formatearPesos } from '@/shared/lib';
 
 import type { DiaDelLibro, LineaDelTaller } from '../model/libro';
@@ -7,7 +5,7 @@ import { FilaDelLibro } from './FilaDelLibro';
 
 export interface ListaDelLibroProps {
   dias: readonly DiaDelLibro[];
-  tesoro: Tesoro | 'todos';
+  tesoro: string;
   hoy: string;
   sinConfirmar: (linea: LineaDelTaller) => boolean;
   alAbrir: (linea: LineaDelTaller) => void;

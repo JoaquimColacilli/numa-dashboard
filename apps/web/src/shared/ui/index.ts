@@ -1,5 +1,6 @@
 export * from '@maun/ui';
 export { Aviso } from './Aviso';
+export { Ayuda, DEMORA_DE_LA_AYUDA_MS, RESPIRO_DE_LA_AYUDA_MS, type AyudaProps } from './Ayuda';
 export { BloquePlegable, type BloquePlegableProps } from './BloquePlegable';
 export { DatoCopiable, type DatoCopiableProps } from './DatoCopiable';
 export {

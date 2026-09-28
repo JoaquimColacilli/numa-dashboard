@@ -10,6 +10,8 @@ function asiento(partes: Partial<Asiento> & Pick<Asiento, 'monto' | 'concepto'>)
     fecha: '2026-09-01',
     tesoro: 'hogar',
     contrapartida: null,
+    tesoroId: 'hogar',
+    contrapartidaId: null,
     categoria: '',
     descripcion: '',
     proyectoId: null,
@@ -37,6 +39,37 @@ describe('resumenMensual', () => {
       entroHogar: 10_000_000,
       gastoHogar: 4_000_000,
       facturoTaller: 30_000_000,
+    });
+  });
+
+  it('un pase entre tesoros no es lo que entró ni lo que gastó el hogar, y el sueldo del reparto sí entra', () => {
+    const asientos = [
+      asiento({
+        concepto: 'transferencia',
+        contrapartida: null,
+        contrapartidaId: 'materiales',
+        monto: centavos(-3_000_000),
+      }),
+      asiento({
+        concepto: 'transferencia',
+        contrapartida: 'maun',
+        contrapartidaId: 'maun',
+        monto: centavos(2_000_000),
+      }),
+      asiento({
+        concepto: 'sueldo',
+        origen: 'reparto',
+        contrapartida: 'maun',
+        contrapartidaId: 'maun',
+        monto: centavos(180_000_000),
+      }),
+      asiento({ concepto: 'gasto', monto: centavos(-1_000_000) }),
+    ];
+
+    expect(resumenMensual(asientos, '2026-09')).toEqual({
+      entroHogar: 180_000_000,
+      gastoHogar: 1_000_000,
+      facturoTaller: 0,
     });
   });
 
