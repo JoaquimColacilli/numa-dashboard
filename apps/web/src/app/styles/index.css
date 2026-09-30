@@ -33,6 +33,14 @@
     display: block;
     overflow: visible;
   }
+
+  html[data-vista='publica'] {
+    scrollbar-gutter: stable;
+  }
+
+  html[data-vista='publica']:has(dialog:modal) {
+    overflow: hidden;
+  }
 }
 
 @layer components {

@@ -218,7 +218,7 @@ describe('la vista del cliente', () => {
     expect(pagos).not.toHaveTextContent(/registramos/);
   });
 
-  it('muestra los archivos que llegaron, con su enlace al bucket', () => {
+  it('muestra los archivos que llegaron: las fotos se tocan para verlas y los PDF se abren aparte', () => {
     dibujar(
       trabajo({
         archivos: [
@@ -248,14 +248,53 @@ describe('la vista del cliente', () => {
 
     const galeria = screen.getByRole('region', { name: 'Fotos y planos' });
     expect(galeria).toHaveTextContent('2 archivos');
-    expect(within(galeria).getByRole('img', { name: 'Plano de frente' })).toHaveAttribute(
+    const miniatura = within(galeria).getByRole('button', { name: 'Ver Plano de frente' });
+    expect(miniatura.querySelector('img')).toHaveAttribute(
       'src',
       'https://cdn.maun.test/h/p/a1.mini.webp',
     );
-    expect(within(galeria).getByRole('link', { name: /Presupuesto 2026-041.pdf/ })).toHaveAttribute(
-      'href',
-      'https://cdn.maun.test/h/p/a2.pdf',
+    expect(galeria.querySelector('a[target="_blank"] img')).toBeNull();
+    const pdf = within(galeria).getByRole('link', { name: /Presupuesto 2026-041.pdf/ });
+    expect(pdf).toHaveAttribute('href', 'https://cdn.maun.test/h/p/a2.pdf');
+    expect(pdf).toHaveAttribute('target', '_blank');
+  });
+
+  it('tocar una foto la abre en el visor, sin nada del dueño, y al cerrarlo el foco vuelve a la miniatura', () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const foto = (id: string, nombre: string) => ({
+      id,
+      nombre,
+      tipo: 'image/webp',
+      ancho: 1600,
+      alto: 900,
+      fecha: '2026-08-02T12:00:00+00:00',
+      ruta: `h/p/${id}.webp`,
+      rutaMini: `h/p/${id}.mini.webp`,
+    });
+    dibujar(trabajo({ archivos: [foto('a1', 'Plano de frente'), foto('a3', 'Render')] }));
+
+    const miniatura = screen.getByRole('button', { name: 'Ver Plano de frente' });
+    fireEvent.click(miniatura);
+    expect(document.activeElement).not.toBe(miniatura);
+
+    const visor = screen.getByRole('dialog', { name: 'Plano de frente' });
+    expect(within(visor).getByRole('img', { name: 'Plano de frente' })).toHaveAttribute(
+      'src',
+      'https://cdn.maun.test/h/p/a1.webp',
     );
+    expect(visor).toHaveTextContent('1 de 2');
+    expect(within(visor).queryByRole('button', { name: /Borrar/ })).not.toBeInTheDocument();
+    expect(visor).not.toHaveTextContent('KB');
+    fireEvent.click(within(visor).getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByRole('dialog', { name: 'Render' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(document.activeElement).toBe(miniatura);
+    vi.unstubAllGlobals();
   });
 
   it('sin archivos dice qué va a aparecer ahí, sin disculparse', () => {

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 
@@ -110,6 +111,7 @@ export interface HojaProps {
   bajada?: ReactNode;
   alCostado?: boolean;
   tituloGrande?: boolean;
+  alTeclear?: (evento: KeyboardEvent<HTMLDialogElement>) => void;
 }
 
 export function Hoja({
@@ -124,6 +126,7 @@ export function Hoja({
   bajada,
   alCostado = false,
   tituloGrande = false,
+  alTeclear,
 }: HojaProps) {
   const pantalla = useAnchoDePantalla();
   const altoVisible = useAltoVisible();
@@ -229,6 +232,7 @@ export function Hoja({
       ref={dialogo}
       role={rol === 'alertdialog' ? 'alertdialog' : undefined}
       aria-labelledby={idTitulo}
+      onKeyDown={alTeclear}
       onCancel={(evento) => {
         if (!evento.cancelable) return;
         evento.preventDefault();

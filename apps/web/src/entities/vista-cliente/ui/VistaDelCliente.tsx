@@ -15,12 +15,15 @@ import { useState } from 'react';
 import { urlDelArchivo } from '@/shared/api';
 import { diaYMesCorto, fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
 import {
+  ConSalida,
   Icono,
   MontoQueEntra,
   Pagina,
   PrincipalYApoyo,
   TarjetaConLamina,
   TrabajoEnEtapa,
+  useVisor,
+  VisorDeImagenes,
 } from '@/shared/ui';
 
 import { etapaDelDibujo } from '../model/etapa';
@@ -354,6 +357,7 @@ function CierreDeLosPagos({ vista }: { vista: Vista }) {
 
 export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) {
   const [anuncio, setAnuncio] = useState('');
+  const visor = useVisor();
   const coordinacion = coordinacionConPedido(vista);
   const nota = notaDelRelevamiento(vista, {
     larga: (fecha) => fechaLarga(fecha, hoy),
@@ -537,15 +541,17 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                   <ul className="grid list-none grid-cols-2 gap-2.5">
                     {visuales.map((archivo) => (
                       <li key={archivo.id}>
-                        <a
-                          href={urlDelArchivo(archivo.ruta)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex flex-col overflow-hidden rounded-field border border-hairline hover:border-ink"
+                        <button
+                          type="button"
+                          aria-label={`Ver ${archivo.nombre}`}
+                          onClick={(evento) => {
+                            visor.abrir(archivo.id, evento.currentTarget);
+                          }}
+                          className="flex w-full flex-col overflow-hidden rounded-field border border-hairline text-left hover:border-ink"
                         >
                           <img
                             src={urlDelArchivo(archivo.rutaMini)}
-                            alt={archivo.nombre}
+                            alt=""
                             width={archivo.ancho ?? undefined}
                             height={archivo.alto ?? undefined}
                             loading="lazy"
@@ -557,7 +563,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                               {archivo.nombre}
                             </span>
                           </span>
-                        </a>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -592,6 +598,21 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                 )}
               </>
             )}
+            <ConSalida valor={visor.abierta}>
+              {(inicial) => (
+                <VisorDeImagenes
+                  imagenes={visuales.map((archivo) => ({
+                    id: archivo.id,
+                    nombre: archivo.nombre,
+                    url: urlDelArchivo(archivo.ruta),
+                    ancho: archivo.ancho,
+                    alto: archivo.alto,
+                  }))}
+                  inicial={inicial}
+                  alCerrar={visor.cerrar}
+                />
+              )}
+            </ConSalida>
           </section>
         </div>
       </PrincipalYApoyo>
