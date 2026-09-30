@@ -28,7 +28,9 @@ import {
   PASOS_PARA_TRANSFERIR,
   PRESUPUESTO_MANDADO,
   proyeccionDeLaEntrega,
+  QUE_ES_EL_RELEVAMIENTO,
   RECIBIMOS_TU_PAGO,
+  RELEVAMIENTO_TECNICO,
   RESUMEN_FALTA_MEDIR,
   SIGUE,
   SIGUE_CON_EL_PRESUPUESTO_MANDADO,
@@ -64,6 +66,7 @@ import {
   type RespuestaDelCliente,
   type TitularDeLaVista,
   type TrabajoDelCliente,
+  type VistaAntesDelPresupuesto,
   type VistaAprobada,
   type VistaDelCliente,
   type VistaEsperandoLaSena,
@@ -111,6 +114,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     pagos: [],
     archivos: [],
     vidriera: VIDRIERA_VACIA,
+    valorDelRelevamiento: null,
     ...cambios,
   };
 }
@@ -1308,6 +1312,7 @@ interface CasoDeEtapa {
   relevamiento: { estado: 'pendiente' | 'hecho'; fecha: string | null } | null;
   nota: EstadoDelRelevamiento | null;
   sigue: string;
+  conElBloqueDelRelevamiento?: true;
 }
 
 const SIN_ESTIMATIVO = (
@@ -1379,7 +1384,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Estamos preparando tu presupuesto',
     relevamiento: { estado: 'pendiente', fecha: null },
     nota: null,
-    sigue: SIGUE_FALTA_MEDIR.presupuesto,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre:
@@ -1390,7 +1396,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Estamos preparando tu presupuesto',
     relevamiento: { estado: 'pendiente', fecha: '2026-09-25' },
     nota: null,
-    sigue: SIGUE_FALTA_MEDIR.presupuesto,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre:
@@ -1405,7 +1412,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Te pasamos un número estimado',
     relevamiento: { estado: 'pendiente', fecha: null },
     nota: 'pendiente',
-    sigue: SIGUE_FALTA_MEDIR.estimativo,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre: 'estimativo enviado después de medir: la nota dice de dónde sale el número',
@@ -1430,7 +1438,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Estamos preparando tu presupuesto',
     relevamiento: { estado: 'pendiente', fecha: null },
     nota: null,
-    sigue: SIGUE_FALTA_MEDIR.presupuesto,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre: 'relevamiento con el día acordado',
@@ -1440,7 +1449,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Estamos preparando tu presupuesto',
     relevamiento: { estado: 'pendiente', fecha: '2026-09-22' },
     nota: null,
-    sigue: SIGUE_FALTA_MEDIR.presupuesto,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre: 'relevamiento con el día ya pasado y sin marcar: sigue pendiente y no promete ese día',
@@ -1450,7 +1460,8 @@ const CASOS_POR_ETAPA: readonly CasoDeEtapa[] = [
     titular: 'Estamos preparando tu presupuesto',
     relevamiento: { estado: 'pendiente', fecha: null },
     nota: null,
-    sigue: SIGUE_FALTA_MEDIR.presupuesto,
+    sigue: '',
+    conElBloqueDelRelevamiento: true,
   },
   {
     nombre: 'relevamiento tildado en la hoja del contacto: hecho, con su día',
@@ -1760,6 +1771,9 @@ describe('qué ve el cliente en cada etapa del trabajo', () => {
       expect(notaDelRelevamiento(vista, FORMATOS)?.estado ?? null).toBe(caso.nota);
       expect(vista.sigue).toBe(caso.sigue);
       expect(vista.sigue).not.toMatch(/\d/);
+      expect(vista.etapa === 'antes-del-presupuesto' && vista.relevamientoPorHacer !== null).toBe(
+        caso.conElBloqueDelRelevamiento ?? false,
+      );
     });
   }
 
@@ -1781,6 +1795,97 @@ describe('qué ve el cliente en cada etapa del trabajo', () => {
     const delEstimativo = vista.eventos.find((evento) => evento.id === 'estimativo');
     expect(delEstimativo).toMatchObject({ texto: TE_PASAMOS_EL_ESTIMATIVO, monto: null });
     expect(JSON.stringify(vista.hitos)).not.toMatch(/\$|\d{4,}(?!-)/);
+  });
+});
+
+function antesDelPresupuesto(vista: VistaDelCliente): VistaAntesDelPresupuesto {
+  if (vista.etapa !== 'antes-del-presupuesto') {
+    throw new Error(`Se esperaba antes del presupuesto y es ${vista.etapa}.`);
+  }
+  return vista;
+}
+
+describe('el bloque del relevamiento técnico', () => {
+  it('mientras falta ir a medir explica qué es y cuánto vale, y reemplaza a «lo próximo es ir a medir»', () => {
+    const vista = antesDelPresupuesto(
+      vistaDelCliente(
+        trabajo({
+          estado: 'presupuesto_estimativo',
+          precio: null,
+          fechas: fechas({ estimativo: '2026-09-15' }),
+          valorDelRelevamiento: centavos(12_000_000),
+        }),
+        HOY,
+      ),
+    );
+
+    expect(vista.relevamientoPorHacer).toEqual({
+      titulo: RELEVAMIENTO_TECNICO,
+      lineas: QUE_ES_EL_RELEVAMIENTO,
+      valor: 12_000_000,
+    });
+    expect(RELEVAMIENTO_TECNICO).toBe('Relevamiento técnico');
+    expect(QUE_ES_EL_RELEVAMIENTO).toEqual([
+      'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
+      'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
+    ]);
+    expect(vista.sigue).toBe('');
+    expect(vista.sigue).not.toBe(SIGUE_FALTA_MEDIR.estimativo);
+  });
+
+  it('sin valor en Ajustes, explica qué es sin el precio', () => {
+    const vista = antesDelPresupuesto(
+      vistaDelCliente(trabajo({ estado: 'contacto', precio: null }), HOY),
+    );
+    expect(vista.relevamientoPorHacer).toMatchObject({ titulo: RELEVAMIENTO_TECNICO, valor: null });
+    expect(vista.sigue).not.toBe(SIGUE_FALTA_MEDIR.presupuesto);
+  });
+
+  it('una vista de antes, sin la clave, se lee sin precio', () => {
+    const { valorDelRelevamiento: _valor, ...deAntes } = trabajo({
+      estado: 'relevamiento',
+      precio: null,
+    });
+    const vista = antesDelPresupuesto(
+      vistaDelCliente(deAntes as unknown as TrabajoDelCliente, HOY),
+    );
+    expect(vista.relevamientoPorHacer?.valor).toBeNull();
+  });
+
+  it('ya medido, o sin hacer falta medir, no aparece y vuelve «lo próximo»', () => {
+    for (const cambios of [
+      { estado: 'relevamiento', visita: { dia: '2026-09-16', hecha: true } },
+      { estado: 'a_presupuestar', visita: { dia: null, hecha: false } },
+    ] as const) {
+      const vista = antesDelPresupuesto(
+        vistaDelCliente(
+          trabajo({ ...cambios, precio: null, valorDelRelevamiento: centavos(12_000_000) }),
+          HOY,
+        ),
+      );
+      expect(vista.relevamientoPorHacer).toBeNull();
+      expect(vista.sigue).toBe(SIGUE.presupuesto);
+    }
+  });
+
+  it('con el presupuesto mandado, con una visita nueva después de mandarlo o aprobado, no existe', () => {
+    for (const cambios of [
+      { estado: 'presupuesto_enviado', fechas: fechas({ presupuesto: '2026-09-14' }) },
+      {
+        estado: 'presupuesto_enviado',
+        fechas: fechas({ presupuesto: '2026-09-14' }),
+        visita: { dia: '2026-09-24', hecha: false },
+      },
+      { estado: 'en_curso', fechas: fechas({ aprobado: '2026-09-14' }) },
+    ] as const) {
+      const vista = vistaDelCliente(
+        trabajo({ ...cambios, valorDelRelevamiento: centavos(12_000_000) }),
+        HOY,
+      );
+      expect(vista.etapa).not.toBe('antes-del-presupuesto');
+      expect('relevamientoPorHacer' in vista).toBe(false);
+      expect(JSON.stringify(vista)).not.toContain(RELEVAMIENTO_TECNICO);
+    }
   });
 });
 

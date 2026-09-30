@@ -317,6 +317,7 @@ export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
     pagos: pagos(cuerpo.pagos),
     archivos: archivos(cuerpo.archivos),
     vidriera: vidriera(cuerpo.vidriera),
+    valorDelRelevamiento: importeONada(cuerpo.relevamiento_centavos, 'el valor del relevamiento'),
   };
 }
 

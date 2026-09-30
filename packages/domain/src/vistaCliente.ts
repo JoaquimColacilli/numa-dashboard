@@ -114,6 +114,7 @@ export interface TrabajoDelCliente {
   pagos: readonly PagoDelCliente[];
   archivos: readonly ArchivoDelCliente[];
   vidriera: VidrieraDelTaller;
+  valorDelRelevamiento: Money | null;
 }
 
 export function hayComoTransferir(cobro: CobroDelTaller): boolean {
@@ -325,8 +326,15 @@ interface LoComunDeLaVista {
   vidriera: VidrieraDelTaller;
 }
 
+export interface RelevamientoPorHacer {
+  titulo: string;
+  lineas: readonly string[];
+  valor: Money | null;
+}
+
 export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
   etapa: 'antes-del-presupuesto';
+  relevamientoPorHacer: RelevamientoPorHacer | null;
 }
 
 export interface VistaEsperandoLaSena extends LoComunDeLaVista {
@@ -469,6 +477,13 @@ export const ARMAMOS_EL_PRESUPUESTO = 'Con esas medidas armamos el presupuesto f
 
 export const RESUMEN_FALTA_MEDIR = 'Número estimado, falta ir a medir';
 
+export const RELEVAMIENTO_TECNICO = 'Relevamiento técnico';
+
+export const QUE_ES_EL_RELEVAMIENTO: readonly string[] = [
+  'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
+  'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
+];
+
 export const TE_PASAMOS_EL_ESTIMATIVO = 'Te pasamos un número estimado';
 
 export const FUIMOS_A_MEDIR = 'Fuimos a medir';
@@ -528,6 +543,12 @@ function fechaDelEstimativo(trabajo: TrabajoDelCliente): string | null {
 
 function listoDelTrabajo(trabajo: TrabajoDelCliente): string | null {
   return fechasDe(trabajo).listo ?? null;
+}
+
+function valorDelRelevamientoDe({
+  valorDelRelevamiento,
+}: Partial<Pick<TrabajoDelCliente, 'valorDelRelevamiento'>>): Money | null {
+  return valorDelRelevamiento ?? null;
 }
 
 function entregaDe(trabajo: TrabajoDelCliente): EntregaQueSeCoordina {
@@ -1015,7 +1036,22 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
   };
 
-  if (etapa === 'antes-del-presupuesto') return { ...comun, etapa };
+  if (etapa === 'antes-del-presupuesto') {
+    const relevamientoPorHacer: RelevamientoPorHacer | null =
+      relevamiento?.estado === 'pendiente'
+        ? {
+            titulo: RELEVAMIENTO_TECNICO,
+            lineas: QUE_ES_EL_RELEVAMIENTO,
+            valor: valorDelRelevamientoDe(trabajo),
+          }
+        : null;
+    return {
+      ...comun,
+      etapa,
+      sigue: relevamientoPorHacer === null ? comun.sigue : '',
+      relevamientoPorHacer,
+    };
+  }
 
   if (etapa === 'esperando-la-sena') {
     return {

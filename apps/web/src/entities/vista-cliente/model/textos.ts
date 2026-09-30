@@ -136,6 +136,10 @@ export function textoDelTitular(titular: TitularDeLaVista, hoy: string): string 
   return `¡Buenas noticias! Lo estamos entregando el ${fechaConFranja(fecha, franja, hoy)}.`;
 }
 
+export function lineaDelValorDelRelevamiento(valor: number): string {
+  return `El valor del relevamiento es de ${formatearPesos(valor)} y, si decidís avanzar, se toma a cuenta como parte de la seña del proyecto.`;
+}
+
 export function sinPagosTodavia(vista: VistaDelCliente): string {
   if (vista.pagos.length > 0) return '';
   return estaAprobada(vista) ? SIN_PAGOS_APROBADO : '';

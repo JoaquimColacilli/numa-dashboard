@@ -4,13 +4,14 @@ import {
   textoDeLaProyeccion,
   type ArchivoDelCliente,
   type ProyeccionDeLaEntrega,
+  type RelevamientoPorHacer,
   type SenaDeLaVista,
   type VistaAntesDelPresupuesto,
   type VistaAprobada,
   type VistaDelCliente as Vista,
   type VistaEsperandoLaSena,
 } from '@maun/domain';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { urlDelArchivo } from '@/shared/api';
 import { diaYMesCorto, fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
@@ -34,6 +35,7 @@ import {
   bajadaDeLaEntrega,
   claveDeLaEntrega,
   lineaDeLaSena,
+  lineaDelValorDelRelevamiento,
   pieDeLosPagos,
   QUEDA_A_CUENTA,
   saldoDeLaVista,
@@ -121,6 +123,23 @@ function Titular({ texto, bajada }: { texto: string; bajada: string }) {
       <span className="text-money-xl leading-tight font-semibold text-pretty">{texto}</span>
       {bajada !== '' && <span className="text-body text-text-2">{bajada}</span>}
     </div>
+  );
+}
+
+function RelevamientoTecnico({ relevamiento }: { relevamiento: RelevamientoPorHacer }) {
+  const titulo = useId();
+  return (
+    <section aria-labelledby={titulo} className="mt-3.5 border-t border-hairline-soft pt-3.5">
+      <h3 id={titulo} className="text-body font-semibold">
+        {relevamiento.titulo}
+      </h3>
+      <div className="mt-1.5 flex max-w-[560px] flex-col gap-2 text-body leading-relaxed text-pretty text-text-2">
+        {relevamiento.lineas.map((linea) => (
+          <p key={linea}>{linea}</p>
+        ))}
+        {relevamiento.valor !== null && <p>{lineaDelValorDelRelevamiento(relevamiento.valor)}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -441,6 +460,9 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <CaminoDeHitos hitos={vista.hitos} nota={nota} hoy={hoy} />
             {vista.sigue !== '' && (
               <p className="mt-3.5 text-body leading-relaxed text-text-2">{vista.sigue}</p>
+            )}
+            {vista.etapa === 'antes-del-presupuesto' && vista.relevamientoPorHacer !== null && (
+              <RelevamientoTecnico relevamiento={vista.relevamientoPorHacer} />
             )}
           </section>
 

@@ -13,6 +13,7 @@ import { Button, Campo, CamposJuntos, MoneyInput } from '@/shared/ui';
 
 import { MUTACION_DE_AJUSTES, MUTACION_DEL_NOMBRE } from '../api/mutacion';
 import { diferencias } from '../model/cambios';
+import { cambioDelRelevamiento, valorDelRelevamiento } from '../model/relevamiento';
 import { DIAS_MAXIMOS_DE_UN_PRESUPUESTO, parsearDias } from '../model/vigencia';
 
 const LARGO_DEL_NOMBRE = 120;
@@ -53,6 +54,7 @@ export function FormularioDeConfiguracion({
   const [meta, setMeta] = useState<number | null>(ajustes.meta_cocos_centavos);
   const [tasa, setTasa] = useState(() => formatearPorcentaje(ajustes.tasa_cocos_anual_bp));
   const [sena, setSena] = useState(() => formatearPorcentaje(ajustes.sena_bp));
+  const [relevamiento, setRelevamiento] = useState(() => valorDelRelevamiento(ajustes));
   const [vigencia, setVigencia] = useState(() => String(diasQueValeElPresupuesto(ajustes)));
   const [error, setError] = useState<ErrorDelFormulario | undefined>(undefined);
 
@@ -63,7 +65,7 @@ export function FormularioDeConfiguracion({
   const conElTaller = partes.includes('taller');
   const conElReparto = partes.includes('reparto');
   const conCocos = partes.includes('cocos');
-  const cuantos = (conElTaller ? 3 : 0) + (conElReparto ? 2 : 0) + (conCocos ? 2 : 0);
+  const cuantos = (conElTaller ? 4 : 0) + (conElReparto ? 2 : 0) + (conCocos ? 2 : 0);
 
   const guardando = mutacionDeAjustes.isPending || mutacionDelNombre.isPending;
   const hayFallo = mutacionDeAjustes.isError || mutacionDelNombre.isError;
@@ -119,7 +121,10 @@ export function FormularioDeConfiguracion({
     const valores = Object.fromEntries(
       faltante.map(([, columna, valor]) => [columna, valor]),
     ) as CambiosDeAjustes;
-    const { cambios, previos } = diferencias(ajustes, valores);
+    const { cambios, previos } = diferencias(
+      ajustes,
+      conElTaller ? { ...valores, ...cambioDelRelevamiento(ajustes, relevamiento) } : valores,
+    );
 
     if (Object.keys(cambios).length > 0) {
       mutacionDeAjustes.mutate({ id: ajustes.id, cambios, previos });
@@ -188,6 +193,14 @@ export function FormularioDeConfiguracion({
             onChange={(evento) => {
               setSena(evento.target.value);
             }}
+          />
+        )}
+        {conElTaller && (
+          <MoneyInput
+            etiqueta="Valor del relevamiento"
+            ayuda="Tu cliente lo ve en su página mientras falta ir a medir. Si lo dejás vacío, ve qué es el relevamiento pero no el precio."
+            value={relevamiento}
+            onChange={setRelevamiento}
           />
         )}
         {conElTaller && (

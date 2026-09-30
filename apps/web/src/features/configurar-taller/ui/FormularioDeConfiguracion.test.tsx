@@ -22,13 +22,14 @@ const AJUSTES = {
   sueldo_tope_mensual: true,
   sena_bp: 5000,
   presupuesto_vale_dias: 15,
+  relevamiento_centavos: 12_000_000,
 } as FilaDe<'ajustes'>;
 
-function montar(partes?: readonly ParteDeLaConfiguracion[]) {
+function montar(partes?: readonly ParteDeLaConfiguracion[], ajustes = AJUSTES) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <FormularioDeConfiguracion household={HOUSEHOLD} ajustes={AJUSTES} partes={partes} />
+      <FormularioDeConfiguracion household={HOUSEHOLD} ajustes={ajustes} partes={partes} />
     </QueryClientProvider>,
   );
   return {
@@ -58,9 +59,9 @@ afterEach(() => {
 });
 
 describe('la configuración del taller por partes', () => {
-  it('entera, como en la primera configuración, lleva los siete campos, la meta y la tasa de Cocos incluidas', () => {
+  it('entera, como en la primera configuración, lleva los ocho campos, la meta y la tasa de Cocos incluidas', () => {
     montar();
-    expect(campos()).toHaveLength(7);
+    expect(campos()).toHaveLength(8);
     expect(screen.getByLabelText('Meta de Cocos')).toBeInTheDocument();
     expect(screen.getByLabelText('Tasa anual de Cocos (%)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar la configuración' })).toBeInTheDocument();
@@ -84,9 +85,9 @@ describe('la configuración del taller por partes', () => {
     ]);
   });
 
-  it('el taller es el nombre, la seña y los días del presupuesto, sin tocar el reparto ni Cocos', () => {
+  it('el taller es el nombre, la seña, el valor del relevamiento y los días del presupuesto, sin tocar el reparto ni Cocos', () => {
     const { guardados } = montar(['taller']);
-    expect(campos()).toHaveLength(3);
+    expect(campos()).toHaveLength(4);
     expect(screen.queryByLabelText('Sueldo que te asignás')).toBeNull();
     expect(screen.queryByLabelText('Tasa anual de Cocos (%)')).toBeNull();
 
@@ -98,5 +99,70 @@ describe('la configuración del taller por partes', () => {
     expect(guardados()).toEqual([
       { id: 'aj', cambios: { presupuesto_vale_dias: 30 }, previos: { presupuesto_vale_dias: 15 } },
     ]);
+  });
+});
+
+describe('el valor del relevamiento, en «Tu taller»', () => {
+  function relevamiento(): HTMLElement {
+    return screen.getByLabelText('Valor del relevamiento');
+  }
+
+  function guardar(): void {
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar la configuración' }));
+  }
+
+  it('va al lado de la seña, con lo que tiene guardado y la ayuda de qué ve el cliente', () => {
+    montar(['taller']);
+
+    const [, sena, valor] = campos();
+    expect(sena).toBe(screen.getByLabelText('Seña que pedís (%)'));
+    expect(valor).toBe(relevamiento());
+    expect(relevamiento()).toHaveValue('120.000');
+    expect(relevamiento()).toHaveAccessibleDescription(
+      'Tu cliente lo ve en su página mientras falta ir a medir. Si lo dejás vacío, ve qué es el relevamiento pero no el precio.',
+    );
+  });
+
+  it('guarda el valor nuevo', () => {
+    const { guardados } = montar(['taller']);
+
+    pegar('Valor del relevamiento', '150.000');
+    guardar();
+
+    expect(guardados()).toEqual([
+      {
+        id: 'aj',
+        cambios: { relevamiento_centavos: 15_000_000 },
+        previos: { relevamiento_centavos: 12_000_000 },
+      },
+    ]);
+  });
+
+  it.each([
+    ['vacío', ''],
+    ['en 0', '0'],
+  ])('%s se guarda sin valor', (_nombre, texto) => {
+    const { guardados } = montar(['taller']);
+
+    fireEvent.change(relevamiento(), { target: { value: texto } });
+    guardar();
+
+    expect(guardados()).toEqual([
+      {
+        id: 'aj',
+        cambios: { relevamiento_centavos: null },
+        previos: { relevamiento_centavos: 12_000_000 },
+      },
+    ]);
+  });
+
+  it('con la fila de antes, que no trae la columna, muestra el de siempre y no lo manda si no se toca', () => {
+    const { relevamiento_centavos: _valor, ...sinLaColumna } = AJUSTES;
+    const { guardados } = montar(['taller'], sinLaColumna as FilaDe<'ajustes'>);
+
+    expect(relevamiento()).toHaveValue('120.000');
+    guardar();
+
+    expect(guardados()).toEqual([]);
   });
 });
