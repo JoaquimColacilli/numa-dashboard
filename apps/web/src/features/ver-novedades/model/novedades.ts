@@ -5,6 +5,15 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-09-30',
+    lineas: [
+      'En la página de tu cliente, las fotos se abren grandes como en la app, con la X para cerrar y las flechas para pasar de una a otra. Los PDF se siguen abriendo aparte.',
+      'Mientras falta ir a medir, tu cliente ve qué es el relevamiento técnico y cuánto sale. El valor lo cambiás en Ajustes, en «Tu taller».',
+      'Si reabrís un trabajo que cobraste antes de que el sueldo fuera por mes, al volver a cobrarlo se descuenta lo que tu sueldo ya recibió ese mes, como en los trabajos nuevos.',
+      'En Tesoros, «Ganancia» ya no queda tapada, y la explicación de una (i) se cierra sola cuando deslizás la pantalla o movés el plano.',
+    ],
+  },
+  {
     version: '2026-09-28',
     lineas: [
       'Hay una pantalla nueva, Tesoros: armás cómo se reparte el ingreso de cada trabajo entre obligaciones, compromisos, ahorros y superávit, en el orden que quieras.',
