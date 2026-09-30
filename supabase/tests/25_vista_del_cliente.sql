@@ -11,7 +11,7 @@
 -- mirado. Ajustes entró a la lista con los datos para transferir: desde que uno de sus campos viaja
 -- a la superficie pública, la tabla entera necesita la misma vigilancia que proyectos.
 
-select plan(145);
+select plan(148);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -84,7 +84,8 @@ select set_eq(
 -- desde que uno de sus campos viaja: una columna nueva rompe este test igual que en proyectos. El
 -- enlace de reseña no viaja por esta puerta: sale por la de la encuesta, y su clasificación está en
 -- 27_encuesta_publica.sql. La fila de los tesoros, su revisión y cuándo se guardó (ADR 0078) son
--- cómo se reparte la plata adentro del taller: no viajan.
+-- cómo se reparte la plata adentro del taller: no viajan. El valor del relevamiento (ADR 0079) viaja,
+-- y solo antes de mandar el presupuesto: es lo que el taller cobra la visita, no una cuenta de adentro.
 select set_eq(
   $$
     select a.attname::text
@@ -95,6 +96,7 @@ select set_eq(
     -- Viajan
     'cobro_alias', 'cobro_cbu', 'cobro_titular', 'cobro_cuit', 'cobro_link',
     'instagram_link', 'facebook_link', 'tiktok_link',
+    'relevamiento_centavos',
     -- No viajan
     'id', 'household_id', 'created_at', 'updated_at', 'deleted_at', 'version',
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
@@ -236,7 +238,7 @@ where household_id = tests.id('household_a');
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')) $$,
-  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera'],
+  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos'],
   'la vista devuelve exactamente estos campos y ninguno más'
 );
 
@@ -1731,6 +1733,60 @@ select throws_ok(
   '42501',
   null,
   'ni la de los pagos que faltan'
+);
+
+
+-- El valor del relevamiento (ADR 0079) ------------------------------------------------------------------------
+
+-- Cuánto cobra el taller la visita para medir: viaja solo antes de mandar el presupuesto, que es cuando
+-- la página explica qué es el relevamiento. Un trabajo en seguimiento lo ve según la etapa en la que
+-- estaba. El taller de Ana tiene el valor con el que arranca todo taller.
+
+select tests.salir();
+select tests.entrar_como(tests.id('ana'));
+
+insert into public.proyectos (id, cliente_id, titulo, estado) values
+  ('aaaaaaaa-0000-7000-8000-000000000700', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento en contacto', 'contacto'),
+  ('aaaaaaaa-0000-7000-8000-000000000701', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento en estimativo', 'presupuesto_estimativo'),
+  ('aaaaaaaa-0000-7000-8000-000000000702', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento en relevamiento', 'relevamiento'),
+  ('aaaaaaaa-0000-7000-8000-000000000703', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento a presupuestar', 'a_presupuestar'),
+  ('aaaaaaaa-0000-7000-8000-000000000704', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento con el presupuesto', 'presupuesto_enviado'),
+  ('aaaaaaaa-0000-7000-8000-000000000705', 'aaaaaaaa-0000-7000-8000-000000000001', 'Relevamiento aprobado', 'en_curso'),
+  ('aaaaaaaa-0000-7000-8000-000000000706', 'aaaaaaaa-0000-7000-8000-000000000001', 'Seguimiento antes del presupuesto', 'en_seguimiento'),
+  ('aaaaaaaa-0000-7000-8000-000000000707', 'aaaaaaaa-0000-7000-8000-000000000001', 'Seguimiento con el presupuesto', 'en_seguimiento');
+
+insert into public.proximos_contactos (proyecto_id, fecha, etapa_previa) values
+  ('aaaaaaaa-0000-7000-8000-000000000706', '2026-10-15', 'a_presupuestar'),
+  ('aaaaaaaa-0000-7000-8000-000000000707', '2026-10-15', 'presupuesto_enviado');
+
+select results_eq(
+  $$
+    select p.estado::text, public.vista_del_cliente(p.id) ->> 'relevamiento_centavos'
+    from public.proyectos p
+    where p.id between 'aaaaaaaa-0000-7000-8000-000000000700' and 'aaaaaaaa-0000-7000-8000-000000000707'
+    order by p.id
+  $$,
+  $$
+    values
+      ('contacto', '12000000'), ('presupuesto_estimativo', '12000000'), ('relevamiento', '12000000'),
+      ('a_presupuestar', '12000000'), ('presupuesto_enviado', null::text), ('en_curso', null::text),
+      ('en_seguimiento', '12000000'), ('en_seguimiento', null::text)
+  $$,
+  'el valor del relevamiento viaja antes de mandar el presupuesto, también en seguimiento desde esas etapas, y después no'
+);
+
+update public.ajustes set relevamiento_centavos = null where household_id = tests.id('household_a');
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000700') -> 'relevamiento_centavos',
+  'null'::jsonb,
+  'sin valor, la clave viaja en null: la página explica qué es el relevamiento sin el precio'
+);
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'relevamiento_centavos',
+  'null'::jsonb,
+  'y un trabajo aprobado nunca lo recibe'
 );
 
 
