@@ -183,15 +183,30 @@ test('la vidriera de punta a punta: las redes, sumar de un trabajo y subir, el o
   await delCliente.goto(`/v/${trabajo.token}`);
   const vidriera = delCliente.getByRole('region', { name: 'Más trabajos del taller' });
   await expect(vidriera).toBeVisible(CARGA);
-  const fotos = vidriera.getByRole('list').getByRole('link');
+  const fotos = vidriera.getByRole('list').getByRole('button');
   await expect(fotos).toHaveCount(2);
   await expect(fotos.first()).toHaveAccessibleName('Foto 1 de 2');
-  for (const enlace of await fotos.all()) {
-    const direccion = (await enlace.getAttribute('href')) ?? '';
-    expect(direccion).toContain(`/${household}/vidriera/`);
-    expect(direccion).not.toContain(trabajo.id);
-    expect(direccion).not.toContain(compartida.id);
+  let pestanasNuevas = 0;
+  anonimo.on('page', () => {
+    pestanasNuevas += 1;
+  });
+  for (const [indice, foto] of (await fotos.all()).entries()) {
+    await foto.click();
+    const visor = delCliente.getByRole('dialog', { name: 'Más trabajos del taller' });
+    await expect(visor).toContainText(`${String(indice + 1)} de 2`);
+    const grande = (await visor.locator('img').getAttribute('src')) ?? '';
+    const aparte =
+      (await visor.getByRole('link', { name: 'Abrir en otra pestaña' }).getAttribute('href')) ?? '';
+    for (const direccion of [grande, aparte]) {
+      expect(direccion).toContain(`/${household}/vidriera/`);
+      expect(direccion).not.toContain(trabajo.id);
+      expect(direccion).not.toContain(compartida.id);
+    }
+    await delCliente.getByRole('button', { name: 'Cerrar' }).click();
+    await expect(visor).toHaveCount(0);
+    await expect(foto).toBeFocused();
   }
+  expect(pestanasNuevas).toBe(0);
   await expect(vidriera.getByRole('link', { name: '@taller.maun en Instagram' })).toHaveAttribute(
     'href',
     'https://www.instagram.com/taller.maun/',
@@ -204,7 +219,7 @@ test('la vidriera de punta a punta: las redes, sumar de un trabajo y subir, el o
   await page.goto(`/proyectos/${trabajo.id}/vista-cliente`);
   const enLaApp = page.getByRole('region', { name: 'Más trabajos del taller' });
   await expect(enLaApp).toBeVisible(CARGA);
-  await expect(enLaApp.getByRole('list').getByRole('link')).toHaveCount(2);
+  await expect(enLaApp.getByRole('list').getByRole('button')).toHaveCount(2);
 });
 
 test('con doce fotos, sumar otra no se ofrece y dice por qué', async ({ page }) => {

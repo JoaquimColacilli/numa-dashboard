@@ -424,6 +424,39 @@ test('reabrir un cobro conserva la fecha y los topes del cobro original', async 
   ]);
 });
 
+test('un cobro reabierto vuelve a cobrar el sueldo contando lo que el mes ya recibió', async ({
+  page,
+}) => {
+  const reabierto = await proyecto('Placard que se reabre', { pago: 70_000_000 });
+  const otro = await proyecto('Vestidor del mismo mes', { pago: 30_000_000 });
+
+  await cobrarDesdeLaFicha(page, reabierto.id);
+  await esperarEstado(reabierto.id, 'cobrado');
+
+  await page.goto(`/proyectos/${reabierto.id}`);
+  await page.getByRole('button', { name: 'Reabrir el cobro' }).click();
+  await expect(page.getByRole('region', { name: 'Reabrir el cobro' })).toContainText(
+    'Lo que sí mira es lo que tu sueldo ya recibió ese mes, como en un cobro nuevo.',
+  );
+  await page.getByRole('button', { name: /^Reabrir y deshacer/ }).click();
+  await esperarEstado(reabierto.id, 'entregado');
+
+  await cobrarDesdeLaFicha(page, otro.id);
+  await esperarEstado(otro.id, 'cobrado');
+  expect(await loQueRepartio(otro.id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: 0, monto: 27_000_000 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: 0 },
+  ]);
+
+  await page.goto(`/proyectos/${reabierto.id}`);
+  await cobrarDesdeLaFicha(page, reabierto.id);
+  await esperarEstado(reabierto.id, 'cobrado');
+  expect(await loQueRepartio(reabierto.id)).toEqual([
+    { tesoro: 'hogar', clase: 'sueldo', objetivo: SUELDO, previo: 27_000_000, monto: 23_000_000 },
+    { tesoro: 'maun', clase: 'fijos', objetivo: FIJOS, previo: 0, monto: FIJOS },
+  ]);
+});
+
 test.describe('con prefers-reduced-motion', () => {
   test.use({ reducedMotion: 'reduce' });
 
