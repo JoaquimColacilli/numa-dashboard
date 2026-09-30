@@ -11,6 +11,7 @@ import {
   puedeMoverseLaObligacion,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
+import { formatearPesos } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 import {
@@ -53,7 +54,8 @@ function Conector({
   alSumar?: (boton: HTMLElement) => void;
 }) {
   const datos = arista?.data;
-  const probando = datos?.monto !== null && datos?.monto !== undefined;
+  const monto = datos?.monto ?? null;
+  const probando = monto !== null;
   const vacia = datos?.vacia === true;
   const flujo = datos?.flujo ?? null;
   return (
@@ -71,19 +73,32 @@ function Conector({
             alSumar === undefined ? 'left-1/2 ml-3' : 'left-0'
           }`}
         >
-          <RotuloDelFlujo flujo={flujo} monto={datos?.monto ?? null} />
+          <RotuloDelFlujo flujo={flujo} monto={null} />
         </span>
       )}
-      {flujo === null && probando && datos.etiqueta !== null && alSumar === undefined && (
+      {flujo !== null && monto !== null && (
         <span
-          aria-hidden
-          className={`absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
-            vacia ? 'border-hairline text-text-3' : 'border-ink/30 font-semibold text-ink'
-          }`}
+          className={`absolute top-1/2 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
+            alSumar === undefined ? 'right-1/2 mr-3' : 'right-0'
+          } ${vacia ? 'border-hairline text-text-3' : 'border-ink/30 font-semibold text-ink'}`}
         >
-          {datos.etiqueta}
+          {formatearPesos(monto)}
         </span>
       )}
+      {flujo === null &&
+        datos !== undefined &&
+        probando &&
+        datos.etiqueta !== null &&
+        alSumar === undefined && (
+          <span
+            aria-hidden
+            className={`absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
+              vacia ? 'border-hairline text-text-3' : 'border-ink/30 font-semibold text-ink'
+            }`}
+          >
+            {datos.etiqueta}
+          </span>
+        )}
       {alSumar !== undefined && (
         <button
           type="button"

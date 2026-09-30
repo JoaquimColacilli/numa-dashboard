@@ -18,6 +18,7 @@ import type { TintaDeTesoro } from '@/shared/lib';
 import {
   ALTO,
   AL_COSTADO,
+  AL_REPARTO,
   AL_TIPO,
   altoDelPaso,
   ANCHO_DE_FICHA,
@@ -196,7 +197,7 @@ function abajoDe(unNodo: NodoDelPlano): number {
 }
 
 const X = -ANCHO_DE_FICHA / 2;
-const X_DE_LA_DERECHA = ANCHO_DE_FICHA / 2 + AL_COSTADO;
+const X_DE_LA_DERECHA = ANCHO_DE_FICHA / 2 + AL_REPARTO;
 const X_DE_LOS_TIPOS = X - ANCHO_DEL_GLOBO - AL_TIPO - ANCHO_DEL_TIPO;
 const Y_DEL_INGRESO = ALTO.sena + ESPACIO_DEL_COBRO;
 const Y_DE_LA_PRIMERA = Y_DEL_INGRESO + ALTO.ingreso + ESPACIO;
@@ -572,16 +573,23 @@ describe('el estante y «Nuevo tesoro»', () => {
 });
 
 describe('las fichas de los pasos', () => {
+  const SOBRE_LOS_RENGLONES = 15;
+  const SOBRE_LA_LINEA = 2;
+
   it('un compromiso que se renueva suma el renglón del modo; uno con deuda por mes, el de a pagar; un ahorro con meta, el de la meta', () => {
     expect(altoDelPaso(SUELDO)).toBe(ALTO.paso);
     expect(altoDelPaso({ ...MATERIALES_, modo: 'saldo' })).toBe(ALTO.paso + RENGLON_DEL_ROTULO);
     expect(altoDelPaso(GASTOS_FIJOS, { conDeuda: true })).toBe(
-      ALTO.paso + 3 * RENGLON + 10 + RENGLON,
+      ALTO.paso + 3 * RENGLON + SOBRE_LOS_RENGLONES + RENGLON + SOBRE_LA_LINEA,
     );
     expect(altoDelPaso({ ...GASTOS_FIJOS, modo: 'saldo' }, { conDeuda: true })).toBe(
-      ALTO.paso + 3 * RENGLON + 10 + RENGLON_DEL_ROTULO,
+      ALTO.paso + 3 * RENGLON + SOBRE_LOS_RENGLONES + RENGLON_DEL_ROTULO,
     );
-    expect(altoDelPaso(MATERIALES_, { conMeta: true })).toBe(ALTO.paso + RENGLON);
+    expect(altoDelPaso(MATERIALES_, { conMeta: true })).toBe(ALTO.paso + RENGLON + SOBRE_LA_LINEA);
+  });
+
+  it('la ficha de una parte deja lugar a su última línea arriba de la franja de color', () => {
+    expect(ALTO.parte).toBe(104);
   });
 
   it('los gastos fijos muestran hasta cuatro renglones, y con más, tres y «y N más»', () => {
@@ -591,7 +599,7 @@ describe('las fichas de los pasos', () => {
     });
     expect(renglonesALaVista(conRenglones(4).renglones)).toHaveLength(4);
     expect(renglonesALaVista(conRenglones(5).renglones)).toHaveLength(3);
-    const altoDeCuatro = ALTO.paso + 4 * RENGLON + 10;
+    const altoDeCuatro = ALTO.paso + 4 * RENGLON + SOBRE_LOS_RENGLONES;
     expect(altoDelPaso(conRenglones(4))).toBe(altoDeCuatro);
     expect(altoDelPaso(conRenglones(12))).toBe(altoDeCuatro);
   });
@@ -734,4 +742,194 @@ describe('arrastrar adentro del tipo', () => {
     expect(aplicarElArrastre(fila, { tesoro: IIBB, hueco: 0 })).toBe(fila);
     expect(aplicarElArrastre(fila, { tesoro: COCOS, hueco: 0 })).toBe(fila);
   });
+});
+
+const FIJOS_ALTOS: PasoDeLaFila = {
+  ...GASTOS_FIJOS,
+  renglones: renglones(6, 10_000_000),
+  modo: 'saldo',
+};
+
+const TRES_PARTES = [
+  [COCOS, 3000],
+  [HERRAMIENTAS, 2000],
+  [MATERIALES, 1000],
+] as const;
+
+describe('el abanico debajo de un paso alto', () => {
+  function deLasPartes(fila: Fila) {
+    const { nodos, aristas } = armarElPlano({ vista: vistaDe(fila), prueba: null, elegido: null });
+    return { nodos, aristas: aristas.filter((arista) => arista.data?.tramo === 'reparto') };
+  }
+
+  it('si las partes pasan por debajo del último paso, la bajada corre abajo de su ficha y las partes bajan con ella', () => {
+    const { nodos, aristas } = deLasPartes(filaCon([SUELDO, FIJOS_ALTOS], TRES_PARTES));
+    const paso = nodo(nodos, `paso-${FIJOS}`);
+    expect(aristas).toHaveLength(4);
+    for (const arista of aristas) {
+      const centro = arista.data?.centro ?? -Infinity;
+      expect(centro).toBeGreaterThanOrEqual(abajoDe(paso) + 16);
+      expect(nodo(nodos, arista.target).position.y).toBeGreaterThanOrEqual(centro + 48);
+    }
+  });
+
+  it('con un paso bajo, o con las partes lejos del paso, el abanico queda donde estaba', () => {
+    for (const fila of [
+      filaCon([SUELDO], TRES_PARTES),
+      filaCon([SUELDO, FIJOS_ALTOS], [[COCOS, 3000]]),
+    ]) {
+      const { nodos, aristas } = deLasPartes(fila);
+      const ultimo = nodo(nodos, `paso-${fila.pasos.at(-1)?.tesoro ?? ''}`);
+      const esperada = Math.max(
+        abajoDe(nodo(nodos, 'reparto')) + BAJADA_DEL_REPARTO,
+        abajoDe(ultimo) + ESPACIO,
+      );
+      for (const arista of aristas) {
+        expect(arista.data?.centro).toBeUndefined();
+        expect(nodo(nodos, arista.target).position.y).toBe(esperada);
+      }
+    }
+  });
+});
+
+const ROTULO = { ancho: 112, alto: 24, aire: 8 };
+const ROTULO_CON_MONTO = 232;
+const AL_LADO_DEL_BOTON = 18;
+
+interface Caja {
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+}
+
+function cajaDe(unNodo: NodoDelPlano): Caja {
+  return {
+    x: unNodo.position.x,
+    y: unNodo.position.y,
+    ancho: unNodo.width ?? 0,
+    alto: unNodo.height ?? 0,
+  };
+}
+
+function seCortan(a: Caja, b: Caja): boolean {
+  return a.x < b.x + b.ancho && b.x < a.x + a.ancho && a.y < b.y + b.alto && b.y < a.y + a.alto;
+}
+
+function cajasDelRotulo(
+  arista: ReturnType<typeof armarElPlano>['aristas'][number],
+  desde: Caja,
+  hacia: Caja,
+): Caja[] {
+  const datos = arista.data;
+  const conBoton = datos?.armando === true && datos.lugar !== null;
+  if (datos?.tramo === 'hacia-el-reparto') {
+    const centro = (desde.x + desde.ancho + hacia.x) / 2;
+    const linea = desde.y + desde.alto / 2;
+    const separacion = conBoton ? 16 : 6;
+    const conAire = (arriba: number): Caja => ({
+      x: centro - ROTULO.ancho / 2 - ROTULO.aire,
+      y: arriba,
+      ancho: ROTULO.ancho + 2 * ROTULO.aire,
+      alto: ROTULO.alto,
+    });
+    const cajas = [conAire(linea - separacion - ROTULO.alto)];
+    if (datos.monto !== null) cajas.push(conAire(linea + separacion));
+    return cajas;
+  }
+  const medio = (desde.y + desde.alto + hacia.y) / 2;
+  const centro = desde.x + desde.ancho / 2;
+  const ancho = datos?.monto === null ? ROTULO.ancho : ROTULO_CON_MONTO;
+  return [
+    {
+      x: conBoton ? centro + AL_LADO_DEL_BOTON : centro - ancho / 2,
+      y: medio - ROTULO.alto / 2 - ROTULO.aire,
+      ancho,
+      alto: ROTULO.alto + 2 * ROTULO.aire,
+    },
+  ];
+}
+
+function pruebaCon(fila: Fila, deja: number) {
+  return calcularPorLaFila({
+    destino: 'cobrado',
+    fecha: '2026-09-27',
+    cobrado: centavos(deja),
+    gastos: CERO,
+    fila,
+    sistema: SISTEMA,
+    ajustes: { perdidoConSueldo: false, perdidoConDiezmo: true },
+    liquidaciones: [],
+    coberturas: [],
+    saldos: new Map(),
+    metas: new Map(),
+  });
+}
+
+describe('los rótulos del flujo', () => {
+  const casos: [string, Fila][] = [
+    [
+      'la fila de siempre',
+      filaCon([SUELDO, { ...GASTOS_FIJOS, tesoro: MAUN, renglones: renglones(1, 60_000_000) }]),
+    ],
+    [
+      'sin ahorros fijos',
+      filaCon(
+        [SUELDO, GASTOS_FIJOS],
+        [
+          [COCOS, 3000],
+          [HERRAMIENTAS, 2000],
+        ],
+        [DE_IIBB, DEL_DIEZMO],
+      ),
+    ],
+    ['solo obligaciones', filaCon([], [[COCOS, 5000]])],
+    ['un paso alto y tres partes', filaCon([SUELDO, FIJOS_ALTOS], TRES_PARTES)],
+    ['con ahorros fijos', filaCon([SUELDO, GASTOS_FIJOS, MATERIALES_], [[COCOS, 5000]])],
+  ];
+
+  for (const [nombre, fila] of casos) {
+    it(`${nombre}: ningún rótulo pisa una ficha, mirando, editando y probando un cobro largo`, () => {
+      const usados = new Set([
+        ...fila.obligaciones.map((obligacion) => obligacion.tesoro),
+        ...fila.pasos.map((paso) => paso.tesoro),
+        ...fila.reparto.map((parte) => parte.tesoro),
+        HOGAR,
+        MAUN,
+        DIEZMO,
+      ]);
+      const estante = TESOROS.filter((tesoro) => !usados.has(tesoro.id)).slice(0, 3);
+      const pisadas: string[] = [];
+      for (const editando of [false, true]) {
+        for (const deja of [null, 200_000_000, 1_234_567_890]) {
+          const { nodos, aristas } = armarElPlano({
+            vista: vistaDe(fila, estante, editando ? { ...fila } : fila),
+            prueba: deja === null ? null : pruebaCon(fila, deja),
+            elegido: null,
+          });
+          const fichas = nodos.filter((uno) => uno.type !== 'tipo');
+          const conRotulo = aristas.filter(
+            (arista) => arista.data?.flujo !== null && arista.data?.flujo !== undefined,
+          );
+          expect(conRotulo.length).toBeGreaterThan(0);
+          for (const arista of conRotulo) {
+            for (const caja of cajasDelRotulo(
+              arista,
+              cajaDe(nodo(nodos, arista.source)),
+              cajaDe(nodo(nodos, arista.target)),
+            )) {
+              for (const ficha of fichas) {
+                if (seCortan(caja, cajaDe(ficha))) {
+                  pisadas.push(
+                    `${editando ? 'editando' : 'mirando'}, ${String(deja)}: ${arista.id} pisa ${ficha.id}`,
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+      expect(pisadas).toEqual([]);
+    });
+  }
 });
