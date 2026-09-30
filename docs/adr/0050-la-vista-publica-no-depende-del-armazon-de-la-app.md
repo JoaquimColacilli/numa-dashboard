@@ -9,7 +9,8 @@ en `/v/` ni en `/o/`. El cliente sigue sin registrar nada. Enmendado por el
 cambia los íconos de la app por los del taller. Completado por el
 [0079](0079-las-correcciones-del-tablero.md): con un `dialog` modal abierto, como el visor de las
 fotos, el documento de `/v/` no scrollea (`html[data-vista='publica']:has(dialog:modal)` con
-`overflow: hidden`), y `scrollbar-gutter: stable` evita que salte el ancho.
+`overflow: hidden`), y lleva a la derecha el ancho de la barra que anotó el visor al abrirse
+(`--barra-del-documento`), así la página no salta de ancho.
 
 ## Contexto
 

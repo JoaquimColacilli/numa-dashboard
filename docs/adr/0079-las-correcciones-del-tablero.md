@@ -56,8 +56,9 @@ decidido el 0046 («un modal menos en una página pública») y el 0076 lo repit
   visor. En la ficha no andaban hasta hacer un clic adentro, y eso también queda arreglado.
 - `useVisor` devuelve el foco a la miniatura al cerrar, a mano, porque Safari no lo devuelve solo.
 - Con un `dialog` modal abierto, el documento de `/v/` no scrollea
-  (`html[data-vista='publica']:has(dialog:modal)` con `overflow: hidden`), y `scrollbar-gutter: stable`
-  evita que la página salte de ancho al abrirlo.
+  (`html[data-vista='publica']:has(dialog:modal)` con `overflow: hidden`). Para que la página no salte
+  de ancho cuando se va la barra, `useVisor` anota el ancho de la barra al abrir
+  (`--barra-del-documento`), y mientras el visor está abierto ese mismo relleno va a la derecha.
 
 **Por qué.** Lo pidió el dueño, que ya usa el visor en la ficha. Una pestaña por foto saca al cliente de
 su página, y volver le pide encontrarla.
@@ -69,6 +70,11 @@ su página, y volver le pide encontrarla.
 - **Cerrar el visor con «atrás»**, con una entrada en el historial: pide coordinar con la pila del
   celular ([0066](0066-las-transiciones-del-celular.md)) y con el router. Queda afuera.
 - **Un visor de PDF:** los PDF se abren aparte, como hasta ahora.
+- **`scrollbar-gutter: stable`**, que era lo pedido para que no salte el ancho. Siempre puesto, reserva
+  15 px a la derecha aunque la página no scrollee (o con las barras ocultas) y la corre de su centro:
+  lo frenó el test del reparto a 768 px. Y Chrome no guarda ese lugar cuando el documento pasa a
+  `overflow: hidden`, así que tampoco evitaba el salto: con barras de verdad, el ancho útil pasaba de
+  1425 a 1440 px al abrir el visor, con la reserva siempre puesta o solo con el visor abierto.
 
 ## 2. El relevamiento técnico
 

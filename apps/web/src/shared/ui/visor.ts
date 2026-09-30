@@ -12,6 +12,11 @@ export function useVisor(): Visor {
 
   const abrir = useCallback((id: string, boton: HTMLElement) => {
     desde.current = boton;
+    const raiz = document.documentElement;
+    raiz.style.setProperty(
+      '--barra-del-documento',
+      `${String(Math.max(0, window.innerWidth - raiz.clientWidth))}px`,
+    );
     setAbierta(id);
   }, []);
 
