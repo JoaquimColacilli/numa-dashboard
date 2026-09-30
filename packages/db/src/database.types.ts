@@ -29,6 +29,7 @@ export type Database = {
           perdido_con_diezmo: boolean;
           perdido_con_sueldo: boolean;
           presupuesto_vale_dias: number;
+          relevamiento_centavos: number | null;
           resena_link: string;
           sena_bp: number;
           sueldo_mensual_centavos: number;
@@ -58,6 +59,7 @@ export type Database = {
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
           presupuesto_vale_dias?: number;
+          relevamiento_centavos?: number | null;
           resena_link?: string;
           sena_bp?: number;
           sueldo_mensual_centavos?: number;
@@ -87,6 +89,7 @@ export type Database = {
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
           presupuesto_vale_dias?: number;
+          relevamiento_centavos?: number | null;
           resena_link?: string;
           sena_bp?: number;
           sueldo_mensual_centavos?: number;
@@ -2021,6 +2024,7 @@ export type Database = {
           perdido_con_diezmo: boolean;
           perdido_con_sueldo: boolean;
           presupuesto_vale_dias: number;
+          relevamiento_centavos: number | null;
           resena_link: string;
           sena_bp: number;
           sueldo_mensual_centavos: number;

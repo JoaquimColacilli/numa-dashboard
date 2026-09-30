@@ -37,6 +37,7 @@ const AJUSTES: FilaDe<'ajustes'> = {
   fila_version: 0,
   fila_guardada_at: null,
   presupuesto_vale_dias: 15,
+  relevamiento_centavos: 12_000_000,
   created_at: AHORA,
   updated_at: AHORA,
   deleted_at: null,

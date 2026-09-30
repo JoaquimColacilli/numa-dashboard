@@ -98,6 +98,7 @@ create table public.ajustes (
   fila jsonb,
   fila_version integer not null default 0,
   fila_guardada_at timestamp with time zone,
+  relevamiento_centavos bigint default 12000000,
   constraint ajustes_cobro_alias_formato CHECK (cobro_alias = ''::text OR cobro_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
   constraint ajustes_cobro_cbu_formato CHECK (cobro_cbu = ''::text OR cobro_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_cuit_formato CHECK (cobro_cuit = ''::text OR cobro_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
@@ -112,6 +113,7 @@ create table public.ajustes (
   constraint ajustes_instagram_link_formato CHECK (instagram_link = ''::text OR instagram_link ~ '^https://www\.instagram\.com/[a-z0-9._]{1,30}/$'::text AND (split_part(instagram_link, '/'::text, 4) <> ALL (ARRAY['p'::text, 'reel'::text, 'reels'::text, 'stories'::text, 'explore'::text, 'accounts'::text, 'direct'::text, 'tv'::text]))),
   constraint ajustes_pkey PRIMARY KEY (id),
   constraint ajustes_presupuesto_vale_dias_valido CHECK (presupuesto_vale_dias >= 1 AND presupuesto_vale_dias <= 365),
+  constraint ajustes_relevamiento_valido CHECK (relevamiento_centavos IS NULL OR relevamiento_centavos > 0),
   constraint ajustes_resena_link_formato CHECK (resena_link = ''::text OR char_length(resena_link) <= 300 AND resena_link ~ '^https://(g\.page|search\.google\.com|maps\.google\.com|www\.google\.com|google\.com|maps\.app\.goo\.gl|g\.co)/[^[:space:]]*$'::text),
   constraint ajustes_sena_valida CHECK (sena_bp >= 0 AND sena_bp <= 10000),
   constraint ajustes_tasa_valida CHECK (tasa_cocos_anual_bp >= 0 AND tasa_cocos_anual_bp <= 100000),
@@ -139,6 +141,7 @@ comment on column public.ajustes.tiktok_link is 'El perfil de TikTok del taller,
 comment on column public.ajustes.fila is 'La fila del taller: los pasos con su tope por mes, en el orden que puso el dueño, y el reparto por porcentajes de lo que sobra, con los tesoros por id. Null es la fila de siempre, que private.fila_de_siempre() arma con el sueldo y los costos fijos de esta fila y da lo mismo que la cascada de antes. La valida private.problema_de_la_fila() y la escribe solo public.guardar_la_fila(): no tiene grant de update (ADR 0078).';
 comment on column public.ajustes.fila_version is 'La revisión de la fila. Suma uno cada vez que se guarda y cada vez que cambia algo que cambia el reparto (sin fila guardada, el sueldo, los costos fijos o sueldo_tope_mensual; siempre, perdido_con_sueldo y perdido_con_diezmo). Un cobro armado con otra revisión rebota con MN006. Arranca en 0.';
 comment on column public.ajustes.fila_guardada_at is 'Cuándo se guardó la fila por última vez, o null si nunca se guardó. Es el «rige» del rótulo del plano.';
+comment on column public.ajustes.relevamiento_centavos is 'Cuánto cobra el taller el relevamiento técnico (la visita para medir), o null si no se le muestra el precio al cliente. Arranca en 12000000 ($ 120.000). Viaja a la vista del cliente solo antes de mandar el presupuesto, y la página lo muestra mientras falta ir a medir. No es un pago ni crea uno: lo que el cliente paga por la visita es un pago del trabajo y queda a cuenta de la seña (ADR 0047 y 0079).';
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER contar_la_revision_de_la_fila BEFORE UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.contar_la_revision_de_la_fila();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
@@ -152,7 +155,7 @@ create policy ajustes_lectura on public.ajustes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.ajustes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.ajustes to service_role;
-grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link) on public.ajustes to authenticated;
+grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos) on public.ajustes to authenticated;
 
 create table public.anotaciones (
   id uuid not null default private.uuidv7(),
@@ -1142,7 +1145,7 @@ comment on column public.proyectos.dist_sueldo_mensual is 'Congelado al liquidar
 comment on column public.proyectos.dist_sueldo_previo_centavos is 'Congelado al liquidar: sueldo que el mes ya llevaba liquidado por otros proyectos en ese instante. Explica el tope; una reapertura posterior en el mismo mes no lo reescribe.';
 comment on column public.proyectos.dist_fijos_previo_centavos is 'Congelado al liquidar: costos fijos que el mes ya llevaba liquidados por otros proyectos en ese instante.';
 comment on column public.proyectos.dist_liquidado_at is 'Congelado al liquidar: el instante de la liquidación. Ordena las liquidaciones de un mismo mes.';
-comment on column public.proyectos.reapertura_sueldo_mensual is 'Modo del sueldo del cobro que se reabrió. El próximo cobro lo conserva aunque los ajustes hayan cambiado.';
+comment on column public.proyectos.reapertura_sueldo_mensual is 'Modo del sueldo del cobro que se reabrió. El próximo cobro lo usa si el taller sigue repartiendo el sueldo por trabajo; si ya lo reparte por mes (sueldo_tope_mensual o su fila guardada), el sueldo va por mes igual y cuenta lo que el mes ya recibió (ADR 0079).';
 comment on column public.proyectos.vencimiento_presupuesto is 'Fecha límite para entregar el presupuesto de un contacto. La app la propone a cinco días hábiles del relevamiento (una semana de trabajo) cuando el contacto pasa a presupuestar, y desde el día que pasa si viene de un estimativo; se edita como la entrega estimada. La agenda la muestra mientras el contacto no mandó el presupuesto ni un estimativo.';
 comment on column public.proyectos.presupuesto_diseno is 'Tarea de presupuestar: el diseño está hecho. Es una tilde adentro de la etapa «a presupuestar», no un estado (ADR 0038).';
 comment on column public.proyectos.presupuesto_despiece is 'Tarea de presupuestar: el despiece está hecho.';
@@ -1170,7 +1173,7 @@ comment on column public.proyectos.tipo_de_proyecto is 'Qué clase de trabajo es
 comment on column public.proyectos.dist_fila_version is 'Congelado al liquidar por la fila: la revisión de la fila con la que se repartió (0 para la fila de siempre armada con la foto de una reapertura de antes). Null en una liquidación por el camino de antes (ADR 0078).';
 comment on column public.proyectos.dist_fila is 'Congelado al liquidar por la fila: la fila con la que se repartió, la guardada o la de siempre armada en ese momento. Reabrir el cobro la pasa a reapertura_fila, y volver a cobrarlo reparte con ella.';
 comment on column public.proyectos.dist_previo is 'Congelado al liquidar por la fila: lo que cada tesoro de un paso llevaba del mes según la base, {tesoro_id: centavos}. Si no es lo que mandó la app, la liquidación salió ajustada: la app lo ve comparando esto con lo que mandó.';
-comment on column public.proyectos.reapertura_fila is 'La fila del cobro por la fila que se reabrió, {version, fila}. Volver a cobrarlo reparte con ella y no con la fila de hoy (ADR 0003); una app sin actualizar no puede volver a cobrarlo (MN025). La limpia la liquidación siguiente.';
+comment on column public.proyectos.reapertura_fila is 'La fila del cobro por la fila que se reabrió, {version, fila}. Volver a cobrarlo reparte con ella y no con la fila de hoy (ADR 0003), salvo el sueldo: si la foto lo traía por trabajo y el taller ya lo reparte por mes, va por mes (ADR 0079). Una app sin actualizar no puede volver a cobrarlo (MN025). La limpia la liquidación siguiente.';
 CREATE INDEX proyectos_household_actualizado ON public.proyectos USING btree (household_id, updated_at);
 CREATE INDEX proyectos_household_cliente ON public.proyectos USING btree (household_id, cliente_id);
 CREATE INDEX proyectos_liquidados_por_mes ON public.proyectos USING btree (household_id, fecha_cobro) WHERE (fecha_cobro IS NOT NULL);
@@ -4746,11 +4749,14 @@ begin
       v_sueldo_mensual := v_ajustes.sueldo_tope_mensual;
     elsif v_proyecto.reapertura_fecha_cobro is not null then
       -- Un cobro reabierto se vuelve a cobrar con los objetivos del original: corregir un gasto no
-      -- reescribe el sueldo con los ajustes de hoy (ADR 0003).
+      -- reescribe el sueldo con los ajustes de hoy (ADR 0003). El sueldo va por mes si el original se
+      -- cobró por mes o si el taller ya reparte por mes: un cobro de antes del sueldo por mes, reabierto
+      -- después, cuenta contra lo que el sueldo de su mes ya recibió (ADR 0079). Con la fila guardada
+      -- no se llega acá: rebota antes con MN025.
       v_diezmo_bp := c_diezmo_bp;
       v_objetivo_sueldo := v_proyecto.reapertura_objetivo_sueldo_centavos;
       v_objetivo_fijos := v_proyecto.reapertura_objetivo_fijos_centavos;
-      v_sueldo_mensual := v_proyecto.reapertura_sueldo_mensual;
+      v_sueldo_mensual := v_proyecto.reapertura_sueldo_mensual or v_ajustes.sueldo_tope_mensual;
     else
       v_diezmo_bp := c_diezmo_bp;
       v_objetivo_sueldo := v_ajustes.sueldo_mensual_centavos;
@@ -4913,15 +4919,20 @@ begin
   -- cobrar un reabierto, la del cobro original (ADR 0003), o la de siempre armada con su foto si se
   -- había cobrado por el camino de antes; en los demás casos, y siempre en un perdido, que nunca usa
   -- la foto de una reapertura, la de los ajustes. Una fila guardada antes de los tipos de tesoro se
-  -- lee con lo de siempre en lo que le falta.
+  -- lee con lo de siempre en lo que le falta. En un reabierto, el sueldo va por mes si la foto o el
+  -- taller van por mes (sueldo_tope_mensual o la fila guardada): por trabajo queda solo cuando los dos
+  -- son por trabajo, como en el seed (ADR 0079).
   if p_destino = 'cobrado' and v_proyecto.reapertura_fila is not null then
     v_fila := v_proyecto.reapertura_fila -> 'fila';
+    if v_ajustes.sueldo_tope_mensual or v_ajustes.fila is not null then
+      v_fila := jsonb_set(v_fila, '{sueldoPorTrabajo}', 'false'::jsonb);
+    end if;
     v_fila_version := (v_proyecto.reapertura_fila ->> 'version')::integer;
   elsif p_destino = 'cobrado' and v_proyecto.reapertura_fecha_cobro is not null then
     v_fila := private.fila_de_siempre(
       v_proyecto.reapertura_objetivo_sueldo_centavos,
       v_proyecto.reapertura_objetivo_fijos_centavos,
-      v_proyecto.reapertura_sueldo_mensual,
+      v_proyecto.reapertura_sueldo_mensual or v_ajustes.sueldo_tope_mensual or v_ajustes.fila is not null,
       v_hogar,
       v_maun,
       v_diezmo
@@ -5281,7 +5292,7 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE
-comment on function private.liquidar(estado_proyecto,uuid,integer,date,bigint,bigint,bigint,bigint,bigint,bigint,bigint,bigint,integer,bigint,bigint,boolean,integer,jsonb,jsonb) is 'Liquida un proyecto hacia cobrado o perdido y congela su distribución con la fecha que manda la app, también al volver a cobrar un reabierto (ADR 0063). Rechaza sin fecha (MN016), con una fecha que todavía no llegó (MN017) y un reparto marcado como ya incluido en la apertura con una fecha que no es anterior a ella (MN018). Bloquea el proyecto y después los ajustes. Reconoce el reenvío, ajustado o no, antes de elegir el camino. Sin p_fila_version y sin fila guardada va por el camino de antes (la cascada, con lo del mes que suma también los repartos vivos); sin p_fila_version y con fila guardada, o al volver a cobrar un reabierto que se cobró por la fila, rechaza con MN025; con p_fila_version reparte por la fila (la de su reapertura, la de siempre armada con su foto, o la de los ajustes), rechaza con MN006 si la revisión no es esa, calcula el previo de cada paso según su modo (lo del mes, su saldo en libro_mayor o nada) con el piso de su meta y el tope de cada parte que va hasta la meta, congela el diezmo (la obligación del tesoro del diezmo) y las columnas de siempre con columnasDeSiempre, la fila en dist_fila y lo que vio en dist_previo, y escribe una fila de public.repartos por cada otra obligación, por paso, por parte y por el superávit si no es Maun, con los ids que manda la app. En los dos caminos: MN006 si la versión, los totales o el diezmo no son los que vio el cliente, MN008 si la distribución no es la de la base, y si lo que vio la app no es lo de la base, se congela con lo de la base en vez de rechazar (ADR 0016 y 0078).';
+comment on function private.liquidar(estado_proyecto,uuid,integer,date,bigint,bigint,bigint,bigint,bigint,bigint,bigint,bigint,integer,bigint,bigint,boolean,integer,jsonb,jsonb) is 'Liquida un proyecto hacia cobrado o perdido y congela su distribución con la fecha que manda la app, también al volver a cobrar un reabierto (ADR 0063). Rechaza sin fecha (MN016), con una fecha que todavía no llegó (MN017) y un reparto marcado como ya incluido en la apertura con una fecha que no es anterior a ella (MN018). Bloquea el proyecto y después los ajustes. Reconoce el reenvío, ajustado o no, antes de elegir el camino. Sin p_fila_version y sin fila guardada va por el camino de antes (la cascada, con lo del mes que suma también los repartos vivos); sin p_fila_version y con fila guardada, o al volver a cobrar un reabierto que se cobró por la fila, rechaza con MN025; con p_fila_version reparte por la fila (la de su reapertura, la de siempre armada con su foto, o la de los ajustes; en un reabierto el sueldo va por mes si la foto o el taller van por mes, sueldo_tope_mensual o la fila guardada, y lo mismo por el camino de antes), rechaza con MN006 si la revisión no es esa, calcula el previo de cada paso según su modo (lo del mes, su saldo en libro_mayor o nada) con el piso de su meta y el tope de cada parte que va hasta la meta, congela el diezmo (la obligación del tesoro del diezmo) y las columnas de siempre con columnasDeSiempre, la fila en dist_fila y lo que vio en dist_previo, y escribe una fila de public.repartos por cada otra obligación, por paso, por parte y por el superávit si no es Maun, con los ids que manda la app. En los dos caminos: MN006 si la versión, los totales o el diezmo no son los que vio el cliente, MN008 si la distribución no es la de la base, y si lo que vio la app no es lo de la base, se congela con lo de la base en vez de rechazar (ADR 0016, 0078 y 0079).';
 
 CREATE OR REPLACE FUNCTION private.lo_del_mes_es_otro(p_pasos uuid[], p_partes uuid[], p_visto jsonb, p_base jsonb)
  RETURNS boolean
@@ -7871,6 +7882,7 @@ begin
     -- Cómo pagarle al taller, y solo si el pago que toca se puede pagar así: los cuatro datos de
     -- la cuenta para transferir y el link de Mercado Pago para pagar desde la misma página. De
     -- ajustes no viaja nada más: ni el sueldo, ni los costos fijos, ni la meta de Cocos, ni la seña.
+    -- Las redes van en la vidriera y el valor del relevamiento, al final.
     'cobro', jsonb_build_object(
       'alias', case when v_por_transferencia then v_alias end,
       'cbu', case when v_por_transferencia then v_cbu end,
@@ -8022,9 +8034,14 @@ begin
           limit 12
         ) as f
       )
-    )
+    ),
+    -- Cuánto cobra el taller el relevamiento técnico, la visita para medir (ADR 0079): solo antes de
+    -- mandar el presupuesto, que es cuando la página explica qué es y cuánto vale. En null después, o
+    -- si el dueño lo dejó vacío. Es un dato de ajustes y no un pago: lo que el cliente paga por la
+    -- visita es un pago del trabajo, y queda a cuenta de la seña.
+    'relevamiento_centavos', case when not v_presupuesto_mandado then v_ajustes.relevamiento_centavos end
   );
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; y los tres links de las redes, siempre. El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071 y 0076).';
+comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076 y 0079).';
