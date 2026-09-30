@@ -33,10 +33,9 @@ import {
   uuidv7,
   Ir,
 } from '@/shared/lib';
-import { Button, ConSalida, Icono } from '@/shared/ui';
+import { Button, ConSalida, Icono, VisorDeImagenes } from '@/shared/ui';
 
 import { anotarArchivo, borrarArchivo, mandarALaCola, opcionesDelBorrado } from '../model/acciones';
-import { VisorDeImagenes } from './VisorDeImagenes';
 
 const DEPENDENCIAS: DependenciasDeLaSubida = {
   subir: subirAlBucketDeArchivos,
@@ -311,10 +310,25 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
       <ConSalida valor={enElVisor}>
         {(inicial) => (
           <VisorDeImagenes
-            imagenes={imagenes}
+            imagenes={imagenes.map((imagen) => ({
+              ...imagen,
+              url: urlDelArchivo(rutaDelArchivo(imagen)),
+            }))}
             inicial={inicial}
             alCerrar={cerrarElVisor}
-            alBorrar={borrar}
+            detalle={(imagen) => pesoLegible(imagen.bytes)}
+            acciones={({ url: _url, ...archivo }) => (
+              <Button
+                variant="secundario"
+                size="chico"
+                onClick={() => {
+                  borrar(archivo);
+                }}
+              >
+                <Icono nombre="trash-2" tamano={15} />
+                Borrar
+              </Button>
+            )}
           />
         )}
       </ConSalida>

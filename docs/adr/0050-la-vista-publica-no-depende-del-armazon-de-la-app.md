@@ -6,7 +6,11 @@ Actualizado por el [0061](0061-el-aviso-de-version-sale-del-registro.md): quien 
 worker ya no es `AvisoActualizacion` sino el módulo de la versión nueva, que `arrancar()` no prende
 en `/v/` ni en `/o/`. El cliente sigue sin registrar nada. Enmendado por el
 [0073](0073-la-app-se-llama-numa.md): el arranque del documento, además de sacar el manifiesto,
-cambia los íconos de la app por los del taller.
+cambia los íconos de la app por los del taller. Completado por el
+[0079](0079-las-correcciones-del-tablero.md): con un `dialog` modal abierto, como el visor de las
+fotos, el documento de `/v/` no scrollea (`html[data-vista='publica']:has(dialog:modal)` con
+`overflow: hidden`), y lleva a la derecha el ancho de la barra que anotó el visor al abrirse
+(`--barra-del-documento`), así la página no salta de ancho.
 
 ## Contexto
 

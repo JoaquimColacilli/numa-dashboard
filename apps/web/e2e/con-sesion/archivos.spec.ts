@@ -217,6 +217,12 @@ test('sube una foto, un render y un PDF: las imágenes se achican antes de subir
     .poll(() => imagen.evaluate((elemento: HTMLImageElement) => elemento.naturalWidth), CARGA)
     .toBe(2000);
   expect((await imagen.boundingBox())?.height ?? 0).toBeGreaterThan(300);
+  await expect(visor.getByRole('button', { name: /^Borrar/ })).toBeVisible();
+  await expect(visor).toContainText(/\d\s?(KB|MB)/);
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('dialog', { name: 'render-cocina.png' })).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
+  await expect(visor).toBeVisible();
   await visor.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page.getByRole('dialog', { name: 'render-cocina.png' })).toBeVisible();
   await page.keyboard.press('Escape');

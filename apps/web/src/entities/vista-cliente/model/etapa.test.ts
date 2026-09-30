@@ -32,6 +32,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     pagos: [],
     archivos: [],
     vidriera: VIDRIERA_VACIA,
+    valorDelRelevamiento: null,
     ...cambios,
   };
 }

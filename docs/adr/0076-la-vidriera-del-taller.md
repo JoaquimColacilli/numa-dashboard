@@ -10,6 +10,8 @@
   objeción).
 - Sigue al [0074](0074-lo-que-responde-al-tocar.md): el carrusel no se mueve solo ni se arrastra, y la
   página del cliente sigue quieta.
+- Corregido el 2026-09-30 por el [0079](0079-las-correcciones-del-tablero.md): cada foto es un botón que
+  la abre en el visor, titulado «Más trabajos del taller», y no un enlace a otra pestaña.
 
 ## Contexto
 
@@ -213,7 +215,8 @@ trabajos del taller», o «El taller en las redes» si no hay fotos.
   3:4, de 96 × 128 px, con 8 px entre ellas, el radio de la lámina y `bg-surface` mientras cargan; entran
   las que entren y un pedazo de la siguiente, y con pocas no se estiran. Cada una es un enlace a la foto
   completa en otra pestaña, «Foto N de M», con la miniatura adentro (`width` y `height`,
-  `loading="lazy"`, `decoding="async"` y `alt` vacío).
+  `loading="lazy"`, `decoding="async"` y `alt` vacío). Corregido por el
+  [0079](0079-las-correcciones-del-tablero.md): es un botón «Foto N de M» que abre la foto en el visor.
 - **Los botones** corren un ancho visible de golpe (`scrollBy` con `behavior: 'instant'`), llevan
   `aria-controls` a la lista y `aria-disabled` en las puntas, para que el foco no se pierda. Su estado se
   mide con `scrollend`, con el respaldo de `scroll` más 120 ms, y con `ResizeObserver`: Safari tiene
@@ -342,7 +345,8 @@ al panel.
   suma cuatro políticas, su lista en `15_fotos_de_perfil.sql` y otra cuenta de espacio, sin cuidar nada
   más.
 - **Un visor adentro de la página.** El 0046 cambió el visor del diseño por abrir el archivo en otra
-  pestaña: un modal menos en una página pública, y en el celular es lo que la gente espera.
+  pestaña: un modal menos en una página pública, y en el celular es lo que la gente espera. Lo retomó
+  el [0079](0079-las-correcciones-del-tablero.md), a pedido del dueño.
 - **El autoplay.** WCAG 2.2, 2.2.2 (Pausar, detener, ocultar): lo que se mueve solo más de cinco
   segundos, al lado de otro contenido, necesita cómo pararlo. Y en la app nada se mueve por su cuenta
   (0074).

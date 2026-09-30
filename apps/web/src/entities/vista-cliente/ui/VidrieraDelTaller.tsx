@@ -9,7 +9,15 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } f
 
 import { urlDelArchivo } from '@/shared/api';
 import { copiar } from '@/shared/lib';
-import { DatoCopiable, Icono, IconoDeRed, Tilde } from '@/shared/ui';
+import {
+  ConSalida,
+  DatoCopiable,
+  Icono,
+  IconoDeRed,
+  Tilde,
+  useVisor,
+  VisorDeImagenes,
+} from '@/shared/ui';
 
 import { compartirDelSistema, compartirLaRed } from '../model/compartir';
 
@@ -46,6 +54,10 @@ function mostrarLaFotoEnfocada(lista: HTMLElement, enfocada: EventTarget): void 
   const caja = enfocada.getBoundingClientRect();
   if (caja.left >= borde.left - 1 && caja.right <= borde.right + 1) return;
   enfocada.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'instant' });
+}
+
+function nombreDeLaFoto(indice: number, total: number): string {
+  return `Foto ${String(indice + 1)} de ${String(total)}`;
 }
 
 function mismoCarrusel(uno: Carrusel, otro: Carrusel): boolean {
@@ -212,6 +224,7 @@ export interface VidrieraDelTallerProps {
 export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) {
   const base = useId();
   const lista = useRef<HTMLUListElement>(null);
+  const visor = useVisor();
   const { fotos } = vidriera;
   const redes = redesALaVista(vidriera.redes);
   const paraCompartir = redParaCompartir(vidriera.redes);
@@ -268,11 +281,12 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
         >
           {fotos.map((foto, indice) => (
             <li key={foto.id} className="flex-none snap-start">
-              <a
-                href={urlDelArchivo(foto.ruta)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Foto ${String(indice + 1)} de ${String(fotos.length)}`}
+              <button
+                type="button"
+                aria-label={nombreDeLaFoto(indice, fotos.length)}
+                onClick={(evento) => {
+                  visor.abrir(foto.id, evento.currentTarget);
+                }}
                 className="block h-32 w-24 overflow-hidden rounded-lamina bg-surface"
               >
                 <img
@@ -284,11 +298,28 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
                   decoding="async"
                   className="size-full object-cover"
                 />
-              </a>
+              </button>
             </li>
           ))}
         </ul>
       )}
+
+      <ConSalida valor={visor.abierta}>
+        {(inicial) => (
+          <VisorDeImagenes
+            titulo={MAS_TRABAJOS_DEL_TALLER}
+            imagenes={fotos.map((foto, indice) => ({
+              id: foto.id,
+              nombre: nombreDeLaFoto(indice, fotos.length),
+              url: urlDelArchivo(foto.ruta),
+              ancho: foto.ancho,
+              alto: foto.alto,
+            }))}
+            inicial={inicial}
+            alCerrar={visor.cerrar}
+          />
+        )}
+      </ConSalida>
 
       {redes.length > 0 && (
         <div

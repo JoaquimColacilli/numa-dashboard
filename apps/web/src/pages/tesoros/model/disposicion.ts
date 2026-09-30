@@ -52,7 +52,11 @@ export const ANCHO_DEL_ESTANTE = 208;
 export const ESPACIO = 40;
 export const ESPACIO_DEL_COBRO = 56;
 export const AL_COSTADO = 64;
+export const AL_REPARTO = 128;
 export const BAJADA_DEL_REPARTO = 64;
+export const AIRE_DEL_ABANICO = 16;
+export const BAJO_EL_ABANICO = 48;
+export const PUNTA_DE_LA_FLECHA = 8;
 export const ENTRE_PARTES = 16;
 export const ENTRE_ESTANTES = 12;
 export const RENGLON = 18;
@@ -69,7 +73,7 @@ export const ALTO = {
   obligacion: 104,
   paso: 104,
   reparto: 96,
-  parte: 100,
+  parte: 104,
   estante: 84,
   nuevo: 56,
   titulo: 28,
@@ -78,6 +82,10 @@ export const ALTO = {
 export const RENGLONES_EN_LA_FICHA = 4;
 
 export const RENGLON_DEL_ROTULO = 16;
+
+export const SOBRE_LOS_RENGLONES = 15;
+
+export const SOBRE_LA_LINEA = 2;
 
 export const GRUPOS_CON_FRANJA = ['obligaciones', 'compromisos', 'ahorros'] as const;
 
@@ -94,11 +102,11 @@ export function altoDelPaso(
 ): number {
   let alto: number = ALTO.paso;
   if (paso.clase === 'fijos') {
-    alto += Math.min(paso.renglones.length, RENGLONES_EN_LA_FICHA) * RENGLON + 10;
+    alto += Math.min(paso.renglones.length, RENGLONES_EN_LA_FICHA) * RENGLON + SOBRE_LOS_RENGLONES;
   }
   if (paso.modo === 'saldo') alto += RENGLON_DEL_ROTULO;
-  if (conDeuda && paso.modo !== 'saldo') alto += RENGLON;
-  if (conMeta) alto += RENGLON;
+  if (conDeuda && paso.modo !== 'saldo') alto += RENGLON + SOBRE_LA_LINEA;
+  if (conMeta) alto += RENGLON + SOBRE_LA_LINEA;
   return alto;
 }
 
@@ -244,6 +252,7 @@ export interface DatosDeLaArista {
   vacia: boolean;
   flujo: Flujo | null;
   lugar: LugarDelTramo | null;
+  centro?: number;
 }
 
 export type AristaDelPlano = Edge<DatosDeLaArista, 'plata'>;
@@ -506,7 +515,7 @@ export function armarElPlano({
   const nodos: NodoDelPlano[] = [];
   const aristas: AristaDelPlano[] = [];
   const x = -ANCHO_DE_FICHA / 2;
-  const xDeLaDerecha = ANCHO_DE_FICHA / 2 + AL_COSTADO;
+  const xDeLaDerecha = ANCHO_DE_FICHA / 2 + AL_REPARTO;
   const neta = prueba?.neta ?? null;
   const obligaciones = obligacionesConHueco(fila.obligaciones, arrastre);
   const pasos = ordenConHueco(fila.pasos, arrastre);
@@ -820,10 +829,18 @@ export function armarElPlano({
   const anchoDelAbanico = escala.length * ANCHO_DE_PARTE + (escala.length - 1) * ENTRE_PARTES;
   const centroDelReparto = xDeLaDerecha + ANCHO_DE_FICHA / 2;
   let xDeLaParte = Math.max(centroDelReparto - anchoDelAbanico / 2, x);
-  const yDeLasPartes = Math.max(
-    yDelReparto + ALTO.reparto + BAJADA_DEL_REPARTO,
-    yDelUltimo + altoDelUltimo + ESPACIO,
-  );
+  const abajoDelReparto = yDelReparto + ALTO.reparto;
+  const abajoDelUltimo = yDelUltimo + altoDelUltimo;
+  let yDeLasPartes = Math.max(abajoDelReparto + BAJADA_DEL_REPARTO, abajoDelUltimo + ESPACIO);
+  const pasaPorDebajo = xDeLaParte + ANCHO_DE_PARTE / 2 < x + ANCHO_DE_FICHA;
+  const alMedio = (abajoDelReparto + yDeLasPartes - PUNTA_DE_LA_FLECHA) / 2;
+  const centroDelAbanico =
+    pasaPorDebajo && alMedio < abajoDelUltimo + AIRE_DEL_ABANICO
+      ? abajoDelUltimo + AIRE_DEL_ABANICO
+      : undefined;
+  if (centroDelAbanico !== undefined) {
+    yDeLasPartes = Math.max(yDeLasPartes, centroDelAbanico + BAJO_EL_ABANICO);
+  }
   for (const parte of escala) {
     const tesoro = tesoroDe(vista, parte.tesoro);
     const id = parte.resto ? FICHA_DEL_RESTO : fichaDeLaParte(parte.tesoro);
@@ -887,6 +904,7 @@ export function armarElPlano({
             : formatearPesos(monto),
         flujo: null,
         lugar: null,
+        ...(centroDelAbanico === undefined ? {} : { centro: centroDelAbanico }),
       },
     });
     xDeLaParte += ANCHO_DE_PARTE + ENTRE_PARTES;

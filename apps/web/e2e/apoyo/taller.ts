@@ -1131,12 +1131,16 @@ const COLUMNAS_DE_LOS_AJUSTES = [
   'cobro_link',
   'resena_link',
   'presupuesto_vale_dias',
+  'relevamiento_centavos',
   'instagram_link',
   'facebook_link',
   'tiktok_link',
 ] as const;
 
-export type AjustesDePrueba = Record<(typeof COLUMNAS_DE_LOS_AJUSTES)[number], number | string>;
+export type AjustesDePrueba = Record<
+  (typeof COLUMNAS_DE_LOS_AJUSTES)[number],
+  number | string | null
+>;
 
 export async function leerAjustes({
   entorno,

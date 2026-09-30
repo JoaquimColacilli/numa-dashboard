@@ -148,6 +148,25 @@ describe('el plan: con qué fecha, diezmo y objetivos se liquida', () => {
     );
   });
 
+  it('un reabierto que se cobró por trabajo vuelve por mes si el taller ya va por mes; en un taller por trabajo, sigue por trabajo', () => {
+    const reapertura = {
+      fecha: '2026-09-25',
+      objetivoSueldo: SUELDO,
+      objetivoFijos: CERO,
+      sueldoMensual: false,
+    };
+    const porMes = { ...AJUSTES, sueldoTopeMensual: true };
+
+    expect(planDeLiquidacion('cobrado', '2026-09-25', porMes, reapertura)).toEqual({
+      fecha: '2026-09-25',
+      diezmoBp: DIEZMO,
+      objetivos: { sueldo: SUELDO, fijos: 0, sueldoMensual: true },
+    });
+    expect(
+      planDeLiquidacion('cobrado', '2026-09-25', AJUSTES, reapertura).objetivos.sueldoMensual,
+    ).toBe(false);
+  });
+
   it('un perdido, por defecto, no paga sueldo y sí diezmo: objetivo de sueldo en cero', () => {
     expect(planDeLiquidacion('perdido', '2026-09-11', AJUSTES, null)).toEqual({
       fecha: '2026-09-11',
@@ -232,6 +251,35 @@ describe('la liquidación completa', () => {
       objetivos: { fijos: FIJOS },
     });
     expect(enOtroMes.fijos).toBe(40_000_000);
+  });
+
+  it('el cobro del 25/9 de MAUN, reabierto con el taller ya por mes, le paga al hogar lo que le falta a septiembre', () => {
+    const septiembre = [
+      registrada('2026-09-08', { sueldo: centavos(14_220_000) }),
+      registrada('2026-09-09', { sueldo: centavos(95_160_420) }),
+    ];
+    const reabierto = liquidar({
+      fecha: '2026-09-25',
+      cobrado: centavos(261_600_000),
+      gastos: centavos(114_015_047),
+      ajustes: { ...AJUSTES, costosFijos: CERO, sueldoTopeMensual: true },
+      reapertura: {
+        fecha: '2026-09-25',
+        objetivoSueldo: SUELDO,
+        objetivoFijos: CERO,
+        sueldoMensual: false,
+      },
+      liquidaciones: septiembre,
+    });
+
+    expect(reabierto).toMatchObject({
+      diezmo: 14_758_495,
+      topeSueldo: 70_619_580,
+      sueldo: 70_619_580,
+      fijos: 0,
+      remanente: 62_206_878,
+      previo: { sueldo: 109_380_420 },
+    });
   });
 
   it('lo liquidado en otro mes no cuenta', () => {

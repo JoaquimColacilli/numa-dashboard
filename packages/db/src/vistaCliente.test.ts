@@ -79,6 +79,7 @@ function respuesta(cambios: Record<string, unknown> = {}): Record<string, unknow
         },
       ],
     },
+    relevamiento_centavos: null,
     ...cambios,
   };
 }
@@ -166,6 +167,7 @@ describe('leer la vista del cliente', () => {
           },
         ],
       },
+      valorDelRelevamiento: null,
     });
   });
 
@@ -347,9 +349,25 @@ describe('leer la vista del cliente', () => {
       respuesta({ vidriera: { redes: null, fotos: [{ id: 'f1' }] } }),
       respuesta({ vidriera: { redes: null, fotos: [{ ...foto('f1'), ancho: null }] } }),
       respuesta({ vidriera: { redes: null, fotos: [{ ...foto('f1'), alto: '1200' }] } }),
+      respuesta({ relevamiento_centavos: '12000000' }),
     ]) {
       expect(() => leerVistaDelCliente(rota)).toThrow(RespuestaInvalidaError);
     }
+  });
+});
+
+describe('el valor del relevamiento', () => {
+  it('antes del presupuesto llega lo que cobra el taller por ir a medir', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({ estado: 'contacto', relevamiento_centavos: 12_000_000 }),
+    );
+    expect(leido.valorDelRelevamiento).toBe(12_000_000);
+  });
+
+  it('sin valor, o con una respuesta de antes que no trae la clave, queda en null', () => {
+    const { relevamiento_centavos: _valor, ...vieja } = respuesta();
+    expect(leerVistaDelCliente(vieja).valorDelRelevamiento).toBeNull();
+    expect(leerVistaDelCliente(respuesta()).valorDelRelevamiento).toBeNull();
   });
 });
 

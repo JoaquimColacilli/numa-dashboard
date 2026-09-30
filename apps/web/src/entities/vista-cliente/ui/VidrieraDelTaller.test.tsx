@@ -44,26 +44,58 @@ describe('la vidriera del taller en la página del cliente', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('con fotos se llama «Más trabajos del taller» y cada foto abre la completa aparte', () => {
+  it('con fotos se llama «Más trabajos del taller» y cada foto es un botón con su miniatura', () => {
     montar({ ...VIDRIERA_VACIA, fotos: fotos(2) });
     expect(screen.getByRole('region', { name: MAS_TRABAJOS_DEL_TALLER })).toBeInTheDocument();
 
-    const enlaces = within(screen.getByRole('list')).getAllByRole('link');
-    expect(enlaces.map((enlace) => enlace.getAttribute('aria-label'))).toEqual([
+    const lista = screen.getByRole('list');
+    expect(within(lista).queryAllByRole('link')).toEqual([]);
+    const botones = within(lista).getAllByRole('button');
+    expect(botones.map((boton) => boton.getAttribute('aria-label'))).toEqual([
       'Foto 1 de 2',
       'Foto 2 de 2',
     ]);
-    expect(enlaces[0]).toHaveAttribute('href', 'https://cdn.maun.test/h/vidriera/f1.webp');
-    expect(enlaces[0]).toHaveAttribute('target', '_blank');
-    expect(enlaces[0]).toHaveAttribute('rel', 'noopener noreferrer');
 
-    const miniatura = enlaces[0]?.querySelector('img');
+    const miniatura = botones[0]?.querySelector('img');
     expect(miniatura).toHaveAttribute('src', 'https://cdn.maun.test/h/vidriera/f1.mini.webp');
     expect(miniatura).toHaveAttribute('alt', '');
     expect(miniatura).toHaveAttribute('width', '900');
     expect(miniatura).toHaveAttribute('height', '1200');
     expect(miniatura).toHaveAttribute('loading', 'lazy');
     expect(miniatura).toHaveAttribute('decoding', 'async');
+  });
+
+  it('tocar una foto la abre en el visor, con el título de la vidriera y la cuenta, sin abrir otra pestaña', () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    montar({ ...VIDRIERA_VACIA, fotos: fotos(3) });
+
+    const segunda = screen.getByRole('button', { name: 'Foto 2 de 3' });
+    fireEvent.click(segunda);
+
+    const visor = screen.getByRole('dialog', { name: MAS_TRABAJOS_DEL_TALLER });
+    const grande = within(visor).getByRole('img', { name: 'Foto 2 de 3' });
+    expect(grande).toHaveAttribute('src', 'https://cdn.maun.test/h/vidriera/f2.webp');
+    expect(visor).toHaveTextContent('2 de 3');
+    expect(within(visor).getByRole('link', { name: 'Abrir en otra pestaña' })).toHaveAttribute(
+      'href',
+      'https://cdn.maun.test/h/vidriera/f2.webp',
+    );
+    expect(within(visor).queryByRole('button', { name: /Borrar/ })).toBeNull();
+
+    fireEvent.keyDown(within(visor).getByRole('button', { name: 'Cerrar' }), {
+      key: 'ArrowRight',
+    });
+    expect(within(visor).getByRole('img', { name: 'Foto 3 de 3' })).toHaveAttribute(
+      'src',
+      'https://cdn.maun.test/h/vidriera/f3.webp',
+    );
+
+    fireEvent.click(within(visor).getByRole('button', { name: 'Cerrar' }));
+    expect(document.activeElement).toBe(segunda);
   });
 
   it('solo con redes se llama «El taller en las redes», y cada red se nombra', () => {
@@ -161,12 +193,12 @@ describe('la vidriera del taller en la página del cliente', () => {
     montar({ ...VIDRIERA_VACIA, fotos: fotos(6) });
 
     act(() => {
-      screen.getByRole('link', { name: 'Foto 3 de 6' }).focus();
+      screen.getByRole('button', { name: 'Foto 3 de 6' }).focus();
     });
     expect(mostrar).not.toHaveBeenCalled();
 
     act(() => {
-      screen.getByRole('link', { name: 'Foto 4 de 6' }).focus();
+      screen.getByRole('button', { name: 'Foto 4 de 6' }).focus();
     });
     expect(mostrar).toHaveBeenCalledExactlyOnceWith({
       block: 'nearest',
@@ -177,7 +209,7 @@ describe('la vidriera del taller en la página del cliente', () => {
 
     conTeclado = false;
     act(() => {
-      screen.getByRole('link', { name: 'Foto 5 de 6' }).focus();
+      screen.getByRole('button', { name: 'Foto 5 de 6' }).focus();
     });
     expect(mostrar).toHaveBeenCalledOnce();
   });

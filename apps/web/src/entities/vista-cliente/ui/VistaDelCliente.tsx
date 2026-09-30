@@ -4,23 +4,27 @@ import {
   textoDeLaProyeccion,
   type ArchivoDelCliente,
   type ProyeccionDeLaEntrega,
+  type RelevamientoPorHacer,
   type SenaDeLaVista,
   type VistaAntesDelPresupuesto,
   type VistaAprobada,
   type VistaDelCliente as Vista,
   type VistaEsperandoLaSena,
 } from '@maun/domain';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { urlDelArchivo } from '@/shared/api';
 import { diaYMesCorto, fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
 import {
+  ConSalida,
   Icono,
   MontoQueEntra,
   Pagina,
   PrincipalYApoyo,
   TarjetaConLamina,
   TrabajoEnEtapa,
+  useVisor,
+  VisorDeImagenes,
 } from '@/shared/ui';
 
 import { etapaDelDibujo } from '../model/etapa';
@@ -31,6 +35,7 @@ import {
   bajadaDeLaEntrega,
   claveDeLaEntrega,
   lineaDeLaSena,
+  lineaDelValorDelRelevamiento,
   pieDeLosPagos,
   QUEDA_A_CUENTA,
   saldoDeLaVista,
@@ -118,6 +123,23 @@ function Titular({ texto, bajada }: { texto: string; bajada: string }) {
       <span className="text-money-xl leading-tight font-semibold text-pretty">{texto}</span>
       {bajada !== '' && <span className="text-body text-text-2">{bajada}</span>}
     </div>
+  );
+}
+
+function RelevamientoTecnico({ relevamiento }: { relevamiento: RelevamientoPorHacer }) {
+  const titulo = useId();
+  return (
+    <section aria-labelledby={titulo} className="mt-3.5 border-t border-hairline-soft pt-3.5">
+      <h3 id={titulo} className="text-body font-semibold">
+        {relevamiento.titulo}
+      </h3>
+      <div className="mt-1.5 flex max-w-[560px] flex-col gap-2 text-body leading-relaxed text-pretty text-text-2">
+        {relevamiento.lineas.map((linea) => (
+          <p key={linea}>{linea}</p>
+        ))}
+        {relevamiento.valor !== null && <p>{lineaDelValorDelRelevamiento(relevamiento.valor)}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -354,6 +376,7 @@ function CierreDeLosPagos({ vista }: { vista: Vista }) {
 
 export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) {
   const [anuncio, setAnuncio] = useState('');
+  const visor = useVisor();
   const coordinacion = coordinacionConPedido(vista);
   const nota = notaDelRelevamiento(vista, {
     larga: (fecha) => fechaLarga(fecha, hoy),
@@ -437,6 +460,9 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <CaminoDeHitos hitos={vista.hitos} nota={nota} hoy={hoy} />
             {vista.sigue !== '' && (
               <p className="mt-3.5 text-body leading-relaxed text-text-2">{vista.sigue}</p>
+            )}
+            {vista.etapa === 'antes-del-presupuesto' && vista.relevamientoPorHacer !== null && (
+              <RelevamientoTecnico relevamiento={vista.relevamientoPorHacer} />
             )}
           </section>
 
@@ -537,15 +563,17 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                   <ul className="grid list-none grid-cols-2 gap-2.5">
                     {visuales.map((archivo) => (
                       <li key={archivo.id}>
-                        <a
-                          href={urlDelArchivo(archivo.ruta)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex flex-col overflow-hidden rounded-field border border-hairline hover:border-ink"
+                        <button
+                          type="button"
+                          aria-label={`Ver ${archivo.nombre}`}
+                          onClick={(evento) => {
+                            visor.abrir(archivo.id, evento.currentTarget);
+                          }}
+                          className="flex w-full flex-col overflow-hidden rounded-field border border-hairline text-left hover:border-ink"
                         >
                           <img
                             src={urlDelArchivo(archivo.rutaMini)}
-                            alt={archivo.nombre}
+                            alt=""
                             width={archivo.ancho ?? undefined}
                             height={archivo.alto ?? undefined}
                             loading="lazy"
@@ -557,7 +585,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                               {archivo.nombre}
                             </span>
                           </span>
-                        </a>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -592,6 +620,21 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                 )}
               </>
             )}
+            <ConSalida valor={visor.abierta}>
+              {(inicial) => (
+                <VisorDeImagenes
+                  imagenes={visuales.map((archivo) => ({
+                    id: archivo.id,
+                    nombre: archivo.nombre,
+                    url: urlDelArchivo(archivo.ruta),
+                    ancho: archivo.ancho,
+                    alto: archivo.alto,
+                  }))}
+                  inicial={inicial}
+                  alCerrar={visor.cerrar}
+                />
+              )}
+            </ConSalida>
           </section>
         </div>
       </PrincipalYApoyo>

@@ -107,6 +107,48 @@ test('el enlace del cliente llega hasta el final con el dedo', async ({ page }, 
   await exigirQueLlegueAlFinal(page, despues, 'el enlace en una pestaña, sin sesión');
 });
 
+const FOTO = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('con una foto abierta en el visor, deslizar no mueve la página de atrás', async ({
+  page,
+}, testInfo) => {
+  test.skip(!testInfo.project.use.hasTouch, 'el deslizamiento táctil es del celular');
+
+  const token = tokenDePrueba();
+  const id = await obraLargaConEnlace(token);
+  for (const nombre of ['Frente de la cocina.webp', 'La isla.webp']) {
+    await archivoPorRest(sesion, { proyectoId: id, nombre, tipo: 'image/webp', visible: true });
+  }
+  await page
+    .context()
+    .route('**/storage/v1/object/public/archivos/**', (ruta) =>
+      ruta.fulfill({ status: 200, contentType: 'image/png', body: FOTO }),
+    );
+
+  await page.goto(`/v/${token}`);
+  await expect(laVista(page)).toBeVisible(CARGA);
+  await page
+    .getByRole('region', { name: 'Fotos y planos' })
+    .getByRole('button', { name: 'Ver Frente de la cocina.webp' })
+    .tap();
+  const visor = page.getByRole('dialog', { name: 'Frente de la cocina.webp' });
+  await expect(visor).toBeVisible();
+
+  const arriba = () => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
+  const antes = await arriba();
+  await deslizarYMedir(page, await dedo(page));
+  expect(await arriba()).toBe(antes);
+  await expect(visor).toBeVisible();
+
+  await visor.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(visor).toHaveCount(0);
+  const cerrado = await deslizarYMedir(page, await dedo(page));
+  expect(cerrado.recorrido).toBeGreaterThan(0);
+});
+
 test('el enlace del cliente entra entero en la pantalla ancha', async ({ page }, testInfo) => {
   test.skip(Boolean(testInfo.project.use.hasTouch), 'esta es la medición de escritorio');
 

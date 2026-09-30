@@ -33,6 +33,11 @@
     display: block;
     overflow: visible;
   }
+
+  html[data-vista='publica']:has(dialog:modal) {
+    overflow: hidden;
+    padding-right: var(--barra-del-documento, 0px);
+  }
 }
 
 @layer components {

@@ -9,6 +9,9 @@
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): con una fila guardada el
   sueldo es siempre un paso con tope por mes. `sueldo_tope_mensual` solo decide en la fila de siempre,
   la de un taller que nunca guardó la suya. Ver la nota en «Decisión».
+- Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): un cobro reabierto
+  cuenta el sueldo por mes si la foto de su reapertura o el taller van por mes. «Reabrirlo no lo
+  arregla» deja de valer (ver la nota en «Lo que no se corrige solo»).
 
 ## Qué se reportó
 
@@ -64,7 +67,9 @@ resolvió para los fijos, y vale igual para el sueldo:
 
 - Cada liquidación guarda su modo en `dist_sueldo_mensual`.
 - Un cobro que se reabre se vuelve a cobrar con el modo con el que se cobró
-  (`reapertura_sueldo_mensual`, 0011): corregir un gasto no le reescribe el sueldo.
+  (`reapertura_sueldo_mensual`, 0011): corregir un gasto no le reescribe el sueldo. Enmendado por el
+  [0079](0079-las-correcciones-del-tablero.md): en un taller por mes, el sueldo del reabierto va por
+  mes aunque se haya cobrado por trabajo.
 
 **El seed sigue por proyecto**, escrito en su `insert`. Sus siete liquidaciones están congeladas así,
 y `compararSeed` las recalcula con los ajustes del seed. Además, deja un taller que prueba el otro
@@ -111,7 +116,11 @@ ya pasó los $1.800.000.
 **El cobro del 25/9 queda como se congeló**: $1.391.264,58 al hogar, $685.068,78 más de lo que le
 tocaba al mes con esta regla.
 
-- **Reabrirlo no lo arregla:** se vuelve a cobrar con el modo con el que se cobró.
+- **Reabrirlo no lo arregla:** se vuelve a cobrar con el modo con el que se cobró. **Ya no vale desde
+  el 2026-09-30 ([ADR 0079](0079-las-correcciones-del-tablero.md)):** un reabierto de un taller por mes
+  vuelve a cobrar el sueldo por mes. Ese cobro se reabrió y se volvió a cobrar por trabajo el mismo
+  30/9, antes del arreglo, y quedó congelado así; reabrirlo y volver a cobrarlo con la versión nueva lo
+  deja en $ 706.195,80 al Salario.
 - **La app no tiene un movimiento de HOGAR a MAUN.** Las clases de movimiento que ofrece son
   ingresos, gastos, diezmo y Cocos.
 - **Reescribir su distribución congelada es un `update` de plata**, y además depende de algo que la

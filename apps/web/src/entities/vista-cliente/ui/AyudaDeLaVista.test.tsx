@@ -3,6 +3,7 @@ import {
   HITOS,
   LISTO_PARA_ENTREGAR,
   NOTA_DEL_RELEVAMIENTO,
+  RELEVAMIENTO_TECNICO,
   TITULAR_LISTO,
 } from '@maun/domain';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -65,6 +66,17 @@ describe('la ayuda de la vista del cliente', () => {
       expect(leido).toContain(hito.etiqueta);
     }
     expect(leido).toContain(NOTA_DEL_RELEVAMIENTO.pendiente.titulo);
+  });
+
+  it('cuenta el relevamiento técnico que lee mientras falta ir a medir, y dónde se cambia el valor', () => {
+    abrir();
+    tocar('Siguiente');
+
+    const leido = screen.getByRole('dialog').textContent;
+    expect(screen.getByText(RELEVAMIENTO_TECNICO)).toBeInTheDocument();
+    expect(leido).toContain('en Ajustes, en «Tu taller»');
+    expect(leido).toContain('lee qué es pero no el precio');
+    expect(leido).not.toContain('lo próximo es ir a medir');
   });
 
   it('cuenta cómo se coordina la entrega cuando el mueble está listo', () => {

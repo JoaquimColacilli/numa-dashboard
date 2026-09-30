@@ -2,6 +2,7 @@ import {
   HITO_DEL_ESTIMATIVO,
   LISTO_PARA_ENTREGAR,
   NOTA_DEL_RELEVAMIENTO,
+  RELEVAMIENTO_TECNICO,
   TITULAR_LISTO,
 } from '@maun/domain';
 import { useState } from 'react';
@@ -86,11 +87,18 @@ const LAMINAS: readonly Lamina[] = [
           'Con el estimativo mandado y la visita pendiente le aparece una (i) que se lo explica, con el día de la visita si ya está agendada: al lado del día del estimativo mientras sigue en «Estimativo enviado», y en el presupuesto en curso cuando lo pasás a relevamiento o a presupuestar. Cuando tocás «Ya fui a relevar», le cuenta que el número sale de las medidas. Al aprobarlo, se va.',
       },
       {
+        clave: 'relevamiento-tecnico',
+        icono: 'ruler',
+        titulo: RELEVAMIENTO_TECNICO,
+        texto:
+          'Mientras falta ir a medir, abajo del camino lee qué es la visita y cuánto sale, con el valor que cargás en Ajustes, en «Tu taller». Si lo dejás vacío, lee qué es pero no el precio. Cuando tocás «Ya fui a relevar» o le mandás el presupuesto, se va.',
+      },
+      {
         clave: 'sin-medir',
         icono: 'route',
         titulo: 'Si no hace falta medir',
         texto:
-          'Pasalo a «A presupuestar» sin cargar la visita y la (i) no aparece. Mientras está en contacto o con el estimativo enviado, él lee que lo próximo es ir a medir.',
+          'Pasalo a «A presupuestar» sin cargar la visita: no le aparecen ni la (i) ni el relevamiento técnico.',
       },
       {
         clave: 'sin-nada',

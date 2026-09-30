@@ -140,6 +140,7 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     fila_version: 0,
     fila_guardada_at: null,
     presupuesto_vale_dias: 15,
+    relevamiento_centavos: 12_000_000,
     sueldo_tope_mensual: false,
     perdido_con_sueldo: false,
     perdido_con_diezmo: true,

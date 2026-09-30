@@ -491,24 +491,65 @@ describe('con qué fila se cobra un proyecto', () => {
     expect(reaperturaDeLaFila(replica, reabierto)).toEqual({ fila, version: 2 });
   });
 
-  it('un reabierto de antes, con la de siempre armada con su foto, en la revisión 0', () => {
-    const reabierto = liquidado('p1', {
-      estado: 'entregado',
-      reapertura_fecha_cobro: '2026-09-01',
-      reapertura_objetivo_sueldo_centavos: 100,
-      reapertura_objetivo_fijos_centavos: 0,
-      reapertura_sueldo_mensual: false,
-    });
+  const FOTO_POR_TRABAJO = {
+    estado: 'entregado',
+    reapertura_fecha_cobro: '2026-09-01',
+    reapertura_objetivo_sueldo_centavos: 100,
+    reapertura_objetivo_fijos_centavos: 0,
+    reapertura_sueldo_mensual: false,
+  };
+  const DE_SIEMPRE_CON_LA_FOTO = {
+    ...DE_LA_FILA_DE_SIEMPRE,
+    pasos: [{ ...PASO_DE_SIEMPRE, tesoro: HOGAR, clase: 'sueldo', tope: 100 }],
+  };
+  const porTrabajo = replicaCon({
+    ajustes: [{ ...AJUSTES, sueldo_tope_mensual: false }],
+    tesoros: LOS_DE_SIEMPRE,
+  });
+
+  it('un reabierto de antes que se cobró por trabajo, con el taller por mes, vuelve con la de siempre de su foto y el sueldo por mes, en la revisión 0', () => {
+    const reabierto = liquidado('p1', FOTO_POR_TRABAJO);
 
     expect(filaParaLiquidar(replica, reabierto, 'cobrado')).toEqual({
-      fila: {
-        ...DE_LA_FILA_DE_SIEMPRE,
-        pasos: [{ ...PASO_DE_SIEMPRE, tesoro: HOGAR, clase: 'sueldo', tope: 100 }],
-        sueldoPorTrabajo: true,
-      },
+      fila: { ...DE_SIEMPRE_CON_LA_FOTO, sueldoPorTrabajo: false },
       version: 0,
     });
     expect(reaperturaDeLaFila(replica, reabierto)).toBeNull();
+  });
+
+  it('con el taller por trabajo, como el seed, el reabierto sigue por trabajo', () => {
+    expect(filaParaLiquidar(porTrabajo, liquidado('p1', FOTO_POR_TRABAJO), 'cobrado')).toEqual({
+      fila: { ...DE_SIEMPRE_CON_LA_FOTO, sueldoPorTrabajo: true },
+      version: 0,
+    });
+  });
+
+  it('con la fila guardada el taller va por mes, aunque sueldo_tope_mensual esté apagado', () => {
+    const conFila = replicaCon({
+      ajustes: [{ ...AJUSTES, sueldo_tope_mensual: false, fila, fila_version: 5 }],
+      tesoros: LOS_DE_SIEMPRE,
+    });
+
+    expect(filaParaLiquidar(conFila, liquidado('p1', FOTO_POR_TRABAJO), 'cobrado')).toEqual({
+      fila: { ...DE_SIEMPRE_CON_LA_FOTO, sueldoPorTrabajo: false },
+      version: 0,
+    });
+  });
+
+  it('una foto por la fila que trajo el sueldo por trabajo vuelve por mes, con su revisión; en un taller por trabajo, igual que antes', () => {
+    const reabierto = liquidado('p1', {
+      estado: 'entregado',
+      reapertura_fila: { version: 0, fila: { ...fila, sueldoPorTrabajo: true } },
+    });
+
+    expect(filaParaLiquidar(replica, reabierto, 'cobrado')).toEqual({
+      fila: { ...fila, sueldoPorTrabajo: false },
+      version: 0,
+    });
+    expect(filaParaLiquidar(porTrabajo, reabierto, 'cobrado')).toEqual({
+      fila: { ...fila, sueldoPorTrabajo: true },
+      version: 0,
+    });
   });
 
   it('un perdido, siempre con la de los ajustes; y una foto que no se lee tampoco cuenta', () => {
@@ -970,4 +1011,100 @@ describe('lo que se liquida sale de la réplica', () => {
     });
     expect(entrada).toMatchObject({ destino: 'perdido', cobrado: 1, gastos: 2 });
   });
+});
+
+describe('volver a cobrar el cobro del 25/9 de MAUN, que se había congelado por trabajo', () => {
+  const SUELDO_DE_SIEMPRE = {
+    tesoro: HOGAR,
+    clase: 'sueldo',
+    tope: 180_000_000,
+    renglones: [],
+    desde: null,
+    modo: 'mes',
+    hastaLaMeta: false,
+  };
+  const CONGELADA = {
+    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+    pasos: [SUELDO_DE_SIEMPRE],
+    reparto: [],
+    superavit: MAUN,
+    sueldoPorTrabajo: true,
+  };
+  const DE_HOY = {
+    ...CONGELADA,
+    reparto: [{ tesoro: COCOS, porcentaje: 3000, hastaLaMeta: false }],
+    sueldoPorTrabajo: false,
+  };
+  const SEPTIEMBRE = [
+    liquidado('estanteria', {
+      fecha_cobro: '2026-09-08',
+      dist_sueldo_centavos: 14_220_000,
+      dist_sueldo_mensual: false,
+    }),
+    liquidado('escritorio', {
+      fecha_cobro: '2026-09-09',
+      dist_sueldo_centavos: 95_160_420,
+      dist_sueldo_mensual: false,
+    }),
+  ];
+
+  it.each([
+    [
+      'con la foto de antes, como en la captura',
+      {
+        reapertura_fecha_cobro: '2026-09-25',
+        reapertura_objetivo_sueldo_centavos: 180_000_000,
+        reapertura_objetivo_fijos_centavos: 0,
+        reapertura_sueldo_mensual: false,
+      },
+    ],
+    [
+      'con la foto por la fila, como queda al reabrirlo hoy',
+      {
+        reapertura_fecha_cobro: '2026-09-25',
+        reapertura_objetivo_sueldo_centavos: 0,
+        reapertura_objetivo_fijos_centavos: 0,
+        reapertura_sueldo_mensual: true,
+        reapertura_fila: { version: 0, fila: CONGELADA },
+      },
+    ],
+  ])(
+    '%s: el Salario recibe lo que le falta a septiembre, el resto queda en Maun y no entran las partes de la fila de hoy',
+    (_caso, foto) => {
+      const reabierto = { ...trabajo('vp', 'entregado'), ...foto } as FilaDe<'proyectos'>;
+      const replica = replicaCon({
+        ajustes: [{ ...AJUSTES, costos_fijos_centavos: 0, fila: DE_HOY, fila_version: 4 }],
+        tesoros: LOS_DE_SIEMPRE,
+        proyectos: [...SEPTIEMBRE, reabierto],
+        pagos: [pago('pv', 'vp', 261_600_000)],
+        gastos: [gasto('gv', 'vp', 114_015_047)],
+      });
+
+      const { entrada, version } = entradaDeLaLiquidacion(replica, reabierto, {
+        destino: 'cobrado',
+        fecha: '2026-09-25',
+      });
+      const liquidacion = calcularPorLaFila(entrada);
+
+      expect(version).toBe(0);
+      expect(entrada.fila).toMatchObject({ reparto: [], sueldoPorTrabajo: false });
+      expect(liquidacion).toMatchObject({ neta: 147_584_953, diezmo: 14_758_495, reparto: [] });
+      expect(liquidacion.pasos).toMatchObject([
+        {
+          tesoro: HOGAR,
+          porMes: true,
+          previo: 109_380_420,
+          tope: 70_619_580,
+          monto: 70_619_580,
+          falta: 0,
+        },
+      ]);
+      expect(liquidacion.remanente).toBe(62_206_878);
+      expect(pedidoDeLaFila(liquidacion, version, ['r1'])).toEqual({
+        version: 0,
+        repartos: [{ id: 'r1', posicion: 1, tesoro_id: HOGAR, monto_centavos: 70_619_580 }],
+        previo: { [HOGAR]: 109_380_420 },
+      });
+    },
+  );
 });

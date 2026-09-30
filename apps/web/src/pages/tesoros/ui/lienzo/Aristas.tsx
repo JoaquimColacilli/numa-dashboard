@@ -1,13 +1,13 @@
 import { EdgeLabelRenderer, getSmoothStepPath, Position, type EdgeProps } from '@xyflow/react';
 import { useContext } from 'react';
 
+import { formatearPesos } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
-import type { AristaDelPlano } from '../../model/disposicion';
+import { PUNTA_DE_LA_FLECHA as PUNTA, type AristaDelPlano } from '../../model/disposicion';
 import { RotuloDelFlujo } from '../Fichas';
 import { ContextoDeLasAristas } from './contextos';
 
-const PUNTA = 8;
 const MEDIA_PUNTA = 4.5;
 
 function punta(x: number, y: number, hacia: Position): string {
@@ -37,6 +37,7 @@ export function AristaDePlata({
     targetPosition,
     borderRadius: 10,
     offset: 20,
+    centerY: data?.centro,
   });
   if (data === undefined) return null;
 
@@ -54,10 +55,13 @@ export function AristaDePlata({
     xDeLaEtiqueta = targetX;
     yDeLaEtiqueta = targetY - 19;
   } else if (horizontal) {
+    xDeLaEtiqueta = (sourceX + targetX) / 2;
     corrimiento = conBoton ? '-50%, calc(-100% - 16px)' : '-50%, calc(-100% - 6px)';
   } else if (conBoton) {
     corrimiento = '18px, -50%';
   }
+  const xDelBoton = horizontal ? xDeLaEtiqueta : xMedio;
+  const montoAparte = horizontal && data.monto !== null;
 
   return (
     <>
@@ -81,14 +85,30 @@ export function AristaDePlata({
       <polygon points={punta(targetX, targetY, targetPosition)} fill={tinta} />
       <EdgeLabelRenderer>
         {data.flujo !== null ? (
-          <div
-            className="nodrag nopan absolute"
-            style={{
-              transform: `translate(${corrimiento}) translate(${String(xDeLaEtiqueta)}px, ${String(yDeLaEtiqueta)}px)`,
-            }}
-          >
-            <RotuloDelFlujo flujo={data.flujo} monto={data.monto} enLienzo />
-          </div>
+          <>
+            <div
+              className="nodrag nopan absolute"
+              style={{
+                transform: `translate(${corrimiento}) translate(${String(xDeLaEtiqueta)}px, ${String(yDeLaEtiqueta)}px)`,
+              }}
+            >
+              <RotuloDelFlujo flujo={data.flujo} monto={montoAparte ? null : data.monto} enLienzo />
+            </div>
+            {montoAparte && data.monto !== null && (
+              <div
+                className={`nodrag nopan absolute rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
+                  data.vacia
+                    ? 'border-hairline text-text-3'
+                    : 'border-ink/30 font-semibold text-ink'
+                }`}
+                style={{
+                  transform: `translate(-50%, ${conBoton ? '16px' : '6px'}) translate(${String(xDeLaEtiqueta)}px, ${String(yDeLaEtiqueta)}px)`,
+                }}
+              >
+                {formatearPesos(data.monto)}
+              </div>
+            )}
+          </>
         ) : (
           data.etiqueta !== null && (
             <div
@@ -115,7 +135,7 @@ export function AristaDePlata({
             title="Sumar un tesoro acá"
             className="nodrag nopan pointer-events-auto absolute flex size-6 items-center justify-center rounded-pill border border-ink bg-paper text-ink before:absolute before:-inset-2.5 hover:bg-ink hover:text-paper"
             style={{
-              transform: `translate(-50%, -50%) translate(${String(xMedio)}px, ${String(yMedio)}px)`,
+              transform: `translate(-50%, -50%) translate(${String(xDelBoton)}px, ${String(yMedio)}px)`,
             }}
             onClick={(evento) => {
               sumarEn(lugar, evento.currentTarget);

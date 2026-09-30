@@ -17,6 +17,8 @@ export { LogoDeMercadoPago, type LogoDeMercadoPagoProps } from './LogoDeMercadoP
 export { MailEnviado, type MailEnviadoProps } from './MailEnviado';
 export { PanelDeAvisos, type PanelDeAvisosProps } from './PanelDeAvisos';
 export { PanelDePaso, type PanelDePasoProps, type TonoDelPaso } from './PanelDePaso';
+export { VisorDeImagenes, type ImagenDelVisor, type VisorDeImagenesProps } from './VisorDeImagenes';
+export { useVisor, type Visor } from './visor';
 export {
   ENLACE_DE_ACCESO,
   ENLACE_DE_CAMPO,

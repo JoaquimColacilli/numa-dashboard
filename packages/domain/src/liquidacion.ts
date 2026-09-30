@@ -169,7 +169,7 @@ export function planDeLiquidacion(
       objetivos: {
         sueldo: reapertura.objetivoSueldo,
         fijos: reapertura.objetivoFijos,
-        sueldoMensual: reapertura.sueldoMensual,
+        sueldoMensual: reapertura.sueldoMensual || ajustes.sueldoTopeMensual,
       },
     };
   }

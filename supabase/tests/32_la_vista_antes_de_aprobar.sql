@@ -4,7 +4,7 @@
 -- el presupuesto viaja solo mientras espera la seña, y guardar_proyecto la escribe solo si viene la
 -- clave.
 
-select plan(57);
+select plan(65);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -102,6 +102,12 @@ select is(
   'y hasta cuándo vale el presupuesto, que es la fecha de la proyección'
 );
 
+select is(
+  tests.la_vista() -> 'relevamiento_centavos',
+  'null'::jsonb,
+  'con el presupuesto mandado, lo que cobra el taller por el relevamiento no viaja (ADR 0079)'
+);
+
 
 -- La seña: una sola cuenta ---------------------------------------------------------------------------------
 
@@ -194,6 +200,12 @@ select is(
   tests.la_vista() #> '{pago,monto_centavos}',
   'null'::jsonb,
   'y lo que viene se anticipa sin importe, como en cualquier trabajo sin presupuesto'
+);
+
+select is(
+  tests.la_vista() -> 'relevamiento_centavos',
+  to_jsonb(12000000::bigint),
+  'antes de mandarlo sí viaja lo que el taller cobra el relevamiento: la página lo explica mientras falta ir a medir'
 );
 
 
@@ -321,6 +333,12 @@ select is(
   'ni los días que valen en el taller'
 );
 
+select is(
+  has_column_privilege('anon', 'public.ajustes', 'relevamiento_centavos', 'SELECT'),
+  false,
+  'ni el valor del relevamiento: le llega solo por la vista'
+);
+
 select tests.salir();
 select tests.entrar_como(tests.id('ana'));
 
@@ -359,6 +377,51 @@ select lives_ok(
     tests.id('household_a')
   ),
   'el dueño los cambia: la columna tiene grant de update'
+);
+
+
+-- El valor del relevamiento, en Ajustes (ADR 0079) -----------------------------------------------------------
+
+select is(
+  (select relevamiento_centavos from public.ajustes where household_id = tests.id('household_a')),
+  12000000::bigint,
+  'un taller arranca con el relevamiento en $ 120.000'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set relevamiento_centavos = 0 where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'un relevamiento en cero lo frena la base: vacío se guarda null'
+);
+
+select throws_ok(
+  format(
+    $$ update public.ajustes set relevamiento_centavos = -100 where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  '23514',
+  null,
+  'y uno negativo también'
+);
+
+select lives_ok(
+  format(
+    $$ update public.ajustes set relevamiento_centavos = 15000000 where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  'el dueño lo cambia: la columna tiene grant de update'
+);
+
+select lives_ok(
+  format(
+    $$ update public.ajustes set relevamiento_centavos = null where household_id = %L $$,
+    tests.id('household_a')
+  ),
+  'y lo deja vacío: el cliente ve qué es el relevamiento sin el precio'
 );
 
 

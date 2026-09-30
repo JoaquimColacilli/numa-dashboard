@@ -75,10 +75,11 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0069](0069-el-dibujo-del-trabajo-del-cliente.md)                           | El dibujo del trabajo del cliente: el proceso, no el mueble         | Aceptada             |
 | [0070](0070-el-camino-tilda-lo-que-paso.md)                                 | El camino tilda lo que pasó y deja en curso lo que falta            | Aceptada             |
 | [0071](0071-la-entrega-y-sus-fechas.md)                                     | La entrega y sus fechas: listo, estimada, comprometida y respuesta  | Aceptada             |
-| [0072](0072-el-sueldo-se-topea-por-mes.md)                                  | El sueldo se topea por mes                                          | Aceptada             |
+| [0072](0072-el-sueldo-se-topea-por-mes.md)                                  | El sueldo se topea por mes                                          | Aceptada, corregida  |
 | [0073](0073-la-app-se-llama-numa.md)                                        | La app se llama NUMA; el taller sigue siendo MAUN                   | Aceptada             |
 | [0074](0074-lo-que-responde-al-tocar.md)                                    | Lo que responde al tocar: se hunde, se desliza, se abre y se tacha  | Aceptada             |
 | [0075](0075-la-app-abre-sin-pantalla-en-blanco.md)                          | La app abre sin pantalla en blanco                                  | Aceptada             |
-| [0076](0076-la-vidriera-del-taller.md)                                      | La vidriera del taller, y «Tu mueble» apilada                       | Aceptada             |
+| [0076](0076-la-vidriera-del-taller.md)                                      | La vidriera del taller, y «Tu mueble» apilada                       | Aceptada, corregida  |
 | [0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)              | El dibujo de Eliseo en las pantallas de sesión                      | Aceptada             |
-| [0078](0078-los-tesoros-configurables-y-la-fila.md)                         | Los tesoros configurables y la fila, por tipos de tesoro            | Aceptada             |
+| [0078](0078-los-tesoros-configurables-y-la-fila.md)                         | Los tesoros configurables y la fila, por tipos de tesoro            | Aceptada, corregida  |
+| [0079](0079-las-correcciones-del-tablero.md)                                | Las correcciones del tablero: fotos, relevamiento, reabierto, plano | Aceptada             |

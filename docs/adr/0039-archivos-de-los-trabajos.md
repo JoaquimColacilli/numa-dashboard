@@ -11,6 +11,9 @@
   carpeta. «Espacio para archivos» suma las dos tablas, y los binarios huérfanos de las objeciones pueden
   quedar también ahí. Elegir, preparar y subir viven ahora en `entities/archivo`, parametrizados por lo
   que se acepta, el mensaje y la ruta.
+- Completado el 2026-09-30 por el [0079](0079-las-correcciones-del-tablero.md): el visor pasa a
+  `shared/ui` como `VisorDeImagenes`, genérico. La ficha le pasa el peso y «Borrar»; la página del
+  cliente lo usa sin nada de eso. Las flechas del teclado andan apenas se abre.
 
 ## Contexto
 

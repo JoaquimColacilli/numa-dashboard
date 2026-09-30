@@ -11,7 +11,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { mensajeDeSincronizacion, repartosDelProyecto } from '@/shared/api';
+import { elTallerVaPorMes, mensajeDeSincronizacion, repartosDelProyecto } from '@/shared/api';
 import { fechaLarga, formatearPesos, hoyEnElTaller, TINTA } from '@/shared/lib';
 import { Button, FilaDeAcciones, Icono } from '@/shared/ui';
 
@@ -128,6 +128,8 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
             : ''}{' '}
           viene puesto y lo podés corregir. Se vuelve a cobrar con la misma fila de este cobro:
           corregir un gasto no te reescribe los topes ni el reparto con la fila de hoy.
+          {elTallerVaPorMes(replica) &&
+            ' Lo que sí mira es lo que tu sueldo ya recibió ese mes, como en un cobro nuevo.'}
         </p>
       ) : (
         <>

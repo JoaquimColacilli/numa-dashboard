@@ -97,6 +97,7 @@ export {
   datosDelAnalisis,
   datosDelLibro,
   datosDelMesDeLaReplica,
+  elTallerVaPorMes,
   entradaDeLaLiquidacion,
   filaDelCobro,
   filaDelTaller,

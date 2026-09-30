@@ -7,6 +7,7 @@ import {
   contactoPorRpc,
   enlacePorRest,
   enlacesDe,
+  escribirAjustes,
   guardarProyectoPorRpc,
   iniciarSesionDePrueba,
   leerProyecto,
@@ -252,6 +253,50 @@ test('la vista del cliente se ve en claro y en oscuro, con y sin datos para tran
   }
 
   await ajustarCobroDelTaller(sesion, SIN_COBRO);
+});
+
+test.describe('el relevamiento técnico, mientras falta ir a medir', () => {
+  test.afterEach(async () => {
+    await escribirAjustes(sesion, { relevamiento_centavos: 12_000_000 });
+  });
+
+  test('el cliente ve qué es y cuánto sale, y sin valor en Ajustes ve qué es pero no el precio', async ({
+    page,
+  }, testInfo) => {
+    const token = tokenDePrueba();
+    const { id } = await contactoPorRpc(sesion, {
+      titulo: 'Cocina - Quilmes',
+      estado: 'presupuesto_estimativo',
+    });
+    await enlacePorRest(sesion, id, token);
+    const camino = page.getByRole('region', { name: 'En qué anda' });
+    const bloque = camino.getByRole('region', { name: 'Relevamiento técnico' });
+
+    await escribirAjustes(sesion, { relevamiento_centavos: 12_000_000 });
+    await page.goto(`/v/${token}`);
+    await expect(bloque).toBeVisible(CARGA);
+    await expect(bloque).toContainText(
+      'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
+    );
+    await expect(bloque).toContainText(
+      'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
+    );
+    await expect(bloque).toContainText(
+      'El valor del relevamiento es de $ 120.000 y, si decidís avanzar, se toma a cuenta como parte de la seña del proyecto.',
+    );
+    await expect(camino).not.toContainText('lo próximo es ir a medir');
+    await expect(laVista(page)).not.toContainText('Relevamiento técnico');
+    await camino.screenshot({
+      path: testInfo.outputPath(`relevamiento-con-precio-${testInfo.project.name}.png`),
+    });
+
+    await escribirAjustes(sesion, { relevamiento_centavos: null });
+    await page.reload();
+    await expect(bloque).toBeVisible(CARGA);
+    await expect(bloque).toContainText('El siguiente paso es el relevamiento técnico en obra.');
+    await expect(bloque).not.toContainText('El valor del relevamiento');
+    expect(await textoDeLaPagina(page)).not.toContain('$');
+  });
 });
 
 test('la vista del cliente se recorre con el teclado y se anuncia sin depender del color', async ({

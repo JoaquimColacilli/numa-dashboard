@@ -48,6 +48,8 @@ beforeAll(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function armar() {
@@ -59,6 +61,47 @@ function armar() {
   const boton = screen.getByRole('button', { name: 'Qué es la fila' });
   const globo = document.getElementById(boton.getAttribute('popovertarget') ?? '') as HTMLElement;
   return { boton, globo };
+}
+
+function unCuadro(): Promise<void> {
+  return new Promise((listo) => {
+    requestAnimationFrame(() => {
+      listo();
+    });
+  });
+}
+
+function conCaja(elemento: HTMLElement, arriba: () => number): void {
+  vi.spyOn(elemento, 'getBoundingClientRect').mockImplementation(() => {
+    const top = arriba();
+    return {
+      top,
+      bottom: top + 20,
+      left: 40,
+      right: 60,
+      width: 20,
+      height: 20,
+      x: 40,
+      y: top,
+      toJSON: () => ({}),
+    };
+  });
+}
+
+function conAlto(globo: HTMLElement, alto: number): void {
+  Object.defineProperty(globo, 'offsetHeight', { configurable: true, get: () => alto });
+  Object.defineProperty(globo, 'offsetWidth', { configurable: true, get: () => 300 });
+}
+
+function conLoQueSeVe(alto: number) {
+  const vista = Object.assign(new EventTarget(), {
+    offsetTop: 0,
+    offsetLeft: 0,
+    width: 390,
+    height: alto,
+  });
+  vi.stubGlobal('visualViewport', vista);
+  return vista;
 }
 
 describe('la ayuda (i)', () => {
@@ -148,6 +191,94 @@ describe('la ayuda (i)', () => {
       vi.advanceTimersByTime(RESPIRO_DE_LA_AYUDA_MS);
     });
     expect(globo).not.toHaveAttribute('data-abierto');
+  });
+
+  it('se cierra cuando se desplaza lo de afuera, y no cuando se desplaza su propio texto', () => {
+    const { boton, globo } = armar();
+    const principal = document.createElement('main');
+    document.body.append(principal);
+    fireEvent.click(boton);
+    fireEvent.scroll(globo);
+    expect(globo).toHaveAttribute('data-abierto');
+
+    fireEvent.scroll(principal);
+    expect(globo).not.toHaveAttribute('data-abierto');
+    principal.remove();
+  });
+
+  it('se cierra cuando su botón se mueve, como al correr el plano, y no antes', async () => {
+    const { boton, globo } = armar();
+    let arriba = 100;
+    conCaja(boton, () => arriba);
+    fireEvent.click(boton);
+    await unCuadro();
+    await unCuadro();
+    expect(globo).toHaveAttribute('data-abierto');
+
+    arriba = 60;
+    await unCuadro();
+    expect(globo).not.toHaveAttribute('data-abierto');
+  });
+
+  it('si cambia el alto de lo que se ve, como al girar el celular, se reubica y sigue abierta', async () => {
+    const { boton, globo } = armar();
+    let arriba = 100;
+    conCaja(boton, () => arriba);
+    conAlto(globo, 120);
+    fireEvent.click(boton);
+    await unCuadro();
+    expect(globo.style.top).toBe('128px');
+
+    arriba = 400;
+    vi.stubGlobal('innerHeight', 450);
+    fireEvent(window, new Event('resize'));
+    await unCuadro();
+    expect(globo).toHaveAttribute('data-abierto');
+    expect(globo.style.top).toBe('272px');
+
+    arriba = 150;
+    vi.stubGlobal('innerHeight', 700);
+    await unCuadro();
+    expect(globo).toHaveAttribute('data-abierto');
+    expect(globo.style.top).toBe('178px');
+  });
+
+  it('con el teclado abierto se acomoda a lo que queda a la vista', async () => {
+    const vista = conLoQueSeVe(800);
+    const { boton, globo } = armar();
+    conCaja(boton, () => 300);
+    conAlto(globo, 120);
+    fireEvent.click(boton);
+    await unCuadro();
+    expect(globo.style.top).toBe('328px');
+
+    vista.height = 420;
+    vista.dispatchEvent(new Event('resize'));
+    expect(globo).toHaveAttribute('data-abierto');
+    expect(globo.style.top).toBe('172px');
+  });
+
+  it('si no entra ni abajo ni arriba, queda adentro de lo que se ve', async () => {
+    conLoQueSeVe(400);
+    const { boton, globo } = armar();
+    conCaja(boton, () => 200);
+    conAlto(globo, 300);
+    fireEvent.click(boton);
+    await unCuadro();
+    expect(globo.style.top).toBe('88px');
+    expect(globo.style.maxHeight).toBe('');
+  });
+
+  it('si ni siquiera entra en lo que se ve, lo ocupa entero y el texto se desplaza adentro', async () => {
+    conLoQueSeVe(400);
+    const { boton, globo } = armar();
+    conCaja(boton, () => 200);
+    conAlto(globo, 600);
+    fireEvent.click(boton);
+    await unCuadro();
+    expect(globo.style.top).toBe('12px');
+    expect(globo.style.maxHeight).toBe('376px');
+    expect(globo).toHaveClass('overflow-y-auto', 'overscroll-contain');
   });
 
   it('con el dedo no espera: pasar encima no la abre, el toque sí', () => {

@@ -23,6 +23,7 @@ import {
   pedidoPorLaFila,
   proyectoLiquidadoPorLaFila,
   repartosLiquidados,
+  type CobroPorLaFila,
 } from './por-la-fila';
 
 const HOY = '2026-09-23';
@@ -113,7 +114,10 @@ function proyecto(extra: Partial<Proyecto> = {}): Proyecto {
   } as Proyecto;
 }
 
-function taller({ fila = FILA }: { fila?: Fila | null } = {}): Replica {
+function taller({
+  fila = FILA,
+  porMes = true,
+}: { fila?: Fila | null; porMes?: boolean } = {}): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   let replica = { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
@@ -122,7 +126,7 @@ function taller({ fila = FILA }: { fila?: Fila | null } = {}): Replica {
     id: 'a1',
     sueldo_mensual_centavos: 300_000,
     costos_fijos_centavos: 200_000,
-    sueldo_tope_mensual: true,
+    sueldo_tope_mensual: porMes,
     perdido_con_sueldo: false,
     perdido_con_diezmo: true,
     fila: fila as unknown as FilaDe<'ajustes'>['fila'],
@@ -227,6 +231,76 @@ describe('el cobro por la fila', () => {
     const { liquidacion, version } = cobroPorLaFila(taller(), reabierto, HOY);
     expect(version).toBe(2);
     expect(liquidacion.reparto).toEqual([]);
+  });
+
+  const FOTO_POR_TRABAJO: Fila = {
+    obligaciones: [DEL_DIEZMO],
+    pasos: [
+      {
+        tesoro: HOGAR,
+        clase: 'sueldo',
+        tope: centavos(300_000),
+        renglones: [],
+        desde: null,
+        modo: 'mes',
+        hastaLaMeta: false,
+      },
+    ],
+    reparto: [],
+    superavit: MAUN,
+    sueldoPorTrabajo: true,
+  };
+
+  const COBRADO_EL_20 = {
+    reapertura_fecha_cobro: '2026-09-20',
+    reapertura_objetivo_sueldo_centavos: 300_000,
+    reapertura_objetivo_fijos_centavos: 0,
+  } satisfies Partial<Proyecto>;
+
+  function reabiertoPorTrabajo(): Proyecto {
+    return proyecto({
+      ...COBRADO_EL_20,
+      reapertura_sueldo_mensual: true,
+      reapertura_fila: {
+        version: 0,
+        fila: FOTO_POR_TRABAJO,
+      } as unknown as Proyecto['reapertura_fila'],
+    });
+  }
+
+  function sueldoDe({ liquidacion }: CobroPorLaFila) {
+    const paso = liquidacion.pasos.find((uno) => uno.tesoro === HOGAR);
+    return paso && { porMes: paso.porMes, tope: paso.tope, monto: paso.monto };
+  }
+
+  it('un reabierto que se había cobrado por trabajo vuelve con su fila, pero el sueldo cuenta lo que el mes ya recibió', () => {
+    const elCobro = cobroPorLaFila(taller(), reabiertoPorTrabajo(), '2026-09-20');
+    expect(elCobro.version).toBe(0);
+    expect(elCobro.fila).toEqual({ ...FOTO_POR_TRABAJO, sueldoPorTrabajo: false });
+    expect(sueldoDe(elCobro)).toEqual({ porMes: true, tope: 200_000, monto: 200_000 });
+    expect(previoQueVio(elCobro.liquidacion)).toEqual({ [HOGAR]: 100_000 });
+    expect(elCobro.liquidacion.remanente).toBe(700_000);
+  });
+
+  it('un reabierto por el camino de antes que se había cobrado por trabajo, también', () => {
+    const deAntes = proyecto({ ...COBRADO_EL_20, reapertura_sueldo_mensual: false });
+    const elCobro = cobroPorLaFila(taller(), deAntes, '2026-09-20');
+    expect(elCobro.fila.sueldoPorTrabajo).toBe(false);
+    expect(sueldoDe(elCobro)).toEqual({ porMes: true, tope: 200_000, monto: 200_000 });
+  });
+
+  it('en un taller que sigue por trabajo, el reabierto por trabajo sigue por trabajo', () => {
+    const replica = taller({ fila: null, porMes: false });
+    const elCobro = cobroPorLaFila(replica, reabiertoPorTrabajo(), '2026-09-20');
+    expect(elCobro.fila.sueldoPorTrabajo).toBe(true);
+    expect(sueldoDe(elCobro)).toEqual({ porMes: false, tope: 300_000, monto: 300_000 });
+
+    const deAntes = proyecto({ ...COBRADO_EL_20, reapertura_sueldo_mensual: false });
+    expect(sueldoDe(cobroPorLaFila(replica, deAntes, '2026-09-20'))).toEqual({
+      porMes: false,
+      tope: 300_000,
+      monto: 300_000,
+    });
   });
 
   it('con el pago que se carga al cobrar, reparte también eso', () => {

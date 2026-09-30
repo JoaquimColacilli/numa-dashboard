@@ -94,6 +94,19 @@ describe('la hoja', () => {
     expect(hoja).toHaveAttribute('open');
   });
 
+  it('las teclas de adentro le llegan a quien la abrió, también con el foco en la X del encabezado', () => {
+    const alTeclear = vi.fn();
+    render(
+      <Hoja titulo="Una foto" alCerrar={() => undefined} alTeclear={alTeclear}>
+        <p>La foto</p>
+      </Hoja>,
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cerrar' }), { key: 'ArrowRight' });
+    expect(alTeclear).toHaveBeenCalledOnce();
+    expect(alTeclear.mock.calls[0]?.[0]).toMatchObject({ key: 'ArrowRight' });
+  });
+
   it('Escape pide cerrarla, y se queda montada mientras sale', () => {
     const alCerrar = vi.fn();
     render(<Prueba alCerrar={alCerrar} />);

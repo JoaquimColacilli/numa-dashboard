@@ -65,6 +65,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     ],
     archivos: [],
     vidriera: VIDRIERA_VACIA,
+    valorDelRelevamiento: null,
     ...cambios,
   };
 }
@@ -218,7 +219,7 @@ describe('la vista del cliente', () => {
     expect(pagos).not.toHaveTextContent(/registramos/);
   });
 
-  it('muestra los archivos que llegaron, con su enlace al bucket', () => {
+  it('muestra los archivos que llegaron: las fotos se tocan para verlas y los PDF se abren aparte', () => {
     dibujar(
       trabajo({
         archivos: [
@@ -248,14 +249,53 @@ describe('la vista del cliente', () => {
 
     const galeria = screen.getByRole('region', { name: 'Fotos y planos' });
     expect(galeria).toHaveTextContent('2 archivos');
-    expect(within(galeria).getByRole('img', { name: 'Plano de frente' })).toHaveAttribute(
+    const miniatura = within(galeria).getByRole('button', { name: 'Ver Plano de frente' });
+    expect(miniatura.querySelector('img')).toHaveAttribute(
       'src',
       'https://cdn.maun.test/h/p/a1.mini.webp',
     );
-    expect(within(galeria).getByRole('link', { name: /Presupuesto 2026-041.pdf/ })).toHaveAttribute(
-      'href',
-      'https://cdn.maun.test/h/p/a2.pdf',
+    expect(galeria.querySelector('a[target="_blank"] img')).toBeNull();
+    const pdf = within(galeria).getByRole('link', { name: /Presupuesto 2026-041.pdf/ });
+    expect(pdf).toHaveAttribute('href', 'https://cdn.maun.test/h/p/a2.pdf');
+    expect(pdf).toHaveAttribute('target', '_blank');
+  });
+
+  it('tocar una foto la abre en el visor, sin nada del dueño, y al cerrarlo el foco vuelve a la miniatura', () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const foto = (id: string, nombre: string) => ({
+      id,
+      nombre,
+      tipo: 'image/webp',
+      ancho: 1600,
+      alto: 900,
+      fecha: '2026-08-02T12:00:00+00:00',
+      ruta: `h/p/${id}.webp`,
+      rutaMini: `h/p/${id}.mini.webp`,
+    });
+    dibujar(trabajo({ archivos: [foto('a1', 'Plano de frente'), foto('a3', 'Render')] }));
+
+    const miniatura = screen.getByRole('button', { name: 'Ver Plano de frente' });
+    fireEvent.click(miniatura);
+    expect(document.activeElement).not.toBe(miniatura);
+
+    const visor = screen.getByRole('dialog', { name: 'Plano de frente' });
+    expect(within(visor).getByRole('img', { name: 'Plano de frente' })).toHaveAttribute(
+      'src',
+      'https://cdn.maun.test/h/p/a1.webp',
     );
+    expect(visor).toHaveTextContent('1 de 2');
+    expect(within(visor).queryByRole('button', { name: /Borrar/ })).not.toBeInTheDocument();
+    expect(visor).not.toHaveTextContent('KB');
+    fireEvent.click(within(visor).getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByRole('dialog', { name: 'Render' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(document.activeElement).toBe(miniatura);
+    vi.unstubAllGlobals();
   });
 
   it('sin archivos dice qué va a aparecer ahí, sin disculparse', () => {
@@ -531,7 +571,7 @@ describe('antes de mandar el presupuesto', () => {
     expect(screen.queryByRole('region', { name: 'Para cuándo' })).not.toBeInTheDocument();
   });
 
-  it('sin pagos, no muestra ningún importe', () => {
+  it('sin pagos, afuera del relevamiento no muestra ningún importe, y adentro solo lo que vale la visita', () => {
     const dibujada = dibujar(
       trabajo({
         estado: 'contacto',
@@ -539,10 +579,96 @@ describe('antes de mandar el presupuesto', () => {
         sena: null,
         pagos: [],
         pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+        valorDelRelevamiento: centavos(12_000_000),
       }),
     );
 
+    const bloque = screen.getByRole('region', { name: 'Relevamiento técnico' });
+    expect(textoAfueraDe(dibujada.container, bloque)).not.toMatch(/\$/);
+    expect(importes(bloque.textContent)).toEqual(['$ 120.000']);
+  });
+});
+
+function textoAfueraDe(contenedor: HTMLElement, bloque: HTMLElement): string {
+  return contenedor.textContent.replace(bloque.textContent, '');
+}
+
+function importes(texto: string): string[] {
+  return texto.replace(/\s+/g, ' ').match(/\$ ?[\d.,]+/g) ?? [];
+}
+
+describe('el relevamiento técnico, mientras falta ir a medir', () => {
+  beforeEach(() => {
+    conPantalla('celular');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function estimativoSinMedir(valor: number | null): TrabajoDelCliente {
+    return trabajo({
+      estado: 'presupuesto_estimativo',
+      precio: null,
+      sena: null,
+      pagos: [],
+      pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+      fechas: fechas({ estimativo: '2026-09-15' }),
+      valorDelRelevamiento: valor === null ? null : centavos(valor),
+    });
+  }
+
+  it('abajo del camino explica qué es y cuánto vale, con el título en minúscula y en lugar de «lo próximo»', () => {
+    dibujar(estimativoSinMedir(12_000_000));
+
+    const camino = screen.getByRole('region', { name: 'En qué anda' });
+    const bloque = within(camino).getByRole('region', { name: 'Relevamiento técnico' });
+    expect(within(bloque).getByRole('heading', { level: 3 })).toHaveTextContent(
+      'Relevamiento técnico',
+    );
+    expect(
+      within(bloque)
+        .getAllByRole('paragraph')
+        .map((linea) => linea.textContent.replace(/\s+/g, ' ')),
+    ).toEqual([
+      'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
+      'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
+      'El valor del relevamiento es de $ 120.000 y, si decidís avanzar, se toma a cuenta como parte de la seña del proyecto.',
+    ]);
+    expect(within(camino).getByRole('list').compareDocumentPosition(bloque)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(camino).not.toHaveTextContent('lo próximo es ir a medir');
+    expect(screen.getByRole('region', { name: 'Tu mueble' })).not.toHaveTextContent(
+      'Relevamiento técnico',
+    );
+  });
+
+  it('sin valor en Ajustes, explica qué es sin el precio', () => {
+    const dibujada = dibujar(estimativoSinMedir(null));
+
+    const bloque = screen.getByRole('region', { name: 'Relevamiento técnico' });
+    expect(within(bloque).getAllByRole('paragraph')).toHaveLength(2);
+    expect(bloque).not.toHaveTextContent('El valor del relevamiento');
     expect(dibujada.container.textContent).not.toMatch(/\$/);
+  });
+
+  it('con el presupuesto mandado o aprobado, no está', () => {
+    for (const cambios of [
+      {
+        estado: 'presupuesto_enviado' as const,
+        fechas: fechas({ presupuesto: '2026-09-14' }),
+        visita: { dia: '2026-09-24', hecha: false },
+      },
+      { estado: 'en_curso' as const },
+    ]) {
+      const { unmount } = dibujar(
+        trabajo({ ...cambios, valorDelRelevamiento: centavos(12_000_000) }),
+      );
+      expect(screen.queryByRole('region', { name: 'Relevamiento técnico' })).toBeNull();
+      expect(document.body).not.toHaveTextContent('El valor del relevamiento');
+      unmount();
+    }
   });
 });
 
@@ -689,7 +815,7 @@ describe('el estimativo y el relevamiento en el camino', () => {
     expect(screen.queryByText('Te pasamos un número estimado')).not.toBeInTheDocument();
   });
 
-  it('en ningún lado aparece un importe del estimativo', () => {
+  it('afuera del relevamiento no aparece ningún importe del estimativo, y adentro solo lo que vale la visita', () => {
     const dibujada = dibujar(
       trabajo({
         estado: 'presupuesto_estimativo',
@@ -698,11 +824,13 @@ describe('el estimativo y el relevamiento en el camino', () => {
         pagos: [],
         pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
         fechas: fechas({ estimativo: '2026-09-15' }),
+        valorDelRelevamiento: centavos(12_000_000),
       }),
     );
 
-    const texto = dibujada.container.textContent.replace(/\s+/g, ' ');
-    expect(texto.match(/\$ ?[\d.,]+/g) ?? []).toEqual([]);
+    const bloque = screen.getByRole('region', { name: 'Relevamiento técnico' });
+    expect(importes(textoAfueraDe(dibujada.container, bloque))).toEqual([]);
+    expect(importes(bloque.textContent)).toEqual(['$ 120.000']);
   });
 
   function sinMedir(): TrabajoDelCliente {
@@ -734,10 +862,13 @@ describe('el estimativo y el relevamiento en el camino', () => {
     );
     expect(pasosDelCamino().join(' ')).not.toContain('Relevamiento técnico');
     expect(
-      screen.getByText(
+      within(camino).getByRole('region', { name: 'Relevamiento técnico' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
         'Si seguimos adelante, lo próximo es ir a medir para pasarte el presupuesto.',
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
   it('en el celular abre una hoja con el día que quedamos, y «Entendido» la cierra', () => {
@@ -750,6 +881,7 @@ describe('el estimativo y el relevamiento en el camino', () => {
     expect(boton).toHaveAttribute('aria-expanded', 'true');
     expect(hoja).toHaveTextContent('Lo que te pasamos es un estimado, sacado de lo que hablamos.');
     expect(hoja).toHaveTextContent('Quedamos en ir el mar 22 sep.');
+    expect(hoja).not.toHaveTextContent(/relevamiento/i);
     fireEvent.click(within(hoja).getByRole('button', { name: 'Entendido' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(boton).toHaveAttribute('aria-expanded', 'false');

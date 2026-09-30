@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { listoParaCortar } from '../apoyo/pantalla';
 import {
   ajustarCobroDelTaller,
+  archivoPorRest,
   contactoPorRpc,
   enlacePorRest,
   guardarProyectoPorRpc,
@@ -318,6 +319,70 @@ test('el cliente nunca se entera de que hay archivos que no le compartieron', as
   expect(texto).not.toContain('Despiece interno');
   expect(texto).not.toContain('1 archivo');
   expect(texto).not.toMatch(/priv|oculto|no compartid/i);
+});
+
+test('en la página del cliente, tocar una foto la abre en el visor, sin otra pestaña, y al cerrarlo vuelve a la miniatura', async ({
+  page,
+  context,
+  isMobile,
+}) => {
+  test.setTimeout(120_000);
+
+  const { id } = await contactoPorRpc(sesion, {
+    titulo: TITULO,
+    estado: 'presupuesto_enviado',
+  });
+  for (const nombre of ['Frente terminado.webp', 'Interior del vestidor.webp']) {
+    await archivoPorRest(sesion, { proyectoId: id, nombre, tipo: 'image/webp', visible: true });
+  }
+  await archivoPorRest(sesion, { proyectoId: id, nombre: 'Plano del vestidor.pdf', visible: true });
+  const token = tokenDePrueba();
+  await enlacePorRest(sesion, id, token);
+
+  const foto = await imagenDePrueba(page, 140);
+  await context.route('**/storage/v1/object/public/archivos/**', (ruta) =>
+    ruta.fulfill({ status: 200, contentType: 'image/png', body: foto }),
+  );
+  let pestanasNuevas = 0;
+  context.on('page', () => {
+    pestanasNuevas += 1;
+  });
+
+  await page.goto(`/v/${token}`);
+  const galeria = laGaleria(page);
+  await expect(galeria).toBeVisible(CARGA);
+  const miniaturas = galeria.getByRole('button', { name: /^Ver / });
+  await expect(miniaturas).toHaveCount(2);
+  const [primera = '', segunda = ''] = await miniaturas.evaluateAll((botones) =>
+    botones.map((boton) => (boton.getAttribute('aria-label') ?? '').replace(/^Ver /, '')),
+  );
+  const miniatura = miniaturas.first();
+  if (isMobile) await miniatura.tap();
+  else await miniatura.click();
+
+  const visor = page.getByRole('dialog', { name: primera });
+  await expect(visor).toBeVisible();
+  await expect(visor).toContainText('1 de 2');
+  await expect(visor.getByRole('button', { name: /Borrar/ })).toHaveCount(0);
+  await expect(visor).not.toContainText(/\d\s?(KB|MB)/);
+  await expect(visor.getByRole('link', { name: 'Abrir en otra pestaña' })).toHaveAttribute(
+    'target',
+    '_blank',
+  );
+
+  if (isMobile) await visor.getByRole('button', { name: 'Siguiente' }).tap();
+  else await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('dialog', { name: segunda })).toContainText('2 de 2');
+
+  await page.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(miniatura).toBeFocused();
+  expect(pestanasNuevas).toBe(0);
+
+  await expect(galeria.getByRole('link', { name: /Plano del vestidor\.pdf/ })).toHaveAttribute(
+    'target',
+    '_blank',
+  );
 });
 
 test('ajustes tiene dónde cargar los datos para transferir', async ({

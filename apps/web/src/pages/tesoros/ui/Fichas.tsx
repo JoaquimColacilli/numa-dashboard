@@ -319,7 +319,7 @@ function RenglonDelPaso({
   return (
     <LineaDePuntos
       izquierda={
-        <span className="inline-flex min-w-0 items-baseline gap-1">
+        <span className="inline-flex max-w-full min-w-0 items-baseline gap-1">
           <span className="truncate">{nombre === '' ? 'Sin nombre' : nombre}</span>
           {dia !== null && (
             <span className="flex-none text-text-3">
@@ -545,6 +545,17 @@ export function CuerpoDelPaso({
   );
 }
 
+const TAMANO_DEL_MONTO_LARGO: readonly (readonly [largo: number, clase: string])[] = [
+  [16, 'text-label'],
+  [15, 'text-body-sm'],
+];
+
+function MontoQueSobra({ monto }: { monto: Money }) {
+  const texto = formatearPesos(monto);
+  const clase = TAMANO_DEL_MONTO_LARGO.find(([largo]) => texto.length >= largo)?.[1];
+  return <span className={clase}>{texto}</span>;
+}
+
 export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; elegida: boolean }) {
   return (
     <Ficha elegida={elegida} className="px-3.5 pt-3 pb-3">
@@ -552,7 +563,9 @@ export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; ele
         chip={<ChipNeutro icono="split" />}
         nombre="Lo que sobra"
         claseDelNombre="text-ink"
-        cifra={data.prueba === null ? porciento(data.aTesoros) : formatearPesos(data.prueba)}
+        cifra={
+          data.prueba === null ? porciento(data.aTesoros) : <MontoQueSobra monto={data.prueba} />
+        }
         rotulo={
           data.prueba === null ? 'Se reparte' : data.prueba > 0 ? 'Se reparte así' : 'No sobra nada'
         }

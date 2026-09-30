@@ -66,6 +66,7 @@ function trabajo(entrega: Partial<EntregaQueSeCoordina>): TrabajoDelCliente {
     pagos: [],
     archivos: [],
     vidriera: VIDRIERA_VACIA,
+    valorDelRelevamiento: null,
   };
 }
 

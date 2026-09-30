@@ -466,14 +466,24 @@ export function filaDelCobro(replica: Replica, proyecto: FilaDe<'proyectos'>): F
   return guardada === null ? null : leerLaFila(guardada, sistemaDeLaReplica(replica));
 }
 
+export function elTallerVaPorMes(replica: Replica): boolean {
+  const ajustes = ajustesDe(replica) as Partial<FilaDe<'ajustes'>> | undefined;
+  return (ajustes?.sueldo_tope_mensual ?? true) || (ajustes?.fila ?? null) !== null;
+}
+
 export function filaParaLiquidar(
   replica: Replica,
   proyecto: FilaDe<'proyectos'>,
   destino: EstadoLiquidado,
 ): FilaParaLiquidar {
   if (destino === 'cobrado') {
+    const porMes = elTallerVaPorMes(replica);
     const reapertura = reaperturaDeLaFila(replica, proyecto);
-    if (reapertura !== null) return reapertura;
+    if (reapertura !== null) {
+      return porMes && reapertura.fila.sueldoPorTrabajo
+        ? { ...reapertura, fila: { ...reapertura.fila, sueldoPorTrabajo: false } }
+        : reapertura;
+    }
 
     const {
       reapertura_fecha_cobro: fecha,
@@ -484,7 +494,11 @@ export function filaParaLiquidar(
     if (fecha !== null && sueldo !== null && fijos !== null && mensual !== null) {
       return {
         fila: filaDeSiempre(
-          { sueldoMensual: dinero(sueldo), costosFijos: dinero(fijos), sueldoTopeMensual: mensual },
+          {
+            sueldoMensual: dinero(sueldo),
+            costosFijos: dinero(fijos),
+            sueldoTopeMensual: mensual || porMes,
+          },
           sistemaDeLaReplica(replica),
         ),
         version: 0,

@@ -206,6 +206,19 @@ describe('el plano vertical del celular', () => {
     expect(within(fila).getAllByText('no le llega nada')).toHaveLength(2);
   });
 
+  it('en la prueba, el ingreso libre y la ganancia llevan el monto aparte, del otro lado de la flecha, para no salirse de la pantalla', () => {
+    montar({ monto: 200_000_000 });
+    const fila = screen.getByRole('region', { name: 'La fila' });
+    for (const nombre of ['Ingreso libre', 'Ganancia']) {
+      const rotulo = within(fila).getByText(nombre).parentElement as HTMLElement;
+      expect(rotulo).not.toHaveTextContent('$');
+      const conector = rotulo.parentElement?.parentElement as HTMLElement;
+      const monto = within(conector).getByText(/^\$\s[\d.]+$/);
+      expect(monto).toHaveClass('right-1/2');
+      expect(monto).not.toContainElement(rotulo);
+    }
+  });
+
   it('editando, cada obligación y cada paso tienen Subir, Bajar y Editar, y cada flecha «Sumar acá»', () => {
     empezarElBorrador('a', 4, GUARDADA);
     const { alSumar, alTocar } = montar();

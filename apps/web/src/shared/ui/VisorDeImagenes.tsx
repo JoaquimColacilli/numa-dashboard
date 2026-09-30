@@ -1,17 +1,34 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { pesoLegible, rutaDelArchivo, type Archivo } from '@/entities/archivo';
-import { urlDelArchivo } from '@/shared/api';
-import { Button, Hoja, Icono } from '@/shared/ui';
+import { Button, Icono } from '@maun/ui';
 
-export interface VisorDeImagenesProps {
-  imagenes: readonly Archivo[];
-  inicial: string;
-  alCerrar: () => void;
-  alBorrar: (archivo: Archivo) => void;
+import { Hoja } from './Hoja';
+
+export interface ImagenDelVisor {
+  id: string;
+  nombre: string;
+  url: string;
+  ancho: number | null;
+  alto: number | null;
 }
 
-export function VisorDeImagenes({ imagenes, inicial, alCerrar, alBorrar }: VisorDeImagenesProps) {
+export interface VisorDeImagenesProps<T extends ImagenDelVisor> {
+  imagenes: readonly T[];
+  inicial: string;
+  alCerrar: () => void;
+  titulo?: string;
+  detalle?: (imagen: T) => string;
+  acciones?: (imagen: T) => ReactNode;
+}
+
+export function VisorDeImagenes<T extends ImagenDelVisor>({
+  imagenes,
+  inicial,
+  alCerrar,
+  titulo,
+  detalle,
+  acciones,
+}: VisorDeImagenesProps<T>) {
   const [elegido, setElegido] = useState(inicial);
   const indice = Math.max(
     0,
@@ -25,25 +42,23 @@ export function VisorDeImagenes({ imagenes, inicial, alCerrar, alBorrar }: Visor
     if (siguiente) setElegido(siguiente.id);
   }
 
-  function alTeclear(evento: KeyboardEvent<HTMLDivElement>): void {
+  function alTeclear(evento: KeyboardEvent<HTMLDialogElement>): void {
     if (total < 2) return;
     if (evento.key === 'ArrowRight') mover(1);
     if (evento.key === 'ArrowLeft') mover(-1);
   }
 
   if (imagen === undefined) return null;
-  const url = urlDelArchivo(rutaDelArchivo(imagen));
+  const cuenta = total > 1 ? `${String(indice + 1)} de ${String(total)}` : '';
+  const aparte = detalle?.(imagen) ?? '';
 
   return (
-    <Hoja titulo={imagen.nombre} ancho="visor" alCerrar={alCerrar}>
-      <div
-        onKeyDown={alTeclear}
-        className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-4 md:pb-4"
-      >
+    <Hoja titulo={titulo ?? imagen.nombre} ancho="visor" alCerrar={alCerrar} alTeclear={alTeclear}>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-4 md:pb-4">
         <div className="flex min-h-0 flex-auto items-center justify-center overflow-hidden rounded-field bg-surface">
           <img
             key={imagen.id}
-            src={url}
+            src={imagen.url}
             alt={imagen.nombre}
             width={imagen.ancho ?? undefined}
             height={imagen.alto ?? undefined}
@@ -53,8 +68,7 @@ export function VisorDeImagenes({ imagenes, inicial, alCerrar, alBorrar }: Visor
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-meta text-text-2 tabular-nums">
-            {total > 1 ? `${String(indice + 1)} de ${String(total)} · ` : ''}
-            {pesoLegible(imagen.bytes)}
+            {[cuenta, aparte].filter((parte) => parte !== '').join(' · ')}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {total > 1 && (
@@ -82,7 +96,7 @@ export function VisorDeImagenes({ imagenes, inicial, alCerrar, alBorrar }: Visor
               </>
             )}
             <a
-              href={url}
+              href={imagen.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex min-h-tap items-center gap-1.5 rounded-pill px-2 text-label font-medium underline underline-offset-3"
@@ -90,16 +104,7 @@ export function VisorDeImagenes({ imagenes, inicial, alCerrar, alBorrar }: Visor
               <Icono nombre="maximize-2" tamano={15} />
               Abrir en otra pestaña
             </a>
-            <Button
-              variant="secundario"
-              size="chico"
-              onClick={() => {
-                alBorrar(imagen);
-              }}
-            >
-              <Icono nombre="trash-2" tamano={15} />
-              Borrar
-            </Button>
+            {acciones?.(imagen)}
           </div>
         </div>
       </div>
