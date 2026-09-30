@@ -9,7 +9,11 @@ da por hecha la visita sigue siendo lo de acá. Corregida el 2026-09-25 por el
 [ADR 0070](0070-el-camino-tilda-lo-que-paso.md): el estimativo nunca es el paso en curso; aparece
 tildado con su día, y en esa etapa queda en curso el presupuesto. Completada el 2026-09-25 por el
 [ADR 0071](0071-la-entrega-y-sus-fechas.md): listo no suma un paso al camino; cambia el texto del paso
-de la entrega a «Listo para entregar».
+de la entrega a «Listo para entregar». Completada el 2026-09-30 por el
+[ADR 0079](0079-las-correcciones-del-tablero.md): mientras falta ir a medir, abajo de los pasos va el
+bloque «Relevamiento técnico», con qué es la visita y su valor, y reemplaza a «lo próximo es ir a
+medir». Ese valor es el único importe que el cliente ve antes del presupuesto; el relevamiento sigue sin
+ser un paso.
 
 ## Contexto
 

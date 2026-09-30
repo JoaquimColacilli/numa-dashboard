@@ -24,6 +24,13 @@
   tarjetas y le guarda lugar al panorama de Inicio).
 - Suma, el mismo día, «Los tipos de tesoro de Eliseo»: la fila se ordena por los tipos de tesoro que
   él dibujó en un tablero de Miro.
+- Corregido el 2026-09-30 por el [0079](0079-las-correcciones-del-tablero.md):
+  - el reparto, los insumos y el estante de arriba se corren a `AL_REPARTO` (128) de la cadena, para
+    que el rótulo del tramo al reparto entre en el hueco; el monto de la prueba va en su propia píldora;
+  - la (i) (`Ayuda`) se cierra con cualquier scroll de afuera o cuando su botón se mueve;
+  - un reabierto por trabajo en un taller por mes vuelve a cobrar el sueldo por mes (ver la nota en
+    «4. Liquidar por la fila»);
+  - el plano quedó hasta un 6 % más chico donde lo limita el ancho (ver la objeción 7).
 
 ## Contexto
 
@@ -485,6 +492,12 @@ Después, tres caminos:
   base, con la forma de `p_previo`), y los repartos con los ids de la app y los montos de la base: una
   fila por cada obligación que no es el diezmo, por paso, por parte y por el superávit si no es Maun, en
   ese orden.
+
+**Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md):** al cobrar un
+reabierto, si la foto va por trabajo y el taller va por mes (`sueldo_tope_mensual` o la fila guardada),
+el sueldo va por mes. `private.liquidar` pone `sueldoPorTrabajo` en false en la fila de la foto, y arma
+la fila de siempre del camino de antes con el modo mensual; `filaParaLiquidar` hace lo mismo. Por
+trabajo, solo si los dos lo son.
 
 Por cualquiera de los dos caminos, liquidar deja `reapertura_fila` en null, como hoy los `reapertura_*`.
 **Revertir** borra lógicamente los repartos del proyecto, de cualquier tipo, y, desde un cobrado por la
@@ -1033,7 +1046,10 @@ Con los tipos de tesoro:
 7. **La escala del plano en la compu.** Con la fila típica de Eliseo el plano entra a 1:1,6: la letra
    chica de las fichas queda en unos 7 px en una pantalla común. Se eligió ver la fila entera, que es el
    panorama que él pidió; si le cuesta leer, se compacta o se pone un piso de 0,8 con desplazamiento.
-   Eliseo confirmó el 2026-09-28 que lo lee bien en la PC del taller.
+   Eliseo confirmó el 2026-09-28 que lo lee bien en la PC del taller. **El 0079 lo achicó un poco
+   más** donde lo limita el ancho: el hueco del reparto pasó de 64 a 128 px para que «Ganancia» no
+   quede tapada. Con un paso alto y cuatro partes, a 1440, de 0,733 a 0,690; con la fila de siempre
+   manda el alto y casi no cambia.
 8. **El candado de `ajustes` en cada movimiento** serializa todas las escrituras del taller detrás de
    cada liquidación, para una garantía que solo necesitan los tesoros que se renuevan o se reponen, y un
    update masivo sobre movimientos de trabajos distintos puede cortarse con 40P01. Para un solo usuario

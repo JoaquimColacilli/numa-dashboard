@@ -12,6 +12,9 @@
 - Completada el 2026-09-25 por el [ADR 0071](0071-la-entrega-y-sus-fechas.md): la tarjeta dice
   «Entrega estimada» (antes «Entrega pautada»), listo y la comprometida viajan desde que se aprueba,
   ninguna fecha que ya pasó llega al cliente, y la vista cuenta los días con el día del taller.
+- Completada el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): el valor del
+  relevamiento (`relevamiento_centavos`) viaja solo antes de mandar el presupuesto, y el tipo de la
+  vista lo tiene solo en esa etapa (`relevamientoPorHacer`).
 
 ## Contexto
 

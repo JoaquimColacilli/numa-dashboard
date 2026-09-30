@@ -7,6 +7,7 @@ Estado: aceptada, 2026-09-11. Actualizada el mismo día con los topes mensuales,
 **Corregida el 2026-09-25 por el [ADR 0072](0072-el-sueldo-se-topea-por-mes.md)**: el tope de sueldo pasa a ser por mes, como los fijos, en todos los talleres menos el seed. «El tope de sueldo se queda por proyecto» queda como historia de por qué no se hizo antes. «Pasar el sueldo a tope mensual» es lo que se hizo, y su costo sin conexión ya lo había resuelto el [ADR 0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md).
 
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cascada pasa a ser un caso de la fila. Cada cobro baja por la fila del taller (las obligaciones, con el diezmo entre ellas; los compromisos y los ahorros fijos, cada uno según cómo se llena; los ahorros por porcentaje, y lo que sobra al superávit), y la fila de siempre da lo mismo que la cascada. `fila.ts` y sus siete gemelas de SQL se suman a lo que no puede divergir. Ver las notas en «El diezmo tendría que ser configurable» y en «Lo que impide que las dos implementaciones diverjan».
+- Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): un cobro reabierto se vuelve a cobrar con la fecha, los objetivos y la fila de su foto, pero el sueldo va por mes si la foto o el taller van por mes. El modo con el que se cobró manda solo en un taller que sigue por trabajo, como el seed. Ver la nota en «Reabrir un cobro».
 
 ## Contexto
 
@@ -72,7 +73,7 @@ La base rechaza con `MN007` cualquier otro cambio de estado, y con `MN001` el ca
 
 **Revertir** es `private.revertir_liquidacion`, detrás de `reabrir_proyecto` y de `reactivar_perdido`. Toma los mismos dos locks, reconoce el reenvío y verifica la versión.
 
-- **Reabrir un cobro** guarda la fecha, los objetivos y el modo del cobro original (`reapertura_*`), y el cobro siguiente los usa. Así, corregir un gasto no reescribe el sueldo con los ajustes de hoy ni mueve la distribución de mes (ADR 0003).
+- **Reabrir un cobro** guarda la fecha, los objetivos y el modo del cobro original (`reapertura_*`), y el cobro siguiente los usa. Así, corregir un gasto no reescribe el sueldo con los ajustes de hoy ni mueve la distribución de mes (ADR 0003). **Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md):** el modo se usa solo si el taller también sigue por trabajo. Si la foto o el taller van por mes (`sueldo_tope_mensual` o la fila guardada), el sueldo cuenta lo que su mes ya recibió, en `planDeLiquidacion`, en `filaParaLiquidar` y en `private.liquidar`.
 - **Reactivar un perdido** no guarda nada (ver "El perdido se liquida al pasar a perdido").
 
 **Qué se congela.** Además de la fecha, los totales, el diezmo, los topes y los cuatro escalones, cada liquidación congela:

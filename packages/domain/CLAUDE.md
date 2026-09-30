@@ -26,6 +26,7 @@ No se replican los errores del sistema viejo: el sueldo que suma a HOGAR sin res
 `calcularLiquidacion` es lo que la app llama antes de cobrar o cerrar como perdido, y lo que la base tiene que congelar:
 
 - `planDeLiquidacion` elige la fecha, el diezmo y los objetivos: los ajustes, la foto de una reapertura, o los parámetros del perdido (sin sueldo y con diezmo, por defecto).
+- **Una reapertura toma su fecha y sus objetivos, pero el sueldo va por mes si la foto o los ajustes van por mes** (ADR 0079): por proyecto, solo si los dos lo son. Es la regla de `filaParaLiquidar` y de `private.liquidar`.
 - `liquidadoDelMes` suma lo que ya liquidaron los otros proyectos en el mes calendario de la fecha.
 - `topesDeLaLiquidacion` saca los topes: los fijos, por lo que falta del mes; el sueldo, por mes o por proyecto según `sueldoTopeMensual`. Desde el ADR 0072 los talleres reparten por mes; por proyecto quedan el seed y lo ya congelado.
 - La app le pasa las liquidaciones que tiene replicadas, **incluidas las que todavía están en la cola**, sin el proyecto que se liquida.
@@ -114,6 +115,9 @@ fija caso por caso; una etapa o una variante nueva entra ahí.
   ADR 0070). Las fechas llegan
   formateadas por `formatos`, porque el formateo no vive acá. Sin estimativo y sin medir no hay nota:
   no hay número que pueda cambiar.
+- **El bloque «Relevamiento técnico» es `relevamientoPorHacer`**, solo en la vista antes del
+  presupuesto (ADR 0079): sale con la visita pendiente, deja `sigue` vacío mientras se ve y lleva el
+  valor del trabajo (`valorDelRelevamiento`) o `null`. El importe lo formatea la pantalla.
 - **El foco se invierte solo y no es configurable**: hasta la entrega manda la etapa y el saldo va
   completo en la fila de abajo; desde la entrega con saldo pendiente, manda el saldo. Es
   `foco: 'saldo' | 'estado'` y sale de haber llegado a la entrega con `saldo > 0`.
