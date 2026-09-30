@@ -110,10 +110,22 @@ const REPARTOS = [
   reparto('r3', 3, COCOS, 'Cocos', 200_000, 'parte'),
 ];
 
-function taller(proyecto: Proyecto, repartos: readonly FilaDe<'repartos'>[]): Replica {
+function taller(
+  proyecto: Proyecto,
+  repartos: readonly FilaDe<'repartos'>[],
+  porTrabajo = false,
+): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   let replica = { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
+  if (porTrabajo) {
+    replica = aplicarFilaLocal(replica, 'ajustes', {
+      ...METADATOS,
+      id: 'a1',
+      sueldo_tope_mensual: false,
+      fila: null,
+    } as unknown as FilaDe<'ajustes'>);
+  }
   for (const fila of [
     tesoro(HOGAR, 'hogar', 'Hogar', 'hogar'),
     tesoro(MAUN, 'maun', 'Maun', 'maun'),
@@ -128,13 +140,13 @@ function taller(proyecto: Proyecto, repartos: readonly FilaDe<'repartos'>[]): Re
   return replica;
 }
 
-function montar(proyecto: Proyecto, repartos: readonly FilaDe<'repartos'>[]) {
+function montar(proyecto: Proyecto, repartos: readonly FilaDe<'repartos'>[], porTrabajo = false) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <ProveedorDeReplica replica={taller(proyecto, repartos)}>
+      <ProveedorDeReplica replica={taller(proyecto, repartos, porTrabajo)}>
         <BotonDeReversion proyecto={proyecto} />
       </ProveedorDeReplica>
     </QueryClientProvider>,
@@ -218,6 +230,20 @@ describe('reabrir un cobro', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir y deshacer el reparto' }));
     expect(reversiones()[0]?.repartos).toEqual([]);
     expect(reversiones()[0]?.optimista.reapertura_fila).toBeNull();
+  });
+
+  it('avisa que al volver a cobrarlo el sueldo cuenta lo que ya recibió ese mes', () => {
+    montar(cobrado({ dist_fila: { ...FILA_DEL_COBRO, sueldoPorTrabajo: true } }), REPARTOS);
+    expect(screen.getByRole('region', { name: 'Reabrir el cobro' })).toHaveTextContent(
+      'Lo que sí mira es lo que tu sueldo ya recibió ese mes, como en un cobro nuevo.',
+    );
+  });
+
+  it('en un taller que sigue con el sueldo por trabajo, no lo promete', () => {
+    montar(cobrado(), REPARTOS, true);
+    expect(screen.getByRole('region', { name: 'Reabrir el cobro' })).not.toHaveTextContent(
+      'ya recibió ese mes',
+    );
   });
 
   it('si el reparto ya estaba en los saldos de la apertura, no promete mover plata', () => {

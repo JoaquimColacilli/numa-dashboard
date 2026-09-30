@@ -494,6 +494,69 @@ describe('el despiece proyectado por la fila', () => {
     });
   });
 
+  it('un reabierto que se había cobrado por trabajo descuenta lo que el sueldo ya recibió ese mes, y lo demás va al resto', () => {
+    const fotoPorTrabajo: Fila = {
+      ...FILA,
+      pasos: FILA.pasos.filter((paso) => paso.clase === 'sueldo'),
+      reparto: [],
+      sueldoPorTrabajo: true,
+    };
+    const reabierto = proyecto({
+      reapertura_fecha_cobro: '2026-09-20',
+      reapertura_objetivo_sueldo_centavos: 300_000,
+      reapertura_objetivo_fijos_centavos: 0,
+      reapertura_sueldo_mensual: true,
+      reapertura_fila: {
+        version: 0,
+        fila: fotoPorTrabajo,
+      } as unknown as Proyecto['reapertura_fila'],
+    });
+    let replica = conPago(taller({ fila: FILA }), 'p', 300_000);
+    replica = aplicarFilaLocal(
+      replica,
+      'proyectos',
+      proyecto({
+        id: 'antes',
+        estado: 'cobrado',
+        fecha_cobro: '2026-09-05',
+        dist_cobrado_centavos: 300_000,
+        dist_gastos_centavos: 0,
+        dist_diezmo_centavos: 30_000,
+        dist_remanente_centavos: 70_000,
+        dist_fila_version: 4,
+      }),
+    );
+    replica = aplicarFilaLocal(
+      replica,
+      'repartos',
+      reparto(
+        'r-antes',
+        1,
+        {
+          objetivo_centavos: 300_000,
+          tope_centavos: 300_000,
+          monto_centavos: 200_000,
+          fecha: '2026-09-05',
+        },
+        'antes',
+      ),
+    );
+
+    const { piezas } = despieceDelProyecto(replica, reabierto, HOY);
+    expect(resumen(piezas)).toEqual([
+      {
+        id: 'diezmo',
+        etiqueta: 'Diezmo 10% sobre el ingreso',
+        nombre: 'Diezmo',
+        tinta: 'diezmo',
+        monto: 30_000,
+      },
+      { id: `paso-${HOGAR}`, etiqueta: 'Sueldo', nombre: 'Hogar', tinta: 'hogar', monto: 100_000 },
+      { id: 'resto', etiqueta: 'El resto', nombre: 'Maun', tinta: 'maun', monto: 170_000 },
+    ]);
+    expect(piezas.find((pieza) => pieza.id === `paso-${HOGAR}`)?.falta).toBe(0);
+  });
+
   it('en el perdido el sueldo pide cero y no se da por cubierto', () => {
     const replica = conPago(taller({ fila: FILA }), 'p', 1_000_000);
     const cobro = cobroPorLaFila(replica, proyecto(), HOY, { destino: 'perdido' });

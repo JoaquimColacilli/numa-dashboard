@@ -3586,7 +3586,15 @@ type Paso =
     }
   | { revertir: EstadoProyecto; proyecto: string }
   | { pago: number; proyecto: string }
-  | { ajustes: { sueldo?: number; fijos?: number; perdidoConDiezmo?: boolean } }
+  | { gasto: number; proyecto: string }
+  | {
+      ajustes: {
+        sueldo?: number;
+        fijos?: number;
+        perdidoConDiezmo?: boolean;
+        sueldoTopeMensual?: boolean;
+      };
+    }
   | { fila: FilaDeEscenario | null }
   | { filaDelPrimerPedido: FilaDeEscenario }
   | { cubrir: CoberturaDeEscenario }
@@ -4223,6 +4231,83 @@ const ESCENARIOS_POR_LA_FILA: EscenarioDeLiquidacion[] = [
       },
       { fila: null },
       { liquidar: 'cobrado', proyecto: 'nuevo', fecha: '2026-09-20', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'reabrir un cobro por trabajo de antes del sueldo por mes y volver a cobrarlo por la fila: paga lo que le falta al mes',
+    ajustes: { sueldo: 180_000_000, fijos: 0 },
+    proyectos: {
+      p1: entregado(15_800_000),
+      p2: entregado(105_733_800),
+      p3: entregado(154_584_953),
+      p4: entregado(50_000_000),
+    },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-08' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-09' },
+      { liquidar: 'cobrado', proyecto: 'p3', fecha: '2026-09-25' },
+      { ajustes: { sueldoTopeMensual: true } },
+      { revertir: 'entregado', proyecto: 'p3' },
+      { gasto: 7_000_000, proyecto: 'p3' },
+      { liquidar: 'cobrado', proyecto: 'p3', fecha: '2026-09-25', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p4', fecha: '2026-09-28', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'por el camino de antes: reabrir un cobro por trabajo de agosto con el taller ya por mes y volverlo a cobrar contra el sueldo de agosto',
+    ajustes: { sueldo: 180_000_000, fijos: 0 },
+    proyectos: { p1: entregado(121_533_800), p2: entregado(154_584_953) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-08-08' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-08-20' },
+      { ajustes: { sueldoTopeMensual: true } },
+      { revertir: 'entregado', proyecto: 'p2' },
+      { gasto: 7_000_000, proyecto: 'p2' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-08-20' },
+    ],
+  },
+  {
+    nombre:
+      'reabrir un cobro por la fila con el sueldo por trabajo, pasar el taller a por mes y volver a cobrarlo con la fila de su foto y el sueldo por mes',
+    ajustes: { sueldo: 180_000_000, fijos: 0 },
+    proyectos: { p1: entregado(121_533_800), p2: entregado(154_584_953) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-09', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25', porLaFila: true },
+      { revertir: 'entregado', proyecto: 'p2' },
+      { ajustes: { sueldoTopeMensual: true } },
+      { gasto: 7_000_000, proyecto: 'p2' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'en un taller que sigue por trabajo, como el seed, el reabierto se vuelve a cobrar por trabajo',
+    ajustes: { sueldo: 180_000_000, fijos: 0 },
+    proyectos: { p1: entregado(121_533_800), p2: entregado(154_584_953) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-09' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25' },
+      { revertir: 'entregado', proyecto: 'p2' },
+      { gasto: 7_000_000, proyecto: 'p2' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'con la fila guardada el taller va por mes aunque sueldo_tope_mensual siga apagado: el reabierto vuelve con la de siempre de su foto, por mes',
+    tesoros: TESOROS_DE_LA_FILA_COMPLETA,
+    ajustes: { sueldo: 180_000_000, fijos: 0 },
+    proyectos: { p1: entregado(121_533_800), p2: entregado(154_584_953) },
+    pasos: [
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-09' },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25' },
+      { revertir: 'entregado', proyecto: 'p2' },
+      { gasto: 7_000_000, proyecto: 'p2' },
+      { fila: FILA_COMPLETA },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-25', porLaFila: true },
     ],
   },
   ...ESCENARIOS_POR_TIPOS,
@@ -4933,6 +5018,7 @@ function filaCrudaParaLiquidar(
 ): unknown {
   const quizas = proyecto as Partial<FilaDe<'proyectos'>>;
   const foto = quizas.reapertura_fila;
+  const ajustes = ajustesDe(replica) as Partial<FilaDe<'ajustes'>> | undefined;
   if (
     destino === 'cobrado' &&
     typeof foto === 'object' &&
@@ -4940,10 +5026,15 @@ function filaCrudaParaLiquidar(
     !Array.isArray(foto) &&
     reaperturaDeLaFila(replica, proyecto) !== null
   ) {
-    return foto.fila;
+    const porMes = (ajustes?.sueldo_tope_mensual ?? true) || (ajustes?.fila ?? null) !== null;
+    return porMes &&
+      typeof foto.fila === 'object' &&
+      foto.fila !== null &&
+      !Array.isArray(foto.fila)
+      ? { ...foto.fila, sueldoPorTrabajo: false }
+      : foto.fila;
   }
   if (destino === 'cobrado' && proyecto.reapertura_fecha_cobro !== null) return fila;
-  const ajustes = ajustesDe(replica) as Partial<FilaDe<'ajustes'>> | undefined;
   return ajustes?.fila ?? fila;
 }
 
@@ -5059,6 +5150,14 @@ async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): P
         paso.ajustes.perdidoConDiezmo ?? null,
       ],
     );
+    if (paso.ajustes.sueldoTopeMensual !== undefined) {
+      await cliente.query("select set_config('role', 'none', true)");
+      await cliente.query(
+        'update public.ajustes set sueldo_tope_mensual = $2 where household_id = $1',
+        [contexto.householdId, paso.ajustes.sueldoTopeMensual],
+      );
+      await cliente.query("select set_config('role', 'authenticated', true)");
+    }
     return [];
   }
 
@@ -5099,6 +5198,14 @@ async function correrPaso(cliente: pg.Client, contexto: Contexto, paso: Paso): P
     await cliente.query(
       `insert into public.pagos (proyecto_id, fecha, monto_centavos) values ($1, '2026-08-02', $2)`,
       [proyectoId, paso.pago],
+    );
+    return [];
+  }
+
+  if ('gasto' in paso) {
+    await cliente.query(
+      `insert into public.gastos (proyecto_id, fecha, descripcion, monto_centavos) values ($1, '2026-08-02', 'Flete', $2)`,
+      [proyectoId, paso.gasto],
     );
     return [];
   }

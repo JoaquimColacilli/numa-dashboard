@@ -149,7 +149,7 @@ const RESUMEN = {
   urgencia: undefined,
 } as unknown as ResumenDeProyecto;
 
-function montar(replica: Replica) {
+function montar(replica: Replica, resumen = RESUMEN) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
@@ -157,7 +157,7 @@ function montar(replica: Replica) {
     <MemoryRouter initialEntries={['/proyectos/p/cobrar']}>
       <QueryClientProvider client={queryClient}>
         <ProveedorDeReplica replica={replica}>
-          <PantallaDeLiquidacion resumen={RESUMEN} destino="cobrado" />
+          <PantallaDeLiquidacion resumen={resumen} destino="cobrado" />
         </ProveedorDeReplica>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -269,6 +269,84 @@ describe('cobrar por la fila', () => {
     expect(plan?.obligaciones).toEqual([
       { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', diezmo: true },
     ]);
+  });
+
+  it('un reabierto que se había cobrado por trabajo descuenta lo que el sueldo ya recibió ese mes', () => {
+    const reabierto = {
+      ...PROYECTO,
+      reapertura_fecha_cobro: '2026-09-20',
+      reapertura_objetivo_sueldo_centavos: 300_000,
+      reapertura_objetivo_fijos_centavos: 0,
+      reapertura_sueldo_mensual: true,
+      reapertura_fila: {
+        version: 0,
+        fila: {
+          ...FILA,
+          pasos: FILA.pasos.filter((paso) => paso.clase === 'sueldo'),
+          reparto: [],
+          sueldoPorTrabajo: true,
+        },
+      },
+    } as unknown as Proyecto;
+    let replica = aplicarFilaLocal(taller(), 'proyectos', reabierto);
+    replica = aplicarFilaLocal(replica, 'gastos', {
+      ...METADATOS,
+      id: 'gasto',
+      proyecto_id: 'p',
+      fecha: DIA_DEL_PAGO,
+      descripcion: 'Placas',
+      monto_centavos: 700_000,
+    });
+    replica = aplicarFilaLocal(replica, 'proyectos', {
+      ...PROYECTO,
+      id: 'antes',
+      estado: 'cobrado',
+      fecha_cobro: '2026-09-05',
+      dist_cobrado_centavos: 300_000,
+      dist_fila_version: 4,
+    } as unknown as Proyecto);
+    replica = aplicarFilaLocal(replica, 'repartos', {
+      ...METADATOS,
+      id: 'r-antes',
+      proyecto_id: 'antes',
+      posicion: 1,
+      tesoro_id: HOGAR,
+      nombre: 'Hogar',
+      tipo: 'paso',
+      clase: 'sueldo',
+      modo: 'mes',
+      base: null,
+      objetivo_centavos: 300_000,
+      previo_centavos: 0,
+      tope_centavos: 300_000,
+      por_mes: true,
+      porcentaje_bp: null,
+      monto_centavos: 200_000,
+      fecha: '2026-09-05',
+      ya_en_la_apertura: false,
+    });
+    const { liquidaciones } = montar(replica, {
+      ...RESUMEN,
+      proyecto: reabierto,
+      gastos: centavos(700_000),
+    });
+
+    const despiece = screen.getByRole('region', { name: 'Distribución del ingreso' });
+    expect(despiece).not.toHaveTextContent('faltan');
+    expect(
+      screen.getByText(/^Se reparte el ingreso/, { exact: false }).textContent.replace(/\s+/g, ' '),
+    ).toContain('Van $ 300 a Diezmo, $ 1.000 a Hogar y $ 1.700 a Maun.');
+
+    fireEvent.click(botonDeCobrar());
+    const [enviada] = liquidaciones();
+    expect(enviada?.pedido).toMatchObject({
+      fecha: '2026-09-20',
+      remanenteCentavos: 270_000,
+      porLaFila: { version: 0, previo: { [HOGAR]: 200_000 } },
+    });
+    expect(
+      enviada?.pedido.porLaFila?.repartos.map((uno) => [uno.tesoro_id, uno.monto_centavos]),
+    ).toEqual([[HOGAR, 100_000]]);
   });
 
   it('sin los tesoros del taller todavía, no deja cobrar y dice por qué', () => {

@@ -106,6 +106,7 @@ export {
   coberturasDeLaReplica,
   COLUMNAS_DE_TESORO,
   datosDelMesDeLaReplica,
+  elTallerVaPorMes,
   entradaDeLaLiquidacion,
   filaDelCobro,
   filaDelTaller,
