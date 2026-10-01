@@ -25,6 +25,7 @@ import {
 import { useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
+import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
 import {
   BorradoDelProyecto,
   LoQueHaceFalta,
@@ -210,6 +211,8 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
         }
       >
         <div className="flex flex-col gap-3 md:gap-4">
+          <TarjetaDelPresupuesto proyecto={proyecto} />
+
           <OpcionesDelTrabajo proyecto={proyecto} ofreceCargarLaPrimera />
 
           <BloqueDeLaSena

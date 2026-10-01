@@ -38,6 +38,7 @@ import {
 import { useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
+import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
 import {
   LaEntregaDelTrabajo,
   useLeerLasRespuestasDeEntrega,
@@ -389,6 +390,8 @@ export function ProyectoFichaPage() {
       >
         <div className="flex flex-col gap-3 md:gap-4">
           <OpcionesDelTrabajo proyecto={proyecto} />
+
+          <TarjetaDelPresupuesto proyecto={proyecto} />
 
           <section
             aria-label="Pagos recibidos"

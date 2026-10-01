@@ -99,6 +99,14 @@ create table public.ajustes (
   fila_version integer not null default 0,
   fila_guardada_at timestamp with time zone,
   relevamiento_centavos bigint default 12000000,
+  taller_titular text not null default ''::text,
+  taller_cuit text not null default ''::text,
+  taller_condicion_fiscal text,
+  taller_domicilio text not null default ''::text,
+  taller_telefono text not null default ''::text,
+  taller_email text not null default ''::text,
+  plantilla_del_presupuesto jsonb,
+  plantilla_del_presupuesto_version integer not null default 0,
   constraint ajustes_cobro_alias_formato CHECK (cobro_alias = ''::text OR cobro_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
   constraint ajustes_cobro_cbu_formato CHECK (cobro_cbu = ''::text OR cobro_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_cuit_formato CHECK (cobro_cuit = ''::text OR cobro_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
@@ -112,10 +120,18 @@ create table public.ajustes (
   constraint ajustes_importes_no_negativos CHECK (sueldo_mensual_centavos >= 0 AND costos_fijos_centavos >= 0 AND meta_cocos_centavos >= 0),
   constraint ajustes_instagram_link_formato CHECK (instagram_link = ''::text OR instagram_link ~ '^https://www\.instagram\.com/[a-z0-9._]{1,30}/$'::text AND (split_part(instagram_link, '/'::text, 4) <> ALL (ARRAY['p'::text, 'reel'::text, 'reels'::text, 'stories'::text, 'explore'::text, 'accounts'::text, 'direct'::text, 'tv'::text]))),
   constraint ajustes_pkey PRIMARY KEY (id),
+  constraint ajustes_plantilla_del_presupuesto_es_un_objeto CHECK (plantilla_del_presupuesto IS NULL OR jsonb_typeof(plantilla_del_presupuesto) = 'object'::text),
+  constraint ajustes_plantilla_del_presupuesto_version_valida CHECK (plantilla_del_presupuesto_version >= 0),
   constraint ajustes_presupuesto_vale_dias_valido CHECK (presupuesto_vale_dias >= 1 AND presupuesto_vale_dias <= 365),
   constraint ajustes_relevamiento_valido CHECK (relevamiento_centavos IS NULL OR relevamiento_centavos > 0),
   constraint ajustes_resena_link_formato CHECK (resena_link = ''::text OR char_length(resena_link) <= 300 AND resena_link ~ '^https://(g\.page|search\.google\.com|maps\.google\.com|www\.google\.com|google\.com|maps\.app\.goo\.gl|g\.co)/[^[:space:]]*$'::text),
   constraint ajustes_sena_valida CHECK (sena_bp >= 0 AND sena_bp <= 10000),
+  constraint ajustes_taller_condicion_fiscal_valida CHECK (taller_condicion_fiscal IS NULL OR (taller_condicion_fiscal = ANY (ARRAY['monotributo'::text, 'responsable_inscripto'::text, 'exento'::text]))),
+  constraint ajustes_taller_cuit_formato CHECK (taller_cuit = ''::text OR taller_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
+  constraint ajustes_taller_domicilio_largo CHECK (char_length(taller_domicilio) <= 300),
+  constraint ajustes_taller_email_largo CHECK (char_length(taller_email) <= 200),
+  constraint ajustes_taller_telefono_largo CHECK (char_length(taller_telefono) <= 40),
+  constraint ajustes_taller_titular_largo CHECK (char_length(taller_titular) <= 120),
   constraint ajustes_tasa_valida CHECK (tasa_cocos_anual_bp >= 0 AND tasa_cocos_anual_bp <= 100000),
   constraint ajustes_tiktok_link_formato CHECK (tiktok_link = ''::text OR tiktok_link ~ '^https://www\.tiktok\.com/@[a-z0-9._]{2,24}$'::text)
 );
@@ -142,6 +158,14 @@ comment on column public.ajustes.fila is 'La fila del taller: los pasos con su t
 comment on column public.ajustes.fila_version is 'La revisión de la fila. Suma uno cada vez que se guarda y cada vez que cambia algo que cambia el reparto (sin fila guardada, el sueldo, los costos fijos o sueldo_tope_mensual; siempre, perdido_con_sueldo y perdido_con_diezmo). Un cobro armado con otra revisión rebota con MN006. Arranca en 0.';
 comment on column public.ajustes.fila_guardada_at is 'Cuándo se guardó la fila por última vez, o null si nunca se guardó. Es el «rige» del rótulo del plano.';
 comment on column public.ajustes.relevamiento_centavos is 'Cuánto cobra el taller el relevamiento técnico (la visita para medir), o null si no se le muestra el precio al cliente. Arranca en 12000000 ($ 120.000). Viaja a la vista del cliente solo antes de mandar el presupuesto, y la página lo muestra mientras falta ir a medir. No es un pago ni crea uno: lo que el cliente paga por la visita es un pago del trabajo y queda a cuenta de la seña (ADR 0047 y 0079).';
+comment on column public.ajustes.taller_titular is 'El nombre o la razón social a nombre de quien está el CUIT del taller, o vacío. Va en el encabezado del presupuesto (ADR 0080).';
+comment on column public.ajustes.taller_cuit is 'El CUIT del taller con guiones (NN-NNNNNNNN-N), o vacío. Mismo formato que cobro_cuit; el dígito verificador lo revisa la app. Va en el encabezado del presupuesto (ADR 0080).';
+comment on column public.ajustes.taller_condicion_fiscal is 'La condición del taller frente al IVA: monotributo, responsable_inscripto o exento, o null si el dueño no la cargó. El presupuesto la muestra como «Responsable Monotributo», «IVA Responsable Inscripto» o «IVA Exento» (ADR 0080).';
+comment on column public.ajustes.taller_domicilio is 'El domicilio del taller, o vacío. Va en el encabezado del presupuesto (ADR 0080).';
+comment on column public.ajustes.taller_telefono is 'El teléfono del taller, o vacío. Va en el presupuesto, y con él la página del cliente ofrece «Escribirle al taller» por WhatsApp (ADR 0080).';
+comment on column public.ajustes.taller_email is 'El email del taller, o vacío. Va en el encabezado del presupuesto (ADR 0080).';
+comment on column public.ajustes.plantilla_del_presupuesto is 'Los textos de siempre del presupuesto del taller y sus números: lo que incluye, lo que hay que tener en cuenta, las formas de pago, los avisos, las condiciones, la garantía, el plazo de fabricación, las modificaciones incluidas, lo que vale una más y los meses de garantía. Null es la de siempre, PLANTILLA_DE_SIEMPRE de @maun/domain, con los textos del dueño. La valida private.problema_de_la_plantilla() y la escribe solo public.guardar_la_plantilla_del_presupuesto(): no tiene grant de update. Cambiarla no cambia ningún presupuesto ya mandado, que lleva su foto (ADR 0080).';
+comment on column public.ajustes.plantilla_del_presupuesto_version is 'La revisión de la plantilla del presupuesto. Suma uno cada vez que se guarda; un guardado armado con otra revisión rebota con MN030. Arranca en 0.';
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER contar_la_revision_de_la_fila BEFORE UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.contar_la_revision_de_la_fila();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
@@ -155,7 +179,7 @@ create policy ajustes_lectura on public.ajustes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.ajustes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.ajustes to service_role;
-grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos) on public.ajustes to authenticated;
+grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos, taller_titular, taller_cuit, taller_condicion_fiscal, taller_domicilio, taller_telefono, taller_email) on public.ajustes to authenticated;
 
 create table public.anotaciones (
   id uuid not null default private.uuidv7(),
@@ -911,6 +935,47 @@ grant delete, insert, maintain, references, select, trigger, truncate, update on
 grant insert (id, serie, numero, proyecto_id, orden, texto, tipo, escala, obligatoria, opciones, archivada_at, deleted_at) on public.preguntas to authenticated;
 grant update (id, serie, numero, proyecto_id, orden, texto, tipo, escala, obligatoria, opciones, archivada_at, deleted_at) on public.preguntas to authenticated;
 
+create table public.presupuestos (
+  id uuid not null default private.uuidv7(),
+  household_id uuid not null default private.household_actual(),
+  proyecto_id uuid not null,
+  contenido jsonb not null,
+  borrador_version integer not null default 0,
+  numero text,
+  aceptado_el date,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone,
+  version integer not null default 1,
+  constraint presupuestos_borrador_version_valida CHECK (borrador_version >= 0),
+  constraint presupuestos_contenido_es_un_objeto CHECK (jsonb_typeof(contenido) = 'object'::text),
+  constraint presupuestos_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint presupuestos_household_id_key UNIQUE (household_id, id),
+  constraint presupuestos_numero_formato CHECK (numero IS NULL OR numero ~ '^[0-9]{8}-[0-9]{2,}$'::text),
+  constraint presupuestos_numero_unico UNIQUE (household_id, numero),
+  constraint presupuestos_pkey PRIMARY KEY (id),
+  constraint presupuestos_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id)
+);
+comment on table public.presupuestos is 'El borrador del presupuesto de cada trabajo, uno vivo por trabajo, fuera del agregado del proyecto: editarlo no sube la version del trabajo ni choca con otro guardado del mismo trabajo. Lo escriben public.guardar_el_presupuesto() (el contenido y su revisión) y public.mandar_el_presupuesto() (el número del primer envío); la app solo lee. La fecha de aceptación la pone el trigger de los cambios de estado (ADR 0080).';
+comment on column public.presupuestos.id is 'El UUIDv7 que manda la app, así la fila optimista y la de la base son la misma.';
+comment on column public.presupuestos.household_id is 'Default: el household del usuario de la sesión. Las funciones que escriben la tabla lo ponen explícito.';
+comment on column public.presupuestos.contenido is 'El borrador, el BorradorDelPresupuesto de @maun/domain: el título, la obra, la descripción, los muebles, los herrajes, las cláusulas tildadas y las propias de este trabajo, la forma de pago elegida, el plazo y los días que vale. No guarda importes: el total y las opciones son los del trabajo. Lo valida private.problema_del_presupuesto(), que es permisivo, porque un borrador puede estar a medio hacer.';
+comment on column public.presupuestos.borrador_version is 'La revisión del borrador, aparte de la version de la fila. La suma solo public.guardar_el_presupuesto(), de a uno, y la comparan las dos funciones: un guardado o un envío armado con otra rebota con MN026. La version de la fila no sirve para eso, porque sube también con el número y con aceptado_el.';
+comment on column public.presupuestos.numero is 'El número del presupuesto, AAAAMMDD-NN: el día del primer envío y el orden de ese día en el taller, contando los borrados. Null hasta el primer envío; lo pone public.mandar_el_presupuesto() con los ajustes del taller bloqueados, y las revisiones lo mantienen.';
+comment on column public.presupuestos.aceptado_el is 'El día en que el cliente lo aprobó, o null. Lo pone el trigger de los cambios de estado cuando el trabajo pasa de una consulta a en_curso, y lo vuelve a null si vuelve a una consulta; no lo escribe nadie más. La ficha y la página del cliente leen la misma fecha.';
+comment on column public.presupuestos.deleted_at is 'Se borra solo con su trabajo, por private.borrar_el_presupuesto_del_trabajo().';
+CREATE INDEX presupuestos_household_actualizado ON public.presupuestos USING btree (household_id, updated_at);
+CREATE INDEX presupuestos_household_proyecto ON public.presupuestos USING btree (household_id, proyecto_id);
+CREATE UNIQUE INDEX presupuestos_uno_vivo_por_trabajo ON public.presupuestos USING btree (household_id, proyecto_id) WHERE (deleted_at IS NULL);
+CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON presupuestos FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
+CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON presupuestos FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+alter table public.presupuestos enable row level security;
+create policy presupuestos_lectura on public.presupuestos as permissive
+  for select to authenticated
+  using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+grant select on public.presupuestos to authenticated;
+grant delete, insert, maintain, references, select, trigger, truncate, update on public.presupuestos to service_role;
+
 create table public.propuestas_de_entrega (
   id uuid not null default private.uuidv7(),
   household_id uuid not null default private.household_actual(),
@@ -1408,6 +1473,52 @@ grant select on public.respuestas_de_entrega to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.respuestas_de_entrega to service_role;
 grant update (leida_at) on public.respuestas_de_entrega to authenticated;
 
+create table public.revisiones_del_presupuesto (
+  id uuid not null default private.uuidv7(),
+  household_id uuid not null default private.household_actual(),
+  presupuesto_id uuid not null,
+  proyecto_id uuid not null,
+  revision integer not null,
+  numero text not null,
+  mandado_el date not null,
+  vale_hasta date,
+  que_cambio text,
+  contenido jsonb not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone,
+  version integer not null default 1,
+  constraint revisiones_del_presupuesto_contenido_es_un_objeto CHECK (jsonb_typeof(contenido) = 'object'::text),
+  constraint revisiones_del_presupuesto_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint revisiones_del_presupuesto_numero_formato CHECK (numero ~ '^[0-9]{8}-[0-9]{2,}$'::text),
+  constraint revisiones_del_presupuesto_pkey PRIMARY KEY (id),
+  constraint revisiones_del_presupuesto_presupuesto_fk FOREIGN KEY (household_id, presupuesto_id) REFERENCES presupuestos(household_id, id),
+  constraint revisiones_del_presupuesto_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id),
+  constraint revisiones_del_presupuesto_que_cambio_largo CHECK (que_cambio IS NULL OR char_length(que_cambio) <= 280),
+  constraint revisiones_del_presupuesto_revision_unica UNIQUE (household_id, presupuesto_id, revision),
+  constraint revisiones_del_presupuesto_revision_valida CHECK (revision >= 1)
+);
+comment on table public.revisiones_del_presupuesto is 'Cada envío del presupuesto, congelado: la foto completa del documento que vio el cliente, con su número, su revisión y su día, que nadie edita después. Es la regla de lo que se mandó lleva su foto (ADR 0057): cambiar el borrador o la plantilla no cambia lo mandado, y el PDF de una revisión se rehace igual. La escribe solo public.mandar_el_presupuesto(); la app no tiene grant de insert ni de update. ARCA pide conservar los presupuestos dos años: no se borra, salvo con su trabajo (ADR 0080).';
+comment on column public.revisiones_del_presupuesto.id is 'El UUIDv7 que manda la app al mandarlo: con él la base reconoce el reenvío de la cola y no congela dos veces.';
+comment on column public.revisiones_del_presupuesto.household_id is 'Default: el household del usuario de la sesión. public.mandar_el_presupuesto() lo pone explícito.';
+comment on column public.revisiones_del_presupuesto.revision is 'Desde 1, una más por cada envío del mismo presupuesto. Después de aprobado no hay revisiones (MN028).';
+comment on column public.revisiones_del_presupuesto.numero is 'El número del presupuesto, el mismo en todas sus revisiones.';
+comment on column public.revisiones_del_presupuesto.mandado_el is 'El día del envío, que manda la app y no puede ser posterior a hoy en el taller (MN033).';
+comment on column public.revisiones_del_presupuesto.vale_hasta is 'Hasta cuándo valía este envío, para la historia, o null si se mandó sin vencimiento. La vigencia viva es la del trabajo, proyectos.presupuesto_vale_hasta, que el dueño puede extender.';
+comment on column public.revisiones_del_presupuesto.que_cambio is 'Lo que cambió desde la revisión anterior, en palabras del dueño y sin blancos en las puntas: obligatorio desde la segunda, de hasta 280 caracteres; null en la primera. El cliente lo ve arriba del presupuesto.';
+comment on column public.revisiones_del_presupuesto.contenido is 'El DocumentoDelPresupuesto de @maun/domain tal como se mandó: los textos con sus huecos completados, los importes, la seña, lo pagado hasta ese día (abonado), los datos del taller y el nombre del cliente. Lo arma la app, y la base valida su forma (private.problema_del_documento()) y compara sus importes con los del trabajo antes de congelarlo.';
+comment on column public.revisiones_del_presupuesto.deleted_at is 'Se borra solo con su trabajo, por private.borrar_el_presupuesto_del_trabajo().';
+CREATE INDEX revisiones_del_presupuesto_household_actualizado ON public.revisiones_del_presupuesto USING btree (household_id, updated_at);
+CREATE INDEX revisiones_del_presupuesto_household_proyecto ON public.revisiones_del_presupuesto USING btree (household_id, proyecto_id);
+CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON revisiones_del_presupuesto FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
+CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON revisiones_del_presupuesto FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+alter table public.revisiones_del_presupuesto enable row level security;
+create policy revisiones_del_presupuesto_lectura on public.revisiones_del_presupuesto as permissive
+  for select to authenticated
+  using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+grant select on public.revisiones_del_presupuesto to authenticated;
+grant delete, insert, maintain, references, select, trigger, truncate, update on public.revisiones_del_presupuesto to service_role;
+
 create table public.tesoros (
   id uuid not null default private.uuidv7(),
   household_id uuid not null default private.household_actual(),
@@ -1742,6 +1853,12 @@ AS $function$
     ),
     'fotos_de_la_vidriera', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.deleted_at is null
+    ),
+    'presupuestos', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.presupuestos t where t.deleted_at is null
+    ),
+    'revisiones_del_presupuesto', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.revisiones_del_presupuesto t where t.deleted_at is null
     )
   )
 $function$;
@@ -2012,6 +2129,12 @@ begin
     ),
     'fotos_de_la_vidriera', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.updated_at >= v_desde
+    ),
+    'presupuestos', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.presupuestos t where t.updated_at >= v_desde
+    ),
+    'revisiones_del_presupuesto', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.revisiones_del_presupuesto t where t.updated_at >= v_desde
     )
   );
 end;
@@ -2140,6 +2263,16 @@ $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function estado_de_mis_avisos(text) is 'Si este dispositivo recibe avisos y las preferencias de la persona. preferencias es null hasta que activa los avisos por primera vez.';
 
+CREATE OR REPLACE FUNCTION public.guardar_el_presupuesto(p_id uuid, p_proyecto_id uuid, p_version integer, p_contenido jsonb)
+ RETURNS presupuestos
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select * from private.guardar_el_presupuesto(p_id, p_proyecto_id, p_version, p_contenido)
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function guardar_el_presupuesto(uuid,uuid,integer,jsonb) is 'RPC del editor del presupuesto: guarda el borrador de un trabajo con la revisión que vio la app y devuelve la fila. Ver private.guardar_el_presupuesto().';
+
 CREATE OR REPLACE FUNCTION public.guardar_la_fila(p_version integer, p_fila jsonb)
  RETURNS ajustes
  LANGUAGE sql
@@ -2149,6 +2282,16 @@ AS $function$
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function guardar_la_fila(integer,jsonb) is 'RPC de la pantalla Tesoros: guarda la fila del taller con la revisión que vio la app y devuelve la fila de ajustes. Ver private.guardar_la_fila().';
+
+CREATE OR REPLACE FUNCTION public.guardar_la_plantilla_del_presupuesto(p_version integer, p_plantilla jsonb)
+ RETURNS ajustes
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select * from private.guardar_la_plantilla_del_presupuesto(p_version, p_plantilla)
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function guardar_la_plantilla_del_presupuesto(integer,jsonb) is 'RPC de Ajustes, «Tu presupuesto»: guarda los textos de siempre del presupuesto con la revisión que vio la app y devuelve la fila de ajustes. Ver private.guardar_la_plantilla_del_presupuesto().';
 
 CREATE OR REPLACE FUNCTION public.guardar_preferencias_de_avisos(p_zona text, p_hora time without time zone, p_avisos jsonb)
  RETURNS jsonb
@@ -2813,6 +2956,18 @@ $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function guardar_proyecto(jsonb,jsonb,jsonb,jsonb,jsonb,jsonb) is 'Guarda un proyecto con sus pagos, sus gastos, sus opciones de presupuesto, lo que hace falta para el trabajo y su próximo contacto en una sola transacción, idempotente por el id del proyecto. El alta es un upsert; la edición manda la version que vio el cliente y se rechaza con MN006 si la fila cambió. Las bajas de las filas hijas vienen marcadas con borrado en su propio array. Un pago sin fecha se rechaza con MN016: la fecha la manda la app (ADR 0063); la guarda de la tabla rechaza además una fecha que todavía no llegó y una marca de la apertura que no corresponde. Con opciones vivas, el presupuesto del proyecto sale de la opción aprobada y no de lo que manda el cliente. Entrar en seguimiento, cambiar la fecha y registrar el contacto viajan en p_proximos junto con el estado, y la guarda diferida exige que el trabajo en seguimiento tenga su contacto pendiente (MN019, ADR 0064); al entrar, la etapa a la que vuelve la pone la base. Hasta cuándo vale el presupuesto (presupuesto_vale_hasta), el día en que quedó listo (listo_el), la entrega comprometida con su franja y el tipo de proyecto se escriben solo si la clave viene en el pedido, como el vencimiento (ADR 0067 y 0071); con el trabajo en curso la entrega real va en null, y antes de aprobar el listo y la comprometida también. p_opciones, p_necesidades y p_proximos en null quieren decir "no toques eso", para que un bundle viejo no lo borre; lo mismo la clave ya_en_la_apertura de cada pago. Los cuatro costos estimados no los escribe esta función: van por un update de sus columnas solas.';
 
+CREATE OR REPLACE FUNCTION public.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.mandar_el_presupuesto(
+    p_presupuesto_id, p_revision_id, p_version, p_documento, p_que_cambio, p_mandado_el, p_vale_hasta
+  )
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date) is 'RPC de la hoja de mandar: congela una revisión del presupuesto con el documento que armó la app y devuelve la revisión, el borrador, el trabajo y sus próximos contactos para la réplica. Ver private.mandar_el_presupuesto().';
+
 CREATE OR REPLACE FUNCTION private.anotar_aviso(p_suscripcion uuid, p_dia date, p_mandado boolean)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -2850,11 +3005,33 @@ begin
     (now() at time zone 'America/Argentina/Buenos_Aires')::date
   );
 
+  -- El día en que el cliente aceptó el presupuesto: cuando pasa de una consulta a en curso. Si vuelve
+  -- a una consulta («Volvió a presupuesto», o un perdido que se reactiva), deja de estar aceptado.
+  if tg_op = 'UPDATE' then
+    if new.estado = 'en_curso'
+      and old.estado not in ('en_curso', 'entregado', 'cobrado', 'perdido')
+    then
+      update public.presupuestos b
+      set aceptado_el = (now() at time zone 'America/Argentina/Buenos_Aires')::date
+      where b.household_id = new.household_id
+        and b.proyecto_id = new.id
+        and b.deleted_at is null
+        and b.aceptado_el is distinct from (now() at time zone 'America/Argentina/Buenos_Aires')::date;
+    elsif new.estado not in ('en_curso', 'entregado', 'cobrado', 'perdido') then
+      update public.presupuestos b
+      set aceptado_el = null
+      where b.household_id = new.household_id
+        and b.proyecto_id = new.id
+        and b.deleted_at is null
+        and b.aceptado_el is not null;
+    end if;
+  end if;
+
   return null;
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.anotar_el_cambio_de_estado() is 'Anota en public.cambios_de_estado cada vez que un trabajo cambia de etapa, venga de donde venga (el agregado, el cobro, la reapertura). Es security definer porque la app no tiene grant de insert sobre esa tabla: la historia no la escribe el cliente.';
+comment on function private.anotar_el_cambio_de_estado() is 'Anota en public.cambios_de_estado cada vez que un trabajo cambia de etapa, venga de donde venga (el agregado, el cobro, la reapertura, el envío del presupuesto), y le pone a su presupuesto el día en que se aceptó (aceptado_el) cuando pasa de una consulta a en curso, o se lo saca cuando vuelve a una consulta (ADR 0080). Es security definer porque la app no tiene grant de insert sobre cambios_de_estado ni de update sobre presupuestos: la historia y la aceptación no las escribe el cliente.';
 
 CREATE OR REPLACE FUNCTION private.anotar_los_cambios_de_fecha()
  RETURNS trigger
@@ -3230,6 +3407,34 @@ $function$;
 -- execute: service_role:EXECUTE
 comment on function private.avisos_por_mandar(timestamp with time zone) is 'Los dispositivos a los que les toca el aviso de la mañana en este momento, según la zona horaria y la hora de cada persona, con su zona y los datos de su taller que necesita la agenda: los trabajos, los clientes, las anotaciones, los contactos en seguimiento pendientes y, para los vencimientos de los compromisos, los ajustes con la fila, los tesoros y los gastos desde un tesoro de los meses que mira el aviso. Qué avisar lo decide eventosParaAvisar de @maun/domain en la función de borde, no esta consulta.';
 
+CREATE OR REPLACE FUNCTION private.borrar_el_presupuesto_del_trabajo(p_household_id uuid, p_proyecto_id uuid, p_momento timestamp with time zone)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  -- Solo con el trabajo ya borrado. El dueño no tiene grant para borrar un borrador ni una revisión, y
+  -- esta puerta no le abre ese camino para un trabajo vivo.
+  if not exists (
+    select 1 from public.proyectos p
+    where p.household_id = p_household_id and p.id = p_proyecto_id and p.deleted_at is not null
+  ) then
+    return;
+  end if;
+
+  update public.revisiones_del_presupuesto r
+  set deleted_at = p_momento
+  where r.household_id = p_household_id and r.proyecto_id = p_proyecto_id and r.deleted_at is null;
+
+  update public.presupuestos b
+  set deleted_at = p_momento
+  where b.household_id = p_household_id and b.proyecto_id = p_proyecto_id and b.deleted_at is null;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.borrar_el_presupuesto_del_trabajo(uuid,uuid,timestamp with time zone) is 'Borra, con la marca del trabajo, el borrador del presupuesto y sus revisiones de un trabajo que ya se borró. Es security definer porque el dueño no tiene grant para escribir ninguna de las dos: la llama private.borrar_hijos_de_proyecto(), y no hace nada si el trabajo está vivo (ADR 0080).';
+
 CREATE OR REPLACE FUNCTION private.borrar_hijos_de_proyecto()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3287,6 +3492,9 @@ begin
     and deleted_at is null;
 
   perform private.borrar_la_entrega_del_trabajo(new.household_id, new.id, new.deleted_at);
+
+  -- El borrador del presupuesto y lo que se mandó, que el dueño tampoco puede borrar a mano.
+  perform private.borrar_el_presupuesto_del_trabajo(new.household_id, new.id, new.deleted_at);
 
   -- La encuesta que se le mandó, lo que contestó y sus preguntas propias. El enlace deja de
   -- funcionar con el trabajo.
@@ -4255,6 +4463,109 @@ $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.formas_de_cobro(forma_de_cobro[],boolean) is 'Las formas que valen para una instancia de pago: lo que el dueño guardó, o el valor por defecto. Por defecto son las dos, salvo que el taller no tenga ni alias ni CBU cargados en Ajustes, y entonces solo efectivo: ofrecer transferencia sin adónde transferir sería mandarle al cliente una pantalla vacía. Tiene gemela en TypeScript (formasDeCobro, en @maun/domain), que es la que usa la pantalla del dueño; las dos se comparan en scripts/comparacion.ts (ADR 0053).';
 
+CREATE OR REPLACE FUNCTION private.guardar_el_presupuesto(p_id uuid, p_proyecto_id uuid, p_version integer, p_contenido jsonb)
+ RETURNS presupuestos
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid := private.household_actual();
+  v_proyecto public.proyectos;
+  v_presupuesto public.presupuestos;
+  v_problema text;
+begin
+  if num_nulls(p_id, p_proyecto_id, p_version, p_contenido) > 0 then
+    raise exception 'Guardar el presupuesto necesita su id, el trabajo, la revisión que viste y el borrador'
+      using errcode = '22004';
+  end if;
+
+  -- El trabajo, bloqueado antes de mirar el borrador: un envío o un guardado del mismo trabajo que
+  -- corre en paralelo termina antes o espera. Sin RLS acá adentro, toda lectura va por el taller de la
+  -- sesión.
+  select p.* into v_proyecto
+  from public.proyectos p
+  where p.household_id = v_household and p.id = p_proyecto_id
+  for update;
+
+  if not found then
+    raise exception 'El trabajo no existe o no es tuyo' using errcode = '42501';
+  end if;
+
+  if v_proyecto.deleted_at is not null then
+    raise exception 'El proyecto está borrado' using errcode = 'MN002';
+  end if;
+
+  select b.* into v_presupuesto
+  from public.presupuestos b
+  where b.household_id = v_household and b.proyecto_id = p_proyecto_id and b.deleted_at is null;
+
+  -- El reenvío de la cola: este mismo borrador ya se guardó y la respuesta se perdió. Se devuelve tal
+  -- cual, sin rechazar algo que salió bien.
+  if v_presupuesto.id = p_id
+    and v_presupuesto.borrador_version = p_version + 1
+    and v_presupuesto.contenido = p_contenido
+  then
+    return v_presupuesto;
+  end if;
+
+  -- Otro aparato lo cambió, o lo arrancó con otro id mientras este no tenía señal: el mismo rechazo, y
+  -- antes del insert, porque el índice único daría un 23505 que tapa la cola.
+  if (v_presupuesto.id is not null and v_presupuesto.id <> p_id)
+    or coalesce(v_presupuesto.borrador_version, 0) <> p_version
+  then
+    raise exception 'Este presupuesto se cambió en otro aparato.'
+      using errcode = 'MN026',
+            detail = case
+              when v_presupuesto.id <> p_id then 'el trabajo ya tiene otro borrador'
+              else format(
+                'revisión vista %s, revisión actual %s', p_version, coalesce(v_presupuesto.borrador_version, 0)
+              )
+            end,
+            hint = 'Abrilo de nuevo para ver la última versión y seguí desde ahí.';
+  end if;
+
+  if v_proyecto.estado in ('en_curso', 'entregado', 'cobrado') then
+    raise exception 'Ya lo aprobó: el presupuesto no se cambia.'
+      using errcode = 'MN028',
+            detail = v_proyecto.estado::text,
+            hint = 'Un cambio después de la seña se arregla aparte con tu cliente.';
+  end if;
+
+  if v_proyecto.estado = 'perdido' then
+    raise exception 'Este trabajo está perdido: su presupuesto no se cambia.'
+      using errcode = 'MN032',
+            detail = 'perdido',
+            hint = 'Si el cliente volvió, reactivalo desde la ficha y seguí desde ahí.';
+  end if;
+
+  -- El código del problema va en el detail, para el registro. La pantalla no deja escribir de más.
+  v_problema := private.problema_del_presupuesto(p_contenido);
+  if v_problema is not null then
+    raise exception 'El presupuesto no se pudo guardar.'
+      using errcode = 'MN031',
+            detail = v_problema,
+            hint = 'Revisalo y probá de nuevo.';
+  end if;
+
+  if v_presupuesto.id is null then
+    insert into public.presupuestos (id, household_id, proyecto_id, contenido, borrador_version)
+    values (p_id, v_household, p_proyecto_id, p_contenido, 1)
+    returning * into v_presupuesto;
+  else
+    update public.presupuestos set
+      contenido = p_contenido,
+      borrador_version = borrador_version + 1
+    where id = v_presupuesto.id
+    returning * into v_presupuesto;
+  end if;
+
+  return v_presupuesto;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.guardar_el_presupuesto(uuid,uuid,integer,jsonb) is 'Guarda el borrador del presupuesto de un trabajo con el molde de private.guardar_la_fila(): bloquea el trabajo, compara la revisión del borrador que vio la app (MN026, también si el trabajo ya tiene otro borrador vivo, antes del insert), rechaza si el trabajo está aprobado (MN028) o perdido (MN032), valida con private.problema_del_presupuesto() (MN031, con el código en el detail), hace el alta o la edición y suma uno a borrador_version. Reconoce el reenvío idéntico: el mismo borrador con la revisión siguiente. Toda lectura filtra por el taller de la sesión (ADR 0080).';
+
 CREATE OR REPLACE FUNCTION private.guardar_la_fila(p_version integer, p_fila jsonb)
  RETURNS ajustes
  LANGUAGE plpgsql
@@ -4336,6 +4647,73 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.guardar_la_fila(integer,jsonb) is 'Guarda la fila del taller: bloquea los ajustes, compara la revisión que vio la app (MN006), valida la fila con private.problema_de_la_fila() contra los tesoros del taller y sus metas (la de Cocos, de ajustes) (MN023, con el código del problema en el detail), la guarda, suma una revisión y anota la fecha. Con la fila en null vuelve a la fila de siempre. Reconoce el reenvío idéntico: la misma fila con la revisión siguiente. Los cambios valen desde el próximo cobro: no toca ninguna liquidación hecha (ADR 0003 y 0078).';
+
+CREATE OR REPLACE FUNCTION private.guardar_la_plantilla_del_presupuesto(p_version integer, p_plantilla jsonb)
+ RETURNS ajustes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_ajustes public.ajustes;
+  v_problema text;
+begin
+  if p_version is null then
+    raise exception 'Guardar la plantilla necesita la revisión que viste' using errcode = '22004';
+  end if;
+
+  -- El candado de los ajustes del taller, como guardar_la_fila: dos guardados a la vez se esperan, y
+  -- un presupuesto que se está mandando ve la plantilla de antes o la de después.
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = private.household_actual()
+  for no key update;
+
+  if not found then
+    raise exception 'El household no tiene ajustes' using errcode = 'P0002';
+  end if;
+
+  -- El reenvío de la cola: esta misma plantilla ya se guardó y la respuesta se perdió. Se devuelve tal
+  -- cual, sin rechazar algo que salió bien.
+  if v_ajustes.plantilla_del_presupuesto_version = p_version + 1
+    and v_ajustes.plantilla_del_presupuesto is not distinct from p_plantilla
+  then
+    return v_ajustes;
+  end if;
+
+  if v_ajustes.plantilla_del_presupuesto_version <> p_version then
+    raise exception 'Los textos del presupuesto se cambiaron en otro aparato.'
+      using errcode = 'MN030',
+            detail = format(
+              'revisión vista %s, revisión actual %s', p_version, v_ajustes.plantilla_del_presupuesto_version
+            ),
+            hint = 'Abrí la pantalla de nuevo y volvé a guardar.';
+  end if;
+
+  -- Null vuelve a la plantilla de siempre: es «Volver a los textos de siempre» de Ajustes.
+  if p_plantilla is not null then
+    -- El código del problema va en el detail, para el registro. La pantalla ya frena antes con
+    -- problemaDeLaPlantilla, que es la misma cuenta.
+    v_problema := private.problema_de_la_plantilla(p_plantilla);
+    if v_problema is not null then
+      raise exception 'Los textos del presupuesto no se pudieron guardar.'
+        using errcode = 'MN031',
+              detail = v_problema,
+              hint = 'Revisalos y probá de nuevo.';
+    end if;
+  end if;
+
+  update public.ajustes set
+    plantilla_del_presupuesto = p_plantilla,
+    plantilla_del_presupuesto_version = plantilla_del_presupuesto_version + 1
+  where id = v_ajustes.id
+  returning * into v_ajustes;
+
+  return v_ajustes;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.guardar_la_plantilla_del_presupuesto(integer,jsonb) is 'Guarda la plantilla del presupuesto del taller con el molde de private.guardar_la_fila(): bloquea los ajustes, compara la revisión que vio la app (MN030), valida la plantilla con private.problema_de_la_plantilla() (MN031, con el código del problema en el detail), la guarda y suma una revisión. Con la plantilla en null vuelve a la de siempre. Reconoce el reenvío idéntico: la misma plantilla con la revisión siguiente. No toca ningún presupuesto ya mandado (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.guardar_preferencias_de_avisos(p_zona text, p_hora time without time zone, p_avisos jsonb)
  RETURNS jsonb
@@ -5320,6 +5698,65 @@ $function$;
 -- execute: solo el dueño
 comment on function private.lo_del_mes_es_otro(uuid[],uuid[],jsonb,jsonb) is 'Si lo que la app vio, {tesoro_id: centavos}, no es lo que calculó la base: algún paso con otro previo (el que falta cuenta como cero) o alguna parte con tope en uno y sin tope en el otro, o con otro tope. Las claves que no son de los pasos ni de las partes no se miran. Null en lo visto es que la app no lo mandó: no hay nada con qué ajustar. Gemela de loVistoEsOtro en fila.ts (ADR 0078).';
 
+CREATE OR REPLACE FUNCTION private.lo_que_falta_para_mandar(p_documento jsonb, p_revision integer, p_que_cambio text)
+ RETURNS text[]
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  v_falta text[] := array[]::text[];
+  v_valores jsonb := p_documento -> 'valores';
+  v_escrito text;
+begin
+  if coalesce(p_documento ->> 'titulo', '') !~ '[^ \t\n\r\f\v]' then
+    v_falta := v_falta || 'titulo'::text;
+  end if;
+
+  if not coalesce(
+    case
+      when jsonb_typeof(p_documento -> 'muebles') = 'array' then exists (
+        select 1
+        from jsonb_array_elements(p_documento -> 'muebles') as m (valor)
+        where coalesce(m.valor ->> 'descripcion', '') ~ '[^ \t\n\r\f\v]'
+      )
+    end,
+    false
+  ) then
+    v_falta := v_falta || 'muebles'::text;
+  end if;
+
+  if jsonb_typeof(v_valores) is distinct from 'object' then
+    v_falta := v_falta || 'valores'::text;
+  elsif v_valores ->> 'tipo' = 'total' then
+    if coalesce(private.entero_de_json(v_valores -> 'total') <= 0, true) then
+      v_falta := v_falta || 'valores'::text;
+    end if;
+  elsif jsonb_typeof(v_valores -> 'opciones') is distinct from 'array' then
+    v_falta := v_falta || 'valores'::text;
+  elsif jsonb_array_length(v_valores -> 'opciones') = 0
+    or exists (
+      select 1
+      from jsonb_array_elements(v_valores -> 'opciones') as o (valor)
+      where coalesce(private.entero_de_json(o.valor -> 'total') <= 0, true)
+    )
+  then
+    v_falta := v_falta || 'valores'::text;
+  end if;
+
+  if p_revision > 1 then
+    v_escrito := regexp_replace(coalesce(p_que_cambio, ''), '^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$', '', 'g');
+    if v_escrito = '' or char_length(v_escrito) > 280 then
+      v_falta := v_falta || 'queCambio'::text;
+    end if;
+  end if;
+
+  return v_falta;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.lo_que_falta_para_mandar(jsonb,integer,text) is 'Lo que le falta a un documento para mandarlo, con los mismos campos y en el mismo orden que problemasParaMandar en presupuesto.ts: titulo si no tiene título, muebles si ningún mueble tiene su detalle, valores si no hay total o alguna opción no tiene importe, y queCambio si desde la segunda revisión no dice qué cambió o pasa de 280 caracteres. Vacío si no falta nada. Recibe un documento que ya pasó private.problema_del_documento(). scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+
 CREATE OR REPLACE FUNCTION private.mandar_el_aviso_de_cambios(p_household uuid)
  RETURNS void
  LANGUAGE sql
@@ -5329,6 +5766,251 @@ AS $function$
 $function$;
 -- execute: solo el dueño
 comment on function private.mandar_el_aviso_de_cambios(uuid) is 'Manda el aviso de cambios al canal privado del taller, cambios:<household_id>, con el evento cambios y un payload vacío (realtime.send le agrega solo un id). Gemela de TEMA_DE_LOS_CAMBIOS y EVENTO_DE_LOS_CAMBIOS de @maun/db. realtime.send no corta la transacción si falla: la escritura del usuario vale aunque el aviso no salga.';
+
+CREATE OR REPLACE FUNCTION private.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid := private.household_actual();
+  v_proyecto_id uuid;
+  v_proyecto public.proyectos;
+  v_ajustes public.ajustes;
+  v_presupuesto public.presupuestos;
+  v_revision public.revisiones_del_presupuesto;
+  v_siguiente integer;
+  v_del_dia integer;
+  v_problema text;
+  v_falta text[];
+  v_vivos jsonb;
+  v_mandados jsonb;
+  v_pagado bigint;
+  v_distintos text[] := array[]::text[];
+begin
+  if num_nulls(p_presupuesto_id, p_revision_id, p_version, p_documento, p_mandado_el) > 0 then
+    raise exception 'Mandar el presupuesto necesita el borrador, la revisión, la revisión que viste, el documento y el día'
+      using errcode = '22004';
+  end if;
+
+  -- El trabajo del borrador. Se lee sin candado: un borrador nunca cambia de trabajo.
+  select b.proyecto_id into v_proyecto_id
+  from public.presupuestos b
+  where b.household_id = v_household and b.id = p_presupuesto_id;
+
+  if not found then
+    raise exception 'El presupuesto no existe o no es tuyo' using errcode = '42501';
+  end if;
+
+  -- Los candados en el orden de la liquidación: el trabajo y después los ajustes del taller. Con el
+  -- trabajo, un reintento del mismo envío espera al primero; con los ajustes, dos envíos del mismo
+  -- taller cuentan los números del día de a uno.
+  select p.* into v_proyecto
+  from public.proyectos p
+  where p.household_id = v_household and p.id = v_proyecto_id
+  for update;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = v_household
+  for no key update;
+
+  -- El reenvío de la cola, mirado con los dos candados tomados: este envío ya se congeló y la respuesta
+  -- se perdió. Se devuelve lo que quedó, sin congelar ni numerar dos veces.
+  select r.* into v_revision
+  from public.revisiones_del_presupuesto r
+  where r.household_id = v_household and r.id = p_revision_id;
+
+  if found then
+    if v_revision.presupuesto_id <> p_presupuesto_id then
+      raise exception 'El presupuesto no se pudo mandar.'
+        using errcode = 'MN031',
+              detail = 'revisión de otro presupuesto',
+              hint = 'Revisalo y probá de nuevo.';
+    end if;
+
+    select b.* into v_presupuesto
+    from public.presupuestos b
+    where b.household_id = v_household and b.id = p_presupuesto_id;
+
+    return jsonb_build_object(
+      'revision', to_jsonb(v_revision),
+      'presupuesto', to_jsonb(v_presupuesto),
+      'proyecto', to_jsonb(v_proyecto),
+      'proximos_contactos', (
+        select coalesce(jsonb_agg(to_jsonb(c)), '[]'::jsonb)
+        from public.proximos_contactos c
+        where c.household_id = v_household and c.proyecto_id = v_proyecto.id
+      )
+    );
+  end if;
+
+  if v_proyecto.deleted_at is not null then
+    raise exception 'El proyecto está borrado' using errcode = 'MN002';
+  end if;
+
+  -- Con el trabajo bloqueado, el borrador no cambia más hasta que esto termine.
+  select b.* into v_presupuesto
+  from public.presupuestos b
+  where b.household_id = v_household and b.id = p_presupuesto_id;
+
+  if v_presupuesto.borrador_version <> p_version then
+    raise exception 'Este presupuesto se cambió en otro aparato.'
+      using errcode = 'MN026',
+            detail = format('revisión vista %s, revisión actual %s', p_version, v_presupuesto.borrador_version),
+            hint = 'Abrilo de nuevo para ver la última versión y seguí desde ahí.';
+  end if;
+
+  -- Después de aprobado no hay revisiones: un cambio después de la seña es un adicional.
+  if v_proyecto.estado in ('en_curso', 'entregado', 'cobrado') then
+    raise exception 'Ya lo aprobó: el presupuesto no se cambia.'
+      using errcode = 'MN028',
+            detail = v_proyecto.estado::text,
+            hint = 'Un cambio después de la seña se arregla aparte con tu cliente.';
+  end if;
+
+  if v_proyecto.estado = 'perdido' then
+    raise exception 'Este trabajo está perdido: el presupuesto no se manda.'
+      using errcode = 'MN032',
+            detail = 'perdido',
+            hint = 'Si el cliente volvió, reactivalo desde la ficha y mandalo desde ahí.';
+  end if;
+
+  if p_mandado_el > private.hoy_en_el_taller() then
+    raise exception 'El día del envío todavía no llegó.'
+      using errcode = 'MN033',
+            detail = format('mandado el %s, hoy %s', p_mandado_el, private.hoy_en_el_taller()),
+            hint = 'Revisá la fecha del aparato y volvé a mandarlo.';
+  end if;
+
+  v_problema := private.problema_del_documento(p_documento);
+  if v_problema is not null then
+    raise exception 'El presupuesto no se pudo mandar.'
+      using errcode = 'MN031',
+            detail = v_problema,
+            hint = 'Revisalo y probá de nuevo.';
+  end if;
+
+  select coalesce(max(r.revision), 0) + 1 into v_siguiente
+  from public.revisiones_del_presupuesto r
+  where r.household_id = v_household and r.presupuesto_id = v_presupuesto.id;
+
+  v_falta := private.lo_que_falta_para_mandar(p_documento, v_siguiente, p_que_cambio);
+  if cardinality(v_falta) > 0 then
+    raise exception 'Al presupuesto le falta algo para mandarlo.'
+      using errcode = 'MN027',
+            detail = array_to_string(v_falta, ', '),
+            hint = 'Revisá que tenga título, por lo menos un mueble con su detalle y un total.';
+  end if;
+
+  -- Los importes que vio la app contra los vivos, como el control de lo que vio la app de la
+  -- liquidación: las opciones (ids, importes y orden por id) o el total, el porcentaje de seña efectivo
+  -- y lo pagado hasta hoy. Si no coinciden, no se congela nada.
+  select coalesce(jsonb_agg(jsonb_build_array(o.id::text, o.monto_centavos) order by o.id), '[]'::jsonb)
+  into v_vivos
+  from public.opciones_de_presupuesto o
+  where o.household_id = v_household and o.proyecto_id = v_proyecto.id and o.deleted_at is null;
+
+  v_vivos := case
+    when jsonb_array_length(v_vivos) > 0 then jsonb_build_object('opciones', v_vivos)
+    when v_proyecto.presupuesto_centavos is not null then
+      jsonb_build_object('total', v_proyecto.presupuesto_centavos)
+    else 'null'::jsonb
+  end;
+
+  v_mandados := case
+    when p_documento #>> '{valores,tipo}' = 'opciones' then jsonb_build_object(
+      'opciones', (
+        select coalesce(jsonb_agg(jsonb_build_array(e.valor ->> 'id', e.valor -> 'total') order by e.orden), '[]'::jsonb)
+        from jsonb_array_elements(p_documento #> '{valores,opciones}') with ordinality as e (valor, orden)
+      )
+    )
+    when p_documento #>> '{valores,tipo}' = 'total' then
+      jsonb_build_object('total', p_documento #> '{valores,total}')
+    else 'null'::jsonb
+  end;
+
+  if v_vivos is distinct from v_mandados then
+    v_distintos := v_distintos || 'valores'::text;
+  end if;
+
+  if p_documento -> 'senaBp' is distinct from to_jsonb(coalesce(v_proyecto.sena_bp, v_ajustes.sena_bp)) then
+    v_distintos := v_distintos || 'sena'::text;
+  end if;
+
+  select coalesce(sum(g.monto_centavos), 0) into v_pagado
+  from public.pagos g
+  where g.household_id = v_household and g.proyecto_id = v_proyecto.id and g.deleted_at is null;
+
+  if p_documento -> 'abonado' is distinct from to_jsonb(v_pagado) then
+    v_distintos := v_distintos || 'abonado'::text;
+  end if;
+
+  if cardinality(v_distintos) > 0 then
+    raise exception 'Cambiaron los importes desde que lo armaste.'
+      using errcode = 'MN029',
+            detail = array_to_string(v_distintos, ', '),
+            hint = 'Revisá los valores y volvé a mandarlo.';
+  end if;
+
+  -- El número, en el primer envío: el día y el siguiente de ese día en el taller, contando los
+  -- borrados, así un número no se reusa. Los ajustes bloqueados ordenan a dos envíos del mismo taller.
+  if v_presupuesto.numero is null then
+    select coalesce(max(split_part(r.numero, '-', 2)::integer), 0) + 1 into v_del_dia
+    from public.revisiones_del_presupuesto r
+    where r.household_id = v_household
+      and r.numero like to_char(p_mandado_el, 'YYYYMMDD') || '-%';
+
+    update public.presupuestos set
+      numero = to_char(p_mandado_el, 'YYYYMMDD') || '-'
+        || lpad(v_del_dia::text, greatest(2, char_length(v_del_dia::text)), '0')
+    where id = v_presupuesto.id
+    returning * into v_presupuesto;
+  end if;
+
+  insert into public.revisiones_del_presupuesto (
+    id, household_id, presupuesto_id, proyecto_id, revision, numero, mandado_el, vale_hasta, que_cambio,
+    contenido
+  ) values (
+    p_revision_id, v_household, v_presupuesto.id, v_proyecto.id, v_siguiente, v_presupuesto.numero,
+    p_mandado_el, p_vale_hasta,
+    case
+      when v_siguiente > 1 then regexp_replace(p_que_cambio, '^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$', '', 'g')
+    end,
+    p_documento
+  )
+  returning * into v_revision;
+
+  -- Lo mismo que hace hoy «Mandé el presupuesto», más el documento: la etapa si estaba antes (o en
+  -- seguimiento, que cierra su contacto pendiente con el trigger de siempre), la vigencia, el último
+  -- contacto y la tarea del presupuesto tildada. El trigger de siempre anota el cambio de estado.
+  update public.proyectos set
+    estado = case
+      when estado <> 'presupuesto_enviado' and private.transicion_valida(estado, 'presupuesto_enviado')
+        then 'presupuesto_enviado'::public.estado_proyecto
+      else estado
+    end,
+    presupuesto_vale_hasta = p_vale_hasta,
+    ultimo_contacto = p_mandado_el,
+    presupuesto_pdf = true
+  where id = v_proyecto.id
+  returning * into v_proyecto;
+
+  return jsonb_build_object(
+    'revision', to_jsonb(v_revision),
+    'presupuesto', to_jsonb(v_presupuesto),
+    'proyecto', to_jsonb(v_proyecto),
+    'proximos_contactos', (
+      select coalesce(jsonb_agg(to_jsonb(c)), '[]'::jsonb)
+      from public.proximos_contactos c
+      where c.household_id = v_household and c.proyecto_id = v_proyecto.id
+    )
+  );
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date) is 'Manda el presupuesto, en una transacción: bloquea el trabajo y después los ajustes del taller; si la revisión ya existe la devuelve (el reenvío); rechaza si el borrador cambió (MN026), si el trabajo está aprobado (MN028) o perdido (MN032), si el día del envío no llegó (MN033), si el documento no tiene la forma (MN031), si le falta algo para mandarlo (MN027) o si sus importes, su seña o lo pagado no son los del trabajo (MN029); en el primer envío le pone número; congela la revisión siguiente y pasa el trabajo a presupuesto enviado con la vigencia, el último contacto y la tarea tildada. Devuelve la revisión, el borrador, el trabajo y sus próximos contactos. Toda lectura filtra por el taller de la sesión, también la del reenvío (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.mantener_metadatos()
  RETURNS trigger
@@ -6096,6 +6778,621 @@ end;
 $function$;
 -- execute: solo el dueño
 comment on function private.problema_de_la_fila(jsonb,jsonb) is 'El primer problema que impide guardar una fila, con el mismo código y en el mismo orden que problemasDeLaFila en fila.ts, o null si se puede guardar. Lee la forma del primer pedido completando lo que falta con lo de siempre, como leerLaFila, con los ids del diezmo y de Maun sacados de los tesoros. Recibe los tesoros del taller como un arreglo de {id, clave, archivado, meta}: la meta de Cocos es la de ajustes, y un tesoro tiene meta si es mayor que cero. Gemela de primerProblemaDeLaFila (ADR 0078).';
+
+CREATE OR REPLACE FUNCTION private.problema_de_la_plantilla(p_plantilla jsonb)
+ RETURNS text
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  c_grupos constant text[] := array['incluye', 'aTenerEnCuenta', 'avisos', 'condiciones'];
+  v_plazo bigint;
+  v_modificaciones bigint;
+  v_valor bigint;
+  v_meses bigint;
+  v_grupo text;
+  v_elemento jsonb;
+  v_vistos text[];
+  v_id text;
+  v_texto text;
+begin
+  if jsonb_typeof(p_plantilla) is distinct from 'object'
+    or p_plantilla -> 'forma' is distinct from '1'::jsonb
+  then
+    return 'forma-invalida';
+  end if;
+
+  v_plazo := private.entero_de_json(p_plantilla -> 'plazoDeFabricacion');
+  v_modificaciones := private.entero_de_json(p_plantilla -> 'modificacionesIncluidas');
+  v_valor := private.entero_de_json(p_plantilla -> 'valorDeUnaModificacion');
+  v_meses := private.entero_de_json(p_plantilla -> 'garantiaMeses');
+
+  if v_plazo is null or v_modificaciones is null or v_valor is null or v_meses is null
+    or jsonb_typeof(p_plantilla -> 'formasDePago') is distinct from 'array'
+    or jsonb_typeof(p_plantilla -> 'garantia') is distinct from 'string'
+  then
+    return 'forma-invalida';
+  end if;
+
+  -- La forma entera antes que cualquier tope, como en el dominio: cada grupo es una lista de cláusulas
+  -- con su id, su texto, su tilde y un título que puede faltar.
+  foreach v_grupo in array c_grupos loop
+    if jsonb_typeof(p_plantilla -> v_grupo) is distinct from 'array' then
+      return 'forma-invalida';
+    end if;
+    for v_elemento in
+      select e.valor from jsonb_array_elements(p_plantilla -> v_grupo) as e (valor)
+    loop
+      if jsonb_typeof(v_elemento) is distinct from 'object'
+        or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+        or jsonb_typeof(v_elemento -> 'texto') is distinct from 'string'
+        or jsonb_typeof(v_elemento -> 'tildadaPorDefecto') is distinct from 'boolean'
+        or coalesce(jsonb_typeof(v_elemento -> 'titulo'), 'null') not in ('null', 'string')
+      then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  end loop;
+
+  for v_elemento in
+    select e.valor from jsonb_array_elements(p_plantilla -> 'formasDePago') as e (valor)
+  loop
+    if jsonb_typeof(v_elemento) is distinct from 'object'
+      or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'nombre') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'texto') is distinct from 'string'
+    then
+      return 'forma-invalida';
+    end if;
+  end loop;
+
+  if v_plazo not between 1 and 365 then
+    return 'plazo-fuera-de-rango';
+  end if;
+  if v_modificaciones not between 0 and 10 then
+    return 'modificaciones-fuera-de-rango';
+  end if;
+  if v_valor < 0 or v_valor > 1000000000000 then
+    return 'valor-fuera-de-rango';
+  end if;
+  if v_meses not between 6 and 120 then
+    return 'garantia-fuera-de-rango';
+  end if;
+
+  -- Grupo por grupo, y adentro de cada uno, cláusula por cláusula: el primer problema es el que vuelve.
+  foreach v_grupo in array c_grupos loop
+    if jsonb_array_length(p_plantilla -> v_grupo) > 20 then
+      return 'demasiadas-clausulas';
+    end if;
+    v_vistos := array[]::text[];
+    for v_elemento in
+      select e.valor
+      from jsonb_array_elements(p_plantilla -> v_grupo) with ordinality as e (valor, orden)
+      order by e.orden
+    loop
+      v_id := v_elemento ->> 'id';
+      if v_id !~ '^[a-z0-9-]{1,60}$' then
+        return 'id-invalido';
+      end if;
+      if v_id = any (v_vistos) then
+        return 'id-repetido';
+      end if;
+      v_vistos := v_vistos || v_id;
+      if jsonb_typeof(v_elemento -> 'titulo') = 'string'
+        and char_length(v_elemento ->> 'titulo') > 120
+      then
+        return 'titulo-largo';
+      end if;
+      v_texto := v_elemento ->> 'texto';
+      if v_texto !~ '[^ \t\n\r\f\v]' then
+        return 'texto-vacio';
+      end if;
+      if char_length(v_texto) > 2000 then
+        return 'texto-largo';
+      end if;
+    end loop;
+  end loop;
+
+  if jsonb_array_length(p_plantilla -> 'formasDePago') = 0 then
+    return 'sin-formas-de-pago';
+  end if;
+  if jsonb_array_length(p_plantilla -> 'formasDePago') > 6 then
+    return 'demasiadas-formas-de-pago';
+  end if;
+  v_vistos := array[]::text[];
+  for v_elemento in
+    select e.valor
+    from jsonb_array_elements(p_plantilla -> 'formasDePago') with ordinality as e (valor, orden)
+    order by e.orden
+  loop
+    v_id := v_elemento ->> 'id';
+    if v_id !~ '^[a-z0-9-]{1,60}$' then
+      return 'id-invalido';
+    end if;
+    if v_id = any (v_vistos) then
+      return 'id-repetido';
+    end if;
+    v_vistos := v_vistos || v_id;
+    if (v_elemento ->> 'nombre') !~ '[^ \t\n\r\f\v]' then
+      return 'nombre-vacio';
+    end if;
+    if char_length(v_elemento ->> 'nombre') > 60 then
+      return 'nombre-largo';
+    end if;
+    v_texto := v_elemento ->> 'texto';
+    if v_texto !~ '[^ \t\n\r\f\v]' then
+      return 'texto-vacio';
+    end if;
+    if char_length(v_texto) > 2000 then
+      return 'texto-largo';
+    end if;
+  end loop;
+
+  if (p_plantilla ->> 'garantia') !~ '[^ \t\n\r\f\v]' then
+    return 'garantia-vacia';
+  end if;
+  if char_length(p_plantilla ->> 'garantia') > 2000 then
+    return 'garantia-larga';
+  end if;
+
+  return null;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.problema_de_la_plantilla(jsonb) is 'El primer problema que impide guardar una plantilla del presupuesto, con el mismo código y en el mismo orden que problemaDeLaPlantilla en presupuesto.ts, o null si se puede guardar: la forma, los rangos de los números, hasta 20 cláusulas por grupo con ids únicos, títulos de hasta 120 caracteres y textos de hasta 2000 no vacíos, de 1 a 6 formas de pago con nombre de hasta 60, y la garantía. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+
+CREATE OR REPLACE FUNCTION private.problema_del_documento(p_documento jsonb)
+ RETURNS text
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  v_taller jsonb;
+  v_valores jsonb;
+  v_opciones jsonb;
+  v_elemento jsonb;
+  v_lista text;
+  v_sena bigint;
+  v_abonado bigint;
+  v_plazo bigint;
+  v_validez bigint;
+  v_meses bigint;
+begin
+  if jsonb_typeof(p_documento) is distinct from 'object'
+    or p_documento -> 'forma' is distinct from '1'::jsonb
+  then
+    return 'forma-invalida';
+  end if;
+
+  v_taller := p_documento -> 'taller';
+  if jsonb_typeof(v_taller) is distinct from 'object'
+    or jsonb_typeof(v_taller -> 'nombre') is distinct from 'string'
+    or jsonb_typeof(v_taller -> 'titular') is distinct from 'string'
+    or jsonb_typeof(v_taller -> 'cuit') is distinct from 'string'
+    or jsonb_typeof(v_taller -> 'domicilio') is distinct from 'string'
+    or jsonb_typeof(v_taller -> 'telefono') is distinct from 'string'
+    or jsonb_typeof(v_taller -> 'email') is distinct from 'string'
+    or not (
+      jsonb_typeof(v_taller -> 'condicionFiscal') is not distinct from 'null'
+      or (
+        jsonb_typeof(v_taller -> 'condicionFiscal') is not distinct from 'string'
+        and (v_taller ->> 'condicionFiscal') in ('monotributo', 'responsable_inscripto', 'exento')
+      )
+    )
+  then
+    return 'forma-invalida';
+  end if;
+
+  if jsonb_typeof(p_documento -> 'cliente') is distinct from 'string'
+    or jsonb_typeof(p_documento -> 'titulo') is distinct from 'string'
+    or jsonb_typeof(p_documento -> 'obra') is distinct from 'string'
+    or jsonb_typeof(p_documento -> 'descripcion') is distinct from 'string'
+    or jsonb_typeof(p_documento -> 'muebles') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'herrajes') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'aTenerEnCuenta') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'incluye') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'avisos') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'condiciones') is distinct from 'array'
+    or jsonb_typeof(p_documento -> 'garantia') is distinct from 'string'
+    or coalesce(jsonb_typeof(p_documento -> 'formaDePago'), '') not in ('null', 'string')
+  then
+    return 'forma-invalida';
+  end if;
+
+  for v_elemento in select e.valor from jsonb_array_elements(p_documento -> 'muebles') as e (valor) loop
+    if jsonb_typeof(v_elemento) is distinct from 'object'
+      or jsonb_typeof(v_elemento -> 'nombre') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'descripcion') is distinct from 'string'
+    then
+      return 'forma-invalida';
+    end if;
+  end loop;
+
+  foreach v_lista in array array['herrajes', 'aTenerEnCuenta', 'incluye'] loop
+    for v_elemento in select e.valor from jsonb_array_elements(p_documento -> v_lista) as e (valor) loop
+      if jsonb_typeof(v_elemento) is distinct from 'string' then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  end loop;
+
+  foreach v_lista in array array['avisos', 'condiciones'] loop
+    for v_elemento in select e.valor from jsonb_array_elements(p_documento -> v_lista) as e (valor) loop
+      if jsonb_typeof(v_elemento) is distinct from 'object'
+        or jsonb_typeof(v_elemento -> 'texto') is distinct from 'string'
+        or coalesce(jsonb_typeof(v_elemento -> 'titulo'), 'null') not in ('null', 'string')
+      then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  end loop;
+
+  -- Los valores: null (un borrador sin importe), el total, o las opciones con su id, su letra, su
+  -- descripción y su total.
+  v_valores := p_documento -> 'valores';
+  v_opciones := '[]'::jsonb;
+  if jsonb_typeof(v_valores) is not distinct from 'null' then
+    v_valores := null;
+  elsif jsonb_typeof(v_valores) is distinct from 'object' then
+    return 'forma-invalida';
+  elsif v_valores -> 'tipo' = '"total"'::jsonb then
+    if private.entero_de_json(v_valores -> 'total') is null then
+      return 'forma-invalida';
+    end if;
+  elsif v_valores -> 'tipo' = '"opciones"'::jsonb
+    and jsonb_typeof(v_valores -> 'opciones') = 'array'
+  then
+    v_opciones := v_valores -> 'opciones';
+    for v_elemento in select e.valor from jsonb_array_elements(v_opciones) as e (valor) loop
+      if jsonb_typeof(v_elemento) is distinct from 'object'
+        or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+        or jsonb_typeof(v_elemento -> 'letra') is distinct from 'string'
+        or jsonb_typeof(v_elemento -> 'descripcion') is distinct from 'string'
+        or private.entero_de_json(v_elemento -> 'total') is null
+      then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  else
+    return 'forma-invalida';
+  end if;
+
+  v_sena := private.entero_de_json(p_documento -> 'senaBp');
+  v_abonado := private.entero_de_json(p_documento -> 'abonado');
+  v_plazo := private.entero_de_json(p_documento -> 'plazoDeFabricacion');
+  v_meses := private.entero_de_json(p_documento -> 'garantiaMeses');
+  if v_sena is null or v_abonado is null or v_plazo is null or v_meses is null then
+    return 'forma-invalida';
+  end if;
+
+  if jsonb_typeof(p_documento -> 'validezDias') is not distinct from 'null' then
+    v_validez := null;
+  else
+    v_validez := private.entero_de_json(p_documento -> 'validezDias');
+    if v_validez is null then
+      return 'forma-invalida';
+    end if;
+  end if;
+
+  if v_sena < 0 or v_sena > 10000 then
+    return 'sena-fuera-de-rango';
+  end if;
+  if v_abonado < 0 or v_abonado > 1000000000000 then
+    return 'abonado-fuera-de-rango';
+  end if;
+  if v_plazo not between 1 and 365 then
+    return 'plazo-fuera-de-rango';
+  end if;
+  if v_validez is not null and v_validez not between 1 and 365 then
+    return 'validez-fuera-de-rango';
+  end if;
+  if v_meses not between 6 and 120 then
+    return 'garantia-fuera-de-rango';
+  end if;
+
+  if (
+      v_valores -> 'tipo' = '"total"'::jsonb
+      and private.entero_de_json(v_valores -> 'total') not between 0 and 1000000000000
+    )
+    or exists (
+      select 1
+      from jsonb_array_elements(v_opciones) as e (valor)
+      where private.entero_de_json(e.valor -> 'total') not between 0 and 1000000000000
+    )
+  then
+    return 'importe-fuera-de-rango';
+  end if;
+
+  if jsonb_array_length(p_documento -> 'muebles') > 30 then
+    return 'demasiados-muebles';
+  end if;
+  if jsonb_array_length(p_documento -> 'herrajes') > 40 then
+    return 'demasiados-herrajes';
+  end if;
+  if greatest(
+    jsonb_array_length(p_documento -> 'aTenerEnCuenta'),
+    jsonb_array_length(p_documento -> 'incluye'),
+    jsonb_array_length(p_documento -> 'avisos'),
+    jsonb_array_length(p_documento -> 'condiciones')
+  ) > 40 then
+    return 'demasiadas-clausulas';
+  end if;
+  if jsonb_array_length(v_opciones) > 26 then
+    return 'demasiadas-opciones';
+  end if;
+
+  -- Cada texto con su tope: los del borrador, y los que salen de la plantilla con sus huecos
+  -- completados, que pueden crecer un poco.
+  if exists (
+    select 1
+    from (
+      select v_taller ->> 'nombre', 120
+      union all select v_taller ->> 'titular', 120
+      union all select v_taller ->> 'cuit', 13
+      union all select v_taller ->> 'domicilio', 300
+      union all select v_taller ->> 'telefono', 40
+      union all select v_taller ->> 'email', 200
+      union all select p_documento ->> 'cliente', 200
+      union all select p_documento ->> 'titulo', 200
+      union all select p_documento ->> 'obra', 300
+      union all select p_documento ->> 'descripcion', 4000
+      union all
+        select m.valor ->> 'nombre', 120 from jsonb_array_elements(p_documento -> 'muebles') as m (valor)
+      union all
+        select m.valor ->> 'descripcion', 4000 from jsonb_array_elements(p_documento -> 'muebles') as m (valor)
+      union all
+        select h.valor #>> '{}', 200 from jsonb_array_elements(p_documento -> 'herrajes') as h (valor)
+      union all
+        select t.valor #>> '{}', 4000
+        from jsonb_array_elements((p_documento -> 'aTenerEnCuenta') || (p_documento -> 'incluye')) as t (valor)
+      union all select o.valor ->> 'letra', 3 from jsonb_array_elements(v_opciones) as o (valor)
+      union all select o.valor ->> 'descripcion', 500 from jsonb_array_elements(v_opciones) as o (valor)
+      union all select coalesce(p_documento ->> 'formaDePago', ''), 4000
+      union all
+        select coalesce(c.valor ->> 'titulo', ''), 120
+        from jsonb_array_elements((p_documento -> 'avisos') || (p_documento -> 'condiciones')) as c (valor)
+      union all
+        select c.valor ->> 'texto', 4000
+        from jsonb_array_elements((p_documento -> 'avisos') || (p_documento -> 'condiciones')) as c (valor)
+      union all select p_documento ->> 'garantia', 4000
+    ) as t (texto, largo)
+    where char_length(t.texto) > t.largo
+  ) then
+    return 'texto-largo';
+  end if;
+
+  return null;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.problema_del_documento(jsonb) is 'El primer problema que impide congelar un documento del presupuesto, con el mismo código y en el mismo orden que problemaDelDocumento en presupuesto.ts, o null si sirve: la forma de cada campo, los rangos de la seña, de lo pagado, del plazo, de la vigencia, de la garantía y de los importes, los topes de las listas y el largo de cada texto. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+
+CREATE OR REPLACE FUNCTION private.problema_del_presupuesto(p_contenido jsonb)
+ RETURNS text
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  c_grupos constant text[] := array['incluye', 'aTenerEnCuenta', 'avisos', 'condiciones'];
+  v_grupo text;
+  v_elemento jsonb;
+  v_vistos text[];
+  v_id text;
+  v_forma jsonb;
+  v_plazo bigint;
+  v_validez bigint;
+begin
+  -- La forma entera antes que cualquier tope, como en el dominio.
+  if jsonb_typeof(p_contenido) is distinct from 'object'
+    or p_contenido -> 'forma' is distinct from '1'::jsonb
+    or jsonb_typeof(p_contenido -> 'titulo') is distinct from 'string'
+    or jsonb_typeof(p_contenido -> 'obra') is distinct from 'string'
+    or jsonb_typeof(p_contenido -> 'descripcion') is distinct from 'string'
+    or jsonb_typeof(p_contenido -> 'muebles') is distinct from 'array'
+    or jsonb_typeof(p_contenido -> 'herrajes') is distinct from 'object'
+    or jsonb_typeof(p_contenido #> '{herrajes,mostrar}') is distinct from 'boolean'
+    or jsonb_typeof(p_contenido #> '{herrajes,lista}') is distinct from 'array'
+  then
+    return 'forma-invalida';
+  end if;
+
+  for v_elemento in select e.valor from jsonb_array_elements(p_contenido -> 'muebles') as e (valor) loop
+    if jsonb_typeof(v_elemento) is distinct from 'object'
+      or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'nombre') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'descripcion') is distinct from 'string'
+    then
+      return 'forma-invalida';
+    end if;
+  end loop;
+
+  for v_elemento in select e.valor from jsonb_array_elements(p_contenido #> '{herrajes,lista}') as e (valor) loop
+    if jsonb_typeof(v_elemento) is distinct from 'object'
+      or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+      or jsonb_typeof(v_elemento -> 'texto') is distinct from 'string'
+    then
+      return 'forma-invalida';
+    end if;
+  end loop;
+
+  foreach v_grupo in array c_grupos loop
+    if jsonb_typeof(p_contenido -> v_grupo) is distinct from 'object'
+      or jsonb_typeof(p_contenido -> v_grupo -> 'tildadas') is distinct from 'array'
+      or jsonb_typeof(p_contenido -> v_grupo -> 'propias') is distinct from 'array'
+    then
+      return 'forma-invalida';
+    end if;
+    for v_elemento in
+      select e.valor from jsonb_array_elements(p_contenido -> v_grupo -> 'tildadas') as e (valor)
+    loop
+      if jsonb_typeof(v_elemento) is distinct from 'string' then
+        return 'forma-invalida';
+      end if;
+    end loop;
+    for v_elemento in
+      select e.valor from jsonb_array_elements(p_contenido -> v_grupo -> 'propias') as e (valor)
+    loop
+      if jsonb_typeof(v_elemento) is distinct from 'object'
+        or jsonb_typeof(v_elemento -> 'id') is distinct from 'string'
+        or jsonb_typeof(v_elemento -> 'texto') is distinct from 'string'
+      then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  end loop;
+
+  -- La forma de pago es null (no se muestra) o la elegida, con el texto en null mientras no se retoque.
+  v_forma := p_contenido -> 'formaDePago';
+  if not (
+    jsonb_typeof(v_forma) is not distinct from 'null'
+    or (
+      jsonb_typeof(v_forma) is not distinct from 'object'
+      and jsonb_typeof(v_forma -> 'plantillaId') is not distinct from 'string'
+      and coalesce(jsonb_typeof(v_forma -> 'texto'), '') in ('null', 'string')
+    )
+  ) then
+    return 'forma-invalida';
+  end if;
+
+  v_plazo := private.entero_de_json(p_contenido -> 'plazoDeFabricacion');
+  if v_plazo is null then
+    return 'forma-invalida';
+  end if;
+
+  if jsonb_typeof(p_contenido -> 'validezDias') is not distinct from 'null' then
+    v_validez := null;
+  else
+    v_validez := private.entero_de_json(p_contenido -> 'validezDias');
+    if v_validez is null then
+      return 'forma-invalida';
+    end if;
+  end if;
+
+  if char_length(p_contenido ->> 'titulo') > 200 then
+    return 'titulo-largo';
+  end if;
+  if char_length(p_contenido ->> 'obra') > 300 then
+    return 'obra-larga';
+  end if;
+  if char_length(p_contenido ->> 'descripcion') > 4000 then
+    return 'descripcion-larga';
+  end if;
+
+  if jsonb_array_length(p_contenido -> 'muebles') > 30 then
+    return 'demasiados-muebles';
+  end if;
+  v_vistos := array[]::text[];
+  for v_elemento in
+    select e.valor
+    from jsonb_array_elements(p_contenido -> 'muebles') with ordinality as e (valor, orden)
+    order by e.orden
+  loop
+    v_id := v_elemento ->> 'id';
+    if v_id !~ '^[a-z0-9-]{1,60}$' then
+      return 'id-invalido';
+    end if;
+    if v_id = any (v_vistos) then
+      return 'id-repetido';
+    end if;
+    v_vistos := v_vistos || v_id;
+    if char_length(v_elemento ->> 'nombre') > 120 then
+      return 'nombre-del-mueble-largo';
+    end if;
+    if char_length(v_elemento ->> 'descripcion') > 4000 then
+      return 'detalle-del-mueble-largo';
+    end if;
+  end loop;
+
+  if jsonb_array_length(p_contenido #> '{herrajes,lista}') > 40 then
+    return 'demasiados-herrajes';
+  end if;
+  v_vistos := array[]::text[];
+  for v_elemento in
+    select e.valor
+    from jsonb_array_elements(p_contenido #> '{herrajes,lista}') with ordinality as e (valor, orden)
+    order by e.orden
+  loop
+    v_id := v_elemento ->> 'id';
+    if v_id !~ '^[a-z0-9-]{1,60}$' then
+      return 'id-invalido';
+    end if;
+    if v_id = any (v_vistos) then
+      return 'id-repetido';
+    end if;
+    v_vistos := v_vistos || v_id;
+    if char_length(v_elemento ->> 'texto') > 200 then
+      return 'herraje-largo';
+    end if;
+  end loop;
+
+  -- Grupo por grupo: primero las tildadas, después las propias, cada una con sus ids.
+  foreach v_grupo in array c_grupos loop
+    if jsonb_array_length(p_contenido -> v_grupo -> 'tildadas') > 20 then
+      return 'demasiadas-tildadas';
+    end if;
+    v_vistos := array[]::text[];
+    for v_elemento in
+      select e.valor
+      from jsonb_array_elements(p_contenido -> v_grupo -> 'tildadas') with ordinality as e (valor, orden)
+      order by e.orden
+    loop
+      v_id := v_elemento #>> '{}';
+      if v_id !~ '^[a-z0-9-]{1,60}$' then
+        return 'id-invalido';
+      end if;
+      if v_id = any (v_vistos) then
+        return 'id-repetido';
+      end if;
+      v_vistos := v_vistos || v_id;
+    end loop;
+
+    if jsonb_array_length(p_contenido -> v_grupo -> 'propias') > 20 then
+      return 'demasiadas-propias';
+    end if;
+    v_vistos := array[]::text[];
+    for v_elemento in
+      select e.valor
+      from jsonb_array_elements(p_contenido -> v_grupo -> 'propias') with ordinality as e (valor, orden)
+      order by e.orden
+    loop
+      v_id := v_elemento ->> 'id';
+      if v_id !~ '^[a-z0-9-]{1,60}$' then
+        return 'id-invalido';
+      end if;
+      if v_id = any (v_vistos) then
+        return 'id-repetido';
+      end if;
+      v_vistos := v_vistos || v_id;
+      if char_length(v_elemento ->> 'texto') > 1000 then
+        return 'propia-larga';
+      end if;
+    end loop;
+  end loop;
+
+  if jsonb_typeof(v_forma) = 'object' then
+    if (v_forma ->> 'plantillaId') !~ '^[a-z0-9-]{1,60}$' then
+      return 'id-invalido';
+    end if;
+    if jsonb_typeof(v_forma -> 'texto') = 'string' and char_length(v_forma ->> 'texto') > 2000 then
+      return 'forma-de-pago-larga';
+    end if;
+  end if;
+
+  if v_plazo not between 1 and 365 then
+    return 'plazo-fuera-de-rango';
+  end if;
+  if v_validez is not null and v_validez not between 1 and 365 then
+    return 'validez-fuera-de-rango';
+  end if;
+
+  return null;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.problema_del_presupuesto(jsonb) is 'El primer problema que impide guardar un borrador del presupuesto, con el mismo código y en el mismo orden que problemaDelBorrador en presupuesto.ts, o null si se puede guardar. Es permisivo, porque un borrador puede estar a medio hacer: mira la forma y los topes (30 muebles, 40 herrajes, 20 tildadas y 20 propias por grupo, los largos de cada texto, ids únicos) y los rangos del plazo y de la vigencia. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.registrar_suscripcion(p_endpoint text, p_p256dh text, p_auth text, p_zona text)
  RETURNS jsonb
@@ -7729,6 +9026,12 @@ declare
   v_formas public.forma_de_cobro[];
   v_por_transferencia boolean;
   v_siguiente jsonb;
+  v_borrador public.presupuestos;
+  v_revision public.revisiones_del_presupuesto;
+  v_aprobada uuid;
+  v_contenido jsonb;
+  v_elegidas jsonb;
+  v_presupuesto jsonb;
 begin
   select * into v_p from public.proyectos p where p.id = p_proyecto_id and p.deleted_at is null;
 
@@ -7850,6 +9153,74 @@ begin
       order by r.created_at desc, r.id desc
       limit 1;
     end if;
+  end if;
+
+  -- El presupuesto que se le mandó desde la app (ADR 0080): la última revisión, desde que se le manda.
+  -- Desde el link esta función corre sin RLS, así que el borrador y sus revisiones se filtran por el
+  -- taller del trabajo.
+  if v_presupuesto_mandado then
+    select b.* into v_borrador
+    from public.presupuestos b
+    where b.household_id = v_p.household_id
+      and b.proyecto_id = v_p.id
+      and b.deleted_at is null;
+
+    if v_borrador.id is not null then
+      select r.* into v_revision
+      from public.revisiones_del_presupuesto r
+      where r.household_id = v_p.household_id
+        and r.presupuesto_id = v_borrador.id
+        and r.deleted_at is null
+      order by r.revision desc
+      limit 1;
+    end if;
+  end if;
+
+  if v_revision.id is null then
+    v_presupuesto := null;
+  elsif not v_aprobado then
+    -- Esperando la seña: la revisión tal cual, con todas sus opciones y lo que cambió.
+    v_presupuesto := jsonb_build_object(
+      'numero', v_revision.numero,
+      'revision', v_revision.revision,
+      'mandado_el', v_revision.mandado_el,
+      'que_cambio', v_revision.que_cambio,
+      'contenido', v_revision.contenido
+    );
+  else
+    -- Aprobado: solo la opción que eligió, con su letra. Si ya no hay ninguna opción aprobada (se cargó
+    -- el presupuesto a mano), el documento viaja sin valores y la página muestra lo acordado.
+    select o.id into v_aprobada
+    from public.opciones_de_presupuesto o
+    where o.household_id = v_p.household_id
+      and o.proyecto_id = v_p.id
+      and o.aprobada
+      and o.deleted_at is null;
+
+    v_contenido := v_revision.contenido;
+    if v_contenido #>> '{valores,tipo}' = 'opciones' then
+      select coalesce(jsonb_agg(e.valor order by e.orden), '[]'::jsonb) into v_elegidas
+      from jsonb_array_elements(v_contenido #> '{valores,opciones}') with ordinality as e (valor, orden)
+      where e.valor ->> 'id' = v_aprobada::text;
+
+      v_contenido := jsonb_set(
+        v_contenido,
+        '{valores}',
+        case
+          when jsonb_array_length(v_elegidas) = 0 then 'null'::jsonb
+          else jsonb_build_object('tipo', 'opciones', 'opciones', v_elegidas)
+        end
+      );
+    end if;
+
+    v_presupuesto := jsonb_build_object(
+      'numero', v_revision.numero,
+      'revision', v_revision.revision,
+      'mandado_el', v_revision.mandado_el,
+      'contenido', v_contenido,
+      'aceptado_el', v_borrador.aceptado_el,
+      'letra', v_elegidas -> 0 ->> 'letra'
+    );
   end if;
 
   -- Los campos van enumerados uno por uno, a propósito. Si esto fuera to_jsonb(v_p) con la pantalla
@@ -8039,9 +9410,11 @@ begin
     -- mandar el presupuesto, que es cuando la página explica qué es y cuánto vale. En null después, o
     -- si el dueño lo dejó vacío. Es un dato de ajustes y no un pago: lo que el cliente paga por la
     -- visita es un pago del trabajo, y queda a cuenta de la seña.
-    'relevamiento_centavos', case when not v_presupuesto_mandado then v_ajustes.relevamiento_centavos end
+    'relevamiento_centavos', case when not v_presupuesto_mandado then v_ajustes.relevamiento_centavos end,
+    -- El presupuesto que se le mandó desde la app, en la forma de su etapa (ver arriba), o null.
+    'presupuesto', v_presupuesto
   );
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076 y 0079).';
+comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). La clave presupuesto trae el presupuesto que se le mandó desde la app (ADR 0080): null antes de mandarlo o si nunca se mandó desde la app; esperando la seña, la última revisión tal cual (numero, revision, mandado_el, que_cambio y contenido, con las opciones y la obra adentro); desde que aprueba, la última revisión sin que_cambio, con las opciones del contenido filtradas a la aprobada, más aceptado_el y la letra de esa opción: las que no eligió no viajan. Los datos del taller para el presupuesto viajan solo adentro del contenido de cada revisión. Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076, 0079 y 0080).';

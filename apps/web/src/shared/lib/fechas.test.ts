@@ -8,6 +8,8 @@ import {
   diaYMes,
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
+  fechaConAnio,
+  fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
   haceCuanto,
@@ -18,6 +20,18 @@ import {
   nombreDelMes,
   relativa,
 } from './fechas';
+
+describe('las fechas del presupuesto', () => {
+  it('la del rótulo, en casillas: día, mes y los dos últimos del año', () => {
+    expect(fechaDelRotulo('2026-09-17')).toBe('17/09/26');
+    expect(fechaDelRotulo('2030-01-02')).toBe('02/01/30');
+  });
+
+  it('la del PDF, con el año siempre', () => {
+    expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
+    expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');
+  });
+});
 
 describe('las fechas de las opiniones', () => {
   it('el día y el mes, con el año solo si no es el de hoy', () => {

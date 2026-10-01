@@ -10,6 +10,8 @@ export type OperacionRechazada =
   | 'baja-de-cliente'
   | 'fila'
   | 'tesoro'
+  | 'presupuesto'
+  | 'plantilla'
   | 'guardado';
 
 export interface ContextoDelRechazo {
@@ -218,6 +220,50 @@ const PARA_TODOS: Readonly<Record<string, (contexto: ContextoDelRechazo) => Rech
     titulo: 'El seguimiento de este trabajo quedó a medias.',
     queHacer:
       'No se guardó nada. Pasa si lo cambiaste desde otro lado al mismo tiempo. Abrilo de nuevo: si está en seguimiento, registrá el contacto desde ahí; si no, ponelo en seguimiento con su fecha.',
+    codigo: '',
+  }),
+  MN026: () => ({
+    titulo: 'Este presupuesto se cambió en otro aparato.',
+    queHacer: 'Abrilo de nuevo para ver la última versión y seguí desde ahí.',
+    codigo: '',
+  }),
+  MN027: () => ({
+    titulo: 'Al presupuesto le falta algo para mandarlo.',
+    queHacer: 'Revisá que tenga título, por lo menos un mueble con su detalle y un total.',
+    codigo: '',
+  }),
+  MN028: () => ({
+    titulo: 'Ya lo aprobó: el presupuesto no se cambia.',
+    queHacer: 'Un cambio después de la seña se arregla aparte con tu cliente.',
+    codigo: '',
+  }),
+  MN029: () => ({
+    titulo: 'Cambiaron los importes desde que lo armaste.',
+    queHacer: 'Revisá los valores y volvé a mandarlo.',
+    codigo: '',
+  }),
+  MN030: () => ({
+    titulo: 'Los textos del presupuesto se cambiaron en otro aparato.',
+    queHacer: 'Abrí la pantalla de nuevo y volvé a guardar.',
+    codigo: '',
+  }),
+  MN031: (contexto) => ({
+    titulo:
+      contexto.operacion === 'plantilla'
+        ? 'Tus textos del presupuesto no se pudieron guardar.'
+        : 'El presupuesto no se pudo guardar.',
+    queHacer:
+      'Revisalo y probá de nuevo. Si vuelve a pasar, cerrá la app y abrila otra vez para que se actualice.',
+    codigo: '',
+  }),
+  MN032: () => ({
+    titulo: 'Este trabajo está perdido: su presupuesto no se cambia ni se manda.',
+    queHacer: 'Si el cliente volvió, reactivalo desde la ficha y seguí desde ahí.',
+    codigo: '',
+  }),
+  MN033: () => ({
+    titulo: 'El día del envío todavía no llegó.',
+    queHacer: 'Revisá la fecha y la hora de tu aparato, y volvé a mandarlo.',
     codigo: '',
   }),
   MN008: (contexto) => ({

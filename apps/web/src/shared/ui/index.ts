@@ -12,11 +12,39 @@ export { EnConstruccion } from './EnConstruccion';
 export { EstadoDeGuardado, type EstadoDeGuardadoProps } from './EstadoDeGuardado';
 export { ESCENA_EN_LA_LAMINA, TITULO_DE_LAMINA } from './lamina';
 export { ConSalida, Hoja, type ConSalidaProps, type HojaProps } from './Hoja';
+export {
+  BarraDeDeshacer,
+  BotonDeLaFila,
+  CampoConUnidad,
+  Casilla,
+  DatoFijo,
+  ESPERA_DEL_DESHACER_MS,
+  TextoQueCrece,
+  type BotonDeLaFilaProps,
+  type CampoConUnidadProps,
+  type CasillaProps,
+  type TextoQueCreceProps,
+} from './listas';
 export { RESPALDO_DE_LA_SALIDA_MS, useSalida, type Salida } from './salida';
 export { LogoDeMercadoPago, type LogoDeMercadoPagoProps } from './LogoDeMercadoPago';
 export { MailEnviado, type MailEnviadoProps } from './MailEnviado';
 export { PanelDeAvisos, type PanelDeAvisosProps } from './PanelDeAvisos';
 export { PanelDePaso, type PanelDePasoProps, type TonoDelPaso } from './PanelDePaso';
+export {
+  Globo,
+  LineaDePuntos,
+  MarcaDeRevision,
+  RotuloDelPlano,
+  RotuloEnCasillas,
+  type CasillaDelRotulo,
+} from './plano';
+export { RotuloDelPresupuesto, type RotuloDelPresupuestoProps } from './RotuloDelPresupuesto';
+export {
+  casillasDelPresupuesto,
+  SIN_NUMERO_TODAVIA,
+  type AceptacionDelRotulo,
+  type DatosDelRotulo,
+} from './rotulo';
 export { VisorDeImagenes, type ImagenDelVisor, type VisorDeImagenesProps } from './VisorDeImagenes';
 export { useVisor, type Visor } from './visor';
 export {

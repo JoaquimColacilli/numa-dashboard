@@ -26,6 +26,7 @@ import {
   rutaDeLaRespuesta,
   tokenNuevo,
   uuidv7,
+  whatsappCon,
   Ir,
 } from '@/shared/lib';
 import {
@@ -45,12 +46,7 @@ import {
   tokenDelPedido,
 } from '../model/acciones';
 import { loQueVaARecibir } from '../model/encuesta';
-import {
-  despuesDeLaEntrega,
-  mensajeDelPedido,
-  mensajeDelRecordatorio,
-  whatsappCon,
-} from '../model/mensajes';
+import { despuesDeLaEntrega, mensajeDelPedido, mensajeDelRecordatorio } from '../model/mensajes';
 import { PreguntasDelTrabajo } from './PreguntasDelTrabajo';
 
 const ESPERA_DEL_COPIADO_MS = 2200;

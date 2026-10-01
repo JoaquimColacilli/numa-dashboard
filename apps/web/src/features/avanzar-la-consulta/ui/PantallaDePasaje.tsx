@@ -1,4 +1,4 @@
-import { entregaEstimada, esAnteriorALaApertura, porcentajeDeLaSena } from '@maun/domain';
+import { esAnteriorALaApertura, porcentajeDeLaSena } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
@@ -46,6 +46,13 @@ import {
   senaDelPasaje,
   senaSugerida,
 } from '../model/pasaje';
+import {
+  avisoDelAcordado,
+  ayudaDeLaEntrega,
+  entregaDelPasaje,
+  loMandadoAlCliente,
+  plazoDelPasaje,
+} from '../model/presupuestoMandado';
 
 export interface PantallaDePasajeProps {
   resumen: ResumenDeProyecto;
@@ -74,9 +81,11 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
   const [forma, setForma] = useState<FormaDePago>(() =>
     formaSugerida(proyecto.forma_pago, formasDelTrabajo(proyecto, 'sena', ajustesDe(replica))),
   );
+  const [mandado] = useState(() => loMandadoAlCliente(replica, proyecto.id));
+  const plazo = plazoDelPasaje(mandado);
   const [inicio, setInicio] = useState(proyecto.fecha_inicio ?? hoy);
   const [entrega, setEntrega] = useState(
-    () => proyecto.entrega_estimada ?? entregaEstimada(proyecto.fecha_inicio ?? hoy),
+    () => proyecto.entrega_estimada ?? entregaDelPasaje(proyecto.fecha_inicio ?? hoy, plazo),
   );
   const [entregaAuto, setEntregaAuto] = useState(proyecto.entrega_estimada === null);
   const [direccion, setDireccion] = useState(
@@ -92,6 +101,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
   const hayOpciones = opciones.length > 0;
   const aprobado = presupuestoDelPasaje(opciones, { presupuesto, opcion });
+  const acordado = avisoDelAcordado(mandado, opcion, aprobado);
 
   const porcentaje = porcentajeDeLaSena(
     senaDelProyecto(proyecto),
@@ -432,6 +442,15 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
             )}
           </dl>
 
+          {acordado !== null && (
+            <p
+              id={`${idCampos}-acordado`}
+              className="-mt-2 rounded-field bg-atencion-tint px-3.5 py-3 text-label leading-relaxed text-pretty text-atencion"
+            >
+              {acordado}
+            </p>
+          )}
+
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1.5 text-label text-text-2">Forma de pago</legend>
             <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm:grid-cols-4">
@@ -465,7 +484,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
               onChange={(evento) => {
                 setInicio(evento.target.value);
                 if (entregaAuto && evento.target.value !== '') {
-                  setEntrega(entregaEstimada(evento.target.value));
+                  setEntrega(entregaDelPasaje(evento.target.value, plazo));
                 }
               }}
             />
@@ -474,7 +493,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
               type="date"
               contenedor="@sm:row-span-3 @sm:grid @sm:grid-rows-subgrid"
               value={entrega}
-              ayuda={entregaAuto ? 'Calculada a 21 días hábiles del inicio.' : undefined}
+              ayuda={entregaAuto ? ayudaDeLaEntrega(plazo, mandado !== null) : undefined}
               onChange={(evento) => {
                 setEntrega(evento.target.value);
                 setEntregaAuto(false);
@@ -528,6 +547,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
             type="submit"
             className="w-full sm:w-auto"
             cargando={guardar.isPending && !guardar.isPaused}
+            aria-describedby={acordado === null ? undefined : `${idCampos}-acordado`}
           >
             <Icono nombre="hammer" tamano={18} />
             Pasar a Proyectos

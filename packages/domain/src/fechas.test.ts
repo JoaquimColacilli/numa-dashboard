@@ -145,7 +145,14 @@ describe('entregaEstimada', () => {
 
   it('salta los feriados que se le pasan', () => {
     expect(sumarDiasHabiles('2026-10-09', 1, ['2026-10-12'])).toBe('2026-10-13');
-    expect(entregaEstimada('2026-09-11', ['2026-10-12'])).toBe('2026-10-13');
+    expect(entregaEstimada('2026-09-11', DIAS_HABILES_DE_ENTREGA, ['2026-10-12'])).toBe(
+      '2026-10-13',
+    );
+  });
+
+  it('con el plazo de un presupuesto, cuenta esos días hábiles y no los 21', () => {
+    expect(entregaEstimada('2026-09-14', 30)).toBe('2026-10-26');
+    expect(entregaEstimada('2026-09-14', 30)).toBe(sumarDiasHabiles('2026-09-14', 30));
   });
 
   it('un feriado que cae en fin de semana no descuenta dos veces', () => {

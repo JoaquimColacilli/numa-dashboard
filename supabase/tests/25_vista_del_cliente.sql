@@ -2,7 +2,8 @@
 -- (ADR 0052), el registro de los cambios de etapa, los datos para transferir (ADR 0048), el título
 -- que alimenta la vista previa del enlace (ADR 0049), cómo te paga, la forma de cobro por trabajo y
 -- por instancia de pago (ADR 0053), el estimativo y la visita para medir (ADR 0058), el listo y la
--- entrega que se coordina con el cliente (ADR 0071), y la vidriera del taller (ADR 0076).
+-- entrega que se coordina con el cliente (ADR 0071), la vidriera del taller (ADR 0076) y el presupuesto
+-- que se le mandó desde la app (ADR 0080).
 --
 -- Los dos tests que importan son los primeros: toda columna de proyectos y toda columna de ajustes
 -- están clasificadas, y agregar una columna a cualquiera de las dos rompe este archivo hasta que
@@ -11,7 +12,7 @@
 -- mirado. Ajustes entró a la lista con los datos para transferir: desde que uno de sus campos viaja
 -- a la superficie pública, la tabla entera necesita la misma vigilancia que proyectos.
 
-select plan(148);
+select plan(153);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -86,6 +87,8 @@ select set_eq(
 -- 27_encuesta_publica.sql. La fila de los tesoros, su revisión y cuándo se guardó (ADR 0078) son
 -- cómo se reparte la plata adentro del taller: no viajan. El valor del relevamiento (ADR 0079) viaja,
 -- y solo antes de mandar el presupuesto: es lo que el taller cobra la visita, no una cuenta de adentro.
+-- Los datos del taller para el presupuesto y sus textos de siempre (ADR 0080) no viajan como columnas:
+-- llegan solo adentro de la foto de cada revisión que se le mandó, ya resueltos.
 select set_eq(
   $$
     select a.attname::text
@@ -102,9 +105,52 @@ select set_eq(
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
     'tasa_cocos_anual_bp', 'sueldo_tope_mensual', 'perdido_con_sueldo', 'perdido_con_diezmo',
     'sena_bp', 'resena_link', 'presupuesto_vale_dias',
-    'fila', 'fila_version', 'fila_guardada_at'
+    'fila', 'fila_version', 'fila_guardada_at',
+    'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
+    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version'
   ],
   'toda columna de ajustes está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
+);
+
+
+-- Toda columna de las dos tablas del presupuesto está clasificada (ADR 0080) ------------------------------
+
+-- Del borrador viaja solo el día en que se aceptó, desde que se aprueba. El borrador mismo es lo que el
+-- dueño está armando y no sale hasta que lo manda: lo que viaja es la revisión. El número viaja desde
+-- la revisión, que lleva el mismo.
+select set_eq(
+  $$
+    select a.attname::text
+    from pg_attribute a
+    where a.attrelid = 'public.presupuestos'::regclass and a.attnum > 0 and not a.attisdropped
+  $$,
+  array[
+    -- Viaja
+    'aceptado_el',
+    -- No viajan
+    'id', 'household_id', 'proyecto_id', 'contenido', 'borrador_version', 'numero',
+    'created_at', 'updated_at', 'deleted_at', 'version'
+  ],
+  'toda columna de los presupuestos está clasificada'
+);
+
+-- De la última revisión viaja el documento que se le mandó, con su número, su revisión y su día, y lo
+-- que cambió mientras espera la seña. Desde que aprueba, el documento con solo la opción que eligió. Su
+-- vigencia es historia del taller: la viva es la del trabajo, fechas.vale_hasta.
+select set_eq(
+  $$
+    select a.attname::text
+    from pg_attribute a
+    where a.attrelid = 'public.revisiones_del_presupuesto'::regclass and a.attnum > 0 and not a.attisdropped
+  $$,
+  array[
+    -- Viajan
+    'numero', 'revision', 'mandado_el', 'que_cambio', 'contenido',
+    -- No viajan
+    'id', 'household_id', 'presupuesto_id', 'proyecto_id', 'vale_hasta',
+    'created_at', 'updated_at', 'deleted_at', 'version'
+  ],
+  'toda columna de las revisiones del presupuesto está clasificada'
 );
 
 
@@ -176,13 +222,15 @@ select tests.entrar_como(tests.id('ana'));
 insert into public.clientes (id, nombre, telefono, notas)
   values ('aaaaaaaa-0000-7000-8000-000000000001', 'Marcela Duarte', '11-5555-0001', 'Paga tarde');
 
+-- Arranca a presupuestar: más abajo se le manda el presupuesto con sus dos opciones y recién después
+-- se aprueba, así la aguja prueba también lo que se le mandó antes de aprobar (ADR 0080).
 insert into public.proyectos (
   id, cliente_id, titulo, descripcion, estado, presupuesto_centavos, forma_pago, comprobante,
   fecha_visita, ultimo_contacto, vencimiento_presupuesto, fecha_inicio, entrega_estimada,
   direccion_entrega, notas, sena_bp, tipo_de_proyecto
 ) values (
   'aaaaaaaa-0000-7000-8000-000000000010', 'aaaaaaaa-0000-7000-8000-000000000001',
-  'Placard 3 puertas', 'Melamina blanca con herrajes Blum', 'en_curso', 124000000,
+  'Placard 3 puertas', 'Melamina blanca con herrajes Blum', 'a_presupuestar', 124000000,
   'cuotas', 'factura_b',
   '2026-07-20', '2026-07-13', '2026-07-27', '2026-08-24', '2026-10-02',
   'Olazábal 1240, Ituzaingó', 'OJO: el cliente regatea, no bajar de 900', 4321, 'Placard de pasillo'
@@ -206,9 +254,19 @@ insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos) valu
   ('aaaaaaaa-0000-7000-8000-000000000101', 'aaaaaaaa-0000-7000-8000-000000000010', '2026-09-02', 'Adelanto', 40000000);
 
 -- Dos opciones: la aprobada manda el presupuesto y la otra es lo que le ofreció y no eligió.
-insert into public.opciones_de_presupuesto (proyecto_id, descripcion, monto_centavos, aprobada) values
-  ('aaaaaaaa-0000-7000-8000-000000000010', 'Con frentes de melamina', 124000000, true),
-  ('aaaaaaaa-0000-7000-8000-000000000010', 'Con frentes laqueados', 189000000, false);
+insert into public.opciones_de_presupuesto (id, proyecto_id, descripcion, monto_centavos, aprobada) values
+  ('aaaaaaaa-0000-7000-8000-000000000110', 'aaaaaaaa-0000-7000-8000-000000000010', 'Con frentes de melamina', 124000000, true),
+  ('aaaaaaaa-0000-7000-8000-000000000111', 'aaaaaaaa-0000-7000-8000-000000000010', 'Con frentes laqueados', 189000000, false);
+
+-- El presupuesto se le manda con las dos opciones y la obra adentro, y después lo aprueba. Mandarlo
+-- anota el último contacto: se vuelve a poner el de antes, para que la aguja siga probando que no viaja.
+select tests.guardar_el_borrador('aaaaaaaa-0000-7000-8000-000000000120', 'aaaaaaaa-0000-7000-8000-000000000010');
+select tests.mandar_el_presupuesto(
+  'aaaaaaaa-0000-7000-8000-000000000120', 'aaaaaaaa-0000-7000-8000-000000000121', '2026-07-30',
+  p_obra => 'Olazábal 1240, Ituzaingó'
+);
+update public.proyectos set estado = 'en_curso', ultimo_contacto = '2026-07-13'
+  where id = 'aaaaaaaa-0000-7000-8000-000000000010';
 
 insert into public.archivos (id, proyecto_id, nombre, tipo, bytes, ancho, alto) values
   ('aaaaaaaa-0000-7000-8000-000000000200', 'aaaaaaaa-0000-7000-8000-000000000010', 'Plano de frente', 'image/webp', 120000, 1600, 900),
@@ -238,8 +296,23 @@ where household_id = tests.id('household_a');
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')) $$,
-  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos'],
+  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto'],
   'la vista devuelve exactamente estos campos y ninguno más'
+);
+
+select set_eq(
+  $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'presupuesto') $$,
+  array['numero', 'revision', 'mandado_el', 'contenido', 'aceptado_el', 'letra'],
+  'del presupuesto aprobado viajan su número, su revisión, el día, el documento, el día en que se aceptó y la letra: lo que cambió, no'
+);
+
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #> '{presupuesto,contenido,valores}',
+  jsonb_build_object('tipo', 'opciones', 'opciones', jsonb_build_array(jsonb_build_object(
+    'id', 'aaaaaaaa-0000-7000-8000-000000000110', 'letra', 'A',
+    'descripcion', 'Con frentes de melamina', 'total', 124000000
+  ))),
+  'aprobado, del presupuesto que se le mandó viaja solo la opción que eligió, con su letra'
 );
 
 select set_eq(
@@ -297,6 +370,15 @@ select set_eq(
 -- La forma de pago del trabajo es «cuotas» y no «transferencia» a propósito: desde que el payload
 -- dice cómo puede pagar el cliente, la palabra «transferencia» aparece ahí de manera legítima, y
 -- una aguja que la busque dejaría de probar lo que quiere probar, que proyectos.forma_pago no sale.
+-- El presupuesto se le mandó con las dos opciones antes de aprobar: la que no eligió no viaja ni
+-- adentro de él. El porcentaje de seña congelado en el documento sí viaja (con él la página saca la
+-- seña de cada opción, y la forma de pago lo dice), así que la aguja lo busca en todo lo demás.
+select is(
+  public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #>> '{presupuesto,contenido,senaBp}',
+  '4321',
+  'el porcentaje de seña viaja solo adentro del presupuesto que se le mandó, que es el documento que lo dice'
+);
+
 select is_empty(
   format(
     $$
@@ -316,9 +398,9 @@ select is_empty(
       ]) as v (aguja)
       where %L like '%%' || v.aguja || '%%'
     $$,
-    public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')::text
+    (public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #- '{presupuesto,contenido,senaBp}')::text
   ),
-  'en el JSON entero no aparece ni un costo, ni un gasto, ni un herraje, ni las notas, ni la opción que no aprobó, ni un dato del cliente que no sea su nombre, ni el último contacto, ni el vencimiento del presupuesto, ni el tipo de proyecto, ni nada de los ajustes que no sea el cobro'
+  'en el JSON entero no aparece ni un costo, ni un gasto, ni un herraje, ni las notas, ni la opción que no aprobó (tampoco adentro del presupuesto que se le mandó), ni un dato del cliente que no sea su nombre, ni el último contacto, ni el vencimiento del presupuesto, ni el tipo de proyecto, ni nada de los ajustes que no sea el cobro'
 );
 
 
@@ -485,14 +567,16 @@ select is(
 
 -- La historia de las etapas -----------------------------------------------------------------------------------------
 
+-- En el orden en que se anotaron: updated_at lo pone la base con clock_timestamp(), y el id de dos filas
+-- del mismo milisegundo no ordena.
 select is(
   (
-    select array_agg(c.hacia::text order by c.id)
+    select array_agg(c.hacia::text order by c.updated_at, c.id)
     from public.cambios_de_estado c
     where c.proyecto_id = 'aaaaaaaa-0000-7000-8000-000000000010'
   ),
-  array['en_curso'],
-  'el alta del trabajo ya deja anotada su etapa'
+  array['a_presupuestar', 'presupuesto_enviado', 'en_curso'],
+  'el alta del trabajo ya deja anotada su etapa, y mandarle el presupuesto y aprobarlo, las suyas'
 );
 
 update public.proyectos set estado = 'entregado', fecha_entrega = '2026-09-16'
@@ -500,11 +584,14 @@ update public.proyectos set estado = 'entregado', fecha_entrega = '2026-09-16'
 
 select is(
   (
-    select array_agg(coalesce(c.desde::text, 'alta') || ' a ' || c.hacia::text order by c.id)
+    select array_agg(coalesce(c.desde::text, 'alta') || ' a ' || c.hacia::text order by c.updated_at, c.id)
     from public.cambios_de_estado c
     where c.proyecto_id = 'aaaaaaaa-0000-7000-8000-000000000010'
   ),
-  array['alta a en_curso', 'en_curso a entregado'],
+  array[
+    'alta a a_presupuestar', 'a_presupuestar a presupuesto_enviado', 'presupuesto_enviado a en_curso',
+    'en_curso a entregado'
+  ],
   'cambiar de etapa lo anota, con la etapa de la que salió'
 );
 
@@ -515,7 +602,7 @@ select is(
     select count(*)::int from public.cambios_de_estado c
     where c.proyecto_id = 'aaaaaaaa-0000-7000-8000-000000000010'
   ),
-  2,
+  4,
   'editar cualquier otra cosa no anota nada: el registro es de etapas'
 );
 

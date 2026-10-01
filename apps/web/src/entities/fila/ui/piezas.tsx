@@ -1,17 +1,7 @@
-import type { ReactNode } from 'react';
-
 import { TINTA, type TintaDeTesoro } from '@/shared/lib';
+import { Globo } from '@/shared/ui';
 
-export function Globo({ numero, className = '' }: { numero: number; className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`flex size-6 flex-none items-center justify-center rounded-pill border-[1.5px] border-ink bg-paper text-badge font-semibold text-ink tabular-nums ${className}`}
-    >
-      {numero}
-    </span>
-  );
-}
+export { Globo, LineaDePuntos, MarcaDeRevision, RotuloDelPlano } from '@/shared/ui';
 
 export function GloboConGuia({ numero }: { numero: number }) {
   return (
@@ -41,20 +31,6 @@ export function MarcasDeCorte() {
           <path d="M0 14 H9 M14 0 V9" stroke="currentColor" strokeWidth="1.5" fill="none" />
         </svg>
       ))}
-    </span>
-  );
-}
-
-export function RotuloDelPlano({
-  children,
-  className = '',
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <span className={`rotulo-del-plano text-badge font-medium text-text-2 uppercase ${className}`}>
-      {children}
     </span>
   );
 }
@@ -106,45 +82,5 @@ export function NivelDelMes({ tinta, lleva, prueba = 0, tope, etiqueta, texto }:
         )}
       </span>
     </div>
-  );
-}
-
-export function LineaDePuntos({
-  izquierda,
-  derecha,
-  className = '',
-}: {
-  izquierda: ReactNode;
-  derecha: ReactNode;
-  className?: string;
-}) {
-  return (
-    <span className={`flex min-w-0 items-baseline gap-1.5 ${className}`}>
-      <span className="truncate">{izquierda}</span>
-      <span aria-hidden className="min-w-3 flex-1 border-b border-dotted border-text-3" />
-      <span className="flex-none tabular-nums">{derecha}</span>
-    </span>
-  );
-}
-
-export function MarcaDeRevision({ numero }: { numero: number }) {
-  return (
-    <span
-      aria-hidden
-      className="absolute -top-3.5 -right-3 z-10 flex size-7 items-center justify-center text-ink"
-    >
-      <svg viewBox="0 0 28 26" className="absolute inset-0 size-7 overflow-visible">
-        <path
-          d="M14 2.5 L26 23.5 H2 Z"
-          fill="var(--color-paper)"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span className="relative mt-[7px] text-[10px] leading-none font-semibold tabular-nums">
-        {numero}
-      </span>
-    </span>
   );
 }

@@ -180,6 +180,11 @@ async function editarLaFila(page: Page): Promise<void> {
   await expect(page.getByRole('region', { name: 'Editando la fila' })).toBeVisible(CARGA);
 }
 
+async function conCambiosSinGuardar(page: Page): Promise<void> {
+  await page.getByLabel('Plazo de fabricación (días hábiles)').fill('35');
+  await expect(page.getByRole('button', { name: 'Guardar los cambios' })).toBeVisible(CARGA);
+}
+
 async function alFinalDelScroll(page: Page): Promise<void> {
   await page.evaluate(() => {
     for (const elemento of document.querySelectorAll<HTMLElement>('*')) {
@@ -368,7 +373,14 @@ test('al final del scroll nada del contenido queda debajo de lo que flota abajo,
       `/proyectos/${taller.obraId}/editar`,
       `/proyectos/${taller.obraId}/vista-cliente`,
       `/proyectos/${taller.contactoId}/vista-cliente`,
+      `/proyectos/${taller.contactoId}/presupuesto`,
+      '/ajustes/presupuesto',
     ].map((ruta) => ({ ruta, nombre: ruta })),
+    {
+      ruta: '/ajustes/presupuesto',
+      nombre: '/ajustes/presupuesto con cambios sin guardar',
+      preparar: conCambiosSinGuardar,
+    },
   ];
 
   const resultado: Record<string, string[]> = {};

@@ -905,6 +905,7 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarClientes(sesion);
   await sacarLaFila(sesion);
   await archivarLosTesorosDelDueno(sesion);
+  await restablecerElPresupuestoDelTaller(sesion);
 }
 
 export async function crearCliente(
@@ -1363,6 +1364,94 @@ export async function opcionesDe(
     `/rest/v1/opciones_de_presupuesto?select=id,descripcion,monto_centavos,aprobada&deleted_at=is.null&proyecto_id=eq.${proyectoId}&order=monto_centavos`,
     { accessToken },
   )) as FilaDeOpcion[];
+}
+
+export interface FilaDelPresupuestoDePrueba {
+  id: string;
+  numero: string | null;
+  borrador_version: number;
+  aceptado_el: string | null;
+}
+
+export async function presupuestoDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<FilaDelPresupuestoDePrueba | undefined> {
+  const filas = (await pedir(
+    entorno,
+    `/rest/v1/presupuestos?select=id,numero,borrador_version,aceptado_el&deleted_at=is.null&proyecto_id=eq.${proyectoId}`,
+    { accessToken },
+  )) as FilaDelPresupuestoDePrueba[];
+  return filas[0];
+}
+
+export interface FilaDeRevisionDePrueba {
+  revision: number;
+  numero: string;
+  mandado_el: string;
+  vale_hasta: string | null;
+  que_cambio: string | null;
+}
+
+export async function revisionesDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<FilaDeRevisionDePrueba[]> {
+  return (await pedir(
+    entorno,
+    `/rest/v1/revisiones_del_presupuesto?select=revision,numero,mandado_el,vale_hasta,que_cambio&deleted_at=is.null&proyecto_id=eq.${proyectoId}&order=revision`,
+    { accessToken },
+  )) as FilaDeRevisionDePrueba[];
+}
+
+export interface PresupuestoDelTallerDePrueba {
+  taller_titular: string;
+  taller_cuit: string;
+  taller_domicilio: string;
+  plantilla_del_presupuesto: { avisos: { texto: string; tildadaPorDefecto: boolean }[] } | null;
+  plantilla_del_presupuesto_version: number;
+}
+
+export async function presupuestoDelTallerDe({
+  entorno,
+  accessToken,
+}: SesionDePrueba): Promise<PresupuestoDelTallerDePrueba> {
+  const filas = (await pedir(
+    entorno,
+    '/rest/v1/ajustes?select=taller_titular,taller_cuit,taller_domicilio,plantilla_del_presupuesto,plantilla_del_presupuesto_version&deleted_at=is.null',
+    { accessToken },
+  )) as PresupuestoDelTallerDePrueba[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el taller de prueba no tiene ajustes');
+  return fila;
+}
+
+export async function restablecerElPresupuestoDelTaller(sesion: SesionDePrueba): Promise<void> {
+  const { entorno, accessToken } = sesion;
+  const actual = await presupuestoDelTallerDe(sesion);
+  if (actual.plantilla_del_presupuesto !== null) {
+    await pedir(entorno, '/rest/v1/rpc/guardar_la_plantilla_del_presupuesto', {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify({
+        p_version: actual.plantilla_del_presupuesto_version,
+        p_plantilla: null,
+      }),
+    });
+  }
+  await pedir(entorno, '/rest/v1/ajustes?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      taller_titular: '',
+      taller_cuit: '',
+      taller_condicion_fiscal: null,
+      taller_domicilio: '',
+      taller_telefono: '',
+      taller_email: '',
+    }),
+  });
 }
 
 export interface PreferenciasDeAvisosDePrueba {

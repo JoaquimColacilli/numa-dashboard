@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  despuesDeLaEntrega,
-  mensajeDelPedido,
-  mensajeDelRecordatorio,
-  whatsappCon,
-} from './mensajes';
+import { despuesDeLaEntrega, mensajeDelPedido, mensajeDelRecordatorio } from './mensajes';
 
 const ENLACE = 'https://maun.app/o/abc';
 
@@ -22,13 +17,6 @@ describe('los mensajes de WhatsApp', () => {
   it('el recordatorio avisa que es la segunda vez', () => {
     expect(mensajeDelRecordatorio('Omar Peralta', 'Placard de dos puertas', ENLACE)).toBe(
       'Hola Omar, te escribo de nuevo por si se te pasó: ¿nos contás cómo te fue con tu placard? Es un minuto. https://maun.app/o/abc',
-    );
-  });
-
-  it('con teléfono va directo a ese chat; sin teléfono deja elegir a quién', () => {
-    expect(whatsappCon('11 5523 4410', 'Hola')).toBe('https://wa.me/5491155234410?text=Hola');
-    expect(whatsappCon('', '¿Cómo te fue?')).toBe(
-      'https://wa.me/?text=%C2%BFC%C3%B3mo%20te%20fue%3F',
     );
   });
 });

@@ -199,6 +199,7 @@ export function web(dir) {
       'tsconfig.node.json',
       'tsconfig.sw.json',
       'tsconfig.netlify.json',
+      'tsconfig.pdf.json',
     ]),
     react,
     {

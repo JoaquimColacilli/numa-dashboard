@@ -31,6 +31,13 @@
   - un reabierto por trabajo en un taller por mes vuelve a cobrar el sueldo por mes (ver la nota en
     «4. Liquidar por la fila»);
   - el plano quedó hasta un 6 % más chico donde lo limita el ancho (ver la objeción 7).
+- Completado el 2026-10-01 por el [0080](0080-el-presupuesto-adentro-de-la-ficha.md):
+  - la plantilla del presupuesto vive en `ajustes` con el molde de la fila: `null` es la de siempre (una
+    constante del dominio), se guarda con su revisión (`MN030` si otro aparato la cambió), su gemela de la
+    forma y el reenvío idéntico, y no hace falta migrar datos;
+  - el globo, los renglones con puntos, el triángulo de la revisión y el rótulo del plano pasan de
+    `entities/fila` a `shared/ui/plano.tsx`, porque los usa también el presupuesto; `entities/fila` los
+    reexporta y Tesoros no cambia. El triángulo suma la variante `suelta`, para ir en la línea.
 
 ## Contexto
 

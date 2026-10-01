@@ -15,6 +15,17 @@
 - Completada el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): el valor del
   relevamiento (`relevamiento_centavos`) viaja solo antes de mandar el presupuesto, y el tipo de la
   vista lo tiene solo en esa etapa (`relevamientoPorHacer`).
+- Corregida el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md):
+  - **Vencido no pide la seña.** Con la vigencia pasada, el presupuesto queda a la vista con «Venció el
+    …», «Cómo pagar» deja de pedir la seña y dice que le escriba al taller, «Para cuándo» no sale y «Tu
+    mueble» cambia su bajada. Vale también para un presupuesto mandado por fuera de la app. Cierra la
+    objeción de este ADR: «Cómo pagar» ya no pide la seña con un precio que el taller dejó de sostener.
+  - **La obra viaja antes de aprobar**, pero solo adentro del presupuesto mandado: es parte del documento
+    que el dueño decidió mandar. La columna `direccion` de la vista no cambia.
+  - **«Para cuándo» cuenta el plazo de la última revisión** en vez de los 21 días hábiles fijos. Sin
+    presupuesto mandado, siguen los 21.
+  - **«Tu mueble» con opciones** dice «2 opciones» y la bajada «Mirá las dos en el presupuesto y avisale
+    al taller cuál preferís.», en vez de «—».
 
 ## Contexto
 

@@ -117,7 +117,35 @@ const PANTALLAS: readonly Pantalla[] = [
       ).toBeVisible(CARGA);
     },
   },
+  {
+    nombre: 'El presupuesto',
+    ruta: ({ contactoId }) => `/proyectos/${contactoId}/presupuesto`,
+    listo: async (page) => {
+      await expect(page.getByRole('region', { name: 'Valores' })).toBeVisible(CARGA);
+    },
+  },
+  {
+    nombre: 'El presupuesto como lo ve el cliente',
+    ruta: ({ contactoId }) => `/proyectos/${contactoId}/presupuesto`,
+    listo: async (page) => {
+      await page.getByRole('tab', { name: 'Ver cómo lo ve tu cliente' }).click();
+      await expect(page.getByRole('tabpanel')).toContainText('Borrador', CARGA);
+    },
+  },
 ];
+
+async function mandarElPresupuesto(page: Page, { contactoId }: Taller): Promise<void> {
+  await page.goto(`/proyectos/${contactoId}/presupuesto`);
+  await page
+    .locator('[data-mueble]')
+    .first()
+    .getByLabel('Descripción técnica')
+    .fill('Placard de tres puertas corredizas en melamina blanca.');
+  await page.getByRole('button', { name: 'Mandar el presupuesto' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Mandar el presupuesto' });
+  await hoja.getByRole('button', { name: 'Mandar', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Listo' })).toBeVisible(CARGA);
+}
 
 let sesion: SesionDePrueba;
 
@@ -511,8 +539,9 @@ for (const [indice, escenario] of ESCENARIOS.entries()) {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'celular', 'los tres anchos se recorren desde el celular');
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     const taller = await sembrar(escenario);
+    await mandarElPresupuesto(page, taller);
 
     const problemas = await recorrer(
       page,
@@ -530,8 +559,9 @@ for (const [indice, escenario] of ESCENARIOS.slice(0, 2).entries()) {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'escritorio', 'el ancho de la computadora');
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     const taller = await sembrar(escenario);
+    await mandarElPresupuesto(page, taller);
 
     const problemas = await recorrer(
       page,

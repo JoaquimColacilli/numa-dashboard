@@ -16,7 +16,7 @@ export const TAREAS_DEL_PRESUPUESTO: readonly TareaDelPresupuesto[] = [
     etiqueta: 'Cotizar',
     detalle: 'Madera y herrajes, flete, ayudante',
   },
-  { columna: 'presupuesto_pdf', etiqueta: 'Armar el PDF', detalle: null },
+  { columna: 'presupuesto_pdf', etiqueta: 'Armar el presupuesto', detalle: null },
 ];
 
 type FilaQuizasSinTareas = Partial<Pick<Proyecto, ColumnaDeTarea>>;

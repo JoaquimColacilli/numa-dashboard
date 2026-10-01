@@ -4,12 +4,7 @@ import type { Archivo } from '@/entities/archivo';
 import type { Enlace } from '@/entities/enlace';
 import { olvidarLosTokens, recordarToken } from '@/shared/lib';
 
-import {
-  comoSeVeElEnlace,
-  cuantosVeElCliente,
-  enlaceDeWhatsapp,
-  mensajeParaElCliente,
-} from './compartir';
+import { comoSeVeElEnlace, cuantosVeElCliente } from './compartir';
 
 function enlace(id: string, token: string | null = null): Enlace {
   return {
@@ -87,37 +82,6 @@ describe('cómo se ve el enlace del lado del dueño', () => {
 
   it('un enlace de los de antes, desde otro aparato, sigue activo pero sin dirección', () => {
     expect(comoSeVeElEnlace(enlace('e1'), true)).toEqual({ como: 'activo_sin_la_direccion' });
-  });
-});
-
-describe('el mensaje para el cliente', () => {
-  it('lo saluda por el nombre y le manda la dirección', () => {
-    expect(mensajeParaElCliente('Marcela Duarte', 'Placard 3 puertas', 'https://m/v/t')).toBe(
-      'Hola Marcela, acá podés ver cómo va tu placard 3 puertas: https://m/v/t',
-    );
-  });
-
-  it('sin nombre saluda igual', () => {
-    expect(mensajeParaElCliente('  ', 'Mesada', 'https://m/v/t')).toContain('Hola, acá podés ver');
-  });
-
-  it('con un pago pendiente, también le dice que ahí ve cómo pagarlo', () => {
-    expect(mensajeParaElCliente('Marcela', 'Placard', 'https://m/v/t', true)).toBe(
-      'Hola Marcela, acá podés ver cómo va y cómo pagarlo tu placard: https://m/v/t',
-    );
-  });
-
-  it('con todo pagado, el mensaje es el de siempre', () => {
-    expect(mensajeParaElCliente('Marcela', 'Placard', 'https://m/v/t', false)).toBe(
-      'Hola Marcela, acá podés ver cómo va tu placard: https://m/v/t',
-    );
-  });
-
-  it('con teléfono abre el chat de esa persona, y sin teléfono deja elegir a quién', () => {
-    expect(enlaceDeWhatsapp('+54 9 11 4088-2210', 'hola')).toBe(
-      'https://wa.me/5491140882210?text=hola',
-    );
-    expect(enlaceDeWhatsapp('', 'hola')).toBe('https://wa.me/?text=hola');
   });
 });
 

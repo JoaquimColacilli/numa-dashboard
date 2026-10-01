@@ -38,7 +38,7 @@ describe('la ayuda de la vista del cliente', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('El enlace y la pantalla');
-    expect(screen.getByText('1 de 8')).toBeInTheDocument();
+    expect(screen.getByText('1 de 9')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Atrás' })).toBeDisabled();
   });
 
@@ -89,6 +89,23 @@ describe('la ayuda de la vista del cliente', () => {
     expect(leido).toContain('«No puedo ese día»');
     expect(leido).toContain('«Fecha estimada de entrega»');
     expect(leido).not.toContain('pautada');
+  });
+
+  it('cuenta el presupuesto que le mandás, y que las opciones que no eligió desaparecen al aprobar', () => {
+    abrir();
+    tocar('Siguiente');
+    tocar('Siguiente');
+    tocar('Siguiente');
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
+      'El presupuesto que le mandás',
+    );
+    const leido = screen.getByRole('dialog').textContent;
+    expect(leido).toContain('lo puede bajar en PDF');
+    expect(leido).toContain('deja de pedirle la seña');
+    expect(leido).toContain('por fuera de la app');
+    expect(leido).toContain('las que no eligió desaparecen');
+    expect(leido).not.toContain('ni las opciones que no te aprobó');
   });
 
   it('deja ver una lámina por vez', () => {

@@ -223,3 +223,56 @@ describe('los MN00x traducidos a castellano de taller', () => {
     expect(traducirRechazo(new TypeError('Failed to fetch'))).toBeUndefined();
   });
 });
+
+describe('los rechazos del presupuesto', () => {
+  it('MN026: el borrador cambió en otro aparato', () => {
+    expect(texto('MN026', { operacion: 'presupuesto' })).toBe(
+      'Este presupuesto se cambió en otro aparato. Abrilo de nuevo para ver la última versión y seguí desde ahí.',
+    );
+  });
+
+  it('MN027: le falta algo para mandarlo', () => {
+    expect(texto('MN027', { operacion: 'presupuesto' })).toBe(
+      'Al presupuesto le falta algo para mandarlo. Revisá que tenga título, por lo menos un mueble con su detalle y un total.',
+    );
+  });
+
+  it('MN028: ya lo aprobó', () => {
+    expect(texto('MN028', { operacion: 'presupuesto' })).toBe(
+      'Ya lo aprobó: el presupuesto no se cambia. Un cambio después de la seña se arregla aparte con tu cliente.',
+    );
+  });
+
+  it('MN029: cambiaron los importes', () => {
+    expect(texto('MN029', { operacion: 'presupuesto' })).toBe(
+      'Cambiaron los importes desde que lo armaste. Revisá los valores y volvé a mandarlo.',
+    );
+  });
+
+  it('MN030: los textos cambiaron en otro aparato', () => {
+    expect(texto('MN030', { operacion: 'plantilla' })).toBe(
+      'Los textos del presupuesto se cambiaron en otro aparato. Abrí la pantalla de nuevo y volvé a guardar.',
+    );
+  });
+
+  it('MN031: lo que no tiene la forma, sin mostrar el código del problema', () => {
+    expect(texto('MN031', { operacion: 'presupuesto' })).toBe(
+      'El presupuesto no se pudo guardar. Revisalo y probá de nuevo. Si vuelve a pasar, cerrá la app y abrila otra vez para que se actualice.',
+    );
+    expect(texto('MN031', { operacion: 'plantilla' })).toBe(
+      'Tus textos del presupuesto no se pudieron guardar. Revisalo y probá de nuevo. Si vuelve a pasar, cerrá la app y abrila otra vez para que se actualice.',
+    );
+  });
+
+  it('MN032: el trabajo está perdido', () => {
+    expect(texto('MN032', { operacion: 'presupuesto' })).toBe(
+      'Este trabajo está perdido: su presupuesto no se cambia ni se manda. Si el cliente volvió, reactivalo desde la ficha y seguí desde ahí.',
+    );
+  });
+
+  it('MN033: el día del envío no llegó', () => {
+    expect(texto('MN033', { operacion: 'presupuesto' })).toBe(
+      'El día del envío todavía no llegó. Revisá la fecha y la hora de tu aparato, y volvé a mandarlo.',
+    );
+  });
+});

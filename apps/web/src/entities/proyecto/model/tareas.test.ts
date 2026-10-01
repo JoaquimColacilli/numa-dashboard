@@ -29,7 +29,7 @@ describe('las tareas de presupuestar', () => {
       'Diseñar',
       'Despiezar',
       'Cotizar',
-      'Armar el PDF',
+      'Armar el presupuesto',
     ]);
   });
 

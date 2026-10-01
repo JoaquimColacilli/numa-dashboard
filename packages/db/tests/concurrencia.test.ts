@@ -18,6 +18,8 @@ const TOKEN_DE_LA_ENCUESTA_DEL_SEED = '5eed-encuesta-del-vanitory-0001';
 const TRABAJO_LISTO_DEL_SEED = '5eed0000-0000-7000-8000-000000020015';
 const PROPUESTA_DEL_SEED = '5eed0000-0000-7000-8000-000000070002';
 const TOKEN_DE_LA_ENTREGA_DEL_SEED = '5eed-entrega-del-placard-0001';
+const RACK_DEL_SEED = '5eed0000-0000-7000-8000-000000020016';
+const PRESUPUESTO_DEL_SEED = '5eed0000-0000-7000-8000-000000080001';
 
 const abiertas: pg.Client[] = [];
 const pendientes: Promise<unknown>[] = [];
@@ -72,6 +74,20 @@ async function lecturasDeProyectos(monitor: pg.Client, pid: number): Promise<num
     `select count(*)::int as cantidad from pg_locks
      where pid = $1 and relation = 'public.proyectos'::regclass and mode = 'AccessShareLock'`,
     [pid],
+  );
+  return rows[0]?.cantidad ?? -1;
+}
+
+async function locksSobre(
+  monitor: pg.Client,
+  pid: number,
+  tabla: string,
+  modo: string | null = null,
+): Promise<number> {
+  const { rows } = await monitor.query<{ cantidad: number }>(
+    `select count(*)::int as cantidad from pg_locks
+     where pid = $1 and relation = $2::regclass and ($3::text is null or mode = $3)`,
+    [pid, tabla, modo],
   );
   return rows[0]?.cantidad ?? -1;
 }
@@ -564,6 +580,194 @@ describe('los movimientos contra las liquidaciones del mismo taller, con conexio
     await expect(liquidarPreparada(cobro, datos)).resolves.toBeDefined();
     await cobro.query('rollback');
     await expect(alta).resolves.toBeDefined();
+  });
+});
+
+interface ParaMandar {
+  presupuesto: string;
+  documento: string;
+}
+
+function documentoDelPresupuesto(titulo: string, total: number, senaBp: number): string {
+  return JSON.stringify({
+    forma: 1,
+    taller: {
+      nombre: '[seed] Taller de prueba',
+      titular: '',
+      cuit: '',
+      condicionFiscal: null,
+      domicilio: '',
+      telefono: '',
+      email: '',
+    },
+    cliente: 'Diego Ferrari',
+    titulo,
+    obra: '',
+    descripcion: '',
+    muebles: [{ nombre: titulo, descripcion: 'Con nicho para la consola y dos cajones.' }],
+    herrajes: [],
+    aTenerEnCuenta: [],
+    incluye: [],
+    valores: { tipo: 'total', total },
+    senaBp,
+    abonado: 0,
+    formaDePago: null,
+    plazoDeFabricacion: 30,
+    validezDias: 15,
+    avisos: [],
+    condiciones: [],
+    garantia: 'Garantía de 6 meses desde la entrega.',
+    garantiaMeses: 6,
+  });
+}
+
+async function elRackDelSeed(
+  monitor: pg.Client,
+): Promise<ParaMandar & { senaBp: number; hoy: string }> {
+  const { rows } = await monitor.query<{ total: string; sena: number; hoy: string }>(
+    `select p.presupuesto_centavos::text as total, coalesce(p.sena_bp, a.sena_bp) as sena,
+            private.hoy_en_el_taller()::text as hoy
+     from public.proyectos p
+     join public.ajustes a on a.household_id = p.household_id
+     join public.presupuestos b on b.proyecto_id = p.id and b.deleted_at is null
+     where p.id = $1 and p.estado = 'a_presupuestar' and p.deleted_at is null and b.numero is null
+       and not exists (select 1 from public.pagos g where g.proyecto_id = p.id and g.deleted_at is null)`,
+    [RACK_DEL_SEED],
+  );
+  const fila = rows[0];
+  if (fila === undefined) {
+    throw new Error(
+      'El test de concurrencia usa el rack a presupuestar del seed, con su borrador sin mandar. Cargalo con `pnpm --filter @maun/db db:seed`.',
+    );
+  }
+  return {
+    presupuesto: PRESUPUESTO_DEL_SEED,
+    documento: documentoDelPresupuesto('Rack para el living', Number(fila.total), fila.sena),
+    senaBp: fila.sena,
+    hoy: fila.hoy,
+  };
+}
+
+async function otroParaMandar(cliente: pg.Client, senaBp: number): Promise<ParaMandar> {
+  const ids = {
+    cliente: '0192a3b4-c5d6-7e8f-9a0b-000000000090',
+    proyecto: '0192a3b4-c5d6-7e8f-9a0b-000000000091',
+    presupuesto: '0192a3b4-c5d6-7e8f-9a0b-000000000092',
+  };
+  await cliente.query("insert into public.clientes (id, nombre) values ($1, 'Lorena Paz')", [
+    ids.cliente,
+  ]);
+  await cliente.query(
+    `insert into public.proyectos (id, cliente_id, titulo, estado, presupuesto_centavos)
+     values ($1, $2, 'Biblioteca de la prueba', 'a_presupuestar', 50000000)`,
+    [ids.proyecto, ids.cliente],
+  );
+  await cliente.query('select public.guardar_el_presupuesto($1, $2, 0, $3::jsonb)', [
+    ids.presupuesto,
+    ids.proyecto,
+    JSON.stringify({
+      forma: 1,
+      titulo: 'Biblioteca de la prueba',
+      obra: '',
+      descripcion: '',
+      muebles: [
+        { id: 'm1', nombre: 'Biblioteca', descripcion: 'Con nicho para la consola y dos cajones.' },
+      ],
+      herrajes: { mostrar: true, lista: [] },
+      aTenerEnCuenta: { tildadas: [], propias: [] },
+      incluye: { tildadas: [], propias: [] },
+      formaDePago: null,
+      plazoDeFabricacion: 30,
+      validezDias: 15,
+      avisos: { tildadas: [], propias: [] },
+      condiciones: { tildadas: [], propias: [] },
+    }),
+  ]);
+  return {
+    presupuesto: ids.presupuesto,
+    documento: documentoDelPresupuesto('Biblioteca de la prueba', 50_000_000, senaBp),
+  };
+}
+
+async function mandar(
+  cliente: pg.Client,
+  envio: ParaMandar,
+  revision: string,
+  hoy: string,
+): Promise<string> {
+  const { rows } = await cliente.query<{ numero: string }>(
+    `select public.mandar_el_presupuesto(
+       $1, $2, (select b.borrador_version from public.presupuestos b where b.id = $1), $3::jsonb, null, $4::date, null
+     ) #>> '{revision,numero}' as numero`,
+    [envio.presupuesto, revision, envio.documento, hoy],
+  );
+  return rows[0]?.numero ?? '';
+}
+
+async function siguienteNumeroDelDia(monitor: pg.Client, hoy: string): Promise<string> {
+  const { rows } = await monitor.query<{ numero: string }>(
+    `select to_char($1::date, 'YYYYMMDD') || '-' || lpad(x.n::text, greatest(2, char_length(x.n::text)), '0') as numero
+     from (
+       select coalesce(max(split_part(r.numero, '-', 2)::integer), 0) + 1 as n
+       from public.revisiones_del_presupuesto r
+       where r.household_id = $2 and r.numero like to_char($1::date, 'YYYYMMDD') || '-%'
+     ) as x`,
+    [hoy, HOUSEHOLD_DEL_SEED],
+  );
+  return rows[0]?.numero ?? '';
+}
+
+describe('dos envíos del presupuesto del mismo taller, con conexiones reales y todo en rollback', () => {
+  it('dos envíos de trabajos distintos se esperan en la fila de ajustes antes de mirar las revisiones y contar los números del día', async () => {
+    const primera = await sesion();
+    const segunda = await sesion();
+    const monitor = await sesion();
+
+    const rack = await elRackDelSeed(monitor);
+
+    await abrirTransaccion(segunda);
+    await entrarAlHousehold(segunda);
+    const biblioteca = await otroParaMandar(segunda, rack.senaBp);
+
+    await abrirTransaccion(primera);
+    await entrarAlHousehold(primera);
+    await mandar(primera, rack, '0192a3b4-c5d6-7e8f-9a0b-000000000081', rack.hoy);
+
+    const pidSegunda = await pidDe(segunda);
+    const envio = sinRechazoSuelto(
+      mandar(segunda, biblioteca, '0192a3b4-c5d6-7e8f-9a0b-000000000082', rack.hoy),
+    );
+
+    expect(await esperarQueEspere(monitor, pidSegunda)).toContain(await pidDe(primera));
+    expect(await locksSobre(monitor, pidSegunda, 'public.revisiones_del_presupuesto')).toBe(0);
+
+    await primera.query('rollback');
+    await expect(envio).resolves.toBe(await siguienteNumeroDelDia(monitor, rack.hoy));
+  });
+
+  it('el reintento del mismo envío espera al primero en el trabajo, antes de tomar los ajustes y de buscar la revisión, y no choca con ella', async () => {
+    const primera = await sesion();
+    const reintento = await sesion();
+    const monitor = await sesion();
+
+    const rack = await elRackDelSeed(monitor);
+    const revision = '0192a3b4-c5d6-7e8f-9a0b-000000000083';
+
+    await abrirTransaccion(primera);
+    await entrarAlHousehold(primera);
+    const numero = await mandar(primera, rack, revision, rack.hoy);
+
+    await abrirTransaccion(reintento);
+    await entrarAlHousehold(reintento);
+    const pidReintento = await pidDe(reintento);
+    const otraVez = sinRechazoSuelto(mandar(reintento, rack, revision, rack.hoy));
+
+    expect(await esperarQueEspere(monitor, pidReintento)).toContain(await pidDe(primera));
+    expect(await locksSobre(monitor, pidReintento, 'public.ajustes', 'RowShareLock')).toBe(0);
+    expect(await locksSobre(monitor, pidReintento, 'public.revisiones_del_presupuesto')).toBe(0);
+
+    await primera.query('rollback');
+    await expect(otraVez).resolves.toBe(numero);
   });
 });
 

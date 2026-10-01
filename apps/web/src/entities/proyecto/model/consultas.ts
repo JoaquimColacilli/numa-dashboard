@@ -300,7 +300,9 @@ export function etapaAlGuardarElContacto(
 }
 
 export type CaminoDelPaso =
-  'agendar' | 'relevar' | 'presupuesto' | 'pasar-a-presupuestar' | 'guardar' | 'pasaje';
+  'agendar' | 'relevar' | 'presupuesto' | 'pasar-a-presupuestar' | 'guardar' | 'pasaje' | 'armar';
+
+export type PresupuestoDelContacto = 'sin-borrador' | 'borrador' | 'mandado';
 
 export interface PasoDelContacto {
   hacia: EstadoProyecto;
@@ -378,8 +380,16 @@ function pasosDeLaSugerencia(
 export function pasosDelContacto(
   etapa: EtapaDeConsulta,
   situacion: SituacionDelContacto,
+  presupuesto: PresupuestoDelContacto = 'mandado',
 ): PasoDelContacto[] {
-  return pasosDeLaSugerencia(etapa, situacion.sugerencia).filter((paso) =>
+  const pasos = pasosDeLaSugerencia(etapa, situacion.sugerencia).filter((paso) =>
     puedeCambiarEstado(etapa, paso.hacia),
   );
+  if (etapa !== 'a_presupuestar' || presupuesto === 'mandado') return pasos;
+  const armar: PasoDelContacto = {
+    hacia: 'presupuesto_enviado',
+    etiqueta: presupuesto === 'borrador' ? 'Seguir armándolo' : 'Armar el presupuesto',
+    camino: 'armar',
+  };
+  return [armar, ...pasos];
 }

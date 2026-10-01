@@ -334,6 +334,46 @@ describe('necesitaReconcile', () => {
     expect(necesitaReconcile(guardada, AHORA)).toBe(true);
   });
 
+  it('una réplica guardada antes del presupuesto se lee sin borradores ni revisiones y pide el reconcile que los trae', () => {
+    const vieja = conClientes('t1', [cruda('c1', 1)], 'reconcile', AHORA);
+    const {
+      presupuestos: _presupuestos,
+      revisiones_del_presupuesto: _revisiones,
+      ...sinPresupuesto
+    } = vieja.tablas;
+    const guardada = { ...vieja, tablas: sinPresupuesto } as unknown as Replica;
+
+    expect(filasDe(guardada, 'presupuestos')).toEqual([]);
+    expect(filasDe(guardada, 'revisiones_del_presupuesto')).toEqual([]);
+    expect(necesitaReconcile(guardada, AHORA)).toBe(true);
+  });
+
+  it('el bootstrap trae el borrador y las revisiones, y un borrado los saca', () => {
+    const conPresupuesto = aplicarLote(
+      replicaVacia(USUARIO),
+      lote('t1', {
+        presupuestos: [cruda('b1', 2, { proyecto_id: 'p1' })],
+        revisiones_del_presupuesto: [cruda('r1', 1, { presupuesto_id: 'b1' })],
+      }),
+      'reconcile',
+      AHORA,
+    );
+    expect(ids(conPresupuesto, 'presupuestos')).toEqual(['b1']);
+    expect(ids(conPresupuesto, 'revisiones_del_presupuesto')).toEqual(['r1']);
+
+    const sinElTrabajo = aplicarLote(
+      conPresupuesto,
+      lote('t2', {
+        presupuestos: [borrada('b1', 3)],
+        revisiones_del_presupuesto: [borrada('r1', 2)],
+      }),
+      'delta',
+      AHORA,
+    );
+    expect(ids(sinElTrabajo, 'presupuestos')).toEqual([]);
+    expect(ids(sinElTrabajo, 'revisiones_del_presupuesto')).toEqual([]);
+  });
+
   it('la marca del reconcile es el reloj del cliente, no el cursor del servidor', () => {
     const replica = conClientes('2020-01-01T00:00:00Z', [], 'reconcile', AHORA);
 

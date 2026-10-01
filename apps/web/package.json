@@ -18,10 +18,14 @@
     "medir-el-arranque": "node scripts/medir-el-arranque.ts"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "catalog:",
+    "@fontsource/young-serif": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@maun/db": "workspace:*",
     "@maun/domain": "workspace:*",
     "@maun/ui": "workspace:*",
+    "@react-pdf/hyphenate": "catalog:",
+    "@react-pdf/renderer": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-persist-client": "catalog:",
     "@xyflow/react": "catalog:",

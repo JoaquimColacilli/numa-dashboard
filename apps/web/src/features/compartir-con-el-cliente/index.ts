@@ -2,8 +2,6 @@ export {
   comoSeVeElEnlace,
   comoSeVeEnWhatsapp,
   cuantosVeElCliente,
-  enlaceDeWhatsapp,
-  mensajeParaElCliente,
   type ComoSeVeElEnlace,
 } from './model/compartir';
 export {

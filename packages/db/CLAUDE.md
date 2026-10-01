@@ -105,6 +105,18 @@ Tipos generados de Postgres (`src/database.types.ts`), `crearClienteMaun` (la fa
 - `src/sincronizacion.ts` suma `pedidoDeLaFila(liquidacion, version, ids)`: arma `p_repartos` en el orden de `repartosDelCobro`, con un id por fila (si no coinciden los largos, `RangeError`), y `p_previo` con `previoQueVio`.
 - `concurrencia.test.ts` suma cuatro: una cobertura espera a la liquidación en la fila de ajustes, una liquidación espera a `guardar_la_fila`, un gasto desde un tesoro espera a la liquidación del mismo taller, y un movimiento con su trabajo, junto al cobro de ese trabajo, no se traba.
 
+## El presupuesto (ADR 0080)
+
+- **Tres piezas, tres escrituras.** La plantilla del taller va en `ajustes` y la escribe solo `guardar_la_plantilla_del_presupuesto` (revisión propia, `MN030`). El borrador de cada trabajo va en `presupuestos` y lo escribe solo `guardar_el_presupuesto` (`borrador_version`, `MN026`). Lo mandado va en `revisiones_del_presupuesto` y lo escribe solo `mandar_el_presupuesto`. Las tres son la pública invoker y la privada `security definer` con el molde de `guardar_la_fila`: las tablas no tienen grants de escritura, así que la privada filtra cada lectura por `household_id = private.household_actual()`, también la del reenvío.
+- **`borrador_version` no es la `version` de la fila**: la `version` sube también con el número del primer envío y con `aceptado_el`. Para comparar lo que vio la app se usa `borrador_version`, que suma solo un guardado del borrador.
+- **Mandar toma el trabajo `for update` y después `ajustes` `for no key update`**, en el orden del cobro, y recién con los dos candados mira si es un reenvío y cuenta los números del día. El número se cuenta en `revisiones_del_presupuesto`, borradas incluidas, para que un número no se repita. El orden de los rechazos: reenvío, borrado (`MN002`), `MN026`, `MN028`, `MN032`, `MN033`, `MN031`, `MN027` y `MN029`.
+- **Mandar compara el documento con lo vivo** (`MN029`): las opciones (ids, importes y orden por id) o el total, el porcentaje de seña efectivo del trabajo y `abonado` contra la suma de sus pagos vivos. Pasa el trabajo a `presupuesto_enviado` con `private.transicion_valida`, pone la vigencia, el último contacto y `presupuesto_pdf`, y devuelve la revisión, el presupuesto, el trabajo y los próximos contactos (desde el seguimiento cierra el pendiente con el trigger de siempre).
+- **`aceptado_el` lo pone `private.anotar_el_cambio_de_estado`**: el día en que el trabajo pasa de una consulta a `en_curso`, y `null` si vuelve a una consulta. No toca el borrador.
+- **Cuatro gemelas** en `scripts/comparacion.ts`: `problema_de_la_plantilla`, `problema_del_presupuesto`, `problema_del_documento` y `lo_que_falta_para_mandar`, contra `problemaDeLaPlantilla`, `problemaDelBorrador`, `problemaDelDocumento` y `problemasParaMandar` de `@maun/domain`. Si cambiás una, cambiás la otra en el mismo PR.
+- **`vista_del_cliente` suma `presupuesto`**, con su etapa: nada antes de mandarlo; esperando la seña, la última revisión tal cual; aprobado, la última revisión con solo la opción aprobada, `aceptado_el` y su letra. La obra y los datos del taller viajan adentro de la foto, no como claves propias. `leerVistaDelCliente` lo lee con `leerDocumento`, tolerante.
+- La baja del trabajo se lleva el borrador y sus revisiones con `private.borrar_el_presupuesto_del_trabajo`, que llama `borrar_hijos_de_proyecto`.
+- `concurrencia.test.ts` suma dos: dos envíos de trabajos distintos se esperan en `ajustes` antes de mirar las revisiones y contar, y el reintento del mismo envío espera en el trabajo, sin tomar los ajustes ni buscar la revisión, y no choca con ella. Usan el rack del seed, con su borrador.
+
 ## La agenda y los avisos (ADR 0034 y 0036)
 
 - `src/agenda.ts` convierte filas en los datos del dominio: `datosDeLaAgendaDeLaReplica` para la app, `datosDeLaAgenda` para la función de borde. Es la misma función a propósito: lo que muestra la agenda y lo que se avisa no pueden divergir.
@@ -221,7 +233,8 @@ Versión fijada: **2.117.0**. No hay CI que la imponga: mantené la local en esa
   - dos «me queda bien» a la vez se esperan en el lock del trabajo, y una propuesta nueva espera a la respuesta que se está guardando (ADR 0071);
   - dos altas en la vidriera se esperan en el lock del household antes de contar (ADR 0076);
   - una cobertura del mes espera a la liquidación del mismo taller, y una liquidación espera a `guardar_la_fila` (ADR 0078);
-  - un gasto desde un tesoro espera a la liquidación del mismo taller, y un movimiento con su trabajo, junto al cobro de ese trabajo, no se traba porque toma el trabajo antes que los ajustes (ADR 0078, los tipos de tesoro).
+  - un gasto desde un tesoro espera a la liquidación del mismo taller, y un movimiento con su trabajo, junto al cobro de ese trabajo, no se traba porque toma el trabajo antes que los ajustes (ADR 0078, los tipos de tesoro);
+  - dos envíos de presupuesto de trabajos distintos se esperan en la fila de ajustes antes de contar los números del día, y el reintento del mismo envío espera en el trabajo y no congela dos veces (ADR 0080).
 
   Cada test falla si falta el lock que prueba. Usan proyectos del seed (`5eed…020002` entregado, `5eed…020011` en contacto) como datos commiteados que las sesiones ven. Solo corren contra migraciones ya aplicadas: otra sesión no ve DDL sin commitear.
 

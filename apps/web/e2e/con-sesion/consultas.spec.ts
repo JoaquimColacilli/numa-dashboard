@@ -633,7 +633,7 @@ test('el camino con estimativo, de punta a punta: consulta, estimativo, visita c
   await expect.poll(async () => (await pagosDe(sesion, id)).length, CARGA).toBe(1);
 
   const tareas = panel.getByRole('group', { name: /^Para el presupuesto/ });
-  for (const tarea of ['Diseñar', 'Despiezar', 'Cotizar', 'Armar el PDF']) {
+  for (const tarea of ['Diseñar', 'Despiezar', 'Cotizar', 'Armar el presupuesto']) {
     const casilla = tareas.getByRole('checkbox', { name: new RegExp(`^${tarea}`) });
     await casilla.click();
     await expect(casilla).toBeChecked();
@@ -722,9 +722,10 @@ test('las tareas de presupuestar se tildan y se destildan, y con las cuatro la a
 
   await tildar('Despiezar', true);
   await tildar('Cotizar', true);
-  await tildar('Armar el PDF', true);
+  await tildar('Armar el presupuesto', true);
   await expect(panel).toContainText('Ya está armado: falta mandar el presupuesto');
-  await expect(panel.getByRole('button').first()).toHaveText('Mandé el presupuesto');
+  await expect(panel.getByRole('button').first()).toHaveText('Armar el presupuesto');
+  await expect(panel.getByRole('button').nth(1)).toHaveText('Mandé el presupuesto');
   await expect.poll(() => tareasEnLaBase(titulo), CARGA).toEqual([true, true, true, true]);
   expect((await leerContacto(sesion, titulo))?.estado).toBe('a_presupuestar');
 });

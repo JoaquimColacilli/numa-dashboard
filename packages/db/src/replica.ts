@@ -11,6 +11,8 @@ export const TABLAS_REPLICADAS = [
   'pagos',
   'gastos',
   'opciones_de_presupuesto',
+  'presupuestos',
+  'revisiones_del_presupuesto',
   'necesidades',
   'proximos_contactos',
   'propuestas_de_entrega',

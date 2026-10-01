@@ -17,6 +17,7 @@ import {
   fechaLarga,
   hashDelToken,
   hoyLocal,
+  mensajeParaElCliente,
   metaDeAvisos,
   olvidarToken,
   recordarToken,
@@ -24,6 +25,7 @@ import {
   tokenNuevo,
   useEstadoSync,
   uuidv7,
+  whatsappCon,
   Ir,
   useIr,
   useVolver,
@@ -40,12 +42,7 @@ import {
 } from '@/shared/ui';
 
 import { filasDeCobro } from '../model/comoTePaga';
-import {
-  comoSeVeElEnlace,
-  comoSeVeEnWhatsapp,
-  enlaceDeWhatsapp,
-  mensajeParaElCliente,
-} from '../model/compartir';
+import { comoSeVeElEnlace, comoSeVeEnWhatsapp } from '../model/compartir';
 import { ArchivosQueVeElCliente } from './ArchivosQueVeElCliente';
 import { BotonDelQr } from './BotonDelQr';
 import { ComoTePaga } from './ComoTePaga';
@@ -278,7 +275,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
 
                     <div className="flex flex-wrap items-center gap-2 @min-[52rem]/apoyo:flex-col @min-[52rem]/apoyo:items-stretch @min-[52rem]/apoyo:gap-3">
                       <a
-                        href={enlaceDeWhatsapp(
+                        href={whatsappCon(
                           cliente?.telefono ?? '',
                           mensajeParaElCliente(
                             resumen.nombreDelCliente,

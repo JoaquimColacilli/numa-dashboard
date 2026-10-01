@@ -70,10 +70,10 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0064](0064-el-seguimiento-de-verdad-y-las-consultas.md)                    | El seguimiento de verdad, y el embudo se llama Consultas            | Aceptada             |
 | [0065](0065-la-app-abierta-se-entera-sola.md)                               | La app abierta se entera sola: un aviso vacío y el delta            | Aceptada             |
 | [0066](0066-las-transiciones-del-celular.md)                                | Las transiciones del celular: una puerta, una pila y un coordinador | Aceptada             |
-| [0067](0067-la-vista-antes-de-aprobar.md)                                   | La vista del cliente antes de aprobar: lo que se ve es lo que pasó  | Aceptada             |
+| [0067](0067-la-vista-antes-de-aprobar.md)                                   | La vista del cliente antes de aprobar: lo que se ve es lo que pasó  | Aceptada, corregida  |
 | [0068](0068-la-mesa-y-el-plano.md)                                          | La mesa y el plano: tarjetas sobre una mesa y dibujos en su lámina  | Aceptada, corregida  |
 | [0069](0069-el-dibujo-del-trabajo-del-cliente.md)                           | El dibujo del trabajo del cliente: el proceso, no el mueble         | Aceptada             |
-| [0070](0070-el-camino-tilda-lo-que-paso.md)                                 | El camino tilda lo que pasó y deja en curso lo que falta            | Aceptada             |
+| [0070](0070-el-camino-tilda-lo-que-paso.md)                                 | El camino tilda lo que pasó y deja en curso lo que falta            | Aceptada, corregida  |
 | [0071](0071-la-entrega-y-sus-fechas.md)                                     | La entrega y sus fechas: listo, estimada, comprometida y respuesta  | Aceptada             |
 | [0072](0072-el-sueldo-se-topea-por-mes.md)                                  | El sueldo se topea por mes                                          | Aceptada, corregida  |
 | [0073](0073-la-app-se-llama-numa.md)                                        | La app se llama NUMA; el taller sigue siendo MAUN                   | Aceptada             |
@@ -83,3 +83,4 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0077](0077-el-dibujo-de-eliseo-en-las-pantallas-de-sesion.md)              | El dibujo de Eliseo en las pantallas de sesión                      | Aceptada             |
 | [0078](0078-los-tesoros-configurables-y-la-fila.md)                         | Los tesoros configurables y la fila, por tipos de tesoro            | Aceptada, corregida  |
 | [0079](0079-las-correcciones-del-tablero.md)                                | Las correcciones del tablero: fotos, relevamiento, reabierto, plano | Aceptada             |
+| [0080](0080-el-presupuesto-adentro-de-la-ficha.md)                          | El presupuesto adentro de la ficha: borrador, revisiones y PDF      | Aceptada             |

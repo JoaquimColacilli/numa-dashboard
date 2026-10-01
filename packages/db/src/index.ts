@@ -252,6 +252,16 @@ export {
 export { leerVistaDelCliente, traerVistaCompartida, traerVistaDelCliente } from './vistaCliente.ts';
 
 export {
+  guardarElBorrador,
+  guardarLaPlantillaDelPresupuesto,
+  leerPresupuestoMandado,
+  mandarElPresupuesto,
+  type BorradorParaGuardar,
+  type PresupuestoMandado,
+  type PresupuestoParaMandar,
+} from './presupuesto.ts';
+
+export {
   contestarLaEncuesta,
   leerEncuestaCompartida,
   leerResultadoDeContestar,

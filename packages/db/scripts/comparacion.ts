@@ -1,5 +1,6 @@
 import {
   asientosDelLibro,
+  borradorNuevo,
   calcularDistribucion,
   calcularLiquidacion,
   calcularPorLaFila,
@@ -7,6 +8,7 @@ import {
   centavos,
   columnasDeSiempre,
   DIEZMO,
+  documentoDelPresupuesto,
   ESTADOS,
   esEstado,
   estaLiquidado,
@@ -17,14 +19,21 @@ import {
   esNombreDeNecesidad,
   filaDeSiempre,
   formasDeCobro,
+  GRUPOS_DE_CLAUSULAS,
   LARGO_MAXIMO_DEL_NOMBRE,
   leerLaFila,
+  letraDeLaOpcion,
   loVistoEsOtro,
   pagosPorDelante,
+  PLANTILLA_DE_SIEMPRE,
   planDelReparto,
   previoDelMes,
   previoQueVio,
   primerProblemaDeLaFila,
+  problemaDeLaPlantilla,
+  problemaDelBorrador,
+  problemaDelDocumento,
+  problemasParaMandar,
   puedeCambiarEstado,
   puedeLiquidar,
   puedeRevertir,
@@ -40,22 +49,28 @@ import {
   topesDeLaLiquidacion,
   validarRespuesta,
   validarRespuestaDeEntrega,
+  valoresDelTrabajo,
   type AjustesDeLiquidacion,
   type Asiento,
   type BaseDeLaObligacion,
+  type BorradorDelPresupuesto,
   type ClaseDePaso,
+  type DatosDelTaller,
   type Distribucion,
+  type DocumentoDelPresupuesto,
   type EntradaCascada,
   type EstadoLiquidado,
   type EstadoProyecto,
   type Fila,
   type FormaDeCobro,
   type FormaDeCoordinar,
+  type Formatos,
   type Liquidacion,
   type LiquidacionPorLaFila,
   type LiquidacionRegistrada,
   type ModoDePaso,
   type Money,
+  type OpcionDelTrabajo,
   type PlanDelReparto,
   type PreguntaDeLaEncuesta,
   type PuntosBasicos,
@@ -64,6 +79,7 @@ import {
   type Reparto,
   type TesoroDeLaFila,
   type TesorosDelSistema,
+  type ValoresDelPresupuesto,
 } from '@maun/domain';
 import type pg from 'pg';
 
@@ -5981,6 +5997,864 @@ export async function compararGuardadoDeProyecto(cliente: pg.Client): Promise<st
   return diferencias;
 }
 
+type Objeto = Record<string, unknown>;
+
+function copiaDeJson(valor: unknown): unknown {
+  return JSON.parse(JSON.stringify(valor)) as unknown;
+}
+
+function comoObjeto(valor: unknown): Objeto | null {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
+    ? (valor as Objeto)
+    : null;
+}
+
+function comoLista(valor: unknown): Objeto[] {
+  return Array.isArray(valor) ? (valor as Objeto[]) : [];
+}
+
+const FORMATOS_DEL_PRESUPUESTO: Formatos = {
+  pesos: (importe) => `$ ${String(importe / 100)}`,
+  porcentaje: (puntos) => String(puntos / 100),
+};
+
+const TALLER_DEL_PRESUPUESTO: DatosDelTaller = {
+  nombre: 'Taller de prueba',
+  titular: 'Julián Ferro',
+  cuit: '20-12345678-6',
+  condicionFiscal: 'monotributo',
+  domicilio: 'Pasaje Los Robles 450, CABA',
+  telefono: '11 5555-0199',
+  email: 'taller@ejemplo.com',
+};
+
+const OPCIONES_DEL_PRESUPUESTO: readonly OpcionDelTrabajo[] = [
+  {
+    id: '0199a1b2-0000-7000-8000-00000000000b',
+    descripcion: 'Laqueado',
+    monto: centavos(274_000_000),
+  },
+  {
+    id: '0199a1b2-0000-7000-8000-00000000000a',
+    descripcion: 'En melamina',
+    monto: centavos(218_100_000),
+  },
+];
+
+function borradorDelPresupuesto(): BorradorDelPresupuesto {
+  const nuevo = borradorNuevo({
+    titulo: 'Cocina en L',
+    obra: 'Arenales 1840, Palermo',
+    plantilla: PLANTILLA_DE_SIEMPRE,
+    validezDias: 15,
+    idNuevo: () => 'm1',
+  });
+  return {
+    ...nuevo,
+    descripcion: 'Cocina en L con bajomesada y alacena.',
+    muebles: [
+      {
+        id: 'm1',
+        nombre: 'Bajomesada',
+        descripcion: 'Bajomesada en L con cajonera de tres cajones.',
+      },
+      { id: 'm2', nombre: 'Alacena', descripcion: 'Alacena con puertas rebatibles.' },
+    ],
+    herrajes: {
+      mostrar: true,
+      lista: [
+        { id: 'h1', texto: 'Correderas telescópicas con cierre suave.' },
+        { id: 'h2', texto: 'Bisagras cazoleta de 35 mm.' },
+      ],
+    },
+    aTenerEnCuenta: {
+      tildadas: ['no-mesada'],
+      propias: [{ id: 'p1', texto: 'No incluye el retiro de los muebles existentes.' }],
+    },
+    formaDePago: {
+      plantillaId: 'sena-y-entrega',
+      texto: 'Seña del {sena} y el saldo contra entrega.',
+    },
+  };
+}
+
+function documentoDePrueba(
+  valores: ValoresDelPresupuesto | null,
+  abonado: number,
+): DocumentoDelPresupuesto {
+  return documentoDelPresupuesto(
+    {
+      borrador: borradorDelPresupuesto(),
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      taller: TALLER_DEL_PRESUPUESTO,
+      cliente: 'Paula Benítez',
+      valores,
+      senaBp: puntosBasicos(5000),
+      abonado: centavos(abonado),
+    },
+    FORMATOS_DEL_PRESUPUESTO,
+  );
+}
+
+function alAzarConCambios(
+  semilla: number,
+  cantidad: number,
+  base: () => unknown,
+  cambios: readonly ((objeto: Objeto, siguiente: (tope: number) => number) => void)[],
+): unknown[] {
+  const siguiente = generador(semilla);
+  const casos: unknown[] = [];
+  for (let i = 0; i < cantidad; i++) {
+    const caso = copiaDeJson(base()) as Objeto;
+    for (let j = siguiente(3); j >= 0; j--) {
+      const cambio = cambios[siguiente(cambios.length)];
+      cambio?.(caso, siguiente);
+    }
+    casos.push(copiaDeJson(caso));
+  }
+  return casos;
+}
+
+function elegir<T>(siguiente: (tope: number) => number, opciones: readonly T[]): T {
+  return opciones[siguiente(opciones.length)] as T;
+}
+
+function unoDeLaLista(siguiente: (tope: number) => number, valor: unknown): Objeto | undefined {
+  const lista = comoLista(valor);
+  return comoObjeto(lista[siguiente(Math.max(1, lista.length))]) ?? undefined;
+}
+
+const CAMBIOS_DE_LA_PLANTILLA: readonly ((
+  plantilla: Objeto,
+  siguiente: (tope: number) => number,
+) => void)[] = [
+  (p, s) => {
+    p.forma = elegir(s, [2, '1', 1.5, true, null]);
+  },
+  (p, s) => {
+    Reflect.deleteProperty(
+      p,
+      elegir(s, [
+        'forma',
+        'plazoDeFabricacion',
+        'modificacionesIncluidas',
+        'valorDeUnaModificacion',
+        'garantiaMeses',
+        'garantia',
+        'formasDePago',
+        ...GRUPOS_DE_CLAUSULAS,
+      ]),
+    );
+  },
+  (p, s) => {
+    p.plazoDeFabricacion = elegir(s, [0, 1, 365, 366, -1, 1.5, '30', null, 2 ** 60]);
+  },
+  (p, s) => {
+    p.modificacionesIncluidas = elegir(s, [-1, 0, 10, 11, 2.5, '2']);
+  },
+  (p, s) => {
+    p.valorDeUnaModificacion = elegir(s, [-1, 0, 1_000_000_000_000, 1_000_000_000_001, 0.5, '5']);
+  },
+  (p, s) => {
+    p.garantiaMeses = elegir(s, [5, 6, 120, 121, 6.5, null]);
+  },
+  (p, s) => {
+    p[elegir(s, GRUPOS_DE_CLAUSULAS)] = elegir(s, [null, {}, 'cláusulas', 3, []]);
+  },
+  (p, s) => {
+    p[elegir(s, GRUPOS_DE_CLAUSULAS)] = Array.from({ length: elegir(s, [20, 21, 25]) }, (_, i) => ({
+      id: `c-${String(i)}`,
+      titulo: null,
+      texto: 'Una cláusula.',
+      tildadaPorDefecto: true,
+    }));
+  },
+  (p, s) => {
+    const clausula = unoDeLaLista(s, p[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (clausula) {
+      clausula.id = elegir(s, [
+        '',
+        'A',
+        'con espacio',
+        'ñandú',
+        'a'.repeat(60),
+        'a'.repeat(61),
+        'ok-1',
+        7,
+      ]);
+    }
+  },
+  (p, s) => {
+    const lista = comoLista(p[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    const [primera, segunda] = lista;
+    if (primera && segunda) segunda.id = primera.id;
+  },
+  (p, s) => {
+    const clausula = unoDeLaLista(s, p[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (!clausula) return;
+    if (s(5) === 0) Reflect.deleteProperty(clausula, 'titulo');
+    else
+      clausula.titulo = elegir(s, [
+        't'.repeat(120),
+        't'.repeat(121),
+        '😀'.repeat(121),
+        '',
+        5,
+        true,
+      ]);
+  },
+  (p, s) => {
+    const clausula = unoDeLaLista(s, p[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (clausula) {
+      clausula.texto = elegir(s, [
+        '',
+        '  \n\t\v\f',
+        ' ',
+        'a'.repeat(2000),
+        'a'.repeat(2001),
+        '😀'.repeat(2000),
+        '😀'.repeat(2001),
+        5,
+        null,
+      ]);
+    }
+  },
+  (p, s) => {
+    const clausula = unoDeLaLista(s, p[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (clausula) clausula.tildadaPorDefecto = elegir(s, ['true', 1, null, false]);
+  },
+  (p, s) => {
+    const lista = comoLista(p[elegir(s, GRUPOS_DE_CLAUSULAS)]) as unknown[];
+    lista.push(elegir(s, ['cláusula', 5, null, []]));
+  },
+  (p, s) => {
+    p.formasDePago = elegir(s, [[], 'formas', null, {}]);
+  },
+  (p, s) => {
+    p.formasDePago = Array.from({ length: elegir(s, [1, 6, 7]) }, (_, i) => ({
+      id: `forma-${String(i)}`,
+      nombre: `Forma ${String(i)}`,
+      texto: 'Seña del {sena}.',
+    }));
+  },
+  (p, s) => {
+    const forma = unoDeLaLista(s, p.formasDePago);
+    if (forma) forma.id = elegir(s, ['', 'Forma', 'f'.repeat(61), 'forma-ok', 3]);
+  },
+  (p, s) => {
+    const [primera, segunda] = comoLista(p.formasDePago);
+    if (primera && segunda) segunda.id = s(2) === 0 ? primera.id : 'otra-forma';
+  },
+  (p, s) => {
+    const forma = unoDeLaLista(s, p.formasDePago);
+    if (forma)
+      forma.nombre = elegir(s, ['', '  ', 'n'.repeat(60), 'n'.repeat(61), '😀'.repeat(61), 5]);
+  },
+  (p, s) => {
+    const forma = unoDeLaLista(s, p.formasDePago);
+    if (forma) forma.texto = elegir(s, ['', ' ', 'f'.repeat(2000), 'f'.repeat(2001), 5]);
+  },
+  (p, s) => {
+    const formas = comoLista(p.formasDePago) as unknown[];
+    formas.push(elegir(s, ['forma', 5, null, { id: 'sola', nombre: 'Sola' }]));
+  },
+  (p, s) => {
+    p.garantia = elegir(s, ['', ' \n', 'g'.repeat(2000), 'g'.repeat(2001), 5, null]);
+  },
+  (p) => {
+    p.extra = 'se ignora';
+  },
+];
+
+const CLAVES_DEL_BORRADOR = [
+  'forma',
+  'titulo',
+  'obra',
+  'descripcion',
+  'muebles',
+  'herrajes',
+  'formaDePago',
+  'plazoDeFabricacion',
+  'validezDias',
+  ...GRUPOS_DE_CLAUSULAS,
+] as const;
+
+const CAMBIOS_DEL_BORRADOR: readonly ((
+  borrador: Objeto,
+  siguiente: (tope: number) => number,
+) => void)[] = [
+  (b, s) => {
+    b.forma = elegir(s, [2, '1', null]);
+  },
+  (b, s) => {
+    Reflect.deleteProperty(b, elegir(s, CLAVES_DEL_BORRADOR));
+  },
+  (b, s) => {
+    b[elegir(s, ['titulo', 'obra', 'descripcion'])] = elegir(s, [5, null, true, []]);
+  },
+  (b, s) => {
+    b.titulo = elegir(s, [
+      't'.repeat(200),
+      't'.repeat(201),
+      '😀'.repeat(200),
+      '😀'.repeat(201),
+      '',
+    ]);
+  },
+  (b, s) => {
+    b.obra = elegir(s, ['o'.repeat(300), 'o'.repeat(301), ' ']);
+  },
+  (b, s) => {
+    b.descripcion = elegir(s, ['d'.repeat(4000), 'd'.repeat(4001)]);
+  },
+  (b, s) => {
+    b.muebles = elegir(s, [null, 'muebles', {}, []]);
+  },
+  (b, s) => {
+    b.muebles = Array.from({ length: elegir(s, [30, 31]) }, (_, i) => ({
+      id: `m${String(i)}`,
+      nombre: '',
+      descripcion: '',
+    }));
+  },
+  (b, s) => {
+    const mueble = unoDeLaLista(s, b.muebles);
+    if (!mueble) return;
+    const campo = elegir(s, ['id', 'nombre', 'descripcion']);
+    if (s(3) === 0) Reflect.deleteProperty(mueble, campo);
+    else mueble[campo] = elegir(s, [5, null, true]);
+  },
+  (b, s) => {
+    const mueble = unoDeLaLista(s, b.muebles);
+    if (mueble)
+      mueble.id = elegir(s, ['', 'M1', 'a'.repeat(61), 'mueble 1', 'mueble-1', 'a'.repeat(60)]);
+  },
+  (b) => {
+    const [primero, segundo] = comoLista(b.muebles);
+    if (primero && segundo) segundo.id = primero.id;
+  },
+  (b, s) => {
+    const mueble = unoDeLaLista(s, b.muebles);
+    if (mueble) mueble.nombre = elegir(s, ['n'.repeat(120), 'n'.repeat(121), '😀'.repeat(121)]);
+  },
+  (b, s) => {
+    const mueble = unoDeLaLista(s, b.muebles);
+    if (mueble) mueble.descripcion = elegir(s, ['d'.repeat(4000), 'd'.repeat(4001), '   ']);
+  },
+  (b, s) => {
+    (comoLista(b.muebles) as unknown[]).push(elegir(s, ['mueble', 5, null]));
+  },
+  (b, s) => {
+    b.herrajes = elegir(s, [null, [], 'herrajes']);
+  },
+  (b, s) => {
+    const herrajes = comoObjeto(b.herrajes);
+    if (!herrajes) return;
+    if (s(4) === 0) Reflect.deleteProperty(herrajes, elegir(s, ['mostrar', 'lista']));
+    else herrajes.mostrar = elegir(s, ['true', 1, null, false]);
+  },
+  (b, s) => {
+    const herrajes = comoObjeto(b.herrajes);
+    if (herrajes) {
+      herrajes.lista = Array.from({ length: elegir(s, [40, 41]) }, (_, i) => ({
+        id: `h${String(i)}`,
+        texto: 'Un herraje.',
+      }));
+    }
+  },
+  (b, s) => {
+    const herraje = unoDeLaLista(s, comoObjeto(b.herrajes)?.lista);
+    if (herraje) {
+      herraje[elegir(s, ['id', 'texto'])] = elegir(s, [
+        '',
+        'H',
+        'h'.repeat(200),
+        'h'.repeat(201),
+        5,
+      ]);
+    }
+  },
+  (b) => {
+    const lista = comoLista(comoObjeto(b.herrajes)?.lista);
+    const [primero, segundo] = lista;
+    if (primero && segundo) segundo.id = primero.id;
+  },
+  (b, s) => {
+    b[elegir(s, GRUPOS_DE_CLAUSULAS)] = elegir(s, [null, [], 'seleccion']);
+  },
+  (b, s) => {
+    const seleccion = comoObjeto(b[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (!seleccion) return;
+    seleccion.tildadas = elegir(s, [
+      null,
+      'tildadas',
+      [5],
+      Array.from({ length: elegir(s, [20, 21]) }, (_, i) => `t-${String(i)}`),
+      ['ok', 'ok'],
+      ['MAL'],
+      [''],
+      ['incluye-visita'],
+    ]);
+  },
+  (b, s) => {
+    const seleccion = comoObjeto(b[elegir(s, GRUPOS_DE_CLAUSULAS)]);
+    if (!seleccion) return;
+    seleccion.propias = elegir(s, [
+      null,
+      Array.from({ length: elegir(s, [20, 21]) }, (_, i) => ({
+        id: `p${String(i)}`,
+        texto: 'Propia.',
+      })),
+      [{ id: 'p', texto: 'a'.repeat(1000) }],
+      [{ id: 'p', texto: 'a'.repeat(1001) }],
+      [{ id: 'p', texto: 5 }],
+      [{ id: 'P', texto: 'x' }],
+      [
+        { id: 'p', texto: 'x' },
+        { id: 'p', texto: 'y' },
+      ],
+      [{ texto: 'sin id' }],
+      ['propia'],
+    ]);
+  },
+  (b, s) => {
+    b.formaDePago = elegir(s, [
+      null,
+      'forma',
+      5,
+      { plantillaId: 'sena-y-entrega' },
+      { plantillaId: 'sena-y-entrega', texto: null },
+      { plantillaId: 'SENA', texto: null },
+      { plantillaId: 5, texto: null },
+      { plantillaId: 'otra', texto: 'f'.repeat(2000) },
+      { plantillaId: 'otra', texto: 'f'.repeat(2001) },
+      { plantillaId: 'otra', texto: 5 },
+    ]);
+  },
+  (b, s) => {
+    b.plazoDeFabricacion = elegir(s, [0, 1, 365, 366, -5, 1.5, '30', null]);
+  },
+  (b, s) => {
+    b.validezDias = elegir(s, [null, 0, 1, 365, 366, 1.5, '15']);
+  },
+  (b) => {
+    b.extra = 'se ignora';
+  },
+];
+
+const CLAVES_DEL_DOCUMENTO = [
+  'forma',
+  'taller',
+  'cliente',
+  'titulo',
+  'obra',
+  'descripcion',
+  'muebles',
+  'herrajes',
+  'aTenerEnCuenta',
+  'incluye',
+  'valores',
+  'senaBp',
+  'abonado',
+  'formaDePago',
+  'plazoDeFabricacion',
+  'validezDias',
+  'avisos',
+  'condiciones',
+  'garantia',
+  'garantiaMeses',
+] as const;
+
+const TOPES_DEL_TALLER = [
+  ['nombre', 120],
+  ['titular', 120],
+  ['cuit', 13],
+  ['domicilio', 300],
+  ['telefono', 40],
+  ['email', 200],
+] as const;
+
+const TOPES_DE_LOS_TEXTOS = [
+  ['cliente', 200],
+  ['titulo', 200],
+  ['obra', 300],
+  ['descripcion', 4000],
+  ['garantia', 4000],
+  ['formaDePago', 4000],
+] as const;
+
+function opcionesDelDocumento(cantidad: number): Objeto[] {
+  return Array.from({ length: cantidad }, (_, i) => ({
+    id: `0199a1b2-0000-7000-8000-${String(i).padStart(12, '0')}`,
+    letra: letraDeLaOpcion(i),
+    descripcion: `Opción ${String(i)}`,
+    total: 1_000_000 + i,
+  }));
+}
+
+const CAMBIOS_DEL_DOCUMENTO: readonly ((
+  documento: Objeto,
+  siguiente: (tope: number) => number,
+) => void)[] = [
+  (d, s) => {
+    d.forma = elegir(s, [2, null, '1']);
+  },
+  (d, s) => {
+    Reflect.deleteProperty(d, elegir(s, CLAVES_DEL_DOCUMENTO));
+  },
+  (d, s) => {
+    d.taller = elegir(s, [null, 'taller', []]);
+  },
+  (d, s) => {
+    const taller = comoObjeto(d.taller);
+    if (!taller) return;
+    const [campo] = elegir(s, TOPES_DEL_TALLER);
+    if (s(3) === 0) Reflect.deleteProperty(taller, campo);
+    else taller[campo] = elegir(s, [5, null]);
+  },
+  (d, s) => {
+    const taller = comoObjeto(d.taller);
+    if (!taller) return;
+    if (s(4) === 0) Reflect.deleteProperty(taller, 'condicionFiscal');
+    else {
+      taller.condicionFiscal = elegir(s, [
+        null,
+        'monotributo',
+        'responsable_inscripto',
+        'exento',
+        'otro',
+        5,
+        '',
+      ]);
+    }
+  },
+  (d, s) => {
+    const taller = comoObjeto(d.taller);
+    if (!taller) return;
+    const [campo, tope] = elegir(s, TOPES_DEL_TALLER);
+    taller[campo] = 'x'.repeat(tope + s(2));
+  },
+  (d, s) => {
+    const [campo] = elegir(s, TOPES_DE_LOS_TEXTOS);
+    d[campo] = elegir(s, [5, true, []]);
+  },
+  (d, s) => {
+    const [campo, tope] = elegir(s, TOPES_DE_LOS_TEXTOS);
+    d[campo] = elegir(s, ['x', '😀']).repeat(tope + s(2));
+  },
+  (d, s) => {
+    d.muebles = elegir(s, [
+      null,
+      'muebles',
+      [5],
+      [{ nombre: 'Sin detalle' }],
+      Array.from({ length: elegir(s, [30, 31]) }, () => ({ nombre: 'M', descripcion: 'D' })),
+    ]);
+  },
+  (d, s) => {
+    const mueble = unoDeLaLista(s, d.muebles);
+    if (!mueble) return;
+    if (s(2) === 0) mueble.nombre = 'n'.repeat(120 + s(2));
+    else mueble.descripcion = 'd'.repeat(4000 + s(2));
+  },
+  (d, s) => {
+    d.herrajes = elegir(s, [
+      null,
+      [5],
+      Array.from({ length: elegir(s, [40, 41]) }, () => 'H'),
+      ['h'.repeat(200)],
+      ['h'.repeat(201)],
+    ]);
+  },
+  (d, s) => {
+    d[elegir(s, ['aTenerEnCuenta', 'incluye'])] = elegir(s, [
+      null,
+      [5],
+      Array.from({ length: elegir(s, [40, 41]) }, () => 'T'),
+      ['t'.repeat(4000)],
+      ['t'.repeat(4001)],
+    ]);
+  },
+  (d, s) => {
+    d[elegir(s, ['avisos', 'condiciones'])] = elegir(s, [
+      null,
+      [5],
+      [{ texto: 5 }],
+      [{ titulo: 5, texto: 'x' }],
+      [{ texto: 'Sin título.' }],
+      [{ titulo: null, texto: 'x' }],
+      Array.from({ length: elegir(s, [40, 41]) }, () => ({ titulo: null, texto: 'A' })),
+      [{ titulo: 't'.repeat(120), texto: 'x' }],
+      [{ titulo: 't'.repeat(121), texto: 'x' }],
+      [{ titulo: null, texto: 'x'.repeat(4001) }],
+    ]);
+  },
+  (d, s) => {
+    d.valores = elegir(s, [
+      null,
+      'valores',
+      {},
+      { tipo: 'total' },
+      { tipo: 'total', total: '5' },
+      { tipo: 'total', total: 1.5 },
+      { tipo: 'total', total: -1 },
+      { tipo: 'total', total: 0 },
+      { tipo: 'total', total: 1_000_000_000_000 },
+      { tipo: 'total', total: 1_000_000_000_001 },
+      { tipo: 'total', total: 5, opciones: 'se ignoran' },
+      { tipo: 'otro', total: 5 },
+      { tipo: 'opciones' },
+      { tipo: 'opciones', opciones: [] },
+      { tipo: 'opciones', opciones: 'opciones' },
+      { tipo: 'opciones', opciones: opcionesDelDocumento(elegir(s, [1, 26, 27])) },
+    ]);
+  },
+  (d, s) => {
+    const valores = comoObjeto(d.valores);
+    const opcion = unoDeLaLista(s, valores?.opciones);
+    if (!opcion) return;
+    const cambio = s(7);
+    if (cambio === 0) Reflect.deleteProperty(opcion, 'letra');
+    else if (cambio === 1) opcion.total = elegir(s, ['5', -1, 1_000_000_000_001, 2.5]);
+    else if (cambio === 2) opcion.letra = elegir(s, ['ABC', 'ABCD', '']);
+    else if (cambio === 3) opcion.descripcion = 'o'.repeat(500 + s(2));
+    else if (cambio === 4) opcion.id = elegir(s, [5, null]);
+    else if (cambio === 5) Reflect.deleteProperty(opcion, 'descripcion');
+    else (comoLista(valores?.opciones) as unknown[]).push(elegir(s, ['opción', 5]));
+  },
+  (d, s) => {
+    d.senaBp = elegir(s, [-1, 0, 10_000, 10_001, 1.5, '5000', null]);
+  },
+  (d, s) => {
+    d.abonado = elegir(s, [-1, 0, 1_000_000_000_000, 1_000_000_000_001, 0.5]);
+  },
+  (d, s) => {
+    d.formaDePago = elegir(s, [null, 5, '']);
+  },
+  (d, s) => {
+    d.plazoDeFabricacion = elegir(s, [0, 1, 365, 366, '30']);
+  },
+  (d, s) => {
+    d.validezDias = elegir(s, [null, 0, 1, 365, 366, '15']);
+  },
+  (d, s) => {
+    d.garantiaMeses = elegir(s, [5, 6, 120, 121, 6.5, null]);
+  },
+  (d) => {
+    d.extra = 'se ignora';
+  },
+];
+
+interface CasoParaMandar {
+  documento: DocumentoDelPresupuesto;
+  revision: number;
+  queCambio: string;
+}
+
+function paraMandarAlAzar(escala: number): CasoParaMandar[] {
+  const siguiente = generador(20_261_004);
+  const casos: CasoParaMandar[] = [];
+  for (let i = 0; i < 1_500 * escala; i++) {
+    const conOpciones = siguiente(3) === 0;
+    const valores = conOpciones
+      ? valoresDelTrabajo(
+          null,
+          OPCIONES_DEL_PRESUPUESTO.map((opcion) => ({
+            ...opcion,
+            monto: centavos(elegir(siguiente, [0, 1, 218_100_000])),
+          })),
+        )
+      : elegir(siguiente, [
+          null,
+          valoresDelTrabajo(centavos(elegir(siguiente, [0, 1, 50_000_000])), []),
+        ]);
+    const base = documentoDePrueba(valores, 0);
+    const documento: DocumentoDelPresupuesto = {
+      ...base,
+      titulo: elegir(siguiente, ['', ' \n', ' ', 'Cocina', base.titulo]),
+      muebles: elegir(siguiente, [
+        [],
+        [{ nombre: 'Alacena', descripcion: '' }],
+        [{ nombre: '', descripcion: ' \t ' }],
+        [{ nombre: 'Alacena', descripcion: 'Con puertas rebatibles.' }],
+        [
+          { nombre: 'Bajomesada', descripcion: '' },
+          { nombre: '', descripcion: 'Con cajonera.' },
+        ],
+        base.muebles,
+      ]),
+      valores:
+        valores?.tipo === 'opciones' && siguiente(6) === 0
+          ? { tipo: 'opciones', opciones: [] }
+          : valores,
+    };
+    casos.push({
+      documento,
+      revision: elegir(siguiente, [1, 2, 3]),
+      queCambio: elegir(siguiente, [
+        '',
+        '   ',
+        '\v\f',
+        ' ',
+        'Cambié el color de la alacena.',
+        'a'.repeat(280),
+        'a'.repeat(281),
+        ` ${'a'.repeat(280)} \n`,
+        '😀'.repeat(280),
+        '😀'.repeat(281),
+      ]),
+    });
+  }
+  return casos;
+}
+
+interface CasosDelPresupuesto {
+  plantillas: unknown[];
+  borradores: unknown[];
+  documentos: unknown[];
+  paraMandar: CasoParaMandar[];
+}
+
+function conTildadas(cantidad: number): unknown {
+  return copiaDeJson({
+    ...borradorDelPresupuesto(),
+    avisos: {
+      tildadas: Array.from({ length: cantidad }, (_, i) => `aviso-${String(i)}`),
+      propias: [],
+    },
+  });
+}
+
+function conOpciones(cantidad: number): unknown {
+  return copiaDeJson(
+    documentoDePrueba(
+      valoresDelTrabajo(
+        null,
+        Array.from({ length: cantidad }, (_, i) => ({
+          id: `0199a1b2-0000-7000-8000-${String(i).padStart(12, '0')}`,
+          descripcion: `Opción ${String(i)}`,
+          monto: centavos(1_000_000 + i),
+        })),
+      ),
+      0,
+    ),
+  );
+}
+
+function casosDelPresupuestoConEscala(escala: number): CasosDelPresupuesto {
+  const fijos: unknown[] = [null, [], 'presupuesto', 5, {}, { forma: 1 }];
+  return {
+    plantillas: [
+      ...fijos,
+      copiaDeJson(PLANTILLA_DE_SIEMPRE),
+      ...alAzarConCambios(
+        20_261_001,
+        1_500 * escala,
+        () => PLANTILLA_DE_SIEMPRE,
+        CAMBIOS_DE_LA_PLANTILLA,
+      ),
+    ],
+    borradores: [
+      ...fijos,
+      copiaDeJson(borradorDelPresupuesto()),
+      conTildadas(20),
+      conTildadas(21),
+      ...alAzarConCambios(20_261_002, 1_500 * escala, borradorDelPresupuesto, CAMBIOS_DEL_BORRADOR),
+    ],
+    documentos: [
+      ...fijos,
+      copiaDeJson(documentoDePrueba(null, 0)),
+      conOpciones(26),
+      conOpciones(27),
+      ...alAzarConCambios(
+        20_261_003,
+        1_500 * escala,
+        () =>
+          documentoDePrueba(
+            valoresDelTrabajo(centavos(218_100_000), OPCIONES_DEL_PRESUPUESTO),
+            12_000_000,
+          ),
+        CAMBIOS_DEL_DOCUMENTO,
+      ),
+      ...alAzarConCambios(
+        20_261_005,
+        500 * escala,
+        () => documentoDePrueba(valoresDelTrabajo(centavos(218_100_000), []), 0),
+        CAMBIOS_DEL_DOCUMENTO,
+      ),
+    ],
+    paraMandar: paraMandarAlAzar(escala),
+  };
+}
+
+export function casosDelPresupuesto(escala = 1): number {
+  const casos = casosDelPresupuestoConEscala(escala);
+  return (
+    casos.plantillas.length +
+    casos.borradores.length +
+    casos.documentos.length +
+    casos.paraMandar.length
+  );
+}
+
+export async function compararPresupuesto(cliente: pg.Client, escala = 1): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  const casos = casosDelPresupuestoConEscala(escala);
+  const deUnProblema = {
+    enJson: (caso: unknown) => JSON.stringify(caso),
+    deSql: (fila: Record<string, unknown>) =>
+      typeof fila.problema === 'string' ? fila.problema : 'null',
+    deTs: (problema: string | null) => String(problema),
+  };
+
+  const plantillas = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'problema de la plantilla',
+    casos: casos.plantillas,
+    ts: problemaDeLaPlantilla,
+    sql: `select private.problema_de_la_plantilla(c.caso) as problema
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    ...deUnProblema,
+  });
+
+  const borradores = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'problema del borrador',
+    casos: casos.borradores,
+    ts: problemaDelBorrador,
+    sql: `select private.problema_del_presupuesto(c.caso) as problema
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    ...deUnProblema,
+  });
+
+  const documentos = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'problema del documento',
+    casos: casos.documentos,
+    ts: problemaDelDocumento,
+    sql: `select private.problema_del_documento(c.caso) as problema
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    ...deUnProblema,
+  });
+
+  const paraMandar = await compararGemela<CasoParaMandar, string[]>(cliente, {
+    nombre: 'lo que falta para mandar',
+    casos: casos.paraMandar,
+    ts: (caso) =>
+      problemasParaMandar(caso.documento, caso.revision, caso.queCambio).map(({ campo }) => campo),
+    sql: `select private.lo_que_falta_para_mandar(
+            c.caso -> 'documento', (c.caso ->> 'revision')::integer, c.caso ->> 'queCambio'
+          ) as falta
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => JSON.stringify(fila.falta),
+    deTs: (falta) => JSON.stringify(falta),
+  });
+
+  return [...plantillas, ...borradores, ...documentos, ...paraMandar];
+}
+
 export async function compararDominioYSql(cliente: pg.Client): Promise<string[]> {
   return [
     ...(await compararCascada(cliente)),
@@ -5996,6 +6870,7 @@ export async function compararDominioYSql(cliente: pg.Client): Promise<string[]>
     ...(await compararValidacionDeRespuestasDeEntrega(cliente)),
     ...(await compararRangos(cliente)),
     ...(await compararFila(cliente)),
+    ...(await compararPresupuesto(cliente)),
     ...(await compararEstados(cliente)),
     ...(await compararTransiciones(cliente)),
     ...(await compararLiquidaciones(cliente)),

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
 
 import { AgendaPage, AnotarPage } from '@/pages/agenda';
-import { AjustesPage, AvisosPage } from '@/pages/ajustes';
+import { AjustesPage, AvisosPage, PresupuestoDelTallerPage } from '@/pages/ajustes';
 import { AnaliticoPage } from '@/pages/analitico';
 import { ClienteFichaPage, ClientesPage } from '@/pages/clientes';
 import { DiezmoPage } from '@/pages/diezmo';
@@ -17,6 +17,7 @@ import {
   ProyectoLiquidacionPage,
   ProyectoNuevoPage,
   ProyectoPasajePage,
+  ProyectoPresupuestoPage,
   ProyectosPage,
   ProyectoVistaClientePage,
 } from '@/pages/proyectos';
@@ -27,6 +28,7 @@ import {
   RUTA_DE_CONTACTO_NUEVO,
   RUTA_DE_TESOROS,
   RUTA_DEL_ANALITICO,
+  RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
   type PatronDeHoja,
 } from '@/shared/lib';
 
@@ -44,6 +46,7 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/proyectos/:id', element: <ProyectoFichaPage /> },
   { path: '/proyectos/:id/editar', element: <ProyectoEdicionPage /> },
   { path: '/proyectos/:id/aprobar', element: <ProyectoPasajePage /> },
+  { path: '/proyectos/:id/presupuesto', element: <ProyectoPresupuestoPage /> },
   { path: '/proyectos/:id/compartir', element: <ProyectoCompartirPage /> },
   { path: '/proyectos/:id/vista-cliente', element: <ProyectoVistaClientePage /> },
   { path: '/proyectos/:id/cobrar', element: <ProyectoLiquidacionPage destino="cobrado" /> },
@@ -57,6 +60,7 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/diezmo', element: <DiezmoPage /> },
   { path: '/ajustes', element: <AjustesPage /> },
   { path: '/ajustes/avisos', element: <AvisosPage /> },
+  { path: RUTA_DEL_PRESUPUESTO_EN_AJUSTES, element: <PresupuestoDelTallerPage /> },
 ];
 
 const HOJA: Readonly<Record<PatronDeHoja, ReactNode>> = {

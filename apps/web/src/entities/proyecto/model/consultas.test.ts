@@ -364,6 +364,45 @@ describe('lo que sigue después de relevar depende de si se cobró la visita, pe
   });
 });
 
+describe('el presupuesto armado en la app, en «Qué falta»', () => {
+  const relevado = proyecto('p', { estado: 'a_presupuestar', fecha_visita: '2026-09-10' });
+  const situacion = situacionDelContacto(relevado, marca('2026-09-10'), HOY, SENA);
+
+  it('a presupuestar y sin mandar, el primero es armarlo y los otros dos quedan detrás', () => {
+    expect(
+      pasosDelContacto('a_presupuestar', situacion, 'sin-borrador').map(({ etiqueta }) => etiqueta),
+    ).toEqual(['Armar el presupuesto', 'Mandé el presupuesto', 'Ya lo aprobó']);
+    expect(pasosDelContacto('a_presupuestar', situacion, 'sin-borrador')[0]).toEqual({
+      hacia: 'presupuesto_enviado',
+      etiqueta: 'Armar el presupuesto',
+      camino: 'armar',
+    });
+  });
+
+  it('con un borrador, el primero es seguir armándolo', () => {
+    expect(pasosDelContacto('a_presupuestar', situacion, 'borrador')[0]?.etiqueta).toBe(
+      'Seguir armándolo',
+    );
+  });
+
+  it('ya mandado, o en otra etapa, quedan los pasos de siempre', () => {
+    expect(
+      pasosDelContacto('a_presupuestar', situacion, 'mandado').map(({ etiqueta }) => etiqueta),
+    ).toEqual(['Mandé el presupuesto', 'Ya lo aprobó']);
+    const enviado = situacionDelContacto(
+      proyecto('p', { estado: 'presupuesto_enviado', ultimo_contacto: HOY }),
+      marca(HOY),
+      HOY,
+      0,
+    );
+    expect(
+      pasosDelContacto('presupuesto_enviado', enviado, 'sin-borrador').some(
+        ({ camino }) => camino === 'armar',
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('el estimativo', () => {
   it('mandado desde una consulta espera respuesta y, si avanza, pide agendar la visita', () => {
     const situacion = situacionDelContacto(

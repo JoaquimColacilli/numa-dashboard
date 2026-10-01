@@ -57,8 +57,12 @@ export function sumarDiasHabiles(
   return fechaDesdeDia(dia);
 }
 
-export function entregaEstimada(inicio: string, feriados: Iterable<string> = []): string {
-  return sumarDiasHabiles(inicio, DIAS_HABILES_DE_ENTREGA, feriados);
+export function entregaEstimada(
+  inicio: string,
+  plazo: number = DIAS_HABILES_DE_ENTREGA,
+  feriados: Iterable<string> = [],
+): string {
+  return sumarDiasHabiles(inicio, plazo, feriados);
 }
 
 export function vencimientoDelPresupuesto(

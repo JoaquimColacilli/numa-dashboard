@@ -82,6 +82,12 @@ import {
   MUTACION_DE_PREGUNTA,
   MUTACION_DE_RECORDATORIO,
 } from '@/entities/opinion';
+import {
+  CLAVE_DEL_BORRADOR,
+  CLAVE_DEL_ENVIO,
+  MUTACION_DEL_BORRADOR,
+  MUTACION_DEL_ENVIO,
+} from '@/entities/presupuesto';
 import { CLAVE_DEL_PERFIL, MUTACION_DEL_PERFIL } from '@/entities/sesion';
 import {
   CLAVE_DE_ARCHIVO_DE_TESORO,
@@ -102,8 +108,10 @@ import {
 } from '@/features/armar-la-vidriera';
 import {
   CLAVE_DE_AJUSTES,
+  CLAVE_DE_LA_PLANTILLA,
   CLAVE_DEL_NOMBRE,
   MUTACION_DE_AJUSTES,
+  MUTACION_DE_LA_PLANTILLA,
   MUTACION_DEL_NOMBRE,
 } from '@/features/configurar-taller';
 type RegistroDeMutacion = (queryClient: QueryClient) => void;
@@ -249,6 +257,15 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_LA_FILA, MUTACION_DE_LA_FILA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DEL_BORRADOR, MUTACION_DEL_BORRADOR);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DEL_ENVIO, MUTACION_DEL_ENVIO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_LA_PLANTILLA, MUTACION_DE_LA_PLANTILLA);
   },
 ];
 

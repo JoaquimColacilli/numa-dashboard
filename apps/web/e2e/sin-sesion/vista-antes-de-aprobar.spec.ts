@@ -225,15 +225,25 @@ test('esperando la seña, sin fecha límite: una línea que no promete ninguna f
   }
 });
 
-test('con el presupuesto vencido, lo dice y no promete nada', async ({ page }, testInfo) => {
+test('con el presupuesto vencido, no promete nada, deja de pedir la seña y pide que le escriba al taller', async ({
+  page,
+}, testInfo) => {
   const token = await trabajoConEnlace('vencido');
 
   for (const tema of TEMAS) {
     await abrir(page, token, tema);
 
     await loQueNoTieneQueEstar(page);
-    await expect(region(page, 'Para cuándo')).toContainText(
-      /^Este presupuesto venció el \S+ \d{1,2} de \S+( de \d{4})?\. Hablá con el taller para actualizarlo\.$/,
+    await expect(region(page, 'Para cuándo')).toHaveCount(0);
+    const como = region(page, 'Cómo pagar');
+    await expect(como).toContainText(
+      /Este presupuesto venció el \S+ \d{1,2} \S+( \d{4})?\. Escribile al taller para actualizarlo antes de pagar\./,
+    );
+    await expect(como).not.toContainText('$ 504.000');
+    await expect(como.getByRole('button', { name: 'Copiar el alias' })).toHaveCount(0);
+    await expect(como.getByRole('link', { name: 'Pagar con Mercado Pago' })).toHaveCount(0);
+    await expect(region(page, 'Tu mueble')).toContainText(
+      /El presupuesto venció el \S+ \d{1,2} \S+( \d{4})?: escribile al taller para actualizarlo\./,
     );
     await capturar(page, 'vencido', tema, (n) => testInfo.outputPath(n), testInfo.project.name);
   }

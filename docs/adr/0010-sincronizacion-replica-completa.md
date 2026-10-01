@@ -8,6 +8,12 @@ Estado: aceptada, 2026-09-11. La base (ids, metadatos, bootstrap, delta, guardas
   `MN023`, `MN024` y `MN025`. Los locks suman esperas: una cobertura, `guardar_la_fila` y, con los tipos
   de tesoro, todo movimiento toman `ajustes`, con sus tests en `concurrencia.test.ts`. Con los tipos,
   además, `repartos` suma dos tipos (`obligacion` y `superavit`) y dos columnas (`modo` y `base`).
+- Enmendado el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): la réplica suma
+  `presupuestos` y `revisiones_del_presupuesto`, la cola suma tres mutaciones (guardar el borrador del
+  presupuesto, mandarlo y guardar los textos del taller) y la tabla de códigos suma `MN026` a `MN033`.
+  Mandar toma el trabajo y después `ajustes`, en el orden de siempre, y cuenta los números del día recién
+  con los dos candados tomados; las dos esperas tienen sus pruebas en `tests/concurrencia.test.ts`. Mandar
+  sin señal deja la revisión en la réplica con el número vacío, y la base lo pone al llegar.
 
 ## Contexto
 
@@ -94,6 +100,14 @@ La alternativa de un contador asignado en el commit es más exacta, pero pide un
 | `MN023` | La fila que se quiso guardar no se puede guardar: uno de los problemas de `problemasDeLaFila`, como un tesoro archivado o repetido, o un monto, un modo o una meta que no van. El código va en el `detail`, que la app no lee (ADR 0078).              |
 | `MN024` | No se puede archivar el tesoro: está en la fila guardada, en la foto de un cobro reabierto de un proyecto vivo, o tiene saldo (ADR 0078).                                                                                                              |
 | `MN025` | Se liquidó sin la revisión de la fila con una fila guardada, o se volvió a cobrar sin ella un reabierto que se había cobrado por la fila: lo manda una app sin actualizar (ADR 0078).                                                                  |
+| `MN026` | El borrador del presupuesto cambió en otro aparato, o se arrancó otro borrador para un trabajo que ya tiene uno (ADR 0080).                                                                                                                            |
+| `MN027` | Al presupuesto le falta algo para mandarlo: el título, un mueble con su detalle, los importes o «qué cambió». Los campos van en el `detail` (ADR 0080).                                                                                                |
+| `MN028` | El trabajo ya está aprobado: su presupuesto no se manda ni se guarda (ADR 0080).                                                                                                                                                                       |
+| `MN029` | Los importes del presupuesto que se manda no coinciden con los del trabajo: las opciones, el total, la seña o lo pagado. Lo que no coincide va en el `detail` (ADR 0080).                                                                              |
+| `MN030` | Los textos del presupuesto del taller se cambiaron en otro aparato (ADR 0080).                                                                                                                                                                         |
+| `MN031` | La forma no sirve: la del borrador, la de la plantilla o la del documento que se manda. El código de la gemela va en el `detail` (ADR 0080).                                                                                                           |
+| `MN032` | El trabajo está perdido: su presupuesto no se manda ni se guarda (ADR 0080).                                                                                                                                                                           |
+| `MN033` | El día de envío del presupuesto todavía no llegó, contado con el día del taller (ADR 0080).                                                                                                                                                            |
 | `42501` | El usuario no tiene household asignado, o no tiene permiso.                                                                                                                                                                                            |
 
 **Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** La tabla llegaba hasta `MN015`: de `MN016` a `MN021` estaban solo en sus ADR (0063, 0064 y 0071). Se suman acá, con `MN022`, el tope de la vidriera.

@@ -8,6 +8,12 @@
   [0011](0011-dominio-cascada-estados-y-cobro.md) y al [0002](0002-importes-en-centavos.md) en dónde
   vive una cuenta que toca plata, y al [0016](0016-el-cobro-y-el-rechazo-que-encuentra-al-usuario.md)
   en cuándo algo lleva confirmación y cuándo lleva deshacer.
+- Completado el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): con un
+  presupuesto mandado, el cliente ve las opciones antes de aprobar, adentro del presupuesto, cada una con
+  su total y su seña, calculada con el porcentaje congelado en la revisión; después de aprobar ve solo la
+  elegida. Van en el orden de sus ids, con letra A, B, C. El editor del presupuesto las edita con las
+  mismas piezas y la misma mutación (`guardar_proyecto`), y no aprueba: «La aprobó» sigue en la ficha. La
+  forma de pago del presupuesto es un texto, no un plan: el plan en tramos sigue anotado acá para después.
 
 ## Contexto
 

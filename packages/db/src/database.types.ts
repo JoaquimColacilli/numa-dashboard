@@ -28,12 +28,20 @@ export type Database = {
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
           perdido_con_sueldo: boolean;
+          plantilla_del_presupuesto: Json | null;
+          plantilla_del_presupuesto_version: number;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
           sena_bp: number;
           sueldo_mensual_centavos: number;
           sueldo_tope_mensual: boolean;
+          taller_condicion_fiscal: string | null;
+          taller_cuit: string;
+          taller_domicilio: string;
+          taller_email: string;
+          taller_telefono: string;
+          taller_titular: string;
           tasa_cocos_anual_bp: number;
           tiktok_link: string;
           updated_at: string;
@@ -58,12 +66,20 @@ export type Database = {
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
+          plantilla_del_presupuesto?: Json | null;
+          plantilla_del_presupuesto_version?: number;
           presupuesto_vale_dias?: number;
           relevamiento_centavos?: number | null;
           resena_link?: string;
           sena_bp?: number;
           sueldo_mensual_centavos?: number;
           sueldo_tope_mensual?: boolean;
+          taller_condicion_fiscal?: string | null;
+          taller_cuit?: string;
+          taller_domicilio?: string;
+          taller_email?: string;
+          taller_telefono?: string;
+          taller_titular?: string;
           tasa_cocos_anual_bp?: number;
           tiktok_link?: string;
           updated_at?: string;
@@ -88,12 +104,20 @@ export type Database = {
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
           perdido_con_sueldo?: boolean;
+          plantilla_del_presupuesto?: Json | null;
+          plantilla_del_presupuesto_version?: number;
           presupuesto_vale_dias?: number;
           relevamiento_centavos?: number | null;
           resena_link?: string;
           sena_bp?: number;
           sueldo_mensual_centavos?: number;
           sueldo_tope_mensual?: boolean;
+          taller_condicion_fiscal?: string | null;
+          taller_cuit?: string;
+          taller_domicilio?: string;
+          taller_email?: string;
+          taller_telefono?: string;
+          taller_titular?: string;
           tasa_cocos_anual_bp?: number;
           tiktok_link?: string;
           updated_at?: string;
@@ -1069,6 +1093,63 @@ export type Database = {
           },
         ];
       };
+      presupuestos: {
+        Row: {
+          aceptado_el: string | null;
+          borrador_version: number;
+          contenido: Json;
+          created_at: string;
+          deleted_at: string | null;
+          household_id: string;
+          id: string;
+          numero: string | null;
+          proyecto_id: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          aceptado_el?: string | null;
+          borrador_version?: number;
+          contenido: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          numero?: string | null;
+          proyecto_id: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          aceptado_el?: string | null;
+          borrador_version?: number;
+          contenido?: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          numero?: string | null;
+          proyecto_id?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'presupuestos_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'presupuestos_proyecto_fk';
+            columns: ['household_id', 'proyecto_id'];
+            isOneToOne: false;
+            referencedRelation: 'proyectos';
+            referencedColumns: ['household_id', 'id'];
+          },
+        ];
+      };
       propuestas_de_entrega: {
         Row: {
           cerrada_at: string | null;
@@ -1701,6 +1782,79 @@ export type Database = {
           },
         ];
       };
+      revisiones_del_presupuesto: {
+        Row: {
+          contenido: Json;
+          created_at: string;
+          deleted_at: string | null;
+          household_id: string;
+          id: string;
+          mandado_el: string;
+          numero: string;
+          presupuesto_id: string;
+          proyecto_id: string;
+          que_cambio: string | null;
+          revision: number;
+          updated_at: string;
+          vale_hasta: string | null;
+          version: number;
+        };
+        Insert: {
+          contenido: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          mandado_el: string;
+          numero: string;
+          presupuesto_id: string;
+          proyecto_id: string;
+          que_cambio?: string | null;
+          revision: number;
+          updated_at?: string;
+          vale_hasta?: string | null;
+          version?: number;
+        };
+        Update: {
+          contenido?: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          household_id?: string;
+          id?: string;
+          mandado_el?: string;
+          numero?: string;
+          presupuesto_id?: string;
+          proyecto_id?: string;
+          que_cambio?: string | null;
+          revision?: number;
+          updated_at?: string;
+          vale_hasta?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'revisiones_del_presupuesto_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'revisiones_del_presupuesto_presupuesto_fk';
+            columns: ['household_id', 'presupuesto_id'];
+            isOneToOne: false;
+            referencedRelation: 'presupuestos';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'revisiones_del_presupuesto_proyecto_fk';
+            columns: ['household_id', 'proyecto_id'];
+            isOneToOne: false;
+            referencedRelation: 'proyectos';
+            referencedColumns: ['household_id', 'id'];
+          },
+        ];
+      };
       tesoros: {
         Row: {
           archivado_at: string | null;
@@ -2002,6 +2156,33 @@ export type Database = {
       delta: { Args: { p_desde: string }; Returns: Json };
       encuesta_compartida: { Args: { p_token: string }; Returns: Json };
       estado_de_mis_avisos: { Args: { p_endpoint?: string }; Returns: Json };
+      guardar_el_presupuesto: {
+        Args: {
+          p_contenido: Json;
+          p_id: string;
+          p_proyecto_id: string;
+          p_version: number;
+        };
+        Returns: {
+          aceptado_el: string | null;
+          borrador_version: number;
+          contenido: Json;
+          created_at: string;
+          deleted_at: string | null;
+          household_id: string;
+          id: string;
+          numero: string | null;
+          proyecto_id: string;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'presupuestos';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       guardar_la_fila: {
         Args: { p_fila: Json; p_version: number };
         Returns: {
@@ -2023,12 +2204,67 @@ export type Database = {
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
           perdido_con_sueldo: boolean;
+          plantilla_del_presupuesto: Json | null;
+          plantilla_del_presupuesto_version: number;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
           sena_bp: number;
           sueldo_mensual_centavos: number;
           sueldo_tope_mensual: boolean;
+          taller_condicion_fiscal: string | null;
+          taller_cuit: string;
+          taller_domicilio: string;
+          taller_email: string;
+          taller_telefono: string;
+          taller_titular: string;
+          tasa_cocos_anual_bp: number;
+          tiktok_link: string;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'ajustes';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      guardar_la_plantilla_del_presupuesto: {
+        Args: { p_plantilla: Json; p_version: number };
+        Returns: {
+          cobro_alias: string;
+          cobro_cbu: string;
+          cobro_cuit: string;
+          cobro_link: string;
+          cobro_titular: string;
+          costos_fijos_centavos: number;
+          created_at: string;
+          deleted_at: string | null;
+          facebook_link: string;
+          fila: Json | null;
+          fila_guardada_at: string | null;
+          fila_version: number;
+          household_id: string;
+          id: string;
+          instagram_link: string;
+          meta_cocos_centavos: number;
+          perdido_con_diezmo: boolean;
+          perdido_con_sueldo: boolean;
+          plantilla_del_presupuesto: Json | null;
+          plantilla_del_presupuesto_version: number;
+          presupuesto_vale_dias: number;
+          relevamiento_centavos: number | null;
+          resena_link: string;
+          sena_bp: number;
+          sueldo_mensual_centavos: number;
+          sueldo_tope_mensual: boolean;
+          taller_condicion_fiscal: string | null;
+          taller_cuit: string;
+          taller_domicilio: string;
+          taller_email: string;
+          taller_telefono: string;
+          taller_titular: string;
           tasa_cocos_anual_bp: number;
           tiktok_link: string;
           updated_at: string;
@@ -2053,6 +2289,18 @@ export type Database = {
           p_pagos: Json;
           p_proximos?: Json;
           p_proyecto: Json;
+        };
+        Returns: Json;
+      };
+      mandar_el_presupuesto: {
+        Args: {
+          p_documento: Json;
+          p_mandado_el: string;
+          p_presupuesto_id: string;
+          p_que_cambio: string;
+          p_revision_id: string;
+          p_vale_hasta: string;
+          p_version: number;
         };
         Returns: Json;
       };

@@ -161,7 +161,8 @@ select set_eq(
 );
 
 -- De los ajustes viaja el enlace de reseña. Los datos para transferir, las redes del taller y el valor
--- del relevamiento viajan por la vista del cliente, no por acá (ADR 0076 y 0079).
+-- del relevamiento viajan por la vista del cliente, no por acá (ADR 0076 y 0079). Los datos del taller
+-- y los textos del presupuesto tampoco: llegan solo adentro de la foto de cada revisión (ADR 0080).
 select set_eq(
   $$ select a.attname::text from pg_attribute a where a.attrelid = 'public.ajustes'::regclass and a.attnum > 0 and not a.attisdropped $$,
   array[
@@ -173,7 +174,9 @@ select set_eq(
     'tasa_cocos_anual_bp', 'sueldo_tope_mensual', 'perdido_con_sueldo', 'perdido_con_diezmo',
     'sena_bp', 'cobro_alias', 'cobro_cbu', 'cobro_titular', 'cobro_cuit', 'cobro_link',
     'presupuesto_vale_dias', 'instagram_link', 'facebook_link', 'tiktok_link',
-    'fila', 'fila_version', 'fila_guardada_at', 'relevamiento_centavos'
+    'fila', 'fila_version', 'fila_guardada_at', 'relevamiento_centavos',
+    'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
+    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version'
   ],
   'toda columna de ajustes está clasificada para la encuesta'
 );
