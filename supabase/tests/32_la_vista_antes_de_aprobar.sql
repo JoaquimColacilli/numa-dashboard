@@ -617,8 +617,8 @@ select tests.mandar_el_presupuesto(
 
 select is(
   array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
-  array['contenido', 'mandado_el', 'numero', 'que_cambio', 'revision'],
-  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió y el documento'
+  array['contenido', 'idioma', 'mandado_el', 'numero', 'que_cambio', 'revision'],
+  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió, el documento y su idioma'
 );
 
 select is(
@@ -679,7 +679,7 @@ update public.proyectos set estado = 'en_curso'
 
 select is(
   array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
-  array['aceptado_el', 'contenido', 'letra', 'mandado_el', 'numero', 'revision'],
+  array['aceptado_el', 'contenido', 'idioma', 'letra', 'mandado_el', 'numero', 'revision'],
   'aprobado, viaja sin lo que cambió y con el día en que se aceptó'
 );
 

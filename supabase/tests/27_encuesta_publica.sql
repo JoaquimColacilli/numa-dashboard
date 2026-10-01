@@ -160,14 +160,15 @@ select set_eq(
   'toda columna de households está clasificada para la encuesta'
 );
 
--- De los ajustes viaja el enlace de reseña. Los datos para transferir, las redes del taller y el valor
--- del relevamiento viajan por la vista del cliente, no por acá (ADR 0076 y 0079). Los datos del taller
--- y los textos del presupuesto tampoco: llegan solo adentro de la foto de cada revisión (ADR 0080).
+-- De los ajustes viajan el enlace de reseña y el idioma de los clientes, en el que les habla la
+-- encuesta (ADR 0082). Los datos para transferir, las redes del taller y el valor del relevamiento
+-- viajan por la vista del cliente, no por acá (ADR 0076 y 0079). Los datos del taller y los textos del
+-- presupuesto tampoco: llegan solo adentro de la foto de cada revisión (ADR 0080).
 select set_eq(
   $$ select a.attname::text from pg_attribute a where a.attrelid = 'public.ajustes'::regclass and a.attnum > 0 and not a.attisdropped $$,
   array[
-    -- Viaja
-    'resena_link',
+    -- Viajan
+    'resena_link', 'idioma_de_los_clientes',
     -- No viajan
     'id', 'household_id', 'created_at', 'updated_at', 'deleted_at', 'version',
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
@@ -284,8 +285,8 @@ select tests.entrar_como_anon();
 
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.encuesta_compartida('encuesta-de-marcela-000001')) as k),
-  array['cliente', 'contestada', 'preguntas', 'resena', 'taller', 'trabajo'],
-  'la encuesta devuelve exactamente seis campos'
+  array['cliente', 'contestada', 'idioma', 'preguntas', 'resena', 'taller', 'trabajo'],
+  'la encuesta devuelve exactamente siete campos'
 );
 
 select is(
@@ -305,9 +306,10 @@ select is(
     'cliente', 'Marcela',
     'trabajo', 'Placard 3 puertas',
     'resena', 'https://g.page/r/CaMaunTaller/review',
+    'idioma', 'es',
     'contestada', null
   ),
-  'el taller, el nombre de pila del cliente, el trabajo, el enlace de reseña y que todavía no contestó'
+  'el taller, el nombre de pila del cliente, el trabajo, el enlace de reseña, el idioma de los clientes y que todavía no contestó'
 );
 
 select is(

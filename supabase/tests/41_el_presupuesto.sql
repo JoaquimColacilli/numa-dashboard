@@ -209,7 +209,7 @@ select ok(
     from pg_proc p
     where p.oid in (
       'public.guardar_el_presupuesto(uuid, uuid, integer, jsonb)'::regprocedure,
-      'public.mandar_el_presupuesto(uuid, uuid, integer, jsonb, text, date, date)'::regprocedure
+      'public.mandar_el_presupuesto(uuid, uuid, integer, jsonb, text, date, date, text)'::regprocedure
     )
   )
   and (
@@ -217,7 +217,7 @@ select ok(
     from pg_proc p
     where p.oid in (
       'private.guardar_el_presupuesto(uuid, uuid, integer, jsonb)'::regprocedure,
-      'private.mandar_el_presupuesto(uuid, uuid, integer, jsonb, text, date, date)'::regprocedure
+      'private.mandar_el_presupuesto(uuid, uuid, integer, jsonb, text, date, date, text)'::regprocedure
     )
   ),
   'las dos puertas del presupuesto corren con los permisos de quien llama, y sus privadas elevadas'
