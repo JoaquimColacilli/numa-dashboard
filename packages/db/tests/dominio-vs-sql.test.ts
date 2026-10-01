@@ -13,6 +13,7 @@ import {
   compararLiquidaciones,
   compararNombreDeNecesidad,
   compararPagosPorDelante,
+  compararPresupuesto,
   compararRangos,
   compararSeed,
   compararSenaEsperada,
@@ -70,6 +71,10 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
 
   it('las cinco gemelas de la fila dan lo mismo que fila.ts en miles de casos, y rechazan lo mismo', async () => {
     expect(await enTransaccionConRollback(compararFila)).toEqual([]);
+  });
+
+  it('las cuatro gemelas del presupuesto (la plantilla, el borrador, el documento y lo que falta para mandarlo) dan lo mismo que presupuesto.ts en miles de casos', async () => {
+    expect(await enTransaccionConRollback(compararPresupuesto)).toEqual([]);
   });
 
   it('los estados son los del enum de Postgres, en el mismo orden', async () => {
