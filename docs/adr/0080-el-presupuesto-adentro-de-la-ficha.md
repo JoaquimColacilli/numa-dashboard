@@ -286,9 +286,11 @@ triángulo de la revisión al lado de «Qué cambió» y el globo numerado de ca
 - **Salir de Ajustes con cambios.** La barra de abajo, el gesto de atrás y los enlaces del costado salen sin
   preguntar y lo cambiado se pierde.
 - **El pasaje no completa la dirección de entrega con la obra del presupuesto**: Eliseo la vuelve a escribir.
-- **El arranque pesa más.** El chunk `index` pasa de 963.245 B a 1.101.598 B (+14 %): el editor, la pantalla
-  de Ajustes, el modelo del dominio y la sección del cliente van en el chunk de siempre. `vendor` casi no
-  cambia (+363 B) y el motor del PDF (1,24 MB) va solo en el Worker. Cargar el editor y la pantalla de
+- **El arranque pesa más.** El chunk `index` pasa de 963.245 B a 1.102.255 B (+14 %; en gzip, de 265.776 B
+  a 301.936 B): el editor, la pantalla de Ajustes, el modelo del dominio y la sección del cliente van en el
+  chunk de siempre, que baja también la página del cliente. `vendor` casi no cambia (+363 B) y el motor del
+  PDF (1,24 MB) va solo en el Worker: la página del cliente no registra el service worker, así que lo baja
+  recién si toca «Descargar el PDF» o «Compartir». Cargar el editor y la pantalla de
   Ajustes aparte, como el lienzo de Tesoros, pide cuidar la subida de la capa (0066), que dibujaría el
   `Suspense` vacío: queda para otro PR.
 - **El comentario de `proyectos.presupuesto_pdf`** sigue diciendo «el PDF del presupuesto está armado». Se
