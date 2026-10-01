@@ -6,6 +6,7 @@ import {
 } from '@maun/domain';
 
 import { enlaceParaEscribir, fechaLarga, formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import type { PresupuestoEnPdf } from '@/shared/pdf';
 import type { DatosDelRotulo } from '@/shared/ui';
 
 export const EL_PRESUPUESTO = 'El presupuesto';
@@ -21,6 +22,42 @@ export const ESCRIBIRLE_AL_TALLER = 'Escribirle al taller';
 export const COMO_DEJAR_LA_SENA = 'Cómo dejar la seña';
 
 export const VER_EL_DETALLE = 'Ver el detalle';
+
+export const DESCARGAR_EL_PDF = 'Descargar el PDF';
+
+export const COMPARTIR = 'Compartir';
+
+export const COMPARTIR_EL_PDF = 'Compartir el PDF';
+
+export function pdfDelMandado(presupuesto: PresupuestoMandado): PresupuestoEnPdf {
+  return {
+    documento: presupuesto.documento,
+    numero: presupuesto.numero,
+    revision: presupuesto.revision,
+    mandadoEl: presupuesto.mandadoEl,
+    valeHasta: presupuesto.valeHasta,
+    queCambio: presupuesto.queCambio,
+    aceptado: null,
+    borrador: false,
+  };
+}
+
+export function pdfDelAceptado(presupuesto: PresupuestoAceptado): PresupuestoEnPdf {
+  return {
+    documento: presupuesto.documento,
+    numero: presupuesto.numero,
+    revision: presupuesto.revision,
+    mandadoEl: presupuesto.mandadoEl,
+    valeHasta: null,
+    queCambio: null,
+    aceptado: {
+      el: presupuesto.aceptadoEl,
+      letra: presupuesto.letra,
+      acordado: presupuesto.acordado,
+    },
+    borrador: false,
+  };
+}
 
 export const ID_DE_COMO_PAGAR = 'como-pagar';
 

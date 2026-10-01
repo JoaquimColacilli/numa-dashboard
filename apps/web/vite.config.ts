@@ -4,14 +4,17 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defaultClientConditions, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
+import { sinElMotorDelPdfAlArrancar } from './scripts/motor-del-pdf.ts';
 import { conElEsqueleto } from './src/app/arranque/esqueleto.ts';
 
 const NOMBRE_DE_SECRETO = /SERVICE_ROLE|SECRET/i;
 
+const EN_NODE = 'src/shared/pdf/**/*.node.test.{ts,tsx}';
+
 const SOLO_EN_SU_PANTALLA =
-  /[\\/]node_modules[\\/](uqr|@xyflow|d3-[a-z]+|zustand|classcat|use-sync-external-store)[\\/]/;
+  /[\\/]node_modules[\\/](uqr|@xyflow|d3-[a-z]+|zustand|classcat|use-sync-external-store|@react-pdf|pdfkit|fontkit|yoga-layout|brotli|hyphen|linebreak|bidi-js|restructure|unicode-properties|unicode-trie|dfa|tiny-inflate|png-js|jay-peg|js-md5|fflate|@noble|vite-compatible-readable-stream|emoji-regex-xs|queue|abs-svg-path|parse-svg-path|normalize-svg-path|svg-arc-to-cubic-bezier|color-string|color-name|hsl-to-hex|hsl-to-rgb-for-reals|media-engine|postcss-value-parser|is-url|clone|fast-deep-equal|@swc)[\\/]/;
 
 function esJwtDeServiceRole(valor: string): boolean {
   const payload = valor.split('.')[1];
@@ -60,8 +63,18 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    worker: {
+      format: 'es',
+      plugins: () => [react()],
+      rolldownOptions: {
+        output: {
+          manualChunks: (id) => (id.includes('node_modules') ? 'motor-del-pdf' : undefined),
+        },
+      },
+    },
     plugins: [
       { name: 'maun:esqueleto-de-arranque', transformIndexHtml: conElEsqueleto },
+      sinElMotorDelPdfAlArrancar(),
       react(),
       tailwindcss(),
       VitePWA({
@@ -101,14 +114,27 @@ export default defineConfig(({ mode }) => {
           ],
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+          globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,woff}'],
         },
       }),
     ],
     test: {
-      environment: 'jsdom',
-      setupFiles: ['./vitest.setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.ts', 'scripts/**/*.test.ts'],
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'app',
+            environment: 'jsdom',
+            setupFiles: ['./vitest.setup.ts'],
+            include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.ts', 'scripts/**/*.test.ts'],
+            exclude: [...configDefaults.exclude, EN_NODE],
+          },
+        },
+        {
+          extends: true,
+          test: { name: 'pdf', environment: 'node', include: [EN_NODE] },
+        },
+      ],
     },
   };
 });

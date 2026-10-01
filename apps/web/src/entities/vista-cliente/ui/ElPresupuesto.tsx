@@ -5,11 +5,19 @@ import type {
   PresupuestoMandado,
   TextoConTitulo,
 } from '@maun/domain';
-import { Fragment, useId, type ReactNode } from 'react';
+import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
 
 import { formatearPesos } from '@/shared/lib';
 import {
+  NO_SE_PUDO_ARMAR_EL_PDF,
+  PREPARANDO_EL_PDF,
+  sePuedenCompartirArchivos,
+  usePdfDelPresupuesto,
+  type PdfDelPresupuesto,
+} from '@/shared/pdf';
+import {
   BloquePlegable,
+  Button,
   FilaDeAcciones,
   Globo,
   Icono,
@@ -21,7 +29,10 @@ import {
 import {
   claveDeLaSena,
   COMO_DEJAR_LA_SENA,
+  COMPARTIR,
+  COMPARTIR_EL_PDF,
   cuantoDuraLaGarantia,
+  DESCARGAR_EL_PDF,
   EL_PRESUPUESTO,
   EL_PRESUPUESTO_QUE_ACEPTASTE,
   ELEGI_LA_OPCION,
@@ -30,6 +41,8 @@ import {
   ID_DE_COMO_PAGAR,
   lineaDelVencido,
   partesDelPie,
+  pdfDelAceptado,
+  pdfDelMandado,
   queCambioEnLaRevision,
   rotuloDelAceptado,
   rotuloDelMandado,
@@ -456,30 +469,70 @@ function CuerpoDelDocumento({
   );
 }
 
+function textoDelEstado(pdf: PdfDelPresupuesto): string {
+  if (pdf.estado === 'preparando') return PREPARANDO_EL_PDF;
+  return pdf.estado === 'listo' && pdf.esperando === null ? 'El PDF está listo.' : '';
+}
+
 function Acciones({
+  pdf,
+  conCompartir,
   escribir,
   comoDejarLaSena,
   className = '',
 }: {
+  pdf: PdfDelPresupuesto;
+  conCompartir: boolean;
   escribir: string | null;
   comoDejarLaSena: boolean;
   className?: string;
 }) {
-  if (escribir === null && !comoDejarLaSena) return null;
+  const [compartible] = useState(() => conCompartir && sePuedenCompartirArchivos());
+  const preparando = pdf.estado === 'preparando';
+  const descargar = (
+    <Button variant="secundario" onClick={pdf.descargar}>
+      <Icono nombre="download" tamano={18} />
+      {preparando && pdf.esperando === 'descargar' ? PREPARANDO_EL_PDF : DESCARGAR_EL_PDF}
+    </Button>
+  );
+  const compartir = compartible ? (
+    <Button variant="secundario" onClick={pdf.compartir}>
+      <Icono nombre="share-2" tamano={18} />
+      {preparando && pdf.esperando === 'compartir'
+        ? PREPARANDO_EL_PDF
+        : pdf.estado === 'listo'
+          ? COMPARTIR_EL_PDF
+          : COMPARTIR}
+    </Button>
+  ) : null;
+  const aEscribir =
+    escribir === null ? null : (
+      <a
+        href={escribir}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={BOTON_QUE_ES_UN_ENLACE}
+      >
+        <Icono nombre="message-circle" tamano={18} />
+        {ESCRIBIRLE_AL_TALLER}
+      </a>
+    );
+  const sonTres = compartir !== null && aEscribir !== null;
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
-      {escribir !== null && (
-        <FilaDeAcciones>
-          <a
-            href={escribir}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={BOTON_QUE_ES_UN_ENLACE}
-          >
-            <Icono nombre="message-circle" tamano={18} />
-            {ESCRIBIRLE_AL_TALLER}
-          </a>
-        </FilaDeAcciones>
+      <FilaDeAcciones>
+        {descargar}
+        {compartir}
+        {!sonTres && aEscribir}
+      </FilaDeAcciones>
+      {sonTres && <FilaDeAcciones>{aEscribir}</FilaDeAcciones>}
+      <p role="status" className="sr-only">
+        {textoDelEstado(pdf)}
+      </p>
+      {pdf.estado === 'fallo' && (
+        <p role="alert" className="text-label leading-normal text-alerta">
+          {NO_SE_PUDO_ARMAR_EL_PDF}
+        </p>
       )}
       {comoDejarLaSena && (
         <a
@@ -502,6 +555,7 @@ export interface ElPresupuestoProps {
 
 export function ElPresupuesto({ presupuesto, hoy, hayComoPagar }: ElPresupuestoProps) {
   const titulo = useId();
+  const pdf = usePdfDelPresupuesto(useMemo(() => pdfDelMandado(presupuesto), [presupuesto]));
   const vencido = presupuesto.vencio === null ? null : lineaDelVencido(presupuesto.vencio, hoy);
   const validez: ValidezDelDocumento = {
     texto: textoDeLaValidez(presupuesto, hoy),
@@ -549,6 +603,8 @@ export function ElPresupuesto({ presupuesto, hoy, hayComoPagar }: ElPresupuestoP
 
       <Acciones
         className="mt-5"
+        pdf={pdf}
+        conCompartir
         escribir={enlaceParaEscribirleAlTaller(presupuesto)}
         comoDejarLaSena={presupuesto.pideLaSena && hayComoPagar}
       />
@@ -564,6 +620,7 @@ export interface ElPresupuestoAceptadoProps {
 
 export function ElPresupuestoAceptado({ presupuesto }: ElPresupuestoAceptadoProps) {
   const titulo = useId();
+  const pdf = usePdfDelPresupuesto(useMemo(() => pdfDelAceptado(presupuesto), [presupuesto]));
   return (
     <section aria-labelledby={titulo} data-quieta className={`@container ${TARJETA}`}>
       <h2 id={titulo} className="text-section font-semibold">
@@ -592,6 +649,14 @@ export function ElPresupuestoAceptado({ presupuesto }: ElPresupuestoAceptadoProp
           <PieDelDocumento documento={presupuesto.documento} />
         </div>
       </BloquePlegable>
+
+      <Acciones
+        className="mt-4"
+        pdf={pdf}
+        conCompartir={false}
+        escribir={null}
+        comoDejarLaSena={false}
+      />
     </section>
   );
 }
