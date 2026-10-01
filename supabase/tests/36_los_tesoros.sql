@@ -58,7 +58,8 @@ select results_eq(
       ('created_at', 'timestamptz'::regtype, true),
       ('updated_at', 'timestamptz'::regtype, true),
       ('deleted_at', 'timestamptz'::regtype, false),
-      ('version', 'integer'::regtype, true)
+      ('version', 'integer'::regtype, true),
+      ('moneda', 'text'::regtype, true)
   $$,
   'la tabla tiene sus columnas, con sus tipos y las que no pueden ir vacías'
 );
@@ -79,7 +80,7 @@ select set_eq(
     where a.attrelid = 'public.tesoros'::regclass and a.attnum > 0 and not a.attisdropped
       and has_column_privilege('authenticated', a.attrelid, a.attnum, 'INSERT')
   $$,
-  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at'],
+  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda'],
   'la app da de alta todo lo del tesoro salvo el taller, la clave y la metadata'
 );
 
@@ -90,8 +91,8 @@ select set_eq(
     where a.attrelid = 'public.tesoros'::regclass and a.attnum > 0 and not a.attisdropped
       and has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
   $$,
-  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at'],
-  'y edita lo mismo, porque el alta es un upsert'
+  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda'],
+  'y edita lo mismo, porque el alta es un upsert: la moneda la cuida un trigger, que no la deja cambiar (MN034, 42_los_tesoros_en_dolares.sql)'
 );
 
 select ok(
