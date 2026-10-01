@@ -153,6 +153,29 @@ export function pieDeLosPagos(vista: VistaDelCliente, hayComoPagar: boolean): st
   return `${EL_PAGO_SE_COORDINA} ${LOS_PAGOS_LOS_ANOTA_EL_TALLER}`;
 }
 
+const CUALES: readonly string[] = [
+  '',
+  'la única',
+  'las dos',
+  'las tres',
+  'las cuatro',
+  'las cinco',
+  'las seis',
+];
+
+export function cifraDeLasOpciones(cantidad: number): string {
+  return cantidad === 1 ? '1 opción' : `${String(cantidad)} opciones`;
+}
+
+export function bajadaDeLasOpciones(cantidad: number): string {
+  const cuales = CUALES[cantidad] ?? 'todas';
+  return `Mirá ${cuales} en el presupuesto y avisale al taller cuál preferís.`;
+}
+
+export function lineaDelPresupuestoVencido(vencio: string, hoy: string): string {
+  return `El presupuesto venció el ${fechaLarga(vencio, hoy)}: escribile al taller para actualizarlo.`;
+}
+
 export function lineaDeLaSena(sena: SenaDeLaVista, pagado: number): string {
   switch (sena.situacion) {
     case 'falta':

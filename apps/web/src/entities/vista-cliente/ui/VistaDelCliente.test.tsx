@@ -1,13 +1,25 @@
 import {
+  borradorNuevo,
   centavos,
   COORDINAMOS_LA_ENTREGA_AL_APROBAR,
+  documentoDelPresupuesto,
+  PLANTILLA_DE_SIEMPRE,
+  puntosBasicos,
   SIGUE_CON_LA_SENA_CUBIERTA,
+  valoresDelTrabajo,
   VIDRIERA_VACIA,
   vistaDelCliente,
+  type DatosDelTaller,
+  type DocumentoDelPresupuesto,
+  type Formatos,
+  type OpcionDelTrabajo,
+  type PresupuestoDelTrabajo,
   type TrabajoDelCliente,
 } from '@maun/domain';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
 
 import { SIN_PAGOS_APROBADO } from '../model/textos';
 import { VistaDelCliente } from './VistaDelCliente';
@@ -519,14 +531,28 @@ describe('un trabajo con el presupuesto mandado y sin aprobar, con todo cargado'
     expect(cuando.textContent).not.toMatch(/\d/);
   });
 
-  it('con la fecha límite ya pasada, dice que venció y no promete nada', () => {
+  it('con la fecha límite ya pasada, no promete nada, deja de pedirle la seña y le pide que escriba', () => {
     dibujar(sinAprobar({ fechas: fechas({ valeHasta: '2026-09-17' }) }));
 
-    const cuando = screen.getByRole('region', { name: 'Para cuándo' });
-    expect(cuando).toHaveTextContent(
-      'Este presupuesto venció el jue 17 de septiembre. Hablá con el taller para actualizarlo.',
+    expect(screen.queryByRole('region', { name: 'Para cuándo' })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('podríamos');
+
+    const como = screen.getByRole('region', { name: 'Cómo pagar' });
+    expect(como).toHaveTextContent(
+      'Este presupuesto venció el jue 17 sep. Escribile al taller para actualizarlo antes de pagar.',
     );
-    expect(cuando).not.toHaveTextContent('podríamos');
+    expect(como).not.toHaveTextContent('Ahora, la seña');
+    expect(como).not.toHaveTextContent('$ 504.000');
+    expect(como).not.toHaveTextContent('en efectivo');
+    expect(como).not.toHaveTextContent('Después, el saldo');
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent(
+      'El presupuesto venció el jue 17 sep: escribile al taller para actualizarlo.',
+    );
+    expect(entrada).not.toHaveTextContent('te quedan');
+    expect(entrada).toHaveTextContent('Presupuesto$ 1.248.000');
+    expect(entrada).toHaveTextContent('Pagaste$ 120.000');
   });
 
   it('si lo que pagó ya cubre la seña, lo dice y no le pide nada', () => {
@@ -959,5 +985,297 @@ describe('el estimativo y el relevamiento en el camino', () => {
     );
 
     expect(screen.queryByRole('button', { name: LA_NOTA })).not.toBeInTheDocument();
+  });
+});
+
+const FORMATOS: Formatos = { pesos: formatearPesos, porcentaje: formatearPorcentaje };
+
+const TALLER: DatosDelTaller = {
+  nombre: 'Taller MAUN',
+  titular: 'Julián Ferro',
+  cuit: '20-12345678-6',
+  condicionFiscal: 'monotributo',
+  domicilio: 'Pasaje Los Aromos 120, Haedo',
+  telefono: '11 4088-2210',
+  email: 'taller@ejemplo.com',
+};
+
+const OPCIONES: readonly OpcionDelTrabajo[] = [
+  { id: 'opcion-a', descripcion: 'En melamina Blanco.', monto: centavos(124_800_000) },
+  { id: 'opcion-b', descripcion: 'Con frentes laqueados.', monto: centavos(156_000_000) },
+];
+
+function documentoMandado(opciones: readonly OpcionDelTrabajo[] = []): DocumentoDelPresupuesto {
+  const borrador = borradorNuevo({
+    titulo: 'Escritorio',
+    obra: 'Belgrano 455, Haedo',
+    plantilla: PLANTILLA_DE_SIEMPRE,
+    validezDias: 15,
+    idNuevo: () => 'm1',
+  });
+  return documentoDelPresupuesto(
+    {
+      borrador: {
+        ...borrador,
+        muebles: [
+          {
+            id: 'm1',
+            nombre: 'Escritorio en L',
+            descripcion: 'En melamina Blanco, con dos cajones.',
+          },
+        ],
+        herrajes: { mostrar: true, lista: [{ id: 'h1', texto: 'Correderas con cierre suave.' }] },
+      },
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      taller: TALLER,
+      cliente: 'Lucía Ferreyra',
+      valores: valoresDelTrabajo(centavos(124_800_000), opciones),
+      senaBp: puntosBasicos(5_000),
+      abonado: centavos(12_000_000),
+    },
+    FORMATOS,
+  );
+}
+
+function presupuestoMandado(cambios: Partial<PresupuestoDelTrabajo> = {}): PresupuestoDelTrabajo {
+  return {
+    numero: '20260910-01',
+    revision: 2,
+    mandadoEl: '2026-09-10',
+    queCambio: 'Sumamos los dos cajones.',
+    documento: documentoMandado(),
+    aceptadoEl: null,
+    letra: null,
+    ...cambios,
+  };
+}
+
+function esperandoLaSena(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
+  return trabajo({
+    trabajo: 'Escritorio',
+    cliente: 'Lucía Ferreyra',
+    estado: 'presupuesto_enviado',
+    precio: centavos(124_800_000),
+    sena: centavos(62_400_000),
+    fechas: fechas({ presupuesto: '2026-09-10', valeHasta: '2026-09-25' }),
+    pago: {
+      instancia: 'sena',
+      formas: ['efectivo'],
+      monto: centavos(50_400_000),
+      siguiente: { instancia: 'saldo', formas: ['efectivo'], monto: centavos(62_400_000) },
+    },
+    pagos: [
+      {
+        id: 'relevamiento',
+        fecha: '2026-08-13',
+        concepto: 'Relevamiento',
+        monto: centavos(12_000_000),
+      },
+    ],
+    presupuesto: presupuestoMandado(),
+    ...cambios,
+  });
+}
+
+function antesQue(una: HTMLElement, otra: HTMLElement): boolean {
+  return (una.compareDocumentPosition(otra) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+describe('el presupuesto mandado desde la app, esperando la seña', () => {
+  it('va segundo en el principal, entre «Tu mueble» y «En qué anda»', () => {
+    dibujar(esperandoLaSena());
+
+    const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
+    expect(antesQue(screen.getByRole('region', { name: 'Tu mueble' }), presupuesto)).toBe(true);
+    expect(antesQue(presupuesto, screen.getByRole('region', { name: 'En qué anda' }))).toBe(true);
+    expect(presupuesto).toHaveAttribute('data-quieta');
+  });
+
+  it('el rótulo lleva el número, la revisión, el día en que se mandó y hasta cuándo vale', () => {
+    dibujar(esperandoLaSena());
+
+    const rotulo = screen.getByLabelText('Rótulo del presupuesto');
+    expect(rotulo.tagName).toBe('DL');
+    expect(rotulo).toHaveTextContent('PresupuestoNº 20260910-01');
+    expect(rotulo).toHaveTextContent('Rev.2');
+    expect(rotulo).toHaveTextContent('Emitido10/09/26');
+    expect(rotulo).toHaveTextContent('Vale hasta25/09/26');
+  });
+
+  it('trae qué cambió, el trabajo, el detalle, los valores con lo pagado, el plazo, la validez y el pie', () => {
+    dibujar(esperandoLaSena());
+
+    const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
+    expect(presupuesto).toHaveTextContent('Qué cambió en la revisión 2');
+    expect(presupuesto).toHaveTextContent('Sumamos los dos cajones.');
+    expect(presupuesto).toHaveTextContent('Belgrano 455, Haedo');
+    expect(presupuesto).toHaveTextContent('Escritorio en L');
+    expect(presupuesto).toHaveTextContent('Correderas con cierre suave.');
+    expect(presupuesto).toHaveTextContent('Total$ 1.248.000');
+    expect(presupuesto).toHaveTextContent('Seña (50%)$ 624.000');
+    expect(presupuesto).toHaveTextContent('Ya pagaste$ 120.000');
+    expect(presupuesto).toHaveTextContent('Te falta para la seña$ 504.000');
+    expect(presupuesto).toHaveTextContent('Después, el saldo$ 624.000');
+    expect(presupuesto).toHaveTextContent('Seña del 50% para confirmar el trabajo');
+    expect(presupuesto).toHaveTextContent('Plazo de fabricación30 días hábiles');
+    expect(presupuesto).toHaveTextContent('ValidezHasta el vie 25 sep');
+    expect(within(presupuesto).getByText('Garantía')).toBeInTheDocument();
+    expect(presupuesto).toHaveTextContent('Garantía6 meses');
+    expect(presupuesto).toHaveTextContent('Documento no válido como factura');
+    expect(presupuesto).toHaveTextContent('CUIT 20-12345678-6');
+    expect(presupuesto).toHaveTextContent('Responsable Monotributo');
+  });
+
+  it('los avisos, las condiciones y la garantía empiezan cerrados', () => {
+    const { container } = dibujar(esperandoLaSena());
+
+    const plegables = container.querySelectorAll('section[data-quieta] details');
+    expect(plegables.length).toBe(3);
+    for (const plegable of plegables) expect(plegable).not.toHaveAttribute('open');
+  });
+
+  it('«Escribirle al taller» abre el chat del taller con el número del presupuesto', () => {
+    dibujar(esperandoLaSena());
+
+    expect(screen.getByRole('link', { name: 'Escribirle al taller' })).toHaveAttribute(
+      'href',
+      'https://wa.me/5491140882210?text=Hola%2C%20te%20escribo%20por%20el%20presupuesto%20N%C2%BA%2020260910-01%20Rev.%202.',
+    );
+  });
+
+  it('con la seña por pagar, «Cómo dejar la seña» baja a «Cómo pagar»', () => {
+    dibujar(esperandoLaSena());
+
+    const enlace = screen.getByRole('link', { name: 'Cómo dejar la seña' });
+    expect(enlace).toHaveAttribute('href', '#como-pagar');
+    expect(screen.getByRole('region', { name: 'Cómo pagar' })).toHaveAttribute('id', 'como-pagar');
+  });
+
+  it('sin el teléfono del taller no hay a quién escribirle', () => {
+    dibujar(
+      esperandoLaSena({
+        presupuesto: presupuestoMandado({
+          documento: { ...documentoMandado(), taller: { ...TALLER, telefono: '' } },
+        }),
+      }),
+    );
+
+    expect(screen.queryByRole('link', { name: 'Escribirle al taller' })).not.toBeInTheDocument();
+  });
+
+  it('en la primera revisión no hay «qué cambió»', () => {
+    dibujar(esperandoLaSena({ presupuesto: presupuestoMandado({ revision: 1 }) }));
+
+    expect(screen.getByRole('region', { name: 'El presupuesto' })).not.toHaveTextContent(
+      'Qué cambió',
+    );
+  });
+
+  it('con opciones, «Tu mueble» dice cuántas y la sección muestra cada una con su seña', () => {
+    dibujar(
+      esperandoLaSena({
+        precio: null,
+        sena: null,
+        pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+        presupuesto: presupuestoMandado({ documento: documentoMandado(OPCIONES) }),
+      }),
+    );
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent('Presupuesto2 opciones');
+    expect(entrada).toHaveTextContent(
+      'Mirá las dos en el presupuesto y avisale al taller cuál preferís.',
+    );
+    const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
+    expect(within(presupuesto).getByRole('heading', { name: 'Opción A' })).toBeInTheDocument();
+    expect(within(presupuesto).getByRole('heading', { name: 'Opción B' })).toBeInTheDocument();
+    expect(presupuesto).toHaveTextContent('Total$ 1.560.000');
+    expect(presupuesto).toHaveTextContent('Seña (50%)$ 780.000');
+    expect(presupuesto).toHaveTextContent('Elegí la opción que prefieras y avisale al taller.');
+    expect(screen.queryByRole('link', { name: 'Cómo dejar la seña' })).not.toBeInTheDocument();
+  });
+
+  it('vencido, la sección lo marca y deja de mandar a pagar la seña', () => {
+    dibujar(
+      esperandoLaSena({ fechas: fechas({ presupuesto: '2026-09-10', valeHasta: '2026-09-17' }) }),
+    );
+
+    const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
+    expect(presupuesto).toHaveTextContent(
+      'Venció el jue 17 sep. Escribile al taller para actualizarlo.',
+    );
+    expect(presupuesto).toHaveTextContent('Venció17/09/26');
+    expect(presupuesto).not.toHaveTextContent('Vale hasta');
+    expect(presupuesto).toHaveTextContent('ValidezVenció el jue 17 sep');
+    expect(screen.queryByRole('link', { name: 'Cómo dejar la seña' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Para cuándo' })).not.toBeInTheDocument();
+  });
+
+  it('«Para cuándo» cuenta el plazo del presupuesto en vez de los 21 días hábiles', () => {
+    const documento = { ...documentoMandado(), plazoDeFabricacion: 10 };
+    dibujar(esperandoLaSena({ presupuesto: presupuestoMandado({ documento }) }));
+
+    expect(screen.getByRole('region', { name: 'Para cuándo' })).toHaveTextContent(
+      'Si dejás la seña antes del vie 25 de septiembre, podríamos tenerlo listo para el vie 9 de octubre.',
+    );
+  });
+
+  it('sin el presupuesto de la app, la página no tiene la sección', () => {
+    dibujar(esperandoLaSena({ presupuesto: null }));
+
+    expect(screen.queryByRole('region', { name: 'El presupuesto' })).not.toBeInTheDocument();
+  });
+});
+
+describe('el presupuesto aceptado', () => {
+  function aprobado(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
+    const documento = documentoMandado([OPCIONES[0] as OpcionDelTrabajo]);
+    return trabajo({
+      precio: centavos(124_800_000),
+      presupuesto: presupuestoMandado({ documento, aceptadoEl: '2026-09-04', letra: 'A' }),
+      ...cambios,
+    });
+  }
+
+  it('se achica y baja: va después de «Lo que pagaste» y antes de «Fotos y planos»', () => {
+    dibujar(aprobado());
+
+    const tarjeta = screen.getByRole('region', { name: 'El presupuesto que aceptaste' });
+    expect(antesQue(screen.getByRole('region', { name: 'Lo que pagaste' }), tarjeta)).toBe(true);
+    expect(antesQue(tarjeta, screen.getByRole('region', { name: 'Fotos y planos' }))).toBe(true);
+    expect(screen.queryByRole('region', { name: 'El presupuesto' })).not.toBeInTheDocument();
+  });
+
+  it('el rótulo dice la opción y el día en que se aceptó en lugar de hasta cuándo vale', () => {
+    dibujar(aprobado());
+
+    const tarjeta = screen.getByRole('region', { name: 'El presupuesto que aceptaste' });
+    expect(tarjeta).toHaveTextContent('OpciónA');
+    expect(tarjeta).toHaveTextContent('Aceptado04/09/26');
+    expect(tarjeta).not.toHaveTextContent('Vale hasta');
+  });
+
+  it('«Ver el detalle» está cerrado y trae solo la opción aceptada, sin lo pagado', () => {
+    dibujar(aprobado());
+
+    const tarjeta = screen.getByRole('region', { name: 'El presupuesto que aceptaste' });
+    const detalle = within(tarjeta).getByText('Ver el detalle').closest('details');
+    expect(detalle).not.toHaveAttribute('open');
+    expect(tarjeta).toHaveTextContent('Opción A');
+    expect(tarjeta).not.toHaveTextContent('Opción B');
+    expect(tarjeta).toHaveTextContent('Total$ 1.248.000');
+    expect(tarjeta).not.toHaveTextContent('Ya pagaste');
+    expect(tarjeta).not.toHaveTextContent('Te falta para la seña');
+    expect(tarjeta).not.toHaveTextContent('Después, el saldo');
+    expect(tarjeta).not.toHaveTextContent('Validez');
+    expect(tarjeta).not.toHaveTextContent('Acordado al aprobar');
+  });
+
+  it('si se aprobó por otro importe, lo dice debajo del total', () => {
+    dibujar(aprobado({ precio: centavos(120_000_000) }));
+
+    expect(screen.getByRole('region', { name: 'El presupuesto que aceptaste' })).toHaveTextContent(
+      'Acordado al aprobar: $ 1.200.000',
+    );
   });
 });

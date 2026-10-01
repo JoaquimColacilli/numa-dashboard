@@ -13,6 +13,12 @@ export { AyudaDeLaVista, type AyudaDeLaVistaProps } from './ui/AyudaDeLaVista';
 export { CaminoDeHitos, type CaminoDeHitosProps } from './ui/CaminoDeHitos';
 export { ComoPagar, type ComoPagarProps } from './ui/ComoPagar';
 export { CoordinarLaEntrega, type CoordinarLaEntregaProps } from './ui/CoordinarLaEntrega';
+export {
+  ElPresupuesto,
+  ElPresupuestoAceptado,
+  type ElPresupuestoAceptadoProps,
+  type ElPresupuestoProps,
+} from './ui/ElPresupuesto';
 export type { MandarLaEntrega, ResultadoDeMandar } from './model/mandar';
 export {
   ACA_NO_SE_GUARDA_NADA,

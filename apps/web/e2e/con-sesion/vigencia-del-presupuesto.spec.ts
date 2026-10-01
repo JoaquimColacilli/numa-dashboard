@@ -160,9 +160,10 @@ test('vencido: la tarjeta de Consultas, la ficha y la página del cliente lo dic
   await capturarEnLosDosTemas(page, testInfo, 'vencido-en-la-ficha');
 
   await abrir(page, `/proyectos/${id}/vista-cliente`);
-  await expect(page.getByRole('region', { name: 'Para cuándo' })).toContainText(
-    'Este presupuesto venció el',
+  await expect(page.getByRole('region', { name: 'Tu mueble' })).toContainText(
+    'El presupuesto venció el',
   );
+  await expect(page.getByRole('region', { name: 'Para cuándo' })).toHaveCount(0);
 });
 
 test('en Ajustes se eligen los días que vale un presupuesto', async ({ page }, testInfo) => {

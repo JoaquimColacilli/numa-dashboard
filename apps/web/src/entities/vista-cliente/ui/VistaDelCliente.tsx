@@ -29,12 +29,16 @@ import {
 
 import { etapaDelDibujo } from '../model/etapa';
 import type { CoordinacionConPedido, MandarLaEntrega } from '../model/mandar';
+import { ID_DE_COMO_PAGAR } from '../model/presupuesto';
 import {
   A_CONFIRMAR,
   A_CUENTA_DE_LA_SENA,
   bajadaDeLaEntrega,
+  bajadaDeLasOpciones,
+  cifraDeLasOpciones,
   claveDeLaEntrega,
   lineaDeLaSena,
+  lineaDelPresupuestoVencido,
   lineaDelValorDelRelevamiento,
   pieDeLosPagos,
   QUEDA_A_CUENTA,
@@ -48,6 +52,7 @@ import {
 import { CaminoDeHitos } from './CaminoDeHitos';
 import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
+import { ElPresupuesto, ElPresupuestoAceptado } from './ElPresupuesto';
 import { VidrieraDelTaller } from './VidrieraDelTaller';
 
 export interface VistaDelClienteProps {
@@ -177,25 +182,36 @@ function EntradaAntesDelPresupuesto({
   );
 }
 
+function lineaDeLaEntrada(vista: VistaEsperandoLaSena, hoy: string): string {
+  if (vista.proyeccion.situacion === 'vencida') {
+    return lineaDelPresupuestoVencido(vista.proyeccion.vencio, hoy);
+  }
+  if (vista.opciones > 0) return bajadaDeLasOpciones(vista.opciones);
+  return lineaDeLaSena(vista.sena, vista.pagado);
+}
+
+function cifraDelPresupuesto(vista: VistaEsperandoLaSena): string {
+  if (vista.opciones > 0) return cifraDeLasOpciones(vista.opciones);
+  return vista.presupuesto === null ? '—' : formatearPesos(vista.presupuesto);
+}
+
 function EntradaEsperandoLaSena({
   vista,
   titular,
   bajada,
+  hoy,
 }: {
   vista: VistaEsperandoLaSena;
   titular: string;
   bajada: string;
+  hoy: string;
 }) {
-  const linea = lineaDeLaSena(vista.sena, vista.pagado);
+  const linea = lineaDeLaEntrada(vista, hoy);
   return (
     <>
       <Titular texto={titular} bajada={bajada} />
       <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
-        <Cifra
-          clave="Presupuesto"
-          valor={vista.presupuesto === null ? '—' : formatearPesos(vista.presupuesto)}
-          grande
-        />
+        <Cifra clave="Presupuesto" valor={cifraDelPresupuesto(vista)} grande />
         <CifrasDeLaSena sena={vista.sena} />
         <Cifra clave="Pagaste" valor={formatearPesos(vista.pagado)} />
       </div>
@@ -262,7 +278,7 @@ function EntradaDeLaVista({ vista, bajada, hoy }: { vista: Vista; bajada: string
     case 'antes-del-presupuesto':
       return <EntradaAntesDelPresupuesto vista={vista} titular={titular} bajada={bajada} />;
     case 'esperando-la-sena':
-      return <EntradaEsperandoLaSena vista={vista} titular={titular} bajada={bajada} />;
+      return <EntradaEsperandoLaSena vista={vista} titular={titular} bajada={bajada} hoy={hoy} />;
     case 'aprobado':
     case 'fabricacion':
     case 'listo':
@@ -326,12 +342,14 @@ function ParaCuando({
 function ApoyoDeLaVista({ vista, hoy }: { vista: Vista; hoy: string }) {
   switch (vista.etapa) {
     case 'antes-del-presupuesto':
-      return <ComoPagar como={vista.comoPagar} />;
+      return <ComoPagar como={vista.comoPagar} hoy={hoy} id={ID_DE_COMO_PAGAR} />;
     case 'esperando-la-sena':
       return (
         <>
-          <ParaCuando proyeccion={vista.proyeccion} sena={vista.sena} hoy={hoy} />
-          <ComoPagar como={vista.comoPagar} />
+          {vista.proyeccion.situacion !== 'vencida' && (
+            <ParaCuando proyeccion={vista.proyeccion} sena={vista.sena} hoy={hoy} />
+          )}
+          <ComoPagar como={vista.comoPagar} hoy={hoy} id={ID_DE_COMO_PAGAR} />
         </>
       );
     case 'aprobado':
@@ -342,7 +360,7 @@ function ApoyoDeLaVista({ vista, hoy }: { vista: Vista; hoy: string }) {
       return (
         <>
           <TarjetaDelTrabajo vista={vista} hoy={hoy} />
-          <ComoPagar como={vista.comoPagar} />
+          <ComoPagar como={vista.comoPagar} hoy={hoy} id={ID_DE_COMO_PAGAR} />
         </>
       );
   }
@@ -428,6 +446,14 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
 
             <EntradaDeLaVista vista={vista} bajada={nota?.resumen ?? ''} hoy={hoy} />
           </TarjetaConLamina>
+
+          {vista.etapa === 'esperando-la-sena' && vista.elPresupuesto !== null && (
+            <ElPresupuesto
+              presupuesto={vista.elPresupuesto}
+              hoy={hoy}
+              hayComoPagar={hayComoPagar}
+            />
+          )}
 
           <p
             role="status"
@@ -536,6 +562,10 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <CierreDeLosPagos vista={vista} />
             <p className="mt-2.5 text-label leading-normal text-text-3">{textoDelPie}</p>
           </section>
+
+          {estaAprobada(vista) && vista.elPresupuesto !== null && (
+            <ElPresupuestoAceptado presupuesto={vista.elPresupuesto} />
+          )}
 
           <section aria-label="Fotos y planos" className={TARJETA}>
             <div className="mb-3 flex items-baseline justify-between gap-2.5">

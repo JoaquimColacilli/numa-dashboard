@@ -138,6 +138,49 @@ const LAMINAS: readonly Lamina[] = [
     pie: 'Si la fecha de inicio que cargaste al aprobar es de hoy o de antes, ese mismo día se tilda el paso 2 y queda en curso el 3, con ese día de inicio.',
   },
   {
+    id: 'el-presupuesto',
+    titulo: 'El presupuesto que le mandás',
+    entrada:
+      'Cuando lo mandás desde la app, le aparece en su página, abajo de «Tu mueble», y lo puede bajar en PDF.',
+    filas: [
+      {
+        clave: 'rotulo',
+        icono: 'file-text',
+        titulo: 'Con su número',
+        texto:
+          'Ve el número, la revisión, el día que se lo mandaste y hasta cuándo vale, y abajo todo lo que armaste: el detalle, lo que incluye, los valores y tus textos.',
+      },
+      {
+        clave: 'revision',
+        icono: 'refresh-cw',
+        titulo: 'Las revisiones',
+        texto:
+          'Si le mandás una revisión, ve la última, con lo que le contaste que cambió. Las anteriores no las ve.',
+      },
+      {
+        clave: 'opciones',
+        icono: 'split',
+        titulo: 'Con opciones',
+        texto:
+          'Ve cada opción con su total y su seña, y le pide que elija. Cuando aprobás una, las otras desaparecen de su página.',
+      },
+      {
+        clave: 'vencido',
+        icono: 'triangle-alert',
+        titulo: 'Si vence',
+        texto:
+          'Le aparece «Venció el …» y la página deja de pedirle la seña: le pide que te escriba para actualizarlo. Pasa también con un presupuesto que le mandaste por fuera de la app.',
+      },
+      {
+        clave: 'aceptado',
+        icono: 'circle-check',
+        titulo: 'Cuando lo aprueba',
+        texto:
+          'La tarjeta se achica y baja, después de «Lo que pagaste»: el presupuesto que aceptó, con la opción y el día, y el detalle plegado.',
+      },
+    ],
+  },
+  {
     id: 'taller',
     titulo: 'El taller y la entrega',
     filas: [
@@ -269,7 +312,7 @@ const LAMINAS: readonly Lamina[] = [
         icono: 'eye-off',
         titulo: 'Tu plata',
         texto:
-          'Ni los costos, ni lo que te queda, ni el diezmo, ni el reparto, ni tus notas de obra, ni las opciones que no te aprobó.',
+          'Ni los costos, ni lo que te queda, ni el diezmo, ni el reparto, ni tus notas de obra. Las opciones las ve mientras decide; cuando aprobás una, las que no eligió desaparecen.',
       },
       {
         clave: 'fotos',

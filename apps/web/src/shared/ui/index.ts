@@ -38,6 +38,13 @@ export {
   RotuloEnCasillas,
   type CasillaDelRotulo,
 } from './plano';
+export { RotuloDelPresupuesto, type RotuloDelPresupuestoProps } from './RotuloDelPresupuesto';
+export {
+  casillasDelPresupuesto,
+  SIN_NUMERO_TODAVIA,
+  type AceptacionDelRotulo,
+  type DatosDelRotulo,
+} from './rotulo';
 export { VisorDeImagenes, type ImagenDelVisor, type VisorDeImagenesProps } from './VisorDeImagenes';
 export { useVisor, type Visor } from './visor';
 export {
