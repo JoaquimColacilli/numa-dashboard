@@ -14,6 +14,11 @@
   [0058](0058-el-estimativo-y-el-relevamiento-en-el-camino-del-cliente.md) y al
   [0070](0070-el-camino-tilda-lo-que-paso.md) (la etapa listo en el camino, sin un paso nuevo), y al
   [0069](0069-el-dibujo-del-trabajo-del-cliente.md) (una escena más).
+- Completada el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): la estimada
+  que propone el pasaje cuenta el plazo de fabricación de la última revisión del presupuesto mandado, y
+  lo dice («Calculada a 30 días hábiles del inicio, el plazo del presupuesto.»); sin presupuesto mandado,
+  siguen los 21 días hábiles. Si se aprueba otro importe que el mandado, el pasaje lo avisa antes de
+  confirmar. La primera estimada del analítico es la que quede guardada al aprobar, como hasta ahora.
 
 ## Contexto
 

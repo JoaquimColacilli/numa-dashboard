@@ -5,6 +5,10 @@ Estado: aceptada, 2026-09-21. Completa al [0024](0024-ajustes-en-el-celular-desd
 [0010](0010-sincronizacion-replica-completa.md). Completada el 2026-09-25 por el
 [ADR 0071](0071-la-entrega-y-sus-fechas.md): la segunda escritura sin sesión, `responder_la_entrega`,
 sigue el mismo molde (token, gemela en el dominio, reenvío idempotente) y suma `MN020` y `MN021`.
+Completada el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): «Lo que se mandó
+lleva su foto» vale también para el presupuesto. Cada envío congela una revisión con el documento entero
+(los textos con sus datos completados, los importes y los datos del taller y del cliente), que nadie edita
+después: el cliente ve lo que se le mandó aunque el dueño siga armando o cambie sus textos de siempre.
 
 ## Contexto
 

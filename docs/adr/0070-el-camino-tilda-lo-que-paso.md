@@ -11,6 +11,10 @@
 - Completada el 2026-09-25 por el [ADR 0071](0071-la-entrega-y-sus-fechas.md): la etapa listo deja
   en curso la entrega con «Listo para entregar», y con una comprometida el paso lleva su día, el
   titular es la buena noticia y «lo próximo» dice que lo que sigue es la entrega.
+- Corregida el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): cierra la mitad
+  de la objeción del presupuesto vencido. «Cómo pagar» ya no pide la seña: dice que le escriba al taller
+  para actualizarlo; «Para cuándo» no sale y «Tu mueble» lo dice. «Lo próximo» del camino sigue diciendo
+  que lo apruebe y deje la seña.
 
 ## Contexto
 
