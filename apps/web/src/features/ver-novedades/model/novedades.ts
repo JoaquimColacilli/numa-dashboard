@@ -5,6 +5,15 @@ export interface Novedad {
 
 export const NOVEDADES: readonly Novedad[] = [
   {
+    version: '2026-10-01',
+    lineas: [
+      'Ahora armás el presupuesto adentro de la ficha del trabajo, con el detalle de cada mueble, los herrajes, lo que incluye, los valores y tus avisos de siempre ya tildados.',
+      'Cuando lo mandás, tu cliente lo ve en su página con su número y lo puede bajar en PDF. Si te pide cambios, mandás una revisión y le contás qué cambió.',
+      'Tus textos de siempre, tus datos para el presupuesto y los plazos se cambian en Ajustes, en «Tu presupuesto».',
+      'Si un presupuesto vence, la página de tu cliente deja de pedirle la seña y le pide que te escriba para actualizarlo. Pasa también con los que mandaste por fuera de la app.',
+    ],
+  },
+  {
     version: '2026-09-30',
     lineas: [
       'En la página de tu cliente, las fotos se abren grandes como en la app, con la X para cerrar y las flechas para pasar de una a otra. Los PDF se siguen abriendo aparte.',
