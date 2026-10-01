@@ -86,6 +86,8 @@ select set_eq(
 -- 27_encuesta_publica.sql. La fila de los tesoros, su revisión y cuándo se guardó (ADR 0078) son
 -- cómo se reparte la plata adentro del taller: no viajan. El valor del relevamiento (ADR 0079) viaja,
 -- y solo antes de mandar el presupuesto: es lo que el taller cobra la visita, no una cuenta de adentro.
+-- Los datos del taller para el presupuesto (ADR 0080) no viajan como columnas: llegan solo adentro de la
+-- foto de cada revisión que se le mandó.
 select set_eq(
   $$
     select a.attname::text
@@ -102,7 +104,9 @@ select set_eq(
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
     'tasa_cocos_anual_bp', 'sueldo_tope_mensual', 'perdido_con_sueldo', 'perdido_con_diezmo',
     'sena_bp', 'resena_link', 'presupuesto_vale_dias',
-    'fila', 'fila_version', 'fila_guardada_at'
+    'fila', 'fila_version', 'fila_guardada_at',
+    'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
+    'taller_email'
   ],
   'toda columna de ajustes está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );
