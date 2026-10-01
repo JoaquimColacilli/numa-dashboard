@@ -25,7 +25,8 @@ select set_eq(
     'registrar_suscripcion', 'dar_de_baja_suscripcion', 'estado_de_mis_avisos', 'guardar_preferencias_de_avisos',
     'suscripciones_para_probar', 'anotar_aviso', 'borrar_suscripcion_vencida', 'avisos_por_mandar',
     'vista_del_cliente', 'vista_compartida', 'titulo_compartido', 'encuesta_compartida', 'contestar_encuesta',
-    'proponer_la_entrega', 'responder_la_entrega', 'guardar_la_fila'
+    'proponer_la_entrega', 'responder_la_entrega', 'guardar_la_fila',
+    'guardar_la_plantilla_del_presupuesto'
   ],
   'public expone exactamente las funciones esperadas'
 );
