@@ -4,7 +4,7 @@
 -- el presupuesto viaja solo mientras espera la seña, y guardar_proyecto la escribe solo si viene la
 -- clave.
 
-select plan(65);
+select plan(76);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -32,6 +32,13 @@ returns date
 language sql
 as $$
   select presupuesto_vale_hasta from public.proyectos where id = 'bbbbbbbb-0000-7000-8000-000000000020'
+$$;
+
+create function tests.el_presupuesto()
+returns jsonb
+language sql
+as $$
+  select public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000040') -> 'presupuesto'
 $$;
 
 select tests.entrar_como(tests.id('ana'));
@@ -578,6 +585,123 @@ select is(
   array[tests.la_vista() #> '{fechas,listo}', tests.la_vista() -> 'entrega'],
   array['null'::jsonb, '{"comprometida": null, "propuesta": null, "respuesta": null}'::jsonb],
   'vuelto a presupuesto, el listo y la comprometida se van con la aprobación'
+);
+
+
+-- El presupuesto que se le mandó desde la app, etapa por etapa (ADR 0080) -------------------------------------
+
+select is(
+  tests.la_vista() -> 'presupuesto',
+  'null'::jsonb,
+  'un presupuesto mandado por fuera de la app no trae documento: la clave viaja en null'
+);
+
+-- Una biblioteca a presupuestar, con la dirección cargada en el trabajo y el borrador a medio armar.
+-- Hoy, en el taller, sigue siendo el 25 de septiembre.
+insert into public.proyectos (id, cliente_id, titulo, estado, presupuesto_centavos, direccion_entrega)
+  values ('bbbbbbbb-0000-7000-8000-000000000040', 'bbbbbbbb-0000-7000-8000-000000000001', 'Biblioteca',
+          'a_presupuestar', 90000000, 'Juncal 2210, Recoleta');
+
+select tests.guardar_el_borrador('bbbbbbbb-0000-7000-8000-000000000041', 'bbbbbbbb-0000-7000-8000-000000000040');
+
+select is(
+  tests.el_presupuesto(),
+  'null'::jsonb,
+  'con el borrador a medio armar, el presupuesto no viaja: todavía no se le mandó'
+);
+
+select tests.mandar_el_presupuesto(
+  'bbbbbbbb-0000-7000-8000-000000000041', 'bbbbbbbb-0000-7000-8000-000000000042', '2026-09-20',
+  p_vale_hasta => '2026-10-05', p_obra => 'Juncal 2210, Recoleta'
+);
+
+select is(
+  array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
+  array['contenido', 'mandado_el', 'numero', 'que_cambio', 'revision'],
+  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió y el documento'
+);
+
+select is(
+  array[
+    tests.el_presupuesto() ->> 'numero', tests.el_presupuesto() ->> 'revision',
+    tests.el_presupuesto() ->> 'mandado_el', tests.el_presupuesto() ->> 'que_cambio'
+  ],
+  array['20260920-01', '1', '2026-09-20', null],
+  'con el número del día en que se mandó por primera vez, la revisión 1 y nada que diga qué cambió'
+);
+
+select is(
+  array[
+    tests.el_presupuesto() #>> '{contenido,obra}',
+    public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000040') ->> 'direccion'
+  ],
+  array['Juncal 2210, Recoleta', ''],
+  'la obra viaja adentro del presupuesto, que es lo que el dueño decidió mandar; la dirección del trabajo sigue sin viajar hasta que aprueba'
+);
+
+select tests.guardar_el_borrador('bbbbbbbb-0000-7000-8000-000000000041', 'bbbbbbbb-0000-7000-8000-000000000040');
+select tests.mandar_el_presupuesto(
+  'bbbbbbbb-0000-7000-8000-000000000041', 'bbbbbbbb-0000-7000-8000-000000000043', '2026-09-24',
+  E'  Sumamos un estante más arriba.\n', '2026-10-09', 'Juncal 2210, Recoleta'
+);
+
+select is(
+  array[
+    tests.el_presupuesto() ->> 'numero', tests.el_presupuesto() ->> 'revision',
+    tests.el_presupuesto() ->> 'que_cambio'
+  ],
+  array['20260920-01', '2', 'Sumamos un estante más arriba.'],
+  'una revisión mantiene el número y dice qué cambió, sin los blancos de las puntas'
+);
+
+select is(
+  public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000040') #>> '{fechas,vale_hasta}',
+  '2026-10-09',
+  'cada revisión renueva la vigencia, que viaja como siempre en fechas.vale_hasta'
+);
+
+-- «Por ahora no»: el cliente sigue viendo la etapa en la que estaba, con su presupuesto.
+update public.proyectos set estado = 'en_seguimiento'
+  where id = 'bbbbbbbb-0000-7000-8000-000000000040';
+insert into public.proximos_contactos (proyecto_id, fecha, etapa_previa)
+  values ('bbbbbbbb-0000-7000-8000-000000000040', '2026-10-15', 'presupuesto_enviado');
+
+select is(
+  tests.el_presupuesto() ->> 'revision',
+  '2',
+  'en seguimiento, el cliente sigue viendo el presupuesto que esperaba la seña'
+);
+
+update public.proyectos set estado = 'presupuesto_enviado'
+  where id = 'bbbbbbbb-0000-7000-8000-000000000040';
+update public.proyectos set estado = 'en_curso'
+  where id = 'bbbbbbbb-0000-7000-8000-000000000040';
+
+select is(
+  array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
+  array['aceptado_el', 'contenido', 'letra', 'mandado_el', 'numero', 'revision'],
+  'aprobado, viaja sin lo que cambió y con el día en que se aceptó'
+);
+
+select is(
+  array[
+    tests.el_presupuesto() ->> 'aceptado_el',
+    public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000040') #>> '{fechas,aprobado}'
+  ],
+  array[
+    ((now() at time zone 'America/Argentina/Buenos_Aires')::date)::text,
+    ((now() at time zone 'America/Argentina/Buenos_Aires')::date)::text
+  ],
+  'el día en que se aceptó es el de la aprobación, el mismo que dice fechas.aprobado'
+);
+
+update public.proyectos set estado = 'presupuesto_enviado'
+  where id = 'bbbbbbbb-0000-7000-8000-000000000040';
+
+select is(
+  array[tests.el_presupuesto() ->> 'revision', tests.el_presupuesto() ->> 'aceptado_el'],
+  array['2', null],
+  'si vuelve a presupuesto, vuelve a viajar la revisión que espera la seña, sin el día en que se había aceptado'
 );
 
 select * from finish();
