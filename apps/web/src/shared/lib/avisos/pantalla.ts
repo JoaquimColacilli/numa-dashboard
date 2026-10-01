@@ -121,6 +121,16 @@ export const TEXTOS_DE_AVISO = {
     enCola: 'Contacto registrado sin señal: se guarda solo cuando vuelva.',
     error: 'No se registró el contacto.',
   },
+  borradorDelPresupuesto: {
+    hecho: 'Presupuesto guardado.',
+    enCola: 'Presupuesto anotado sin señal: se guarda solo cuando vuelva.',
+    error: 'No se guardó el presupuesto.',
+  },
+  presupuestoMandado: {
+    hecho: 'Presupuesto mandado: tu cliente ya lo ve en su página.',
+    enCola: 'Presupuesto anotado sin señal: se numera y le llega cuando vuelva.',
+    error: 'No se mandó el presupuesto.',
+  },
   tareaDelPresupuesto: {
     hecho: 'Tarea del presupuesto guardada.',
     enCola: 'Tarea del presupuesto anotada sin señal: se guarda sola cuando vuelva.',

@@ -15,6 +15,7 @@ import {
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
+import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
 import { HojaDeContacto } from '@/features/avanzar-la-consulta';
 import { BorradoDelProyecto, NotasDelProyecto } from '@/features/editar-proyecto';
 import { HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
@@ -195,6 +196,8 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
         }
       >
         <div className="flex flex-col gap-3 md:gap-4">
+          <TarjetaDelPresupuesto proyecto={proyecto} />
+
           <section
             aria-label="Datos del trabajo"
             className="rounded-panel border border-hairline bg-paper px-4 md:px-5"

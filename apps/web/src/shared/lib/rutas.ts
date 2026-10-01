@@ -137,6 +137,8 @@ export const RUTA_DE_AJUSTES = '/ajustes';
 
 export const RUTA_DE_AVISOS = '/ajustes/avisos';
 
+export const RUTA_DEL_PRESUPUESTO_EN_AJUSTES = '/ajustes/presupuesto';
+
 export const RUTA_DE_AGENDA = '/agenda';
 
 export const RUTA_DE_ANOTAR = '/agenda/anotar';
@@ -149,6 +151,10 @@ export function rutaDeAnotar(fecha?: string): string {
 
 export function rutaDeCompartir(id: string): string {
   return `/proyectos/${id}/compartir`;
+}
+
+export function rutaDelPresupuesto(id: string): string {
+  return `/proyectos/${id}/presupuesto`;
 }
 
 export function rutaDeLaVistaDelCliente(id: string): string {

@@ -5,5 +5,6 @@ export { ProyectoFichaPage } from './ui/ProyectoFichaPage';
 export { ProyectoLiquidacionPage } from './ui/ProyectoLiquidacionPage';
 export { ProyectoNuevoPage } from './ui/ProyectoNuevoPage';
 export { ProyectoPasajePage } from './ui/ProyectoPasajePage';
+export { ProyectoPresupuestoPage } from './ui/ProyectoPresupuestoPage';
 export { ProyectosPage } from './ui/ProyectosPage';
 export { ProyectoVistaClientePage } from './ui/ProyectoVistaClientePage';

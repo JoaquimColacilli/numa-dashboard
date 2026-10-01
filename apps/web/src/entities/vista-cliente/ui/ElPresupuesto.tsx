@@ -27,6 +27,7 @@ import {
 } from '@/shared/ui';
 
 import {
+  BORRADOR,
   claveDeLaSena,
   COMO_DEJAR_LA_SENA,
   COMPARTIR,
@@ -42,6 +43,7 @@ import {
   lineaDelVencido,
   partesDelPie,
   pdfDelAceptado,
+  pdfDelBorrador,
   pdfDelMandado,
   queCambioEnLaRevision,
   rotuloDelAceptado,
@@ -551,22 +553,42 @@ export interface ElPresupuestoProps {
   presupuesto: PresupuestoMandado;
   hoy: string;
   hayComoPagar: boolean;
+  borrador?: boolean;
 }
 
-export function ElPresupuesto({ presupuesto, hoy, hayComoPagar }: ElPresupuestoProps) {
+export function ElPresupuesto({
+  presupuesto,
+  hoy,
+  hayComoPagar,
+  borrador = false,
+}: ElPresupuestoProps) {
   const titulo = useId();
-  const pdf = usePdfDelPresupuesto(useMemo(() => pdfDelMandado(presupuesto), [presupuesto]));
+  const pdf = usePdfDelPresupuesto(
+    useMemo(
+      () => (borrador ? pdfDelBorrador(presupuesto) : pdfDelMandado(presupuesto)),
+      [presupuesto, borrador],
+    ),
+    { alAbrir: borrador },
+  );
   const vencido = presupuesto.vencio === null ? null : lineaDelVencido(presupuesto.vencio, hoy);
   const validez: ValidezDelDocumento = {
     texto: textoDeLaValidez(presupuesto, hoy),
     vencida: presupuesto.vencio !== null,
   };
+  const rotulo = rotuloDelMandado(presupuesto);
 
   return (
     <section aria-labelledby={titulo} data-quieta className={`@container ${TARJETA}`}>
-      <h2 id={titulo} className="text-section font-semibold">
-        {EL_PRESUPUESTO}
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id={titulo} className="text-section font-semibold">
+          {EL_PRESUPUESTO}
+        </h2>
+        {borrador && (
+          <span className="rounded-pill border border-border px-2 py-0.5 text-badge font-semibold text-text-2">
+            {BORRADOR}
+          </span>
+        )}
+      </div>
 
       {vencido !== null && (
         <p className="mt-2 flex items-start gap-2 text-body leading-normal text-pretty">
@@ -577,7 +599,12 @@ export function ElPresupuesto({ presupuesto, hoy, hayComoPagar }: ElPresupuestoP
         </p>
       )}
 
-      <RotuloDelPresupuesto className="mt-3" {...rotuloDelMandado(presupuesto)} />
+      <RotuloDelPresupuesto
+        className="mt-3"
+        {...rotulo}
+        numero={borrador && rotulo.numero === '' ? null : rotulo.numero}
+        emitido={borrador ? null : rotulo.emitido}
+      />
 
       {presupuesto.queCambio !== null && (
         <div className="mt-3 flex items-start gap-3 rounded-field bg-surface px-3.5 pt-3 pb-3.5">
@@ -604,9 +631,9 @@ export function ElPresupuesto({ presupuesto, hoy, hayComoPagar }: ElPresupuestoP
       <Acciones
         className="mt-5"
         pdf={pdf}
-        conCompartir
-        escribir={enlaceParaEscribirleAlTaller(presupuesto)}
-        comoDejarLaSena={presupuesto.pideLaSena && hayComoPagar}
+        conCompartir={!borrador}
+        escribir={borrador ? null : enlaceParaEscribirleAlTaller(presupuesto)}
+        comoDejarLaSena={!borrador && presupuesto.pideLaSena && hayComoPagar}
       />
 
       <PieDelDocumento documento={presupuesto.documento} />

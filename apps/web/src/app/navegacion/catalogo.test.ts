@@ -33,10 +33,11 @@ describe('el catálogo de las pantallas del marco', () => {
     }
   });
 
-  it('las capas son las de la pantalla de proyecto', () => {
+  it('las capas son las de la pantalla de proyecto y la del presupuesto', () => {
     expect(
       CATALOGO.filter((pantalla) => pantalla.forma === 'capa').map((pantalla) => pantalla.id),
-    ).toEqual(['proyecto-nuevo', 'editar']);
+    ).toEqual(['proyecto-nuevo', 'editar', 'presupuesto']);
+    expect(pantallaDe('/proyectos/0190/presupuesto')?.id).toBe('presupuesto');
   });
 
   it('reconoce cada pestaña de Proyectos por su etapa, y a lo demás por su camino', () => {

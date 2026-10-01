@@ -22,7 +22,7 @@ export interface TextoQueCreceProps extends Omit<
 const CAJA_DEL_TEXTO = {
   campo: 'rounded-field border px-3.5 py-2.5 text-body-lg leading-relaxed',
   renglon: 'rounded-field border px-3 py-2 text-body-lg leading-normal',
-  'en-la-fila': 'rounded-field border px-1.5 py-2.5 text-body leading-normal',
+  'en-la-fila': 'rounded-field border px-1.5 py-2.5 text-body-lg leading-normal',
 } as const;
 
 const BORDES_DEL_TEXTO = {

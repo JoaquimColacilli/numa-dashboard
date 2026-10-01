@@ -23,6 +23,8 @@ export const COMO_DEJAR_LA_SENA = 'Cómo dejar la seña';
 
 export const VER_EL_DETALLE = 'Ver el detalle';
 
+export const BORRADOR = 'Borrador';
+
 export const DESCARGAR_EL_PDF = 'Descargar el PDF';
 
 export const COMPARTIR = 'Compartir';
@@ -39,6 +41,19 @@ export function pdfDelMandado(presupuesto: PresupuestoMandado): PresupuestoEnPdf
     queCambio: presupuesto.queCambio,
     aceptado: null,
     borrador: false,
+  };
+}
+
+export function pdfDelBorrador(presupuesto: PresupuestoMandado): PresupuestoEnPdf {
+  return {
+    documento: presupuesto.documento,
+    numero: presupuesto.numero === '' ? null : presupuesto.numero,
+    revision: presupuesto.revision,
+    mandadoEl: null,
+    valeHasta: null,
+    queCambio: null,
+    aceptado: null,
+    borrador: true,
   };
 }
 

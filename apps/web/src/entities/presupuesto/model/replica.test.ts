@@ -18,7 +18,7 @@ import {
   presupuestoDelTrabajo,
   revisionesDelPresupuesto,
   seNumeraCuandoVuelvaLaSenal,
-  SIN_NUMERO_TODAVIA,
+  NUMERO_PENDIENTE,
   sinElBorradorGuardado,
   sinElPresupuestoMandado,
   ultimaRevision,
@@ -140,7 +140,7 @@ describe('el presupuesto en la réplica', () => {
   });
 
   it('una revisión mandada sin señal todavía no tiene número', () => {
-    expect(seNumeraCuandoVuelvaLaSenal({ numero: SIN_NUMERO_TODAVIA })).toBe(true);
+    expect(seNumeraCuandoVuelvaLaSenal({ numero: NUMERO_PENDIENTE })).toBe(true);
     expect(seNumeraCuandoVuelvaLaSenal({ numero: '20260920-01' })).toBe(false);
   });
 });
@@ -211,7 +211,7 @@ describe('mandar el presupuesto', () => {
       envio(),
     );
     expect(filaPorId(mandado, 'revisiones_del_presupuesto', 'r9')).toMatchObject({
-      numero: SIN_NUMERO_TODAVIA,
+      numero: NUMERO_PENDIENTE,
       revision: 1,
       que_cambio: null,
       mandado_el: '2026-09-22',

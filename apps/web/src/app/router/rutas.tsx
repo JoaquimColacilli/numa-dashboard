@@ -17,6 +17,7 @@ import {
   ProyectoLiquidacionPage,
   ProyectoNuevoPage,
   ProyectoPasajePage,
+  ProyectoPresupuestoPage,
   ProyectosPage,
   ProyectoVistaClientePage,
 } from '@/pages/proyectos';
@@ -44,6 +45,7 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/proyectos/:id', element: <ProyectoFichaPage /> },
   { path: '/proyectos/:id/editar', element: <ProyectoEdicionPage /> },
   { path: '/proyectos/:id/aprobar', element: <ProyectoPasajePage /> },
+  { path: '/proyectos/:id/presupuesto', element: <ProyectoPresupuestoPage /> },
   { path: '/proyectos/:id/compartir', element: <ProyectoCompartirPage /> },
   { path: '/proyectos/:id/vista-cliente', element: <ProyectoVistaClientePage /> },
   { path: '/proyectos/:id/cobrar', element: <ProyectoLiquidacionPage destino="cobrado" /> },

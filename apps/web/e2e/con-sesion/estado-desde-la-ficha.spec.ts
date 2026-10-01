@@ -123,7 +123,12 @@ test('en la ficha de un contacto cada etapa ofrece sus pasos, sacados de la mism
     contacto: ['Agendar la visita', 'Mandé un estimativo', 'Ya lo aprobó'],
     presupuesto_estimativo: ['Agendar la visita', 'Ya lo aprobó'],
     relevamiento: ['Ya fui a relevar', 'Ya lo aprobó'],
-    a_presupuestar: ['Mandé el estimativo', 'Mandé el presupuesto', 'Ya lo aprobó'],
+    a_presupuestar: [
+      'Armar el presupuesto',
+      'Mandé el estimativo',
+      'Mandé el presupuesto',
+      'Ya lo aprobó',
+    ],
     presupuesto_enviado: ['Lo aprobó: pasar a Proyectos'],
   };
   const ids = new Map<string, string>();

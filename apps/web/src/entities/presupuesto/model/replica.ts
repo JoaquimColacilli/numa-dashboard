@@ -35,7 +35,7 @@ export interface EnvioDelPresupuesto {
   momento: string;
 }
 
-export const SIN_NUMERO_TODAVIA = '';
+export const NUMERO_PENDIENTE = '';
 
 export function presupuestoDelTrabajo(
   replica: Replica,
@@ -57,8 +57,16 @@ export function ultimaRevision(replica: Replica, presupuestoId: string): FilaDeR
   return revisionesDelPresupuesto(replica, presupuestoId).at(-1) ?? null;
 }
 
+export type EtapaDelPresupuesto = 'sin-borrador' | 'borrador' | 'mandado';
+
+export function etapaDelPresupuesto(replica: Replica, proyectoId: string): EtapaDelPresupuesto {
+  const presupuesto = presupuestoDelTrabajo(replica, proyectoId);
+  if (presupuesto === null) return 'sin-borrador';
+  return revisionesDelPresupuesto(replica, presupuesto.id).length > 0 ? 'mandado' : 'borrador';
+}
+
 export function seNumeraCuandoVuelvaLaSenal(revision: Pick<FilaDeRevision, 'numero'>): boolean {
-  return revision.numero === SIN_NUMERO_TODAVIA;
+  return revision.numero === NUMERO_PENDIENTE;
 }
 
 export function conElBorradorGuardado(
@@ -129,7 +137,7 @@ export function conElPresupuestoMandado(replica: Replica, envio: EnvioDelPresupu
     presupuesto_id: pedido.presupuestoId,
     proyecto_id: proyectoId,
     revision,
-    numero: numero ?? SIN_NUMERO_TODAVIA,
+    numero: numero ?? NUMERO_PENDIENTE,
     mandado_el: pedido.mandadoEl,
     vale_hasta: pedido.valeHasta,
     que_cambio: revision > 1 ? sinBlancosEnLasPuntas(pedido.queCambio ?? '') : null,

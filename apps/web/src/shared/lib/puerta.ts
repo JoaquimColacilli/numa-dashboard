@@ -6,7 +6,7 @@ import { esRutaDeHoja } from './hojas-por-ruta';
 
 export type ComoIr = 'apilar' | 'reemplazar' | 'terminar';
 
-export type SenalDeUnaVez = 'recienLiquidado' | 'recienAprobado';
+export type SenalDeUnaVez = 'recienLiquidado' | 'recienAprobado' | 'mandarElPresupuesto';
 
 export interface OpcionesDeIr {
   como?: ComoIr;

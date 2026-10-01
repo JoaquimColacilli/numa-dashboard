@@ -16,6 +16,7 @@ import {
   type Proyecto,
   type SituacionDelContacto,
 } from '@/entities/proyecto';
+import { etapaDelPresupuesto } from '@/entities/presupuesto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
   ajustesDe,
@@ -24,7 +25,14 @@ import {
   type CambiosDeProyecto,
   type PagoParaGuardar,
 } from '@/shared/api';
-import { hoyLocal, metaDeAvisos, useAlgoEnCurso, uuidv7, useIr } from '@/shared/lib';
+import {
+  hoyLocal,
+  metaDeAvisos,
+  rutaDelPresupuesto,
+  useAlgoEnCurso,
+  uuidv7,
+  useIr,
+} from '@/shared/lib';
 import { Button, FilaDeAcciones, PanelDePaso } from '@/shared/ui';
 
 import { cambiosAlPasarAPresupuestar, pagoAntesDePresupuestar } from '../model/relevamiento';
@@ -83,7 +91,7 @@ export function AvanceDelContacto({
   const [formulario, setFormulario] = useState<FormularioAbierto>(null);
   useAlgoEnCurso(formulario !== null);
 
-  const pasos = pasosDelContacto(etapa, situacion);
+  const pasos = pasosDelContacto(etapa, situacion, etapaDelPresupuesto(replica, proyecto.id));
   const etapas = ESTADOS_DE_CONSULTA.filter(
     (estado) => estado === etapa || puedeCambiarEstado(etapa, estado),
   );
@@ -132,6 +140,9 @@ export function AvanceDelContacto({
         return;
       case 'relevar':
         setFormulario(paso.camino);
+        return;
+      case 'armar':
+        ir(rutaDelPresupuesto(proyecto.id));
         return;
     }
   }

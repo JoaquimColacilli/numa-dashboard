@@ -32,7 +32,7 @@ import {
 } from '@/entities/proyecto';
 import {
   CLAVE_DEL_ENVIO,
-  SIN_NUMERO_TODAVIA,
+  NUMERO_PENDIENTE,
   type EnvioDelPresupuesto,
 } from '@/entities/presupuesto';
 import {
@@ -425,7 +425,7 @@ describe('mandar el presupuesto sin señal', () => {
     await vi.waitFor(() => {
       const optimista = abierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
       expect(optimista && filaPorId(optimista, 'revisiones_del_presupuesto', 'r1')).toMatchObject({
-        numero: SIN_NUMERO_TODAVIA,
+        numero: NUMERO_PENDIENTE,
         revision: 1,
       });
       expect(optimista && filaPorId(optimista, 'proyectos', 'p1')).toMatchObject({
@@ -445,7 +445,7 @@ describe('mandar el presupuesto sin señal', () => {
     await restaurarEn(reabierta);
     const guardada = reabierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
     expect(guardada && filaPorId(guardada, 'revisiones_del_presupuesto', 'r1')?.numero).toBe(
-      SIN_NUMERO_TODAVIA,
+      NUMERO_PENDIENTE,
     );
 
     vi.mocked(mandarElPresupuestoAlCliente).mockResolvedValue(loQueDevuelveLaBase());

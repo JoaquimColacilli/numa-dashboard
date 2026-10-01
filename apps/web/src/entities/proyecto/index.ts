@@ -230,6 +230,7 @@ export {
   type ContactoEnLista,
   type EtapaDeConsulta,
   type PasoDelContacto,
+  type PresupuestoDelContacto,
   type SituacionDelContacto,
   type SugerenciaDelContacto,
 } from './model/consultas';
