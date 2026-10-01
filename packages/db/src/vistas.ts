@@ -126,6 +126,11 @@ function movimientoConIds(replica: Replica, movimiento: FilaDe<'movimientos'>) {
   };
 }
 
+function montoDestinoDe(movimiento: FilaDe<'movimientos'>): Money<Moneda> | null {
+  const valor = (movimiento as Partial<FilaDe<'movimientos'>>).monto_destino_centavos;
+  return valor === undefined || valor === null ? null : dinero(valor);
+}
+
 export function datosDelLibro(replica: Replica): DatosDelLibro {
   return {
     tesoros: filasDe(replica, 'tesoros').map((tesoro) => ({ id: tesoro.id, clave: tesoro.clave })),
@@ -137,6 +142,7 @@ export function datosDelLibro(replica: Replica): DatosDelLibro {
       tesoroDestino: movimiento.tesoro_destino,
       ...movimientoConIds(replica, movimiento),
       monto: dinero(movimiento.monto_centavos),
+      montoDestino: montoDestinoDe(movimiento),
       categoria: movimiento.categoria,
       descripcion: movimiento.descripcion,
       proyectoId: movimiento.proyecto_id,

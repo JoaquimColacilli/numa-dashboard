@@ -24,6 +24,7 @@ import {
   leerLaFila,
   letraDeLaOpcion,
   loVistoEsOtro,
+  MONEDA_DEL_TALLER,
   pagosPorDelante,
   PLANTILLA_DE_SIEMPRE,
   planDelReparto,
@@ -70,6 +71,7 @@ import {
   type LiquidacionPorLaFila,
   type LiquidacionRegistrada,
   type ModoDePaso,
+  type Moneda,
   type Money,
   type OpcionDelTrabajo,
   type PlanDelReparto,
@@ -1241,6 +1243,7 @@ const TESOROS_DE_LA_FILA: readonly TesoroDeLaFila[] = [
   { id: idDeLaFila(8), clave: null, archivado: false, meta: metaDeLaFila(200_000_000) },
   { id: idDeLaFila(9), clave: null, archivado: false, meta: null },
   { id: idDeLaFila(10), clave: null, archivado: true, meta: metaDeLaFila(5_000_000) },
+  { id: idDeLaFila(11), clave: null, archivado: false, meta: null, moneda: 'USD' },
 ];
 
 function tesoroDelCaso(indice: number): string {
@@ -1945,6 +1948,33 @@ const FILAS_FIJAS: readonly unknown[] = [
       { tesoro: idDeLaFila(3), porcentaje: 3000, hastaLaMeta: true },
     ],
     superavit: idDeLaFila(6),
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [
+      { tesoro: idDeLaFila(11), clase: 'prioridad', tope: 100_000, renglones: [], desde: null },
+    ],
+    reparto: [],
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [],
+    reparto: [{ tesoro: idDeLaFila(11), porcentaje: 1000 }],
+    sueldoPorTrabajo: false,
+  },
+  {
+    obligaciones: [
+      { tesoro: idDeLaFila(2), porcentaje: 1000, base: 'ingreso' },
+      { tesoro: idDeLaFila(11), porcentaje: 300, base: 'cobrado' },
+    ],
+    pasos: [],
+    reparto: [],
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [],
+    reparto: [{ tesoro: idDeLaFila(5), porcentaje: 1000 }],
+    superavit: idDeLaFila(11),
     sueldoPorTrabajo: false,
   },
 ];
@@ -3561,6 +3591,7 @@ interface MovimientoDeEscenario {
   origen: string | null;
   destino: string | null;
   monto: number;
+  montoDestino?: number;
   fecha: string;
   categoria?: string;
   descripcion?: string;
@@ -3625,7 +3656,7 @@ export interface EscenarioDeLiquidacion {
   pasos: Paso[];
   movimientos?: MovimientoDeEscenario[];
   apertura?: string;
-  tesoros?: readonly (string | readonly [string, number])[];
+  tesoros?: readonly (string | readonly [string, number | null, Moneda?])[];
 }
 
 function unCobro(
@@ -4697,14 +4728,15 @@ async function prepararEscenario(
   );
   const tesorosDelEscenario = (escenario.tesoros ?? []).map((tesoro) =>
     typeof tesoro === 'string'
-      ? { nombre: tesoro, meta: null }
-      : { nombre: tesoro[0], meta: tesoro[1] },
+      ? { nombre: tesoro, meta: null, moneda: MONEDA_DEL_TALLER }
+      : { nombre: tesoro[0], meta: tesoro[1], moneda: tesoro[2] ?? MONEDA_DEL_TALLER },
   );
   const { rows: filasDeTesoros } = await cliente.query<{ nombre: string; id: string }>(
     `with nuevos as (
-       insert into public.tesoros (household_id, nombre, tinta, icono, orden, meta_centavos)
-       select $1, t.nombre, t.tinta, 'vault', t.orden - 1, t.meta
-       from unnest($2::text[], $3::text[], $4::bigint[]) with ordinality as t (nombre, tinta, meta, orden)
+       insert into public.tesoros (household_id, nombre, tinta, icono, orden, meta_centavos, moneda)
+       select $1, t.nombre, t.tinta, 'vault', t.orden - 1, t.meta, t.moneda
+       from unnest($2::text[], $3::text[], $4::bigint[], $5::text[])
+         with ordinality as t (nombre, tinta, meta, moneda, orden)
        returning nombre, id
      )
      select nombre, id from nuevos
@@ -4717,6 +4749,7 @@ async function prepararEscenario(
         (_, orden) => TINTAS_DE_ESCENARIO[orden % TINTAS_DE_ESCENARIO.length] ?? 'grana',
       ),
       tesorosDelEscenario.map((tesoro) => tesoro.meta),
+      tesorosDelEscenario.map((tesoro) => tesoro.moneda),
     ],
   );
   const tesoros = new Map(filasDeTesoros.map((fila) => [fila.nombre, fila.id]));
@@ -4823,13 +4856,15 @@ async function prepararEscenario(
     await cliente.query(
       `insert into public.movimientos
          (household_id, fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos,
-          categoria, descripcion, deleted_at)
+          monto_destino_centavos, categoria, descripcion, deleted_at)
        select $1, m.fecha, m.tipo::public.tipo_movimiento, m.origen::public.tesoro, m.destino::public.tesoro,
-              m.desde, m.hacia, m.monto, m.categoria, m.descripcion, m.borrado
+              m.desde, m.hacia, m.monto, m.monto_destino, m.categoria, m.descripcion, m.borrado
        from unnest(
          $2::date[], $3::text[], $4::text[], $5::text[], $6::uuid[], $7::uuid[], $8::bigint[],
-         $9::text[], $10::text[], $11::timestamptz[]
-       ) with ordinality as m (fecha, tipo, origen, destino, desde, hacia, monto, categoria, descripcion, borrado, orden)
+         $9::bigint[], $10::text[], $11::text[], $12::timestamptz[]
+       ) with ordinality as m (
+         fecha, tipo, origen, destino, desde, hacia, monto, monto_destino, categoria, descripcion, borrado, orden
+       )
        order by m.orden`,
       [
         householdId,
@@ -4840,6 +4875,7 @@ async function prepararEscenario(
         lados.map((lado) => lado.desde.id),
         lados.map((lado) => lado.hacia.id),
         movimientos.map((movimiento) => movimiento.monto),
+        movimientos.map((movimiento) => movimiento.montoDestino ?? null),
         movimientos.map((movimiento) => movimiento.categoria ?? ''),
         movimientos.map((movimiento) => movimiento.descripcion ?? ''),
         movimientos.map((movimiento) =>
@@ -4916,8 +4952,9 @@ async function moverEnElEscenario(
   const hacia = ladoDelMovimiento(contexto.tesoros, movimiento.destino);
   await cliente.query(
     `insert into public.movimientos
-       (fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos, categoria, descripcion)
-     values ($1, $2::public.tipo_movimiento, $3::public.tesoro, $4::public.tesoro, $5, $6, $7, $8, $9)`,
+       (fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos,
+        monto_destino_centavos, categoria, descripcion)
+     values ($1, $2::public.tipo_movimiento, $3::public.tesoro, $4::public.tesoro, $5, $6, $7, $8, $9, $10)`,
     [
       movimiento.fecha,
       movimiento.tipo,
@@ -4926,6 +4963,7 @@ async function moverEnElEscenario(
       desde.id,
       hacia.id,
       movimiento.monto,
+      movimiento.montoDestino ?? null,
       movimiento.categoria ?? '',
       movimiento.descripcion ?? '',
     ],
@@ -5699,6 +5737,63 @@ export const ESCENARIOS_DEL_LIBRO: EscenarioDeLiquidacion[] = [
         destino: 'Viajes',
         monto: 9_000_000,
         fecha: '2026-09-07',
+        borrado: true,
+      },
+    ],
+  },
+  {
+    nombre:
+      'una compra y una venta de dólares: cada lado entra al libro con su importe, y los dólares nunca se suman con pesos',
+    tesoros: [['Dólares', null, 'USD'], ['Reserva', 100_000, 'USD'], 'Viajes'],
+    ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
+    proyectos: {},
+    pasos: [
+      {
+        mover: {
+          tipo: 'cambio',
+          origen: 'Dólares',
+          destino: 'Viajes',
+          monto: 20_000,
+          montoDestino: 28_600_000,
+          fecha: '2026-09-29',
+          categoria: 'Blue',
+        },
+      },
+    ],
+    movimientos: [
+      ...MOVIMIENTOS_DE_TODOS_LOS_TIPOS,
+      {
+        tipo: 'cambio',
+        origen: 'maun',
+        destino: 'Dólares',
+        monto: 72_500_000,
+        montoDestino: 50_000,
+        fecha: '2026-09-28',
+        categoria: 'MEP',
+      },
+      {
+        tipo: 'transferencia',
+        origen: 'Dólares',
+        destino: 'Reserva',
+        monto: 10_000,
+        fecha: '2026-09-29',
+      },
+      {
+        tipo: 'ingreso',
+        origen: null,
+        destino: 'Reserva',
+        monto: 5_000,
+        fecha: '2026-09-29',
+        categoria: 'Ingreso en dólares',
+      },
+      { tipo: 'gasto', origen: 'Reserva', destino: null, monto: 1_000, fecha: '2026-09-30' },
+      {
+        tipo: 'cambio',
+        origen: 'Viajes',
+        destino: 'Reserva',
+        monto: 1_450_000,
+        montoDestino: 1_000,
+        fecha: '2026-09-30',
         borrado: true,
       },
     ],
