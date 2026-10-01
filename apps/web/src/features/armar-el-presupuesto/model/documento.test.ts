@@ -12,7 +12,6 @@ import {
   documentoDeHoy,
   opcionesDeHoy,
   senaDeHoy,
-  TALLER_DE_RESPALDO,
 } from './documento';
 import { comoLoVeElCliente } from './vistaPrevia';
 
@@ -45,7 +44,7 @@ function replica(tablas: Partial<Record<TablaReplicada, Record<string, unknown>>
 describe('el documento de hoy, con lo que hay en el dispositivo', () => {
   it('los datos del taller salen de los ajustes, y el nombre del hogar o el de siempre', () => {
     expect(datosDelTaller(replica())).toEqual({
-      nombre: TALLER_DE_RESPALDO,
+      nombre: 'Taller MAUN',
       titular: '',
       cuit: '',
       condicionFiscal: null,

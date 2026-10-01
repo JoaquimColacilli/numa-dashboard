@@ -32,6 +32,7 @@ export {
   relativa,
   ZONA_DEL_TALLER,
 } from './fechas';
+export { nombreDelTaller, TALLER_DE_RESPALDO } from './taller';
 export {
   enlaceParaEscribir,
   mensajeParaElCliente,

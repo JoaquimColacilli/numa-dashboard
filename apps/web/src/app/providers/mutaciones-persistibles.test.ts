@@ -22,7 +22,6 @@ import * as sesion from '@/entities/sesion';
 import * as tesoro from '@/entities/tesoro';
 import * as armarLaFila from '@/features/armar-la-fila';
 import * as armarLaVidriera from '@/features/armar-la-vidriera';
-import * as configurarElPresupuesto from '@/features/configurar-el-presupuesto';
 import * as configurarTaller from '@/features/configurar-taller';
 import {
   CLAVE_DE_PROYECTO,
@@ -245,7 +244,6 @@ const MODULOS_CON_MUTACIONES = {
   sesion,
   tesoro,
   configurarTaller,
-  configurarElPresupuesto,
   armarLaVidriera,
   armarLaFila,
 };

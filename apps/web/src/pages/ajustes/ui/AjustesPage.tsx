@@ -24,6 +24,7 @@ import {
   FormularioDeRedes,
   FormularioDeResena,
   hayRedesCargadas,
+  ResumenDelPresupuesto,
   type ParteDeLaConfiguracion,
 } from '@/features/configurar-taller';
 import { FormularioDePerfil } from '@/features/editar-perfil';
@@ -272,6 +273,21 @@ export function AjustesPage() {
               ajustes={ajustes}
               partes={SOLO_EL_TALLER}
             />
+          </SeccionEnFila>
+        )}
+
+        {household && ajustes && (
+          <SeccionEnFila
+            id="titulo-presupuesto"
+            titulo="Tu presupuesto"
+            bajada={
+              <p className="text-label leading-relaxed text-text-2">
+                Lo que va en cada presupuesto que armás: tus datos, los números y los textos de
+                siempre.
+              </p>
+            }
+          >
+            <ResumenDelPresupuesto household={household} ajustes={ajustes} />
           </SeccionEnFila>
         )}
 

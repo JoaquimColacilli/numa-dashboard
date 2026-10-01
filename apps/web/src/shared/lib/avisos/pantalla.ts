@@ -131,6 +131,11 @@ export const TEXTOS_DE_AVISO = {
     enCola: 'Presupuesto anotado sin señal: se numera y le llega cuando vuelva.',
     error: 'No se mandó el presupuesto.',
   },
+  presupuestoDelTaller: {
+    hecho: 'Tu presupuesto quedó guardado.',
+    enCola: 'Tu presupuesto quedó anotado sin señal: se guarda solo cuando vuelva.',
+    error: 'No se guardó tu presupuesto.',
+  },
   tareaDelPresupuesto: {
     hecho: 'Tarea del presupuesto guardada.',
     enCola: 'Tarea del presupuesto anotada sin señal: se guarda sola cuando vuelva.',

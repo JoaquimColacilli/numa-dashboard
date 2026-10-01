@@ -312,6 +312,15 @@ export const CATALOGO: readonly Pantalla[] = [
     profundidad: 2,
     forma: 'pantalla',
   },
+  {
+    id: 'presupuesto-del-taller',
+    patron: '/ajustes/presupuesto',
+    nombre: 'Tu presupuesto',
+    seccion: 'inicio',
+    raiz: false,
+    profundidad: 2,
+    forma: 'pantalla',
+  },
 ];
 
 const ESPECIFICAS_PRIMERO = [...CATALOGO].sort(

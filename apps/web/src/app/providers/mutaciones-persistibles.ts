@@ -107,13 +107,11 @@ import {
   MUTACION_DE_ORDEN_DE_LA_VIDRIERA,
 } from '@/features/armar-la-vidriera';
 import {
-  CLAVE_DE_LA_PLANTILLA,
-  MUTACION_DE_LA_PLANTILLA,
-} from '@/features/configurar-el-presupuesto';
-import {
   CLAVE_DE_AJUSTES,
+  CLAVE_DE_LA_PLANTILLA,
   CLAVE_DEL_NOMBRE,
   MUTACION_DE_AJUSTES,
+  MUTACION_DE_LA_PLANTILLA,
   MUTACION_DEL_NOMBRE,
 } from '@/features/configurar-taller';
 type RegistroDeMutacion = (queryClient: QueryClient) => void;

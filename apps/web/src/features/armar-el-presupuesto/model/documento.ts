@@ -29,14 +29,12 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { ajustesDe, filaPorId, householdDe, type Replica } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje, uuidv7 } from '@/shared/lib';
+import { formatearPesos, formatearPorcentaje, nombreDelTaller, uuidv7 } from '@/shared/lib';
 
 export const FORMATOS_DE_LA_APP: Formatos = {
   pesos: formatearPesos,
   porcentaje: formatearPorcentaje,
 };
-
-export const TALLER_DE_RESPALDO = 'Taller MAUN';
 
 function esCondicionFiscal(valor: unknown): valor is CondicionFiscal {
   return (CONDICIONES_FISCALES as readonly unknown[]).includes(valor);
@@ -49,9 +47,8 @@ export function plantillaDeLaReplica(replica: Replica): PlantillaDelPresupuesto 
 export function datosDelTaller(replica: Replica): DatosDelTaller {
   const ajustes = ajustesDe(replica);
   const condicion = ajustes?.taller_condicion_fiscal;
-  const nombre = (householdDe(replica)?.nombre ?? '').trim();
   return {
-    nombre: nombre === '' ? TALLER_DE_RESPALDO : nombre,
+    nombre: nombreDelTaller(householdDe(replica)?.nombre),
     titular: ajustes?.taller_titular ?? '',
     cuit: ajustes?.taller_cuit ?? '',
     condicionFiscal: esCondicionFiscal(condicion) ? condicion : null,
