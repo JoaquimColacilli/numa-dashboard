@@ -301,3 +301,36 @@ insert into public.enlaces_publicos (id, household_id, proyecto_id, token_hash, 
 insert into public.propuestas_de_entrega (id, household_id, proyecto_id, forma, fecha, franja) values
   ('5eed0000-0000-7000-8000-000000070002', '5eed0000-0000-7000-8000-000000000001', '5eed0000-0000-7000-8000-000000020015',
    'un_dia', '2030-10-01', 'manana');
+
+
+-- El presupuesto ---------------------------------------------------------------------------------
+-- Un rack a presupuestar con su borrador guardado y sin pagos: packages/db/tests/concurrencia.test.ts
+-- lo manda dos veces a la vez, siempre en rollback (ADR 0080). El borrador lo escribe acá el dueño de
+-- la base: la app lo guarda con public.guardar_el_presupuesto().
+
+insert into public.proyectos (
+  id, household_id, cliente_id, titulo, estado, presupuesto_centavos, comprobante, direccion_entrega
+) values (
+  '5eed0000-0000-7000-8000-000000020016', '5eed0000-0000-7000-8000-000000000001', '5eed0000-0000-7000-8000-000000010007',
+  'Rack para el living', 'a_presupuestar', 85000000, 'sin_comprobante', 'Rivadavia 16400, Haedo'
+);
+
+insert into public.presupuestos (id, household_id, proyecto_id, contenido, borrador_version) values (
+  '5eed0000-0000-7000-8000-000000080001', '5eed0000-0000-7000-8000-000000000001', '5eed0000-0000-7000-8000-000000020016',
+  '{
+    "forma": 1,
+    "titulo": "Rack para el living",
+    "obra": "Rivadavia 16400, Haedo",
+    "descripcion": "",
+    "muebles": [{"id": "m1", "nombre": "Rack", "descripcion": "Rack de 2,40 en melamina gris humo, con nicho para la consola y dos cajones."}],
+    "herrajes": {"mostrar": true, "lista": [{"id": "h1", "texto": "Correderas telescópicas con cierre suave."}]},
+    "aTenerEnCuenta": {"tildadas": [], "propias": []},
+    "incluye": {"tildadas": ["incluye-visita", "incluye-fabricacion", "incluye-transporte"], "propias": []},
+    "formaDePago": {"plantillaId": "sena-y-entrega", "texto": null},
+    "plazoDeFabricacion": 30,
+    "validezDias": 15,
+    "avisos": {"tildadas": ["aviso-plazo"], "propias": []},
+    "condiciones": {"tildadas": [], "propias": []}
+  }',
+  1
+);
