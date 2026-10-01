@@ -19,6 +19,8 @@ export {
   diaYMes,
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
+  fechaConAnio,
+  fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
   haceCuanto,
@@ -30,6 +32,12 @@ export {
   relativa,
   ZONA_DEL_TALLER,
 } from './fechas';
+export {
+  enlaceParaEscribir,
+  mensajeParaElCliente,
+  telefonoParaWhatsapp,
+  whatsappCon,
+} from './telefono';
 export {
   alternar,
   criterioPorId,

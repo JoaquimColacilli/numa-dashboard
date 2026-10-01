@@ -116,6 +116,17 @@ export function diaYMes(fecha: string, hoy: string = hoyLocal()): string {
   return `${String(dia.getUTCDate())} de ${mes}${sufijo}`;
 }
 
+export function fechaDelRotulo(fecha: string): string {
+  const [anio = '', mes = '', dia = ''] = fecha.split('-');
+  return `${dia}/${mes}/${anio.slice(-2)}`;
+}
+
+export function fechaConAnio(fecha: string): string {
+  const dia = comoUtc(fecha);
+  const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
+  return `${String(dia.getUTCDate())} de ${mes} de ${String(dia.getUTCFullYear())}`;
+}
+
 export function diaYMesCorto(fecha: string): string {
   const dia = comoUtc(fecha);
   return `${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}`;
