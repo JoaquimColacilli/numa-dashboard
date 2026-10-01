@@ -123,6 +123,157 @@ exception
 end;
 $$;
 
+-- El presupuesto (ADR 0080): un borrador que se puede guardar, el documento que arma la app para
+-- mandarlo, con los importes vivos del trabajo como los ve en su réplica, y los dos pasos con la
+-- revisión del borrador que hay ahora. Son plpgsql para que el preludio no dependa de las tablas al
+-- crearse, y corren con el rol del momento: con la sesión del dueño, la RLS entra.
+create function tests.borrador_del_presupuesto(p_titulo text default 'Placard')
+returns jsonb
+language sql
+immutable
+as $$
+  select jsonb_build_object(
+    'forma', 1,
+    'titulo', p_titulo,
+    'obra', '',
+    'descripcion', '',
+    'muebles', jsonb_build_array(jsonb_build_object(
+      'id', 'm1', 'nombre', 'Placard', 'descripcion', 'Placard de tres puertas corredizas en melamina blanca.'
+    )),
+    'herrajes', jsonb_build_object('mostrar', true, 'lista', jsonb_build_array()),
+    'aTenerEnCuenta', jsonb_build_object('tildadas', jsonb_build_array(), 'propias', jsonb_build_array()),
+    'incluye', jsonb_build_object('tildadas', jsonb_build_array('incluye-visita'), 'propias', jsonb_build_array()),
+    'formaDePago', jsonb_build_object('plantillaId', 'sena-y-entrega', 'texto', null),
+    'plazoDeFabricacion', 30,
+    'validezDias', 15,
+    'avisos', jsonb_build_object('tildadas', jsonb_build_array(), 'propias', jsonb_build_array()),
+    'condiciones', jsonb_build_object('tildadas', jsonb_build_array(), 'propias', jsonb_build_array())
+  )
+$$;
+
+create function tests.documento_del_presupuesto(p_proyecto_id uuid, p_obra text default '')
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_valores jsonb;
+  v_sena integer;
+  v_titulo text;
+  v_abonado bigint;
+begin
+  select case
+      when count(*) > 0 then jsonb_build_object(
+        'tipo', 'opciones',
+        'opciones', jsonb_agg(
+          jsonb_build_object(
+            'id', o.id, 'letra', chr(64 + o.n::integer), 'descripcion', o.descripcion, 'total', o.monto_centavos
+          )
+          order by o.id
+        )
+      )
+    end
+  into v_valores
+  from (
+    select x.id, x.descripcion, x.monto_centavos, row_number() over (order by x.id) as n
+    from public.opciones_de_presupuesto x
+    where x.proyecto_id = p_proyecto_id and x.deleted_at is null
+  ) as o;
+
+  select
+    coalesce(
+      v_valores,
+      case when p.presupuesto_centavos is null then 'null'::jsonb
+        else jsonb_build_object('tipo', 'total', 'total', p.presupuesto_centavos) end
+    ),
+    coalesce(p.sena_bp, a.sena_bp),
+    p.titulo
+  into v_valores, v_sena, v_titulo
+  from public.proyectos p
+  join public.ajustes a on a.household_id = p.household_id
+  where p.id = p_proyecto_id;
+
+  select coalesce(sum(g.monto_centavos), 0) into v_abonado
+  from public.pagos g
+  where g.proyecto_id = p_proyecto_id and g.deleted_at is null;
+
+  return jsonb_build_object(
+    'forma', 1,
+    'taller', jsonb_build_object(
+      'nombre', 'Taller de prueba', 'titular', 'Julián Ferro', 'cuit', '20-12345678-6',
+      'condicionFiscal', 'monotributo', 'domicilio', 'Pasaje Los Robles 450, CABA',
+      'telefono', '11 5555-0199', 'email', 'taller@ejemplo.com'
+    ),
+    'cliente', 'Paula Benítez',
+    'titulo', v_titulo,
+    'obra', p_obra,
+    'descripcion', '',
+    'muebles', jsonb_build_array(jsonb_build_object(
+      'nombre', 'Placard', 'descripcion', 'Placard de tres puertas corredizas en melamina blanca.'
+    )),
+    'herrajes', jsonb_build_array(),
+    'aTenerEnCuenta', jsonb_build_array(),
+    'incluye', jsonb_build_array('Visita a domicilio para medición y definición de detalles.'),
+    'valores', v_valores,
+    'senaBp', v_sena,
+    'abonado', v_abonado,
+    'formaDePago', 'Seña del 50% para confirmar el trabajo y el saldo contra entrega.',
+    'plazoDeFabricacion', 30,
+    'validezDias', 15,
+    'avisos', jsonb_build_array(),
+    'condiciones', jsonb_build_array(),
+    'garantia', 'Garantía de 6 meses desde la entrega e instalación.',
+    'garantiaMeses', 6
+  );
+end;
+$$;
+
+create function tests.guardar_el_borrador(p_id uuid, p_proyecto_id uuid, p_borrador jsonb default null)
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_version integer;
+  v_fila jsonb;
+begin
+  select b.borrador_version into v_version
+  from public.presupuestos b
+  where b.id = p_id and b.deleted_at is null;
+
+  select to_jsonb(g) into v_fila
+  from public.guardar_el_presupuesto(
+    p_id, p_proyecto_id, coalesce(v_version, 0), coalesce(p_borrador, tests.borrador_del_presupuesto())
+  ) as g;
+
+  return v_fila;
+end;
+$$;
+
+create function tests.mandar_el_presupuesto(
+  p_presupuesto_id uuid,
+  p_revision_id uuid,
+  p_mandado_el date,
+  p_que_cambio text default null,
+  p_vale_hasta date default null,
+  p_obra text default ''
+)
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_version integer;
+  v_proyecto uuid;
+begin
+  select b.borrador_version, b.proyecto_id into v_version, v_proyecto
+  from public.presupuestos b
+  where b.id = p_presupuesto_id;
+
+  return public.mandar_el_presupuesto(
+    p_presupuesto_id, p_revision_id, v_version, tests.documento_del_presupuesto(v_proyecto, p_obra),
+    p_que_cambio, p_mandado_el, p_vale_hasta
+  );
+end;
+$$;
+
 -- Los tests cambian de rol: que los helpers anden aunque el proyecto haya tocado el execute por
 -- defecto de public.
 grant execute on all functions in schema tests to anon, authenticated;

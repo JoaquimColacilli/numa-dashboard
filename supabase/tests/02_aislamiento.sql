@@ -1,7 +1,7 @@
 -- Dos talleres, cada uno con su usuario y un juego completo de datos. Un usuario ve y toca solo
 -- lo suyo, por cada camino: las tablas, la vista, las funciones de sync y las foreign keys.
 
-select plan(60);
+select plan(62);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
@@ -36,6 +36,8 @@ insert into public.proximos_contactos (id, proyecto_id, fecha, etapa_previa, hec
   values ('aaaaaaaa-0000-7000-8000-00000000000b', 'aaaaaaaa-0000-7000-8000-000000000002', '2026-09-10', 'contacto', '2026-09-10', 'reactivado');
 insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto, archivo_de_origen)
   values ('aaaaaaaa-0000-7000-8000-00000000000c', 0, 'image/webp', 1000, 900, 1200, 'aaaaaaaa-0000-7000-8000-000000000007');
+select tests.guardar_el_borrador('aaaaaaaa-0000-7000-8000-00000000000f', 'aaaaaaaa-0000-7000-8000-000000000002');
+select tests.mandar_el_presupuesto('aaaaaaaa-0000-7000-8000-00000000000f', 'aaaaaaaa-0000-7000-8000-000000000010', '2026-09-10');
 
 select tests.entrar_como(tests.id('b'));
 insert into public.clientes (id, nombre) values ('bbbbbbbb-0000-7000-8000-000000000001', 'Cliente de B');
@@ -63,6 +65,8 @@ insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto)
   values ('bbbbbbbb-0000-7000-8000-00000000000c', 0, 'image/jpeg', 1000, 1200, 900);
 insert into public.tesoros (id, nombre, tinta, icono)
   values ('bbbbbbbb-0000-7000-8000-00000000000d', 'Herramientas de B', 'grana', 'wrench');
+select tests.guardar_el_borrador('bbbbbbbb-0000-7000-8000-00000000000f', 'bbbbbbbb-0000-7000-8000-000000000002');
+select tests.mandar_el_presupuesto('bbbbbbbb-0000-7000-8000-00000000000f', 'bbbbbbbb-0000-7000-8000-000000000010', '2026-09-10');
 
 
 -- Lectura --------------------------------------------------------------------------------------
@@ -89,6 +93,8 @@ select results_eq('select id from public.necesidades', array['aaaaaaaa-0000-7000
 select results_eq('select id from public.enlaces_publicos', array['aaaaaaaa-0000-7000-8000-00000000000a'::uuid], 'A ve solo los links de sus trabajos');
 select results_eq('select id from public.proximos_contactos', array['aaaaaaaa-0000-7000-8000-00000000000b'::uuid], 'A ve solo el seguimiento de sus trabajos');
 select results_eq('select id from public.fotos_de_la_vidriera', array['aaaaaaaa-0000-7000-8000-00000000000c'::uuid], 'A ve solo las fotos de su vidriera');
+select results_eq('select id from public.presupuestos', array['aaaaaaaa-0000-7000-8000-00000000000f'::uuid], 'A ve solo el presupuesto de su trabajo');
+select results_eq('select id from public.revisiones_del_presupuesto', array['aaaaaaaa-0000-7000-8000-000000000010'::uuid], 'A ve solo lo que les mandó a sus clientes');
 select is(
   (select array_agg(distinct household_id) from public.tesoros),
   array[tests.id('household_a')],
@@ -113,7 +119,7 @@ select isnt_empty('select 1 from public.libro_mayor', 'el libro mayor de A tiene
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "fotos_de_la_vidriera": 1}'::jsonb,
+  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "fotos_de_la_vidriera": 1, "presupuestos": 1, "revisiones_del_presupuesto": 1}'::jsonb,
   'bootstrap() de A trae su household completo, con las cinco preguntas de la encuesta que nace escrita, sus cuatro tesoros de siempre y ningún reparto'
 );
 
@@ -336,7 +342,7 @@ select tests.entrar_como(tests.id('sin_taller'));
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "fotos_de_la_vidriera": 0}'::jsonb,
+  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "fotos_de_la_vidriera": 0, "presupuestos": 0, "revisiones_del_presupuesto": 0}'::jsonb,
   'un usuario sin household no ve nada'
 );
 

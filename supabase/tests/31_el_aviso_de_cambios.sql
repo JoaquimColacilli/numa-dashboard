@@ -6,7 +6,7 @@
 -- todo el archivo es una sola transacción, cada caso empieza borrando la marca maun.cambios_avisados,
 -- que en la app vive lo que vive una transacción.
 
-select plan(27);
+select plan(30);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
@@ -58,6 +58,21 @@ select is(
   ),
   array['repartos', 'tesoros'],
   'los tesoros y los repartos (ADR 0078) avisan con el mismo trigger que las demás tablas del delta'
+);
+
+select is(
+  (
+    select array_agg(c.relname::text order by c.relname)
+    from pg_trigger g
+    join pg_class c on c.oid = g.tgrelid
+    where c.relnamespace = 'public'::regnamespace
+      and c.relname in ('presupuestos', 'revisiones_del_presupuesto')
+      and g.tgname = 'avisar_los_cambios'
+      and g.tgfoid = 'private.avisar_los_cambios()'::regprocedure
+      and not g.tgisinternal
+  ),
+  array['presupuestos', 'revisiones_del_presupuesto'],
+  'el borrador del presupuesto y lo que se mandó (ADR 0080) avisan con el mismo trigger que las demás tablas del delta'
 );
 
 select ok(
@@ -185,6 +200,28 @@ select is(
   tests.avisos_y_de_nuevo(),
   array[tests.id('household_a')],
   'sumar un tesoro y ponerle una meta avisa una vez al canal de su taller'
+);
+
+insert into public.proyectos (id, cliente_id, titulo, estado, presupuesto_centavos)
+  values ('aaaaaaaa-0000-7000-8000-000000000050', 'aaaaaaaa-0000-7000-8000-000000000001', 'Biblioteca', 'a_presupuestar', 50000000);
+select tests.avisos_y_de_nuevo();
+
+select tests.guardar_el_borrador('aaaaaaaa-0000-7000-8000-000000000051', 'aaaaaaaa-0000-7000-8000-000000000050');
+
+select is(
+  tests.avisos_y_de_nuevo(),
+  array[tests.id('household_a')],
+  'guardar el borrador del presupuesto avisa una vez al canal de su taller'
+);
+
+select tests.mandar_el_presupuesto(
+  'aaaaaaaa-0000-7000-8000-000000000051', 'aaaaaaaa-0000-7000-8000-000000000052', '2026-09-20'
+);
+
+select is(
+  tests.avisos_y_de_nuevo(),
+  array[tests.id('household_a')],
+  'mandarlo, que escribe la revisión, el número del borrador y la etapa del trabajo, avisa una vez'
 );
 
 -- Lo que contesta el cliente sobre la entrega, sin sesión, le llega a la app abierta del taller por el
