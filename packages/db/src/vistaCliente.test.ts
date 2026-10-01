@@ -168,6 +168,7 @@ describe('leer la vista del cliente', () => {
         ],
       },
       valorDelRelevamiento: null,
+      presupuesto: null,
     });
   });
 
@@ -563,5 +564,103 @@ describe('la vidriera del taller', () => {
       respuesta({ vidriera: { redes: null, fotos: ids.map(foto) } }),
     );
     expect(leido.vidriera.fotos.map((una) => una.id)).toEqual(ids.slice(0, 12));
+  });
+});
+
+const CONTENIDO = {
+  forma: 1,
+  taller: {
+    nombre: 'Taller de prueba',
+    titular: 'Julián Ferro',
+    cuit: '20-12345678-6',
+    condicionFiscal: 'monotributo',
+    domicilio: 'Pasaje Los Robles 450, CABA',
+    telefono: '11 5555-0199',
+    email: 'taller@ejemplo.com',
+  },
+  cliente: 'Paula Benítez',
+  titulo: 'Placard',
+  obra: 'Arenales 1840, Palermo',
+  descripcion: '',
+  muebles: [{ nombre: 'Placard', descripcion: 'Placard de tres puertas corredizas.' }],
+  herrajes: [],
+  aTenerEnCuenta: [],
+  incluye: [],
+  valores: { tipo: 'total', total: 120_000_000 },
+  senaBp: 5000,
+  abonado: 12_000_000,
+  formaDePago: null,
+  plazoDeFabricacion: 35,
+  validezDias: 15,
+  avisos: [],
+  condiciones: [],
+  garantia: 'Garantía de 6 meses.',
+  garantiaMeses: 6,
+};
+
+describe('el presupuesto que se le mandó', () => {
+  it('esperando la seña, lee la última revisión con su número, lo que cambió y el documento', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        estado: 'presupuesto_enviado',
+        presupuesto: {
+          numero: '20260920-01',
+          revision: 2,
+          mandado_el: '2026-09-22',
+          que_cambio: 'Sumamos un estante.',
+          contenido: CONTENIDO,
+        },
+      }),
+    );
+    expect(leido.presupuesto).toMatchObject({
+      numero: '20260920-01',
+      revision: 2,
+      mandadoEl: '2026-09-22',
+      queCambio: 'Sumamos un estante.',
+      aceptadoEl: null,
+      letra: null,
+    });
+    expect(leido.presupuesto?.documento.obra).toBe('Arenales 1840, Palermo');
+    expect(leido.presupuesto?.documento.plazoDeFabricacion).toBe(35);
+  });
+
+  it('aprobado, lee el día en que se aceptó y la letra de la opción', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        presupuesto: {
+          numero: '20260920-01',
+          revision: 1,
+          mandado_el: '2026-09-20',
+          contenido: CONTENIDO,
+          aceptado_el: '2026-09-25',
+          letra: 'A',
+        },
+      }),
+    );
+    expect(leido.presupuesto).toMatchObject({
+      queCambio: null,
+      aceptadoEl: '2026-09-25',
+      letra: 'A',
+    });
+  });
+
+  it('lo que no se puede leer queda en null en vez de romper la página', () => {
+    const conPresupuesto = (presupuesto: unknown) =>
+      leerVistaDelCliente(respuesta({ presupuesto })).presupuesto;
+    const bueno = {
+      numero: '20260920-01',
+      revision: 1,
+      mandado_el: '2026-09-20',
+      contenido: CONTENIDO,
+    };
+
+    expect(conPresupuesto(null)).toBeNull();
+    expect(conPresupuesto('presupuesto')).toBeNull();
+    expect(conPresupuesto({ ...bueno, contenido: { forma: 2 } })).toBeNull();
+    expect(conPresupuesto({ ...bueno, numero: 'sin número' })).toBeNull();
+    expect(conPresupuesto({ ...bueno, revision: 0 })).toBeNull();
+    expect(conPresupuesto({ ...bueno, revision: 1.5 })).toBeNull();
+    expect(conPresupuesto({ ...bueno, mandado_el: null })).toBeNull();
+    expect(conPresupuesto(bueno)).not.toBeNull();
   });
 });

@@ -2,9 +2,11 @@ import {
   esFranja,
   esLinkDeLaRed,
   esLinkDeMercadoPago,
+  esNumeroDePresupuesto,
   FORMAS_DE_COBRO,
   FORMAS_DE_COORDINAR,
   INSTANCIAS_DE_PAGO,
+  leerDocumento,
   RESPUESTAS_DE_ENTREGA,
   TOPE_DE_LA_VIDRIERA,
   VIDRIERA_VACIA,
@@ -24,6 +26,7 @@ import type {
   PagoDelCliente,
   PagoOfrecido,
   PagoPendiente,
+  PresupuestoDelTrabajo,
   PropuestaDeEntrega,
   RedDelTaller,
   RedesDelTaller,
@@ -299,6 +302,36 @@ function vidriera(valor: unknown): VidrieraDelTaller {
   return { redes: redes(cruda.redes), fotos: fotos.map(fotoDeLaVidriera) };
 }
 
+function textoQuePuedeFaltar(valor: unknown): string | null {
+  return typeof valor === 'string' && valor !== '' ? valor : null;
+}
+
+function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
+  if (typeof valor !== 'object' || valor === null) return null;
+  const crudo = valor as Record<string, unknown>;
+  const documento = leerDocumento(crudo.contenido);
+  const revision = crudo.revision;
+  if (
+    documento === null ||
+    !esNumeroDePresupuesto(crudo.numero) ||
+    typeof revision !== 'number' ||
+    !Number.isSafeInteger(revision) ||
+    revision < 1 ||
+    typeof crudo.mandado_el !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    numero: crudo.numero,
+    revision,
+    mandadoEl: crudo.mandado_el,
+    queCambio: textoQuePuedeFaltar(crudo.que_cambio),
+    documento,
+    aceptadoEl: textoQuePuedeFaltar(crudo.aceptado_el),
+    letra: textoQuePuedeFaltar(crudo.letra),
+  };
+}
+
 export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
   const cuerpo = objeto(valor, 'el trabajo');
   return {
@@ -318,6 +351,7 @@ export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
     archivos: archivos(cuerpo.archivos),
     vidriera: vidriera(cuerpo.vidriera),
     valorDelRelevamiento: importeONada(cuerpo.relevamiento_centavos, 'el valor del relevamiento'),
+    presupuesto: presupuesto(cuerpo.presupuesto),
   };
 }
 

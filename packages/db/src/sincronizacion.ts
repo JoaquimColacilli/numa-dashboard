@@ -56,6 +56,12 @@ export const COLUMNAS_DE_AJUSTES = [
   'instagram_link',
   'facebook_link',
   'tiktok_link',
+  'taller_titular',
+  'taller_cuit',
+  'taller_condicion_fiscal',
+  'taller_domicilio',
+  'taller_telefono',
+  'taller_email',
 ] as const;
 
 export type ColumnaDeAjustes = (typeof COLUMNAS_DE_AJUSTES)[number];
