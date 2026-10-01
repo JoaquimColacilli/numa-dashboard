@@ -1,9 +1,10 @@
 -- El presupuesto adentro de la ficha (ADR 0080): los datos del taller, la plantilla con sus textos de
 -- siempre, el borrador de cada trabajo y lo que se le mandó al cliente. Quién los escribe (nadie a
 -- mano), la plantilla y el borrador con su revisión, mandarlo con el número del día, cada rechazo
--- entero y sin congelar nada, la baja con el trabajo y lo que otro taller no ve ni toca.
+-- entero y sin congelar nada, el día en que se aceptó, la baja con el trabajo y lo que otro taller no
+-- ve ni toca.
 
-select plan(67);
+select plan(73);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -759,6 +760,56 @@ select is(
   ) #>> '{revision,revision}',
   '2',
   'si vuelve a presupuesto, se le puede mandar otra revisión'
+);
+
+
+-- El día en que se aceptó ----------------------------------------------------------------------------------
+
+select is(
+  (select aceptado_el from public.presupuestos where id = 'aaaaaaaa-0000-7000-8000-000000000150'),
+  null::date,
+  'mandado y sin aprobar, no tiene día de aceptación'
+);
+
+update public.proyectos set estado = 'en_curso' where id = 'aaaaaaaa-0000-7000-8000-000000000050';
+
+select is(
+  (select aceptado_el from public.presupuestos where id = 'aaaaaaaa-0000-7000-8000-000000000150'),
+  (now() at time zone 'America/Argentina/Buenos_Aires')::date,
+  'aprobarlo le pone el día en que se aceptó, en la hora del taller'
+);
+
+select is(
+  (select aceptado_el from public.presupuestos where id = 'aaaaaaaa-0000-7000-8000-000000000150'),
+  (
+    select max(c.ocurrio_el) from public.cambios_de_estado c
+    where c.proyecto_id = 'aaaaaaaa-0000-7000-8000-000000000050' and c.hacia = 'en_curso'
+  ),
+  'el mismo día que anota la historia de etapas, así la ficha y el cliente leen la misma fecha'
+);
+
+select is(
+  (
+    select array[borrador_version::text, contenido ->> 'titulo']
+    from public.presupuestos where id = 'aaaaaaaa-0000-7000-8000-000000000150'
+  ),
+  array['2', 'Placard'],
+  'y no toca el borrador ni su revisión'
+);
+
+select throws_ok(
+  $$ update public.presupuestos set aceptado_el = '2026-09-01' where id = 'aaaaaaaa-0000-7000-8000-000000000150' $$,
+  '42501',
+  null,
+  'nadie se pone un día de aceptación a mano'
+);
+
+update public.proyectos set estado = 'presupuesto_enviado' where id = 'aaaaaaaa-0000-7000-8000-000000000050';
+
+select is(
+  (select aceptado_el from public.presupuestos where id = 'aaaaaaaa-0000-7000-8000-000000000150'),
+  null::date,
+  'si vuelve a presupuesto, deja de estar aceptado'
 );
 
 
