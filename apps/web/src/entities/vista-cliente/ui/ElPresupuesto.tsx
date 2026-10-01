@@ -1,6 +1,7 @@
 import type {
   CuentaDeUnValor,
   DocumentoDelPresupuesto,
+  Moneda,
   PresupuestoAceptado,
   PresupuestoMandado,
   TextoConTitulo,
@@ -180,7 +181,7 @@ function CuentasDeUnValor({
   senaBp,
   como,
 }: {
-  cuenta: CuentaDeUnValor;
+  cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
   como: LoQueSeMuestraDeLosValores;
 }) {
@@ -247,7 +248,7 @@ function Valores({
   como,
 }: {
   documento: DocumentoDelPresupuesto;
-  cuentas: readonly CuentaDeUnValor[];
+  cuentas: readonly CuentaDeUnValor<Moneda>[];
   conEleccion: boolean;
   como: LoQueSeMuestraDeLosValores;
 }) {
@@ -452,7 +453,7 @@ function CuerpoDelDocumento({
   como,
 }: {
   documento: DocumentoDelPresupuesto;
-  cuentas: readonly CuentaDeUnValor[];
+  cuentas: readonly CuentaDeUnValor<Moneda>[];
   validez: ValidezDelDocumento | null;
   conEleccion: boolean;
   como: LoQueSeMuestraDeLosValores;

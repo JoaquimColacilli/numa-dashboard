@@ -884,6 +884,8 @@ export function plantillaDelBorrador(borrador: BorradorDeLaPantalla): PlantillaD
     modificacionesIncluidas:
       modificacionesValidas(borrador.numeros) ?? siempre.modificacionesIncluidas,
     valorDeUnaModificacion: centavos(borrador.numeros.valor ?? siempre.valorDeUnaModificacion),
+    monedaDeLaModificacion: siempre.monedaDeLaModificacion,
+    clausulasDeLaMoneda: siempre.clausulasDeLaMoneda,
     garantiaMeses: garantiaValida(borrador.numeros) ?? siempre.garantiaMeses,
     incluye: clausulas(borrador.listas.incluye),
     aTenerEnCuenta: clausulas(borrador.listas.aTenerEnCuenta),

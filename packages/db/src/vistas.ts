@@ -6,6 +6,9 @@ import {
   filaDeSiempre,
   leerLaFila,
   MODOS_DE_PASO,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  plata,
   restar,
   saldosDelLibro,
   saldosDelLibroPorId,
@@ -25,6 +28,7 @@ import {
   type LiquidacionDelMes,
   type LiquidacionRegistrada,
   type ModoDePaso,
+  type Moneda,
   type Money,
   type SaldosPorId,
   type SaldosPorTesoro,
@@ -180,6 +184,22 @@ export function saldosDeLaReplica(replica: Replica): SaldosPorTesoro {
 
 export function saldosPorIdDeLaReplica(replica: Replica): SaldosPorId {
   return saldosDelLibroPorId(datosDelLibro(replica));
+}
+
+export function monedaDelTesoro(fila: FilaDe<'tesoros'>): Moneda {
+  return monedaLeida((fila as Record<string, unknown>).moneda);
+}
+
+export function saldosEnLaMonedaDelTaller(replica: Replica): ReadonlyMap<string, Money> {
+  const monedas = new Map(
+    filasDe(replica, 'tesoros').map((tesoro) => [tesoro.id, monedaDelTesoro(tesoro)]),
+  );
+  const enPesos = new Map<string, Money>();
+  for (const [id, saldo] of saldosPorIdDeLaReplica(replica)) {
+    const suyo = plata(monedas.get(id) ?? MONEDA_DEL_TALLER, saldo);
+    if (suyo.moneda === MONEDA_DEL_TALLER) enPesos.set(id, suyo.importe);
+  }
+  return enPesos;
 }
 
 export function aperturaDeLaReplica(replica: Replica): string | null {
@@ -410,7 +430,7 @@ export function datosDelMesDeLaReplica(replica: Replica): DatosDelMes {
   return {
     liquidaciones: liquidacionesDelMesDeLaReplica(replica),
     coberturas: coberturasDeLaReplica(replica),
-    saldos: saldosPorIdDeLaReplica(replica),
+    saldos: saldosEnLaMonedaDelTaller(replica),
     metas: metasDeLaReplica(replica),
     gastos: gastosDeLosTesorosDeLaReplica(replica),
   };
@@ -544,7 +564,7 @@ export function entradaDeLaLiquidacion(
       },
       liquidaciones: liquidacionesDelMesDeLaReplica(replica, proyecto.id),
       coberturas: coberturasDeLaReplica(replica),
-      saldos: saldosPorIdDeLaReplica(replica),
+      saldos: saldosEnLaMonedaDelTaller(replica),
       metas: metasDeLaReplica(replica),
     },
     version,

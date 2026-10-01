@@ -2646,6 +2646,9 @@ const BORRADOR_DEL_PRESUPUESTO: BorradorDelPresupuesto = {
   validezDias: 15,
   avisos: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.avisos),
   condiciones: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.condiciones),
+  clausulaDeLaMoneda: null,
+  modificacion: null,
+  monedaDeLoAbonado: null,
 };
 
 function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
@@ -2663,6 +2666,8 @@ function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
         email: '',
       },
       cliente: 'Paula Benítez',
+      moneda: 'ARS',
+      cobraEn: null,
       valores: valoresDelTrabajo(
         centavos(TOTAL_DEL_PRESUPUESTO),
         conOpciones ? [OPCION_B, OPCION_A] : [],
@@ -2671,7 +2676,7 @@ function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
       abonado: centavos(RELEVAMIENTO),
     },
     {
-      pesos: (importe) => `$${String(importe / 100)}`,
+      plata: (importe) => `$${String(importe / 100)}`,
       porcentaje: (puntos) => String(puntos / 100),
     },
   );

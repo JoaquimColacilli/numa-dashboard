@@ -1,5 +1,6 @@
 import {
   asientosDelMes,
+  enLaMonedaDelTaller,
   entradasYSalidas,
   sumarTodos,
   type Asiento,
@@ -25,7 +26,10 @@ export function resumenMensual(asientos: readonly Asiento[], mes: string): Resum
     entroHogar: hogar.entro,
     gastoHogar: hogar.salio,
     facturoTaller: sumarTodos(
-      delMes.filter((asiento) => asiento.origen === 'pago').map((asiento) => asiento.monto),
+      delMes.flatMap((asiento) => {
+        const enPesos = asiento.origen === 'pago' ? enLaMonedaDelTaller(asiento) : null;
+        return enPesos === null ? [] : [enPesos];
+      }),
     ),
   };
 }

@@ -1,9 +1,9 @@
-import type { DocumentoDelPresupuesto, Money } from '@maun/domain';
+import type { DocumentoDelPresupuesto, Moneda, Money } from '@maun/domain';
 
 export interface AceptacionEnPdf {
   el: string | null;
   letra: string | null;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
 }
 
 export interface PresupuestoEnPdf {

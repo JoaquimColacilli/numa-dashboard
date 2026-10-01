@@ -1,9 +1,11 @@
 import {
   CERO,
   lineasDelLibro,
+  negar,
   restar,
   sumar,
   type LineaDelLibro,
+  type Moneda,
   type Money,
   type Tesoro,
 } from '@maun/domain';
@@ -130,14 +132,14 @@ export function lineasDelTaller(
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.asientoId.localeCompare(a.asientoId));
 }
 
-export function efectoDeLaLinea(linea: LineaDelLibro, tesoro: string): Money {
+export function efectoDeLaLinea(linea: LineaDelLibro, tesoro: string): Money<Moneda> {
   if (linea.yaEnLaApertura) return CERO;
   if (tesoro === TODOS_LOS_TESOROS) {
     if (linea.desdeId !== null && linea.haciaId !== null) return CERO;
-    return linea.haciaId === null ? restar(CERO, linea.monto) : linea.monto;
+    return linea.haciaId === null ? negar(linea.monto) : linea.montoHacia;
   }
-  let total = CERO;
-  if (linea.haciaId === tesoro) total = sumar(total, linea.monto);
+  let total: Money<Moneda> = CERO;
+  if (linea.haciaId === tesoro) total = sumar(total, linea.montoHacia);
   if (linea.desdeId === tesoro) total = restar(total, linea.monto);
   return total;
 }
@@ -213,7 +215,7 @@ export function mesesConMovimiento(lineas: readonly LineaDelTaller[], mesActual:
 
 export interface DiaDelLibro {
   fecha: string;
-  neto: Money;
+  neto: Money<Moneda>;
   lineas: LineaDelTaller[];
 }
 

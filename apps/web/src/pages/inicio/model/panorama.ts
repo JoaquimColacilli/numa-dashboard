@@ -1,6 +1,7 @@
 import {
   CERO,
   claveDelNombre,
+  importeDelTaller,
   maximo,
   restar,
   sumarTodos,
@@ -57,7 +58,7 @@ export function gastadoEnLosRenglones(
           movimiento.fecha.startsWith(`${mes}-`) &&
           claves.has(claveDelNombre(movimiento.categoria)),
       )
-      .map((movimiento) => movimiento.monto),
+      .map((movimiento) => importeDelTaller(movimiento.monto)),
   );
 }
 

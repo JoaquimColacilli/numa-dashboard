@@ -2,6 +2,7 @@ import {
   cuentasDelPresupuesto,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
+  type Moneda,
   type Money,
   type TextoConTitulo,
 } from '@maun/domain';
@@ -297,9 +298,9 @@ function CajaDelTotal({
   senaBp,
   acordado,
 }: {
-  cuenta: CuentaDeUnValor;
+  cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
 }) {
   const conAbonado = cuenta.pagado > 0;
   return (
@@ -360,12 +361,12 @@ function TablaDeOpciones({
   senaBp,
   abonado,
 }: {
-  cuentas: CuentaDeUnValor[];
+  cuentas: CuentaDeUnValor<Moneda>[];
   senaBp: number;
   abonado: number;
 }) {
   const conAbonado = abonado > 0;
-  const aAbonar = (cuenta: CuentaDeUnValor) =>
+  const aAbonar = (cuenta: CuentaDeUnValor<Moneda>) =>
     cuenta.faltaParaLaSena > 0 ? formatearPesos(cuenta.faltaParaLaSena) : 'Cubierta';
   const anchoTotal = {
     width: anchoDeColumna(
@@ -440,11 +441,11 @@ function Valores({
   acordado,
 }: {
   documento: DocumentoDelPresupuesto;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
 }) {
   const { valores, senaBp, abonado } = documento;
   if (valores === null) return null;
-  const cuentas = cuentasDelPresupuesto(valores, senaBp, abonado);
+  const cuentas = cuentasDelPresupuesto<Moneda>(valores, senaBp, abonado);
   const unica = cuentas.length === 1 ? cuentas[0] : undefined;
   const alto =
     unica === undefined

@@ -8,6 +8,7 @@ import {
   vencioElPresupuesto,
   type DocumentoDelPresupuesto,
   type EstadoProyecto,
+  type Moneda,
   type Money,
   type OpcionDelDocumento,
 } from '@maun/domain';
@@ -58,9 +59,9 @@ export type EstadoDeLaTarjeta =
       ultima: RevisionLeida;
       anteriores: RevisionLeida[];
       aceptadoEl: string | null;
-      opcion: OpcionDelDocumento | null;
+      opcion: OpcionDelDocumento<Moneda> | null;
       documento: DocumentoDelPresupuesto;
-      acordado: Money | null;
+      acordado: Money<Moneda> | null;
     };
 
 const SE_MANDA_OTRA: readonly EstadoProyecto[] = [...ESTADOS_DE_CONSULTA, EN_SEGUIMIENTO];
@@ -131,6 +132,6 @@ export function estadoDeLaTarjeta(
     aceptadoEl: presupuesto.aceptado_el,
     opcion,
     documento,
-    acordado: acordadoAlAprobar(documento.valores, totalDeHoy(proyecto)),
+    acordado: acordadoAlAprobar<Moneda>(documento.valores, totalDeHoy(proyecto)),
   };
 }

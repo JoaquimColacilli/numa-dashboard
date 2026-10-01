@@ -1,7 +1,7 @@
 import { CERO, type Money } from '@maun/domain';
 
 import {
-  saldosPorIdDeLaReplica,
+  saldosEnLaMonedaDelTaller,
   tesorosDeLaReplica,
   type Replica,
   type Tesoro,
@@ -45,7 +45,7 @@ export function tesorosSincronizados(replica: Replica): boolean {
 export function tesorosDelTaller(replica: Replica): TesoroDelTaller[] {
   const replicados = tesorosDeLaReplica(replica);
   const tesoros = replicados.length > 0 ? replicados : TESOROS_EN_ORDEN.map(deSiempre);
-  const saldos = saldosPorIdDeLaReplica(replica);
+  const saldos = saldosEnLaMonedaDelTaller(replica);
   return tesoros.map((tesoro) => ({
     ...tesoro,
     tinta: tintaDelTesoro(tesoro.tinta),

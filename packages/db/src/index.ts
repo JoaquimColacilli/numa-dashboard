@@ -116,6 +116,7 @@ export {
   reaperturaDeLaFila,
   repartosDelProyecto,
   saldosDeLaReplica,
+  saldosEnLaMonedaDelTaller,
   saldosPorIdDeLaReplica,
   sistemaDeLaReplica,
   tesorosDeLaReplica,

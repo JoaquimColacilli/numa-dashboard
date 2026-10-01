@@ -1,7 +1,7 @@
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
-import { restar, sumarTodos, type Money } from './money.ts';
+import { restar, sumarTodos, type Moneda, type Money } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
 import {
   acordadoAlAprobar,
@@ -388,7 +388,7 @@ interface LoComunDelPresupuesto {
   numeroVisible: string;
   mandadoEl: string;
   documento: DocumentoDelPresupuesto;
-  cuentas: readonly CuentaDeUnValor[];
+  cuentas: readonly CuentaDeUnValor<Moneda>[];
   nombreDelArchivo: string;
 }
 
@@ -405,7 +405,7 @@ export interface PresupuestoAceptado extends LoComunDelPresupuesto {
   etapa: 'aceptado';
   aceptadoEl: string | null;
   letra: string | null;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
 }
 
 export type PresupuestoDeLaVista = PresupuestoMandado | PresupuestoAceptado;
@@ -749,7 +749,7 @@ function loComunDelPresupuesto(
     cuentas:
       documento.valores === null
         ? []
-        : cuentasDelPresupuesto(documento.valores, documento.senaBp, pagado),
+        : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado),
     nombreDelArchivo: nombreDelArchivo(documento, numero, revision),
   };
 }
@@ -791,7 +791,7 @@ function presupuestoAceptado(
     etapa: 'aceptado',
     aceptadoEl: presupuesto.aceptadoEl,
     letra: presupuesto.letra,
-    acordado: acordadoAlAprobar(presupuesto.documento.valores, trabajo.precio),
+    acordado: acordadoAlAprobar<Moneda>(presupuesto.documento.valores, trabajo.precio),
   };
 }
 

@@ -70,11 +70,13 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
         email: '',
       },
       cliente: 'Marcela Duarte',
+      moneda: 'ARS',
+      cobraEn: null,
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
     },
-    { pesos: formatearPesos, porcentaje: formatearPorcentaje },
+    { plata: (importe) => formatearPesos(importe), porcentaje: formatearPorcentaje },
   );
 }
 

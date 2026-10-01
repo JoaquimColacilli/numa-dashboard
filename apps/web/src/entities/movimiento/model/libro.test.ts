@@ -62,6 +62,7 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     desdeId: MAUN_ID,
     haciaId: HOGAR_ID,
     monto: centavos(50_000_000),
+    montoHacia: centavos(50_000_000),
     categoria: '',
     descripcion: '',
     proyectoId: 'p',
@@ -79,6 +80,7 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     tesoroPrincipal: HOGAR,
     bloqueo: 'del-proyecto',
     ...extra,
+    montoHacia: extra.montoHacia ?? extra.monto ?? base.montoHacia,
   };
 }
 

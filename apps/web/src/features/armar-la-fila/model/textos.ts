@@ -19,6 +19,7 @@ const TEXTO_DEL_PROBLEMA: Readonly<Record<ProblemaDeLaFila, string>> = {
   'demasiadas-partes': 'El reparto admite hasta 8 tesoros.',
   'tesoro-desconocido': 'Uno de los tesoros ya no existe.',
   'tesoro-archivado': '{nombre} está archivado: sacalo de la fila.',
+  'tesoro-en-otra-moneda': 'La fila reparte pesos: un tesoro en dólares queda en el estante.',
   'tesoro-repetido': '{nombre} está dos veces: cada tesoro va una sola vez.',
   'obligacion-en-hogar-o-maun': 'Hogar y Maun no pueden ser obligación.',
   'obligacion-invalida':
@@ -74,6 +75,7 @@ const LUGAR_DEL_PROBLEMA: Readonly<Record<ProblemaDeLaFila, LugarDelProblema>> =
   'demasiadas-partes': 'reparto',
   'tesoro-desconocido': 'tesoro',
   'tesoro-archivado': 'tesoro',
+  'tesoro-en-otra-moneda': 'tesoro',
   'tesoro-repetido': 'tesoro',
   'obligacion-en-hogar-o-maun': 'obligacion',
   'obligacion-invalida': 'obligacion',

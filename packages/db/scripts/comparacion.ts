@@ -58,6 +58,7 @@ import {
   type DatosDelTaller,
   type Distribucion,
   type DocumentoDelPresupuesto,
+  type DocumentoEnPesos,
   type EntradaCascada,
   type EstadoLiquidado,
   type EstadoProyecto,
@@ -6014,7 +6015,7 @@ function comoLista(valor: unknown): Objeto[] {
 }
 
 const FORMATOS_DEL_PRESUPUESTO: Formatos = {
-  pesos: (importe) => `$ ${String(importe / 100)}`,
+  plata: (importe, moneda) => `${moneda === 'USD' ? 'US$' : '$'} ${String(importe / 100)}`,
   porcentaje: (puntos) => String(puntos / 100),
 };
 
@@ -6081,19 +6082,23 @@ function borradorDelPresupuesto(): BorradorDelPresupuesto {
 function documentoDePrueba(
   valores: ValoresDelPresupuesto | null,
   abonado: number,
-): DocumentoDelPresupuesto {
-  return documentoDelPresupuesto(
+): DocumentoEnPesos {
+  const documento = documentoDelPresupuesto(
     {
       borrador: borradorDelPresupuesto(),
       plantilla: PLANTILLA_DE_SIEMPRE,
       taller: TALLER_DEL_PRESUPUESTO,
       cliente: 'Paula Benítez',
+      moneda: 'ARS',
+      cobraEn: null,
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(abonado),
     },
     FORMATOS_DEL_PRESUPUESTO,
   );
+  if (documento.forma !== 1) throw new Error('Un documento en pesos salió en otra forma.');
+  return documento;
 }
 
 function alAzarConCambios(

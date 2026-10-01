@@ -1,4 +1,4 @@
-import type { DocumentoDelPresupuesto, Money, OpcionDelDocumento } from '@maun/domain';
+import type { DocumentoDelPresupuesto, Moneda, Money, OpcionDelDocumento } from '@maun/domain';
 
 import { NUMERO_PENDIENTE } from '@/entities/presupuesto';
 import type { PresupuestoEnPdf } from '@/shared/pdf';
@@ -47,8 +47,8 @@ export function pdfDelAceptado(
   revision: RevisionLeida,
   documento: DocumentoDelPresupuesto,
   aceptadoEl: string | null,
-  opcion: OpcionDelDocumento | null,
-  acordado: Money | null,
+  opcion: OpcionDelDocumento<Moneda> | null,
+  acordado: Money<Moneda> | null,
 ): PresupuestoEnPdf {
   return {
     documento,

@@ -34,11 +34,13 @@ function documento(): DocumentoDelPresupuesto {
         email: '',
       },
       cliente: 'Lucía Ferreyra',
+      moneda: 'ARS',
+      cobraEn: null,
       valores: valoresDelTrabajo(centavos(124_800_000), []),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(0),
     },
-    { pesos: (importe) => String(importe), porcentaje: (puntos) => String(puntos / 100) },
+    { plata: (importe) => String(importe), porcentaje: (puntos) => String(puntos / 100) },
   );
 }
 

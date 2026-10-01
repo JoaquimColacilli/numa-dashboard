@@ -334,7 +334,14 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
 
   const huecos = {
     valores: huecosDelPresupuesto(
-      { plazoDeFabricacion: borrador.plazoDeFabricacion, plantilla, abonado, senaBp },
+      {
+        plazoDeFabricacion: borrador.plazoDeFabricacion,
+        plantilla,
+        modificacion: borrador.modificacion,
+        abonado,
+        monedaDeLoAbonado: 'ARS',
+        senaBp,
+      },
       FORMATOS_DE_LA_APP,
     ),
     abonado,

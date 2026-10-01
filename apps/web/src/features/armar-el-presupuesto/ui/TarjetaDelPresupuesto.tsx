@@ -1,4 +1,4 @@
-import type { DocumentoDelPresupuesto, Money } from '@maun/domain';
+import type { DocumentoDelPresupuesto, Moneda, Money } from '@maun/domain';
 import { useId, type ReactNode } from 'react';
 
 import type { Proyecto } from '@/entities/proyecto';
@@ -41,7 +41,7 @@ function Valores({
   acordado = null,
 }: {
   documento: DocumentoDelPresupuesto;
-  acordado?: Money | null;
+  acordado?: Money<Moneda> | null;
 }) {
   const valores = documento.valores;
   if (valores === null) return <p className="text-label text-text-2">Todavía sin total.</p>;

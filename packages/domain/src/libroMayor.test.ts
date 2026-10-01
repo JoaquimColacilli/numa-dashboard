@@ -4,6 +4,7 @@ import {
   asientosDeLaLinea,
   asientosDelLibro,
   asientosDelMes,
+  enLaMonedaDelTaller,
   entradasYSalidas,
   entradasYSalidasPorId,
   esAnteriorALaApertura,
@@ -25,7 +26,8 @@ import {
   type RepartoDelLibro,
   type Tesoro,
 } from './libroMayor.ts';
-import { centavos, type Money } from './money.ts';
+import { cotizacion } from './cotizacion.ts';
+import { centavos, centavosEn, type Money } from './money.ts';
 
 const $ = (valor: number): Money => centavos(valor);
 
@@ -390,6 +392,7 @@ describe('lineasDelLibro', () => {
         desdeId: 'cocos',
         haciaId: 'maun',
         monto: 300_000,
+        montoHacia: 300_000,
         concepto: 'transferencia',
         categoria: '',
         descripcion: '',
@@ -403,6 +406,107 @@ describe('lineasDelLibro', () => {
     expect(asientosDeLaLinea(linea).map((asiento) => [asiento.tesoro, asiento.monto])).toEqual([
       ['maun', 300_000],
       ['cocos', -300_000],
+    ]);
+  });
+
+  it('una compra de dólares es una sola línea con los dos importes, cada lado con el suyo', () => {
+    const datosDelCambio = datos({
+      tesoros: [
+        { id: 'maun', clave: 'maun' },
+        { id: 'dolares', clave: null },
+      ],
+      movimientos: [
+        movimiento({
+          id: 'cambio',
+          tipo: 'cambio',
+          tesoroOrigen: 'maun',
+          tesoroDestino: null,
+          desdeId: 'maun',
+          haciaId: 'dolares',
+          monto: $(72_500_000),
+          montoDestino: centavosEn('USD', 50_000),
+          categoria: 'MEP',
+        }),
+      ],
+    });
+    const [linea] = lineasDelLibro(datosDelCambio);
+    expect(linea).toMatchObject({ monto: 72_500_000, montoHacia: 50_000, hacia: null });
+    const asientos = asientosDelLibro(datosDelCambio);
+    expect(asientos.map((asiento) => [asiento.tesoroId, asiento.monto])).toEqual([
+      ['dolares', 50_000],
+      ['maun', -72_500_000],
+    ]);
+    expect(saldosPorId(asientos)).toEqual(
+      new Map([
+        ['dolares', 50_000],
+        ['maun', -72_500_000],
+      ]),
+    );
+    expect(saldosPorTesoro(asientos)).toMatchObject({ maun: -72_500_000 });
+    expect(entradasYSalidasPorId(asientos, 'dolares')).toEqual({ entro: 50_000, salio: 0 });
+    expect(asientos.map(enLaMonedaDelTaller)).toEqual([null, -72_500_000]);
+  });
+
+  it('una venta de dólares es la misma línea dada vuelta', () => {
+    const asientos = asientosDelLibro(
+      datos({
+        tesoros: [
+          { id: 'maun', clave: 'maun' },
+          { id: 'dolares', clave: null },
+        ],
+        movimientos: [
+          movimiento({
+            id: 'venta',
+            tipo: 'cambio',
+            tesoroDestino: 'maun',
+            desdeId: 'dolares',
+            haciaId: 'maun',
+            monto: centavosEn('USD', 20_000),
+            montoDestino: $(28_600_000),
+          }),
+        ],
+      }),
+    );
+    expect(asientos.map((asiento) => [asiento.tesoroId, asiento.monto])).toEqual([
+      ['maun', 28_600_000],
+      ['dolares', -20_000],
+    ]);
+  });
+
+  it('un movimiento sin segundo importe, también de antes de la columna, mueve lo mismo de los dos lados', () => {
+    const [linea] = lineasDelLibro(
+      datos({ movimientos: [movimiento({ montoDestino: null }), movimiento({ id: 'm2' })] }),
+    );
+    expect(linea?.montoHacia).toBe(1000);
+  });
+
+  it('un pago en pesos entra a Maun y uno en dólares entra a su tesoro en dólares, con su importe', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: [
+          { id: 'maun-id', clave: 'maun' },
+          { id: 'dolares', clave: null },
+        ],
+        proyectos: [proyecto({})],
+        pagos: [
+          pago({ id: 'en-pesos', monto: $(12_000_000), moneda: 'ARS', tesoroId: null }),
+          pago({
+            id: 'en-dolares',
+            monto: centavosEn('USD', 100_000),
+            moneda: 'USD',
+            cotizacion: cotizacion(154_000),
+            tesoroId: 'dolares',
+          }),
+          pago({ id: 'de-antes' }),
+        ],
+      }),
+    );
+    expect(
+      lineas.map((linea) => [linea.asientoId, linea.hacia, linea.haciaId, linea.monto]),
+    ).toEqual([
+      ['en-pesos', 'maun', 'maun-id', 12_000_000],
+      ['en-dolares', null, 'dolares', 100_000],
+      ['de-antes', 'maun', 'maun-id', 500],
     ]);
   });
 

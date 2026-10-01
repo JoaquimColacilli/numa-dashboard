@@ -39,12 +39,14 @@ const DOCUMENTO = documentoDelPresupuesto(
       email: '',
     },
     cliente: 'Paula Benítez',
+    moneda: 'ARS',
+    cobraEn: null,
     valores: valoresDelTrabajo(centavos(120_000_000), []),
     senaBp: puntosBasicos(5000),
     abonado: centavos(0),
   },
   {
-    pesos: (importe) => `$ ${String(importe / 100)}`,
+    plata: (importe) => `$ ${String(importe / 100)}`,
     porcentaje: (puntos) => String(puntos / 100),
   },
 );

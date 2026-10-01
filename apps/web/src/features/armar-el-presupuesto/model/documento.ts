@@ -32,7 +32,7 @@ import { ajustesDe, filaPorId, householdDe, type Replica } from '@/shared/api';
 import { formatearPesos, formatearPorcentaje, nombreDelTaller, uuidv7 } from '@/shared/lib';
 
 export const FORMATOS_DE_LA_APP: Formatos = {
-  pesos: formatearPesos,
+  plata: (importe) => formatearPesos(importe),
   porcentaje: formatearPorcentaje,
 };
 
@@ -132,6 +132,8 @@ export function entradaDeHoy({
     plantilla: plantillaDeLaReplica(replica),
     taller: datosDelTaller(replica),
     cliente: nombreDelCliente(replica, proyecto),
+    moneda: 'ARS',
+    cobraEn: null,
     valores: valoresDelTrabajo(total, opciones),
     senaBp: senaDeHoy(replica, proyecto),
     abonado,

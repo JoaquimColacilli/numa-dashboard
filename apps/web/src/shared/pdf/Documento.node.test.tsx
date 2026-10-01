@@ -34,7 +34,10 @@ import type { PresupuestoEnPdf } from './tipos';
 
 const requerir = createRequire(import.meta.url);
 
-const FORMATOS: Formatos = { pesos: formatearPesos, porcentaje: formatearPorcentaje };
+const FORMATOS: Formatos = {
+  plata: (importe) => formatearPesos(importe),
+  porcentaje: formatearPorcentaje,
+};
 
 const TALLER: DatosDelTaller = {
   nombre: 'Taller MAUN',
@@ -99,6 +102,8 @@ function documento(
       plantilla: PLANTILLA_DE_SIEMPRE,
       taller,
       cliente: 'Florencia Sosa',
+      moneda: 'ARS',
+      cobraEn: null,
       valores: valoresDelTrabajo(centavos(218_100_000), opciones),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(12_000_000),
