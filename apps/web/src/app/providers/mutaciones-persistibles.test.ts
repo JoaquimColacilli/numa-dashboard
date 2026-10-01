@@ -16,11 +16,13 @@ import * as enlace from '@/entities/enlace';
 import * as entrega from '@/entities/entrega';
 import * as movimiento from '@/entities/movimiento';
 import * as opinion from '@/entities/opinion';
+import * as presupuesto from '@/entities/presupuesto';
 import * as proyecto from '@/entities/proyecto';
 import * as sesion from '@/entities/sesion';
 import * as tesoro from '@/entities/tesoro';
 import * as armarLaFila from '@/features/armar-la-fila';
 import * as armarLaVidriera from '@/features/armar-la-vidriera';
+import * as configurarElPresupuesto from '@/features/configurar-el-presupuesto';
 import * as configurarTaller from '@/features/configurar-taller';
 import {
   CLAVE_DE_PROYECTO,
@@ -29,10 +31,17 @@ import {
   type GuardadoDeProyecto,
 } from '@/entities/proyecto';
 import {
+  CLAVE_DEL_ENVIO,
+  SIN_NUMERO_TODAVIA,
+  type EnvioDelPresupuesto,
+} from '@/entities/presupuesto';
+import {
   filaPorId,
   guardarElProyecto,
+  mandarElPresupuestoAlCliente,
   TABLAS_REPLICADAS,
   type FilaDe,
+  type PresupuestoMandado,
   type ProyectoGuardado,
   type Replica,
   type TablaReplicada,
@@ -50,7 +59,11 @@ import { crearQueryClient, DURACION_CACHE_MS, VERSION_CACHE } from './query-clie
 
 vi.mock(import('@/shared/api'), async (importOriginal) => {
   const real = await importOriginal();
-  return { ...real, guardarElProyecto: vi.fn<typeof real.guardarElProyecto>() };
+  return {
+    ...real,
+    guardarElProyecto: vi.fn<typeof real.guardarElProyecto>(),
+    mandarElPresupuestoAlCliente: vi.fn<typeof real.mandarElPresupuestoAlCliente>(),
+  };
 });
 
 const CLAVE_DE_LA_REPLICA = ['replica', 'u1'] as const;
@@ -227,10 +240,12 @@ const MODULOS_CON_MUTACIONES = {
   entrega,
   movimiento,
   opinion,
+  presupuesto,
   proyecto,
   sesion,
   tesoro,
   configurarTaller,
+  configurarElPresupuesto,
   armarLaVidriera,
   armarLaFila,
 };
@@ -269,6 +284,7 @@ describe('el registro de las mutaciones', () => {
 
 beforeEach(() => {
   vi.mocked(guardarElProyecto).mockReset();
+  vi.mocked(mandarElPresupuestoAlCliente).mockReset();
 });
 
 afterEach(async () => {
@@ -325,5 +341,127 @@ describe('editar lo que hace falta sin señal', () => {
     const perdida = sinRegistro.getMutationCache().getAll()[0];
     expect(perdida?.state.status).toBe('error');
     expect(String(perdida?.state.error)).toContain('No mutationFn found');
+  });
+});
+
+const BORRADOR: FilaDe<'presupuestos'> = {
+  id: 'b1',
+  household_id: 'h',
+  proyecto_id: 'p1',
+  contenido: { forma: 1 },
+  borrador_version: 2,
+  numero: null,
+  aceptado_el: null,
+  created_at: AHORA,
+  updated_at: AHORA,
+  deleted_at: null,
+  version: 2,
+};
+
+function elEnvio(): EnvioDelPresupuesto {
+  return {
+    pedido: {
+      presupuestoId: 'b1',
+      revisionId: 'r1',
+      version: 2,
+      documento: { forma: 1 } as unknown as EnvioDelPresupuesto['pedido']['documento'],
+      queCambio: null,
+      mandadoEl: '2026-09-22',
+      valeHasta: '2026-10-07',
+    },
+    proyectoId: 'p1',
+    revision: 1,
+    numero: null,
+    previos: { proyecto: PROYECTO, proximos: [] },
+    momento: AHORA,
+  };
+}
+
+function loQueDevuelveLaBase(): PresupuestoMandado {
+  return {
+    revision: {
+      id: 'r1',
+      household_id: 'h',
+      presupuesto_id: 'b1',
+      proyecto_id: 'p1',
+      revision: 1,
+      numero: '20260922-01',
+      mandado_el: '2026-09-22',
+      vale_hasta: '2026-10-07',
+      que_cambio: null,
+      contenido: { forma: 1 },
+      created_at: AHORA,
+      updated_at: AHORA,
+      deleted_at: null,
+      version: 1,
+    },
+    presupuesto: { ...BORRADOR, numero: '20260922-01', version: 3 },
+    proyecto: { ...PROYECTO, estado: 'presupuesto_enviado', version: 4 },
+    proximos: [],
+  };
+}
+
+describe('mandar el presupuesto sin señal', () => {
+  it('queda en la cola con la revisión sin número, sobrevive a cerrar la app y se numera al volver la señal', async () => {
+    const abierta = crearQueryClient();
+    onlineManager.setOnline(false);
+    const olvidar = registrarGuardado({
+      queryClient: abierta,
+      persister: crearPersisterIndexedDb(),
+      buster: VERSION_CACHE,
+      dehydrateOptions: OPCIONES_DE_DESHIDRATACION,
+    });
+    const conElBorrador = replicaDelTaller();
+    abierta.setQueryData(CLAVE_DE_LA_REPLICA, {
+      ...conElBorrador,
+      tablas: { ...conElBorrador.tablas, presupuestos: { b1: BORRADOR } },
+    });
+
+    const mutacion: Mutation<PresupuestoMandado, unknown, EnvioDelPresupuesto> = abierta
+      .getMutationCache()
+      .build(abierta, { mutationKey: CLAVE_DEL_ENVIO });
+    void mutacion.execute(elEnvio()).catch(() => undefined);
+
+    await vi.waitFor(() => {
+      const optimista = abierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
+      expect(optimista && filaPorId(optimista, 'revisiones_del_presupuesto', 'r1')).toMatchObject({
+        numero: SIN_NUMERO_TODAVIA,
+        revision: 1,
+      });
+      expect(optimista && filaPorId(optimista, 'proyectos', 'p1')).toMatchObject({
+        estado: 'presupuesto_enviado',
+        presupuesto_vale_hasta: '2026-10-07',
+        presupuesto_pdf: true,
+      });
+    });
+    await guardarCacheAhora();
+    expect(mutacion.state.isPaused).toBe(true);
+    expect(mandarElPresupuestoAlCliente).not.toHaveBeenCalled();
+    olvidar();
+    abierta.clear();
+
+    const reabierta = crearQueryClient();
+    onlineManager.setOnline(false);
+    await restaurarEn(reabierta);
+    const guardada = reabierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
+    expect(guardada && filaPorId(guardada, 'revisiones_del_presupuesto', 'r1')?.numero).toBe(
+      SIN_NUMERO_TODAVIA,
+    );
+
+    vi.mocked(mandarElPresupuestoAlCliente).mockResolvedValue(loQueDevuelveLaBase());
+    onlineManager.setOnline(true);
+    await reanudarCola(reabierta);
+
+    expect(mandarElPresupuestoAlCliente).toHaveBeenCalledOnce();
+    expect(vi.mocked(mandarElPresupuestoAlCliente).mock.calls[0]?.[0]).toMatchObject({
+      presupuestoId: 'b1',
+      revisionId: 'r1',
+      version: 2,
+    });
+    const confirmada = reabierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
+    expect(confirmada && filaPorId(confirmada, 'revisiones_del_presupuesto', 'r1')?.numero).toBe(
+      '20260922-01',
+    );
+    expect(confirmada && filaPorId(confirmada, 'presupuestos', 'b1')?.numero).toBe('20260922-01');
   });
 });

@@ -24,6 +24,12 @@ import {
   guardarCambiosDeMovimiento,
   guardarCambiosDeProyecto,
   guardarClienteNuevo,
+  guardarElBorrador,
+  guardarLaPlantillaDelPresupuesto,
+  mandarElPresupuesto,
+  type BorradorParaGuardar,
+  type PresupuestoMandado,
+  type PresupuestoParaMandar,
   guardarCostosEstimados,
   guardarFormasDeCobro,
   guardarMarcaDelProximoContacto,
@@ -57,7 +63,7 @@ import {
   type ProyectoParaGuardar,
   type Replica,
 } from '@maun/db';
-import type { Fila } from '@maun/domain';
+import type { Fila, PlantillaDelPresupuesto } from '@maun/domain';
 
 import { clienteMaun } from './cliente';
 
@@ -259,6 +265,25 @@ export async function guardarLaFila(
   fila: Fila | null,
 ): Promise<FilaDe<'ajustes'>> {
   return guardarLaFilaDelTaller(clienteMaun(), version, fila);
+}
+
+export async function guardarElBorradorDelPresupuesto(
+  pedido: BorradorParaGuardar,
+): Promise<FilaDe<'presupuestos'>> {
+  return guardarElBorrador(clienteMaun(), pedido);
+}
+
+export async function mandarElPresupuestoAlCliente(
+  pedido: PresupuestoParaMandar,
+): Promise<PresupuestoMandado> {
+  return mandarElPresupuesto(clienteMaun(), pedido);
+}
+
+export async function guardarLosTextosDelPresupuesto(
+  version: number,
+  plantilla: PlantillaDelPresupuesto | null,
+): Promise<FilaDe<'ajustes'>> {
+  return guardarLaPlantillaDelPresupuesto(clienteMaun(), version, plantilla);
 }
 
 export async function crearTesoro(nuevo: TesoroNuevo): Promise<FilaDe<'tesoros'>> {
