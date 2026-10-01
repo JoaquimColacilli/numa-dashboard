@@ -86,6 +86,7 @@ function revision(id: string, numero: number, extra: Partial<FilaDeRevision> = {
     vale_hasta: null,
     que_cambio: null,
     contenido: { forma: 1 },
+    idioma: 'es',
     created_at: AHORA,
     updated_at: AHORA,
     deleted_at: null,

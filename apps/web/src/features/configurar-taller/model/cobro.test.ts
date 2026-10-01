@@ -50,6 +50,7 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     taller_email: '',
     plantilla_del_presupuesto: null,
     plantilla_del_presupuesto_version: 0,
+    idioma_de_los_clientes: 'es',
     created_at: '2026-09-19T12:00:00Z',
     updated_at: '2026-09-19T12:00:00Z',
     deleted_at: null,

@@ -24,6 +24,7 @@ export type Database = {
           fila_version: number;
           household_id: string;
           id: string;
+          idioma_de_los_clientes: string;
           instagram_link: string;
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
@@ -62,6 +63,7 @@ export type Database = {
           fila_version?: number;
           household_id?: string;
           id?: string;
+          idioma_de_los_clientes?: string;
           instagram_link?: string;
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
@@ -100,6 +102,7 @@ export type Database = {
           fila_version?: number;
           household_id?: string;
           id?: string;
+          idioma_de_los_clientes?: string;
           instagram_link?: string;
           meta_cocos_centavos?: number;
           perdido_con_diezmo?: boolean;
@@ -771,6 +774,7 @@ export type Database = {
           household_id: string;
           id: string;
           monto_centavos: number;
+          monto_destino_centavos: number | null;
           proyecto_id: string | null;
           tesoro_destino: Database['public']['Enums']['tesoro'] | null;
           tesoro_origen: Database['public']['Enums']['tesoro'] | null;
@@ -790,6 +794,7 @@ export type Database = {
           household_id?: string;
           id?: string;
           monto_centavos: number;
+          monto_destino_centavos?: number | null;
           proyecto_id?: string | null;
           tesoro_destino?: Database['public']['Enums']['tesoro'] | null;
           tesoro_origen?: Database['public']['Enums']['tesoro'] | null;
@@ -809,6 +814,7 @@ export type Database = {
           household_id?: string;
           id?: string;
           monto_centavos?: number;
+          monto_destino_centavos?: number | null;
           proyecto_id?: string | null;
           tesoro_destino?: Database['public']['Enums']['tesoro'] | null;
           tesoro_origen?: Database['public']['Enums']['tesoro'] | null;
@@ -1789,6 +1795,7 @@ export type Database = {
           deleted_at: string | null;
           household_id: string;
           id: string;
+          idioma: string;
           mandado_el: string;
           numero: string;
           presupuesto_id: string;
@@ -1805,6 +1812,7 @@ export type Database = {
           deleted_at?: string | null;
           household_id?: string;
           id?: string;
+          idioma?: string;
           mandado_el: string;
           numero: string;
           presupuesto_id: string;
@@ -1821,6 +1829,7 @@ export type Database = {
           deleted_at?: string | null;
           household_id?: string;
           id?: string;
+          idioma?: string;
           mandado_el?: string;
           numero?: string;
           presupuesto_id?: string;
@@ -1866,6 +1875,7 @@ export type Database = {
           icono: string;
           id: string;
           meta_centavos: number | null;
+          moneda: string;
           nombre: string;
           orden: number;
           rinde_anual_bp: number | null;
@@ -1883,6 +1893,7 @@ export type Database = {
           icono: string;
           id?: string;
           meta_centavos?: number | null;
+          moneda?: string;
           nombre: string;
           orden?: number;
           rinde_anual_bp?: number | null;
@@ -1900,6 +1911,7 @@ export type Database = {
           icono?: string;
           id?: string;
           meta_centavos?: number | null;
+          moneda?: string;
           nombre?: string;
           orden?: number;
           rinde_anual_bp?: number | null;
@@ -2200,6 +2212,7 @@ export type Database = {
           fila_version: number;
           household_id: string;
           id: string;
+          idioma_de_los_clientes: string;
           instagram_link: string;
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
@@ -2247,6 +2260,7 @@ export type Database = {
           fila_version: number;
           household_id: string;
           id: string;
+          idioma_de_los_clientes: string;
           instagram_link: string;
           meta_cocos_centavos: number;
           perdido_con_diezmo: boolean;
@@ -2295,6 +2309,7 @@ export type Database = {
       mandar_el_presupuesto: {
         Args: {
           p_documento: Json;
+          p_idioma?: string;
           p_mandado_el: string;
           p_presupuesto_id: string;
           p_que_cambio: string;
@@ -2520,7 +2535,13 @@ export type Database = {
       tipo_de_necesidad: 'herraje' | 'herramienta' | 'material';
       tipo_de_pregunta: 'escala5' | 'sitalvezno' | 'una' | 'varias' | 'texto';
       tipo_movimiento:
-        'ingreso' | 'gasto' | 'transferencia' | 'pago_diezmo' | 'aporte_cocos' | 'ajuste';
+        | 'ingreso'
+        | 'gasto'
+        | 'transferencia'
+        | 'pago_diezmo'
+        | 'aporte_cocos'
+        | 'ajuste'
+        | 'cambio';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2677,6 +2698,7 @@ export const Constants = {
         'pago_diezmo',
         'aporte_cocos',
         'ajuste',
+        'cambio',
       ],
     },
   },

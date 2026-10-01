@@ -44,6 +44,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, t
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
+    moneda: 'ARS',
   } satisfies FilaDe<'tesoros'>;
 }
 

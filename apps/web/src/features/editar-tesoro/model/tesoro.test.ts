@@ -187,6 +187,7 @@ describe('editar un tesoro', () => {
       rinde_anual_bp: null,
       orden: 0,
       archivado_at: null,
+      moneda: 'ARS',
       created_at: '',
       updated_at: '',
       deleted_at: null,

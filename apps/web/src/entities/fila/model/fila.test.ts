@@ -98,6 +98,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, m
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
+    moneda: 'ARS',
   } satisfies FilaDe<'tesoros'>;
 }
 
@@ -173,6 +174,7 @@ function replicaDelMes(fila: Fila = FILA): Replica {
     hacia_id: null,
     cubre_el_mes: null,
     monto_centavos: 100,
+    monto_destino_centavos: null,
     categoria: 'Alquiler',
     descripcion: '',
     proyecto_id: null,

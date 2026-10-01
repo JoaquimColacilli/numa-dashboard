@@ -47,6 +47,7 @@ function tesoro(
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
+    moneda: 'ARS',
     ...extra,
   } satisfies FilaDe<'tesoros'>;
 }
@@ -94,6 +95,7 @@ describe('los tesoros del taller', () => {
       hacia_id: 't-materiales',
       cubre_el_mes: null,
       monto_centavos: 15_000_000,
+      monto_destino_centavos: null,
       categoria: '',
       descripcion: '',
       proyecto_id: null,

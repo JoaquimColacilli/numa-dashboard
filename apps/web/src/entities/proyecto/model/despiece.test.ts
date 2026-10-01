@@ -80,6 +80,7 @@ function tesoro(
     rinde_anual_bp: null,
     orden,
     archivado_at: null,
+    moneda: 'ARS',
   };
 }
 

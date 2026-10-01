@@ -46,6 +46,7 @@ const AJUSTES: FilaDe<'ajustes'> = {
   taller_email: '',
   plantilla_del_presupuesto: null,
   plantilla_del_presupuesto_version: 0,
+  idioma_de_los_clientes: 'es',
   created_at: AHORA,
   updated_at: AHORA,
   deleted_at: null,

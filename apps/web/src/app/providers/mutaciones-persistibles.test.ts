@@ -388,6 +388,7 @@ function loQueDevuelveLaBase(): PresupuestoMandado {
       vale_hasta: '2026-10-07',
       que_cambio: null,
       contenido: { forma: 1 },
+      idioma: 'es',
       created_at: AHORA,
       updated_at: AHORA,
       deleted_at: null,

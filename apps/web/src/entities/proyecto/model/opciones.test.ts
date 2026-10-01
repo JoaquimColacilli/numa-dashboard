@@ -149,6 +149,7 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     taller_email: '',
     plantilla_del_presupuesto: null,
     plantilla_del_presupuesto_version: 0,
+    idioma_de_los_clientes: 'es',
     sueldo_tope_mensual: false,
     perdido_con_sueldo: false,
     perdido_con_diezmo: true,

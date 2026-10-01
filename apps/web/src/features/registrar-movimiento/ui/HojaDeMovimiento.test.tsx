@@ -116,6 +116,7 @@ function movimiento(extra: Partial<FilaDe<'movimientos'>>): FilaDe<'movimientos'
     hacia_id: ID.materiales,
     cubre_el_mes: null,
     monto_centavos: 15_000_000,
+    monto_destino_centavos: null,
     categoria: '',
     descripcion: 'Para los materiales',
     proyecto_id: null,

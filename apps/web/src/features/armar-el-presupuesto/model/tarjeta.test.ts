@@ -87,6 +87,7 @@ function conLaRevision(
     vale_hasta: '2026-09-30',
     que_cambio: queCambio,
     contenido: documentoDeHoy({ replica, proyecto: uno, borrador: BORRADOR }) as unknown as Json,
+    idioma: 'es',
   });
 }
 
