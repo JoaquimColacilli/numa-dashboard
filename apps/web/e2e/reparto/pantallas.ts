@@ -104,6 +104,12 @@ export const PANTALLAS: readonly Pantalla[] = [
     listo: enElMarco,
   },
   {
+    clave: 'presupuesto',
+    nombre: 'Armar el presupuesto',
+    ruta: (t) => `/proyectos/${t.enviado}/presupuesto`,
+    listo: enElMarco,
+  },
+  {
     clave: 'compartir',
     nombre: 'Compartir con el cliente',
     ruta: (t) => `/proyectos/${t.obra}/compartir`,
@@ -168,6 +174,12 @@ export const PANTALLAS: readonly Pantalla[] = [
       await enElMarco(page);
       await expect(page.getByText(/Cargando|Buscando/)).toHaveCount(0, CARGA);
     },
+  },
+  {
+    clave: 'presupuesto-del-taller',
+    nombre: 'Ajustes: tu presupuesto',
+    ruta: () => '/ajustes/presupuesto',
+    listo: enElMarco,
   },
   {
     clave: 'movimiento-nuevo',
