@@ -193,6 +193,11 @@ hay logo y NUMA no aparece (0073). Con el teléfono, la página ofrece «Escribi
   servidor ni Storage. En la app del dueño anda sin señal.
 - Corre en un Web Worker de módulo, en su propio chunk, que se pide recién cuando hace falta. La guarda
   del build (`scripts/motor-del-pdf.ts`) falla si `pdfkit`, `fontkit` o `yoga` entran a otro chunk.
+- En desarrollo, `shared/pdf` y `shared/lib` quedan afuera de Fast Refresh (el `exclude` del plugin de
+  React). El runtime de Fast Refresh toca `window` al cargarse, y el Worker lo traía por `Documento.tsx` y
+  por `Ir.tsx`, que entra con el barril de `shared/lib`: con `pnpm dev` el Worker se caía y «Ver el PDF» no
+  bajaba nada. El build no lo tiene, porque no lleva Fast Refresh. Editar `Ir.tsx` en desarrollo recarga a
+  quien lo usa en vez de refrescarlo solo.
 - La fecha de creación es el mediodía del día de envío en el taller: la misma revisión da el mismo archivo,
   byte por byte, y eso sirve de firma para guardar el `Blob`.
 - «Descargar el PDF» baja el archivo con su nombre («Presupuesto 20260826-01 - cliente.pdf»); en un iPhone

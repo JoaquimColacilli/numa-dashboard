@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       { name: 'maun:esqueleto-de-arranque', transformIndexHtml: conElEsqueleto },
       sinElMotorDelPdfAlArrancar(),
-      react(),
+      react({ exclude: [/\/src\/shared\/(lib|pdf)\//, /\/node_modules\//] }),
       tailwindcss(),
       VitePWA({
         strategies: 'injectManifest',
