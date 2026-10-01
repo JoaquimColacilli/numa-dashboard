@@ -296,10 +296,11 @@ triángulo de la revisión al lado de «Qué cambió» y el globo numerado de ca
 - **El comentario de `proyectos.presupuesto_pdf`** sigue diciendo «el PDF del presupuesto está armado». Se
   corrige con la próxima migración que toque esa tabla.
 - **Para confirmar con Eliseo**: que las revisiones mantengan el número; el texto de la garantía; las
-  palabras del aviso de los colores; los textos de las formas B y C; las tres aclaraciones de «A tener en
-  cuenta» que no escribió él («No incluye bacha ni grifería.», «No incluye conexiones de agua, gas ni
-  electricidad.» y «No incluye la colocación de electrodomésticos.»), y «Descargar el PDF» en lugar de
-  «Descargar presupuesto en PDF».
+  palabras del aviso de los colores; los textos de las tres formas de pago (él dio ejemplos, «50% Seña / 50%
+  Entrega», las cuotas y el total con o sin descuento, y pidió la A por defecto, pero no los textos); las
+  tres aclaraciones de «A tener en cuenta» que no escribió él («No incluye bacha ni grifería.», «No incluye
+  conexiones de agua, gas ni electricidad.» y «No incluye la colocación de electrodomésticos.»), y
+  «Descargar el PDF» en lugar de «Descargar presupuesto en PDF».
 - **Entre el `db push` y el merge** la app publicada es la de antes, contra la base nueva. Se probó en una
   transacción con rollback: las vistas de sus trabajos son las mismas más `presupuesto: null`, la réplica
   suma dos tablas vacías y los ajustes, seis columnas vacías. Eliseo no ve nada distinto.
