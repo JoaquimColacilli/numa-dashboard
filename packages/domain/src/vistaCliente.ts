@@ -1,8 +1,18 @@
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
-import { diasEntre, entregaEstimada } from './fechas.ts';
+import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
 import { restar, sumarTodos, type Money } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
+import {
+  acordadoAlAprobar,
+  cuentasDelPresupuesto,
+  mensajeParaElTaller,
+  nombreDelArchivo,
+  numeroVisible,
+  plazoDelPresupuesto,
+  type CuentaDeUnValor,
+  type DocumentoDelPresupuesto,
+} from './presupuesto.ts';
 import { vencioElPresupuesto } from './vigencia.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 
@@ -98,6 +108,16 @@ export interface VisitaDelTrabajo {
   hecha: boolean;
 }
 
+export interface PresupuestoDelTrabajo {
+  numero: string;
+  revision: number;
+  mandadoEl: string;
+  queCambio: string | null;
+  documento: DocumentoDelPresupuesto;
+  aceptadoEl: string | null;
+  letra: string | null;
+}
+
 export interface TrabajoDelCliente {
   taller: string;
   cliente: string;
@@ -115,6 +135,7 @@ export interface TrabajoDelCliente {
   archivos: readonly ArchivoDelCliente[];
   vidriera: VidrieraDelTaller;
   valorDelRelevamiento: Money | null;
+  presupuesto?: PresupuestoDelTrabajo | null;
 }
 
 export function hayComoTransferir(cobro: CobroDelTaller): boolean {
@@ -150,6 +171,7 @@ export interface ComoPagar {
   pasos: string;
   enEfectivo: string;
   siguiente: PagoQueSigue | null;
+  vencio: string | null;
 }
 
 const TITULO = 'Cómo pagar';
@@ -203,13 +225,40 @@ const TAMBIEN_EFECTIVO: Readonly<Record<InstanciaDePago, string>> = {
 
 const SIN_CUENTA: CuentaParaTransferir = { alias: null, cbu: null, titular: null, cuit: null };
 
-export function comoPagar(trabajo: TrabajoDelCliente): ComoPagar | null {
+function vencioLaSena(trabajo: TrabajoDelCliente, hoy: string): string | null {
+  const valeHasta = fechasDe(trabajo).valeHasta ?? null;
+  if (trabajo.estado !== 'presupuesto_enviado') return null;
+  return vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
+}
+
+export function comoPagar(trabajo: TrabajoDelCliente, hoy: string): ComoPagar | null {
   const pago = trabajo.pago as PagoPendiente | undefined;
   const cobro = trabajo.cobro as CobroDelTaller | undefined;
   if (pago === undefined || cobro === undefined) return null;
 
   const { instancia, formas, monto } = pago;
   if (instancia === null) return null;
+
+  const vencio = instancia === 'sena' ? vencioLaSena(trabajo, hoy) : null;
+  if (vencio !== null) {
+    return {
+      instancia,
+      monto: null,
+      montoParaPegar: null,
+      transferencia: false,
+      cuenta: SIN_CUENTA,
+      link: null,
+      mercadoPago: false,
+      efectivo: false,
+      faltanLosDatos: false,
+      titulo: TITULO,
+      etiquetaDelImporte: ETIQUETA_DEL_IMPORTE[instancia],
+      pasos: PASOS_PARA_TRANSFERIR,
+      enEfectivo: '',
+      siguiente: null,
+      vencio,
+    };
+  }
 
   const pideTransferencia = ofrece(formas, 'transferencia');
   const transferencia = pideTransferencia && hayComoTransferir(cobro);
@@ -233,6 +282,7 @@ export function comoPagar(trabajo: TrabajoDelCliente): ComoPagar | null {
     pasos: PASOS_PARA_TRANSFERIR,
     enEfectivo: transferencia ? TAMBIEN_EFECTIVO[instancia] : SOLO_EFECTIVO[instancia],
     siguiente: elQueSigue(pago.siguiente),
+    vencio: null,
   };
 }
 
@@ -332,6 +382,34 @@ export interface RelevamientoPorHacer {
   valor: Money | null;
 }
 
+interface LoComunDelPresupuesto {
+  numero: string;
+  revision: number;
+  numeroVisible: string;
+  mandadoEl: string;
+  documento: DocumentoDelPresupuesto;
+  cuentas: readonly CuentaDeUnValor[];
+  nombreDelArchivo: string;
+}
+
+export interface PresupuestoMandado extends LoComunDelPresupuesto {
+  etapa: 'mandado';
+  queCambio: string | null;
+  valeHasta: string | null;
+  vencio: string | null;
+  mensajeParaElTaller: string;
+  pideLaSena: boolean;
+}
+
+export interface PresupuestoAceptado extends LoComunDelPresupuesto {
+  etapa: 'aceptado';
+  aceptadoEl: string | null;
+  letra: string | null;
+  acordado: Money | null;
+}
+
+export type PresupuestoDeLaVista = PresupuestoMandado | PresupuestoAceptado;
+
 export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
   etapa: 'antes-del-presupuesto';
   relevamientoPorHacer: RelevamientoPorHacer | null;
@@ -340,8 +418,10 @@ export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
 export interface VistaEsperandoLaSena extends LoComunDeLaVista {
   etapa: 'esperando-la-sena';
   presupuesto: Money | null;
+  opciones: number;
   sena: SenaDeLaVista;
   proyeccion: ProyeccionDeLaEntrega;
+  elPresupuesto: PresupuestoMandado | null;
 }
 
 export type EtapaAprobada = 'aprobado' | 'fabricacion' | 'listo' | 'entregado' | 'pagado';
@@ -354,6 +434,7 @@ export interface VistaAprobada extends LoComunDeLaVista {
   foco: FocoDeLaVista;
   datos: DatosDelTrabajo;
   coordinacion: CoordinacionDeLaEntrega | null;
+  elPresupuesto: PresupuestoAceptado | null;
 }
 
 export type VistaDelCliente = VistaAntesDelPresupuesto | VistaEsperandoLaSena | VistaAprobada;
@@ -443,6 +524,9 @@ export const SIGUE_CON_LA_COMPROMETIDA = 'Lo próximo que vas a ver acá es la e
 export const SIGUE_CON_EL_PRESUPUESTO_MANDADO = 'Lo próximo es que lo apruebes y dejes la seña.';
 
 export const SIGUE_CON_LA_SENA_CUBIERTA = 'Lo próximo es que lo apruebes.';
+
+export const SIGUE_CON_EL_PRESUPUESTO_VENCIDO =
+  'Lo próximo es que le escribas al taller para actualizarlo.';
 
 export const SIGUE_FALTA_LA_SENA = 'Lo próximo es que dejes la seña.';
 
@@ -608,13 +692,14 @@ export function relevamientoDelTrabajo(
 export function proyeccionDeLaEntrega(
   valeHasta: string | null,
   hoy: string,
+  plazo: number = DIAS_HABILES_DE_ENTREGA,
 ): ProyeccionDeLaEntrega {
   if (valeHasta === null) return { situacion: 'sin-fecha' };
   if (vencioElPresupuesto(valeHasta, hoy)) return { situacion: 'vencida', vencio: valeHasta };
   return {
     situacion: 'vigente',
     senarAntesDe: valeHasta,
-    listoPara: entregaEstimada(valeHasta),
+    listoPara: entregaEstimada(valeHasta, plazo),
   };
 }
 
@@ -642,6 +727,77 @@ export function textoDeLaProyeccion(
       ];
     }
   }
+}
+
+function presupuestoDe({
+  presupuesto,
+}: Partial<Pick<TrabajoDelCliente, 'presupuesto'>>): PresupuestoDelTrabajo | null {
+  return presupuesto ?? null;
+}
+
+function loComunDelPresupuesto(
+  presupuesto: PresupuestoDelTrabajo,
+  pagado: Money,
+): LoComunDelPresupuesto {
+  const { numero, revision, mandadoEl, documento } = presupuesto;
+  return {
+    numero,
+    revision,
+    numeroVisible: numeroVisible(numero, revision),
+    mandadoEl,
+    documento,
+    cuentas:
+      documento.valores === null
+        ? []
+        : cuentasDelPresupuesto(documento.valores, documento.senaBp, pagado),
+    nombreDelArchivo: nombreDelArchivo(documento, numero, revision),
+  };
+}
+
+function presupuestoMandado(
+  trabajo: TrabajoDelCliente,
+  pagado: Money,
+  hoy: string,
+): PresupuestoMandado | null {
+  const presupuesto = presupuestoDe(trabajo);
+  if (presupuesto === null) return null;
+  const comun = loComunDelPresupuesto(presupuesto, pagado);
+  const valeHasta = fechasDe(trabajo).valeHasta ?? null;
+  const vencio = vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
+  const [unica] = comun.cuentas;
+  return {
+    ...comun,
+    etapa: 'mandado',
+    queCambio: presupuesto.revision > 1 ? presupuesto.queCambio : null,
+    valeHasta,
+    vencio,
+    mensajeParaElTaller: mensajeParaElTaller(presupuesto.numero, presupuesto.revision),
+    pideLaSena:
+      vencio === null &&
+      presupuesto.documento.valores?.tipo === 'total' &&
+      unica !== undefined &&
+      unica.faltaParaLaSena > 0,
+  };
+}
+
+function presupuestoAceptado(
+  trabajo: TrabajoDelCliente,
+  pagado: Money,
+): PresupuestoAceptado | null {
+  const presupuesto = presupuestoDe(trabajo);
+  if (presupuesto === null) return null;
+  return {
+    ...loComunDelPresupuesto(presupuesto, pagado),
+    etapa: 'aceptado',
+    aceptadoEl: presupuesto.aceptadoEl,
+    letra: presupuesto.letra,
+    acordado: acordadoAlAprobar(presupuesto.documento.valores, trabajo.precio),
+  };
+}
+
+function opcionesMandadas(trabajo: TrabajoDelCliente): number {
+  const valores = presupuestoDe(trabajo)?.documento.valores ?? null;
+  return valores?.tipo === 'opciones' ? valores.opciones.length : 0;
 }
 
 function senaDelTrabajo(trabajo: TrabajoDelCliente, pagado: Money): SenaDeLaVista {
@@ -701,6 +857,7 @@ interface Contexto {
   aprobado: boolean;
   sena: SenaDeLaVista['situacion'];
   relevamiento: RelevamientoDeLaVista | null;
+  vencido: boolean;
 }
 
 function textoEnCurso(hito: HitoDelTrabajo, { trabajo, sena }: Contexto): string {
@@ -711,8 +868,12 @@ function textoEnCurso(hito: HitoDelTrabajo, { trabajo, sena }: Contexto): string
   return EN_CURSO[hito];
 }
 
-function loQueSigue(hito: HitoDelTrabajo, { trabajo, sena, relevamiento }: Contexto): string {
+function loQueSigue(
+  hito: HitoDelTrabajo,
+  { trabajo, sena, relevamiento, vencido }: Contexto,
+): string {
   if (hito === 'presupuesto' && trabajo.estado === 'presupuesto_enviado') {
+    if (vencido) return SIGUE_CON_EL_PRESUPUESTO_VENCIDO;
     return sena === 'cubierta' ? SIGUE_CON_LA_SENA_CUBIERTA : SIGUE_CON_EL_PRESUPUESTO_MANDADO;
   }
   if ((hito === 'estimativo' || hito === 'presupuesto') && relevamiento?.estado === 'pendiente') {
@@ -955,7 +1116,10 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
   const saldado = saldo !== null && saldo <= 0;
   const sena = senaDelTrabajo(trabajo, pagado);
   const relevamiento = relevamientoDelTrabajo(trabajo, hoy);
-  const contexto: Contexto = { trabajo, aprobado, sena: sena.situacion, relevamiento };
+  const vencido =
+    trabajo.estado === 'presupuesto_enviado' &&
+    vencioElPresupuesto(fechasDe(trabajo).valeHasta ?? null, hoy);
+  const contexto: Contexto = { trabajo, aprobado, sena: sena.situacion, relevamiento, vencido };
 
   const etapa = etapaDeLaVista(trabajo, saldado, hoy);
   const hitoActual = hitoDeLaEtapa(etapa, trabajo);
@@ -1032,7 +1196,7 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     pagos: trabajo.pagos,
     pagado,
     archivos: trabajo.archivos,
-    comoPagar: comoPagar(trabajo),
+    comoPagar: comoPagar(trabajo, hoy),
     vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
   };
 
@@ -1058,8 +1222,14 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
       ...comun,
       etapa,
       presupuesto: trabajo.precio,
+      opciones: opcionesMandadas(trabajo),
       sena,
-      proyeccion: proyeccionDeLaEntrega(fechasDe(trabajo).valeHasta ?? null, hoy),
+      proyeccion: proyeccionDeLaEntrega(
+        fechasDe(trabajo).valeHasta ?? null,
+        hoy,
+        plazoDelPresupuesto(presupuestoDe(trabajo)?.documento ?? null),
+      ),
+      elPresupuesto: presupuestoMandado(trabajo, pagado, hoy),
     };
   }
 
@@ -1072,6 +1242,7 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     foco: yaSeEntrego(etapa) && saldo !== null && saldo > 0 ? 'saldo' : 'estado',
     datos: datosDelTrabajo(trabajo, etapa, sena, hoy),
     coordinacion,
+    elPresupuesto: presupuestoAceptado(trabajo, pagado),
   };
 }
 

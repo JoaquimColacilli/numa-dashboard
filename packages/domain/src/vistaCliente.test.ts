@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { DIAS_HABILES_DE_ENTREGA, entregaEstimada, sumarDias, sumarDiasHabiles } from './fechas.ts';
-import { centavos, type Money } from './money.ts';
+import { centavos, puntosBasicos, type Money } from './money.ts';
 import type { FormaDeCobro } from './pagos.ts';
+import {
+  documentoDelPresupuesto,
+  PLANTILLA_DE_SIEMPRE,
+  soloLaAceptada,
+  tildadasPorDefecto,
+  valoresDelTrabajo,
+  type BorradorDelPresupuesto,
+  type DocumentoDelPresupuesto,
+} from './presupuesto.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 import {
   APROBADO_SIN_LA_SENA,
@@ -115,6 +124,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     archivos: [],
     vidriera: VIDRIERA_VACIA,
     valorDelRelevamiento: null,
+    presupuesto: null,
     ...cambios,
   };
 }
@@ -929,7 +939,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
   };
 
   it('con todo pagado no hay nada que ofrecer', () => {
-    expect(comoPagar(trabajo())).toBeNull();
+    expect(comoPagar(trabajo(), HOY)).toBeNull();
   });
 
   it('por transferencia arma el importe listo para pegar en el banco, con la cuenta', () => {
@@ -943,6 +953,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: null,
         },
       }),
+      HOY,
     );
     expect(como).toMatchObject({
       instancia: 'sena',
@@ -972,6 +983,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: null,
         },
       }),
+      HOY,
     );
     expect(como).toMatchObject({ transferencia: false, efectivo: true });
     expect(como?.cuenta).toEqual({ alias: null, cbu: null, titular: null, cuit: null });
@@ -989,6 +1001,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: null,
         },
       }),
+      HOY,
     );
     expect(como).toMatchObject({ transferencia: true, efectivo: true });
     expect(como?.enEfectivo).toContain('también');
@@ -1004,6 +1017,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: null,
         },
       }),
+      HOY,
     );
     expect(como).toMatchObject({ transferencia: false, efectivo: false, faltanLosDatos: true });
   });
@@ -1020,6 +1034,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: null,
         },
       }),
+      HOY,
     );
     expect(como?.monto).toBeNull();
     expect(como?.montoParaPegar).toBeNull();
@@ -1036,6 +1051,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: { instancia: 'saldo', formas: ['efectivo'], monto: centavos(80_000_000) },
         },
       }),
+      HOY,
     );
 
     expect(como?.siguiente).toEqual({
@@ -1057,6 +1073,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: { instancia: 'saldo', formas: ['transferencia', 'efectivo'], monto: null },
         },
       }),
+      HOY,
     );
     expect(conLasDos?.siguiente?.comoSePaga).toBe('por transferencia o en efectivo');
 
@@ -1070,6 +1087,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
           siguiente: { instancia: 'saldo', formas: ['transferencia'], monto: centavos(2) },
         },
       }),
+      HOY,
     );
     expect(soloTransferencia?.siguiente?.comoSePaga).toBe('por transferencia');
   });
@@ -1080,6 +1098,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
         cobro: CUENTA,
         pago: { instancia: 'saldo', formas: ['efectivo'], monto: centavos(1), siguiente: null },
       }),
+      HOY,
     );
 
     expect(como?.siguiente).toBeNull();
@@ -1097,6 +1116,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
             cobro: CUENTA,
             pago: { instancia, formas, monto: centavos(1_000), siguiente: null },
           }),
+          HOY,
         );
         expect(JSON.stringify(como)).not.toMatch(/arregl/i);
       }
@@ -1110,7 +1130,7 @@ describe('cómo puede pagar el cliente lo que le toca', () => {
       sena: centavos(SENA),
       pago: PIDE_LA_SENA,
     });
-    expect(vistaDelCliente(entrada, HOY).comoPagar).toEqual(comoPagar(entrada));
+    expect(vistaDelCliente(entrada, HOY).comoPagar).toEqual(comoPagar(entrada, HOY));
   });
 });
 
@@ -1137,6 +1157,7 @@ describe('el link de Mercado Pago del taller', () => {
         cobro,
         pago: { instancia: 'sena', formas, monto: centavos(45_000_000), siguiente: null },
       }),
+      HOY,
     );
   }
 
@@ -1203,8 +1224,8 @@ describe('un trabajo guardado por una versión vieja de la app', () => {
     const { pago: _pago, ...viejo } = trabajo();
     const comoLoGuardoLaVersionVieja = viejo as unknown as TrabajoDelCliente;
 
-    expect(() => comoPagar(comoLoGuardoLaVersionVieja)).not.toThrow();
-    expect(comoPagar(comoLoGuardoLaVersionVieja)).toBeNull();
+    expect(() => comoPagar(comoLoGuardoLaVersionVieja, HOY)).not.toThrow();
+    expect(comoPagar(comoLoGuardoLaVersionVieja, HOY)).toBeNull();
     expect(() => vistaDelCliente(comoLoGuardoLaVersionVieja, HOY)).not.toThrow();
   });
 
@@ -1232,7 +1253,7 @@ describe('un trabajo guardado por una versión vieja de la app', () => {
         siguiente: null,
       },
     });
-    expect(comoPagar(viejo as unknown as TrabajoDelCliente)).toBeNull();
+    expect(comoPagar(viejo as unknown as TrabajoDelCliente, HOY)).toBeNull();
   });
 
   it('sin «pago», o con la seña pedida sin importe, la seña no se da por cubierta', () => {
@@ -2592,5 +2613,295 @@ describe('el mueble listo y la entrega que se coordina', () => {
     expect(vista.etapa).toBe('fabricacion');
     expect(vista.coordinacion).toBeNull();
     expect(vista.titular).toBe('Lo estamos fabricando');
+  });
+});
+
+const TOTAL_DEL_PRESUPUESTO = 218_100_000;
+const SENA_DEL_PRESUPUESTO = 109_050_000;
+const VALE_HASTA = '2026-09-25';
+
+const OPCION_A = {
+  id: '0199a1b2-0000-7000-8000-00000000000a',
+  descripcion: 'Frentes en melamina Blanco (Egger).',
+  monto: centavos(218_100_000),
+};
+
+const OPCION_B = {
+  id: '0199a1b2-0000-7000-8000-00000000000b',
+  descripcion: 'Frentes laqueados blanco mate.',
+  monto: centavos(274_000_000),
+};
+
+const BORRADOR_DEL_PRESUPUESTO: BorradorDelPresupuesto = {
+  forma: 1,
+  titulo: 'Cocina',
+  obra: 'Arenales 1840, Palermo',
+  descripcion: '',
+  muebles: [{ id: 'm1', nombre: 'Bajomesada en L', descripcion: 'Bajomesada en L 2.07 x 1.83.' }],
+  herrajes: { mostrar: true, lista: [] },
+  aTenerEnCuenta: { tildadas: [], propias: [] },
+  incluye: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.incluye),
+  formaDePago: { plantillaId: 'sena-y-entrega', texto: null },
+  plazoDeFabricacion: 35,
+  validezDias: 15,
+  avisos: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.avisos),
+  condiciones: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.condiciones),
+};
+
+function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
+  return documentoDelPresupuesto(
+    {
+      borrador: BORRADOR_DEL_PRESUPUESTO,
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      taller: {
+        nombre: 'Taller MAUN',
+        titular: 'Julián Ferro',
+        cuit: '20-12345678-6',
+        condicionFiscal: 'monotributo',
+        domicilio: 'Pasaje Los Robles 450, CABA',
+        telefono: '11 4000-1234',
+        email: '',
+      },
+      cliente: 'Paula Benítez',
+      valores: valoresDelTrabajo(
+        centavos(TOTAL_DEL_PRESUPUESTO),
+        conOpciones ? [OPCION_B, OPCION_A] : [],
+      ),
+      senaBp: puntosBasicos(5_000),
+      abonado: centavos(RELEVAMIENTO),
+    },
+    {
+      pesos: (importe) => `$${String(importe / 100)}`,
+      porcentaje: (puntos) => String(puntos / 100),
+    },
+  );
+}
+
+function mandado(
+  cambios: Partial<TrabajoDelCliente> = {},
+  revision = 2,
+  conOpciones = false,
+): TrabajoDelCliente {
+  return trabajo({
+    estado: 'presupuesto_enviado',
+    precio: conOpciones ? null : centavos(TOTAL_DEL_PRESUPUESTO),
+    sena: conOpciones ? null : centavos(SENA_DEL_PRESUPUESTO),
+    pago: {
+      instancia: 'sena',
+      formas: ['transferencia', 'efectivo'],
+      monto: conOpciones ? null : centavos(SENA_DEL_PRESUPUESTO - RELEVAMIENTO - 8_000_000),
+      siguiente: null,
+    },
+    cobro: { alias: 'taller.prueba', cbu: null, titular: null, cuit: null, link: null },
+    fechas: fechas({ presupuesto: '2026-08-26', valeHasta: VALE_HASTA }),
+    pagos: [
+      pago('relevamiento', '2026-08-19', RELEVAMIENTO, 'Relevamiento técnico'),
+      pago('otro', '2026-09-01', 8_000_000),
+    ],
+    presupuesto: {
+      numero: '20260826-01',
+      revision,
+      mandadoEl: '2026-09-02',
+      queCambio: 'Pasamos la alacena a Gris Grafito.',
+      documento: documentoMandado(conOpciones),
+      aceptadoEl: null,
+      letra: null,
+    },
+    ...cambios,
+  });
+}
+
+describe('el presupuesto en la página del cliente', () => {
+  it('esperando la seña trae la última revisión, con su número y las cuentas con los pagos de hoy', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado(), HOY));
+    expect(vista.elPresupuesto).toMatchObject({
+      etapa: 'mandado',
+      numero: '20260826-01',
+      revision: 2,
+      numeroVisible: 'Nº 20260826-01 · Rev. 2',
+      mandadoEl: '2026-09-02',
+      queCambio: 'Pasamos la alacena a Gris Grafito.',
+      valeHasta: VALE_HASTA,
+      vencio: null,
+      mensajeParaElTaller: 'Hola, te escribo por el presupuesto Nº 20260826-01 Rev. 2.',
+      nombreDelArchivo: 'Presupuesto 20260826-01 Rev 2 - Paula Benítez.pdf',
+      pideLaSena: true,
+    });
+    expect(vista.elPresupuesto?.documento.abonado).toBe(RELEVAMIENTO);
+    expect(vista.elPresupuesto?.cuentas).toEqual([
+      {
+        id: null,
+        letra: null,
+        descripcion: '',
+        total: TOTAL_DEL_PRESUPUESTO,
+        sena: SENA_DEL_PRESUPUESTO,
+        pagado: RELEVAMIENTO + 8_000_000,
+        faltaParaLaSena: SENA_DEL_PRESUPUESTO - RELEVAMIENTO - 8_000_000,
+        saldo: TOTAL_DEL_PRESUPUESTO - SENA_DEL_PRESUPUESTO,
+      },
+    ]);
+    expect(vista.opciones).toBe(0);
+  });
+
+  it('la primera revisión no dice qué cambió', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado({}, 1), HOY));
+    expect(vista.elPresupuesto).toMatchObject({
+      numeroVisible: 'Nº 20260826-01',
+      queCambio: null,
+      nombreDelArchivo: 'Presupuesto 20260826-01 - Paula Benítez.pdf',
+    });
+  });
+
+  it('con la seña ya cubierta no la pide', () => {
+    const cubierta = mandado({
+      pagos: [pago('todo', '2026-09-01', SENA_DEL_PRESUPUESTO)],
+      pago: { instancia: 'saldo', formas: ['efectivo'], monto: null, siguiente: null },
+    });
+    expect(esperandoLaSena(vistaDelCliente(cubierta, HOY)).elPresupuesto?.pideLaSena).toBe(false);
+  });
+
+  it('con opciones, «Tu mueble» cuenta las opciones y el presupuesto las trae a todas', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado({}, 1, true), HOY));
+    expect(vista.opciones).toBe(2);
+    expect(vista.elPresupuesto?.cuentas.map(({ letra, total }) => [letra, total])).toEqual([
+      ['A', OPCION_A.monto],
+      ['B', OPCION_B.monto],
+    ]);
+    expect(vista.elPresupuesto?.pideLaSena).toBe(false);
+  });
+
+  it('«Para cuándo» cuenta con el plazo de la última revisión, no con los 21 días hábiles', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado(), HOY));
+    expect(vista.proyeccion).toEqual({
+      situacion: 'vigente',
+      senarAntesDe: VALE_HASTA,
+      listoPara: sumarDiasHabiles(VALE_HASTA, 35),
+    });
+  });
+
+  it('sin presupuesto armado en la app, «Para cuándo» sigue con los 21 días hábiles', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado({ presupuesto: null }), HOY));
+    expect(vista.proyeccion).toMatchObject({
+      listoPara: sumarDiasHabiles(VALE_HASTA, DIAS_HABILES_DE_ENTREGA),
+    });
+    expect(vista.elPresupuesto).toBeNull();
+  });
+
+  it('vencido: la sección lo marca, «Cómo pagar» deja de pedir la seña y lo próximo es escribirle al taller', () => {
+    const vencio = '2026-09-26';
+    const vista = esperandoLaSena(vistaDelCliente(mandado(), vencio));
+    expect(vista.elPresupuesto).toMatchObject({ vencio: VALE_HASTA, pideLaSena: false });
+    expect(vista.comoPagar).toMatchObject({
+      instancia: 'sena',
+      monto: null,
+      montoParaPegar: null,
+      transferencia: false,
+      efectivo: false,
+      link: null,
+      siguiente: null,
+      vencio: VALE_HASTA,
+    });
+    expect(vista.proyeccion).toEqual({ situacion: 'vencida', vencio: VALE_HASTA });
+    expect(vista.sigue).toBe('Lo próximo es que le escribas al taller para actualizarlo.');
+  });
+
+  it('vencido, lo próximo ya no es dejar la seña: es escribirle al taller', () => {
+    const vista = vistaDelCliente(mandado({ presupuesto: null }), '2026-09-26');
+    expect(vista.sigue).toBe('Lo próximo es que le escribas al taller para actualizarlo.');
+  });
+
+  it('vencido sin presupuesto armado en la app, «Cómo pagar» tampoco pide la seña', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado({ presupuesto: null }), '2026-09-26'));
+    expect(vista.comoPagar?.monto).toBeNull();
+    expect(vista.comoPagar?.vencio).toBe(VALE_HASTA);
+  });
+
+  it('el día mismo del vencimiento todavía vale', () => {
+    const vista = esperandoLaSena(vistaDelCliente(mandado(), VALE_HASTA));
+    expect(vista.comoPagar?.vencio).toBeNull();
+    expect(vista.elPresupuesto?.vencio).toBeNull();
+  });
+
+  it('aprobado, una fecha de vigencia que ya pasó no le saca la seña a «Cómo pagar»', () => {
+    const vista = vistaDelCliente(mandado({ estado: 'en_curso' }), '2026-09-26');
+    expect(vista.comoPagar?.vencio).toBeNull();
+    expect(vista.comoPagar?.monto).not.toBeNull();
+  });
+
+  it('aprobado, trae la revisión con la opción aceptada, el día y la letra', () => {
+    const aceptado = mandado(
+      {
+        estado: 'en_curso',
+        precio: OPCION_A.monto,
+        presupuesto: {
+          numero: '20260826-01',
+          revision: 2,
+          mandadoEl: '2026-09-02',
+          queCambio: null,
+          documento: soloLaAceptada(documentoMandado(true), OPCION_A.id),
+          aceptadoEl: '2026-09-04',
+          letra: 'A',
+        },
+      },
+      2,
+      true,
+    );
+    const vista = aprobada(vistaDelCliente(aceptado, HOY));
+    expect(vista.elPresupuesto).toMatchObject({
+      etapa: 'aceptado',
+      aceptadoEl: '2026-09-04',
+      letra: 'A',
+      acordado: null,
+      numeroVisible: 'Nº 20260826-01 · Rev. 2',
+    });
+    expect(vista.elPresupuesto?.cuentas).toHaveLength(1);
+  });
+
+  it('si se aprobó otro importe que el de lo mandado, dice lo acordado al aprobar', () => {
+    const aceptado = mandado({ estado: 'en_curso', precio: centavos(200_000_000) });
+    const vista = aprobada(vistaDelCliente(aceptado, HOY));
+    expect(vista.elPresupuesto?.acordado).toBe(200_000_000);
+  });
+
+  it('una opción aprobada que no estaba en lo mandado: sin cuentas y con lo acordado', () => {
+    const documento = soloLaAceptada(documentoMandado(true), 'otra-opcion');
+    const aceptado = mandado({
+      estado: 'en_curso',
+      precio: centavos(250_000_000),
+      presupuesto: {
+        numero: '20260826-01',
+        revision: 2,
+        mandadoEl: '2026-09-02',
+        queCambio: null,
+        documento,
+        aceptadoEl: '2026-09-04',
+        letra: null,
+      },
+    });
+    const vista = aprobada(vistaDelCliente(aceptado, HOY));
+    expect(vista.elPresupuesto?.cuentas).toEqual([]);
+    expect(vista.elPresupuesto?.acordado).toBe(250_000_000);
+  });
+
+  it('una vista de antes, sin la fecha de vigencia, no da el presupuesto por vencido', () => {
+    const { valeHasta: _valeHasta, ...fechasViejas } = fechas({ presupuesto: '2026-08-26' });
+    const viejo = { ...mandado(), fechas: fechasViejas } as unknown as TrabajoDelCliente;
+    const vista = esperandoLaSena(vistaDelCliente(viejo, HOY));
+    expect(vista.elPresupuesto).toMatchObject({ valeHasta: null, vencio: null, pideLaSena: true });
+  });
+
+  it('antes del presupuesto no hay sección', () => {
+    const vista = vistaDelCliente(mandado({ estado: 'a_presupuestar' }), HOY);
+    expect(vista.etapa).toBe('antes-del-presupuesto');
+    expect('elPresupuesto' in vista).toBe(false);
+  });
+
+  it('una vista sin la clave del presupuesto se lee como sin presupuesto', () => {
+    const { presupuesto: _presupuesto, ...viejo } = mandado();
+    const vista = esperandoLaSena(vistaDelCliente(viejo, HOY));
+    expect(vista.elPresupuesto).toBeNull();
+    expect(vista.opciones).toBe(0);
+    const aprobado = aprobada(vistaDelCliente({ ...viejo, estado: 'en_curso' }, HOY));
+    expect(aprobado.elPresupuesto).toBeNull();
   });
 });
