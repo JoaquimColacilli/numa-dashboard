@@ -184,7 +184,5 @@ export const paginaProyectos = {
     volverAlTrabajo: 'Volver al trabajo',
     volverA: (trabajo: string) => `Volver a «${trabajo}»`,
     sinSenal: 'Sin señal: esto es lo último que trajimos. Puede no estar al día.',
-    noEsta: 'Ese trabajo no está',
-    noEstaTexto: 'Puede que lo hayas borrado, o que el enlace apunte a un trabajo de otro taller.',
   },
 } as const;

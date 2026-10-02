@@ -1,12 +1,6 @@
-import {
-  HITO_DEL_ESTIMATIVO,
-  LISTO_PARA_ENTREGAR,
-  NOTA_DEL_RELEVAMIENTO,
-  RELEVAMIENTO_TECNICO,
-  TITULAR_LISTO,
-} from '@maun/domain';
 import { useState } from 'react';
 
+import { MENSAJES_DEL_CLIENTE_EN_CASTELLANO } from '@/shared/idioma-del-cliente';
 import { useAnchoDePantalla } from '@/shared/lib';
 import { Button, ConSalida, Hoja, Icono, type NombreDeIcono } from '@/shared/ui';
 
@@ -25,6 +19,14 @@ interface Lamina {
   filas: readonly Fila[];
   pie?: string;
 }
+
+const {
+  hitos,
+  listoParaEntregar: LISTO_PARA_ENTREGAR,
+  nota: NOTA_DEL_RELEVAMIENTO,
+  relevamientoTecnico: RELEVAMIENTO_TECNICO,
+  titularListo: TITULAR_LISTO,
+} = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio;
 
 const LAMINAS: readonly Lamina[] = [
   {
@@ -75,7 +77,7 @@ const LAMINAS: readonly Lamina[] = [
       {
         clave: 'estimativo',
         icono: 'send',
-        titulo: HITO_DEL_ESTIMATIVO.etiqueta,
+        titulo: hitos.estimativo.etiqueta,
         texto:
           'Solo si le mandaste un estimativo: le aparece tildado, como un paso antes del presupuesto, con el día que tocaste «Mandé el estimativo», y el presupuesto queda en curso. El número no lo ve nunca.',
       },

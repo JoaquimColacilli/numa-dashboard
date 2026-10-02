@@ -1,4 +1,4 @@
-import { vistaDelCliente, type TrabajoDelCliente, type VistaDelCliente } from '@maun/domain';
+import type { TrabajoDelCliente } from '@maun/domain';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -34,7 +34,7 @@ export type ResultadoDeLaVista =
   | { estado: 'sin-senal' }
   | { estado: 'muerto' }
   | { estado: 'error'; reintentar: () => void }
-  | { estado: 'lista'; vista: VistaDelCliente };
+  | { estado: 'lista'; trabajo: TrabajoDelCliente; hoy: string };
 
 function resultado(
   consulta: {
@@ -47,7 +47,7 @@ function resultado(
   hoy: string,
 ): ResultadoDeLaVista {
   if (consulta.data !== undefined) {
-    return { estado: 'lista', vista: vistaDelCliente(consulta.data, hoy) };
+    return { estado: 'lista', trabajo: consulta.data, hoy };
   }
   if (consulta.error !== null && elEnlaceNoSirve(consulta.error)) return { estado: 'muerto' };
   if (consulta.isPaused) return { estado: 'sin-senal' };

@@ -17,7 +17,7 @@ const CONDICIONES = ['@maun/source', 'types', 'import', 'default'];
 
 const TEXTOS = { rules: { 'sin-texto-suelto': sinTextoSuelto } };
 
-const CATALOGOS_DE_LA_APP = 'src/shared/idioma/{es,en,pt-BR}/**';
+const CATALOGOS = 'src/shared/{idioma,idioma-del-cliente}/{es,en,pt-BR}/**';
 
 const PROHIBIDO_EN_TODO_EL_REPO = [
   { regex: '^@maun/web(/|$)', message: '@maun/web es la app: ningún paquete importa de ella.' },
@@ -329,7 +329,7 @@ export function web(dir, { zonasQueFaltan = [] } = {}) {
       files: ['src/**/*.tsx'],
       ignores: [
         'src/**/*.test.tsx',
-        CATALOGOS_DE_LA_APP,
+        CATALOGOS,
         ...zonasQueFaltan.map((zona) => (zona.endsWith('/') ? `${zona}**` : zona)),
       ],
       plugins: { maun: TEXTOS },

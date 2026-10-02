@@ -1,6 +1,8 @@
 import { centavos, VIDRIERA_VACIA, vistaDelCliente, type TrabajoDelCliente } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
+import { MENSAJES_DEL_CLIENTE_EN_CASTELLANO } from '@/shared/idioma-del-cliente';
+
 import { etapaDelDibujo } from './etapa';
 
 const HOY = '2026-09-18';
@@ -39,7 +41,9 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
 }
 
 function dibujo(cambios: Partial<TrabajoDelCliente>) {
-  return etapaDelDibujo(vistaDelCliente(trabajo(cambios), HOY));
+  return etapaDelDibujo(
+    vistaDelCliente(trabajo(cambios), HOY, MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio),
+  );
 }
 
 describe('etapaDelDibujo', () => {

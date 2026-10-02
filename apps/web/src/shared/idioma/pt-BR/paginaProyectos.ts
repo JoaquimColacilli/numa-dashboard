@@ -188,8 +188,5 @@ export const paginaProyectos = {
     volverAlTrabajo: 'Voltar ao projeto',
     volverA: (trabajo) => `Voltar para “${trabajo}”`,
     sinSenal: 'Sem internet: isto é o último que carregamos. Pode não estar atualizado.',
-    noEsta: 'Esse projeto não está aqui',
-    noEstaTexto:
-      'Talvez você tenha excluído, ou o link aponta para um projeto de outra marcenaria.',
   },
 } satisfies Mensajes['paginaProyectos'];

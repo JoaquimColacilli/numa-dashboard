@@ -186,7 +186,5 @@ export const paginaProyectos = {
     volverAlTrabajo: 'Back to the job',
     volverA: (trabajo) => `Back to “${trabajo}”`,
     sinSenal: "You're offline: this is the last version we loaded. It may be out of date.",
-    noEsta: "That job isn't here",
-    noEstaTexto: 'You may have deleted it, or the link points to a job from another shop.',
   },
 } satisfies Mensajes['paginaProyectos'];

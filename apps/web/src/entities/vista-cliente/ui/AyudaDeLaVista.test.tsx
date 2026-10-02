@@ -1,15 +1,22 @@
-import {
-  HITO_DEL_ESTIMATIVO,
-  HITOS,
-  LISTO_PARA_ENTREGAR,
-  NOTA_DEL_RELEVAMIENTO,
-  RELEVAMIENTO_TECNICO,
-  TITULAR_LISTO,
-} from '@maun/domain';
+import { HITOS_DEL_CAMINO } from '@maun/domain';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MENSAJES_DEL_CLIENTE_EN_CASTELLANO } from '@/shared/idioma-del-cliente';
+
 import { AyudaDeLaVista } from './AyudaDeLaVista';
+
+const {
+  hitos,
+  listoParaEntregar: LISTO_PARA_ENTREGAR,
+  nota: NOTA_DEL_RELEVAMIENTO,
+  relevamientoTecnico: RELEVAMIENTO_TECNICO,
+  titularListo: TITULAR_LISTO,
+} = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio;
+
+const HITO_DEL_ESTIMATIVO = hitos.estimativo;
+
+const HITOS = HITOS_DEL_CAMINO.map((id) => hitos[id]);
 
 function abrir(): void {
   render(<AyudaDeLaVista />);

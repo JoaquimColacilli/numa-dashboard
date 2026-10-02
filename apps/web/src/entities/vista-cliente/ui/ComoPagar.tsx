@@ -1,11 +1,6 @@
-import {
-  claveBancariaDe,
-  formatearCbu,
-  O_POR_MERCADO_PAGO,
-  PEDILE_LOS_DATOS,
-  type ComoPagar as Como,
-} from '@maun/domain';
+import { claveBancariaDe, formatearCbu, type ComoPagar as Como } from '@maun/domain';
 
+import { useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import { fechaLarga, formatearPesos } from '@/shared/lib';
 import { DatoCopiable, Icono, LogoDeMercadoPago } from '@/shared/ui';
 
@@ -28,9 +23,10 @@ function DespuesViene({ siguiente }: { siguiente: NonNullable<Como['siguiente']>
 }
 
 function PorMercadoPago({ link }: { link: string }) {
+  const m = useMensajesDelCliente();
   return (
     <div className="mt-2.5 border-t border-hairline-soft pt-2.5">
-      <p className="text-label leading-relaxed text-text-2">{O_POR_MERCADO_PAGO}</p>
+      <p className="text-label leading-relaxed text-text-2">{m.vista.comoPagar.oPorMercadoPago}</p>
       <a
         href={link}
         target="_blank"
@@ -57,6 +53,7 @@ function ElPresupuestoVencio({ vencio, hoy }: { vencio: string; hoy: string }) {
 }
 
 export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
+  const m = useMensajesDelCliente();
   if (como === null) return null;
   if (como.vencio === null && !como.transferencia && !como.efectivo && !como.faltanLosDatos) {
     return null;
@@ -134,7 +131,9 @@ export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
       )}
 
       {como.faltanLosDatos && (
-        <p className="mt-1.5 text-label leading-relaxed text-text-2">{PEDILE_LOS_DATOS}</p>
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">
+          {m.vista.comoPagar.pedileLosDatos}
+        </p>
       )}
 
       {como.link !== null && <PorMercadoPago link={como.link} />}

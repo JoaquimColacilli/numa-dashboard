@@ -14,6 +14,7 @@ import {
 import { useId, useState } from 'react';
 
 import { urlDelArchivo } from '@/shared/api';
+import { useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import { diaYMesCorto, fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
 import {
   ConSalida,
@@ -320,10 +321,12 @@ function ParaCuando({
   sena: SenaDeLaVista;
   hoy: string;
 }) {
+  const m = useMensajesDelCliente();
   const [principal, ...resto] = textoDeLaProyeccion(
     proyeccion,
     { enUnaFrase: (fecha) => fechaEnUnaFrase(fecha, hoy) },
     sena.situacion,
+    m.vista.delDominio.proyeccion,
   );
   return (
     <section aria-label="Para cuándo">
@@ -393,13 +396,18 @@ function CierreDeLosPagos({ vista }: { vista: Vista }) {
 }
 
 export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) {
+  const m = useMensajesDelCliente();
   const [anuncio, setAnuncio] = useState('');
   const visor = useVisor();
   const coordinacion = coordinacionConPedido(vista);
-  const nota = notaDelRelevamiento(vista, {
-    larga: (fecha) => fechaLarga(fecha, hoy),
-    corta: diaYMesCorto,
-  });
+  const nota = notaDelRelevamiento(
+    vista,
+    {
+      larga: (fecha) => fechaLarga(fecha, hoy),
+      corta: diaYMesCorto,
+    },
+    m.vista.delDominio.nota,
+  );
 
   const visuales = vista.archivos.filter(esImagen);
   const documentos = vista.archivos.filter((archivo) => !esImagen(archivo));

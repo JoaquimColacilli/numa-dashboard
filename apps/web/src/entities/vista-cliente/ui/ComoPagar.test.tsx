@@ -1,7 +1,5 @@
 import {
   centavos,
-  PASOS_PARA_TRANSFERIR,
-  PEDILE_LOS_DATOS,
   VIDRIERA_VACIA,
   vistaDelCliente,
   type CobroDelTaller,
@@ -12,7 +10,17 @@ import {
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  ConElIdiomaDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
+
 import { EL_PAGO_SE_COORDINA, LOS_PAGOS_LOS_ANOTA_EL_TALLER } from '../model/textos';
+
+const PASOS_PARA_TRANSFERIR =
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio.comoPagar.pasosParaTransferir;
+
+const PEDILE_LOS_DATOS = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.comoPagar.pedileLosDatos;
 import { PAGAR_CON_MERCADO_PAGO } from './ComoPagar';
 import { VistaDelCliente } from './VistaDelCliente';
 
@@ -93,7 +101,14 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}, pago: Pago = {}): Tra
 }
 
 function dibujar(datos: TrabajoDelCliente) {
-  return render(<VistaDelCliente vista={vistaDelCliente(datos, HOY)} hoy={HOY} />);
+  return render(
+    <ConElIdiomaDelCliente idioma="es">
+      <VistaDelCliente
+        vista={vistaDelCliente(datos, HOY, MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio)}
+        hoy={HOY}
+      />
+    </ConElIdiomaDelCliente>,
+  );
 }
 
 function elBloque() {

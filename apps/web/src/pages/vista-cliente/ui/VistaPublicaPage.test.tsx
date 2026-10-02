@@ -33,9 +33,20 @@ describe('la pestaña de la página del cliente', () => {
   it('dice el trabajo y el taller, como la vista previa del enlace', () => {
     abrir({
       estado: 'lista',
-      vista: { titulo: 'Cocina Lucas', taller: 'MAUN Muebles' },
+      trabajo: { trabajo: 'Cocina Lucas', taller: 'MAUN Muebles', idioma: 'es' },
+      hoy: '2026-10-02',
     } as unknown as ResultadoDeLaVista);
     expect(document.title).toBe('Cocina Lucas · MAUN Muebles');
+  });
+
+  it('el lang de la página es el de los clientes del taller cuando llega el trabajo', () => {
+    abrir({
+      estado: 'lista',
+      trabajo: { trabajo: 'Cozinha Lucas', taller: 'MAUN Muebles', idioma: 'pt-BR' },
+      hoy: '2026-10-02',
+    } as unknown as ResultadoDeLaVista);
+    expect(document.documentElement.lang).toBe('pt-BR');
+    document.documentElement.lang = 'es-AR';
   });
 
   it('mientras carga, o si el enlace no sirve, dice el nombre del taller de siempre, nunca NUMA', () => {

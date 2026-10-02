@@ -147,6 +147,9 @@
     },
     "LienzoPerezoso": {
       "alineado": "cómo se alinea el plano en el lienzo"
+    },
+    "PantallaDeLaVista": {
+      "elQueNoEsta": "qué no está: el enlace dado de baja o el trabajo borrado"
     }
   }
 }

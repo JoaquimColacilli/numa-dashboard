@@ -9,6 +9,11 @@ import {
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  ConElIdiomaDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
+
 import type { MandarLaEntrega, ResultadoDeMandar } from '../model/mandar';
 import {
   ACA_NO_SE_GUARDA_NADA,
@@ -73,11 +78,17 @@ function trabajo(entrega: Partial<EntregaQueSeCoordina>): TrabajoDelCliente {
 
 function dibujar(entrega: Partial<EntregaQueSeCoordina>, alMandar?: MandarLaEntrega) {
   return render(
-    <VistaDelCliente
-      vista={vistaDelCliente(trabajo(entrega), HOY)}
-      hoy={HOY}
-      alMandar={alMandar}
-    />,
+    <ConElIdiomaDelCliente idioma="es">
+      <VistaDelCliente
+        vista={vistaDelCliente(
+          trabajo(entrega),
+          HOY,
+          MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio,
+        )}
+        hoy={HOY}
+        alMandar={alMandar}
+      />
+    </ConElIdiomaDelCliente>,
   );
 }
 

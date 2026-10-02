@@ -14,52 +14,19 @@ import {
 } from './presupuesto.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 import {
-  APROBADO_SIN_LA_SENA,
-  APROBASTE_EL_PRESUPUESTO,
-  ARMAMOS_EL_PRESUPUESTO,
-  CERRANDO_EL_PRESUPUESTO,
-  comoPagar,
-  COORDINAMOS_LA_ENTREGA,
-  COORDINAMOS_LA_ENTREGA_AL_APROBAR,
-  CUANDO_DEJES_LA_SENA,
-  CUANDO_LO_APRUEBES,
-  EMPEZAMOS_A_FABRICARLO,
+  comoPagar as comoPagarCon,
   estaAprobada,
-  FALTA_MEDIR_DEL_ESTIMADO,
-  FUIMOS_A_MEDIR,
-  HITO_DEL_ESTIMATIVO,
-  HITOS,
-  LISTO_PARA_ENTREGAR,
+  HITOS_DEL_CAMINO,
   llegoAl,
-  LO_LLEVAMOS_Y_LO_INSTALAMOS,
-  NOTA_DEL_RELEVAMIENTO,
-  notaDelRelevamiento,
-  PASOS_PARA_TRANSFERIR,
-  PRESUPUESTO_MANDADO,
+  notaDelRelevamiento as notaDelRelevamientoCon,
   proyeccionDeLaEntrega,
-  QUE_ES_EL_RELEVAMIENTO,
-  RECIBIMOS_TU_PAGO,
-  RELEVAMIENTO_TECNICO,
-  RESUMEN_FALTA_MEDIR,
-  SIGUE,
-  SIGUE_CON_EL_PRESUPUESTO_MANDADO,
-  SIGUE_CON_LA_COMPROMETIDA,
-  SIGUE_CON_LA_SENA_CUBIERTA,
-  SIGUE_FALTA_LA_SENA,
-  SIGUE_FALTA_MEDIR,
-  SIGUE_LISTO,
-  SIN_FECHA_PARA_LA_VISITA,
-  TE_PASAMOS_EL_ESTIMATIVO,
-  TE_PASAMOS_EL_PRESUPUESTO,
-  TERMINAMOS_TU_MUEBLE,
-  textoDeLaProyeccion,
-  TITULAR_DEL_APROBADO,
-  TITULAR_LISTO,
+  textoDeLaProyeccion as textoDeLaProyeccionCon,
   tuvoEstimativo,
-  VAMOS_TOMANDO_LOS_TRABAJOS,
-  vistaDelCliente,
+  vistaDelCliente as vistaDelClienteCon,
   hayComoTransferir,
-  YA_ESTA_PAGADO,
+  type TextosDeLaVista,
+  type ProyeccionDeLaEntrega,
+  type SenaDeLaVista,
   type CobroDelTaller,
   type ComprometidaDelTrabajo,
   type EntregaQueSeCoordina,
@@ -80,6 +47,192 @@ import {
   type VistaDelCliente,
   type VistaEsperandoLaSena,
 } from './vistaCliente.ts';
+
+const TEXTOS: TextosDeLaVista = {
+  hitos: {
+    estimativo: {
+      etiqueta: 'Te pasamos un número estimado',
+      futuro: 'Te pasamos un número estimado',
+    },
+    presupuesto: { etiqueta: 'Presupuesto enviado', futuro: 'Te vamos a pasar el presupuesto' },
+    aprobado: { etiqueta: 'Aprobado, seña cobrada', futuro: 'Cuando lo apruebes y dejes la seña' },
+    fabricacion: { etiqueta: 'En fabricación', futuro: 'Vamos a empezar a fabricarlo' },
+    entregado: { etiqueta: 'Entregado', futuro: 'Lo llevamos y lo instalamos' },
+    pagado: { etiqueta: 'Pagado', futuro: 'Cuando esté saldado' },
+  },
+  aprobadoSinLaSena: 'Aprobado',
+  cuandoLoApruebes: 'Cuando lo apruebes',
+  cuandoDejesLaSena: 'Cuando dejes la seña',
+  yaEstaPagado: 'Ya está pagado',
+  enCurso: {
+    estimativo: 'Te pasamos un número estimado',
+    presupuesto: 'Estamos preparando tu presupuesto',
+    aprobado: 'Recibimos la seña y ya estás en la cola del taller',
+    fabricacion: 'Lo estamos fabricando',
+    entregado: 'Ya está instalado en tu casa',
+    pagado: 'Listo, está saldado',
+  },
+  presupuestoMandado: 'Te pasamos el presupuesto',
+  titularDelAprobado: {
+    cubierta: 'Recibimos la seña y ya estás en la cola del taller',
+    falta: 'Lo aprobaste y falta la seña para entrar en la cola del taller',
+    'sin-presupuesto': 'Lo aprobaste y ya estás en la cola del taller',
+  },
+  sigue: {
+    estimativo: 'Si seguimos adelante, lo próximo que vas a ver acá es el presupuesto.',
+    presupuesto: 'Lo próximo que vas a ver acá es el presupuesto.',
+    aprobado: 'Lo próximo que vas a ver acá es el arranque de la fabricación.',
+    fabricacion: 'Lo próximo que vas a ver acá es la entrega.',
+    entregado: 'Lo próximo que vas a ver acá es el pago del saldo.',
+  },
+  titularListo: 'Tu mueble está listo',
+  listoParaEntregar: 'Listo para entregar',
+  sigueListo: {
+    'sin-pedido': 'Lo próximo es acordar el día de la entrega.',
+    'un-dia': 'Lo próximo es que nos digas si te queda bien ese día.',
+    'sus-dias': 'Lo próximo es que nos pases los días que te quedan bien.',
+    mandados: 'Lo próximo es que te confirmemos el día.',
+  },
+  sigueConLaComprometida: 'Lo próximo que vas a ver acá es la entrega.',
+  sigueConElPresupuestoMandado: 'Lo próximo es que lo apruebes y dejes la seña.',
+  sigueConLaSenaCubierta: 'Lo próximo es que lo apruebes.',
+  sigueConElPresupuestoVencido: 'Lo próximo es que le escribas al taller para actualizarlo.',
+  sigueFaltaLaSena: 'Lo próximo es que dejes la seña.',
+  sigueFaltaMedir: {
+    estimativo: 'Si seguimos adelante, lo próximo es ir a medir para pasarte el presupuesto.',
+    presupuesto: 'Lo próximo es ir a medir, para poder pasarte el presupuesto.',
+  },
+  relevamientoTecnico: 'Relevamiento técnico',
+  queEsElRelevamiento: [
+    'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
+    'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
+  ],
+  eventos: {
+    estimativo: 'Te pasamos un número estimado',
+    relevamiento: 'Fuimos a medir',
+    presupuesto: 'Te pasamos el presupuesto',
+    pago: 'Recibimos tu pago',
+    pagoQueSalda: 'Recibimos el pago y quedó saldado',
+    saldoQueSalda: 'Recibimos el saldo y quedó saldado',
+    aprobado: 'Aprobaste el presupuesto',
+    inicio: 'Empezamos a fabricarlo en el taller',
+    listo: 'Terminamos tu mueble',
+    entregado: 'Lo llevamos y lo instalamos',
+  },
+  comoPagar: {
+    titulo: 'Cómo pagar',
+    etiquetaDelImporte: { sena: 'Ahora, la seña', saldo: 'Ahora, el saldo' },
+    nombre: { sena: 'la seña', saldo: 'el saldo' },
+    porTransferenciaOEnEfectivo: 'por transferencia o en efectivo',
+    porTransferencia: 'por transferencia',
+    enEfectivo: 'en efectivo',
+    pasosParaTransferir:
+      'Copiá el alias, pegalo en Transferir en la app de tu banco o de tu billetera, escribí el monto y confirmá.',
+    soloEfectivo: {
+      sena: 'La seña es en efectivo, en mano. Lo coordinás con el taller.',
+      saldo: 'El saldo es en efectivo, en mano. Lo coordinás con el taller.',
+    },
+    tambienEfectivo: {
+      sena: 'La seña también la podés dejar en efectivo, en mano, coordinándolo con el taller.',
+      saldo: 'El saldo también lo podés pagar en efectivo, en mano, coordinándolo con el taller.',
+    },
+  },
+  proyeccion: {
+    coordinamosLaEntrega: 'Cuando lo apruebes y dejes la seña, coordinamos la fecha de entrega.',
+    coordinamosLaEntregaAlAprobar: 'Cuando lo apruebes, coordinamos la fecha de entrega.',
+    vencio: (fecha) =>
+      `Este presupuesto venció el ${fecha}. Hablá con el taller para actualizarlo.`,
+    siLoAprobasAntesDel: (antesDe, listoPara) =>
+      `Si lo aprobás antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`,
+    siDejasLaSenaAntesDel: (antesDe, listoPara) =>
+      `Si dejás la seña antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`,
+    vamosTomandoLosTrabajos: 'Vamos tomando los trabajos a medida que entran las señas.',
+  },
+  nota: {
+    pendiente: {
+      etiqueta: 'Por qué el número todavía puede cambiar',
+      titulo: 'El número todavía puede cambiar',
+    },
+    hecho: {
+      etiqueta: 'De dónde sale este número',
+      titulo: 'El número ya está tomado de las medidas reales',
+    },
+    yaFuimosAMedir: 'Ya fuimos a medir.',
+    fuimosAMedirEl: (fecha) => `Fuimos a medir el ${fecha}.`,
+    armamosElPresupuesto: 'Con esas medidas armamos el presupuesto final.',
+    cerrandoElPresupuesto: 'Con esas medidas estamos cerrando el presupuesto final.',
+    resumenYaFuimos: 'Ya fuimos a medir',
+    medidoEl: (fecha) => `Medido el ${fecha}`,
+    faltaMedirDelEstimado: [
+      'Lo que te pasamos es un estimado, sacado de lo que hablamos.',
+      'Para cerrarlo tenemos que ir a tu casa a tomar las medidas.',
+    ],
+    sinFechaParaLaVisita: 'Todavía no tenemos fecha para la visita.',
+    quedamosEnIrEl: (fecha) => `Quedamos en ir el ${fecha}.`,
+    resumenFaltaMedir: 'Número estimado, falta ir a medir',
+  },
+};
+
+const HITO_DEL_ESTIMATIVO = { id: 'estimativo', ...TEXTOS.hitos.estimativo } as const;
+const HITOS = HITOS_DEL_CAMINO.map((id) => ({ id, ...TEXTOS.hitos[id] }));
+const APROBADO_SIN_LA_SENA = TEXTOS.aprobadoSinLaSena;
+const APROBASTE_EL_PRESUPUESTO = TEXTOS.eventos.aprobado;
+const ARMAMOS_EL_PRESUPUESTO = TEXTOS.nota.armamosElPresupuesto;
+const CERRANDO_EL_PRESUPUESTO = TEXTOS.nota.cerrandoElPresupuesto;
+const COORDINAMOS_LA_ENTREGA = TEXTOS.proyeccion.coordinamosLaEntrega;
+const COORDINAMOS_LA_ENTREGA_AL_APROBAR = TEXTOS.proyeccion.coordinamosLaEntregaAlAprobar;
+const CUANDO_DEJES_LA_SENA = TEXTOS.cuandoDejesLaSena;
+const CUANDO_LO_APRUEBES = TEXTOS.cuandoLoApruebes;
+const EMPEZAMOS_A_FABRICARLO = TEXTOS.eventos.inicio;
+const FALTA_MEDIR_DEL_ESTIMADO = TEXTOS.nota.faltaMedirDelEstimado;
+const FUIMOS_A_MEDIR = TEXTOS.eventos.relevamiento;
+const LISTO_PARA_ENTREGAR = TEXTOS.listoParaEntregar;
+const LO_LLEVAMOS_Y_LO_INSTALAMOS = TEXTOS.eventos.entregado;
+const NOTA_DEL_RELEVAMIENTO = { pendiente: TEXTOS.nota.pendiente, hecho: TEXTOS.nota.hecho };
+const PASOS_PARA_TRANSFERIR = TEXTOS.comoPagar.pasosParaTransferir;
+const PRESUPUESTO_MANDADO = TEXTOS.presupuestoMandado;
+const QUE_ES_EL_RELEVAMIENTO = TEXTOS.queEsElRelevamiento;
+const RECIBIMOS_TU_PAGO = TEXTOS.eventos.pago;
+const RELEVAMIENTO_TECNICO = TEXTOS.relevamientoTecnico;
+const RESUMEN_FALTA_MEDIR = TEXTOS.nota.resumenFaltaMedir;
+const SIGUE = TEXTOS.sigue;
+const SIGUE_CON_EL_PRESUPUESTO_MANDADO = TEXTOS.sigueConElPresupuestoMandado;
+const SIGUE_CON_LA_COMPROMETIDA = TEXTOS.sigueConLaComprometida;
+const SIGUE_CON_LA_SENA_CUBIERTA = TEXTOS.sigueConLaSenaCubierta;
+const SIGUE_FALTA_LA_SENA = TEXTOS.sigueFaltaLaSena;
+const SIGUE_FALTA_MEDIR = TEXTOS.sigueFaltaMedir;
+const SIGUE_LISTO = TEXTOS.sigueListo;
+const SIN_FECHA_PARA_LA_VISITA = TEXTOS.nota.sinFechaParaLaVisita;
+const TE_PASAMOS_EL_ESTIMATIVO = TEXTOS.eventos.estimativo;
+const TE_PASAMOS_EL_PRESUPUESTO = TEXTOS.eventos.presupuesto;
+const TERMINAMOS_TU_MUEBLE = TEXTOS.eventos.listo;
+const TITULAR_DEL_APROBADO = TEXTOS.titularDelAprobado;
+const TITULAR_LISTO = TEXTOS.titularListo;
+const VAMOS_TOMANDO_LOS_TRABAJOS = TEXTOS.proyeccion.vamosTomandoLosTrabajos;
+const YA_ESTA_PAGADO = TEXTOS.yaEstaPagado;
+
+function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaDelCliente {
+  return vistaDelClienteCon(trabajo, hoy, TEXTOS);
+}
+
+function comoPagar(trabajo: TrabajoDelCliente, hoy: string) {
+  return comoPagarCon(trabajo, hoy, TEXTOS.comoPagar);
+}
+
+function notaDelRelevamiento(
+  vista: VistaDelCliente,
+  formatos: Pick<FormatosDeFecha, 'larga' | 'corta'>,
+) {
+  return notaDelRelevamientoCon(vista, formatos, TEXTOS.nota);
+}
+
+function textoDeLaProyeccion(
+  proyeccion: ProyeccionDeLaEntrega,
+  formatos: Pick<FormatosDeFecha, 'enUnaFrase'>,
+  sena: SenaDeLaVista['situacion'],
+) {
+  return textoDeLaProyeccionCon(proyeccion, formatos, sena, TEXTOS.proyeccion);
+}
 
 const HOY = '2026-09-18';
 

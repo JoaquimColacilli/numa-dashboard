@@ -1,11 +1,9 @@
 import {
   borradorNuevo,
   centavos,
-  COORDINAMOS_LA_ENTREGA_AL_APROBAR,
   documentoDelPresupuesto,
   PLANTILLA_DE_SIEMPRE,
   puntosBasicos,
-  SIGUE_CON_LA_SENA_CUBIERTA,
   valoresDelTrabajo,
   VIDRIERA_VACIA,
   vistaDelCliente,
@@ -19,6 +17,10 @@ import {
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  ConElIdiomaDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
 import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
 
 import { SIN_PAGOS_APROBADO } from '../model/textos';
@@ -29,6 +31,12 @@ vi.mock('@/shared/api', () => ({
 }));
 
 const HOY = '2026-09-18';
+
+const { delDominio } = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista;
+
+const COORDINAMOS_LA_ENTREGA_AL_APROBAR = delDominio.proyeccion.coordinamosLaEntregaAlAprobar;
+
+const SIGUE_CON_LA_SENA_CUBIERTA = delDominio.sigueConLaSenaCubierta;
 
 const HACE_TANTOS_DIAS = /[Hh]ace \d/;
 
@@ -84,7 +92,11 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
 }
 
 function dibujar(datos: TrabajoDelCliente) {
-  return render(<VistaDelCliente vista={vistaDelCliente(datos, HOY)} hoy={HOY} />);
+  return render(
+    <ConElIdiomaDelCliente idioma="es">
+      <VistaDelCliente vista={vistaDelCliente(datos, HOY, delDominio)} hoy={HOY} />
+    </ConElIdiomaDelCliente>,
+  );
 }
 
 describe('la vista del cliente', () => {

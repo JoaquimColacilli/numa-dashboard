@@ -4,11 +4,12 @@ import { resumenDeProyecto, rutaDelProyecto } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { PantallaDeLaVista, useVistaDelTrabajo } from '@/entities/vista-cliente';
 import { BotonDelQr } from '@/features/compartir-con-el-cliente';
-import { useMensajes } from '@/shared/idioma';
+import { useIdioma, useMensajes } from '@/shared/idioma';
 import { hoyLocal, Ir, useEstadoSync, useVolver } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 export function ProyectoVistaClientePage() {
+  const idioma = useIdioma();
   const replica = useReplicaDelTaller();
   const { id = '' } = useParams();
   const textos = useMensajes().paginaProyectos.vistaCliente;
@@ -48,11 +49,7 @@ export function ProyectoVistaClientePage() {
           </p>
         )}
       </div>
-      <PantallaDeLaVista
-        resultado={resultado}
-        tituloMuerto={textos.noEsta}
-        textoMuerto={textos.noEstaTexto}
-      />
+      <PantallaDeLaVista resultado={resultado} idiomaDeEspera={idioma} elQueNoEsta="trabajo" />
     </>
   );
 }
