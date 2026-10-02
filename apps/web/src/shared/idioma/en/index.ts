@@ -30,6 +30,7 @@ import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { llevarLaAgenda } from './llevarLaAgenda';
 import { movimiento } from './movimiento';
+import { paginaAcceso } from './paginaAcceso';
 import { paginaAgenda } from './paginaAgenda';
 import { paginaAnalitico } from './paginaAnalitico';
 import { paginaClientes } from './paginaClientes';
@@ -76,6 +77,7 @@ export const en = {
   liquidarProyecto,
   llevarLaAgenda,
   movimiento,
+  paginaAcceso,
   paginaAgenda,
   paginaAnalitico,
   paginaClientes,
