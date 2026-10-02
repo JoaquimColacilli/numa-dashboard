@@ -68,6 +68,23 @@ export const compartirConElCliente = {
       sena: 'Deposit: how your client pays it',
       saldo: 'Balance: how your client pays it',
     },
+    tePagaEn: 'Client pays in',
+    monedas: {
+      pesos: 'Pesos',
+      dolares: 'Dollars',
+      pesosODolares: 'Pesos or dollars',
+    },
+    dolarDelDia: "Today's dollar rate (for all your jobs)",
+    valeParaHoy: 'Valid for today.',
+    valeParaElDia: (dia) => `Valid for ${dia}.`,
+    ayudaDelDolarDelDia:
+      'Set it using the rule in your quote. Your clients only see how many pesos it comes to today if you set it today.',
+    sinCuentaEnDolares: (Enlace) => (
+      <>
+        To get paid in dollars by bank transfer,{' '}
+        <Enlace>add your US dollar account in Settings</Enlace>.
+      </>
+    ),
   },
   archivos: {
     titulo: 'Which files they see',

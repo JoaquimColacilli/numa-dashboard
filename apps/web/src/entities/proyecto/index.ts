@@ -48,13 +48,17 @@ export {
 export {
   cambiaAlgunaForma,
   cambioDeFormas,
+  cobraEnDolares,
+  cobraEnPesos,
   cobroDelTaller,
   COLUMNA_DE_LA_INSTANCIA,
+  elTallerRecibeDolares,
   elTallerRecibeTransferencias,
   ETIQUETA_DE_LA_FORMA,
   formasComoEstan,
   formasDelTrabajo,
   formasGuardadas,
+  monedasGuardadas,
   NOMBRE_DE_LA_INSTANCIA,
 } from './model/cobro';
 export { cambiaAlgunaMarca, marcaDeImportante, marcaPuesta } from './model/marcas';

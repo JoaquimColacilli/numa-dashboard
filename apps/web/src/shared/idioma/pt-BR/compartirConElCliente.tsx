@@ -67,6 +67,23 @@ export const compartirConElCliente = {
       sena: 'Sinal: como o cliente paga',
       saldo: 'Saldo: como o cliente paga',
     },
+    tePagaEn: 'O cliente paga em',
+    monedas: {
+      pesos: 'Pesos',
+      dolares: 'Dólares',
+      pesosODolares: 'Pesos ou dólares',
+    },
+    dolarDelDia: 'Dólar do dia (para todos os seus projetos)',
+    valeParaHoy: 'Vale para hoje.',
+    valeParaElDia: (dia) => `Vale para o dia ${dia}.`,
+    ayudaDelDolarDelDia:
+      'Informe pela regra do seu orçamento. Seus clientes só veem quantos pesos dá hoje se você informou hoje.',
+    sinCuentaEnDolares: (Enlace) => (
+      <>
+        Para receber dólares por transferência,{' '}
+        <Enlace>registre sua conta em dólares em Configurações</Enlace>.
+      </>
+    ),
   },
   archivos: {
     titulo: 'Quais arquivos o cliente vê',

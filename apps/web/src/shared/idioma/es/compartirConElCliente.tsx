@@ -1,3 +1,5 @@
+import type { Envoltorio } from '@/shared/lib';
+
 export const compartirConElCliente = {
   volverAlTrabajo: 'Volver al trabajo',
   titulo: 'Compartir con el cliente',
@@ -56,6 +58,23 @@ export const compartirConElCliente = {
       sena: 'La seña: cómo te la paga',
       saldo: 'El saldo: cómo te la paga',
     },
+    tePagaEn: 'Te paga en',
+    monedas: {
+      pesos: 'Pesos',
+      dolares: 'Dólares',
+      pesosODolares: 'Pesos o dólares',
+    },
+    dolarDelDia: 'Dólar del día (para todos tus trabajos)',
+    valeParaHoy: 'Vale para hoy.',
+    valeParaElDia: (dia: string) => `Vale para el ${dia}.`,
+    ayudaDelDolarDelDia:
+      'Cargalo con la regla de tu presupuesto. Tus clientes ven cuántos pesos son hoy solo si lo cargaste hoy.',
+    sinCuentaEnDolares: (Enlace: Envoltorio) => (
+      <>
+        Para recibir dólares por transferencia,{' '}
+        <Enlace>cargá tu cuenta en dólares en Ajustes</Enlace>.
+      </>
+    ),
   },
   archivos: {
     titulo: 'Qué archivos ve',

@@ -1,6 +1,20 @@
+import { createElement } from 'react';
+
+import type { Envoltorio } from '@/shared/lib';
+
 import type { Centinelas } from '../centinelas';
 
+const ENLACE: Envoltorio = ({ children }) => createElement('a', null, children);
+
 export const centinelas: Centinelas = {
+  'compartirConElCliente.comoTePaga.valeParaElDia': {
+    llamar: (m) => m.compartirConElCliente.comoTePaga.valeParaElDia('«DÍA»'),
+    tieneQueDecir: ['«DÍA»'],
+  },
+  'compartirConElCliente.comoTePaga.sinCuentaEnDolares': {
+    llamar: (m) => m.compartirConElCliente.comoTePaga.sinCuentaEnDolares(ENLACE),
+    tieneQueDecir: ['<a>'],
+  },
   'compartirConElCliente.activo.creadoEl': {
     llamar: (m) => m.compartirConElCliente.activo.creadoEl('«FECHA»'),
     tieneQueDecir: ['«FECHA»'],

@@ -3,6 +3,7 @@ import {
   formasDeCobro,
   hayComoTransferir,
   INSTANCIAS_DE_PAGO,
+  MONEDA_DEL_TALLER,
   type CobroDelTaller,
   type FormaDeCobro,
   type InstanciaDePago,
@@ -50,6 +51,13 @@ export function elTallerRecibeTransferencias(ajustes: FilaDe<'ajustes'> | undefi
   return hayComoTransferir(cobroDelTaller(ajustes));
 }
 
+export function elTallerRecibeDolares(ajustes: FilaDe<'ajustes'> | undefined): boolean {
+  return (
+    vacioEsNulo(ajustes?.cobro_dolares_alias) !== null ||
+    vacioEsNulo(ajustes?.cobro_dolares_cbu) !== null
+  );
+}
+
 export function formasGuardadas(
   proyecto: Proyecto,
   instancia: InstanciaDePago,
@@ -61,12 +69,37 @@ export function monedasGuardadas(proyecto: Proyecto): readonly Moneda[] | null {
   return cobraEnLeido((proyecto as FilaQuizasSinFormas).cobra_en ?? null);
 }
 
+export function monedasDelCobro(proyecto: Proyecto): readonly Moneda[] {
+  return monedasGuardadas(proyecto) ?? [MONEDA_DEL_TALLER];
+}
+
+export function cobraEnPesos(proyecto: Proyecto): boolean {
+  return monedasDelCobro(proyecto).includes(MONEDA_DEL_TALLER);
+}
+
+export function cobraEnDolares(proyecto: Proyecto): boolean {
+  return monedasDelCobro(proyecto).includes('USD');
+}
+
+export function elClientePuedeTransferir(
+  proyecto: Proyecto,
+  ajustes: FilaDe<'ajustes'> | undefined,
+): boolean {
+  return (
+    (cobraEnPesos(proyecto) && elTallerRecibeTransferencias(ajustes)) ||
+    (cobraEnDolares(proyecto) && elTallerRecibeDolares(ajustes))
+  );
+}
+
 export function formasDelTrabajo(
   proyecto: Proyecto,
   instancia: InstanciaDePago,
   ajustes: FilaDe<'ajustes'> | undefined,
 ): readonly FormaDeCobro[] {
-  return formasDeCobro(formasGuardadas(proyecto, instancia), elTallerRecibeTransferencias(ajustes));
+  return formasDeCobro(
+    formasGuardadas(proyecto, instancia),
+    elClientePuedeTransferir(proyecto, ajustes),
+  );
 }
 
 export function cambioDeFormas(
