@@ -116,6 +116,11 @@ export function nombreDelMes(mes: string, idioma: Idioma = idiomaActual()): stri
   return MESES[indice] ?? '';
 }
 
+export function mesEnUnaFrase(mes: string, idioma: Idioma = idiomaActual()): string {
+  const nombre = nombreDelMes(mes, idioma);
+  return idioma === 'en' ? nombre : nombre.toLocaleLowerCase(ETIQUETAS_DE_IDIOMA[idioma]);
+}
+
 export function diasDelMes(mes: string): number {
   const anio = Number(mes.slice(0, 4));
   const numero = Number(mes.slice(5, 7));

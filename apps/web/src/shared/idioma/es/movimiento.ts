@@ -1,4 +1,4 @@
-export const movimientos = {
+export const movimiento = {
   dolares: 'Dólares',
   clases: {
     compraDeDolares: {
@@ -16,19 +16,6 @@ export const movimientos = {
       corta: 'Ingreso',
       ejemplo: 'Los que tenía guardados',
     },
-  },
-  cambio: {
-    salenDe: 'Salen de',
-    entranA: 'Entran a',
-    pagaste: 'Pagaste',
-    vendiste: 'Vendiste',
-    recibiste: 'Recibiste',
-    queDolar: 'Qué dólar',
-    teQuedoA: (cotizacion: string) => `Te quedó a ${cotizacion} por dólar.`,
-    teLoPagaronA: (cotizacion: string) => `Te lo pagaron a ${cotizacion} por dólar.`,
-    faltaLoQuePagaste: 'Escribí cuánto pagaste.',
-    faltaLoQueVendiste: 'Escribí cuánto vendiste.',
-    faltaLoQueRecibiste: 'Escribí cuánto recibiste.',
   },
   categorias: {
     Oficial: 'Oficial',
@@ -58,4 +45,12 @@ export const movimientos = {
     quedaEnNegativo: (tesoro: string, saldo: string) =>
       `${tesoro} queda en ${saldo}, o sea en negativo.`,
   },
+  cambioEnElLibro: (sale: string, entra: string, cotizacion: string) =>
+    `${sale} → ${entra} · a ${cotizacion}`,
+  equivalenteDeLaCompra: (pesos: string, cotizacion: string, fecha: string) =>
+    `≈ ${pesos} a ${cotizacion}, tu última compra (${fecha})`,
+  equivalenteDeLaVenta: (pesos: string, cotizacion: string, fecha: string) =>
+    `≈ ${pesos} a ${cotizacion}, tu última venta (${fecha})`,
+  comprarDolares: 'Comprar dólares',
+  venderDolares: 'Vender dólares',
 } as const;

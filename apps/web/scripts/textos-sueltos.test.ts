@@ -7,7 +7,7 @@ import { textosSueltosDe } from './textos-sueltos.ts';
 
 const WEB = path.resolve(process.cwd());
 
-const CATALOGOS = /^src\/shared\/idioma\/(es|en|pt-BR)\//u;
+const CATALOGOS = /^src\/shared\/idioma\/(es|en|pt-BR|centinelas)\//u;
 
 interface Excepcion {
   archivo: string;

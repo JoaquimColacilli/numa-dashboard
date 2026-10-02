@@ -17,6 +17,7 @@ import {
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   relativa,
 } from './fechas';
@@ -176,6 +177,13 @@ describe('las fechas en inglés y en portugués', () => {
     expect(nombreDelMes('2026-10', 'en')).toBe('October');
     expect(nombreDelMes('2026-10', 'pt-BR')).toBe('Outubro');
     expect(nombreDelMes('2026-10', 'es')).toBe('Octubre');
+  });
+
+  it('adentro de una frase, el mes va en minúscula salvo en inglés', () => {
+    expect(mesEnUnaFrase('2026-10', 'es')).toBe('octubre');
+    expect(mesEnUnaFrase('2026-10', 'en')).toBe('October');
+    expect(mesEnUnaFrase('2026-10', 'pt-BR')).toBe('outubro');
+    expect(mesEnUnaFrase('2026-09')).toBe(nombreDelMes('2026-09').toLowerCase());
   });
 
   it('las distancias las dice Intl, con hoy, mañana y ayer en palabras', () => {

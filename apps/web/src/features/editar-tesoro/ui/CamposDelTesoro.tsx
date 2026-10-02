@@ -42,7 +42,7 @@ function LaMoneda({
   alElegir: (moneda: Moneda) => void;
 }) {
   const m = useMensajes();
-  const textos = m.tesoros.moneda;
+  const textos = m.editarTesoro.moneda;
   if (!eligeLaMoneda) {
     return (
       <p data-moneda-del-tesoro className="text-label text-text-2">

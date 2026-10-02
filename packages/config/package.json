@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./eslint": "./eslint/index.js",
+    "./eslint/atributos-de-codigo.json": "./eslint/atributos-de-codigo.json",
     "./tsconfig/base.json": "./tsconfig/base.json",
     "./tsconfig/library.json": "./tsconfig/library.json",
     "./tsconfig/library-check.json": "./tsconfig/library-check.json",

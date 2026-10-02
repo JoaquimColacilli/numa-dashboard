@@ -1,6 +1,6 @@
 import type { Mensajes } from '../es';
 
-export const movimientos = {
+export const movimiento = {
   dolares: 'Dollars',
   clases: {
     compraDeDolares: {
@@ -18,19 +18,6 @@ export const movimientos = {
       corta: 'Income',
       ejemplo: 'Dollars I already had',
     },
-  },
-  cambio: {
-    salenDe: 'From',
-    entranA: 'To',
-    pagaste: 'You paid',
-    vendiste: 'You sold',
-    recibiste: 'You got',
-    queDolar: 'Which rate',
-    teQuedoA: (cotizacion) => `You paid ${cotizacion} per dollar.`,
-    teLoPagaronA: (cotizacion) => `You got ${cotizacion} per dollar.`,
-    faltaLoQuePagaste: 'Enter how much you paid.',
-    faltaLoQueVendiste: 'Enter how much you sold.',
-    faltaLoQueRecibiste: 'Enter how much you got.',
   },
   categorias: {
     Oficial: 'Official',
@@ -55,4 +42,11 @@ export const movimientos = {
     queda: (tesoro, saldo) => `${tesoro} will be at ${saldo}.`,
     quedaEnNegativo: (tesoro, saldo) => `${tesoro} will be at ${saldo}, in the red.`,
   },
-} satisfies Mensajes['movimientos'];
+  cambioEnElLibro: (sale, entra, cotizacion) => `${sale} → ${entra} · at ${cotizacion}`,
+  equivalenteDeLaCompra: (pesos, cotizacion, fecha) =>
+    `≈ ${pesos} at ${cotizacion}, your last dollar purchase (${fecha})`,
+  equivalenteDeLaVenta: (pesos, cotizacion, fecha) =>
+    `≈ ${pesos} at ${cotizacion}, your last dollar sale (${fecha})`,
+  comprarDolares: 'Buy dollars',
+  venderDolares: 'Sell dollars',
+} satisfies Mensajes['movimiento'];

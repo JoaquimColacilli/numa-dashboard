@@ -131,8 +131,8 @@ export function HojaDeArchivar({
             <p className="font-semibold">Todavía no se puede archivar {tesoro.nombre}.</p>
             <p>
               {cambio === 'vender'
-                ? m.tesoros.archivar.conDolaresSinDestino
-                : m.tesoros.archivar.debeDolaresSinOrigen}
+                ? m.editarTesoro.archivar.conDolaresSinDestino
+                : m.editarTesoro.archivar.debeDolaresSinOrigen}
             </p>
           </div>
         ) : (
@@ -203,7 +203,7 @@ export function HojaDeArchivar({
             </Button>
             {alCambiarDolares !== undefined && (
               <Button onClick={irAlCambio}>
-                {cambio === 'vender' ? m.tesoros.venderDolares : m.tesoros.comprarDolares}
+                {cambio === 'vender' ? m.movimiento.venderDolares : m.movimiento.comprarDolares}
               </Button>
             )}
           </FilaDeAcciones>

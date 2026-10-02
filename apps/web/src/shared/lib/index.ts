@@ -28,6 +28,7 @@ export {
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   relativa,
   ZONA_DEL_TALLER,

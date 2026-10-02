@@ -1,3 +1,4 @@
+import atributos from '@maun/config/eslint/atributos-de-codigo.json' with { type: 'json' };
 import ts from 'typescript';
 
 export interface TextoSuelto {
@@ -9,7 +10,25 @@ export interface TextoSuelto {
 interface Contexto {
   tipo: string;
   nombre: string;
+  elemento?: string;
   marcas: string[];
+}
+
+const ATRIBUTOS_POR_ELEMENTO: Readonly<Record<string, Readonly<Record<string, string>>>> =
+  atributos.porElemento;
+
+function esAtributoDeCodigo(nombre: string, elemento: string): boolean {
+  return (
+    Object.hasOwn(atributos.todos, nombre) ||
+    Object.hasOwn(ATRIBUTOS_POR_ELEMENTO[elemento] ?? {}, nombre) ||
+    /^(data-|on[A-Z])/u.test(nombre)
+  );
+}
+
+function elementoDe(atributo: ts.JsxAttribute): string {
+  const abre = atributo.parent.parent;
+  const nombre = abre.tagName.getText();
+  return nombre.slice(nombre.lastIndexOf('.') + 1);
 }
 
 const LETRA = /[A-Za-zÀ-ÖØ-öø-ÿ]/u;
@@ -25,15 +44,6 @@ const PALABRAS_DE_CODIGO = new Set(
   Array Map Set Infinity NaN Chrome Safari Firefox Android Windows Linux Webkit React Edge Inter
   Helvetica Arial GET POST PATCH PUT DELETE HEAD OPTIONS JSON HTML CSS UTF ES256 JWT SHA PKCE
   WebP JPEG PNG SVG URL URI API DOM IDB CDP UUID ISO UTC NFD NFC Intl`.split(/\s+/u),
-);
-
-const ATRIBUTOS_DE_CODIGO = new Set(
-  `className class id key type role variant size d inputMode autoComplete fill stroke transform target
-  rel scope name pose aria-live aria-current aria-labelledby aria-describedby aria-controls
-  aria-hidden aria-expanded aria-haspopup aria-pressed aria-modal aria-orientation aria-sort
-  aria-autocomplete aria-busy aria-multiline aria-invalid aria-disabled aria-checked aria-selected
-  href to lang dir tabIndex src srcSet sizes method action form autoFocus spellCheck viewBox xmlns
-  points translate htmlFor`.split(/\s+/u),
 );
 
 const LLAMADAS_DE_CODIGO =
@@ -103,12 +113,22 @@ function contextoDe(nodo: ts.Node, archivo: ts.SourceFile): Contexto {
     if (ts.isJsxExpression(padre)) {
       const arriba = padre.parent;
       if (ts.isJsxAttribute(arriba)) {
-        return { tipo: 'atributo', nombre: nombreDe(arriba.name, archivo), marcas };
+        return {
+          tipo: 'atributo',
+          nombre: nombreDe(arriba.name, archivo),
+          elemento: elementoDe(arriba),
+          marcas,
+        };
       }
       return { tipo: 'jsx-hijo', nombre: '', marcas };
     }
     if (ts.isJsxAttribute(padre)) {
-      return { tipo: 'atributo', nombre: nombreDe(padre.name, archivo), marcas };
+      return {
+        tipo: 'atributo',
+        nombre: nombreDe(padre.name, archivo),
+        elemento: elementoDe(padre),
+        marcas,
+      };
     }
     if (ts.isPropertyAssignment(padre)) {
       if (hijo === padre.name) return { tipo: 'clave', nombre: '', marcas };
@@ -196,12 +216,7 @@ function esParaUnaPersona(texto: string, contexto: Contexto): boolean {
     return false;
   }
   if (tipo === 'llamada' && /^console\./u.test(nombre)) return false;
-  if (
-    tipo === 'atributo' &&
-    (ATRIBUTOS_DE_CODIGO.has(nombre) || /^(data-|on[A-Z])/u.test(nombre))
-  ) {
-    return false;
-  }
+  if (tipo === 'atributo' && esAtributoDeCodigo(nombre, contexto.elemento ?? '')) return false;
   if (/^(className|class|clases?|claseDe\w*)$/u.test(nombre)) return false;
   if (/^<\/?[a-z]/u.test(limpio)) return false;
   if (/[;{}]$/u.test(limpio) && /[=()]/u.test(limpio)) return false;

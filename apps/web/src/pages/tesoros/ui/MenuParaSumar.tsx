@@ -217,7 +217,7 @@ function Menu({
         </button>
         {hayDeOtraMoneda && (
           <p data-la-fila-reparte-pesos className="px-3 pt-1 pb-2 text-meta text-paper/65">
-            {m.tesoros.laFilaRepartePesos}
+            {m.fila.laFilaRepartePesos}
           </p>
         )}
       </div>

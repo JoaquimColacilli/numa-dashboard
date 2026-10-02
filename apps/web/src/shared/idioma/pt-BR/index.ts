@@ -1,15 +1,17 @@
 import type { Mensajes } from '../es';
 
 import { comun } from './comun';
-import { finanzas } from './finanzas';
+import { editarTesoro } from './editarTesoro';
+import { fila } from './fila';
 import { inicio } from './inicio';
-import { movimientos } from './movimientos';
-import { tesoros } from './tesoros';
+import { movimiento } from './movimiento';
+import { registrarMovimiento } from './registrarMovimiento';
 
 export const ptBR = {
   comun,
+  editarTesoro,
+  fila,
   inicio,
-  tesoros,
-  movimientos,
-  finanzas,
+  movimiento,
+  registrarMovimiento,
 } satisfies Mensajes;

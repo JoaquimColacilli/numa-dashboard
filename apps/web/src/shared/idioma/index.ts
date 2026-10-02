@@ -14,3 +14,4 @@ export {
   type PedidoDeIdioma,
 } from './mensajes';
 export { NOMBRE_PROPIO_DEL_IDIOMA } from './nombres';
+export { textosDelIdioma } from './textosDelIdioma';

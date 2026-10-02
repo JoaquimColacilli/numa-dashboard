@@ -101,7 +101,7 @@ export function opcionesDeLugar(
       {
         id: 'estante',
         titulo: 'Al estante',
-        detalle: mensajes().tesoros.laFilaRepartePesos,
+        detalle: mensajes().fila.laFilaRepartePesos,
         sePuede: true,
       },
     ];

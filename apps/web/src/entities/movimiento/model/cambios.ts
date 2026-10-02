@@ -86,9 +86,9 @@ export function equivalenteEnPesos(
     dolares < 0
       ? negar(pesosDeDolares(negar(dolares), cambio.cotizacion))
       : pesosDeDolares(dolares, cambio.cotizacion);
-  const { tesoros } = mensajes();
+  const textos = mensajes().movimiento;
   const decir =
-    cambio.tipo === 'compra' ? tesoros.equivalenteDeLaCompra : tesoros.equivalenteDeLaVenta;
+    cambio.tipo === 'compra' ? textos.equivalenteDeLaCompra : textos.equivalenteDeLaVenta;
   return decir(
     formatearPesos(pesos),
     formatearPesos(cambio.cotizacion),

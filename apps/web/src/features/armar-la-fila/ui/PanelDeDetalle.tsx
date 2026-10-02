@@ -188,7 +188,7 @@ function ComprarDolares({
         }}
       >
         <Icono nombre="arrow-left-right" tamano={16} />
-        {m.tesoros.comprarDolares}
+        {m.movimiento.comprarDolares}
       </Button>
     </div>
   );
@@ -1388,7 +1388,7 @@ function PanelDelEstante({
       <Seccion titulo="Sumarlo a la fila">
         {!entraEnLaFila(tesoro) ? (
           <p data-la-fila-reparte-pesos className="text-label leading-relaxed text-text-2">
-            {m.tesoros.laFilaRepartePesos}
+            {m.fila.laFilaRepartePesos}
           </p>
         ) : (
           <p className="text-label leading-relaxed text-text-2">

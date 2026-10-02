@@ -48,7 +48,7 @@ export const GRUPOS: readonly { id: GrupoDeMovimiento; etiqueta: string }[] = [
   {
     id: 'dolares',
     get etiqueta() {
-      return mensajes().movimientos.dolares;
+      return mensajes().movimiento.dolares;
     },
   },
 ];
@@ -218,10 +218,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     id: 'compra_de_dolares',
     grupo: 'dolares',
     get etiqueta() {
-      return mensajes().movimientos.clases.compraDeDolares.etiqueta;
+      return mensajes().movimiento.clases.compraDeDolares.etiqueta;
     },
     get corta() {
-      return mensajes().movimientos.clases.compraDeDolares.corta;
+      return mensajes().movimiento.clases.compraDeDolares.corta;
     },
     tipo: 'cambio',
     desde: null,
@@ -231,17 +231,17 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeElTesoro: false,
     categorias: QUE_DOLAR,
     get ejemplo() {
-      return mensajes().movimientos.clases.compraDeDolares.ejemplo;
+      return mensajes().movimiento.clases.compraDeDolares.ejemplo;
     },
   },
   venta_de_dolares: {
     id: 'venta_de_dolares',
     grupo: 'dolares',
     get etiqueta() {
-      return mensajes().movimientos.clases.ventaDeDolares.etiqueta;
+      return mensajes().movimiento.clases.ventaDeDolares.etiqueta;
     },
     get corta() {
-      return mensajes().movimientos.clases.ventaDeDolares.corta;
+      return mensajes().movimiento.clases.ventaDeDolares.corta;
     },
     tipo: 'cambio',
     desde: null,
@@ -251,17 +251,17 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeElTesoro: false,
     categorias: QUE_DOLAR,
     get ejemplo() {
-      return mensajes().movimientos.clases.ventaDeDolares.ejemplo;
+      return mensajes().movimiento.clases.ventaDeDolares.ejemplo;
     },
   },
   ingreso_en_dolares: {
     id: 'ingreso_en_dolares',
     grupo: 'dolares',
     get etiqueta() {
-      return mensajes().movimientos.clases.ingresoEnDolares.etiqueta;
+      return mensajes().movimiento.clases.ingresoEnDolares.etiqueta;
     },
     get corta() {
-      return mensajes().movimientos.clases.ingresoEnDolares.corta;
+      return mensajes().movimiento.clases.ingresoEnDolares.corta;
     },
     tipo: 'ingreso',
     desde: null,
@@ -272,7 +272,7 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     entraAlTesoro: true,
     categorias: ['Ahorro previo', 'Cobro suelto', 'Regalo', 'Otro'],
     get ejemplo() {
-      return mensajes().movimientos.clases.ingresoEnDolares.ejemplo;
+      return mensajes().movimiento.clases.ingresoEnDolares.ejemplo;
     },
   },
 };
@@ -401,8 +401,7 @@ export function tesorosParaElegir<T extends TesoroDeLaClase>(
 }
 
 export function categoriaEnPantalla(categoria: string): string {
-  const traducidas: Readonly<Record<string, string | undefined>> =
-    mensajes().movimientos.categorias;
+  const traducidas: Readonly<Record<string, string | undefined>> = mensajes().movimiento.categorias;
   return traducidas[categoria] ?? categoria;
 }
 

@@ -57,7 +57,7 @@ function entreTesoros(monto: number, lados: ContextoDeAyuda['lados']): string {
 }
 
 function delCambio(clase: ClaseDeCambio, contexto: ContextoDeAyuda): string {
-  const { ayuda } = mensajes().movimientos;
+  const { ayuda } = mensajes().movimiento;
   const presentacion = clase === 'compra_de_dolares' ? ayuda.compra : ayuda.venta;
   const { lados } = contexto;
   if (!lados) return presentacion;
@@ -73,7 +73,7 @@ function delCambio(clase: ClaseDeCambio, contexto: ContextoDeAyuda): string {
 }
 
 function delIngresoEnDolares(contexto: ContextoDeAyuda): string {
-  const { ayuda } = mensajes().movimientos;
+  const { ayuda } = mensajes().movimiento;
   const { tesoro } = contexto;
   if (tesoro === undefined) return ayuda.ingresoEnDolares;
   const queda = movida(tesoro.saldo, contexto.monto);

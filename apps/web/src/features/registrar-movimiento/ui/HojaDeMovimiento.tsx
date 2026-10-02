@@ -632,8 +632,8 @@ export function HojaDeMovimiento({
   function errorDelMonto(): string {
     if (!cambio) return 'Escribí cuánta plata es, por ejemplo 12.500.';
     return clase === 'compra_de_dolares'
-      ? m.movimientos.cambio.faltaLoQuePagaste
-      : m.movimientos.cambio.faltaLoQueVendiste;
+      ? m.registrarMovimiento.cambio.faltaLoQuePagaste
+      : m.registrarMovimiento.cambio.faltaLoQueVendiste;
   }
 
   function enviar(evento: SyntheticEvent<HTMLFormElement>) {
@@ -644,7 +644,9 @@ export function HojaDeMovimiento({
     const faltaElImporte = importe === null || importe === 0;
     const faltaLoRecibido = cambio && (recibido === null || recibido === 0);
     setError(faltaElImporte ? errorDelMonto() : undefined);
-    setErrorDelDestino(faltaLoRecibido ? m.movimientos.cambio.faltaLoQueRecibiste : undefined);
+    setErrorDelDestino(
+      faltaLoRecibido ? m.registrarMovimiento.cambio.faltaLoQueRecibiste : undefined,
+    );
     setErrorDeLosLados(
       lados === null ? (datos.eligeElTesoro ? FALTA_EL_TESORO : FALTAN_LOS_LADOS) : undefined,
     );
@@ -704,7 +706,7 @@ export function HojaDeMovimiento({
   const selectorDeCategoria = categorias.length > 0 && (
     <label className="flex flex-col gap-1.5">
       <span className="text-label text-text-2">
-        {cambio ? m.movimientos.cambio.queDolar : 'Categoría'}
+        {cambio ? m.registrarMovimiento.cambio.queDolar : 'Categoría'}
       </span>
       <select
         value={categoria}
@@ -831,7 +833,7 @@ export function HojaDeMovimiento({
           {cambio ? (
             <>
               <ElegirTesoro
-                etiqueta={m.movimientos.cambio.salenDe}
+                etiqueta={m.registrarMovimiento.cambio.salenDe}
                 opciones={origenes}
                 elegido={desde}
                 alElegir={elegirDesde}
@@ -839,8 +841,8 @@ export function HojaDeMovimiento({
               <CampoDePlata
                 etiqueta={
                   clase === 'compra_de_dolares'
-                    ? m.movimientos.cambio.pagaste
-                    : m.movimientos.cambio.vendiste
+                    ? m.registrarMovimiento.cambio.pagaste
+                    : m.registrarMovimiento.cambio.vendiste
                 }
                 moneda={monedaDelMonto}
                 valor={monto}
@@ -852,13 +854,13 @@ export function HojaDeMovimiento({
                 }}
               />
               <ElegirTesoro
-                etiqueta={m.movimientos.cambio.entranA}
+                etiqueta={m.registrarMovimiento.cambio.entranA}
                 opciones={destinos}
                 elegido={hacia}
                 alElegir={elegirHacia}
               />
               <CampoDePlata
-                etiqueta={m.movimientos.cambio.recibiste}
+                etiqueta={m.registrarMovimiento.cambio.recibiste}
                 moneda={monedaDelDestino}
                 valor={montoDestino}
                 error={errorDelDestino}
@@ -871,8 +873,8 @@ export function HojaDeMovimiento({
               {cotizacion !== null && (
                 <p data-cotizacion-del-cambio className="text-body font-medium text-ink">
                   {clase === 'compra_de_dolares'
-                    ? m.movimientos.cambio.teQuedoA(formatearPesos(cotizacion))
-                    : m.movimientos.cambio.teLoPagaronA(formatearPesos(cotizacion))}
+                    ? m.registrarMovimiento.cambio.teQuedoA(formatearPesos(cotizacion))
+                    : m.registrarMovimiento.cambio.teLoPagaronA(formatearPesos(cotizacion))}
                 </p>
               )}
               {selectorDeCategoria}

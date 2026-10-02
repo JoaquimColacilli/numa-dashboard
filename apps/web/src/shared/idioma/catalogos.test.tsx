@@ -4,61 +4,21 @@ import { describe, expect, it } from 'vitest';
 
 import { seudoCatalogo } from '@/shared/lib';
 
+import type { Centinelas, LlamadaCentinela } from './centinelas';
 import { en } from './en';
 import { es, type Mensajes } from './es';
 import { ptBR } from './pt-BR';
 
 const CATALOGOS: Readonly<Record<string, Mensajes>> = { es, en, 'pt-BR': ptBR };
 
-interface LlamadaCentinela {
-  llamar: (m: Mensajes) => unknown;
-  tieneQueDecir: readonly string[];
-}
+const POR_SECCION = import.meta.glob<{ centinelas: Centinelas }>('./centinelas/*.ts', {
+  eager: true,
+});
 
-const DOS_LADOS = ['«DESDE»', '«QUEDA DESDE»', '«HACIA»', '«QUEDA HACIA»'] as const;
-
-const LLAMADAS: Readonly<Record<string, LlamadaCentinela>> = {
-  'tesoros.equivalenteDeLaCompra': {
-    llamar: (m) => m.tesoros.equivalenteDeLaCompra('«PESOS»', '«DÓLAR»', '«FECHA»'),
-    tieneQueDecir: ['«PESOS»', '«DÓLAR»', '«FECHA»'],
-  },
-  'tesoros.equivalenteDeLaVenta': {
-    llamar: (m) => m.tesoros.equivalenteDeLaVenta('«PESOS»', '«DÓLAR»', '«FECHA»'),
-    tieneQueDecir: ['«PESOS»', '«DÓLAR»', '«FECHA»'],
-  },
-  'movimientos.cambio.teQuedoA': {
-    llamar: (m) => m.movimientos.cambio.teQuedoA('«DÓLAR»'),
-    tieneQueDecir: ['«DÓLAR»'],
-  },
-  'movimientos.cambio.teLoPagaronA': {
-    llamar: (m) => m.movimientos.cambio.teLoPagaronA('«DÓLAR»'),
-    tieneQueDecir: ['«DÓLAR»'],
-  },
-  'movimientos.ayuda.quedan': {
-    llamar: (m) => m.movimientos.ayuda.quedan(...DOS_LADOS),
-    tieneQueDecir: DOS_LADOS,
-  },
-  'movimientos.ayuda.quedanConElPrimeroEnNegativo': {
-    llamar: (m) => m.movimientos.ayuda.quedanConElPrimeroEnNegativo(...DOS_LADOS),
-    tieneQueDecir: DOS_LADOS,
-  },
-  'movimientos.ayuda.entraA': {
-    llamar: (m) => m.movimientos.ayuda.entraA('«TESORO»'),
-    tieneQueDecir: ['«TESORO»'],
-  },
-  'movimientos.ayuda.queda': {
-    llamar: (m) => m.movimientos.ayuda.queda('«TESORO»', '«SALDO»'),
-    tieneQueDecir: ['«TESORO»', '«SALDO»'],
-  },
-  'movimientos.ayuda.quedaEnNegativo': {
-    llamar: (m) => m.movimientos.ayuda.quedaEnNegativo('«TESORO»', '«SALDO»'),
-    tieneQueDecir: ['«TESORO»', '«SALDO»'],
-  },
-  'finanzas.cambio': {
-    llamar: (m) => m.finanzas.cambio('«SALE»', '«ENTRA»', '«DÓLAR»'),
-    tieneQueDecir: ['«SALE»', '«ENTRA»', '«DÓLAR»'],
-  },
-};
+const LLAMADAS: Centinelas = Object.assign(
+  {},
+  ...Object.values(POR_SECCION).map((seccion) => seccion.centinelas),
+) as Centinelas;
 
 function hojas(valor: unknown, camino = ''): Map<string, unknown> {
   const salida = new Map<string, unknown>();

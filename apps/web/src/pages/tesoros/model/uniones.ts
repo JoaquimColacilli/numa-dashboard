@@ -264,7 +264,7 @@ export function fraseDeLaUnion(
   if (!hayDestino) return 'Llevala hasta un tesoro';
   if (union === null) {
     return destino !== undefined && esDeOtraMonedaEnElEstante(tesoros, destino)
-      ? mensajes().tesoros.laFilaRepartePesos
+      ? mensajes().fila.laFilaRepartePesos
       : 'Ahí no se puede unir';
   }
   if (union.tipo === 'nuevo') return 'Soltá para crear un tesoro acá';

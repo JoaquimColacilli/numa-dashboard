@@ -34,7 +34,7 @@ function conSigno(efecto: Plata): string {
 function importeDelCambio(linea: LineaDelTaller): string | null {
   const cotizacion = cotizacionDeLaLinea(linea);
   if (cotizacion === null) return null;
-  return mensajes().finanzas.cambio(
+  return mensajes().movimiento.cambioEnElLibro(
     `−${formatearLaPlata(montoDeLaLinea(linea))}`,
     `+${formatearLaPlata(montoQueEntra(linea))}`,
     formatearPesos(cotizacion),
