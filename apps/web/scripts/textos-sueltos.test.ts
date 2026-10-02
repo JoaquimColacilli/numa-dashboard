@@ -34,6 +34,13 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Cada idioma se nombra en su propio idioma, y es igual en los tres catálogos.',
   },
   {
+    archivo: 'src/shared/config/env.ts',
+    texto:
+      /^(falta definirla|tiene que ser una URL completa, por ejemplo http:\/\/127\.0\.0\.1:54321|es una clave secreta \(sb_secret_\); en el cliente va la publishable|La app no puede arrancar: faltan o son inválidas variables de entorno\. Copiá apps\/web\/\.env\.example a apps\/web\/\.env y completalas\.)$/u,
+    motivo:
+      'Solo lo ve quien arma la app con el .env mal puesto, antes de que arranque y de que haya idioma: no quien la usa.',
+  },
+  {
     archivo: 'src/shared/lib/fechas.ts',
     texto:
       /^(mié|sáb|Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|de de|hace días|año|años|mañana|en días|en meses)$/u,
