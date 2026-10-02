@@ -1,5 +1,6 @@
 import type { Ensanchar } from '@/shared/lib';
 
+import { activarHuella } from './activarHuella';
 import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
 import { api } from './api';
@@ -37,6 +38,7 @@ import { replica } from './replica';
 import { ui } from './ui';
 
 export const es = {
+  activarHuella,
   adjuntarArchivos,
   agenda,
   api,

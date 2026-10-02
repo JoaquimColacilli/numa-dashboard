@@ -8,7 +8,6 @@
     "src/entities/opinion/",
     "src/entities/tesoro/",
     "src/entities/vista-cliente/",
-    "src/features/activar-huella/",
     "src/features/ajustar-cocos/",
     "src/features/armar-la-fila/",
     "src/features/cerrar-sesion/",

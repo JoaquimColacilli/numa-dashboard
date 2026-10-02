@@ -2,9 +2,10 @@ import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registrarHuella } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { activarBloqueo, pedirHuella } from '@/shared/lib';
 
-import { activarHuella, SIN_SENAL_PARA_ACTIVAR } from './activar';
+import { activarHuella } from './activar';
 
 vi.mock('@/shared/api', async (original) => ({
   ...(await original<typeof import('@/shared/api')>()),
@@ -42,7 +43,7 @@ describe('activar la huella en este dispositivo', () => {
 
     expect(await activarHuella('ana')).toEqual({
       tipo: 'no-se-pudo',
-      mensaje: SIN_SENAL_PARA_ACTIVAR,
+      mensaje: mensajes().activarHuella.sinSenalParaActivar,
     });
     expect(registrarHuella).not.toHaveBeenCalled();
     expect(activarBloqueo).not.toHaveBeenCalled();

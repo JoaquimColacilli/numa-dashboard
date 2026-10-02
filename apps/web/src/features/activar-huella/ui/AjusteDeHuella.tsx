@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useSesionActiva } from '@/entities/sesion';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { avisarEnPantalla, huellaDisponible, olvidarBloqueo, useBloqueoActivo } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
 import { activarHuella } from '../model/activar';
 
 export function AjusteDeHuella() {
+  const m = useMensajes();
   const { usuarioId } = useSesionActiva();
   const activo = useBloqueoActivo(usuarioId);
   const [disponible, setDisponible] = useState<boolean | undefined>(undefined);
@@ -44,41 +46,26 @@ export function AjusteDeHuella() {
       setError(resultado.mensaje);
       return;
     }
-    avisarEnPantalla({
-      clave: 'huella',
-      tono: 'hecho',
-      texto: 'Listo: la próxima vez que abras la app te pide la huella.',
-    });
+    avisarEnPantalla({ clave: 'huella', tono: 'hecho', texto: mensajes().activarHuella.listo });
   }
 
   function desactivar(): void {
     olvidarBloqueo();
     setError(undefined);
-    avisarEnPantalla({
-      clave: 'huella',
-      tono: 'hecho',
-      texto: 'La app ya no pide la huella en este teléfono.',
-    });
+    avisarEnPantalla({ clave: 'huella', tono: 'hecho', texto: m.activarHuella.yaNoLaPide });
   }
 
-  let descripcion =
-    'La app se abre sin pedir nada. Podés hacer que te pida la huella, como la app del banco.';
-  if (disponible === undefined) descripcion = 'Fijándonos si este teléfono tiene huella…';
-  if (disponible === false) {
-    descripcion =
-      'Este teléfono no tiene huella ni bloqueo de pantalla configurado, así que la app no puede pedirla.';
-  }
-  if (activo) {
-    descripcion =
-      'Este teléfono tiene el bloqueo con huella: la app te la pide cada vez que la abrís, también sin señal.';
-  }
+  let descripcion = m.activarHuella.seAbreSinPedirNada;
+  if (disponible === undefined) descripcion = m.activarHuella.fijandonos;
+  if (disponible === false) descripcion = m.activarHuella.sinHuella;
+  if (activo) descripcion = m.activarHuella.conElBloqueo;
 
   return (
     <div className="flex flex-col items-start gap-2.5">
       <p className="text-body leading-relaxed text-text-2">{descripcion}</p>
       {activo ? (
         <Button variant="secundario" size="chico" onClick={desactivar}>
-          Dejar de pedir la huella
+          {m.activarHuella.dejarDePedirla}
         </Button>
       ) : (
         disponible === true && (
@@ -91,7 +78,7 @@ export function AjusteDeHuella() {
             }}
           >
             {!activando && <Icono nombre="fingerprint" tamano={18} />}
-            {activando ? 'Registrando la huella…' : 'Pedir la huella al abrir'}
+            {activando ? m.activarHuella.registrando : m.activarHuella.pedirlaAlAbrir}
           </Button>
         )
       )}

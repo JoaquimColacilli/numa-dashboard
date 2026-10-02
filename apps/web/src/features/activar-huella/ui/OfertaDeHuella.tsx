@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useSesionActiva } from '@/entities/sesion';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   anotarPreguntaPorLaHuella,
   avisarEnPantalla,
@@ -15,6 +16,7 @@ import { Button, ConSalida, Hoja, Icono } from '@/shared/ui';
 import { activarHuella } from '../model/activar';
 
 export function OfertaDeHuella() {
+  const m = useMensajes();
   const { usuarioId } = useSesionActiva();
   const [abierta, setAbierta] = useState(false);
   const [activando, setActivando] = useState(false);
@@ -67,18 +69,14 @@ export function OfertaDeHuella() {
       return;
     }
     setAbierta(false);
-    avisarEnPantalla({
-      clave: 'huella',
-      tono: 'hecho',
-      texto: 'Listo: la próxima vez que abras la app te pide la huella.',
-    });
+    avisarEnPantalla({ clave: 'huella', tono: 'hecho', texto: mensajes().activarHuella.listo });
   }
 
   return (
     <ConSalida valor={abierta}>
       {() => (
         <Hoja
-          titulo="¿Querés entrar con la huella la próxima vez?"
+          titulo={m.activarHuella.queresEntrarConLaHuella}
           ancho="angosto"
           desdeAbajo
           alCerrar={cerrar}
@@ -92,8 +90,7 @@ export function OfertaDeHuella() {
                 <Icono nombre="fingerprint" tamano={24} />
               </span>
               <p className="text-body leading-relaxed text-text-2">
-                La app se abre pidiendo tu huella, como la del banco, y anda también sin señal. Si
-                algún día la huella no responde, entrás con tu contraseña.
+                {m.activarHuella.laAppSeAbrePidiendola}
               </p>
             </div>
             {error !== undefined && (
@@ -110,14 +107,14 @@ export function OfertaDeHuella() {
                   void aceptar();
                 }}
               >
-                {activando ? 'Registrando la huella…' : 'Sí, usar la huella'}
+                {activando ? m.activarHuella.registrando : m.activarHuella.siUsarLaHuella}
               </Button>
               <Button variant="terciario" className="w-full" onClick={cerrar}>
-                Ahora no
+                {m.activarHuella.ahoraNo}
               </Button>
             </div>
             <p className="text-meta leading-relaxed text-text-3">
-              Lo podés cambiar cuando quieras en Ajustes.
+              {m.activarHuella.loPodesCambiar}
             </p>
           </div>
         </Hoja>
