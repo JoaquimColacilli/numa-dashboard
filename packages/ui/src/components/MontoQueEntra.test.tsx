@@ -45,6 +45,12 @@ describe('cuántos caracteres tiene un monto', () => {
     expect(caracteresDe('$ 0', '$ 12.345.678,90', '$ 150.000')).toBe(15);
   });
 
+  it('una mayúscula ocupa más que una cifra: cada letra de «US$» o de «ARS» cuenta por uno y cuarto', () => {
+    expect(caracteresDe('US$ 1.000')).toBe(9.5);
+    expect(caracteresDe('ARS 147.950')).toBe(11.75);
+    expect(caracteresDe('-ARS 12.020', '$ 135.930')).toBe(11.75);
+  });
+
   it('nunca menos de uno, para no dividir por cero', () => {
     expect(caracteresDe('')).toBe(1);
     expect(caracteresDe()).toBe(1);
