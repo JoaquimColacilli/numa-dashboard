@@ -13,13 +13,6 @@ export interface FilaDeCobro {
   formas: readonly FormaDeCobro[];
 }
 
-export const SIN_DATOS_PARA_TRANSFERIR =
-  'Todavía no cargaste alias ni CBU, así que por ahora solo podés cobrar en efectivo.';
-
-export const AL_MENOS_UNA = 'Dejá al menos una: si no, tu cliente no sabe cómo pagarte.';
-
-export const NADA_QUE_COBRAR = 'Este trabajo ya está saldado: no queda nada por cobrar.';
-
 export function filasDeCobro(
   resumen: ResumenDeProyecto,
   ajustes: FilaDe<'ajustes'> | undefined,

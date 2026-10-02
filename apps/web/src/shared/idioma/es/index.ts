@@ -16,6 +16,7 @@ import { armarLaVidriera } from './armarLaVidriera';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { cerrarSesion } from './cerrarSesion';
 import { cliente } from './cliente';
+import { compartirConElCliente } from './compartirConElCliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
@@ -76,6 +77,7 @@ export const es = {
   avanzarLaConsulta,
   cerrarSesion,
   cliente,
+  compartirConElCliente,
   comun,
   configurarTaller,
   coordinarLaEntrega,

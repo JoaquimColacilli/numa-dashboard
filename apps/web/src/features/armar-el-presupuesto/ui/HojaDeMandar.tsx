@@ -10,14 +10,17 @@ import { useId, useState, type MouseEvent, type ReactNode } from 'react';
 
 import { MUTACION_DEL_ENVIO, type EnvioDelPresupuesto } from '@/entities/presupuesto';
 import { EstadoBadge } from '@/entities/proyecto';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { mensajeDeSincronizacion, traducirRechazo } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
+import { useMensajesDelClienteEn } from '@/shared/idioma-del-cliente';
 import {
   fechaLarga,
   mensajeParaElCliente,
   metaDeAvisos,
   useAnchoDePantalla,
   whatsappCon,
+  type TextosDelMensajeAlCliente,
 } from '@/shared/lib';
 import { PREPARANDO_EL_PDF, usePdfDelPresupuesto } from '@/shared/pdf';
 import {
@@ -95,6 +98,7 @@ function Listo({
   telefono,
   enlace,
   queCambio,
+  whatsapp,
   alCerrar,
 }: {
   numero: string;
@@ -107,6 +111,7 @@ function Listo({
   telefono: string;
   enlace: EnlaceParaMandar;
   queCambio: string | null;
+  whatsapp: TextosDelMensajeAlCliente | undefined;
   alCerrar: () => void;
 }) {
   const m = useMensajes().armarElPresupuesto.mandar.listo;
@@ -127,7 +132,9 @@ function Listo({
     },
     { alAbrir: true },
   );
-  const mensaje = mensajeParaElCliente(cliente, trabajo, url ?? '', true);
+  const paraElCliente = (direccion: string) =>
+    whatsapp === undefined ? '' : mensajeParaElCliente(whatsapp, cliente, trabajo, direccion, true);
+  const mensaje = paraElCliente(url ?? '');
   const nombre = primerNombre(cliente);
   const yaLoVe = esLaPrimera
     ? nombre === ''
@@ -145,10 +152,7 @@ function Listo({
       return;
     }
     setUrl(nueva);
-    evento.currentTarget.href = whatsappCon(
-      telefono,
-      mensajeParaElCliente(cliente, trabajo, nueva, true),
-    );
+    evento.currentTarget.href = whatsappCon(telefono, paraElCliente(nueva));
   }
 
   return (
@@ -180,10 +184,7 @@ function Listo({
               {m.avisale}
             </h3>
             <p className="rounded-field border border-hairline bg-surface-3 px-3.5 py-3 text-body leading-relaxed text-ink">
-              {m.conElEnlace(
-                MensajeAlCliente,
-                mensajeParaElCliente(cliente, trabajo, '', true).replace(/: $/, ''),
-              )}
+              {m.conElEnlace(MensajeAlCliente, paraElCliente('').replace(/: $/, ''))}
             </p>
             {url === null && <p className="text-meta text-text-3">{m.sinEnlace}</p>}
           </section>
@@ -277,6 +278,8 @@ export function HojaDeMandar({
 }: HojaDeMandarProps) {
   const textos = useMensajes().armarElPresupuesto;
   const m = textos.mandar;
+  const replica = useReplicaDelTaller();
+  const delCliente = useMensajesDelClienteEn(idiomaDeLosClientes(replica));
   const id = useId();
   const enCelular = useAnchoDePantalla() === 'movil';
   const [queCambio, setQueCambio] = useState('');
@@ -301,6 +304,7 @@ export function HojaDeMandar({
         telefono={telefono}
         enlace={enlace}
         queCambio={mandar.data.revision.que_cambio}
+        whatsapp={delCliente?.whatsapp}
         alCerrar={alCerrar}
       />
     );

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { enlaceActivo } from '@/entities/enlace';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { filasDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { ConSalida, Icono } from '@/shared/ui';
 
 import { comoSeVeElEnlace } from '../model/compartir';
@@ -14,9 +15,8 @@ export interface BotonDelQrProps {
   className?: string;
 }
 
-export const MOSTRAR_EL_QR = 'Mostrarle el código QR';
-
 export function BotonDelQr({ proyectoId, trabajo, className = '' }: BotonDelQrProps) {
+  const { mostrarElQr } = useMensajes().compartirConElCliente.qr;
   const replica = useReplicaDelTaller();
   const [abierto, setAbierto] = useState(false);
 
@@ -41,7 +41,7 @@ export function BotonDelQr({ proyectoId, trabajo, className = '' }: BotonDelQrPr
         className={`flex min-h-tap w-fit items-center gap-2 rounded-pill border border-hairline bg-paper px-3 text-label font-medium hover:bg-surface ${className}`}
       >
         <Icono nombre="qr-code" tamano={16} />
-        {MOSTRAR_EL_QR}
+        {mostrarElQr}
       </button>
       <ConSalida valor={abierto}>
         {() => (

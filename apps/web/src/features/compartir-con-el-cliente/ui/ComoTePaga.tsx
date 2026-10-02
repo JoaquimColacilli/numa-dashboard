@@ -13,21 +13,18 @@ import {
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ajustesDe, mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { metaDeAvisos, RUTA_DE_AJUSTES, Ir } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
-import {
-  AL_MENOS_UNA,
-  filasDeCobro,
-  NADA_QUE_COBRAR,
-  SIN_DATOS_PARA_TRANSFERIR,
-} from '../model/comoTePaga';
+import { filasDeCobro } from '../model/comoTePaga';
 
 export interface ComoTePagaProps {
   resumen: ResumenDeProyecto;
 }
 
 export function ComoTePaga({ resumen }: ComoTePagaProps) {
+  const t = useMensajes().compartirConElCliente.comoTePaga;
   const replica = useReplicaDelTaller();
   const ajustes = ajustesDe(replica);
   const guardar = useMutation({
@@ -60,17 +57,14 @@ export function ComoTePaga({ resumen }: ComoTePagaProps) {
 
   return (
     <section
-      aria-label="Cómo te paga"
+      aria-label={t.titulo}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
-      <h2 className="text-section font-semibold">Cómo te paga</h2>
-      <p className="mt-1.5 mb-3 max-w-[520px] text-body leading-normal text-text-2">
-        Elegí por cada pago cómo se lo cobrás. Tu cliente lo ve en su página, al lado de cuánto
-        tiene que pagarte. La transferencia no te cuesta comisión.
-      </p>
+      <h2 className="text-section font-semibold">{t.titulo}</h2>
+      <p className="mt-1.5 mb-3 max-w-[520px] text-body leading-normal text-text-2">{t.elegi}</p>
 
       {filas.length === 0 ? (
-        <p className="border-t border-hairline py-3.5 text-body text-text-2">{NADA_QUE_COBRAR}</p>
+        <p className="border-t border-hairline py-3.5 text-body text-text-2">{t.nadaQueCobrar}</p>
       ) : (
         <ul className="list-none">
           {filas.map(({ instancia, formas }) => (
@@ -83,7 +77,7 @@ export function ComoTePaga({ resumen }: ComoTePagaProps) {
               </span>
               <div
                 role="group"
-                aria-label={`${NOMBRE_DE_LA_INSTANCIA[instancia]}: cómo te la paga`}
+                aria-label={t.comoTeLaPaga[instancia]}
                 className="flex flex-none gap-1 rounded-pill bg-ink/6 p-1"
               >
                 {FORMAS_DE_COBRO.map((forma) => {
@@ -115,7 +109,7 @@ export function ComoTePaga({ resumen }: ComoTePagaProps) {
               </div>
               {FORMAS_DE_COBRO.some((forma) => insistiendo === `${instancia}:${forma}`) && (
                 <p role="alert" className="w-full text-label leading-normal text-atencion">
-                  {AL_MENOS_UNA}
+                  {t.alMenosUna}
                 </p>
               )}
             </li>
@@ -126,9 +120,9 @@ export function ComoTePaga({ resumen }: ComoTePagaProps) {
       {!hayComoTransferir && filas.length > 0 && (
         <p className="mt-2.5 flex flex-wrap items-baseline gap-x-1.5 text-label leading-normal text-text-2">
           <Icono nombre="circle-alert" tamano={14} className="translate-y-0.5 text-atencion" />
-          <span>{SIN_DATOS_PARA_TRANSFERIR}</span>
+          <span>{t.sinDatosParaTransferir}</span>
           <Ir a={RUTA_DE_AJUSTES} className="font-semibold underline">
-            Cargalos en Ajustes
+            {t.cargalosEnAjustes}
           </Ir>
         </p>
       )}

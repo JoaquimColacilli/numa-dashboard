@@ -40,6 +40,8 @@ export {
   mensajeParaElCliente,
   telefonoParaWhatsapp,
   whatsappCon,
+  type TextosDelMensajeAlCliente,
+  type UnMensajeAlCliente,
 } from './telefono';
 export {
   alternar,

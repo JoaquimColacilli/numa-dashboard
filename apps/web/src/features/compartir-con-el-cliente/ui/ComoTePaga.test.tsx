@@ -7,9 +7,15 @@ import { describe, expect, it } from 'vitest';
 import type { FormasDeCobroDelTrabajo, Proyecto, ResumenDeProyecto } from '@/entities/proyecto';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
-import { AL_MENOS_UNA, NADA_QUE_COBRAR, SIN_DATOS_PARA_TRANSFERIR } from '../model/comoTePaga';
 import { ComoTePaga } from './ComoTePaga';
+
+const {
+  alMenosUna: AL_MENOS_UNA,
+  nadaQueCobrar: NADA_QUE_COBRAR,
+  sinDatosParaTransferir: SIN_DATOS_PARA_TRANSFERIR,
+} = mensajes().compartirConElCliente.comoTePaga;
 
 const AHORA = '2026-09-19T12:00:00Z';
 

@@ -1,5 +1,6 @@
 import { loQueVeElCliente, type Archivo } from '@/entities/archivo';
 import type { Enlace } from '@/entities/enlace';
+import { mensajes } from '@/shared/idioma';
 import { enlaceDelCliente, tokenDelEnlace } from '@/shared/lib';
 
 export type ComoSeVeElEnlace =
@@ -32,5 +33,5 @@ export function comoSeVeEnWhatsapp(trabajo: string, taller: string): string {
 
 export function cuantosVeElCliente(archivos: readonly Archivo[]): string {
   const { compartidos, total } = loQueVeElCliente(archivos);
-  return `${String(compartidos)} de ${String(total)} compartidos`;
+  return mensajes().compartirConElCliente.archivos.cuantosVe(compartidos, total);
 }

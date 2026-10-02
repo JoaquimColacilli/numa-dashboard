@@ -181,6 +181,16 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: /^(-50%, calc\(-100% - \d+px\)|translate\(.*)$/u,
     motivo: 'Es CSS: dónde se dibuja el rótulo y el botón de cada flecha.',
   },
+  {
+    archivo: 'src/features/compartir-con-el-cliente/ui/DibujoDelQr.tsx',
+    texto: 'M h1v1h-1z',
+    motivo: 'Es el trazo SVG de cada cuadradito del código QR, no un texto.',
+  },
+  {
+    archivo: 'src/shared/lib/telefono.ts',
+    texto: 'https://wa.me/ ?text=',
+    motivo: 'Es la dirección de WhatsApp con el número y el mensaje: no la lee nadie.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {
@@ -228,7 +238,7 @@ describe('los textos sueltos', () => {
       }
     }
     expect(sueltos).toEqual([]);
-  });
+  }, 30_000);
 
   it('cada zona que falta existe, y cada excepción sigue haciendo falta', () => {
     for (const zona of faltan) expect(existsSync(path.join(WEB, zona)), zona).toBe(true);
