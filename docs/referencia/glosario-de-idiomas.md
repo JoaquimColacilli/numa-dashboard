@@ -213,3 +213,74 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | en negativo (un saldo) | in the red | no vermelho | La ayuda de la hoja de cargar |
 | «La fila reparte pesos» | “The waterfall only splits pesos” | “A fila só divide pesos” | Tesoros: el estante y el alta |
 | tu última compra / tu última venta (de dólares) | your last dollar purchase / sale | sua última compra / venda de dólares | El equivalente en pesos |
+| Proyectos (la sección) | Jobs | Projetos | La barra, volver atrás, el pasaje |
+| Contacto (el estado) / contacto (la consulta) | Contact / inquiry | Contato / consulta | Estados, la hoja del contacto, los avisos |
+| A presupuestar / Pasar a presupuestar | To quote / Start quoting | A orçar / Começar a orçar | Estados y el pasaje |
+| En seguimiento (el estado) | In follow-up | Para retornar | Estados |
+| Qué falta (las tareas de un trabajo) | To do | O que falta | La ficha, el pasaje, la entrega |
+| Lo que hace falta (materiales y herrajes) | What's needed | O que é preciso | La ficha y el editor del presupuesto |
+| Ya está listo / Todavía no está listo (el botón) | Mark as ready / Mark as not ready | Marcar como pronto / Desmarcar como pronto | La ficha |
+| Seña de la visita / Saldo final en la entrega | Site visit deposit / Final balance on delivery | Sinal da visita / Saldo final na entrega | Los conceptos que propone la app |
+| Comprometer (una entrega) | Confirm | Confirmar | La fecha de entrega |
+| A la mañana / A la tarde / Sin horario | Morning / Afternoon / Any time | De manhã / À tarde / Sem horário | La fecha de entrega y la agenda |
+| Vuelve / Todavía no / No va (el resultado de un contacto) | It's back on / Not yet / It's a no | Voltou / Ainda não / Desistiu | El seguimiento |
+| Registrar el contacto / Registrar el pago | Log the follow-up / Record the payment | Registrar o contato / Registrar o pagamento | Seguimiento y agenda |
+| liquidación, cierre (de un trabajo) | settlement, closing | acerto, fechamento | El cobro y la ficha |
+| Cobrar (la pantalla) / Cobrado (el monto) | Get paid / Collected | Receber / Recebido | El cobro (el estado Cobrado sigue siendo Paid / Pago) |
+| Comprobante a emitir | Invoice to issue | Comprovante a emitir | El cobro |
+| libro, libro mayor | ledger | livro-caixa | Finanzas, rechazos |
+| caja del taller | shop's cash | caixa da marcenaria | Ayuda de los movimientos |
+| Concepto | Description | Descrição | Pagos, asientos |
+| asiento | entry | lançamento | La ficha del movimiento |
+| Entradas / Salidas | Money in / Money out | Entradas / Saídas | Finanzas |
+| Entró al hogar / Gastó el hogar / Facturó el taller | Household income / Household spending / Shop revenue | Receita da casa / Gastos da casa / Faturamento da marcenaria | Inicio y Finanzas |
+| insumos | supplies | insumos | Inicio, la fila |
+| Panorama / Accesos | Overview / Shortcuts | Panorama / Atalhos | Inicio |
+| Pendiente de cobro | Awaiting payment | A receber | Inicio |
+| paso (de la fila) / renglón / ficha | step / item / card | etapa / item / cartão | La fila y Tesoros |
+| apartado / Al día | set aside / Up to date | reservado / Em dia | La fila |
+| ingreso libre / ganancia | free income / profit | receita livre / lucro | La fila |
+| se renueva al pagar / se repone al usarlo | refills when you pay / refills when you use it | renova a cada pagamento / repõe a cada uso | La fila y el tesoro |
+| probar un cobro | test a payment | simular um recebimento | El probador de la fila |
+| plano / croquis / rótulo del plano | plan / sketch / plan title block | planta / esboço / carimbo da planta | Tesoros |
+| Ingresos Brutos | Ingresos Brutos (Argentina's provincial gross receipts tax) | Ingresos Brutos (imposto provincial argentino sobre o faturamento) | La fila y el tesoro |
+| tesoros de siempre | built-in buckets | caixinhas de sempre | Editar un tesoro |
+| Tintas: Verde, Madera, Violeta, Azul, Grana, Mostaza, Petróleo, Ciruela | Green, Wood, Violet, Blue, Crimson, Mustard, Teal, Plum | Verde, Madeira, Violeta, Azul, Grená, Mostarda, Petróleo, Ameixa | Tesoros |
+| tope del mes | monthly cap | teto do mês | Cubrir el faltante, la ficha |
+| Avisos (las cláusulas del presupuesto) / Condiciones | Notices / Conditions | Avisos / Condições | Tu presupuesto y el editor |
+| Qué incluye / aclaración | What's included / note | O que está incluso / observação | Tu presupuesto |
+| forma de pago | payment option (en Ajustes), Payment terms (en el documento) | forma de pagamento | Tu presupuesto y el documento |
+| obra / Validez / días corridos | job site / Valid for / calendar days | obra / Validade / dias corridos | El editor del presupuesto |
+| Borrador / Armar el presupuesto | Draft / Build the quote | Rascunho / Preparar o orçamento | La tarjeta y el editor |
+| Los textos de siempre | Default texts | Textos padrão | Tu presupuesto |
+| Rótulo del presupuesto: Emitido, Aceptado, Opción, Nº, Vale hasta, Venció | Quote title block: Issued, Accepted, Option, No., Valid until, Expired | Carimbo do orçamento: Emitido, Aceito, Opção, Nº, Válido até, Venceu | El rótulo |
+| Titular de la cuenta / Condición fiscal / CVU de la billetera | Account holder / Tax status / Wallet CVU | Titular da conta / Condição fiscal / CVU da carteira digital | Cómo te pagan y los datos del taller |
+| Tu taller / Tu presupuesto / Cómo te pagan / Tu vidriera | Your shop / Your quote / How clients pay you / Your showcase | Sua marcenaria / Seu orçamento / Como você recebe / Sua vitrine | Ajustes |
+| Anotado sin señal / se guarda solo cuando vuelva | Saved offline / it'll save automatically when you're back online | Salvo sem internet / será salvo automaticamente quando a internet voltar | Avisos en pantalla |
+| dar de baja (un enlace) | turn off | desativar | Los avisos y los enlaces |
+| huella | fingerprint | digital | El desbloqueo y Ajustes |
+| Cerrar sesión / Entrar / contraseña / mail | Log out / Log in / password / email | Sair / Entrar / senha / e-mail | La sesión |
+| Tema: Claro / Oscuro / Como el sistema | Theme: Light / Dark / Same as system | Tema: Claro / Escuro / Igual ao sistema | Apariencia |
+| Sincronizar ahora / Tirá para actualizar | Sync now / Pull to refresh | Sincronizar agora / Puxe para atualizar | Ajustes y el gesto |
+| Avisos de la agenda / Vencimientos | Calendar notifications / Bills due | Notificações da agenda / Vencimentos | Ajustes |
+| Agenda: Entregar, Relevamiento, Entregar presupuesto, Volver a escribirle a, Vence | Deliver, Site measure, Send quote, Follow up with, Due | Entregar, Visita técnica, Enviar orçamento, Retomar contato com, Vence | La agenda y los avisos push |
+| cosas en la agenda / anotación / hecha | things on your calendar / note / done | compromissos na agenda / anotação / concluído | La agenda y los avisos push |
+| Taller / Materiales / Seguimiento (categorías de la agenda) | Shop / Materials / Follow-up | Marcenaria / Materiais / Retorno | La agenda |
+| Referido / Cliente que volvió / Cartel del taller | Referral / Returning client / Shop sign | Indicação / Cliente que voltou / Placa da marcenaria | Clientes |
+| Razón social / Domicilio fiscal / Zona | Legal name / Tax address / Area | Razão social / Endereço fiscal / Região | Clientes |
+| Total facturado / Saldo pendiente | Total billed / Balance due | Total faturado / Saldo pendente | Clientes |
+| Borrar / Deshacer | Delete / Undo | Excluir / Desfazer | Toda la app |
+| subir (archivos) / planos / capturas | upload / drawings / screenshots | enviar / desenhos / capturas de tela | Archivos y vidriera |
+| Sumar / Sacar (fotos) / redes | Add / Remove / social links | Adicionar / Tirar / redes sociais | Tu vidriera |
+| El titular (de las opiniones) / pregunta propia / Obligatoria | Headline / custom question / Required | Destaque / pergunta própria / Obrigatória | Opiniones y la encuesta |
+| Dejar de preguntarla / Volver a preguntarla | Stop asking it / Ask it again | Parar de perguntar / Voltar a perguntar | La encuesta |
+| Reseñas en Google / Pedir reseñas | Google reviews / Ask for reviews | Avaliações no Google / Pedir avaliações | Ajustes |
+| Categorías: Docencia, Changas, Servicios, Flete, Distribución, Apertura, Cubrir el mes, Gasto fijo | Teaching, Odd jobs, Utilities, Freight, Split, Starting balances, Covering the month, Fixed cost | Aulas, Bicos, Serviços, Frete, Divisão, Saldos iniciais, Cobertura do mês, Custo fixo | Los movimientos |
+
+Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
+«free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del
+menú de Mercado Pago («Cobrar», «Link de pago», «Link sin monto definido»), que quedan en castellano y entre comillas porque así
+los muestra esa app; «Responsable inscripto» (Registered VAT taxpayer / Contribuinte inscrito no IVA), «Exento» (VAT-exempt /
+Isento de IVA), «Factura A/B/C» y «Remito» (Delivery note / Nota de entrega); «Diseñar / Despiezar / Cotizar» (Design / Make the
+cut list / Price the materials); «Escritura y sellos» (Deed and stamp tax / Escritura e impostos); «Venta de sobrantes» (Leftover
+sales); «huella» en un iPhone, donde es Face ID; «mueble» como «piece» en el editor del presupuesto.
