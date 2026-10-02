@@ -2,6 +2,14 @@
 
 Estado: aceptada, 2026-09-10. Corregida el 2026-09-11: la primera versión era ambigua sobre qué es `bigint` en cada capa.
 
+- Enmendado el 2026-10-02 por el [ADR 0081](0081-los-tesoros-en-dolares.md): `Money` pasa a ser genérico en la
+  moneda, `Money<M extends Moneda = 'ARS'>`, así lo que decía `Money` sigue siendo pesos; otra moneda se
+  construye con `centavosEn(moneda, valor)`, y las operaciones llevan `NoInfer` para que pesos más dólares no
+  compile. Donde conviven monedas (el saldo y la meta de un tesoro, una línea del libro con dos importes) va
+  `Plata`, un objeto `{ importe, moneda }` que no se suma ni se pasa donde va un `number`. El formateo sale de
+  un string decimal exacto y no de dividir por 100. Un dólar también son centavos enteros, y una cotización,
+  centavos de peso por dólar.
+
 ## Contexto
 
 El sistema viejo guardaba importes como `number` con decimales. Las sumas de floats no son exactas, y mezclar el cálculo con el formateo esconde los errores hasta que alguien compara con el banco.

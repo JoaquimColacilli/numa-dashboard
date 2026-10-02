@@ -7,6 +7,13 @@ Estado: **aceptada**. Fecha: 2026-09-12.
   tesoro una décima, «Gasto de un tesoro», un gasto desde un tesoro del dueño; el filtro por tesoro
   acepta cualquier tesoro por id; y el libro lleva cada lado por id de tesoro. Ver las notas al final de
   la sección 1.
+- Enmendado el 2026-10-02 por el [ADR 0081](0081-los-tesoros-en-dolares.md): la hoja de cargar suma un grupo,
+  «Dólares», que sale solo con un tesoro vivo en dólares: «Compra de dólares» y «Venta de dólares» (tipo
+  `cambio`, con los dos importes y «Qué dólar») e «Ingreso en dólares». «Entre tesoros» ofrece solo destinos
+  de la moneda del origen, el neto del día va por moneda y el renglón de un cambio muestra sus dos importes y
+  su cotización.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): un pago en dólares es un renglón
+  de su tesoro en dólares, con su dólar, y «Facturó el taller» suma el valor en pesos de cada pago.
 
 ## Contexto
 

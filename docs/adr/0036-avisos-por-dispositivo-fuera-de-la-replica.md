@@ -8,6 +8,11 @@
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): el aviso de
   la mañana también dice qué compromiso vence, con su propia preferencia (`vencimientos`), y cada aviso
   lleva la zona de la persona. Ver la nota al final de «Decisión».
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): cada aviso lleva el idioma de su
+  persona (`raw_user_meta_data`, validado contra los tres) y la función compone el texto en ese idioma; en
+  castellano dice exactamente lo de antes. La carga suma `lang` solo fuera del castellano, y el service worker
+  lo usa para la notificación y para su texto de respaldo. El aviso de prueba sale en el idioma de quien lo
+  pide.
 
 ## Contexto
 

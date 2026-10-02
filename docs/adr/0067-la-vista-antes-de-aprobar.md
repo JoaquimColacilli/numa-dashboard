@@ -26,6 +26,11 @@
     presupuesto mandado, siguen los 21.
   - **«Tu mueble» con opciones** dice «2 opciones» y la bajada «Mirá las dos en el presupuesto y avisale
     al taller cuál preferís.», en vez de «—».
+- Enmendado el 2026-10-02 por los ADR [0082](0082-la-app-en-tres-idiomas.md) y
+  [0083](0083-los-trabajos-en-dolares.md): la vista suma el idioma de los clientes y, en un trabajo en
+  dólares, el dólar del día, que viaja desde que se mandó el presupuesto, cuando hay un precio que pasar a
+  pesos; la cuenta en dólares viaja solo si el pago que toca se ofrece en dólares por transferencia.
+  `32_la_vista_antes_de_aprobar.sql` fija desde qué etapa viaja cada clave.
 
 ## Contexto
 

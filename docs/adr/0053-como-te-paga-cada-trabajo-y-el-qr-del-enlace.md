@@ -9,6 +9,12 @@ tiene, porque la vista pública la necesita. Amplía la lista blanca del
 [0067](0067-la-vista-antes-de-aprobar.md): antes de aprobar no hay «Te falta pagar» ni se pide el
 saldo (ver la corrección en «Lo que el cliente ve»).
 
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): «Cómo te paga» suma «Te paga en»
+  (pesos, dólares o las dos, `cobra_en`), en la misma mutación que las formas, y en un trabajo en dólares el
+  dólar del día del taller. Ajustes suma la cuenta en dólares del taller (CBU y alias; el titular y el CUIT
+  son los de la de pesos). Las formas de cada moneda salen de lo mismo guardado, en dólares transferir pide la
+  cuenta en dólares, y el link de Mercado Pago es solo de pesos.
+
 ## Contexto
 
 El dueño lo planteó así:

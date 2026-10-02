@@ -16,6 +16,10 @@
   lema en el celular y la tablet, y arriba de él en la compu. «Revisá tu correo» saluda sin trazar
   nada, así sigue siendo un registro y no un festejo; «Listo, ya entraste» traza la tilde del pulgar
   una vez. El bloqueo sigue con la foto.
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): las pantallas sin sesión siguen
+  al navegador (castellano, inglés o portugués; si no es ninguno, castellano), y los errores de la cuenta
+  (`mensajeDeAcceso`, los códigos de Supabase Auth y de las passkeys) están en los tres idiomas; un código que
+  no se conoce se muestra como antes. Una cuenta nueva guarda el idioma en uso en `user_metadata`.
 
 ## Contexto
 

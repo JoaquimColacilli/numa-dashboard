@@ -9,6 +9,10 @@ Estado: aceptada, 2026-09-11. Actualizada el mismo día con los topes mensuales,
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la cascada pasa a ser un caso de la fila. Cada cobro baja por la fila del taller (las obligaciones, con el diezmo entre ellas; los compromisos y los ahorros fijos, cada uno según cómo se llena; los ahorros por porcentaje, y lo que sobra al superávit), y la fila de siempre da lo mismo que la cascada. `fila.ts` y sus siete gemelas de SQL se suman a lo que no puede divergir. Ver las notas en «El diezmo tendría que ser configurable» y en «Lo que impide que las dos implementaciones diverjan».
 - Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): un cobro reabierto se vuelve a cobrar con la fecha, los objetivos y la fila de su foto, pero el sueldo va por mes si la foto o el taller van por mes. El modo con el que se cobró manda solo en un taller que sigue por trabajo, como el seed. Ver la nota en «Reabrir un cobro».
 - Enmendado el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): la máquina de estados suma un efecto de la base. El trigger que anota los cambios de estado le pone a `presupuestos.aceptado_el` el día en que el trabajo pasa de una consulta a «En curso», y lo vuelve a `null` si vuelve a una consulta; no toca el borrador. Mandar el presupuesto pasa el trabajo a «Presupuesto enviado» con `private.transicion_valida`, la misma regla que `puedeCambiarEstado`, y su réplica optimista usa esa. El dominio suma `presupuesto.ts` con sus cuatro gemelas en el comparador, y `entregaEstimada` recibe el plazo.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): lo cobrado que entra a la
+  cascada es la suma de los valores en pesos de los pagos (un pago en dólares vale sus dólares a su
+  cotización), en `liquidar` y en su gemela; nada más de la cuenta cambia. Un perdido retiene la seña por su
+  valor en pesos.
 
 ## Contexto
 

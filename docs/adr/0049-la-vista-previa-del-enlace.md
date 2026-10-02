@@ -5,6 +5,11 @@ Enmendada el 2026-09-25 por el [0073](0073-la-app-se-llama-numa.md): la app se l
 cliente sigue viendo el taller. `og:image` es `/taller-512.png`, la misma M de 512 con otro nombre, y
 `conLasEtiquetas` además cambia los tres íconos del `head` por los del taller.
 
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): `titulo_compartido` devuelve
+  además el idioma de los clientes del taller. No dice nada del trabajo, y la regla de este ADR (solo el
+  trabajo y el taller) se enmienda con él: la vista previa sale en ese idioma, y la función de borde escribe
+  `<html lang>` y `data-idioma-del-taller` en el HTML que sirve.
+
 ## Contexto
 
 El dueño pega el enlace en WhatsApp y la vista previa dice «MAUN» y «Finanzas y proyectos del

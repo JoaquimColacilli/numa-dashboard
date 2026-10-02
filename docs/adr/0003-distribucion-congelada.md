@@ -3,6 +3,12 @@
 Estado: aceptada, 2026-09-11, con la evidencia de la fase 2 (ver al final). La cascada, la liquidación (cobrar o cerrar como perdido), la reversión y los topes mensuales se detallan en el ADR 0011.
 
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): lo congelado de un cobro por la fila suma la fila con la que se repartió, su revisión, lo que cada paso ya tenía y una fila de `repartos` por cada obligación que no es el diezmo, cada paso, cada parte y el superávit si no es Maun. El libro mayor lleva la cuenta por id de tesoro. Ver la nota al final de «Cómo quedó en la base».
+- Enmendado el 2026-10-02 por el [ADR 0081](0081-los-tesoros-en-dolares.md): un movimiento de tipo `cambio`
+  lleva un segundo importe (`monto_destino_centavos`), y el libro abre su destino con ese importe. Cada tesoro
+  sigue teniendo una sola moneda, así que su saldo sigue siendo la suma de sus asientos.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): lo congelado de un cobro es lo
+  cobrado en pesos, la suma de los valores en pesos de los pagos, y el libro abre cada pago en su tesoro: uno
+  en dólares entra a su tesoro en dólares con su importe en dólares, y uno en pesos entra a Maun, como antes.
 
 ## Contexto
 

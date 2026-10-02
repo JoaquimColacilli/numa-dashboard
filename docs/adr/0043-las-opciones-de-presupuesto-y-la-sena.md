@@ -14,6 +14,9 @@
   elegida. Van en el orden de sus ids, con letra A, B, C. El editor del presupuesto las edita con las
   mismas piezas y la misma mutación (`guardar_proyecto`), y no aprueba: «La aprobó» sigue en la ficha. La
   forma de pago del presupuesto es un texto, no un plan: el plan en tramos sigue anotado acá para después.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): el presupuesto, las opciones y
+  la seña van en la moneda del trabajo, y lo cobrado que se resta de la seña es lo que descuenta cada pago en
+  esa moneda. `calcularSena` y `pagosPorDelante` son genéricas en la moneda sin cambiar su cuenta.
 
 ## Contexto
 

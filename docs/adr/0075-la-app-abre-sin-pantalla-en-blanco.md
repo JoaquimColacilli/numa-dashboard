@@ -8,6 +8,10 @@
   app», «Trayendo los datos del taller» y lo que aparece a los 15 s).
 - Enmendada el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): la forma de
   Inicio suma el panorama entre la portada y los tesoros, con las clases de `Panorama`.
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): el esqueleto sale en el idioma de
+  quien abre desde el primer cuadro: el build lleva sus textos en los tres idiomas y el script del `head`
+  escribe el del idioma en el único elemento con texto, antes de pintar, con la misma regla que React. En otro
+  idioma que el castellano, el esqueleto queda hasta que llega el primer catálogo.
 
 ## Contexto
 

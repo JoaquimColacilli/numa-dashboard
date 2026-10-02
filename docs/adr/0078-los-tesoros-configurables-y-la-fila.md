@@ -38,6 +38,14 @@
   - el globo, los renglones con puntos, el triángulo de la revisión y el rótulo del plano pasan de
     `entities/fila` a `shared/ui/plano.tsx`, porque los usa también el presupuesto; `entities/fila` los
     reexporta y Tesoros no cambia. El triángulo suma la variante `suelta`, para ir en la línea.
+- Enmendado el 2026-10-02 por el [ADR 0081](0081-los-tesoros-en-dolares.md): la fila reparte la moneda del
+  taller. `problema_de_la_fila` suma el código `tesoro-en-otra-moneda` (`MN023` con el código en el `detail`)
+  y `guardar_la_fila` le pasa la moneda de cada tesoro; las demás gemelas de la fila no cambian. Un tesoro en
+  otra moneda vive en el estante, y ni el menú de sumar ni el arrastre lo dejan entrar.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): un cobro con pagos en dólares
+  reparte desde Maun su valor en pesos aunque esos dólares estén en su tesoro en dólares, así que Maun puede
+  quedar en negativo; la pantalla del cobro lo avisa antes, con «Vender dólares», sin frenarlo. Los insumos
+  cuentan solo lo que entró a Maun.
 
 ## Contexto
 

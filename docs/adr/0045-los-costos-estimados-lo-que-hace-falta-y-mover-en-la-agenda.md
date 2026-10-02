@@ -18,6 +18,10 @@
   hace falta sigue siendo un checkbox nativo, con `appearance: none` y la misma zona de 44 px; al
   tildar, la tilde se dibuja y una línea corre sobre el nombre, colgada de la copia que hace crecer el
   campo. Destildar vuelve en el acto.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): los costos estimados van siempre
+  en pesos. En un trabajo en dólares, «Dólar para los costos» (`costos_cotizacion_centavos`, por la misma
+  mutación) los muestra también en dólares, cada costo se escribe en pesos o en dólares (se guarda en pesos
+  con ese dólar) y lo que te queda se calcula en dólares; sin ese dólar no se muestra y se pide.
 
 ## Contexto
 
