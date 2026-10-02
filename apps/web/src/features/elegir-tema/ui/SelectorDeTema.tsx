@@ -1,21 +1,23 @@
 import { useId } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { elegirTema, useTema, type PreferenciaDeTema } from '@/shared/lib';
 import { FondoDelElegido, Icono, type NombreDeIcono } from '@/shared/ui';
 
-const OPCIONES: readonly { id: PreferenciaDeTema; etiqueta: string; icono: NombreDeIcono }[] = [
-  { id: 'light', etiqueta: 'Claro', icono: 'sun' },
-  { id: 'dark', etiqueta: 'Oscuro', icono: 'moon' },
-  { id: 'system', etiqueta: 'Como el sistema', icono: 'monitor-smartphone' },
+const OPCIONES: readonly { id: PreferenciaDeTema; icono: NombreDeIcono }[] = [
+  { id: 'light', icono: 'sun' },
+  { id: 'dark', icono: 'moon' },
+  { id: 'system', icono: 'monitor-smartphone' },
 ];
 
 export function SelectorDeTema() {
+  const m = useMensajes();
   const { preferencia, oscuro } = useTema();
   const nombre = useId();
 
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className="mb-1.5 text-label text-text-2">Tema</legend>
+      <legend className="mb-1.5 text-label text-text-2">{m.elegirTema.tema}</legend>
       <div className="relative grid max-w-[30rem] grid-cols-3 gap-0.5 rounded-pill bg-ink/6 p-1">
         <FondoDelElegido elegido={preferencia} />
         {OPCIONES.map((opcion) => (
@@ -35,14 +37,16 @@ export function SelectorDeTema() {
               className="sr-only"
             />
             <Icono nombre={opcion.icono} tamano={16} className="flex-none" />
-            {opcion.etiqueta}
+            {m.elegirTema.opciones[opcion.id]}
           </label>
         ))}
       </div>
       <span className="text-meta text-text-3">
         {preferencia === 'system'
-          ? `Ahora se ve ${oscuro ? 'oscuro' : 'claro'}, porque así está el sistema.`
-          : 'Queda elegido en este dispositivo.'}
+          ? oscuro
+            ? m.elegirTema.ahoraSeVeOscuro
+            : m.elegirTema.ahoraSeVeClaro
+          : m.elegirTema.quedaElegido}
       </span>
     </fieldset>
   );
