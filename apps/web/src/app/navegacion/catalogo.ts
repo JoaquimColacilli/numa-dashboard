@@ -1,6 +1,10 @@
 import { matchPath } from 'react-router';
 
+import { mensajes, type Mensajes } from '@/shared/idioma';
+
 export type Forma = 'pantalla' | 'capa' | 'hoja';
+
+export type NombreDeLaPantalla = keyof Mensajes['appNavegacion']['pantallas'];
 
 export type SeccionDelCelular = 'inicio' | 'proyectos' | 'clientes' | 'finanzas';
 
@@ -10,7 +14,7 @@ export interface Pantalla {
   id: string;
   patron: string;
   etapa?: string | null;
-  nombre: string;
+  nombre: NombreDeLaPantalla;
   seccion: SeccionDelCelular;
   raiz: boolean;
   profundidad: number;
@@ -24,7 +28,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'inicio',
     patron: '/',
-    nombre: 'Inicio',
+    nombre: 'inicio',
     seccion: 'inicio',
     raiz: true,
     profundidad: 0,
@@ -34,7 +38,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'agenda',
     patron: '/agenda',
-    nombre: 'Agenda',
+    nombre: 'agenda',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -43,7 +47,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'anotar',
     patron: '/agenda/anotar',
-    nombre: 'Agenda',
+    nombre: 'agenda',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -52,7 +56,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'consultas',
     patron: '/consultas',
-    nombre: 'Consultas',
+    nombre: 'consultas',
     seccion: 'proyectos',
     raiz: true,
     profundidad: 0,
@@ -62,7 +66,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'consulta-nueva',
     patron: '/consultas/nueva',
-    nombre: 'Consultas',
+    nombre: 'consultas',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 0,
@@ -71,7 +75,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'seguimiento-viejo',
     patron: '/seguimiento',
-    nombre: 'Consultas',
+    nombre: 'consultas',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 0,
@@ -81,7 +85,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'seguimiento-nuevo-viejo',
     patron: '/seguimiento/nuevo',
-    nombre: 'Consultas',
+    nombre: 'consultas',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 0,
@@ -92,7 +96,7 @@ export const CATALOGO: readonly Pantalla[] = [
     id: 'seguimiento',
     patron: '/proyectos',
     etapa: 'seguimiento',
-    nombre: 'Seguimiento',
+    nombre: 'seguimiento',
     seccion: 'proyectos',
     raiz: true,
     profundidad: 0,
@@ -103,7 +107,7 @@ export const CATALOGO: readonly Pantalla[] = [
     id: 'activos',
     patron: '/proyectos',
     etapa: null,
-    nombre: 'Proyectos',
+    nombre: 'proyectos',
     seccion: 'proyectos',
     raiz: true,
     profundidad: 0,
@@ -114,7 +118,7 @@ export const CATALOGO: readonly Pantalla[] = [
     id: 'historial',
     patron: '/proyectos',
     etapa: 'historial',
-    nombre: 'Historial',
+    nombre: 'historial',
     seccion: 'proyectos',
     raiz: true,
     profundidad: 0,
@@ -124,7 +128,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'proyecto-nuevo',
     patron: '/proyectos/nuevo',
-    nombre: 'Proyecto nuevo',
+    nombre: 'proyectoNuevo',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 1,
@@ -133,7 +137,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'analitico',
     patron: '/proyectos/analitico',
-    nombre: 'Analítico de entregas',
+    nombre: 'analitico',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 1,
@@ -142,7 +146,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'ficha',
     patron: '/proyectos/:id',
-    nombre: 'Proyectos',
+    nombre: 'proyectos',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 1,
@@ -151,7 +155,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'editar',
     patron: '/proyectos/:id/editar',
-    nombre: 'Editar proyecto',
+    nombre: 'editarProyecto',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -160,7 +164,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'presupuesto',
     patron: '/proyectos/:id/presupuesto',
-    nombre: 'El presupuesto',
+    nombre: 'presupuesto',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -169,7 +173,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'aprobar',
     patron: '/proyectos/:id/aprobar',
-    nombre: 'Aprobar',
+    nombre: 'aprobar',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -178,7 +182,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'compartir',
     patron: '/proyectos/:id/compartir',
-    nombre: 'Mostrarle al cliente',
+    nombre: 'mostrarleAlCliente',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -187,7 +191,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'vista-cliente',
     patron: '/proyectos/:id/vista-cliente',
-    nombre: 'Lo que ve el cliente',
+    nombre: 'loQueVeElCliente',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 3,
@@ -196,7 +200,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'cobrar',
     patron: '/proyectos/:id/cobrar',
-    nombre: 'Cobrar',
+    nombre: 'cobrar',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -205,7 +209,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'cerrar',
     patron: '/proyectos/:id/cerrar',
-    nombre: 'Dar por perdido',
+    nombre: 'darPorPerdido',
     seccion: 'proyectos',
     raiz: false,
     profundidad: 2,
@@ -214,7 +218,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'clientes',
     patron: '/clientes',
-    nombre: 'Clientes',
+    nombre: 'clientes',
     seccion: 'clientes',
     raiz: true,
     profundidad: 0,
@@ -223,7 +227,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'cliente',
     patron: '/clientes/:id',
-    nombre: 'Clientes',
+    nombre: 'clientes',
     seccion: 'clientes',
     raiz: false,
     profundidad: 1,
@@ -232,7 +236,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'finanzas',
     patron: '/finanzas',
-    nombre: 'Finanzas',
+    nombre: 'finanzas',
     seccion: 'finanzas',
     raiz: true,
     profundidad: 0,
@@ -241,7 +245,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'movimiento-nuevo',
     patron: '/finanzas/nuevo',
-    nombre: 'Finanzas',
+    nombre: 'finanzas',
     seccion: 'finanzas',
     raiz: false,
     profundidad: 0,
@@ -250,7 +254,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'movimiento',
     patron: '/finanzas/:id',
-    nombre: 'Finanzas',
+    nombre: 'finanzas',
     seccion: 'finanzas',
     raiz: false,
     profundidad: 0,
@@ -259,7 +263,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'tesoros',
     patron: '/tesoros',
-    nombre: 'Tesoros',
+    nombre: 'tesoros',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -268,7 +272,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'resultados',
     patron: '/opiniones',
-    nombre: 'Opiniones',
+    nombre: 'opiniones',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -278,7 +282,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'preguntas',
     patron: '/opiniones/preguntas',
-    nombre: 'Opiniones',
+    nombre: 'opiniones',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -288,7 +292,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'diezmo',
     patron: '/diezmo',
-    nombre: 'Diezmo',
+    nombre: 'diezmo',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -297,7 +301,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'ajustes',
     patron: '/ajustes',
-    nombre: 'Ajustes',
+    nombre: 'ajustes',
     seccion: 'inicio',
     raiz: false,
     profundidad: 1,
@@ -306,7 +310,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'avisos',
     patron: '/ajustes/avisos',
-    nombre: 'Avisos',
+    nombre: 'avisos',
     seccion: 'inicio',
     raiz: false,
     profundidad: 2,
@@ -315,7 +319,7 @@ export const CATALOGO: readonly Pantalla[] = [
   {
     id: 'presupuesto-del-taller',
     patron: '/ajustes/presupuesto',
-    nombre: 'Tu presupuesto',
+    nombre: 'tuPresupuesto',
     seccion: 'inicio',
     raiz: false,
     profundidad: 2,
@@ -358,8 +362,13 @@ export function proyectoDeLaFicha(url: string): string | null {
   return matchPath(pantalla.patron, direccionDe(url).pathname)?.params.id ?? null;
 }
 
+export function nombreDeLaPantalla(pantalla: Pantalla): string {
+  return mensajes().appNavegacion.pantallas[pantalla.nombre];
+}
+
 export function nombreDe(url: string): string | undefined {
-  return pantallaDe(url)?.nombre;
+  const pantalla = pantallaDe(url);
+  return pantalla === undefined ? undefined : nombreDeLaPantalla(pantalla);
 }
 
 export function esLaMismaPantalla(una: string, otra: string): boolean {
