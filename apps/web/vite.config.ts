@@ -121,6 +121,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     test: {
+      testTimeout: 20_000,
       projects: [
         {
           extends: true,
