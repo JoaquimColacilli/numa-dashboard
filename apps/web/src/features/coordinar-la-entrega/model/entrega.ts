@@ -1,11 +1,7 @@
 import { sumarDias, type DiaElegido, type FranjaDeEntrega } from '@maun/domain';
 
-import {
-  entregaGuardada,
-  FRANJA_DE_LA_ENTREGA,
-  listoDelTrabajo,
-  type Proyecto,
-} from '@/entities/proyecto';
+import { entregaGuardada, listoDelTrabajo, type Proyecto } from '@/entities/proyecto';
+import { mensajes } from '@/shared/idioma';
 
 export type FechaQueSeElige = 'estimada' | 'comprometida' | 'propuesta';
 
@@ -18,11 +14,10 @@ export function errorDeLaFecha(
   fecha: string,
   hoy: string,
 ): string | undefined {
-  if (fecha.trim() === '') return 'Elegí el día.';
+  const { errores } = mensajes().coordinarLaEntrega;
+  if (fecha.trim() === '') return errores.sinDia;
   if (fecha < desdeCuando(que, hoy)) {
-    return que === 'propuesta'
-      ? 'El día que le proponés tiene que ser desde mañana.'
-      : 'Esa fecha ya pasó y tu cliente no la vería: elegí una desde hoy.';
+    return que === 'propuesta' ? errores.propuestaDesdeManana : errores.fechaQuePaso;
   }
   return undefined;
 }
@@ -60,9 +55,10 @@ export interface OpcionParaConfirmar {
 
 export function opcionesParaConfirmar(dia: DiaElegido, hoy: string): OpcionParaConfirmar[] {
   if (dia.fecha < hoy) return [];
+  const { franjas } = mensajes().coordinarLaEntrega;
   return dia.franjas.map((franja) => ({
     fecha: dia.fecha,
     franja,
-    etiqueta: FRANJA_DE_LA_ENTREGA[franja].replace(/^a la /, 'A la '),
+    etiqueta: franjas[franja],
   }));
 }

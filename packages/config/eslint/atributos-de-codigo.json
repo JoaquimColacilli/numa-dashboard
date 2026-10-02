@@ -124,6 +124,9 @@
       "izquierda": "relleno de la caja",
       "derecha": "relleno de la caja",
       "arriba": "relleno de la caja"
+    },
+    "HojaDeLaFecha": {
+      "que": "qué fecha se elige: estimada, comprometida o propuesta"
     }
   }
 }

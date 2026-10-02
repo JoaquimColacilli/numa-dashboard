@@ -2,6 +2,7 @@ import type { Mensajes } from '../es';
 
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
+import { coordinarLaEntrega } from './coordinarLaEntrega';
 import { editarTesoro } from './editarTesoro';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
@@ -13,6 +14,7 @@ import { registrarMovimiento } from './registrarMovimiento';
 export const en = {
   avanzarLaConsulta,
   comun,
+  coordinarLaEntrega,
   editarTesoro,
   fila,
   hacerElSeguimiento,

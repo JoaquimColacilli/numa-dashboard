@@ -1,24 +1,16 @@
 import { FRANJAS_DE_ENTREGA, type FranjaDeEntrega } from '@maun/domain';
-import { useState, type SyntheticEvent } from 'react';
+import { useState, type ReactNode, type SyntheticEvent } from 'react';
 
-import { FRANJA_DE_LA_ENTREGA } from '@/entities/proyecto';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Button, Campo, FilaDeAcciones, Hoja } from '@/shared/ui';
 
 import { desdeCuando, errorDeLaFecha, type FechaQueSeElige } from '../model/entrega';
 
-const OPCIONES_DE_FRANJA: readonly { valor: FranjaDeEntrega | null; etiqueta: string }[] = [
-  { valor: null, etiqueta: 'Sin horario' },
-  ...FRANJAS_DE_ENTREGA.map((franja) => ({
-    valor: franja,
-    etiqueta: FRANJA_DE_LA_ENTREGA[franja].replace(/^a la /, 'A la '),
-  })),
-];
-
 export interface HojaDeLaFechaProps {
   que: FechaQueSeElige;
   titulo: string;
-  bajada: string;
+  bajada: ReactNode;
   ayuda: string;
   boton: string;
   hoy: string;
@@ -48,10 +40,15 @@ export function HojaDeLaFecha({
   alGuardar,
   alCerrar,
 }: HojaDeLaFechaProps) {
+  const textos = useMensajes().coordinarLaEntrega;
   const [fecha, setFecha] = useState(inicial);
   const [franja, setFranja] = useState<FranjaDeEntrega | null>(franjaInicial);
   const [error, setError] = useState<string | undefined>(undefined);
   const conCambios = fecha !== inicial || franja !== franjaInicial;
+  const opcionesDeFranja: readonly { valor: FranjaDeEntrega | null; etiqueta: string }[] = [
+    { valor: null, etiqueta: textos.sinHorario },
+    ...FRANJAS_DE_ENTREGA.map((una) => ({ valor: una, etiqueta: textos.franjas[una] })),
+  ];
 
   function enviar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
@@ -67,7 +64,7 @@ export function HojaDeLaFecha({
         <form noValidate onSubmit={enviar} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
             <Campo
-              etiqueta="Día"
+              etiqueta={textos.dia}
               type="date"
               min={desdeCuando(que, hoy)}
               value={fecha}
@@ -81,9 +78,9 @@ export function HojaDeLaFecha({
 
             {conFranja && (
               <fieldset className="flex flex-col gap-1.5">
-                <legend className="mb-1.5 text-label text-text-2">Horario</legend>
-                <div role="radiogroup" aria-label="Horario" className="flex flex-wrap gap-2">
-                  {OPCIONES_DE_FRANJA.map((opcion) => {
+                <legend className="mb-1.5 text-label text-text-2">{textos.horario}</legend>
+                <div role="radiogroup" aria-label={textos.horario} className="flex flex-wrap gap-2">
+                  {opcionesDeFranja.map((opcion) => {
                     const elegida = franja === opcion.valor;
                     return (
                       <button
@@ -118,7 +115,7 @@ export function HojaDeLaFecha({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={cargando}>
                 {boton}
