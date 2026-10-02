@@ -18,7 +18,6 @@
     "src/features/ver-novedades/",
     "src/pages/ajustes/",
     "src/pages/encuesta-publica/",
-    "src/pages/nueva-contrasena/",
     "src/pages/tesoros/",
     "src/pages/vista-cliente/",
     "src/shared/lib/telefono.ts",

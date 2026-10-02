@@ -38,6 +38,7 @@ import { paginaCrearCuenta } from './paginaCrearCuenta';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
+import { paginaNuevaContrasena } from './paginaNuevaContrasena';
 import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { paginaRecuperar } from './paginaRecuperar';
@@ -87,6 +88,7 @@ export const en = {
   paginaDiezmo,
   paginaFinanzas,
   paginaInicio,
+  paginaNuevaContrasena,
   paginaOpiniones,
   paginaProyectos,
   paginaRecuperar,
