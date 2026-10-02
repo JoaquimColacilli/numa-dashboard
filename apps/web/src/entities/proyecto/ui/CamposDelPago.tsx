@@ -171,17 +171,25 @@ export interface CamposDelPagoProps extends DetalleDelPagoProps {
   etiqueta?: string;
   errorDelMonto?: string;
   ayudaDelMonto?: string;
+  placeholder?: string;
 }
 
 export function CamposDelPago({
   etiqueta,
   errorDelMonto,
   ayudaDelMonto,
+  placeholder = '0',
   ...detalle
 }: CamposDelPagoProps) {
   const textos = useMensajes().proyecto.pago;
   const id = useId();
   const { valor, alCambiar, tesorosEnDolares, deshabilitado = false } = detalle;
+  const describe =
+    errorDelMonto !== undefined
+      ? `${id}-error`
+      : ayudaDelMonto !== undefined
+        ? `${id}-ayuda`
+        : undefined;
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1.5">
@@ -204,9 +212,10 @@ export function CamposDelPago({
             id={`${id}-monto`}
             moneda={valor.moneda}
             value={valor.monto}
-            placeholder="0"
+            placeholder={placeholder}
             disabled={deshabilitado}
             aria-invalid={errorDelMonto === undefined ? undefined : true}
+            aria-describedby={describe}
             onChange={(monto) => {
               alCambiar({ ...valor, monto });
             }}
@@ -214,12 +223,14 @@ export function CamposDelPago({
           />
         </div>
         {errorDelMonto !== undefined ? (
-          <span role="alert" className="text-label font-medium text-alerta">
+          <span id={`${id}-error`} role="alert" className="text-label font-medium text-alerta">
             {errorDelMonto}
           </span>
         ) : (
           ayudaDelMonto !== undefined && (
-            <span className="text-meta leading-normal text-text-3">{ayudaDelMonto}</span>
+            <span id={`${id}-ayuda`} className="text-meta leading-normal text-text-3">
+              {ayudaDelMonto}
+            </span>
           )
         )}
       </div>

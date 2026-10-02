@@ -118,6 +118,7 @@ export function FormularioDelRelevamiento({
       {conPago && (
         <CamposDelPago
           etiqueta={textos.cuantoTePagoLaVisita}
+          placeholder={textos.opcional}
           valor={valorDelPagoDeLaVisita(valores)}
           alCambiar={cambiarElPago}
           monedaDelTrabajo={delTrabajo}
@@ -269,6 +270,7 @@ export function FormularioDelPago({
       <div ref={campos}>
         <CamposDelPago
           etiqueta={textos.cuantoTePago}
+          placeholder={textos.opcional}
           valor={pago}
           alCambiar={(valor) => {
             setPago(valor);
