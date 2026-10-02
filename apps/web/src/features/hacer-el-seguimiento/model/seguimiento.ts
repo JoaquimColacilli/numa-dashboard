@@ -8,6 +8,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import type { ProximoParaGuardar } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 const UN_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -19,20 +20,22 @@ export interface ValoresDelSeguimiento {
 }
 
 export function errorDelProximoContacto(fecha: string, hoy: string): string | undefined {
-  if (!UN_DIA.test(fecha)) return 'Elegí el día en que le volvés a escribir.';
-  if (fecha < hoy) return 'Ese día ya pasó: elegí hoy o más adelante.';
+  const { errores } = mensajes().hacerElSeguimiento;
+  if (!UN_DIA.test(fecha)) return errores.sinProximoContacto;
+  if (fecha < hoy) return errores.proximoContactoQuePaso;
   return undefined;
 }
 
 export function errorDelDiaQueLeEscribiste(dia: string, hoy: string): string | undefined {
-  if (!UN_DIA.test(dia)) return 'Poné el día en que le escribiste.';
-  if (dia > hoy) return 'Ese día todavía no llegó: tiene que ser hoy o antes.';
+  const { errores } = mensajes().hacerElSeguimiento;
+  if (!UN_DIA.test(dia)) return errores.sinDiaQueLeEscribiste;
+  if (dia > hoy) return errores.diaQueNoLlego;
   return undefined;
 }
 
 export function errorDeLaNota(nota: string): string | undefined {
   return nota.trim().length > LARGO_MAXIMO_DE_LA_NOTA
-    ? `No puede pasar de ${String(LARGO_MAXIMO_DE_LA_NOTA)} caracteres.`
+    ? mensajes().hacerElSeguimiento.errores.notaLarga(LARGO_MAXIMO_DE_LA_NOTA)
     : undefined;
 }
 

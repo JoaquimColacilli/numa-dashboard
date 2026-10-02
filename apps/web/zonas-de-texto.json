@@ -37,7 +37,6 @@
     "src/features/editar-proyecto/",
     "src/features/editar-tesoro/",
     "src/features/elegir-tema/",
-    "src/features/hacer-el-seguimiento/",
     "src/features/iniciar-sesion/",
     "src/features/leer-las-opiniones/",
     "src/features/liquidar-proyecto/",

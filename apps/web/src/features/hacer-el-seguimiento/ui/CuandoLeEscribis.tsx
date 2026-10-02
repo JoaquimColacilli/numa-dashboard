@@ -1,13 +1,8 @@
-import { fechaDelPlazo, PLAZOS_DEL_SEGUIMIENTO, type PlazoDelSeguimiento } from '@maun/domain';
+import { fechaDelPlazo, PLAZOS_DEL_SEGUIMIENTO } from '@maun/domain';
 import { useId } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga } from '@/shared/lib';
-
-const ETIQUETA_DEL_PLAZO: Readonly<Record<PlazoDelSeguimiento, string>> = {
-  una_semana: 'En una semana',
-  un_mes: 'En un mes',
-  tres_meses: 'En tres meses',
-};
 
 export interface CuandoLeEscribisProps {
   hoy: string;
@@ -17,13 +12,8 @@ export interface CuandoLeEscribisProps {
   leyenda?: string;
 }
 
-export function CuandoLeEscribis({
-  hoy,
-  fecha,
-  error,
-  alCambiar,
-  leyenda = '¿Cuándo le volvés a escribir?',
-}: CuandoLeEscribisProps) {
+export function CuandoLeEscribis({ hoy, fecha, error, alCambiar, leyenda }: CuandoLeEscribisProps) {
+  const textos = useMensajes().hacerElSeguimiento;
   const ids = useId();
 
   return (
@@ -31,7 +21,9 @@ export function CuandoLeEscribis({
       className="flex flex-col gap-1.5"
       aria-describedby={error === undefined ? undefined : `${ids}-error`}
     >
-      <legend className="mb-1.5 text-label text-text-2">{leyenda}</legend>
+      <legend className="mb-1.5 text-label text-text-2">
+        {leyenda ?? textos.cuandoLeVolvesAEscribir}
+      </legend>
       <div className="grid grid-cols-1 gap-2 min-[22rem]:grid-cols-3">
         {PLAZOS_DEL_SEGUIMIENTO.map((plazo) => {
           const dia = fechaDelPlazo(hoy, plazo);
@@ -48,10 +40,11 @@ export function CuandoLeEscribis({
                 elegido ? 'border-ink bg-ink text-paper' : 'border-border bg-paper text-ink'
               }`}
             >
-              <span className="text-body leading-tight font-medium">
-                {ETIQUETA_DEL_PLAZO[plazo]}
-              </span>
-              <span className={`text-meta ${elegido ? 'text-paper' : 'text-text-2'}`}>
+              <span className="text-body leading-tight font-medium">{textos.plazos[plazo]}</span>
+              <span
+                translate="no"
+                className={`text-meta ${elegido ? 'text-paper' : 'text-text-2'}`}
+              >
                 {fechaLarga(dia, hoy)}
               </span>
             </button>
@@ -60,7 +53,7 @@ export function CuandoLeEscribis({
       </div>
       <input
         type="date"
-        aria-label="Otro día"
+        aria-label={textos.otroDia}
         min={hoy}
         value={fecha}
         onChange={(evento) => {

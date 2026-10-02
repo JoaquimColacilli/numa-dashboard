@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
 import { MUTACION_DE_PROYECTO, type Proyecto } from '@/entities/proyecto';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { hayCambios, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja } from '@/shared/ui';
 
@@ -28,6 +29,7 @@ export function HojaDePonerEnSeguimiento({
   nombre,
   alCerrar,
 }: HojaDePonerEnSeguimientoProps) {
+  const textos = useMensajes().hacerElSeguimiento.ponerEnSeguimiento;
   const ids = useId();
   const hoy = hoyEnElTaller();
   const [id] = useState(uuidv7);
@@ -69,18 +71,19 @@ export function HojaDePonerEnSeguimiento({
 
   return (
     <Hoja
-      titulo="Por ahora no"
-      bajada={`${nombre} · ${proyecto.titulo}`}
+      titulo={textos.titulo}
+      bajada={
+        <span translate="no" className="truncate text-label text-text-2">
+          {`${nombre} · ${proyecto.titulo}`}
+        </span>
+      }
       alCerrar={alCerrar}
       conCambios={hayCambios(VACIO, { ...valores, nota: valores.nota.trim() })}
     >
       {(pedirCierre) => (
         <form noValidate onSubmit={enviar} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
-            <p className="text-body leading-relaxed text-text-2">
-              No dijo que no: dijo que ahora no. Pasa a Seguimiento, sale de tus consultas y la
-              agenda te avisa el día en que le volvés a escribir.
-            </p>
+            <p className="text-body leading-relaxed text-text-2">{textos.explicacion}</p>
 
             <CuandoLeEscribis
               hoy={hoy}
@@ -94,7 +97,7 @@ export function HojaDePonerEnSeguimiento({
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${ids}-nota`} className="text-label text-text-2">
-                Nota
+                {textos.nota}
               </label>
               <textarea
                 id={`${ids}-nota`}
@@ -105,10 +108,10 @@ export function HojaDePonerEnSeguimiento({
                   const nota = evento.target.value;
                   setValores((previos) => ({ ...previos, nota }));
                 }}
-                placeholder="Después de las vacaciones, cuando cobre el aguinaldo…"
+                placeholder={textos.ejemploDeNota}
                 className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
               />
-              <span className="text-meta text-text-3">Opcional.</span>
+              <span className="text-meta text-text-3">{textos.opcional}</span>
               {errores.nota !== undefined && (
                 <span role="alert" className="text-label font-medium text-alerta">
                   {errores.nota}
@@ -129,10 +132,10 @@ export function HojaDePonerEnSeguimiento({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={guardar.isPending && !guardar.isPaused}>
-                Pasar a seguimiento
+                {textos.pasarASeguimiento}
               </Button>
             </FilaDeAcciones>
           </footer>
