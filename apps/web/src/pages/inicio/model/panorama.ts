@@ -24,8 +24,6 @@ import { equivalenteEnPesos, ultimoCambioEntre, type UltimoCambio } from '@/enti
 import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import { mensajes } from '@/shared/idioma';
 
-export const AYUDA_DEL_PANORAMA = 'Dónde está la plata y para qué la podés usar.';
-
 export interface EntradaDelPanorama {
   fila: Fila;
   delMes: FilaDelMes;
@@ -155,10 +153,6 @@ export function panoramaDelTaller(entrada: EntradaDelPanorama): PanoramaDelTalle
   };
 }
 
-function enTesoros(cuantos: number): string {
-  return cuantos === 1 ? 'en un tesoro' : `en ${String(cuantos)} tesoros`;
-}
-
 export interface CifraDelPanorama {
   id: 'para-pagar' | 'ahorros' | 'superavit' | 'insumos' | 'en-dolares';
   etiqueta: string;
@@ -171,46 +165,44 @@ export function cifrasDelPanorama(
   panorama: PanoramaDelTaller,
   nombreDelSuperavit: string,
 ): CifraDelPanorama[] {
+  const textos = mensajes().paginaInicio.panorama;
   const trabajos = panorama.trabajosConInsumos;
   const cifras: CifraDelPanorama[] = [
     {
       id: 'para-pagar',
-      etiqueta: 'Para pagar',
+      etiqueta: textos.paraPagar,
       monto: enPesos(panorama.paraPagar),
       detalle:
-        panorama.tesorosParaPagar === 0 ? 'nada pendiente' : enTesoros(panorama.tesorosParaPagar),
+        panorama.tesorosParaPagar === 0
+          ? textos.nadaPendiente
+          : textos.enTesoros(panorama.tesorosParaPagar),
       equivalente: null,
     },
     {
       id: 'ahorros',
-      etiqueta: 'Ahorros',
+      etiqueta: textos.ahorros,
       monto: enPesos(panorama.ahorros),
       detalle:
         panorama.tesorosDeAhorro === 0
-          ? 'todavía sin ahorros'
-          : enTesoros(panorama.tesorosDeAhorro),
+          ? textos.todaviaSinAhorros
+          : textos.enTesoros(panorama.tesorosDeAhorro),
       equivalente: null,
     },
     {
       id: 'superavit',
-      etiqueta: 'Superávit',
+      etiqueta: textos.superavit,
       monto: enPesos(panorama.superavit),
       detalle:
         panorama.superavit < 0
-          ? `en ${nombreDelSuperavit}, que no alcanza`
-          : `en ${nombreDelSuperavit}`,
+          ? textos.enElTesoroQueNoAlcanza(nombreDelSuperavit)
+          : textos.enElTesoro(nombreDelSuperavit),
       equivalente: null,
     },
     {
       id: 'insumos',
-      etiqueta: 'Insumos de los trabajos',
+      etiqueta: textos.insumos,
       monto: enPesos(panorama.insumos),
-      detalle:
-        trabajos === 0
-          ? 'sin trabajos en curso'
-          : trabajos === 1
-            ? 'de un trabajo'
-            : `de ${String(trabajos)} trabajos`,
+      detalle: trabajos === 0 ? textos.sinTrabajosEnCurso : textos.deTrabajos(trabajos),
       equivalente: null,
     },
   ];
@@ -218,9 +210,9 @@ export function cifrasDelPanorama(
   if (enDolares !== undefined && enDolares !== null) {
     cifras.push({
       id: 'en-dolares',
-      etiqueta: mensajes().inicio.panorama.enDolares,
+      etiqueta: textos.enDolares,
       monto: plataEn('USD', enDolares.total),
-      detalle: enTesoros(enDolares.tesoros),
+      detalle: textos.enTesoros(enDolares.tesoros),
       equivalente: equivalenteEnPesos(enDolares.total, enDolares.ultimoCambio),
     });
   }

@@ -91,6 +91,13 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: 'Falta el elemento #root en index.html.',
     motivo: 'Solo lo ve quien arma la app, no quien la usa.',
   },
+  {
+    archivo: 'src/entities/movimiento/model/clases.ts',
+    texto:
+      /^(Docencia|Changas|Regalos|Venta personal|Otro|Cobro suelto|Venta de sobrantes|Supermercado|Servicios|Salud|Educación|Transporte|Ropa|Recreación|Iglesia|Materiales|Herramientas|Costos fijos|Flete|Servicios del taller|Publicidad|Compra|Imprevisto|Regalo|Compra del inmueble|Escritura y sellos|Mudanza|Oficial|Blue|Cripto|Ahorro previo)$/u,
+    motivo:
+      'Las categorías que se ofrecen se guardan en castellano en cada movimiento: son claves de movimiento.categorias, que las muestra en el idioma de quien mira con categoriaEnPantalla.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

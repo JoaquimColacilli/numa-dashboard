@@ -1,9 +1,4 @@
-import {
-  asientosDelLibro,
-  estadoDelDiezmo,
-  eventosDeLaAgenda,
-  nombresQueOpinaron,
-} from '@maun/domain';
+import { asientosDelLibro, estadoDelDiezmo, eventosDeLaAgenda } from '@maun/domain';
 import type { ReactNode } from 'react';
 
 import { diaEnPalabras, etiquetaDelDia, nombreDelEvento } from '@/entities/agenda';
@@ -12,6 +7,7 @@ import type { NovedadesDeOpiniones } from '@/entities/opinion';
 import { FilaParaSalir } from '@/features/cerrar-sesion';
 import { VersionDeLaApp } from '@/features/ver-novedades';
 import { datosDeLaAgendaDeLaReplica, datosDelLibro, type Replica } from '@/shared/api';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   describirEstadoSync,
   RUTA_DE_AGENDA,
@@ -24,6 +20,8 @@ import {
   Ir,
 } from '@/shared/lib';
 import { Avatar, Hoja, Icono, type NombreDeIcono } from '@/shared/ui';
+
+import { quienesOpinaron } from '../model/opiniones';
 
 const DIAS_QUE_MIRA_LA_AGENDA = 30;
 
@@ -43,16 +41,27 @@ function masDias(fecha: string, dias: number): string {
   return dia.toISOString().slice(0, 10);
 }
 
-function proximoEnLaAgenda(replica: Replica, hoy: string): string {
+function proximoEnLaAgenda(
+  replica: Replica,
+  hoy: string,
+  textos: Mensajes['paginaInicio']['perfil'],
+): string {
   const rango = { desde: hoy, hasta: masDias(hoy, DIAS_QUE_MIRA_LA_AGENDA) };
   const [proximo] = eventosDeLaAgenda(datosDeLaAgendaDeLaReplica(replica, rango), rango).filter(
     (evento) => !evento.hecha,
   );
-  if (proximo === undefined) return 'Nada agendado por ahora';
+  if (proximo === undefined) return textos.nadaAgendado;
   const etiqueta = etiquetaDelDia(proximo.fecha, hoy);
   const cuando =
-    etiqueta === null ? diaEnPalabras(proximo.fecha) : etiqueta === 'hoy' ? 'Hoy' : 'Mañana';
-  return `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)}: ${nombreDelEvento(proximo)}`;
+    etiqueta === null
+      ? diaEnPalabras(proximo.fecha)
+      : etiqueta === 'hoy'
+        ? textos.hoy
+        : textos.manana;
+  return textos.proximo(
+    `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)}`,
+    nombreDelEvento(proximo),
+  );
 }
 
 function Fila({
@@ -108,9 +117,11 @@ export function HojaDelPerfil({
   novedades,
   alCerrar,
 }: HojaDelPerfilProps) {
+  const m = useMensajes();
+  const textos = m.paginaInicio.perfil;
   const estado = useEstadoSync();
   const diezmo = fraseDelDiezmo(estadoDelDiezmo(asientosDelLibro(datosDelLibro(replica))));
-  const quienes = nombresQueOpinaron(novedades.nombres);
+  const quienes = quienesOpinaron(novedades.nombres);
 
   return (
     <Hoja
@@ -121,18 +132,16 @@ export function HojaDelPerfil({
       alCerrar={alCerrar}
     >
       <div className="min-h-0 flex-1 overflow-auto px-5 pt-1 pb-2">
-        <nav aria-label="Lo que no entra en la barra">
+        <nav aria-label={textos.loQueNoEntraEnLaBarra}>
           <Fila
             ruta={RUTA_DE_OPINIONES}
             icono="message-square-quote"
-            etiqueta="Opiniones"
-            bajada={
-              novedades.sinLeer > 0 && quienes !== '' ? quienes : 'Lo que contestaron tus clientes'
-            }
+            etiqueta={textos.opiniones}
+            bajada={novedades.sinLeer > 0 && quienes !== '' ? quienes : textos.loQueContestaron}
             insignia={
               novedades.sinLeer > 0 && (
                 <span className="flex-none rounded-pill bg-op-mal px-2.25 py-0.75 text-meta font-semibold text-paper-fijo">
-                  {novedades.sinLeer === 1 ? '1 nueva' : `${String(novedades.sinLeer)} nuevas`}
+                  {textos.nuevas(novedades.sinLeer)}
                 </span>
               )
             }
@@ -140,32 +149,32 @@ export function HojaDelPerfil({
           <Fila
             ruta={RUTA_DE_TESOROS}
             icono="gem"
-            etiqueta="Tesoros"
-            bajada="Cómo se reparte cada cobro"
+            etiqueta={textos.tesoros}
+            bajada={textos.comoSeReparte}
           />
           <Fila
             ruta={RUTA_DE_DIEZMO}
             icono="church"
             fondo="bg-diezmo-tint text-diezmo"
-            etiqueta="Diezmo"
+            etiqueta={textos.diezmo}
             bajada={diezmo.frase}
           />
           <Fila
             ruta={RUTA_DE_AGENDA}
             icono="calendar-days"
-            etiqueta="Agenda"
-            bajada={proximoEnLaAgenda(replica, hoy)}
+            etiqueta={textos.agenda}
+            bajada={proximoEnLaAgenda(replica, hoy, textos)}
           />
         </nav>
         <div role="group" aria-labelledby="la-app" className="pt-4.5">
           <div id="la-app" className="px-1 pb-1.5 text-meta text-text-3">
-            La app
+            {textos.laApp}
           </div>
           <Fila
             ruta={RUTA_DE_AJUSTES}
             icono="settings"
-            etiqueta="Ajustes"
-            bajada="Tu taller, cómo te pagan y la vidriera"
+            etiqueta={textos.ajustes}
+            bajada={textos.tuTaller}
           />
           <FilaParaSalir className={FILA} />
         </div>

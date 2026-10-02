@@ -1,7 +1,6 @@
 import { esAnteriorALaApertura } from '@maun/domain';
 
-export const TEXTO_DE_LA_APERTURA =
-  'Esta plata ya estaba en tus saldos cuando empezaste con la app';
+import { useMensajes } from '@/shared/idioma';
 
 const UN_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -20,10 +19,11 @@ export function CasillaDeLaApertura({
   apertura,
   marcada,
   alCambiar,
-  etiqueta = TEXTO_DE_LA_APERTURA,
+  etiqueta,
   disabled = false,
   className = '',
 }: CasillaDeLaAperturaProps) {
+  const m = useMensajes();
   if (!UN_DIA.test(fecha) || !esAnteriorALaApertura(fecha, apertura)) return null;
 
   return (
@@ -39,7 +39,7 @@ export function CasillaDeLaApertura({
         }}
         className="size-4 flex-none accent-ink"
       />
-      {etiqueta}
+      {etiqueta ?? m.movimiento.casillaDeLaApertura}
     </label>
   );
 }

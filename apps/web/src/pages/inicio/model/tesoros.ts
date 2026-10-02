@@ -3,6 +3,7 @@ import { CERO, enPesos, restar, type Fila, type Money, type Plata } from '@maun/
 import { DESCRIPCION_DEL_TIPO, tiposDelTesoro } from '@/entities/fila';
 import type { FraseDelDiezmo } from '@/entities/movimiento';
 import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
+import { mensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 
 export const TESOROS_EN_UNA_FILA = 4;
@@ -28,7 +29,7 @@ export function tipoEnLaTarjeta(fila: Fila, tesoro: string): string | null {
     ...new Set(tiposDelTesoro(fila, tesoro).map((tipo) => DESCRIPCION_DEL_TIPO[tipo])),
   ];
   if (tipos.length === 0) return null;
-  const texto = tipos.join(' y ');
+  const texto = mensajes().paginaInicio.tarjetas.tipos(tipos);
   return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
 }
 
@@ -45,28 +46,39 @@ export function tiposEnLasTarjetas(
 }
 
 export function fraseDeLosInsumosDeMaun(insumos: Money, saldo: Money): string | null {
+  const textos = mensajes().paginaInicio.tarjetas;
   if (insumos === 0) return null;
-  if (insumos < 0) return `puso ${formatearPesos(restar(CERO, insumos))} en los trabajos`;
+  if (insumos < 0) return textos.pusoEnLosTrabajos(formatearPesos(restar(CERO, insumos)));
   return saldo < insumos
-    ? `no alcanza para ${formatearPesos(insumos)} de insumos`
-    : `${formatearPesos(insumos)} son insumos`;
+    ? textos.noAlcanzaParaLosInsumos(formatearPesos(insumos))
+    : textos.sonInsumos(formatearPesos(insumos));
+}
+
+export interface DetalleDeLaTarjeta {
+  texto: string;
+  delDueno: boolean;
 }
 
 export function detalleDeLaTarjeta(
   tesoro: Pick<TesoroDelTaller, 'clave' | 'descripcion' | 'meta' | 'saldo'>,
   diezmo: FraseDelDiezmo,
   insumos: Money = CERO,
-): string {
-  if (tesoro.clave === 'diezmo') return diezmo.detalle;
+): DetalleDeLaTarjeta {
+  if (tesoro.clave === 'diezmo') return { texto: diezmo.detalle, delDueno: false };
   const saldoDeMaun = tesoro.clave === 'maun' ? saldoEnPesos(tesoro) : null;
   if (saldoDeMaun !== null) {
     const deLosInsumos = fraseDeLosInsumosDeMaun(insumos, saldoDeMaun);
-    if (deLosInsumos !== null) return deLosInsumos;
+    if (deLosInsumos !== null) return { texto: deLosInsumos, delDueno: false };
   }
   if (tesoro.meta !== null && tesoro.meta.importe > 0) {
-    return `${String(porcentajeDeLaMeta(tesoro.saldo, tesoro.meta))}% de la meta`;
+    return {
+      texto: mensajes().paginaInicio.tarjetas.deLaMeta(
+        porcentajeDeLaMeta(tesoro.saldo, tesoro.meta),
+      ),
+      delDueno: false,
+    };
   }
-  return tesoro.descripcion;
+  return { texto: tesoro.descripcion, delDueno: true };
 }
 
 export interface TesoroConMeta {

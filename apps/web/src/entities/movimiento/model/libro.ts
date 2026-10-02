@@ -18,10 +18,11 @@ import {
 } from '@maun/domain';
 
 import { datosDelLibro, filasDe, type Replica } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import { mesDeLaFecha, TESORO, type TintaDeTesoro } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
-import { claseDe } from './clases';
+import { categoriaEnPantalla, claseDe } from './clases';
 
 export type SentidoDeLinea = 'entra' | 'sale' | 'mueve';
 
@@ -29,12 +30,9 @@ export type BloqueoDeLinea = 'del-proyecto' | 'ajuste';
 
 export const TODOS_LOS_TESOROS = 'todos';
 
-export const MOTIVO_DEL_BLOQUEO: Readonly<Record<BloqueoDeLinea, string>> = {
-  'del-proyecto':
-    'Este asiento lo genera el proyecto: sale de sus pagos, de sus gastos y del reparto que quedó congelado al cobrarlo. Para cambiarlo hay que corregir el proyecto.',
-  ajuste:
-    'Un ajuste no se edita: es la constancia de una corrección que ya se hizo. Si quedó mal, se compensa con otro ajuste en sentido contrario.',
-};
+export const MOTIVO_DEL_BLOQUEO: Readonly<Record<BloqueoDeLinea, string>> = textosDelIdioma(
+  () => mensajes().movimiento.libro.motivoDelBloqueo,
+);
 
 export interface TesoroDeLaLinea {
   id: string;
@@ -57,19 +55,8 @@ export interface LineaDelTaller extends LineaDelLibro {
   bloqueo: BloqueoDeLinea | null;
 }
 
-const ETIQUETA_DERIVADA: Readonly<Record<string, string>> = {
-  cobro: 'Cobro del trabajo',
-  gasto: 'Gasto del trabajo',
-  diezmo: 'Diezmo del reparto',
-  sueldo: 'Sueldo del reparto',
-  fijos: 'Gastos fijos del reparto',
-  prioridad: 'Paso del reparto',
-  reparto: 'Parte del reparto',
-};
-
 const OTRO_TESORO = {
   moneda: MONEDA_DEL_TALLER,
-  nombre: 'Otro tesoro',
   tinta: 'maun',
   icono: 'vault',
 } as const;
@@ -84,13 +71,15 @@ function etiquetaDe(
   desde: TesoroDeLaLinea | null,
   hacia: TesoroDeLaLinea | null,
 ): string {
-  if (linea.origen !== 'manual') return ETIQUETA_DERIVADA[linea.concepto] ?? 'Del trabajo';
-  if (linea.concepto === 'ajuste') return 'Ajuste de saldo';
+  const textos = mensajes().movimiento.libro;
+  const derivadas: Readonly<Record<string, string | undefined>> = textos.etiquetaDerivada;
+  if (linea.origen !== 'manual') return derivadas[linea.concepto] ?? textos.delTrabajo;
+  if (linea.concepto === 'ajuste') return textos.ajusteDeSaldo;
   return (
     claseDe(linea.concepto, linea.desde, linea.hacia, {
       ...(desde === null ? {} : { desde: desde.moneda }),
       ...(hacia === null ? {} : { hacia: hacia.moneda }),
-    })?.etiqueta ?? 'Movimiento'
+    })?.etiqueta ?? textos.movimiento
   );
 }
 
@@ -124,7 +113,8 @@ function nombrador(
       (clave === null ? undefined : porClave.get(clave));
     if (encontrado) return encontrado;
     if (clave !== null) return { ...deSiempre(clave), id: id ?? clave };
-    return id === null ? null : { id, clave: null, ...OTRO_TESORO };
+    if (id === null) return null;
+    return { id, clave: null, nombre: mensajes().movimiento.libro.otroTesoro, ...OTRO_TESORO };
   };
 }
 
@@ -241,7 +231,14 @@ export function hayFiltroPuesto(filtro: FiltroDelLibro, mes: string): boolean {
 function coincideElTexto(linea: LineaDelTaller, texto: string): boolean {
   const buscado = texto.trim().toLowerCase();
   if (buscado === '') return true;
-  return [linea.detalle, linea.categoria, linea.etiqueta, linea.proyectoTitulo ?? '']
+  const categoria = categoriaEnPantalla(linea.categoria);
+  return [
+    linea.detalle,
+    linea.categoria,
+    ...(categoria === linea.categoria ? [] : [categoria]),
+    linea.etiqueta,
+    linea.proyectoTitulo ?? '',
+  ]
     .join(' ')
     .toLowerCase()
     .includes(buscado);

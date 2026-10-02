@@ -1,7 +1,7 @@
 import { MONEDA_DEL_TALLER, type Fila, type Moneda, type Money, type Plata } from '@maun/domain';
 
 import type { Tesoro, TipoMovimiento } from '@/shared/api';
-import { mensajes } from '@/shared/idioma';
+import { mensajes, type Mensajes } from '@/shared/idioma';
 import { rutaDeMovimientoNuevo } from '@/shared/lib';
 
 export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos' | 'entre' | 'dolares';
@@ -39,56 +39,92 @@ export interface DatosDeClase {
   ejemplo: string;
 }
 
-export const GRUPOS: readonly { id: GrupoDeMovimiento; etiqueta: string }[] = [
-  { id: 'ingreso', etiqueta: 'Ingreso' },
-  { id: 'gasto', etiqueta: 'Gasto' },
-  { id: 'diezmo', etiqueta: 'Diezmo' },
-  { id: 'cocos', etiqueta: 'Cocos' },
-  { id: 'entre', etiqueta: 'Entre tesoros' },
-  {
-    id: 'dolares',
+type CategoriaDelCatalogo = keyof Mensajes['movimiento']['categorias'];
+
+type TextosDeLaClase = keyof Mensajes['movimiento']['clases'];
+
+function grupo(id: GrupoDeMovimiento): { id: GrupoDeMovimiento; etiqueta: string } {
+  return {
+    id,
     get etiqueta() {
-      return mensajes().movimiento.dolares;
+      return mensajes().movimiento.grupos[id];
     },
-  },
+  };
+}
+
+export const GRUPOS: readonly { id: GrupoDeMovimiento; etiqueta: string }[] = [
+  grupo('ingreso'),
+  grupo('gasto'),
+  grupo('diezmo'),
+  grupo('cocos'),
+  grupo('entre'),
+  grupo('dolares'),
 ];
 
-export const QUE_DOLAR: readonly string[] = ['Oficial', 'MEP', 'Blue', 'Cripto', 'Otro'];
+const OTRA = 'Otro' satisfies CategoriaDelCatalogo;
+
+export const QUE_DOLAR: readonly string[] = [
+  'Oficial',
+  'MEP',
+  'Blue',
+  'Cripto',
+  OTRA,
+] satisfies readonly CategoriaDelCatalogo[];
+
+function conTextos(
+  textos: TextosDeLaClase,
+  datos: Omit<DatosDeClase, 'etiqueta' | 'corta' | 'ejemplo'>,
+): DatosDeClase {
+  return {
+    ...datos,
+    get etiqueta() {
+      return mensajes().movimiento.clases[textos].etiqueta;
+    },
+    get corta() {
+      return mensajes().movimiento.clases[textos].corta;
+    },
+    get ejemplo() {
+      return mensajes().movimiento.clases[textos].ejemplo;
+    },
+  };
+}
 
 export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
-  ingreso_hogar: {
+  ingreso_hogar: conTextos('ingresoHogar', {
     id: 'ingreso_hogar',
     grupo: 'ingreso',
-    etiqueta: 'Ingreso al hogar',
-    corta: 'Al hogar',
     tipo: 'ingreso',
     desde: null,
     hacia: 'hogar',
     tesoro: 'hogar',
     eligeLosLados: false,
     eligeElTesoro: false,
-    categorias: ['Docencia', 'Changas', 'Regalos', 'Venta personal', 'Otro'],
-    ejemplo: 'Docencia de septiembre',
-  },
-  ingreso_maun: {
+    categorias: [
+      'Docencia',
+      'Changas',
+      'Regalos',
+      'Venta personal',
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  ingreso_maun: conTextos('ingresoMaun', {
     id: 'ingreso_maun',
     grupo: 'ingreso',
-    etiqueta: 'Ingreso al taller',
-    corta: 'Al taller',
     tipo: 'ingreso',
     desde: null,
     hacia: 'maun',
     tesoro: 'maun',
     eligeLosLados: false,
     eligeElTesoro: false,
-    categorias: ['Cobro suelto', 'Venta de sobrantes', 'Otro'],
-    ejemplo: 'Venta de recortes de melamina',
-  },
-  gasto_hogar: {
+    categorias: [
+      'Cobro suelto',
+      'Venta de sobrantes',
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  gasto_hogar: conTextos('gastoHogar', {
     id: 'gasto_hogar',
     grupo: 'gasto',
-    etiqueta: 'Gasto del hogar',
-    corta: 'Del hogar',
     tipo: 'gasto',
     desde: 'hogar',
     hacia: null,
@@ -104,15 +140,12 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
       'Ropa',
       'Recreación',
       'Iglesia',
-      'Otro',
-    ],
-    ejemplo: 'Supermercado, luz y gas, pediatra…',
-  },
-  gasto_maun: {
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  gasto_maun: conTextos('gastoMaun', {
     id: 'gasto_maun',
     grupo: 'gasto',
-    etiqueta: 'Gasto del taller',
-    corta: 'Del taller',
     tipo: 'gasto',
     desde: 'maun',
     hacia: null,
@@ -126,29 +159,23 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
       'Flete',
       'Servicios del taller',
       'Publicidad',
-      'Otro',
-    ],
-    ejemplo: 'Alquiler, hoja de sierra, seguro…',
-  },
-  gasto_tesoro: {
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  gasto_tesoro: conTextos('gastoTesoro', {
     id: 'gasto_tesoro',
     grupo: 'gasto',
-    etiqueta: 'Gasto de un tesoro',
-    corta: 'De un tesoro',
     tipo: 'gasto',
     desde: null,
     hacia: null,
     tesoro: null,
     eligeLosLados: false,
     eligeElTesoro: true,
-    categorias: ['Compra', 'Imprevisto', 'Regalo', 'Otro'],
-    ejemplo: 'El alquiler de septiembre',
-  },
-  pago_diezmo: {
+    categorias: ['Compra', 'Imprevisto', 'Regalo', OTRA] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  pago_diezmo: conTextos('pagoDiezmo', {
     id: 'pago_diezmo',
     grupo: 'diezmo',
-    etiqueta: 'Pago de diezmo',
-    corta: 'Pago de diezmo',
     tipo: 'pago_diezmo',
     desde: 'diezmo',
     hacia: null,
@@ -156,13 +183,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: false,
     eligeElTesoro: false,
     categorias: [],
-    ejemplo: 'Diezmo de septiembre',
-  },
-  aporte_cocos: {
+  }),
+  aporte_cocos: conTextos('aporteCocos', {
     id: 'aporte_cocos',
     grupo: 'cocos',
-    etiqueta: 'Del taller a Cocos',
-    corta: 'Aporte',
     tipo: 'aporte_cocos',
     desde: 'maun',
     hacia: 'cocos',
@@ -170,13 +194,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: false,
     eligeElTesoro: false,
     categorias: [],
-    ejemplo: 'Aporte del mes',
-  },
-  retiro_cocos: {
+  }),
+  retiro_cocos: conTextos('retiroCocos', {
     id: 'retiro_cocos',
     grupo: 'cocos',
-    etiqueta: 'De Cocos al taller',
-    corta: 'Retiro',
     tipo: 'transferencia',
     desde: 'cocos',
     hacia: 'maun',
@@ -184,27 +205,26 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: false,
     eligeElTesoro: false,
     categorias: [],
-    ejemplo: 'Retiro para comprar la plegadora',
-  },
-  gasto_cocos: {
+  }),
+  gasto_cocos: conTextos('gastoCocos', {
     id: 'gasto_cocos',
     grupo: 'cocos',
-    etiqueta: 'Gasto desde Cocos',
-    corta: 'Gasto',
     tipo: 'gasto',
     desde: 'cocos',
     hacia: null,
     tesoro: 'cocos',
     eligeLosLados: false,
     eligeElTesoro: false,
-    categorias: ['Compra del inmueble', 'Escritura y sellos', 'Mudanza', 'Otro'],
-    ejemplo: 'Seña del terreno',
-  },
-  entre_tesoros: {
+    categorias: [
+      'Compra del inmueble',
+      'Escritura y sellos',
+      'Mudanza',
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
+  entre_tesoros: conTextos('entreTesoros', {
     id: 'entre_tesoros',
     grupo: 'entre',
-    etiqueta: 'Entre tesoros',
-    corta: 'Entre tesoros',
     tipo: 'transferencia',
     desde: null,
     hacia: null,
@@ -212,17 +232,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: true,
     eligeElTesoro: false,
     categorias: [],
-    ejemplo: 'Para los materiales del mes',
-  },
-  compra_de_dolares: {
+  }),
+  compra_de_dolares: conTextos('compraDeDolares', {
     id: 'compra_de_dolares',
     grupo: 'dolares',
-    get etiqueta() {
-      return mensajes().movimiento.clases.compraDeDolares.etiqueta;
-    },
-    get corta() {
-      return mensajes().movimiento.clases.compraDeDolares.corta;
-    },
     tipo: 'cambio',
     desde: null,
     hacia: null,
@@ -230,19 +243,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: true,
     eligeElTesoro: false,
     categorias: QUE_DOLAR,
-    get ejemplo() {
-      return mensajes().movimiento.clases.compraDeDolares.ejemplo;
-    },
-  },
-  venta_de_dolares: {
+  }),
+  venta_de_dolares: conTextos('ventaDeDolares', {
     id: 'venta_de_dolares',
     grupo: 'dolares',
-    get etiqueta() {
-      return mensajes().movimiento.clases.ventaDeDolares.etiqueta;
-    },
-    get corta() {
-      return mensajes().movimiento.clases.ventaDeDolares.corta;
-    },
     tipo: 'cambio',
     desde: null,
     hacia: null,
@@ -250,19 +254,10 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: true,
     eligeElTesoro: false,
     categorias: QUE_DOLAR,
-    get ejemplo() {
-      return mensajes().movimiento.clases.ventaDeDolares.ejemplo;
-    },
-  },
-  ingreso_en_dolares: {
+  }),
+  ingreso_en_dolares: conTextos('ingresoEnDolares', {
     id: 'ingreso_en_dolares',
     grupo: 'dolares',
-    get etiqueta() {
-      return mensajes().movimiento.clases.ingresoEnDolares.etiqueta;
-    },
-    get corta() {
-      return mensajes().movimiento.clases.ingresoEnDolares.corta;
-    },
     tipo: 'ingreso',
     desde: null,
     hacia: null,
@@ -270,11 +265,13 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     eligeLosLados: false,
     eligeElTesoro: true,
     entraAlTesoro: true,
-    categorias: ['Ahorro previo', 'Cobro suelto', 'Regalo', 'Otro'],
-    get ejemplo() {
-      return mensajes().movimiento.clases.ingresoEnDolares.ejemplo;
-    },
-  },
+    categorias: [
+      'Ahorro previo',
+      'Cobro suelto',
+      'Regalo',
+      OTRA,
+    ] satisfies readonly CategoriaDelCatalogo[],
+  }),
 };
 
 export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
@@ -405,6 +402,10 @@ export function categoriaEnPantalla(categoria: string): string {
   return traducidas[categoria] ?? categoria;
 }
 
+export function esCategoriaDelCatalogo(categoria: string): boolean {
+  return Object.hasOwn(mensajes().movimiento.categorias, categoria);
+}
+
 export function rutaParaComprarDolares(desde: { id: string; saldo: Plata }): string {
   return rutaDeMovimientoNuevo({
     clase: 'compra_de_dolares',
@@ -441,7 +442,7 @@ export function categoriasDeLaClase(
   renglones: readonly string[] = [],
 ): readonly string[] {
   if (!CLASE[clase].eligeElTesoro || renglones.length === 0) return CLASE[clase].categorias;
-  return [...new Set([...renglones, 'Otro'])];
+  return [...new Set([...renglones, OTRA])];
 }
 
 export function claseParaPagar(tesoro: { clave: Tesoro | null }): ClaseDeMovimiento {

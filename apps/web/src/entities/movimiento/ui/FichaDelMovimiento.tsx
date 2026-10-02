@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga, formatearLaPlata, rutaDelProyecto, TINTA, Ir } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
-import { categoriaEnPantalla } from '../model/clases';
+import { categoriaEnPantalla, esCategoriaDelCatalogo } from '../model/clases';
 import {
   MOTIVO_DEL_BLOQUEO,
   montoDeLaLinea,
@@ -11,11 +12,24 @@ import {
   type TesoroDeLaLinea,
 } from '../model/libro';
 
-function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+function Dato({
+  etiqueta,
+  talCual = false,
+  children,
+}: {
+  etiqueta: string;
+  talCual?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-t border-hairline-soft py-2">
       <dt className="text-label text-text-2">{etiqueta}</dt>
-      <dd className="text-right text-body font-medium tabular-nums">{children}</dd>
+      <dd
+        translate={talCual ? 'no' : undefined}
+        className="text-right text-body font-medium tabular-nums"
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -26,7 +40,9 @@ function Lado({ tesoro, afuera }: { tesoro: TesoroDeLaLinea | null; afuera: stri
   return (
     <span className="inline-flex items-center gap-1.5">
       <span aria-hidden className={`size-2 flex-none rounded-pill ${tinta.fondo}`} />
-      <span className={tinta.texto}>{tesoro.nombre}</span>
+      <span translate="no" className={tinta.texto}>
+        {tesoro.nombre}
+      </span>
     </span>
   );
 }
@@ -38,30 +54,38 @@ export interface FichaDelMovimientoProps {
 }
 
 export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoProps) {
+  const m = useMensajes();
+  const textos = m.movimiento.ficha;
   const motivo = linea.bloqueo === null ? null : MOTIVO_DEL_BLOQUEO[linea.bloqueo];
 
   return (
     <Hoja titulo={linea.etiqueta} alCerrar={alCerrar}>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
         <div>
-          <span className="block text-money-lg font-semibold tabular-nums">
+          <span translate="no" className="block text-money-lg font-semibold tabular-nums">
             {formatearLaPlata(montoDeLaLinea(linea))}
           </span>
           {linea.detalle !== '' && (
-            <span className="mt-0.5 block text-body text-text-2">{linea.detalle}</span>
+            <span translate="no" className="mt-0.5 block text-body text-text-2">
+              {linea.detalle}
+            </span>
           )}
         </div>
 
         <dl className="flex flex-col">
-          <Dato etiqueta="Fecha">{fechaLarga(linea.fecha, hoy)}</Dato>
-          <Dato etiqueta="Sale de">
-            <Lado tesoro={linea.tesoroDesde} afuera="de afuera del taller" />
+          <Dato etiqueta={textos.fecha} talCual>
+            {fechaLarga(linea.fecha, hoy)}
           </Dato>
-          <Dato etiqueta="Entra a">
-            <Lado tesoro={linea.tesoroHacia} afuera="se va del taller" />
+          <Dato etiqueta={textos.saleDe}>
+            <Lado tesoro={linea.tesoroDesde} afuera={textos.deAfueraDelTaller} />
+          </Dato>
+          <Dato etiqueta={textos.entraA}>
+            <Lado tesoro={linea.tesoroHacia} afuera={textos.seVaDelTaller} />
           </Dato>
           {linea.categoria !== '' && (
-            <Dato etiqueta="Categoría">{categoriaEnPantalla(linea.categoria)}</Dato>
+            <Dato etiqueta={textos.categoria} talCual={!esCategoriaDelCatalogo(linea.categoria)}>
+              {categoriaEnPantalla(linea.categoria)}
+            </Dato>
           )}
         </dl>
 
@@ -70,10 +94,7 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
             <span aria-hidden className="mt-0.5 flex-none text-text-2">
               <Icono nombre="history" tamano={18} />
             </span>
-            <p className="text-label leading-relaxed text-text-2">
-              Es de antes de que empezaras con la app: esta plata ya estaba en tus saldos, así que
-              queda anotada con su fecha pero no mueve los tesoros.
-            </p>
+            <p className="text-label leading-relaxed text-text-2">{textos.yaEnLaApertura}</p>
           </div>
         )}
 
@@ -90,10 +111,10 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
       <footer className="flex flex-none flex-col gap-2.5 border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
         <FilaDeAcciones>
           <Button variant="secundario" disabled>
-            Editar
+            {textos.editar}
           </Button>
           <Button variant="secundario" disabled>
-            Borrar
+            {textos.borrar}
           </Button>
         </FilaDeAcciones>
         {linea.proyectoId !== null && (
@@ -101,7 +122,9 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
             a={rutaDelProyecto(linea.proyectoId)}
             className="flex h-button items-center justify-center gap-2 rounded-pill bg-ink px-[18px] text-body font-medium text-paper"
           >
-            Ver «{linea.proyectoTitulo ?? 'el trabajo'}»
+            {linea.proyectoTitulo === null
+              ? textos.verElTrabajoSinTitulo
+              : textos.verElTrabajo(linea.proyectoTitulo)}
           </Ir>
         )}
       </footer>

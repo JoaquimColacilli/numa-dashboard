@@ -118,8 +118,12 @@
     "language": "etiqueta del idioma del PDF"
   },
   "porElemento": {
-    "Icono": { "nombre": "nombre del ícono" },
-    "Ilustracion": { "nombre": "nombre de la ilustración" },
+    "Icono": {
+      "nombre": "nombre del ícono"
+    },
+    "Ilustracion": {
+      "nombre": "nombre de la ilustración"
+    },
     "Caja": {
       "izquierda": "relleno de la caja",
       "derecha": "relleno de la caja",

@@ -1,13 +1,19 @@
-import { elMueble } from '@maun/domain';
-
 import { Carita, type UltimaSinLeer } from '@/entities/opinion';
+import { useMensajes } from '@/shared/idioma';
 import { rutaDeLaRespuesta, Ir } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 export function UltimaOpinion({ ultima }: { ultima: UltimaSinLeer }) {
-  const quien = ultima.cliente === '' ? 'Un cliente' : ultima.cliente;
+  const m = useMensajes();
+  const textos = m.paginaInicio.ultimaOpinion;
+  const quien =
+    ultima.cliente === ''
+      ? textos.unClienteOpinoDeSu(ultima.trabajo)
+      : textos.opinoDeSu(ultima.cliente, ultima.trabajo);
   const frase =
-    ultima.comentario === null ? (ultima.titular?.etiqueta ?? null) : `«${ultima.comentario}»`;
+    ultima.comentario === null
+      ? (ultima.titular?.etiqueta ?? null)
+      : textos.comentario(ultima.comentario);
 
   return (
     <Ir
@@ -20,9 +26,7 @@ export function UltimaOpinion({ ultima }: { ultima: UltimaSinLeer }) {
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block text-label text-text-2">
-          {quien} opinó de su {elMueble(ultima.trabajo)}
-        </span>
+        <span className="block text-label text-text-2">{quien}</span>
         {frase !== null && (
           <span className="mt-0.5 line-clamp-2 block text-body-sm leading-normal">{frase}</span>
         )}

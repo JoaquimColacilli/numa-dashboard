@@ -7,11 +7,12 @@ import { coordinarLaEntrega } from './coordinarLaEntrega';
 import { editarTesoro } from './editarTesoro';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
-import { inicio } from './inicio';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { paginaAnalitico } from './paginaAnalitico';
+import { paginaDiezmo } from './paginaDiezmo';
+import { paginaInicio } from './paginaInicio';
 import { registrarMovimiento } from './registrarMovimiento';
 import { ui } from './ui';
 
@@ -23,11 +24,12 @@ export const es = {
   editarTesoro,
   fila,
   hacerElSeguimiento,
-  inicio,
   lib,
   liquidarProyecto,
   movimiento,
   paginaAnalitico,
+  paginaDiezmo,
+  paginaInicio,
   registrarMovimiento,
   ui,
 } as const;

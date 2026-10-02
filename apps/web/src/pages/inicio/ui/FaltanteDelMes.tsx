@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { fraseDelFaltante, HojaDeCubrir } from '@/features/cubrir-el-faltante';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 import { Button, ConSalida, Icono } from '@/shared/ui';
 
@@ -14,7 +15,9 @@ function FraseConElMonto({ faltante, mes }: { faltante: FaltanteEnInicio; mes: s
   return (
     <>
       {frase.slice(0, donde)}
-      <span className="font-semibold tabular-nums">{monto}</span>
+      <span translate="no" className="font-semibold tabular-nums">
+        {monto}
+      </span>
       {frase.slice(donde + monto.length)}
     </>
   );
@@ -28,6 +31,7 @@ export interface FaltanteDelMesProps {
 }
 
 export function FaltanteDelMes({ faltantes, mes, hoy, sePuedeCubrir }: FaltanteDelMesProps) {
+  const m = useMensajes();
   const [cubriendo, setCubriendo] = useState<FaltanteEnInicio | null>(null);
   const dias = fraseDeLosDiasQueQuedan(hoy);
 
@@ -36,7 +40,7 @@ export function FaltanteDelMes({ faltantes, mes, hoy, sePuedeCubrir }: FaltanteD
       {faltantes.map((faltante) => (
         <section
           key={faltante.tesoro}
-          aria-label={`Falta para ${faltante.nombre}`}
+          aria-label={m.paginaInicio.faltante.faltaPara(faltante.nombre)}
           className="@container rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
         >
           <div className="flex flex-col gap-3 @min-[36rem]:flex-row @min-[36rem]:items-center @min-[36rem]:gap-4">
@@ -60,7 +64,7 @@ export function FaltanteDelMes({ faltantes, mes, hoy, sePuedeCubrir }: FaltanteD
                 }}
               >
                 <Icono nombre="arrow-left-right" tamano={16} />
-                Elegir de qué tesoro sacar
+                {m.paginaInicio.faltante.elegirDeQueTesoroSacar}
               </Button>
             )}
           </div>

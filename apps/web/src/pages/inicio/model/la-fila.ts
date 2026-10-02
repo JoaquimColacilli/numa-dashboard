@@ -11,9 +11,10 @@ import {
   type VencimientoDeLaAgenda,
 } from '@maun/domain';
 
-import { BASE_EN_PALABRAS, modoEnPalabras } from '@/entities/fila';
+import { modoEnPalabras } from '@/entities/fila';
 import { tesoroPorId, type TesoroDelTaller } from '@/entities/tesoro';
 import { faltantesDeLosCompromisos } from '@/features/cubrir-el-faltante';
+import { mensajes } from '@/shared/idioma';
 import {
   diaDelMes,
   diasDelMes,
@@ -27,8 +28,19 @@ const ULTIMO_DIA_DE_LA_PRIMERA_QUINCENA = 15;
 
 type TesoroQueSeMuestra = Pick<TesoroDelTaller, 'id' | 'clave' | 'nombre' | 'tinta'>;
 
+type PasosQueSeLlenan = 'ambos' | 'compromisos' | 'ahorros';
+
+type AdondeVaLoQueSobra = 'queda' | 'va';
+
 function tesoroQueSeMuestra(tesoros: readonly TesoroDelTaller[], id: string): TesoroQueSeMuestra {
-  return tesoroPorId(tesoros, id) ?? { id, clave: null, nombre: 'Tesoro', tinta: 'maun' };
+  return (
+    tesoroPorId(tesoros, id) ?? {
+      id,
+      clave: null,
+      nombre: mensajes().paginaInicio.laFila.tesoro,
+      tinta: 'maun',
+    }
+  );
 }
 
 export interface ObligacionEnInicio {
@@ -45,6 +57,7 @@ export function obligacionesEnInicio(
   delMes: FilaDelMes,
   tesoros: readonly TesoroDelTaller[],
 ): ObligacionEnInicio[] {
+  const { regla } = mensajes().paginaInicio.laFila;
   return delMes.obligaciones.map((obligacion, indice) => {
     const tesoro = tesoroQueSeMuestra(tesoros, obligacion.tesoro);
     return {
@@ -52,7 +65,7 @@ export function obligacionesEnInicio(
       tesoro: obligacion.tesoro,
       nombre: tesoro.nombre,
       tinta: tesoro.tinta,
-      regla: `${formatearPorcentaje(obligacion.porcentaje)}% ${BASE_EN_PALABRAS[obligacion.base]}`,
+      regla: regla[obligacion.base](formatearPorcentaje(obligacion.porcentaje)),
       apartado: obligacion.apartado,
       aPagar: obligacion.aPagar,
     };
@@ -60,7 +73,8 @@ export function obligacionesEnInicio(
 }
 
 export function textoDeLaObligacion(obligacion: Pick<ObligacionEnInicio, 'aPagar'>): string {
-  return obligacion.aPagar > 0 ? `A pagar ${formatearPesos(obligacion.aPagar)}` : 'Al día';
+  const textos = mensajes().paginaInicio.laFila;
+  return obligacion.aPagar > 0 ? textos.aPagar(formatearPesos(obligacion.aPagar)) : textos.alDia;
 }
 
 export type EstadoDelPaso = 'cubierto' | 'falta' | 'espera' | 'meta' | 'por-trabajo';
@@ -80,10 +94,11 @@ export interface PasoEnInicio {
 }
 
 function detalleDelPaso(paso: PasoDelMes, tesoro: TesoroQueSeMuestra): string {
-  if (paso.clase === 'sueldo') return 'sueldo';
-  if (paso.clase === 'fijos' && tesoro.clave === 'maun') return 'costos fijos';
+  const textos = mensajes().paginaInicio.laFila;
+  if (paso.clase === 'sueldo') return textos.sueldo;
+  if (paso.clase === 'fijos' && tesoro.clave === 'maun') return textos.costosFijos;
   const modo = modoEnPalabras(paso.modo, paso.tipo);
-  return paso.meta !== null && paso.meta.hastaLaMeta ? `${modo} · hasta la meta` : modo;
+  return paso.meta !== null && paso.meta.hastaLaMeta ? textos.hastaLaMeta(modo) : modo;
 }
 
 function estadoDelPaso(paso: PasoDelMes): EstadoDelPaso {
@@ -117,24 +132,26 @@ export function pasosEnInicio(
 }
 
 export function cuantoLleva(paso: Pick<PasoEnInicio, 'estado' | 'lleva' | 'tope'>): string {
-  if (paso.estado === 'por-trabajo') return `${formatearPesos(paso.tope)} por cobro`;
-  return `${formatearPesos(paso.lleva)} de ${formatearPesos(paso.tope)}`;
+  const textos = mensajes().paginaInicio.laFila;
+  if (paso.estado === 'por-trabajo') return textos.porCobro(formatearPesos(paso.tope));
+  return textos.deTope(formatearPesos(paso.lleva), formatearPesos(paso.tope));
 }
 
 export function textoDelEstado(paso: Pick<PasoEnInicio, 'estado' | 'falta' | 'recibido'>): string {
+  const textos = mensajes().paginaInicio.laFila;
   switch (paso.estado) {
     case 'cubierto':
-      return 'Cubierto';
+      return textos.cubierto;
     case 'espera':
-      return 'Espera su turno';
+      return textos.esperaSuTurno;
     case 'meta':
-      return 'Llegó a la meta';
+      return textos.llegoALaMeta;
     case 'por-trabajo':
       return paso.recibido > 0
-        ? `Recibió ${formatearPesos(paso.recibido)} este mes`
-        : 'Recibe su monto en cada cobro';
+        ? textos.recibioEsteMes(formatearPesos(paso.recibido))
+        : textos.recibeEnCadaCobro;
     case 'falta':
-      return `Faltan ${formatearPesos(paso.falta)}`;
+      return textos.faltan(formatearPesos(paso.falta));
   }
 }
 
@@ -143,43 +160,34 @@ export function faltaParaLosTopes(delMes: FilaDelMes): Money {
 }
 
 export function ingresoDelMes(delMes: FilaDelMes): string {
-  if (delMes.cobros === 0) return 'Todavía no hubo cobros este mes';
-  const cobros = delMes.cobros === 1 ? 'un cobro' : `${String(delMes.cobros)} cobros`;
-  return `${formatearPesos(delMes.ingreso)} de ingreso en ${cobros}`;
+  const textos = mensajes().paginaInicio.laFila;
+  if (delMes.cobros === 0) return textos.sinCobros;
+  return textos.ingresoEnCobros(formatearPesos(delMes.ingreso), delMes.cobros);
 }
 
-function enLista(partes: readonly string[]): string {
-  const ultima = partes.at(-1) ?? '';
-  if (partes.length < 2) return ultima;
-  return `${partes.slice(0, -1).join(', ')} y ${ultima}`;
-}
-
-function losPasos(delMes: FilaDelMes): string | null {
+function losPasos(delMes: FilaDelMes): PasosQueSeLlenan | null {
   const compromisos = delMes.pasos.some((paso) => paso.tipo === 'compromiso');
   const ahorros = delMes.pasos.some((paso) => paso.tipo === 'ahorro-fijo');
-  if (compromisos && ahorros) return 'los compromisos y los ahorros fijos';
-  if (compromisos) return 'los compromisos';
-  return ahorros ? 'los ahorros fijos' : null;
-}
-
-function conMayuscula(texto: string): string {
-  return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
+  if (compromisos && ahorros) return 'ambos';
+  if (compromisos) return 'compromisos';
+  return ahorros ? 'ahorros' : null;
 }
 
 export function fraseDeLoQueSobra(delMes: FilaDelMes, tesoros: readonly TesoroDelTaller[]): string {
+  const { lista, laFila } = mensajes().paginaInicio;
+  const { sobra } = laFila;
   const falta = faltaParaLosTopes(delMes);
   const partes = delMes.reparto;
   const pasos = losPasos(delMes);
   const superavit = tesoroQueSeMuestra(tesoros, delMes.superavit.tesoro);
-  const enElTaller = superavit.clave === 'maun';
-  const queda = enElTaller ? `queda en ${superavit.nombre}` : `va a ${superavit.nombre}`;
-  const llenos = pasos === null ? '' : `${conMayuscula(pasos)} ya están llenos: `;
+  const adonde: AdondeVaLoQueSobra = superavit.clave === 'maun' ? 'queda' : 'va';
+  const faltan = pasos !== null && falta > 0;
 
   if (partes.length === 0) {
-    if (pasos !== null && falta > 0) {
-      return `Cuando se llenan ${pasos}, lo que sobra ${queda}: faltan ${formatearPesos(falta)}.`;
-    }
-    return conMayuscula(`${llenos}lo que sobra de cada cobro ${queda}.`);
+    if (pasos === null) return sobra.deCadaCobro[adonde](superavit.nombre);
+    return faltan
+      ? sobra.cuandoSeLlenan[adonde][pasos](superavit.nombre, formatearPesos(falta))
+      : sobra.yaLlenos[adonde][pasos](superavit.nombre);
   }
 
   const nombre = (id: string) => tesoroQueSeMuestra(tesoros, id).nombre;
@@ -187,29 +195,36 @@ export function fraseDeLoQueSobra(delMes: FilaDelMes, tesoros: readonly TesoroDe
   if (delMes.repartoEmpezo) {
     const recibieron = partes.filter((parte) => parte.recibido > 0);
     const repartido = sumarTodos(recibieron.map((parte) => parte.recibido));
-    const lista = enLista(
-      recibieron.map((parte) => `${nombre(parte.tesoro)} ${formatearPesos(parte.recibido)}`),
+    return sobra.yaSeRepartieron[adonde](
+      formatearPesos(repartido),
+      lista(
+        recibieron.map((parte) =>
+          sobra.recibio(nombre(parte.tesoro), formatearPesos(parte.recibido)),
+        ),
+      ),
+      superavit.nombre,
     );
-    const quedo = enElTaller ? `quedó en ${superavit.nombre}` : `fue a ${superavit.nombre}`;
-    return `Ya se repartieron ${formatearPesos(repartido)}: ${lista}. El resto ${quedo}.`;
   }
 
   const suma = partes.reduce((total, parte) => total + parte.porcentaje, 0);
-  const porcentajes = partes.map(
-    (parte) =>
-      `${nombre(parte.tesoro)} ${formatearPorcentaje(parte.porcentaje)}%${
-        parte.hastaLaMeta && parte.meta !== null ? ' hasta su meta' : ''
-      }`,
+  const porcentajes = partes.map((parte) =>
+    parte.hastaLaMeta && parte.meta !== null
+      ? sobra.parteHastaSuMeta(nombre(parte.tesoro), formatearPorcentaje(parte.porcentaje))
+      : sobra.parte(nombre(parte.tesoro), formatearPorcentaje(parte.porcentaje)),
   );
-  const reparto =
-    suma >= BASE_PUNTOS_BASICOS
-      ? `${enLista(porcentajes)}.`
-      : `${porcentajes.join(', ')} y ${superavit.nombre} el resto.`;
+  const reparto = sobra.reparto(
+    lista(
+      suma >= BASE_PUNTOS_BASICOS ? porcentajes : [...porcentajes, sobra.elResto(superavit.nombre)],
+    ),
+  );
 
-  if (pasos !== null && falta > 0) {
-    return `Se reparte cuando se llenan ${pasos}: faltan ${formatearPesos(falta)}. ${reparto}`;
-  }
-  return conMayuscula(`${llenos}lo que deje el próximo cobro se reparte. ${reparto}`);
+  const cuando =
+    pasos === null
+      ? sobra.elProximoCobroSeReparte
+      : faltan
+        ? sobra.seReparteCuandoSeLlenan[pasos](formatearPesos(falta))
+        : sobra.yaLlenosYSeReparte[pasos];
+  return `${cuando} ${reparto}`;
 }
 
 export interface FaltanteEnInicio {
@@ -220,16 +235,11 @@ export interface FaltanteEnInicio {
   vence: VencimientoDeLaAgenda | null;
 }
 
-function enMinuscula(nombre: string): string {
-  const [primera = '', segunda = ''] = nombre;
-  if (segunda !== segunda.toLowerCase()) return nombre;
-  return `${primera.toLowerCase()}${nombre.slice(1)}`;
-}
-
 export function nombreEnLaFrase(tesoro: Pick<TesoroQueSeMuestra, 'clave' | 'nombre'>): string {
-  if (tesoro.clave === 'maun') return 'los costos fijos';
+  const textos = mensajes().paginaInicio.laFila;
+  if (tesoro.clave === 'maun') return textos.losCostosFijos;
   if (tesoro.clave !== null) return tesoro.nombre;
-  return enMinuscula(tesoro.nombre);
+  return textos.tesoroEnLaFrase(tesoro.nombre);
 }
 
 export function faltantesEnInicio(
@@ -253,12 +263,6 @@ export function diasQueQuedan(hoy: string): number {
 
 export function fraseDeLosDiasQueQuedan(hoy: string): string | null {
   if (diaDelMes(hoy) <= ULTIMO_DIA_DE_LA_PRIMERA_QUINCENA) return null;
-  const quedan = diasQueQuedan(hoy);
-  const cuantos =
-    quedan === 0
-      ? 'Hoy es el último día del mes.'
-      : quedan === 1
-        ? 'Queda un día del mes.'
-        : `Quedan ${String(quedan)} días del mes.`;
-  return `${cuantos} El próximo cobro los llena primero, o cubrilos ahora con otro tesoro.`;
+  const textos = mensajes().paginaInicio.laFila;
+  return `${textos.diasQueQuedan(diasQueQuedan(hoy))} ${textos.elProximoCobroLosLlena}`;
 }

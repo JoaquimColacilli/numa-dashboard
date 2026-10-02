@@ -3,12 +3,13 @@ import type { ReactNode } from 'react';
 
 import { AyudaDelGrupo, Globo, NOMBRE_DEL_GRUPO, type GrupoDeLaFila } from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import {
   diaDelMes,
   diasDelMes,
   formatearPesos,
   Ir,
-  nombreDelMes,
+  mesEnUnaFrase,
   RUTA_DE_TESOROS,
   TINTA,
 } from '@/shared/lib';
@@ -25,9 +26,6 @@ import {
   type ObligacionEnInicio,
   type PasoEnInicio,
 } from '../model/la-fila';
-
-const AYUDA_DE_LA_FILA =
-  'Así va el mes: cada cobro aparta las obligaciones, llena los compromisos y los ahorros en este orden, y lo que sobra se reparte. La raya fina marca el día de hoy.';
 
 const TONO_DEL_ESTADO: Readonly<Record<PasoEnInicio['estado'], string>> = {
   cubierto: 'text-text-2',
@@ -61,16 +59,17 @@ function GrupoEnLaFila({
 }
 
 function RenglonDeLaObligacion({ obligacion }: { obligacion: ObligacionEnInicio }) {
+  const m = useMensajes();
   return (
     <li className="grid grid-cols-[24px_minmax(0,1fr)] gap-x-3 gap-y-1">
       <Globo numero={obligacion.numero} className="mt-0.5" />
       <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 text-label">
         <span className="font-medium">
-          {obligacion.nombre}
+          <span translate="no">{obligacion.nombre}</span>
           <span className="text-text-3"> · {obligacion.regla}</span>
         </span>
         <span className="text-text-2 tabular-nums">
-          {formatearPesos(obligacion.apartado)} apartado
+          {m.paginaInicio.laFila.apartado(formatearPesos(obligacion.apartado))}
         </span>
       </div>
       <span />
@@ -84,6 +83,7 @@ function RenglonDeLaObligacion({ obligacion }: { obligacion: ObligacionEnInicio 
 }
 
 function BarraDelPaso({ paso, dia }: { paso: PasoEnInicio; dia: number }) {
+  const m = useMensajes();
   const lleno = paso.tope <= 0 ? 100 : Math.min(100, (paso.lleva / paso.tope) * 100);
   const cuanto = cuantoLleva(paso);
   const estado = textoDelEstado(paso);
@@ -92,7 +92,7 @@ function BarraDelPaso({ paso, dia }: { paso: PasoEnInicio; dia: number }) {
       <Globo numero={paso.numero} className="mt-0.5" />
       <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 text-label">
         <span className="font-medium">
-          {paso.nombre}
+          <span translate="no">{paso.nombre}</span>
           {paso.clase !== null && <span className="text-text-3"> · {paso.clase}</span>}
         </span>
         <span className="text-text-2 tabular-nums">{cuanto}</span>
@@ -102,7 +102,7 @@ function BarraDelPaso({ paso, dia }: { paso: PasoEnInicio; dia: number }) {
         {paso.estado !== 'por-trabajo' && (
           <div
             role="progressbar"
-            aria-label={`Paso ${String(paso.numero)}: ${paso.nombre}`}
+            aria-label={m.paginaInicio.laFila.paso(paso.numero, paso.nombre)}
             aria-valuenow={Math.round(lleno)}
             aria-valuemin={0}
             aria-valuemax={100}
@@ -139,7 +139,9 @@ export interface LaFilaDelMesProps {
 }
 
 export function LaFilaDelMes({ delMes, tesoros, hoy }: LaFilaDelMesProps) {
-  const titulo = `La fila de ${nombreDelMes(delMes.mes).toLowerCase()}`;
+  const m = useMensajes();
+  const textos = m.paginaInicio.laFila;
+  const titulo = textos.titulo(mesEnUnaFrase(delMes.mes));
   const dia = (diaDelMes(hoy) / diasDelMes(delMes.mes)) * 100;
   const obligaciones = obligacionesEnInicio(delMes, tesoros);
   const pasos = pasosEnInicio(delMes, tesoros, obligaciones.length);
@@ -155,7 +157,7 @@ export function LaFilaDelMes({ delMes, tesoros, hoy }: LaFilaDelMesProps) {
         <div className="min-w-0">
           <h2 className="flex items-center gap-1.5 text-label font-semibold">
             {titulo}
-            <Ayuda que="Qué es la fila del mes">{AYUDA_DE_LA_FILA}</Ayuda>
+            <Ayuda que={textos.queEs}>{textos.ayuda}</Ayuda>
           </h2>
           <p className="mt-0.5 text-meta text-text-2">{ingresoDelMes(delMes)}</p>
         </div>
@@ -163,7 +165,7 @@ export function LaFilaDelMes({ delMes, tesoros, hoy }: LaFilaDelMesProps) {
           a={RUTA_DE_TESOROS}
           className="-my-2 -mr-2 flex min-h-tap flex-none items-center gap-1 rounded-pill px-2 text-label font-medium text-ink hover:bg-surface"
         >
-          Ver la fila
+          {textos.verLaFila}
           <Icono nombre="chevron-right" tamano={16} />
         </Ir>
       </div>
@@ -193,7 +195,7 @@ export function LaFilaDelMes({ delMes, tesoros, hoy }: LaFilaDelMesProps) {
           <Icono nombre="split" tamano={16} />
         </span>
         <div className="text-label">
-          <p className="font-medium">Lo que sobra</p>
+          <p className="font-medium">{textos.loQueSobra}</p>
           <p className="mt-0.5 text-text-2">{fraseDeLoQueSobra(delMes, tesoros)}</p>
         </div>
       </div>

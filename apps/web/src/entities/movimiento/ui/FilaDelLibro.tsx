@@ -1,10 +1,10 @@
 import { plata, type Plata } from '@maun/domain';
 
-import { mensajes } from '@/shared/idioma';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { formatearLaPlata, formatearPesos, TINTA } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
-import { categoriaEnPantalla } from '../model/clases';
+import { categoriaEnPantalla, esCategoriaDelCatalogo } from '../model/clases';
 import {
   cotizacionDeLaLinea,
   efectoEnSuMoneda,
@@ -18,11 +18,15 @@ import {
 function Lados({ desde, hacia }: { desde: TesoroDeLaLinea; hacia: TesoroDeLaLinea }) {
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-1">
-      <span className={`font-semibold ${TINTA[desde.tinta].texto}`}>{desde.nombre}</span>
+      <span translate="no" className={`font-semibold ${TINTA[desde.tinta].texto}`}>
+        {desde.nombre}
+      </span>
       <span aria-hidden className="text-text-3">
         →
       </span>
-      <span className={`font-semibold ${TINTA[hacia.tinta].texto}`}>{hacia.nombre}</span>
+      <span translate="no" className={`font-semibold ${TINTA[hacia.tinta].texto}`}>
+        {hacia.nombre}
+      </span>
     </span>
   );
 }
@@ -49,6 +53,7 @@ export interface FilaDelLibroProps {
 }
 
 export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLibroProps) {
+  const m = useMensajes();
   const mueve = linea.sentido === 'mueve';
   const efecto = efectoEnSuMoneda(linea, tesoro);
   const neutro = (mueve && efecto.importe === 0) || linea.yaEnLaApertura;
@@ -75,7 +80,10 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body font-medium">
+        <span
+          translate={linea.detalle === '' ? undefined : 'no'}
+          className="block truncate text-body font-medium"
+        >
           {linea.detalle === '' ? linea.etiqueta : linea.detalle}
         </span>
         <span className="flex flex-wrap items-center gap-x-2 text-meta text-text-3">
@@ -84,26 +92,36 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
           ) : (
             <span>{linea.etiqueta}</span>
           )}
-          {linea.categoria !== '' && !mueve && <span>{categoriaEnPantalla(linea.categoria)}</span>}
+          {linea.categoria !== '' && !mueve && (
+            <span translate={esCategoriaDelCatalogo(linea.categoria) ? undefined : 'no'}>
+              {categoriaEnPantalla(linea.categoria)}
+            </span>
+          )}
           {linea.proyectoTitulo !== null && (
-            <span className="flex items-center gap-1 rounded-pill border border-hairline px-2 text-badge text-text-2">
+            <span
+              translate="no"
+              className="flex items-center gap-1 rounded-pill border border-hairline px-2 text-badge text-text-2"
+            >
               <Icono nombre="folder-kanban" tamano={10} />
               {linea.proyectoTitulo}
             </span>
           )}
           {linea.yaEnLaApertura && (
-            <span className="text-badge font-semibold text-text-2">ya estaba en tus saldos</span>
+            <span className="text-badge font-semibold text-text-2">
+              {m.movimiento.libro.yaEstabaEnTusSaldos}
+            </span>
           )}
           {sinConfirmar && (
             <span className="flex items-center gap-1 text-badge font-semibold text-atencion">
               <Icono nombre="cloud-off" tamano={10} />
-              sin confirmar
+              {m.movimiento.libro.sinConfirmar}
             </span>
           )}
         </span>
       </span>
 
       <span
+        translate={delCambio === null ? 'no' : undefined}
         className={`flex-none text-body font-semibold tabular-nums ${
           neutro ? 'text-text-2' : efecto.importe > 0 ? 'text-ink' : 'text-text-2'
         }`}

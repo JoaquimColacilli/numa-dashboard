@@ -13,12 +13,7 @@ import { useMemo, useState } from 'react';
 import { vencimientosDeLaReplica } from '@/entities/agenda';
 import { avisosDeEntregas } from '@/entities/entrega';
 import { filaDelMesDelTaller } from '@/entities/fila';
-import {
-  fraseDelDiezmo,
-  resumenMensual,
-  type FraseDelDiezmo,
-  type ResumenMensual,
-} from '@/entities/movimiento';
+import { fraseDelDiezmo, resumenMensual, type ResumenMensual } from '@/entities/movimiento';
 import { novedadesDeOpiniones } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -47,6 +42,7 @@ import {
   type FilaDe,
   type Replica,
 } from '@/shared/api';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   diaDelMes,
   diasDelMes,
@@ -55,10 +51,13 @@ import {
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   relativa,
+  RUTA_DE_AGENDA,
   RUTA_DE_DIEZMO,
   rutaDelProyecto,
+  TESORO,
   useAnchoDePantalla,
   Ir,
   useIr,
@@ -81,15 +80,15 @@ import { UltimaOpinion } from './UltimaOpinion';
 
 const DIAS_DE_PROYECCION = 365;
 
-function encabezado(frase: FraseDelDiezmo): string {
-  return frase.despues === '' ? frase.antes : `${frase.antes} ${frase.despues}`;
-}
+type TextosDeInicio = Mensajes['paginaInicio'];
 
-function comparacion(valor: Money, previo: Money, mes: string): string {
+function comparacion(valor: Money, previo: Money, mes: string, textos: TextosDeInicio): string {
   if (previo <= 0) return '';
   const variacion = Math.round(((valor - previo) / previo) * 100);
-  const signo = variacion >= 0 ? '+' : '−';
-  return `${signo}${String(Math.abs(variacion))}% vs. ${nombreDelMes(mesAnterior(mes)).toLowerCase()}`;
+  const anterior = mesEnUnaFrase(mesAnterior(mes));
+  return variacion >= 0
+    ? textos.comparacion.subio(variacion, anterior)
+    : textos.comparacion.bajo(Math.abs(variacion), anterior);
 }
 
 export interface MensajeDelMes {
@@ -102,41 +101,39 @@ function mensajeDelMes(
   saldoHogar: Money,
   del: ResumenMensual,
   delMes: FilaDelMes,
+  textos: TextosDeInicio['mensajeDelMes'],
 ): MensajeDelMes {
-  const nombre = nombreDelMes(mes).toLowerCase();
+  const nombre = mesEnUnaFrase(mes);
 
   if (saldoHogar < 0) {
     return {
-      texto: `El hogar está en negativo: ${formatearPesos(restar(CERO, saldoHogar))}. Los gastos pasaron a lo que entró.`,
+      texto: textos.hogarEnNegativo(formatearPesos(restar(CERO, saldoHogar))),
       alerta: true,
     };
   }
   if (del.entroHogar === 0 && del.facturoTaller === 0) {
-    return { texto: `${nombreDelMes(mes)} todavía no tiene movimiento.`, alerta: true };
+    return { texto: textos.sinMovimiento(nombreDelMes(mes)), alerta: true };
   }
 
   const sueldo = delMes.pasos.find((paso) => paso.clase === 'sueldo');
   if (sueldo === undefined) {
     const falta = faltaParaLosTopes(delMes);
     return falta <= 0
-      ? { texto: `Los compromisos y los ahorros de ${nombre} ya están cubiertos.`, alerta: false }
-      : {
-          texto: `Faltan ${formatearPesos(falta)} para llenar los compromisos y los ahorros de ${nombre}.`,
-          alerta: true,
-        };
+      ? { texto: textos.compromisosYAhorrosCubiertos(nombre), alerta: false }
+      : { texto: textos.faltanParaLlenar(formatearPesos(falta), nombre), alerta: true };
   }
   const faltaDelSueldo = sueldo.falta ?? CERO;
   if (faltaDelSueldo <= 0) {
-    return { texto: `El sueldo de ${nombre} ya está cubierto.`, alerta: false };
+    return { texto: textos.sueldoCubierto(nombre), alerta: false };
   }
   if (del.entroHogar === 0) {
     return {
-      texto: `El taller facturó ${formatearPesos(del.facturoTaller)} en ${nombre} y al hogar todavía no entró nada: el sueldo se transfiere cuando cobrás un trabajo.`,
+      texto: textos.facturoYNoEntro(formatearPesos(del.facturoTaller), nombre),
       alerta: true,
     };
   }
   return {
-    texto: `Faltan ${formatearPesos(faltaDelSueldo)} para cubrir el sueldo de ${nombre}.`,
+    texto: textos.faltanParaElSueldo(formatearPesos(faltaDelSueldo), nombre),
     alerta: true,
   };
 }
@@ -161,6 +158,8 @@ function Acceso({
   valor,
   tono,
   fondo,
+  tituloTalCual = false,
+  valorTalCual = false,
   alElegir,
 }: {
   icono: NombreDeIcono;
@@ -169,6 +168,8 @@ function Acceso({
   valor: string;
   tono?: string;
   fondo?: string;
+  tituloTalCual?: boolean;
+  valorTalCual?: boolean;
   alElegir: () => void;
 }) {
   return (
@@ -184,11 +185,17 @@ function Acceso({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-meta text-text-2">{etiqueta}</span>
-        <span className="block truncate text-body font-medium @min-[52rem]/apoyo:line-clamp-2 @min-[52rem]/apoyo:whitespace-normal">
+        <span
+          translate={tituloTalCual ? 'no' : undefined}
+          className="block truncate text-body font-medium @min-[52rem]/apoyo:line-clamp-2 @min-[52rem]/apoyo:whitespace-normal"
+        >
           {titulo}
         </span>
       </span>
-      <span className={`flex-none text-body font-semibold tabular-nums ${tono ?? ''}`}>
+      <span
+        translate={valorTalCual ? 'no' : undefined}
+        className={`flex-none text-body font-semibold tabular-nums ${tono ?? ''}`}
+      >
         {valor}
       </span>
     </button>
@@ -204,14 +211,16 @@ function BotonDeLaCuenta({
   sinLeer: number;
   alAbrir: () => void;
 }) {
+  const m = useMensajes();
   const { email, foto } = useSesionActiva();
   const nombre = useNombreDeLaPersona();
-  const nuevas = sinLeer === 1 ? '1 opinión nueva' : `${String(sinLeer)} opiniones nuevas`;
 
   return (
     <button
       type="button"
-      aria-label={sinLeer > 0 ? `Tu cuenta. ${nuevas}` : 'Tu cuenta'}
+      aria-label={
+        sinLeer > 0 ? m.paginaInicio.tuCuentaConOpinionesNuevas(sinLeer) : m.paginaInicio.tuCuenta
+      }
       aria-haspopup="dialog"
       aria-expanded={abierta}
       onClick={alAbrir}
@@ -233,10 +242,11 @@ function BotonDeLaCuenta({
 }
 
 function AccesoALaAgenda() {
+  const m = useMensajes();
   return (
     <Ir
-      a="/agenda"
-      aria-label="Agenda"
+      a={RUTA_DE_AGENDA}
+      aria-label={m.paginaInicio.agenda}
       className="flex size-tap flex-none items-center justify-center rounded-pill border border-hairline bg-paper text-ink hover:bg-ink/5"
     >
       <Icono nombre="calendar-days" tamano={22} />
@@ -245,6 +255,8 @@ function AccesoALaAgenda() {
 }
 
 export function InicioPage() {
+  const m = useMensajes();
+  const textos = m.paginaInicio;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const ancho = useAnchoDePantalla();
@@ -283,14 +295,14 @@ export function InicioPage() {
     insumos: insumos.total,
     trabajosConInsumos: insumos.trabajos.length,
   });
-  const nombreDelSuperavit = tesoroPorId(todos, fila.superavit)?.nombre ?? 'Maun';
+  const nombreDelSuperavit = tesoroPorId(todos, fila.superavit)?.nombre ?? TESORO.maun.nombre;
 
   const asientos = asientosDelLibro(libro);
   const del = resumenMensual(asientos, mes);
   const delPrevio = resumenMensual(asientos, mesAnterior(mes));
   const diezmo = estadoDelDiezmo(asientos);
   const frase = fraseDelDiezmo(diezmo);
-  const mensaje = mensajeDelMes(mes, saldos.hogar, del, delMes);
+  const mensaje = mensajeDelMes(mes, saldos.hogar, del, delMes, textos.mensajeDelMes);
 
   const proyectos = filasDe(replica, 'proyectos');
   const pendientes = proyectos.filter(
@@ -310,9 +322,24 @@ export function InicioPage() {
   };
 
   const estadisticas = [
-    { etiqueta: 'Entró al hogar', valor: del.entroHogar, previo: delPrevio.entroHogar },
-    { etiqueta: 'Gastó el hogar', valor: del.gastoHogar, previo: delPrevio.gastoHogar },
-    { etiqueta: 'Facturó el taller', valor: del.facturoTaller, previo: delPrevio.facturoTaller },
+    {
+      id: 'entro-hogar',
+      etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
+      valor: del.entroHogar,
+      previo: delPrevio.entroHogar,
+    },
+    {
+      id: 'gasto-hogar',
+      etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
+      valor: del.gastoHogar,
+      previo: delPrevio.gastoHogar,
+    },
+    {
+      id: 'facturo-taller',
+      etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
+      valor: del.facturoTaller,
+      previo: delPrevio.facturoTaller,
+    },
   ];
 
   const conFaltante = !arranque && faltantes.length > 0;
@@ -321,8 +348,10 @@ export function InicioPage() {
     <Pagina className="gap-3 md:gap-4">
       <header className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-label text-text-2">{fechaLarga(hoy, hoy)}</span>
-          <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Inicio</h1>
+          <span translate="no" className="text-label text-text-2">
+            {fechaLarga(hoy, hoy)}
+          </span>
+          <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.titulo}</h1>
         </div>
         {ancho === 'movil' && (
           <div className="flex flex-none items-center gap-2">
@@ -371,18 +400,22 @@ export function InicioPage() {
           apoyo={
             <div className="flex flex-col gap-3 md:gap-4">
               <section
-                aria-label="Accesos"
+                aria-label={textos.accesos}
                 className="rounded-panel border border-hairline bg-paper px-4"
               >
                 <Acceso
                   icono="truck"
-                  etiqueta="Entrega más próxima"
-                  titulo={proximaEntrega?.proyecto.titulo ?? 'Sin entregas programadas'}
+                  etiqueta={textos.entregaMasProxima}
+                  titulo={proximaEntrega?.proyecto.titulo ?? textos.sinEntregasProgramadas}
+                  tituloTalCual={proximaEntrega !== undefined}
                   valor={
                     proximaEntrega === undefined
                       ? ''
-                      : `${relativa(proximaEntrega.fecha, hoy)}${proximaEntrega.comprometida ? ', comprometida' : ''}`
+                      : proximaEntrega.comprometida
+                        ? textos.comprometida(relativa(proximaEntrega.fecha, hoy))
+                        : relativa(proximaEntrega.fecha, hoy)
                   }
+                  valorTalCual={proximaEntrega !== undefined && !proximaEntrega.comprometida}
                   alElegir={irA(
                     proximaEntrega === undefined
                       ? '/proyectos'
@@ -391,16 +424,18 @@ export function InicioPage() {
                 />
                 <Acceso
                   icono="hand-coins"
-                  etiqueta="Pendiente de cobro"
-                  titulo={`${String(pendientes.length)} proyectos en curso`}
+                  etiqueta={textos.pendienteDeCobro}
+                  titulo={textos.proyectosEnCurso(pendientes.length)}
                   valor={formatearPesos(saldoPendiente(replica, pendientes))}
+                  valorTalCual
                   alElegir={irA('/proyectos')}
                 />
                 <Acceso
                   icono="church"
-                  etiqueta="Diezmo"
-                  titulo={encabezado(frase)}
+                  etiqueta={textos.diezmo}
+                  titulo={frase.titulo}
                   valor={frase.importe ?? ''}
+                  valorTalCual
                   tono="text-diezmo"
                   fondo="bg-diezmo-tint"
                   alElegir={irA(RUTA_DE_DIEZMO)}
@@ -408,13 +443,16 @@ export function InicioPage() {
               </section>
 
               <section
-                aria-label="Proyección de Cocos"
+                aria-label={textos.proyeccionDeCocos}
                 className="@container rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
               >
                 <div className="flex flex-col gap-2.5 @min-[24rem]:flex-row @min-[24rem]:items-center @min-[24rem]:gap-3.5">
                   <div className="min-w-0 flex-1">
-                    <div className="text-label text-text-2">Cocos en un año</div>
-                    <div className="mt-0.5 text-money-lg font-semibold whitespace-nowrap text-cocos tabular-nums">
+                    <div className="text-label text-text-2">{textos.cocosEnUnAnio}</div>
+                    <div
+                      translate="no"
+                      className="mt-0.5 text-money-lg font-semibold whitespace-nowrap text-cocos tabular-nums"
+                    >
                       {formatearPesos(
                         proyeccionCocos(
                           saldos.cocos,
@@ -424,12 +462,15 @@ export function InicioPage() {
                       )}
                     </div>
                     <div className="mt-0.5 text-meta text-text-3">
-                      con la tasa que cargaste, sin aportes nuevos
+                      {textos.conLaTasaQueCargaste}
                     </div>
                   </div>
                   <div className="min-w-0 @min-[24rem]:flex-none @min-[24rem]:text-right">
-                    <div className="text-meta text-text-2">falta para la meta</div>
-                    <div className="text-body font-semibold whitespace-nowrap tabular-nums">
+                    <div className="text-meta text-text-2">{textos.faltaParaLaMeta}</div>
+                    <div
+                      translate="no"
+                      className="text-body font-semibold whitespace-nowrap tabular-nums"
+                    >
                       {formatearPesos(Math.max(0, metaCocos - saldos.cocos))}
                     </div>
                   </div>
@@ -458,24 +499,29 @@ export function InicioPage() {
               className="@container rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
             >
               <div className="mb-2.5 flex items-baseline justify-between">
-                <span className="text-label font-semibold">{nombreDelMes(mes)}</span>
+                <span translate="no" className="text-label font-semibold">
+                  {nombreDelMes(mes)}
+                </span>
                 <span className="text-meta text-text-2">
-                  día {diaDelMes(hoy)} de {diasDelMes(mes)}
+                  {textos.diaDelMes(diaDelMes(hoy), diasDelMes(mes))}
                 </span>
               </div>
               <dl className="grid grid-cols-1 gap-2 @min-[28rem]:grid-cols-3 @min-[28rem]:gap-3">
                 {estadisticas.map((estadistica) => {
-                  const vs = comparacion(estadistica.valor, estadistica.previo, mes);
+                  const vs = comparacion(estadistica.valor, estadistica.previo, mes, textos);
                   return (
                     <div
-                      key={estadistica.etiqueta}
+                      key={estadistica.id}
                       className="flex min-w-0 items-baseline justify-between gap-3 @min-[28rem]:block"
                     >
                       <dt className="text-meta leading-tight text-text-2">
                         {estadistica.etiqueta}
                       </dt>
                       <dd className="text-right @min-[28rem]:mt-0.5 @min-[28rem]:text-left">
-                        <span className="block text-body-lg font-semibold whitespace-nowrap tabular-nums lg:text-money-lg">
+                        <span
+                          translate="no"
+                          className="block text-body-lg font-semibold whitespace-nowrap tabular-nums lg:text-money-lg"
+                        >
                           {formatearPesos(estadistica.valor)}
                         </span>
                         {vs !== '' && (

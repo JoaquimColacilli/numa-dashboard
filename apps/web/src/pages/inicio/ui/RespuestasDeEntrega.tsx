@@ -1,6 +1,5 @@
-import { elMueble } from '@maun/domain';
-
 import type { AvisoDeEntrega } from '@/entities/entrega';
+import { useMensajes } from '@/shared/idioma';
 import { Ir, rutaDelProyecto } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -13,9 +12,13 @@ export function RespuestasDeEntrega({
   avisos: readonly AvisoDeEntrega[];
   hoy: string;
 }) {
+  const m = useMensajes();
   if (avisos.length === 0) return null;
   return (
-    <section aria-label="Lo que contestaron de la entrega" className="flex flex-col gap-2">
+    <section
+      aria-label={m.paginaInicio.respuestas.loQueContestaron}
+      className="flex flex-col gap-2"
+    >
       {avisos.map((aviso) => (
         <Ir
           key={aviso.proyectoId}
@@ -33,7 +36,7 @@ export function RespuestasDeEntrega({
               {tituloDelAviso(aviso, hoy)}
             </span>
             <span className="mt-0.5 block text-label text-text-2">
-              La entrega de su {elMueble(aviso.trabajo)}
+              {m.paginaInicio.respuestas.laEntregaDeSu(aviso.trabajo)}
             </span>
           </span>
           <span aria-hidden className="flex flex-none pt-0.5">

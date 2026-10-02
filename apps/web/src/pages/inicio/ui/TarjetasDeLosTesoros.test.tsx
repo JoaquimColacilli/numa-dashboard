@@ -63,9 +63,9 @@ const LOS_OCHO = [
 ];
 
 const DEBE: FraseDelDiezmo = {
-  antes: 'Debés',
+  situacion: 'debe',
+  titulo: 'Debés',
   importe: '$ 270.000',
-  despues: '',
   frase: 'Debés $ 270.000',
   detalle: 'de lo que ya cobraste y todavía no diste',
 };
