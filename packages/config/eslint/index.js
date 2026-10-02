@@ -190,6 +190,37 @@ const SOLO_EL_COORDINADOR_ANIMA = [
   },
 ];
 
+const FORMATEADORES_DEL_DUENO = {
+  name: '@/shared/lib',
+  importNames: [
+    'formatearPesos',
+    'formatearPlata',
+    'formatearLaPlata',
+    'formatearPorMoneda',
+    'formatearPorcentaje',
+    'fechaLarga',
+    'fechaEnUnaFrase',
+    'diaYMes',
+    'diaYMesCorto',
+    'fechaConAnio',
+    'fechaDelRotulo',
+    'nombreDelMes',
+    'mesEnUnaFrase',
+    'relativa',
+    'haceCuanto',
+  ],
+  message:
+    'Lo que ve el cliente se escribe en el idioma de los clientes: formateá con useFormatosDelCliente() o formatosDelCliente(idioma) de @/shared/idioma-del-cliente (ADR 0082).',
+};
+
+const LO_QUE_VE_EL_CLIENTE = [
+  'src/entities/vista-cliente/**/*.{ts,tsx}',
+  'src/entities/opinion/ui/EncuestaDelCliente.tsx',
+  'src/pages/vista-cliente/**/*.{ts,tsx}',
+  'src/pages/encuesta-publica/**/*.{ts,tsx}',
+  'src/shared/pdf/**/*.{ts,tsx}',
+];
+
 const EL_ESCENARIO_DEL_COORDINADOR = 'src/app/navegacion/escenario.ts';
 
 const LA_PUERTA_Y_EL_COORDINADOR = [
@@ -290,6 +321,14 @@ export function web(dir, { zonasQueFaltan = [] } = {}) {
           ...SOLO_EL_COORDINADOR_ANIMA,
         ],
       },
+    },
+    {
+      files: LO_QUE_VE_EL_CLIENTE,
+      ignores: ['src/**/*.test.{ts,tsx}'],
+      rules: prohibirImportsYNombres(
+        [SISTEMA_DE_DISENO, ACCESO_A_DATOS],
+        [NAVEGAR_POR_EL_ROUTER, TRANSICIONES_DEL_ROUTER, FORMATEADORES_DEL_DUENO],
+      ),
     },
     {
       files: [EL_ESCENARIO_DEL_COORDINADOR],
