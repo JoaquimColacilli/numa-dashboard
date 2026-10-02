@@ -200,9 +200,11 @@ export const movimiento = {
     yaEstabaEnTusSaldos: 'ya estaba en tus saldos',
     sinConfirmar: 'sin confirmar',
     sinEfectoEnLosSaldos: 'sin efecto en los saldos',
+    conElDolarA: (dolar: string) => `con el dólar a ${dolar}`,
   },
   ficha: {
     fecha: 'Fecha',
+    dolar: 'Dólar',
     saleDe: 'Sale de',
     entraA: 'Entra a',
     categoria: 'Categoría',

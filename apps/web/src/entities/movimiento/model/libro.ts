@@ -17,7 +17,7 @@ import {
   type Tesoro,
 } from '@maun/domain';
 
-import { datosDelLibro, filasDe, type Replica } from '@/shared/api';
+import { datosDelLibro, filasDe, importeDelPago, type Replica } from '@/shared/api';
 import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import { mesDeLaFecha, TESORO, type TintaDeTesoro } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
@@ -53,6 +53,7 @@ export interface LineaDelTaller extends LineaDelLibro {
   tesoroHacia: TesoroDeLaLinea | null;
   tesoroPrincipal: TesoroDeLaLinea;
   bloqueo: BloqueoDeLinea | null;
+  cotizacionDelPago: Cotizacion | null;
 }
 
 const OTRO_TESORO = {
@@ -127,6 +128,12 @@ export function lineasDelTaller(
   );
   const nombrar = nombrador(tesoros);
   const maun = nombrar(null, 'maun') ?? deSiempre('maun');
+  const cotizaciones = new Map(
+    filasDe(replica, 'pagos').flatMap((pago) => {
+      const { cotizacion } = importeDelPago(pago);
+      return cotizacion === null ? [] : [[pago.id, cotizacion] as const];
+    }),
+  );
 
   return lineasDelLibro(datosDelLibro(replica))
     .map((linea) => {
@@ -146,6 +153,8 @@ export function lineasDelTaller(
         tesoroHacia,
         tesoroPrincipal: (sentido === 'sale' ? tesoroDesde : tesoroHacia) ?? maun,
         bloqueo: bloqueoDe(linea),
+        cotizacionDelPago:
+          linea.origen === 'pago' ? (cotizaciones.get(linea.asientoId) ?? null) : null,
       };
     })
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.asientoId.localeCompare(a.asientoId));

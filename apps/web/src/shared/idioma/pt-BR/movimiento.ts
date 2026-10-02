@@ -196,9 +196,11 @@ export const movimiento = {
     yaEstabaEnTusSaldos: 'já estava nos seus saldos',
     sinConfirmar: 'a confirmar',
     sinEfectoEnLosSaldos: 'sem efeito nos saldos',
+    conElDolarA: (dolar) => `com o dólar a ${dolar}`,
   },
   ficha: {
     fecha: 'Data',
+    dolar: 'Dólar',
     saleDe: 'De',
     entraA: 'Para',
     categoria: 'Categoria',

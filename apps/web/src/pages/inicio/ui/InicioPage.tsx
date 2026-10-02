@@ -15,7 +15,12 @@ import { useMemo, useState } from 'react';
 import { vencimientosDeLaReplica } from '@/entities/agenda';
 import { avisosDeEntregas } from '@/entities/entrega';
 import { filaDelMesDelTaller } from '@/entities/fila';
-import { fraseDelDiezmo, resumenMensual, type ResumenMensual } from '@/entities/movimiento';
+import {
+  fraseDelDiezmo,
+  resumenMensual,
+  valoresEnPesosDeLosPagos,
+  type ResumenMensual,
+} from '@/entities/movimiento';
 import { novedadesDeOpiniones } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -299,8 +304,9 @@ export function InicioPage() {
   const nombreDelSuperavit = tesoroPorId(todos, fila.superavit)?.nombre ?? TESORO.maun.nombre;
 
   const asientos = asientosDelLibro(libro);
-  const del = resumenMensual(asientos, mes);
-  const delPrevio = resumenMensual(asientos, mesAnterior(mes));
+  const valoresDeLosPagos = valoresEnPesosDeLosPagos(replica);
+  const del = resumenMensual(asientos, mes, valoresDeLosPagos);
+  const delPrevio = resumenMensual(asientos, mesAnterior(mes), valoresDeLosPagos);
   const diezmo = estadoDelDiezmo(asientos);
   const frase = fraseDelDiezmo(diezmo);
   const mensaje = mensajeDelMes(mes, saldos.hogar, del, delMes, textos.mensajeDelMes);

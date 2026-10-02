@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
 
 import { useMensajes } from '@/shared/idioma';
-import { fechaLarga, formatearLaPlata, rutaDelProyecto, TINTA, Ir } from '@/shared/lib';
+import {
+  fechaLarga,
+  formatearLaPlata,
+  formatearPesos,
+  rutaDelProyecto,
+  TINTA,
+  Ir,
+} from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
 import { categoriaEnPantalla, esCategoriaDelCatalogo } from '../model/clases';
@@ -82,6 +89,11 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
           <Dato etiqueta={textos.entraA}>
             <Lado tesoro={linea.tesoroHacia} afuera={textos.seVaDelTaller} />
           </Dato>
+          {linea.cotizacionDelPago !== null && (
+            <Dato etiqueta={textos.dolar} talCual>
+              {formatearPesos(linea.cotizacionDelPago)}
+            </Dato>
+          )}
           {linea.categoria !== '' && (
             <Dato etiqueta={textos.categoria} talCual={!esCategoriaDelCatalogo(linea.categoria)}>
               {categoriaEnPantalla(linea.categoria)}

@@ -16,6 +16,7 @@ import {
   TODOS_LOS_MESES,
   TODOS_LOS_TESOROS,
   useMovimientosEnVuelo,
+  valoresEnPesosDeLosPagos,
   type FiltroDelLibro,
   type LineaDelTaller,
   type SentidoDeLinea,
@@ -124,8 +125,9 @@ export function FinanzasPage() {
   );
 
   const asientos = useMemo(() => asientosDelLibro(datosDelLibro(replica)), [replica]);
-  const actual = resumenMensual(asientos, mes);
-  const previo = resumenMensual(asientos, mesAnterior(mes));
+  const valoresDeLosPagos = useMemo(() => valoresEnPesosDeLosPagos(replica), [replica]);
+  const actual = resumenMensual(asientos, mes, valoresDeLosPagos);
+  const previo = resumenMensual(asientos, mesAnterior(mes), valoresDeLosPagos);
 
   const conFiltro = hayFiltroPuesto(filtro, mes);
   const cambiar = ({ tesoro, ...otros }: Partial<FiltroDelLibro>) => {

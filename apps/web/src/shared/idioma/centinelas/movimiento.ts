@@ -79,6 +79,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.movimiento.ficha.verElTrabajo('«TRABAJO»'),
     tieneQueDecir: ['«TRABAJO»'],
   },
+  'movimiento.libro.conElDolarA': {
+    llamar: (m) => m.movimiento.libro.conElDolarA('«DÓLAR»'),
+    tieneQueDecir: ['«DÓLAR»'],
+  },
   'movimiento.cambioEnElLibro': {
     llamar: (m) => m.movimiento.cambioEnElLibro('«SALE»', '«ENTRA»', '«DÓLAR»'),
     tieneQueDecir: ['«SALE»', '«ENTRA»', '«DÓLAR»'],

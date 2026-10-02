@@ -45,7 +45,7 @@ export {
   type LadoDelMovimiento,
   type LadosDelMovimiento,
 } from './model/lados';
-export { resumenMensual, type ResumenMensual } from './model/mes';
+export { resumenMensual, valoresEnPesosDeLosPagos, type ResumenMensual } from './model/mes';
 export {
   agruparPorDia,
   cotizacionDeLaLinea,

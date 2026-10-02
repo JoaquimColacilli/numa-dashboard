@@ -196,9 +196,11 @@ export const movimiento = {
     yaEstabaEnTusSaldos: 'already in your balances',
     sinConfirmar: 'unconfirmed',
     sinEfectoEnLosSaldos: 'no effect on balances',
+    conElDolarA: (dolar) => `at ${dolar} per dollar`,
   },
   ficha: {
     fecha: 'Date',
+    dolar: 'Dollar rate',
     saleDe: 'From',
     entraA: 'To',
     categoria: 'Category',

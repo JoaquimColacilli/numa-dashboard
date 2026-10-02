@@ -106,6 +106,9 @@ export function FilaDelLibro({ linea, tesoro, sinConfirmar, alAbrir }: FilaDelLi
               {linea.proyectoTitulo}
             </span>
           )}
+          {linea.cotizacionDelPago !== null && (
+            <span>{m.movimiento.libro.conElDolarA(formatearPesos(linea.cotizacionDelPago))}</span>
+          )}
           {linea.yaEnLaApertura && (
             <span className="text-badge font-semibold text-text-2">
               {m.movimiento.libro.yaEstabaEnTusSaldos}
