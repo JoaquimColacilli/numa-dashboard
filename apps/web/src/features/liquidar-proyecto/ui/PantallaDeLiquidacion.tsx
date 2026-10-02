@@ -26,6 +26,7 @@ import {
   erroresDelValorDelPago,
   fechaDelCobroPropuesta,
   importeDelValor,
+  importeParaElSaldo,
   loQueRecibeCadaTesoro,
   monedaDeUnPagoNuevo,
   MUTACION_DE_LIQUIDACION,
@@ -176,11 +177,12 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const [conPagoFinal, setConPagoFinal] = useState(faltaCobrar);
   const [pagoFinal, setPagoFinal] = useState<ValorDelPago>(() => {
     const moneda = monedaDeUnPagoNuevo(proyecto, resumen.moneda);
+    const cotizacion = dolarDelDiaParaUnPago({ moneda, fecha: hoy }, resumen.moneda, dolarDelDia);
     return conOtraMoneda(
       {
         moneda,
-        monto: moneda === resumen.moneda ? (resumen.saldo?.importe ?? null) : null,
-        cotizacion: dolarDelDiaParaUnPago({ moneda, fecha: hoy }, resumen.moneda, dolarDelDia),
+        monto: importeParaElSaldo(resumen.saldo, moneda, cotizacion),
+        cotizacion,
         tesoroId: null,
       },
       moneda,

@@ -1,8 +1,9 @@
-import { centavosEn, cotizacion, type ImporteDeUnPago } from '@maun/domain';
+import { centavosEn, cotizacion, plata, type ImporteDeUnPago } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
   efectoDelPago,
+  importeParaElSaldo,
   loQueHaceElPago,
   loQueHizoElPago,
   monedaDeUnPagoNuevo,
@@ -84,6 +85,16 @@ describe('la moneda de un pago nuevo', () => {
   it('sin «Te paga en» elegido arranca en pesos, aunque el trabajo sea en dólares', () => {
     expect(monedaDeUnPagoNuevo(conCobraEn(null), 'USD')).toBe('ARS');
     expect(monedaDeUnPagoNuevo(undefined, 'USD')).toBe('ARS');
+  });
+
+  it('el saldo se propone en su moneda, y en pesos solo con el dólar del día', () => {
+    const saldo = plata('USD', 120_000);
+    expect(importeParaElSaldo(saldo, 'USD', null)).toBe(120_000);
+    expect(importeParaElSaldo(saldo, 'ARS', 154_000)).toBe(184_800_000);
+    expect(importeParaElSaldo(saldo, 'ARS', null)).toBeNull();
+    expect(importeParaElSaldo(plata('USD', 0), 'ARS', 154_000)).toBeNull();
+    expect(importeParaElSaldo(plata('ARS', 500_000), 'USD', 154_000)).toBeNull();
+    expect(importeParaElSaldo(null, 'ARS', 154_000)).toBeNull();
   });
 
   it('con una sola moneda, esa; con las dos, la del trabajo', () => {

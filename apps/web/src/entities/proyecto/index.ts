@@ -279,6 +279,7 @@ export {
   efectoDelPago,
   erroresDelValorDelPago,
   importeDelValor,
+  importeParaElSaldo,
   loQueHaceElPago,
   loQueHizoElPago,
   monedaDeUnPagoNuevo,

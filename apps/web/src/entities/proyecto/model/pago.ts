@@ -5,6 +5,7 @@ import {
   loQueDescuenta,
   MONEDA_DEL_TALLER,
   necesitaCotizacion,
+  pesosDeDolares,
   plata,
   valorEnPesos,
   type Cotizacion,
@@ -143,6 +144,18 @@ export function dolarDelDiaParaUnPago(
   if (dolarDelDia === null || pago.moneda !== MONEDA_DEL_TALLER) return null;
   if (monedaDelTrabajo === MONEDA_DEL_TALLER || dolarDelDia.fecha !== pago.fecha) return null;
   return dolarDelDia.valor;
+}
+
+export function importeParaElSaldo(
+  saldo: Plata | null,
+  moneda: Moneda,
+  cotizacion: number | null,
+): number | null {
+  if (saldo === null) return null;
+  if (moneda === saldo.moneda) return saldo.importe;
+  const dolar = cotizacionLeida(cotizacion);
+  if (moneda !== MONEDA_DEL_TALLER || dolar === null || saldo.importe <= 0) return null;
+  return pesosDeDolares(centavosEn('USD', saldo.importe), dolar);
 }
 
 export function erroresDelValorDelPago(
