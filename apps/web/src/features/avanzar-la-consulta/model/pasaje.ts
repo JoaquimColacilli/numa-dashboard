@@ -1,8 +1,10 @@
 import {
   calcularSena,
-  centavos,
+  centavosEn,
+  MONEDA_DEL_TALLER,
   unaSolaForma,
   type FormaDeCobro,
+  type Moneda,
   type PuntosBasicos,
   type SenaDelTrabajo,
 } from '@maun/domain';
@@ -18,13 +20,18 @@ import {
   type OpcionDePresupuesto,
   type Proyecto,
 } from '@/entities/proyecto';
-import type { DatosDeProyecto, PagoParaGuardar } from '@/shared/api';
+import { monedaDelTrabajo, type DatosDeProyecto, type PagoParaGuardar } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
+
+import { clavesDelPago } from './pagoDeLaConsulta';
 
 export interface ValoresDelPasaje {
   presupuesto: number | null;
   opcion: string | null;
   sena: number | null;
+  monedaDeLaSena: Moneda;
+  cotizacionDeLaSena: number | null;
+  tesoroDeLaSena: string | null;
   forma: FormaDePago;
   comprobante: Comprobante;
   inicio: string;
@@ -54,12 +61,14 @@ export function presupuestoDelPasaje(
 export function errorDelPasaje(
   opciones: readonly OpcionDePresupuesto[],
   valores: LoQueDecideElPresupuesto,
+  moneda: Moneda = MONEDA_DEL_TALLER,
 ): string | undefined {
   const { errores } = mensajes().avanzarLaConsulta.pasaje;
   if (opciones.length > 0) {
     return opcionElegida(opciones, valores.opcion) === undefined ? errores.opcion : undefined;
   }
-  return valores.presupuesto === null ? errores.presupuesto : undefined;
+  if (valores.presupuesto !== null) return undefined;
+  return moneda === MONEDA_DEL_TALLER ? errores.presupuesto : errores.presupuestoEnDolares;
 }
 
 export function senaDelPasaje(
@@ -67,16 +76,17 @@ export function senaDelPasaje(
   cobrado: number,
   porcentajeDelTaller: PuntosBasicos,
   porcentajeDelTrabajo: PuntosBasicos | null,
-): SenaDelTrabajo {
-  return calcularSena({
-    presupuesto: aprobado === null ? null : centavos(aprobado),
-    cobrado: centavos(cobrado),
+  moneda: Moneda = MONEDA_DEL_TALLER,
+): SenaDelTrabajo<Moneda> {
+  return calcularSena<Moneda>({
+    presupuesto: aprobado === null ? null : centavosEn(moneda, aprobado),
+    cobrado: centavosEn(moneda, cobrado),
     porcentajeDelTaller,
     porcentajeDelTrabajo,
   });
 }
 
-export function senaSugerida(sena: SenaDelTrabajo): number | null {
+export function senaSugerida(sena: SenaDelTrabajo<Moneda>): number | null {
   return sena.situacion === 'falta' ? sena.falta : null;
 }
 
@@ -114,7 +124,11 @@ export function haySenaAhora(sena: number | null): boolean {
   return sena !== null && sena > 0;
 }
 
-function pagoDeLaSena(valores: ValoresDelPasaje, id: string): PagoParaGuardar[] {
+function pagoDeLaSena(
+  valores: ValoresDelPasaje,
+  id: string,
+  delTrabajo: Moneda,
+): PagoParaGuardar[] {
   if (valores.sena === null || !haySenaAhora(valores.sena)) return [];
   return [
     {
@@ -123,6 +137,14 @@ function pagoDeLaSena(valores: ValoresDelPasaje, id: string): PagoParaGuardar[] 
       concepto: mensajes().avanzarLaConsulta.conceptos.senaAlAprobar,
       monto_centavos: valores.sena,
       ya_en_la_apertura: valores.senaEnLaApertura,
+      ...clavesDelPago(
+        {
+          moneda: valores.monedaDeLaSena,
+          cotizacion: valores.cotizacionDeLaSena,
+          tesoroId: valores.tesoroDeLaSena,
+        },
+        delTrabajo,
+      ),
     },
   ];
 }
@@ -146,7 +168,7 @@ export function guardadoDelPasaje(
     direccion_entrega: valores.direccion.trim(),
   };
 
-  const pagos = pagoDeLaSena(valores, idDelPago);
+  const pagos = pagoDeLaSena(valores, idDelPago, monedaDelTrabajo(proyecto));
 
   const elegida = opcionElegida(opciones, valores.opcion);
   if (elegida === undefined || elegida.id === opcionAprobada(opciones)?.id) {

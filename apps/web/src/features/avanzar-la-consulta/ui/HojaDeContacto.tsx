@@ -1,12 +1,16 @@
+import { MONEDA_DEL_TALLER } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
 import { ClienteCombobox, MUTACION_DE_CLIENTE } from '@/entities/cliente';
 import {
+  CamposDelPago,
+  dolarDelDiaParaUnPago,
   hijosDelProyecto,
   MUTACION_DE_PROYECTO,
   pagosDelProyecto,
   type Proyecto,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
@@ -18,9 +22,10 @@ import {
 } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { formatearLaPlata, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
-import { Button, Campo, FilaDeAcciones, Hoja, MoneyInput } from '@/shared/ui';
+import { Button, Campo, FilaDeAcciones, Hoja } from '@/shared/ui';
 
 import {
+  conLaSena,
   diaDeLaSena,
   erroresDelContacto,
   etiquetaDeLaVisita,
@@ -31,11 +36,13 @@ import {
   ofreceMarcarLaVisita,
   pedidoDelContacto,
   senaEditable,
+  valorDeLaSena,
   valoresConOtraVisita,
   valoresDelContacto,
   type ErroresDelContacto,
   type ValoresDelContacto,
 } from '../model/contacto';
+import { monedaDeLaConsulta, paraLosPagos } from '../model/pagoDeLaConsulta';
 
 export interface HojaDeContactoProps {
   proyecto?: Proyecto;
@@ -44,6 +51,7 @@ export interface HojaDeContactoProps {
   enfocarLaVigencia?: boolean;
   alCerrar: () => void;
   alGuardar?: (id: string) => void;
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
 }
 
 export function HojaDeContacto({
@@ -53,6 +61,7 @@ export function HojaDeContacto({
   enfocarLaVigencia = false,
   alCerrar,
   alGuardar,
+  alCrearUnTesoroEnDolares,
 }: HojaDeContactoProps) {
   const textos = useMensajes().avanzarLaConsulta.contacto;
   const replica = useReplicaDelTaller();
@@ -60,6 +69,8 @@ export function HojaDeContacto({
   const cuerpo = useRef<HTMLDivElement>(null);
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
+  const delTrabajo = monedaDeLaConsulta(proyecto);
+  const para = paraLosPagos(replica);
 
   const clientes = filasDe(replica, 'clientes');
   const pagos = proyecto === undefined ? [] : pagosDelProyecto(replica, proyecto.id);
@@ -68,7 +79,7 @@ export function HojaDeContacto({
 
   const alAbrir = useRef({ id: proyecto?.id ?? uuidv7(), idDeSenaNueva: uuidv7() });
   const [iniciales] = useState<ValoresDelContacto>(() =>
-    valoresDelContacto(proyecto, sena, visitaInicial),
+    valoresDelContacto(proyecto, sena, visitaInicial, para, hoy),
   );
   const [valores, setValores] = useState<ValoresDelContacto>(iniciales);
   const [telefono, setTelefono] = useState<string | undefined>(undefined);
@@ -114,6 +125,20 @@ export function HojaDeContacto({
     }));
   }
 
+  function cambiarLaSena(valor: ValorDelPago): void {
+    setValores((previos) => conLaSena(previos, valor));
+    setErrores((previos) => ({
+      ...previos,
+      cotizacionDeLaSena: undefined,
+      tesoroDeLaSena: undefined,
+    }));
+  }
+
+  function entraAlTesoroNuevo(tesoroId: string): void {
+    setValores((previos) => ({ ...previos, tesoroDeLaSena: tesoroId }));
+    setErrores((previos) => ({ ...previos, tesoroDeLaSena: undefined }));
+  }
+
   function terminar(): void {
     if (yaTermino.current) return;
     yaTermino.current = true;
@@ -123,7 +148,10 @@ export function HojaDeContacto({
 
   function enviar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
-    const encontrados = erroresDelContacto(valores, telefonoVisible, hoy);
+    const encontrados = erroresDelContacto(valores, telefonoVisible, hoy, {
+      monedaDelTrabajo: delTrabajo,
+      tesorosEnDolares: para.tesorosEnDolares,
+    });
     setErrores(encontrados);
     if (Object.values(encontrados).some((mensaje) => mensaje !== undefined)) return;
 
@@ -251,14 +279,33 @@ export function HojaDeContacto({
                   <span className="text-meta text-text-3">{textos.variosPagos(pagos.length)}</span>
                 </div>
               ) : (
-                <MoneyInput
+                <CamposDelPago
                   etiqueta={textos.senaCobrada}
-                  conMarcador
-                  value={valores.sena}
-                  onChange={(centavos) => {
-                    cambiar('sena', centavos);
+                  valor={valorDeLaSena(valores)}
+                  alCambiar={cambiarLaSena}
+                  monedaDelTrabajo={delTrabajo}
+                  tesorosEnDolares={para.tesorosEnDolares}
+                  dolarDelDia={dolarDelDiaParaUnPago(
+                    { moneda: valores.monedaDeLaSena, fecha: diaDeLaSena(valores, hoy) },
+                    delTrabajo,
+                    para.dolarDelDia,
+                  )}
+                  alCrearUnTesoroEnDolares={
+                    alCrearUnTesoroEnDolares === undefined
+                      ? undefined
+                      : () => {
+                          alCrearUnTesoroEnDolares(entraAlTesoroNuevo);
+                        }
+                  }
+                  errores={{
+                    cotizacion: errores.cotizacionDeLaSena,
+                    tesoro: errores.tesoroDeLaSena,
                   }}
-                  ayuda={textos.ayudaDeLaSena}
+                  ayudaDelMonto={
+                    valores.monedaDeLaSena === MONEDA_DEL_TALLER
+                      ? textos.ayudaDeLaSena
+                      : textos.ayudaDeLaSenaEnDolares
+                  }
                 />
               )}
 

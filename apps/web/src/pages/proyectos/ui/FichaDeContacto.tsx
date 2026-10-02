@@ -61,6 +61,7 @@ import {
   PrincipalYApoyo,
 } from '@/shared/ui';
 
+import { ConTesoroEnDolaresNuevo } from './ConTesoroEnDolaresNuevo';
 import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
@@ -103,7 +104,21 @@ export interface FichaDeContactoProps {
   etapa: EtapaDeConsulta;
 }
 
-export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
+export function FichaDeContacto(props: FichaDeContactoProps) {
+  return (
+    <ConTesoroEnDolaresNuevo>
+      {(pedir) => <FichaDelContacto {...props} pedirUnTesoroEnDolares={pedir} />}
+    </ConTesoroEnDolaresNuevo>
+  );
+}
+
+function FichaDelContacto({
+  resumen,
+  etapa,
+  pedirUnTesoroEnDolares,
+}: FichaDeContactoProps & {
+  pedirUnTesoroEnDolares: (alCrear: (tesoroId: string) => void) => void;
+}) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { comun, contacto: textos } = useMensajes().paginaProyectos;
@@ -221,6 +236,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
               alAgendar={() => {
                 setEditando('visita');
               }}
+              alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
             />
           </div>
         }
@@ -402,6 +418,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
               enfocarLaVisita={abierta === 'visita'}
               enfocarLaVigencia={abierta === 'vigencia'}
               alCerrar={cerrarLaHoja}
+              alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
             />
           )
         }

@@ -7,6 +7,7 @@ import {
   puntosBasicos,
   valoresDelTrabajo,
   type DocumentoDelPresupuesto,
+  type Moneda,
   type ValoresDelPresupuesto,
 } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,7 +15,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { OpcionDePresupuesto, Proyecto, ResumenDeProyecto } from '@/entities/proyecto';
+import type {
+  GuardadoDeProyecto,
+  OpcionDePresupuesto,
+  Proyecto,
+  ResumenDeProyecto,
+} from '@/entities/proyecto';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
 import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
@@ -127,7 +133,11 @@ function taller(mandado: DocumentoDelPresupuesto | null): Replica {
 
 function montar(
   replica: Replica,
-  { proyecto = PROYECTO, opciones = [] as OpcionDePresupuesto[] } = {},
+  {
+    proyecto = PROYECTO,
+    opciones = [],
+    moneda = 'ARS',
+  }: { proyecto?: Proyecto; opciones?: OpcionDePresupuesto[]; moneda?: Moneda } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -137,15 +147,15 @@ function montar(
     cliente: undefined,
     nombreDelCliente: 'Marcela Duarte',
     fase: 'consultas',
-    moneda: 'ARS',
-    precio: plata('ARS', proyecto.presupuesto_centavos ?? 0),
-    cobradoEnSuMoneda: plata('ARS', 0),
+    moneda,
+    precio: plata(moneda, proyecto.presupuesto_centavos ?? 0),
+    cobradoEnSuMoneda: plata(moneda, 0),
     cobradoEnPesos: centavos(0),
     enMaun: centavos(0),
     enDolares: [],
     gastos: centavos(0),
     saldo:
-      proyecto.presupuesto_centavos === null ? null : plata('ARS', proyecto.presupuesto_centavos),
+      proyecto.presupuesto_centavos === null ? null : plata(moneda, proyecto.presupuesto_centavos),
     entrega: { fecha: null, comprometida: false, franja: null },
     urgencia: undefined,
   } as unknown as ResumenDeProyecto;
@@ -158,6 +168,13 @@ function montar(
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  return {
+    guardados: () =>
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutacion) => mutacion.state.variables as GuardadoDeProyecto),
+  };
 }
 
 function campo(etiqueta: string): HTMLInputElement {
@@ -250,5 +267,131 @@ describe('el pasaje con un presupuesto mandado', () => {
     expect(enUnRenglon(screen.getByText(/Acordado al aprobar/))).toBe(
       'En el presupuesto Nº 20260910-01 dice $ 15.000. Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: $ 16.000».',
     );
+  });
+});
+
+describe('el pasaje de un trabajo en dólares', () => {
+  const DOLARES = 'tesoro-usd';
+
+  function conDolares(replica: Replica): Replica {
+    const tablas = replica.tablas as Record<TablaReplicada, Record<string, unknown>>;
+    tablas.tesoros = {
+      [DOLARES]: {
+        ...METADATOS,
+        id: DOLARES,
+        clave: null,
+        moneda: 'USD',
+        nombre: 'Dólares',
+        descripcion: '',
+        tinta: 'grana',
+        icono: 'banknote',
+        meta_centavos: null,
+        rinde_anual_bp: null,
+        orden: 1,
+        archivado_at: null,
+      },
+    };
+    tablas.ajustes = {
+      aj: {
+        ...METADATOS,
+        id: 'aj',
+        sena_bp: 5000,
+        dolar_del_dia_centavos: 154_000,
+        dolar_del_dia_el: HOY,
+      },
+    };
+    return replica;
+  }
+
+  const EN_DOLARES = {
+    ...PROYECTO,
+    moneda: 'USD',
+    cobra_en: ['USD'],
+    presupuesto_centavos: 200_000,
+  } as unknown as Proyecto;
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+  });
+
+  it('la seña se propone en dólares y, pagada en dólares, entra al tesoro en dólares con su dólar', () => {
+    const { guardados } = montar(conDolares(taller(null)), { proyecto: EN_DOLARES, moneda: 'USD' });
+
+    expect(campo('Presupuesto aprobado').value).toBe('2.000');
+    expect(screen.getByRole('textbox', { name: /^Seña que cobrás ahora/ })).toHaveValue('1.000');
+    expect(screen.getByText('Entra a «Dólares».')).toBeInTheDocument();
+
+    fireEvent.click(botonDePasar());
+    expect(guardados()).toEqual([]);
+    expect(screen.getByRole('textbox', { name: 'Dólar' })).toHaveAccessibleDescription(
+      '¿A cuánto se tomó?',
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Dólar' }), {
+      target: { value: '1.450' },
+    });
+    expect(screen.getByText(/^Para el reparto vale \$\s1\.450\.000\.$/u)).toBeInTheDocument();
+    fireEvent.click(botonDePasar());
+
+    expect(guardados()[0]?.pedido.pagos).toEqual([
+      expect.objectContaining({
+        fecha: HOY,
+        monto_centavos: 100_000,
+        moneda: 'USD',
+        cotizacion_centavos: 145_000,
+        tesoro_id: DOLARES,
+      }),
+    ]);
+    expect(guardados()[0]?.pedido.datos).toMatchObject({
+      estado: 'en_curso',
+      presupuesto_centavos: 200_000,
+    });
+  });
+
+  it('pagada en pesos viene con el dólar del día y la cuenta descuenta dólares', () => {
+    const { guardados } = montar(conDolares(taller(null)), {
+      proyecto: { ...EN_DOLARES, cobra_en: ['ARS'] } as unknown as Proyecto,
+      moneda: 'USD',
+    });
+
+    const sena = screen.getByRole('textbox', { name: /^Seña que cobrás ahora/ });
+    expect(sena).toHaveValue('');
+    fireEvent.change(sena, { target: { value: '1.540.000' } });
+    expect(screen.getByRole('textbox', { name: 'Dólar' })).toHaveValue('1.540');
+    expect(screen.getByText(/^Descuenta US\$\s1\.000 del precio\.$/u)).toBeInTheDocument();
+
+    fireEvent.click(botonDePasar());
+    expect(guardados()[0]?.pedido.pagos).toEqual([
+      expect.objectContaining({
+        monto_centavos: 154_000_000,
+        moneda: 'ARS',
+        cotizacion_centavos: 154_000,
+        tesoro_id: null,
+      }),
+    ]);
+  });
+
+  it('sin presupuesto lo pide en dólares', () => {
+    montar(conDolares(taller(null)), {
+      proyecto: { ...EN_DOLARES, presupuesto_centavos: null } as unknown as Proyecto,
+      moneda: 'USD',
+    });
+
+    fireEvent.click(botonDePasar());
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Poné el presupuesto que aprobó, en dólares.',
+    );
+  });
+
+  it('no compara con un presupuesto que se mandó en pesos', () => {
+    montar(conDolares(taller(documento(30, valoresDelTrabajo(centavos(1_000_000), [])))), {
+      proyecto: { ...EN_DOLARES, presupuesto_centavos: 1_200_000 } as unknown as Proyecto,
+      moneda: 'USD',
+    });
+
+    expect(screen.queryByText(/Acordado al aprobar/)).toBeNull();
   });
 });

@@ -1,22 +1,30 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Proyecto } from '@/entities/proyecto';
+import type { Proyecto, ValorDelPago } from '@/entities/proyecto';
 
 import { conceptoDeLaSena } from './contacto';
 import {
   cambiosAlPasarAPresupuestar,
+  conElPagoDeLaVisita,
   conOtroDia,
   conOtroVencimiento,
   errorDelDia,
+  erroresDelPagoDeLaVisita,
   pagoAntesDePresupuestar,
   pasoDelRelevamiento,
+  valorDelPagoDeLaVisita,
   valoresDelRelevamiento,
 } from './relevamiento';
 
 const HOY = '2026-09-14';
+const EN_PESOS = { moneda: 'ARS', cotizacion_centavos: null, tesoro_id: null } as const;
 
 function contacto(fechaVisita: string | null): Proyecto {
   return { estado: 'relevamiento', fecha_visita: fechaVisita } as unknown as Proyecto;
+}
+
+function enPesos(monto: number | null): ValorDelPago {
+  return { moneda: 'ARS', monto, cotizacion: null, tesoroId: null };
 }
 
 describe('el formulario de «Ya fui a relevar»', () => {
@@ -26,6 +34,9 @@ describe('el formulario de «Ya fui a relevar»', () => {
       vencimiento: '2026-09-17',
       vencimientoAMano: false,
       pago: null,
+      monedaDelPago: 'ARS',
+      cotizacionDelPago: null,
+      tesoroDelPago: null,
       pagoEnLaApertura: true,
     });
     expect(valoresDelRelevamiento(contacto('2026-09-18'), HOY).dia).toBe(HOY);
@@ -79,6 +90,7 @@ describe('el formulario de «Ya fui a relevar»', () => {
         concepto: conceptoDeLaSena(),
         monto_centavos: 3_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
   });
@@ -110,19 +122,125 @@ describe('el formulario de «Ya fui a relevar»', () => {
   });
 
   it('pasar a presupuestar desde el estimativo lleva el pago con el día que se eligió, y cero es no tener pago', () => {
-    expect(pagoAntesDePresupuestar(null, 'p', HOY)).toEqual([]);
-    expect(pagoAntesDePresupuestar(0, 'p', HOY)).toEqual([]);
-    expect(pagoAntesDePresupuestar(2_000_000, 'p', '2026-09-12')).toEqual([
+    expect(pagoAntesDePresupuestar(enPesos(null), 'p', HOY)).toEqual([]);
+    expect(pagoAntesDePresupuestar(enPesos(0), 'p', HOY)).toEqual([]);
+    expect(pagoAntesDePresupuestar(enPesos(2_000_000), 'p', '2026-09-12')).toEqual([
       {
         id: 'p',
         fecha: '2026-09-12',
         concepto: conceptoDeLaSena(),
         monto_centavos: 2_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
-    expect(pagoAntesDePresupuestar(2_000_000, 'p', '2026-07-12', true)[0]).toMatchObject({
+    expect(pagoAntesDePresupuestar(enPesos(2_000_000), 'p', '2026-07-12', true)[0]).toMatchObject({
       ya_en_la_apertura: true,
     });
+  });
+});
+
+describe('el pago de la visita en un trabajo en dólares', () => {
+  const DOLAR_DEL_DIA = { valor: 154_000, fecha: '2026-09-10' };
+  const DOLARES = { id: 'usd', nombre: 'Dólares' };
+
+  function enDolares(cobraEn: string[]): Proyecto {
+    return {
+      estado: 'relevamiento',
+      fecha_visita: '2026-09-10',
+      moneda: 'USD',
+      cobra_en: cobraEn,
+    } as unknown as Proyecto;
+  }
+
+  it('la visita se paga en pesos y viene con el dólar del día si es el del día del pago', () => {
+    const valores = valoresDelRelevamiento(enDolares(['ARS']), HOY, {
+      tesorosEnDolares: [DOLARES],
+      dolarDelDia: DOLAR_DEL_DIA,
+    });
+
+    expect(valores).toMatchObject({
+      dia: '2026-09-10',
+      monedaDelPago: 'ARS',
+      cotizacionDelPago: 154_000,
+      tesoroDelPago: null,
+    });
+    expect(
+      pasoDelRelevamiento({ ...valores, pago: 12_000_000 }, 'pago', null, 'USD').pagos,
+    ).toEqual([
+      {
+        id: 'pago',
+        fecha: '2026-09-10',
+        concepto: conceptoDeLaSena(),
+        monto_centavos: 12_000_000,
+        ya_en_la_apertura: false,
+        moneda: 'ARS',
+        cotizacion_centavos: 154_000,
+        tesoro_id: null,
+      },
+    ]);
+  });
+
+  it('con el dólar del día de otro día lo pide, y sin él no se anota', () => {
+    const valores = valoresDelRelevamiento(enDolares(['ARS']), HOY, {
+      tesorosEnDolares: [DOLARES],
+      dolarDelDia: { ...DOLAR_DEL_DIA, fecha: HOY },
+    });
+
+    expect(valores.cotizacionDelPago).toBeNull();
+    expect(erroresDelPagoDeLaVisita(valores, 'USD', [DOLARES])).toEqual({});
+    expect(erroresDelPagoDeLaVisita({ ...valores, pago: 12_000_000 }, 'USD', [DOLARES])).toEqual({
+      cotizacion: '¿A cuánto se tomó?',
+    });
+    expect(
+      erroresDelPagoDeLaVisita(
+        { ...valores, pago: 12_000_000, cotizacionDelPago: 150_000 },
+        'USD',
+        [DOLARES],
+      ),
+    ).toEqual({});
+  });
+
+  it('pagada en dólares entra al tesoro en dólares, con a cuánto se cuenta cada dólar', () => {
+    const valores = valoresDelRelevamiento(enDolares(['USD']), HOY, {
+      tesorosEnDolares: [DOLARES],
+      dolarDelDia: DOLAR_DEL_DIA,
+    });
+    expect(valores).toMatchObject({ monedaDelPago: 'USD', tesoroDelPago: 'usd' });
+
+    const pagado = conElPagoDeLaVisita(valores, {
+      ...valorDelPagoDeLaVisita(valores),
+      monto: 8_000,
+      cotizacion: 150_000,
+    });
+    expect(pasoDelRelevamiento(pagado, 'pago', null, 'USD').pagos[0]).toMatchObject({
+      monto_centavos: 8_000,
+      moneda: 'USD',
+      cotizacion_centavos: 150_000,
+      tesoro_id: 'usd',
+    });
+  });
+
+  it('pasar a presupuestar desde el estimativo también lleva la moneda, el dólar y el tesoro', () => {
+    expect(
+      pagoAntesDePresupuestar(
+        { moneda: 'USD', monto: 8_000, cotizacion: 150_000, tesoroId: 'usd' },
+        'p',
+        HOY,
+        false,
+        'ARS',
+      ),
+    ).toEqual([
+      {
+        id: 'p',
+        fecha: HOY,
+        concepto: conceptoDeLaSena(),
+        monto_centavos: 8_000,
+        ya_en_la_apertura: false,
+        moneda: 'USD',
+        cotizacion_centavos: 150_000,
+        tesoro_id: 'usd',
+      },
+    ]);
   });
 });

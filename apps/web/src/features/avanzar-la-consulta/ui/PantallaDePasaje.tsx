@@ -13,12 +13,17 @@ import {
 import { CONDICION, EnlaceACliente } from '@/entities/cliente';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import {
+  BotonDeLaMoneda,
   COMPROBANTE,
   COMPROBANTES_EN_ORDEN,
   comprobanteDeLaCondicion,
+  conOtraMoneda,
+  DetalleDelPago,
+  dolarDelDiaParaUnPago,
   FORMA_DE_PAGO,
   FORMAS_EN_ORDEN,
   formasDelTrabajo,
+  monedasGuardadas,
   MUTACION_DE_PROYECTO,
   opcionAprobada,
   rutaDeEdicion,
@@ -26,9 +31,11 @@ import {
   senaDelProyecto,
   senaDelTaller,
   type Comprobante,
+  type ErroresDelPago,
   type FormaDePago,
   type OpcionDePresupuesto,
   type ResumenDeProyecto,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ajustesDe, aperturaDeLaReplica, mensajeDeSincronizacion } from '@/shared/api';
@@ -46,6 +53,13 @@ import {
 } from '@/shared/lib';
 import { AdornoDePlata, Button, Campo, CamposJuntos, Icono, MoneyInput, Pagina } from '@/shared/ui';
 
+import {
+  cuantoDescuenta,
+  erroresDelPago,
+  hayErroresEnElPago,
+  pagoNuevo,
+  paraLosPagos,
+} from '../model/pagoDeLaConsulta';
 import {
   errorDelPasaje,
   formaSugerida,
@@ -67,11 +81,16 @@ import {
 export interface PantallaDePasajeProps {
   resumen: ResumenDeProyecto;
   opciones: readonly OpcionDePresupuesto[];
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
 }
 
 const CIFRA = 'contents @min-[44rem]:flex @min-[44rem]:flex-col @min-[44rem]:gap-0.5';
 
-export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
+export function PantallaDePasaje({
+  resumen,
+  opciones,
+  alCrearUnTesoroEnDolares,
+}: PantallaDePasajeProps) {
   const textos = useMensajes().avanzarLaConsulta.pasaje;
   const ir = useIr();
   const idCampos = useId();
@@ -91,6 +110,8 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
   );
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
+  const para = paraLosPagos(replica);
+  const { moneda } = resumen;
 
   const guardar = useMutation(MUTACION_DE_PROYECTO);
   const [rechazo, setRechazo] = useState<unknown>(null);
@@ -123,7 +144,10 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
   const hayOpciones = opciones.length > 0;
   const aprobado = presupuestoDelPasaje(opciones, { presupuesto, opcion });
-  const acordado = avisoDelAcordado(mandado, opcion, aprobado);
+  const acordado = avisoDelAcordado(mandado, opcion, aprobado, {
+    moneda,
+    cobraEn: monedasGuardadas(proyecto),
+  });
 
   const porcentaje = porcentajeDeLaSena(
     senaDelProyecto(proyecto),
@@ -134,31 +158,50 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
     resumen.cobradoEnSuMoneda.importe,
     senaDelTaller(ajustesDe(replica)),
     senaDelProyecto(proyecto),
+    moneda,
   );
-  const [sena, setSena] = useState<number | null>(() => senaSugerida(esperada));
+  const [pagoDeLaSena, setPagoDeLaSena] = useState<ValorDelPago>(() => {
+    const nuevo = pagoNuevo(proyecto, hoy, para);
+    return nuevo.moneda === moneda ? { ...nuevo, monto: senaSugerida(esperada) } : nuevo;
+  });
   const [senaAMano, setSenaAMano] = useState(false);
-  const cuenta = resumenDelPasaje(aprobado, resumen.cobradoEnSuMoneda.importe, sena);
+  const [erroresDeLaSena, setErroresDeLaSena] = useState<ErroresDelPago>({});
+  const cuenta = resumenDelPasaje(
+    aprobado,
+    resumen.cobradoEnSuMoneda.importe,
+    cuantoDescuenta(pagoDeLaSena, moneda),
+  );
   const [idDelPago] = useState(uuidv7);
   const [diaDeLaSena, setDiaDeLaSena] = useState(hoy);
   const [senaMarcada, setSenaMarcada] = useState(true);
   const [errorDelDia, setErrorDelDia] = useState<string | undefined>(undefined);
   const campoDelDia = useRef<HTMLInputElement>(null);
 
+  function cambiarLaSena(valor: ValorDelPago): void {
+    setPagoDeLaSena(valor);
+    setErroresDeLaSena({});
+  }
+
+  function sugerirLaSena(aprobadoAhora: number | null): void {
+    if (senaAMano) return;
+    const sugerida = senaSugerida(
+      senaDelPasaje(
+        aprobadoAhora,
+        resumen.cobradoEnSuMoneda.importe,
+        senaDelTaller(ajustesDe(replica)),
+        senaDelProyecto(proyecto),
+        moneda,
+      ),
+    );
+    setPagoDeLaSena((previo) =>
+      previo.moneda === moneda ? { ...previo, monto: sugerida } : previo,
+    );
+  }
+
   function elegirOpcion(id: string): void {
     setOpcion(id);
     setFalta(undefined);
-    if (senaAMano) return;
-    const otra = opciones.find((una) => una.id === id);
-    setSena(
-      senaSugerida(
-        senaDelPasaje(
-          otra?.monto_centavos ?? null,
-          resumen.cobradoEnSuMoneda.importe,
-          senaDelTaller(ajustesDe(replica)),
-          senaDelProyecto(proyecto),
-        ),
-      ),
-    );
+    sugerirLaSena(opciones.find((una) => una.id === id)?.monto_centavos ?? null);
   }
 
   useEffect(() => {
@@ -169,18 +212,22 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
   function aprobar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
-    const encontrado = errorDelPasaje(opciones, { presupuesto, opcion });
+    const encontrado = errorDelPasaje(opciones, { presupuesto, opcion }, moneda);
     setFalta(encontrado);
     if (encontrado !== undefined) {
       (hayOpciones ? primeraOpcion : campoDelPresupuesto).current?.focus();
       return;
     }
-    const delDia = haySenaAhora(sena) ? errorDeLaFechaDeLaPlata(diaDeLaSena, hoy) : undefined;
+    const conSena = haySenaAhora(pagoDeLaSena.monto);
+    const delDia = conSena ? errorDeLaFechaDeLaPlata(diaDeLaSena, hoy) : undefined;
     setErrorDelDia(delDia);
     if (delDia !== undefined) {
       campoDelDia.current?.focus();
       return;
     }
+    const delPago = conSena ? erroresDelPago(pagoDeLaSena, moneda, para.tesorosEnDolares) : {};
+    setErroresDeLaSena(delPago);
+    if (hayErroresEnElPago(delPago)) return;
 
     setRechazo(null);
     guardar.mutate(
@@ -190,7 +237,10 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         {
           presupuesto,
           opcion,
-          sena,
+          sena: pagoDeLaSena.monto,
+          monedaDeLaSena: pagoDeLaSena.moneda,
+          cotizacionDeLaSena: pagoDeLaSena.cotizacion,
+          tesoroDeLaSena: pagoDeLaSena.tesoroId,
           forma,
           comprobante,
           inicio,
@@ -223,14 +273,21 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         </span>
       </label>
       <div className="flex h-15 items-center gap-1.5 rounded-field border border-border px-3.5">
-        <AdornoDePlata moneda={resumen.moneda} className="text-money-lg text-text-3" />
+        <BotonDeLaMoneda
+          moneda={pagoDeLaSena.moneda}
+          alCambiar={(otra) => {
+            cambiarLaSena(conOtraMoneda(pagoDeLaSena, otra, para.tesorosEnDolares));
+          }}
+          className="text-money-lg"
+        />
         <MoneyInput
           id={`${idCampos}-sena`}
+          moneda={pagoDeLaSena.moneda}
           placeholder="0"
-          value={sena}
+          value={pagoDeLaSena.monto}
           aria-describedby={`${idCampos}-sena-ayuda`}
           onChange={(centavos) => {
-            setSena(centavos);
+            cambiarLaSena({ ...pagoDeLaSena, monto: centavos });
             setSenaAMano(true);
           }}
           className="min-w-0 flex-1 bg-transparent text-money-lg font-semibold outline-none"
@@ -239,7 +296,29 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
       <p id={`${idCampos}-sena-ayuda`} className="text-meta leading-normal text-text-3">
         {esperada.situacion === 'cubierta' ? textos.senaCubierta : textos.senaComoPago}
       </p>
-      {haySenaAhora(sena) && (
+      <DetalleDelPago
+        valor={pagoDeLaSena}
+        alCambiar={cambiarLaSena}
+        monedaDelTrabajo={moneda}
+        tesorosEnDolares={para.tesorosEnDolares}
+        dolarDelDia={dolarDelDiaParaUnPago(
+          { moneda: pagoDeLaSena.moneda, fecha: diaDeLaSena },
+          moneda,
+          para.dolarDelDia,
+        )}
+        alCrearUnTesoroEnDolares={
+          alCrearUnTesoroEnDolares === undefined
+            ? undefined
+            : () => {
+                alCrearUnTesoroEnDolares((tesoroId) => {
+                  setPagoDeLaSena((previo) => ({ ...previo, tesoroId }));
+                  setErroresDeLaSena({});
+                });
+              }
+        }
+        errores={erroresDeLaSena}
+      />
+      {haySenaAhora(pagoDeLaSena.monto) && (
         <>
           <Campo
             ref={campoDelDia}
@@ -390,18 +469,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                     onChange={(centavos) => {
                       setPresupuesto(centavos);
                       setFalta(undefined);
-                      if (!senaAMano) {
-                        setSena(
-                          senaSugerida(
-                            senaDelPasaje(
-                              centavos,
-                              resumen.cobradoEnSuMoneda.importe,
-                              senaDelTaller(ajustesDe(replica)),
-                              senaDelProyecto(proyecto),
-                            ),
-                          ),
-                        );
-                      }
+                      sugerirLaSena(centavos);
                     }}
                     className="min-w-0 flex-1 bg-transparent text-money-lg font-semibold outline-none"
                   />

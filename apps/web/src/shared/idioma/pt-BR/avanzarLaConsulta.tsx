@@ -62,6 +62,7 @@ export const avanzarLaConsulta = {
         other: 'São # pagamentos: corrija nos detalhes do projeto.',
       }),
     ayudaDeLaSena: 'O que o cliente deixou na visita. Entra no caixa da marcenaria.',
+    ayudaDeLaSenaEnDolares: 'O que o cliente deixou na visita.',
     diaDeLaSena: 'Data do sinal',
     ayudaDelDiaDeLaSena:
       'A da visita, se já aconteceu; se não, hoje. Mude se o cliente pagou em outro dia.',
@@ -140,6 +141,7 @@ export const avanzarLaConsulta = {
     errores: {
       opcion: 'Escolha a opção que o cliente aprovou.',
       presupuesto: 'Informe o orçamento que o cliente aprovou, em pesos.',
+      presupuestoEnDolares: 'Informe o orçamento que o cliente aprovou, em dólares.',
     },
     acordado: {
       noEstaEnElQueLeMandaste: 'Esse valor não está no orçamento que você enviou.',

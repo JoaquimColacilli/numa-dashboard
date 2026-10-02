@@ -45,6 +45,7 @@ import {
   PrincipalYApoyo,
 } from '@/shared/ui';
 
+import { ConTesoroEnDolaresNuevo } from './ConTesoroEnDolaresNuevo';
 import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
@@ -77,7 +78,20 @@ export interface FichaDeSeguimientoProps {
   resumen: ResumenDeProyecto;
 }
 
-export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
+export function FichaDeSeguimiento(props: FichaDeSeguimientoProps) {
+  return (
+    <ConTesoroEnDolaresNuevo>
+      {(pedir) => <FichaDelSeguimiento {...props} pedirUnTesoroEnDolares={pedir} />}
+    </ConTesoroEnDolaresNuevo>
+  );
+}
+
+function FichaDelSeguimiento({
+  resumen,
+  pedirUnTesoroEnDolares,
+}: FichaDeSeguimientoProps & {
+  pedirUnTesoroEnDolares: (alCrear: (tesoroId: string) => void) => void;
+}) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { comun, seguimiento: textos } = useMensajes().paginaProyectos;
@@ -322,7 +336,11 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
               alCerrar={cerrarLaHoja}
             />
           ) : (
-            <HojaDeContacto proyecto={proyecto} alCerrar={cerrarLaHoja} />
+            <HojaDeContacto
+              proyecto={proyecto}
+              alCerrar={cerrarLaHoja}
+              alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
+            />
           )
         }
       </ConSalida>

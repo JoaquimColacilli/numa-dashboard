@@ -57,6 +57,7 @@ export const avanzarLaConsulta = {
     variosPagos: (cantidad: number) =>
       `Son ${String(cantidad)} pagos: se corrigen desde el detalle del trabajo.`,
     ayudaDeLaSena: 'Lo que te dejó en la visita. Entra a la caja del taller.',
+    ayudaDeLaSenaEnDolares: 'Lo que te dejó en la visita.',
     diaDeLaSena: 'Día de la seña',
     ayudaDelDiaDeLaSena: 'El de la visita si ya fue, y si no, hoy. Cambialo si te la dio otro día.',
     yaFuiARelevar: 'Ya fui a relevar',
@@ -123,6 +124,7 @@ export const avanzarLaConsulta = {
     errores: {
       opcion: 'Elegí la opción que aprobó.',
       presupuesto: 'Poné el presupuesto que aprobó, en pesos.',
+      presupuestoEnDolares: 'Poné el presupuesto que aprobó, en dólares.',
     },
     acordado: {
       noEstaEnElQueLeMandaste: 'Ese importe no está en el presupuesto que le mandaste.',

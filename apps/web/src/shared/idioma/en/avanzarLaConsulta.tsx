@@ -62,6 +62,7 @@ export const avanzarLaConsulta = {
         other: 'There are # payments: edit them in the job details.',
       }),
     ayudaDeLaSena: "What they left you at the visit. It goes into the shop's cash.",
+    ayudaDeLaSenaEnDolares: 'What they left you at the visit.',
     diaDeLaSena: 'Deposit date',
     ayudaDelDiaDeLaSena:
       "The visit's date if it already happened, otherwise today. Change it if they paid on another day.",
@@ -140,6 +141,7 @@ export const avanzarLaConsulta = {
     errores: {
       opcion: 'Choose the option they approved.',
       presupuesto: 'Enter the quote they approved, in pesos.',
+      presupuestoEnDolares: 'Enter the quote they approved, in dollars.',
     },
     acordado: {
       noEstaEnElQueLeMandaste: "That amount isn't in the quote you sent.",
