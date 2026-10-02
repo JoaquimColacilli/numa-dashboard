@@ -366,6 +366,11 @@ export const proyecto = {
     teQuedaSiTeLoAprueban: 'You keep, if approved',
     teQueda: 'You keep',
     enContra: "You're estimating more costs than the quote.",
+    dolarParaLosCostos: 'Dollar rate for costs',
+    ayudaDelDolar:
+      'Costs are kept in pesos: with this rate you can also see and enter them in dollars.',
+    faltaElDolar: 'Enter the dollar rate for costs and what you keep shows up here, in dollars.',
+    aproximado: (monto) => `≈ ${monto}`,
   },
   liquidacionesSinConfirmar: {
     unProyecto: 'A job',

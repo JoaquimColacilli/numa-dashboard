@@ -240,6 +240,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.proyecto.costosDeCotizar.cargadas(2, 7),
     tieneQueDecir: ['2', '7'],
   },
+  'proyecto.costosDeCotizar.aproximado': {
+    llamar: (m) => m.proyecto.costosDeCotizar.aproximado('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
   'proyecto.liquidacionesSinConfirmar.cuentan': {
     llamar: (m) => m.proyecto.liquidacionesSinConfirmar.cuentan(3),
     tieneQueDecir: ['3'],

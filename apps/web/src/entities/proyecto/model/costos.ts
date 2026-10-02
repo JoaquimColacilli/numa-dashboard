@@ -1,15 +1,27 @@
 import {
   calcularMargen,
+  calcularMargenEnDolares,
   CATEGORIAS_DE_COSTO,
   categoriasEstimadas,
   centavos,
+  centavosEn,
   costoEstimado,
+  cotizacionLeida,
+  MONEDA_DEL_TALLER,
   type CategoriaDeCosto,
   type CostosEstimados,
+  type Cotizacion,
   type MargenDelTrabajo,
+  type MargenEnDolares,
+  type MonedaDelTaller,
 } from '@maun/domain';
 
-import { COLUMNAS_DE_COSTOS, type CambiosDeCostos, type ColumnaDeCosto } from '@/shared/api';
+import {
+  COLUMNAS_DE_COSTOS,
+  monedaDelTrabajo,
+  type CambiosDeCostos,
+  type ColumnaDeCosto,
+} from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
@@ -67,13 +79,21 @@ export function cambiaAlgunCosto(proyecto: Proyecto, cambios: CambiosDeCostos): 
 
 export function cambiosDeCostos(
   valores: Readonly<Record<CategoriaDeCosto, number | null>>,
+  cotizacion?: number | null,
 ): CambiosDeCostos {
   return {
     costo_madera_centavos: valores.madera,
     costo_herrajes_centavos: valores.herrajes,
     costo_flete_centavos: valores.flete,
     costo_ayudante_centavos: valores.ayudante,
+    ...(cotizacion === undefined ? {} : { costos_cotizacion_centavos: cotizacion }),
   };
+}
+
+export function cotizacionDeLosCostos(proyecto: Proyecto): Cotizacion | null {
+  const guardada = (proyecto as Partial<Pick<Proyecto, 'costos_cotizacion_centavos'>>)
+    .costos_cotizacion_centavos;
+  return cotizacionLeida(guardada ?? null);
 }
 
 export function costosGuardados(proyecto: Proyecto): CambiosDeCostos {
@@ -99,4 +119,25 @@ export function margenDelTrabajo(proyecto: Proyecto): MargenDelTrabajo {
       proyecto.presupuesto_centavos === null ? null : centavos(proyecto.presupuesto_centavos),
     costos: costosDelProyecto(proyecto),
   });
+}
+
+export type MargenEnSuMoneda =
+  | { moneda: MonedaDelTaller; margen: MargenDelTrabajo }
+  | { moneda: 'USD'; margen: MargenEnDolares };
+
+export function margenEnSuMoneda(proyecto: Proyecto): MargenEnSuMoneda {
+  if (monedaDelTrabajo(proyecto) === MONEDA_DEL_TALLER) {
+    return { moneda: MONEDA_DEL_TALLER, margen: margenDelTrabajo(proyecto) };
+  }
+  return {
+    moneda: 'USD',
+    margen: calcularMargenEnDolares({
+      presupuesto:
+        proyecto.presupuesto_centavos === null
+          ? null
+          : centavosEn('USD', proyecto.presupuesto_centavos),
+      costos: costosDelProyecto(proyecto),
+      cotizacion: cotizacionDeLosCostos(proyecto),
+    }),
+  };
 }

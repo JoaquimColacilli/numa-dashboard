@@ -377,6 +377,11 @@ export const proyecto = {
     teQuedaSiTeLoAprueban: 'Te queda, si te lo aprueban',
     teQueda: 'Te queda',
     enContra: 'Estás estimando más gasto que presupuesto.',
+    dolarParaLosCostos: 'Dólar para los costos',
+    ayudaDelDolar:
+      'Los costos van en pesos: con este dólar también los ves y los escribís en dólares.',
+    faltaElDolar: 'Cargá el dólar para los costos y acá va lo que te queda, en dólares.',
+    aproximado: (monto: string) => `≈ ${monto}`,
   },
   liquidacionesSinConfirmar: {
     unProyecto: 'Un proyecto',
