@@ -1657,8 +1657,12 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
   return [...grupos.entries()].filter(([, renglones]) => renglones.length > 0);
 }
 
+function pagoDeMasDelDiezmo(tesoro: TesoroDelTaller): boolean {
+  return tesoro.clave === 'diezmo' && tesoro.saldo.importe < 0;
+}
+
 function saldoEnLaLista(tesoro: TesoroDelTaller): string {
-  if (tesoro.clave === 'diezmo' && tesoro.saldo.importe < 0) {
+  if (pagoDeMasDelDiezmo(tesoro)) {
     return mensajes().armarLaFila.panel.deMas(
       formatearPlata(Math.abs(tesoro.saldo.importe), tesoro.saldo.moneda),
     );
@@ -1731,7 +1735,10 @@ function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDe
                         {renglon.lugar}
                       </span>
                     </span>
-                    <span className="flex-none text-body font-semibold tabular-nums">
+                    <span
+                      translate={pagoDeMasDelDiezmo(renglon.tesoro) ? undefined : 'no'}
+                      className="flex-none text-body font-semibold tabular-nums"
+                    >
                       {saldoEnLaLista(renglon.tesoro)}
                     </span>
                   </button>
