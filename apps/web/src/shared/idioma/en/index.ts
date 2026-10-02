@@ -10,6 +10,7 @@ import { inicio } from './inicio';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
+import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
 
 export const en = {
@@ -23,5 +24,6 @@ export const en = {
   lib,
   liquidarProyecto,
   movimiento,
+  paginaAnalitico,
   registrarMovimiento,
 } satisfies Mensajes;

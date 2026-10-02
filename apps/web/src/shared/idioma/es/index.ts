@@ -10,6 +10,7 @@ import { inicio } from './inicio';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
+import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
 
 export const es = {
@@ -23,6 +24,7 @@ export const es = {
   lib,
   liquidarProyecto,
   movimiento,
+  paginaAnalitico,
   registrarMovimiento,
 } as const;
 
