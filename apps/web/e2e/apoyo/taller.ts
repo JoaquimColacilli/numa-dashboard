@@ -680,9 +680,12 @@ export async function escribirLasRedes(
 
 export type ClaveDeTesoro = 'hogar' | 'maun' | 'diezmo' | 'cocos';
 
+export type MonedaDePrueba = 'ARS' | 'USD';
+
 export interface FilaDeTesoro {
   id: string;
   clave: ClaveDeTesoro | null;
+  moneda: MonedaDePrueba;
   nombre: string;
   descripcion: string;
   tinta: string;
@@ -694,7 +697,7 @@ export interface FilaDeTesoro {
 }
 
 const COLUMNAS_DEL_TESORO =
-  'id,clave,nombre,descripcion,tinta,icono,meta_centavos,rinde_anual_bp,orden,archivado_at';
+  'id,clave,moneda,nombre,descripcion,tinta,icono,meta_centavos,rinde_anual_bp,orden,archivado_at';
 
 export async function tesorosDelTaller(
   { entorno, accessToken }: SesionDePrueba,
@@ -716,6 +719,7 @@ export async function idDelTesoro(sesion: SesionDePrueba, clave: ClaveDeTesoro):
 
 export interface TesoroParaCrear {
   nombre: string;
+  moneda?: MonedaDePrueba;
   descripcion?: string;
   tinta?: string;
   icono?: string;
@@ -736,7 +740,7 @@ export async function tesoroPorRest(
       id: crypto.randomUUID(),
       descripcion: '',
       tinta: 'grana',
-      icono: 'vault',
+      icono: datos.moneda === 'USD' ? 'banknote' : 'vault',
       orden: 10,
       ...datos,
     }),
@@ -819,15 +823,17 @@ export async function archivarLosTesorosDelDueno(sesion: SesionDePrueba): Promis
     const saldo = await saldoDelTesoro(sesion, tesoro.id);
     if (saldo !== 0) {
       const id = crypto.randomUUID();
+      const enOtraMoneda = tesoro.moneda !== 'ARS';
       await movimientosPorRest(sesion, [
         {
           id,
           fecha: hoyEnElTaller(),
-          tipo: 'transferencia',
+          tipo: enOtraMoneda ? 'cambio' : 'transferencia',
           desde_id: saldo > 0 ? tesoro.id : maun.id,
           hacia_id: saldo > 0 ? maun.id : tesoro.id,
           monto_centavos: Math.abs(saldo),
-          categoria: '',
+          ...(enOtraMoneda ? { monto_destino_centavos: Math.abs(saldo) } : {}),
+          categoria: enOtraMoneda ? 'Otro' : '',
           descripcion: `Lo que quedaba en ${tesoro.nombre}`,
         },
       ]);
@@ -896,6 +902,46 @@ export async function repartoDelCobro(
   }));
 }
 
+export const DOLARES_E_IDIOMA_DE_FABRICA = {
+  idioma_de_los_clientes: 'es',
+  dolar_del_dia_centavos: null,
+  dolar_del_dia_el: null,
+  cobro_dolares_cbu: '',
+  cobro_dolares_alias: '',
+} as const;
+
+export type IdiomaDePrueba = 'es' | 'en' | 'pt-BR';
+
+export async function idiomaDeLaCuentaPorRest(
+  { entorno, accessToken }: SesionDePrueba,
+  idioma: IdiomaDePrueba | null,
+): Promise<void> {
+  await pedir(entorno, '/auth/v1/user', {
+    method: 'PUT',
+    accessToken,
+    body: JSON.stringify({ data: { idioma } }),
+  });
+}
+
+export async function idiomaDeLaCuentaDe({
+  entorno,
+  accessToken,
+}: SesionDePrueba): Promise<string | null> {
+  const usuario = (await pedir(entorno, '/auth/v1/user', { accessToken })) as {
+    user_metadata?: { idioma?: string | null };
+  };
+  return usuario.user_metadata?.idioma ?? null;
+}
+
+export async function dolaresEIdiomaDeFabrica(sesion: SesionDePrueba): Promise<void> {
+  await pedir(sesion.entorno, '/rest/v1/ajustes?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken: sesion.accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(DOLARES_E_IDIOMA_DE_FABRICA),
+  });
+}
+
 export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarLaVidriera(sesion);
   await vaciarArchivos(sesion);
@@ -906,6 +952,7 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await sacarLaFila(sesion);
   await archivarLosTesorosDelDueno(sesion);
   await restablecerElPresupuestoDelTaller(sesion);
+  await dolaresEIdiomaDeFabrica(sesion);
 }
 
 export async function crearCliente(
@@ -1009,6 +1056,31 @@ export async function pagosDe(
   )) as FilaDePago[];
 }
 
+export interface PagoEnSuMoneda extends FilaDePago {
+  moneda: MonedaDePrueba;
+  cotizacion_centavos: number | null;
+  tesoro_id: string | null;
+}
+
+export async function pagosEnSuMonedaDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<PagoEnSuMoneda[]> {
+  return (await pedir(
+    entorno,
+    `/rest/v1/pagos?select=id,fecha,concepto,monto_centavos,ya_en_la_apertura,moneda,cotizacion_centavos,tesoro_id&deleted_at=is.null&proyecto_id=eq.${proyectoId}&order=fecha,created_at`,
+    { accessToken },
+  )) as PagoEnSuMoneda[];
+}
+
+export async function dolarDelDiaPorRest(
+  sesion: SesionDePrueba,
+  dolar: number | null,
+  fecha: string | null = dolar === null ? null : hoyEnElTaller(),
+): Promise<void> {
+  await escribirAjustes(sesion, { dolar_del_dia_centavos: dolar, dolar_del_dia_el: fecha });
+}
+
 export interface ContactoDePrueba {
   id: string;
   clienteId: string;
@@ -1024,6 +1096,7 @@ export async function contactoPorRpc(
     gasto?: number;
     visita?: string | null;
     telefono?: string;
+    moneda?: MonedaDePrueba;
   },
 ): Promise<ContactoDePrueba> {
   const { titulo, estado = 'contacto', sena = 0, gasto = 0, visita = null, telefono = '' } = datos;
@@ -1041,6 +1114,7 @@ export async function contactoPorRpc(
       presupuesto_centavos: null,
       comprobante: 'sin_comprobante',
       fecha_visita: visita,
+      ...(datos.moneda === undefined ? {} : { moneda: datos.moneda }),
     },
     pagos:
       sena === 0
@@ -1136,6 +1210,11 @@ const COLUMNAS_DE_LOS_AJUSTES = [
   'instagram_link',
   'facebook_link',
   'tiktok_link',
+  'idioma_de_los_clientes',
+  'dolar_del_dia_centavos',
+  'dolar_del_dia_el',
+  'cobro_dolares_cbu',
+  'cobro_dolares_alias',
 ] as const;
 
 export type AjustesDePrueba = Record<
