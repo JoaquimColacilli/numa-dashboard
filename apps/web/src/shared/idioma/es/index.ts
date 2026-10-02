@@ -21,6 +21,7 @@ import { editarTesoro } from './editarTesoro';
 import { enlace } from './enlace';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
+import { iniciarSesion } from './iniciarSesion';
 import { leerLasOpiniones } from './leerLasOpiniones';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
@@ -61,6 +62,7 @@ export const es = {
   enlace,
   fila,
   hacerElSeguimiento,
+  iniciarSesion,
   leerLasOpiniones,
   lib,
   liquidarProyecto,

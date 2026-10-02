@@ -17,7 +17,6 @@
     "src/features/editar-perfil/",
     "src/features/editar-tesoro/",
     "src/features/elegir-tema/",
-    "src/features/iniciar-sesion/",
     "src/features/pedir-la-opinion/",
     "src/features/recibir-avisos/",
     "src/features/recuperar-acceso/",
