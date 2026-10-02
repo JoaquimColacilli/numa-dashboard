@@ -1,8 +1,14 @@
 import { centavosEn, cotizacion, type ImporteDeUnPago } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
-import { efectoDelPago, loQueHaceElPago, loQueHizoElPago, plataDelPago } from './pago';
-import type { Pago } from './catalogos';
+import {
+  efectoDelPago,
+  loQueHaceElPago,
+  loQueHizoElPago,
+  monedaDeUnPagoNuevo,
+  plataDelPago,
+} from './pago';
+import type { Pago, Proyecto } from './catalogos';
 
 const sinEspacios = (texto: string) => texto.replace(/\s/gu, ' ');
 
@@ -69,6 +75,22 @@ describe('lo que hace un pago', () => {
     expect(plataDelPago(pago)).toEqual({ importe: 100_000, moneda: 'USD' });
     const viejo = { monto_centavos: 5_000 } as Pago;
     expect(plataDelPago(viejo)).toEqual({ importe: 5_000, moneda: 'ARS' });
+  });
+});
+
+describe('la moneda de un pago nuevo', () => {
+  const conCobraEn = (cobraEn: string[] | null) => ({ cobra_en: cobraEn }) as Proyecto;
+
+  it('sin «Te paga en» elegido arranca en pesos, aunque el trabajo sea en dólares', () => {
+    expect(monedaDeUnPagoNuevo(conCobraEn(null), 'USD')).toBe('ARS');
+    expect(monedaDeUnPagoNuevo(undefined, 'USD')).toBe('ARS');
+  });
+
+  it('con una sola moneda, esa; con las dos, la del trabajo', () => {
+    expect(monedaDeUnPagoNuevo(conCobraEn(['USD']), 'ARS')).toBe('USD');
+    expect(monedaDeUnPagoNuevo(conCobraEn(['ARS']), 'USD')).toBe('ARS');
+    expect(monedaDeUnPagoNuevo(conCobraEn(['ARS', 'USD']), 'USD')).toBe('USD');
+    expect(monedaDeUnPagoNuevo(conCobraEn(['ARS', 'USD']), 'ARS')).toBe('ARS');
   });
 });
 

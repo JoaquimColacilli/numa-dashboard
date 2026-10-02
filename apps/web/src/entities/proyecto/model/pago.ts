@@ -1,9 +1,9 @@
 import {
   centavosEn,
+  cobraEnLeido,
   cotizacionLeida,
   loQueDescuenta,
   MONEDA_DEL_TALLER,
-  monedaLeida,
   necesitaCotizacion,
   plata,
   valorEnPesos,
@@ -130,9 +130,9 @@ export function dolarDelDiaDelTaller(replica: Replica): DolarDelDiaDelTaller | n
 }
 
 export function monedaDeUnPagoNuevo(proyecto: Proyecto | undefined, delTrabajo: Moneda): Moneda {
-  const cobraEn = (proyecto as { cobra_en?: readonly string[] | null } | undefined)?.cobra_en;
-  const unica = cobraEn?.length === 1 ? cobraEn[0] : undefined;
-  return unica === undefined ? delTrabajo : monedaLeida(unica);
+  const guardado = (proyecto as { cobra_en?: readonly string[] | null } | undefined)?.cobra_en;
+  const cobraEn = cobraEnLeido(guardado ?? null) ?? [MONEDA_DEL_TALLER];
+  return cobraEn.length === 1 ? (cobraEn[0] ?? delTrabajo) : delTrabajo;
 }
 
 export function dolarDelDiaParaUnPago(
