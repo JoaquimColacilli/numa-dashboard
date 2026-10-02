@@ -29,3 +29,7 @@ export function useFormatosDelCliente(): FormatosDelCliente {
 export function useIdiomaDelCliente(): Idioma {
   return useElIdiomaDelCliente().idioma;
 }
+
+export function useElIdiomaDelClienteSiHay(): ElIdiomaDelCliente | null {
+  return useContext(ContextoDelCliente);
+}

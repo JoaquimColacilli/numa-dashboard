@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useMensajes } from '@/shared/idioma';
+import { useTextosDeLaUi } from '@/shared/idioma';
 import { copiar, type ComoQuedo } from '@/shared/lib';
 
 import { Icono, Tilde } from '@maun/ui';
@@ -22,7 +22,7 @@ export function DatoCopiable({
   nombre,
   destacado = false,
 }: DatoCopiableProps) {
-  const { copiar: textos } = useMensajes().ui;
+  const { copiar: textos } = useTextosDeLaUi();
   const [comoQuedo, setComoQuedo] = useState<ComoQuedo | null>(null);
   const [anuncio, setAnuncio] = useState('');
   const elValor = useRef<HTMLSpanElement>(null);

@@ -14,4 +14,5 @@ export {
   type PedidoDeIdioma,
 } from './mensajes';
 export { NOMBRE_PROPIO_DEL_IDIOMA } from './nombres';
+export { useIdiomaDeLaUi, useTextosDeLaUi, type TextosDeLaUiQueVeElCliente } from './textosDeLaUi';
 export { textosDelIdioma } from './textosDelIdioma';

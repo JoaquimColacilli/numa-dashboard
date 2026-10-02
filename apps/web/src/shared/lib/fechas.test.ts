@@ -28,6 +28,12 @@ describe('las fechas del presupuesto', () => {
     expect(fechaDelRotulo('2030-01-02')).toBe('02/01/30');
   });
 
+  it('en inglés y en portugués, la del rótulo nombra el mes: nunca una fecha solo en números', () => {
+    expect(fechaDelRotulo('2026-09-17', 'en')).toBe('Sep 17, 2026');
+    expect(fechaDelRotulo('2026-09-17', 'pt-BR')).toBe('17 set. 2026');
+    expect(fechaDelRotulo('2030-01-02', 'pt-BR')).toBe('2 jan. 2030');
+  });
+
   it('la del PDF, con el año siempre', () => {
     expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
     expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');

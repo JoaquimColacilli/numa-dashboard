@@ -1,5 +1,7 @@
-import { mensajes } from '@/shared/idioma';
-import { fechaDelRotulo } from '@/shared/lib';
+import type { Idioma } from '@maun/domain';
+
+import { mensajes, type TextosDeLaUiQueVeElCliente } from '@/shared/idioma';
+import { fechaDelRotulo, idiomaActual } from '@/shared/lib';
 
 import type { CasillaDelRotulo } from './plano';
 
@@ -17,15 +19,11 @@ export interface DatosDelRotulo {
   aceptado?: AceptacionDelRotulo | null;
 }
 
-export function casillasDelPresupuesto({
-  numero,
-  revision,
-  emitido,
-  valeHasta,
-  vencido = false,
-  aceptado = null,
-}: DatosDelRotulo): CasillaDelRotulo[] {
-  const textos = mensajes().ui.rotulo;
+export function casillasDelPresupuesto(
+  { numero, revision, emitido, valeHasta, vencido = false, aceptado = null }: DatosDelRotulo,
+  textos: TextosDeLaUiQueVeElCliente['rotulo'] = mensajes().ui.rotulo,
+  idioma: Idioma = idiomaActual(),
+): CasillaDelRotulo[] {
   const casillas: CasillaDelRotulo[] = [
     {
       titulo: textos.presupuesto,
@@ -33,13 +31,14 @@ export function casillasDelPresupuesto({
     },
     { titulo: textos.revision, valor: String(revision) },
   ];
-  if (emitido !== null) casillas.push({ titulo: textos.emitido, valor: fechaDelRotulo(emitido) });
+  if (emitido !== null)
+    casillas.push({ titulo: textos.emitido, valor: fechaDelRotulo(emitido, idioma) });
   if (aceptado !== null) {
     if (aceptado.letra !== null) casillas.push({ titulo: textos.opcion, valor: aceptado.letra });
     if (aceptado.el !== null) {
       casillas.push({
         titulo: textos.aceptado,
-        valor: fechaDelRotulo(aceptado.el),
+        valor: fechaDelRotulo(aceptado.el, idioma),
         tono: 'hecho',
       });
     }
@@ -49,9 +48,13 @@ export function casillasDelPresupuesto({
   if (valeHasta === null) {
     casillas.push({ titulo: textos.valeHasta, valor: textos.sinVencimiento });
   } else if (vencido) {
-    casillas.push({ titulo: textos.vencio, valor: fechaDelRotulo(valeHasta), tono: 'atencion' });
+    casillas.push({
+      titulo: textos.vencio,
+      valor: fechaDelRotulo(valeHasta, idioma),
+      tono: 'atencion',
+    });
   } else {
-    casillas.push({ titulo: textos.valeHasta, valor: fechaDelRotulo(valeHasta) });
+    casillas.push({ titulo: textos.valeHasta, valor: fechaDelRotulo(valeHasta, idioma) });
   }
   return casillas;
 }

@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { Button, Icono } from '@maun/ui';
 
-import { useMensajes } from '@/shared/idioma';
+import { useTextosDeLaUi } from '@/shared/idioma';
 
 import { Hoja } from './Hoja';
 
@@ -31,7 +31,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
   detalle,
   acciones,
 }: VisorDeImagenesProps<T>) {
-  const { visor: textos } = useMensajes().ui;
+  const { visor: textos } = useTextosDeLaUi();
   const [elegido, setElegido] = useState(inicial);
   const indice = Math.max(
     0,

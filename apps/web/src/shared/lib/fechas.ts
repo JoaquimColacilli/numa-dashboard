@@ -201,7 +201,19 @@ export function diaYMes(
   return `${String(dia.getUTCDate())} de ${mes}${sufijo}`;
 }
 
-export function fechaDelRotulo(fecha: string): string {
+export function fechaDelRotulo(fecha: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma === 'en') return conIntl(fecha, idioma, { dateStyle: 'medium' });
+  if (idioma !== 'es') {
+    const partes = new Intl.DateTimeFormat(ETIQUETAS_DE_IDIOMA[idioma], {
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).formatToParts(comoUtc(fecha));
+    const parte = (tipo: Intl.DateTimeFormatPartTypes) =>
+      partes.find((una) => una.type === tipo)?.value ?? '';
+    return `${parte('day')} ${parte('month')} ${parte('year')}`;
+  }
   const [anio = '', mes = '', dia = ''] = fecha.split('-');
   return `${dia}/${mes}/${anio.slice(-2)}`;
 }

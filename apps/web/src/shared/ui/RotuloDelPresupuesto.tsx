@@ -1,4 +1,4 @@
-import { useMensajes } from '@/shared/idioma';
+import { useIdiomaDeLaUi, useTextosDeLaUi } from '@/shared/idioma';
 
 import { RotuloEnCasillas } from './plano';
 import { casillasDelPresupuesto, type DatosDelRotulo } from './rotulo';
@@ -8,11 +8,12 @@ export interface RotuloDelPresupuestoProps extends DatosDelRotulo {
 }
 
 export function RotuloDelPresupuesto({ className, ...datos }: RotuloDelPresupuestoProps) {
-  const { etiqueta } = useMensajes().ui.rotulo;
+  const { rotulo } = useTextosDeLaUi();
+  const idioma = useIdiomaDeLaUi();
   return (
     <RotuloEnCasillas
-      casillas={casillasDelPresupuesto(datos)}
-      etiqueta={etiqueta}
+      casillas={casillasDelPresupuesto(datos, rotulo, idioma)}
+      etiqueta={rotulo.etiqueta}
       className={className}
     />
   );

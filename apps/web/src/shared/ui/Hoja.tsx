@@ -12,7 +12,7 @@ import {
 
 import { Button, FilaDeAcciones, Icono } from '@maun/ui';
 
-import { useMensajes } from '@/shared/idioma';
+import { useTextosDeLaUi } from '@/shared/idioma';
 import {
   anotarHojaAbierta,
   useAlgoEnCurso,
@@ -129,7 +129,7 @@ export function Hoja({
   tituloGrande = false,
   alTeclear,
 }: HojaProps) {
-  const { hoja: textos } = useMensajes().ui;
+  const { hoja: textos } = useTextosDeLaUi();
   const pantalla = useAnchoDePantalla();
   const altoVisible = useAltoVisible();
   const idTitulo = useId();
