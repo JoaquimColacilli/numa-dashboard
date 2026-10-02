@@ -1,8 +1,13 @@
-import { HITOS_DEL_CAMINO } from '@maun/domain';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HITOS_DEL_CAMINO, IDIOMAS } from '@maun/domain';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MENSAJES_DEL_CLIENTE_EN_CASTELLANO } from '@/shared/idioma-del-cliente';
+import { cargarMensajes, mensajes, usarIdioma } from '@/shared/idioma';
+import {
+  cargarMensajesDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+  type MensajesDelCliente,
+} from '@/shared/idioma-del-cliente';
 
 import { AyudaDeLaVista } from './AyudaDeLaVista';
 
@@ -132,5 +137,70 @@ describe('la ayuda de la vista del cliente', () => {
     tocar('Listo');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+function antesDelHueco(frase: (hueco: string) => string): string {
+  return (frase('§').split('§')[0] ?? '').replace(/[\s:]+$/u, '');
+}
+
+function citasDeLaPagina({ vista }: MensajesDelCliente): string[] {
+  const { delDominio, pagina, coordinar } = vista;
+  return [
+    ...[delDominio.hitos.estimativo, ...HITOS_DEL_CAMINO.map((id) => delDominio.hitos[id])].map(
+      (hito) => hito.etiqueta,
+    ),
+    delDominio.hitos.aprobado.futuro,
+    delDominio.hitos.fabricacion.futuro,
+    delDominio.hitos.pagado.futuro,
+    delDominio.cuandoLoApruebes,
+    delDominio.cuandoDejesLaSena,
+    delDominio.enCurso.fabricacion,
+    delDominio.yaEstaPagado,
+    delDominio.nota.pendiente.titulo,
+    delDominio.relevamientoTecnico,
+    delDominio.titularListo,
+    delDominio.listoParaEntregar,
+    pagina.tuMueble,
+    pagina.loQuePagaste,
+    pagina.loQueFuePasando,
+    antesDelHueco(pagina.entrega.fechaEstimada),
+    antesDelHueco(pagina.buenasNoticias),
+    coordinar.meQuedaBien,
+    coordinar.noPuedoEseDia,
+  ];
+}
+
+describe('la ayuda cita la página del cliente con sus mismas palabras', () => {
+  beforeAll(async () => {
+    await Promise.all(
+      IDIOMAS.flatMap((idioma) => [cargarMensajes(idioma), cargarMensajesDelCliente(idioma)]),
+    );
+  }, 60_000);
+
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+  });
+
+  afterEach(async () => {
+    cleanup();
+    await usarIdioma('es');
+    vi.unstubAllGlobals();
+  });
+
+  it.each(IDIOMAS)('en %s', async (idioma) => {
+    await usarIdioma(idioma);
+    const delCliente = await cargarMensajesDelCliente(idioma);
+    render(<AyudaDeLaVista />);
+    fireEvent.click(
+      screen.getByRole('button', { name: mensajes().vistaCliente.ayuda.comoLoVeTuCliente }),
+    );
+
+    const leido = screen.getByRole('dialog').textContent;
+    for (const cita of citasDeLaPagina(delCliente)) expect(leido).toContain(cita);
   });
 });

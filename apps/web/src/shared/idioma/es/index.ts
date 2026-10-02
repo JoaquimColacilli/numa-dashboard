@@ -59,6 +59,7 @@ import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
 import { ui } from './ui';
 import { verNovedades } from './verNovedades';
+import { vistaCliente } from './vistaCliente';
 
 export const es = {
   activarHuella,
@@ -120,6 +121,7 @@ export const es = {
   replica,
   ui,
   verNovedades,
+  vistaCliente,
 } as const;
 
 export type Mensajes = Ensanchar<typeof es>;

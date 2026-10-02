@@ -9,20 +9,24 @@ import {
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { mensajes } from '@/shared/idioma';
 import {
   ConElIdiomaDelCliente,
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
 } from '@/shared/idioma-del-cliente';
 
 import type { MandarLaEntrega, ResultadoDeMandar } from '../model/mandar';
-import {
-  ACA_NO_SE_GUARDA_NADA,
-  CAMBIO_EL_PEDIDO,
-  LOS_DIAS_MANDADOS,
-  QUEDO_CONFIRMADA,
-  YA_ESTABA_CONFIRMADA,
-} from '../model/textos';
 import { VistaDelCliente } from './VistaDelCliente';
+
+const {
+  cambioElPedido: CAMBIO_EL_PEDIDO,
+  losDiasMandados: LOS_DIAS_MANDADOS,
+  motivos: MOTIVOS,
+  quedoConfirmada: QUEDO_CONFIRMADA,
+  yaEstabaConfirmada: YA_ESTABA_CONFIRMADA,
+} = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.coordinar;
+
+const ACA_NO_SE_GUARDA_NADA = mensajes().vistaCliente.acaNoSeGuardaNada;
 
 vi.mock('@/shared/api', () => ({
   urlDelArchivo: (ruta: string) => `https://cdn.maun.test/${ruta}`,
@@ -319,10 +323,10 @@ describe('coordinar la entrega desde la página del cliente', () => {
   });
 
   it('un error queda a la vista y no pierde lo marcado', async () => {
-    dibujar({ propuesta: SUS_DIAS }, mandador({ tipo: 'error', texto: 'Se cortó la conexión.' }));
+    dibujar({ propuesta: SUS_DIAS }, mandador({ tipo: 'error', motivo: 'sin-senal' }));
     await tocar('miércoles 30 de septiembre');
     await tocar('Mandar mis días');
-    expect(within(seccion()).getByRole('alert')).toHaveTextContent('Se cortó la conexión.');
+    expect(within(seccion()).getByRole('alert')).toHaveTextContent(MOTIVOS['sin-senal']);
     expect(
       within(seccion()).getByRole('button', { name: 'miércoles 30 de septiembre' }),
     ).toHaveAttribute('aria-pressed', 'true');

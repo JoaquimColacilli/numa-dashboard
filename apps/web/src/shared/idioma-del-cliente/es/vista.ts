@@ -1,4 +1,31 @@
-import type { TextosDeLaVista } from '@maun/domain';
+import type { MotivoDeLaEntrega, TextosDeLaVista } from '@maun/domain';
+
+const CUALES: readonly string[] = [
+  '',
+  'la única',
+  'las dos',
+  'las tres',
+  'las cuatro',
+  'las cinco',
+  'las seis',
+];
+
+const DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'] as const;
+
+const MESES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+] as const;
 
 export const vista = {
   delDominio: {
@@ -159,5 +186,185 @@ export const vista = {
       'O pagá desde Mercado Pago, sin copiar nada: tocá el botón, escribí el monto de arriba y confirmá.',
     pedileLosDatos:
       'Para transferir, pedile los datos de la cuenta al taller: todavía no los cargó.',
+    pagarConMercadoPago: 'Pagar con Mercado Pago',
+    despues: (nombre: string, comoSePaga: string) => `Después, ${nombre}, ${comoSePaga}.`,
+    despuesConElImporte: (nombre: string, importe: string, comoSePaga: string) =>
+      `Después, ${nombre}: ${importe}, ${comoSePaga}.`,
+    vencio: (fecha: string) =>
+      `Este presupuesto venció el ${fecha}. Escribile al taller para actualizarlo antes de pagar.`,
+    copiarElMonto: 'Copiar el monto',
+    alias: 'Alias',
+    copiarElAlias: 'Copiar el alias',
+    cbu: 'CBU',
+    copiarElCbu: 'Copiar el CBU',
+    cvu: 'CVU',
+    copiarElCvu: 'Copiar el CVU',
+    titular: 'Titular de la cuenta',
+    copiarElTitular: 'Copiar el titular',
+    cuit: 'CUIT del titular',
+    copiarElCuit: 'Copiar el CUIT',
+    fijateQueSeaEsta:
+      'Antes de confirmar, tu banco te muestra a nombre de quién está la cuenta: fijate que sea esta.',
+  },
+  pagina: {
+    tuMueble: 'Tu mueble',
+    enQueAnda: 'En qué anda',
+    elCaminoDeTuMueble: 'El camino de tu mueble',
+    loQueFuePasando: 'Lo que fue pasando',
+    loQuePagaste: 'Lo que pagaste',
+    fotosYPlanos: 'Fotos y planos',
+    archivos: (cantidad: number) => (cantidad === 1 ? '1 archivo' : `${String(cantidad)} archivos`),
+    todaviaNoHayFotos: 'Todavía no hay fotos',
+    acaVanAAparecer:
+      'Acá van a aparecer los planos, los renders y las fotos que el taller comparta, del diseño a la entrega.',
+    ver: (nombre: string) => `Ver ${nombre}`,
+    tipos: {
+      imagen: 'Imagen',
+      pdf: 'PDF',
+      otro: 'Archivo',
+    },
+    pago: 'Pago',
+    finDeLaVista:
+      'Esta página la arma el taller para vos y se actualiza sola a medida que avanza el trabajo. Si algo no coincide, escribile al taller.',
+    buenasNoticias: (cuando: string) => `¡Buenas noticias! Lo estamos entregando el ${cuando}.`,
+    cifras: {
+      presupuesto: 'Presupuesto',
+      senaParaArrancar: 'Seña para arrancar',
+      pagaste: 'Pagaste',
+      vale: 'Vale',
+    },
+    opciones: (cantidad: number) => (cantidad === 1 ? '1 opción' : `${String(cantidad)} opciones`),
+    miraLasOpciones: (cantidad: number) =>
+      `Mirá ${CUALES[cantidad] ?? 'todas'} en el presupuesto y avisale al taller cuál preferís.`,
+    presupuestoVencido: (fecha: string) =>
+      `El presupuesto venció el ${fecha}: escribile al taller para actualizarlo.`,
+    valorDelRelevamiento: (valor: string) =>
+      `El valor del relevamiento es de ${valor} y, si decidís avanzar, se toma a cuenta como parte de la seña del proyecto.`,
+    quedaACuenta: 'Lo que pagaste queda a cuenta de la seña.',
+    teQuedanParaLaSena: (falta: string) =>
+      `Lo que pagaste queda a cuenta de la seña: te quedan ${falta} para completarla.`,
+    laSenaYaEstaCubierta: 'Con lo que pagaste ya está cubierta la seña.',
+    aCuentaDeLaSena: 'A cuenta de la seña',
+    saldo: {
+      faltaElPresupuesto: 'Falta el presupuesto',
+      estaSaldado: 'Está saldado',
+      teFaltaPagar: 'Te falta pagar',
+    },
+    datos: {
+      titulo: 'Datos del trabajo',
+      direccion: 'Dirección',
+      empezamos: 'Empezamos',
+      todaviaNo: 'Todavía no',
+      sena: 'Seña',
+      total: 'Total',
+      aConfirmar: 'A confirmar',
+      senaPagada: (sena: string) => `${sena} · pagada`,
+      senaQueFalta: (sena: string, falta: string) => `${sena} · te faltan ${falta}`,
+      totalPagado: (total: string) => `${total} · pagado`,
+    },
+    entrega: {
+      estimada: 'Entrega estimada',
+      confirmada: 'Entrega confirmada',
+      entregado: 'Entregado',
+      entrega: 'Entrega',
+      aCoordinar: 'A coordinar',
+      fechaEstimada: (fecha: string) => `Fecha estimada de entrega: ${fecha}`,
+      entregadoEl: (fecha: string) => `Entregado el ${fecha}`,
+      siNecesitasCambiarElDia: 'Si necesitás cambiar el día, escribile al taller.',
+      podemosEntregarlo: 'Podemos entregarlo.',
+    },
+    paraCuando: 'Para cuándo',
+    pagos: {
+      sinPagosAprobado:
+        'Todavía no hay ningún pago registrado. Lo primero es la seña: apenas el taller la anote, la vas a ver acá.',
+      losAnotaElTaller:
+        'Los pagos aparecen acá cuando el taller los anota, no en el momento en que transferís.',
+      elPagoSeCoordina: 'Para pagar, escribile al taller y lo coordinan entre ustedes.',
+      noQuedaNada: 'Gracias. No queda nada pendiente.',
+    },
+  },
+  coordinar: {
+    titulo: 'Coordinemos la entrega',
+    teProponemos: 'Te proponemos este día:',
+    meQuedaBien: 'Me queda bien',
+    mandando: 'Mandando…',
+    noPuedoEseDia: 'No puedo ese día',
+    marcaLosDias: {
+      'un-dia':
+        'Marcá los días que te quedan bien y si es a la mañana, a la tarde o las dos. Entregamos de lunes a sábado.',
+      'sus-dias':
+        'Para coordinar la entrega, marcá los días que te quedan bien y si es a la mañana, a la tarde o las dos. Entregamos de lunes a sábado.',
+    },
+    llegasteAlMaximo: 'Llegaste a diez días, que es lo máximo.',
+    tusDias: 'Tus días',
+    horarioDel: (dia: string) => `Horario del ${dia}`,
+    franjas: {
+      manana: 'A la mañana',
+      tarde: 'A la tarde',
+    },
+    sacar: (dia: string) => `Sacar el ${dia}`,
+    sacarEsteDia: 'Sacar este día',
+    algoQueTengamosQueSaber: '¿Algo que tengamos que saber?',
+    porEjemplo:
+      'Por ejemplo, si hay portero, el piso o un horario que no podés. Si no marcás días, contanos acá cuándo te queda bien.',
+    mandarMisDias: 'Mandar mis días',
+    volverAlDiaQueTePropusimos: 'Volver al día que te propusimos',
+    dejarlosComoEstaban: 'Dejarlos como estaban',
+    cambiarMisDias: 'Cambiar mis días',
+    quedoConfirmada: 'Nos dijiste que te queda bien ese día: la entrega quedó confirmada.',
+    losDiasMandados:
+      'Nos pasaste estos días. Vamos a elegir uno y te lo confirmamos en esta página.',
+    laNotaMandada:
+      'Nos dejaste una nota. Vamos a elegir el día y te lo confirmamos en esta página.',
+    conFranja: {
+      manana: (dia: string) => `${dia}, a la mañana`,
+      tarde: (dia: string) => `${dia}, a la tarde`,
+    },
+    conLasDosFranjas: (dia: string) => `${dia}, a la mañana o a la tarde`,
+    listoTusDias: 'Listo: le pasamos tus días al taller. Te va a confirmar uno.',
+    listoElDia: 'Listo: quedó confirmado el día de la entrega.',
+    listoTeEsperamos: (cuando: string) => `Listo: te esperamos el ${cuando}.`,
+    yaEstabaConfirmada: 'El taller ya confirmó el día de la entrega: lo ves arriba.',
+    cambioElPedido:
+      'Mientras elegías, el taller cambió lo que te pidió. Ya está al día: fijate lo nuevo.',
+    motivos: {
+      forma: 'La página mandó algo que no esperábamos. Recargala y probá de nuevo.',
+      propuesta: 'Ese día ya no se puede aceptar: el taller te pidió tus días. Recargá la página.',
+      vacia: 'Marcá al menos un día, o escribinos cuándo te queda bien.',
+      demasiados: 'Son más de diez días: sacá alguno.',
+      repetido: 'Vino dos veces el mismo día. Recargá la página y probá de nuevo.',
+      fuera: 'Un día quedó fuera de los que se pueden elegir. Recargá la página y elegí de nuevo.',
+      domingo: 'Los domingos no entregamos. Sacá ese día.',
+      franja: 'A un día le falta la mañana o la tarde.',
+      largo: 'La nota pasa de los 500 caracteres.',
+      tope: 'Ya nos contestaste muchas veces. Escribile al taller.',
+      'sin-senal':
+        'No se pudo mandar: se cortó la conexión. Lo que marcaste sigue acá; probá de nuevo cuando vuelva la señal.',
+      'no-se-pudo': 'No pudimos mandarlo. Probá de nuevo en un rato.',
+    } satisfies Readonly<Record<MotivoDeLaEntrega | 'sin-senal' | 'no-se-pudo', string>>,
+    calendario: {
+      iniciales: ['l', 'm', 'm', 'j', 'v', 's', 'd'],
+      meses: MESES,
+      dia: (diaDeLaSemana: number, dia: number, mes: number) =>
+        `${DIAS[diaDeLaSemana] ?? ''} ${String(dia)} de ${(MESES[mes] ?? '').toLowerCase()}`,
+    },
+  },
+  notaDelRelevamiento: {
+    entendido: 'Entendido',
+  },
+  vidriera: {
+    masTrabajos: 'Más trabajos del taller',
+    enLasRedes: 'El taller en las redes',
+    fotosDeOtrosTrabajos: 'Fotos de otros trabajos del taller',
+    foto: (numero: number, total: number) => `Foto ${String(numero)} de ${String(total)}`,
+    fotosAnteriores: 'Fotos anteriores',
+    fotosSiguientes: 'Fotos siguientes',
+    enInstagram: (usuario: string) => `${usuario} en Instagram`,
+    facebook: 'Facebook del taller',
+    tiktok: 'TikTok del taller',
+    compartir: 'Compartir',
+    copiado: 'Copiado',
+    paraCompartir: 'Para compartir, este enlace',
+    copiarElEnlace: 'Copiar el enlace',
   },
 } as const;

@@ -1,5 +1,42 @@
 import type { MensajesDelCliente } from '../es';
 
+import { plural } from './plural';
+
+const MIRA_LAS_OPCIONES: readonly string[] = [
+  '',
+  'Take a look at the option in the quote and let us know.',
+  'Look at both options in the quote and let us know which one you prefer.',
+  'Look at all three options in the quote and let us know which one you prefer.',
+  'Look at all four options in the quote and let us know which one you prefer.',
+  'Look at all five options in the quote and let us know which one you prefer.',
+  'Look at all six options in the quote and let us know which one you prefer.',
+];
+
+const DIAS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const;
+
+const MESES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
 export const vista = {
   delDominio: {
     hitos: {
@@ -52,7 +89,7 @@ export const vista = {
     sigueConLaComprometida: "The next thing you'll see here is the delivery.",
     sigueConElPresupuestoMandado: 'Next, approve it and pay the deposit.',
     sigueConLaSenaCubierta: 'Next, approve it.',
-    sigueConElPresupuestoVencido: 'Next, message the shop to update it.',
+    sigueConElPresupuestoVencido: 'Next, message us to update it.',
     sigueFaltaLaSena: 'Next, pay the deposit.',
     sigueFaltaMedir: {
       estimativo: "If we move forward, next we'll come measure so we can send you the quote.",
@@ -85,18 +122,18 @@ export const vista = {
       pasosParaTransferir:
         'Copy the alias, paste it under Transfer in your bank or wallet app, enter the amount, and confirm.',
       soloEfectivo: {
-        sena: 'The deposit is paid in cash, in person. Arrange it with the shop.',
-        saldo: 'The balance is paid in cash, in person. Arrange it with the shop.',
+        sena: 'The deposit is paid in cash, in person. Arrange it with us.',
+        saldo: 'The balance is paid in cash, in person. Arrange it with us.',
       },
       tambienEfectivo: {
-        sena: 'You can also pay the deposit in cash, in person, by arranging it with the shop.',
-        saldo: 'You can also pay the balance in cash, in person, by arranging it with the shop.',
+        sena: 'You can also pay the deposit in cash, in person, by arranging it with us.',
+        saldo: 'You can also pay the balance in cash, in person, by arranging it with us.',
       },
     },
     proyeccion: {
       coordinamosLaEntrega: "Once you approve it and pay the deposit, we'll set the delivery date.",
       coordinamosLaEntregaAlAprobar: "Once you approve it, we'll set the delivery date.",
-      vencio: (fecha) => `This quote expired on ${fecha}. Talk to the shop to update it.`,
+      vencio: (fecha) => `This quote expired on ${fecha}. Talk to us to update it.`,
       siLoAprobasAntesDel: (antesDe, listoPara) =>
         `If you approve it before ${antesDe}, we could have it ready by ${listoPara}.`,
       siDejasLaSenaAntesDel: (antesDe, listoPara) =>
@@ -154,6 +191,183 @@ export const vista = {
     oPorMercadoPago:
       'Or pay from Mercado Pago without copying anything: tap the button, enter the amount above, and confirm.',
     pedileLosDatos:
-      "To pay by transfer, ask the shop for its account details: they haven't been added yet.",
+      "To pay by transfer, ask us for the account details: they haven't been added yet.",
+    pagarConMercadoPago: 'Pay with Mercado Pago',
+    despues: (nombre, comoSePaga) => `Then ${nombre}, ${comoSePaga}.`,
+    despuesConElImporte: (nombre, importe, comoSePaga) =>
+      `Then ${nombre}: ${importe}, ${comoSePaga}.`,
+    vencio: (fecha) => `This quote expired on ${fecha}. Message us to update it before you pay.`,
+    copiarElMonto: 'Copy amount',
+    alias: 'Alias',
+    copiarElAlias: 'Copy alias',
+    cbu: 'CBU',
+    copiarElCbu: 'Copy CBU',
+    cvu: 'CVU',
+    copiarElCvu: 'Copy CVU',
+    titular: 'Account holder',
+    copiarElTitular: 'Copy account holder',
+    cuit: "Account holder's CUIT",
+    copiarElCuit: 'Copy CUIT',
+    fijateQueSeaEsta:
+      "Before you confirm, your bank shows whose name the account is in: make sure it's this one.",
+  },
+  pagina: {
+    tuMueble: 'Your furniture',
+    enQueAnda: 'Where it stands',
+    elCaminoDeTuMueble: 'Your furniture, step by step',
+    loQueFuePasando: "What's happened so far",
+    loQuePagaste: "What you've paid",
+    fotosYPlanos: 'Photos and drawings',
+    archivos: (cantidad) => plural(cantidad, { one: '# file', other: '# files' }),
+    todaviaNoHayFotos: 'No photos yet',
+    acaVanAAparecer:
+      'The drawings, renders and photos we share will show up here, from design to delivery.',
+    ver: (nombre) => `View ${nombre}`,
+    tipos: {
+      imagen: 'Image',
+      pdf: 'PDF',
+      otro: 'File',
+    },
+    pago: 'Payment',
+    finDeLaVista:
+      "We put this page together for you, and it updates on its own as your job moves along. If something doesn't match, message us.",
+    buenasNoticias: (cuando) => `Good news! We're delivering on ${cuando}.`,
+    cifras: {
+      presupuesto: 'Quote',
+      senaParaArrancar: 'Deposit to get started',
+      pagaste: 'You paid',
+      vale: 'Price',
+    },
+    opciones: (cantidad) => plural(cantidad, { one: '# option', other: '# options' }),
+    miraLasOpciones: (cantidad) =>
+      MIRA_LAS_OPCIONES[cantidad] ??
+      'Look at all the options in the quote and let us know which one you prefer.',
+    presupuestoVencido: (fecha) => `The quote expired on ${fecha}: message us to update it.`,
+    valorDelRelevamiento: (valor) =>
+      `The site measure costs ${valor}, and if you decide to go ahead, it counts toward the deposit for the job.`,
+    quedaACuenta: "What you've paid goes toward the deposit.",
+    teQuedanParaLaSena: (falta) =>
+      `What you've paid goes toward the deposit: you still need ${falta} to complete it.`,
+    laSenaYaEstaCubierta: "What you've paid already covers the deposit.",
+    aCuentaDeLaSena: 'Toward the deposit',
+    saldo: {
+      faltaElPresupuesto: 'No quote yet',
+      estaSaldado: 'Paid in full',
+      teFaltaPagar: 'Left to pay',
+    },
+    datos: {
+      titulo: 'Job details',
+      direccion: 'Address',
+      empezamos: 'We started',
+      todaviaNo: 'Not yet',
+      sena: 'Deposit',
+      total: 'Total',
+      aConfirmar: 'To be confirmed',
+      senaPagada: (sena) => `${sena} · paid`,
+      senaQueFalta: (sena, falta) => `${sena} · you still need ${falta}`,
+      totalPagado: (total) => `${total} · paid`,
+    },
+    entrega: {
+      estimada: 'Estimated delivery',
+      confirmada: 'Confirmed delivery',
+      entregado: 'Delivered',
+      entrega: 'Delivery',
+      aCoordinar: 'To be arranged',
+      fechaEstimada: (fecha) => `Estimated delivery: ${fecha}`,
+      entregadoEl: (fecha) => `Delivered on ${fecha}`,
+      siNecesitasCambiarElDia: 'If you need to change the day, message us.',
+      podemosEntregarlo: 'We can deliver it.',
+    },
+    paraCuando: 'When it could be ready',
+    pagos: {
+      sinPagosAprobado:
+        "No payments recorded yet. The deposit comes first: as soon as we record it, you'll see it here.",
+      losAnotaElTaller: 'Payments show up here when we record them, not the moment you transfer.',
+      elPagoSeCoordina: "To pay, message us and we'll arrange it.",
+      noQuedaNada: "Thank you. There's nothing left to pay.",
+    },
+  },
+  coordinar: {
+    titulo: "Let's set up the delivery",
+    teProponemos: "Here's the day we're proposing:",
+    meQuedaBien: 'Works for me',
+    mandando: 'Sending…',
+    noPuedoEseDia: "That day doesn't work",
+    marcaLosDias: {
+      'un-dia':
+        "Mark the days that work for you and whether it's morning, afternoon or both. We deliver Monday through Saturday.",
+      'sus-dias':
+        "To set up the delivery, mark the days that work for you and whether it's morning, afternoon or both. We deliver Monday through Saturday.",
+    },
+    llegasteAlMaximo: "You've reached ten days, which is the maximum.",
+    tusDias: 'Your days',
+    horarioDel: (dia) => `Time of day for ${dia}`,
+    franjas: {
+      manana: 'Morning',
+      tarde: 'Afternoon',
+    },
+    sacar: (dia) => `Remove ${dia}`,
+    sacarEsteDia: 'Remove this day',
+    algoQueTengamosQueSaber: 'Anything we should know?',
+    porEjemplo:
+      "For example, if there's a doorman, what floor it's on, or a time that doesn't work for you. If you don't mark any days, tell us here when works for you.",
+    mandarMisDias: 'Send my days',
+    volverAlDiaQueTePropusimos: 'Back to the day we proposed',
+    dejarlosComoEstaban: 'Keep them as they were',
+    cambiarMisDias: 'Change my days',
+    quedoConfirmada: 'You told us that day works for you: the delivery is confirmed.',
+    losDiasMandados: "You sent us these days. We'll pick one and confirm it on this page.",
+    laNotaMandada: "You left us a note. We'll choose the day and confirm it on this page.",
+    conFranja: {
+      manana: (dia) => `${dia}, in the morning`,
+      tarde: (dia) => `${dia}, in the afternoon`,
+    },
+    conLasDosFranjas: (dia) => `${dia}, in the morning or in the afternoon`,
+    listoTusDias: "Done: we got your days. We'll confirm one.",
+    listoElDia: 'Done: the delivery day is confirmed.',
+    listoTeEsperamos: (cuando) => `Done: see you on ${cuando}.`,
+    yaEstabaConfirmada: 'We already confirmed the delivery day: you can see it above.',
+    cambioElPedido:
+      "While you were choosing, we changed what we asked you for. The page is up to date: take a look at what's new.",
+    motivos: {
+      forma: "The page sent something we didn't expect. Reload it and try again.",
+      propuesta: "That day can't be accepted anymore: we asked for your days. Reload the page.",
+      vacia: 'Mark at least one day, or tell us when works for you.',
+      demasiados: "That's more than ten days: remove some.",
+      repetido: 'The same day came in twice. Reload the page and try again.',
+      fuera:
+        'One of the days is outside the ones you can choose. Reload the page and choose again.',
+      domingo: "We don't deliver on Sundays. Remove that day.",
+      franja: 'One of the days is missing morning or afternoon.',
+      largo: 'The note is over 500 characters.',
+      tope: "You've already replied many times. Message us instead.",
+      'sin-senal':
+        "Couldn't send: the connection dropped. What you marked is still here; try again when you're back online.",
+      'no-se-pudo': "We couldn't send it. Try again in a little while.",
+    },
+    calendario: {
+      iniciales: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      meses: MESES,
+      dia: (diaDeLaSemana, dia, mes) =>
+        `${DIAS[diaDeLaSemana] ?? ''}, ${MESES[mes] ?? ''} ${String(dia)}`,
+    },
+  },
+  notaDelRelevamiento: {
+    entendido: 'Got it',
+  },
+  vidriera: {
+    masTrabajos: 'More of our work',
+    enLasRedes: 'Find us on social media',
+    fotosDeOtrosTrabajos: 'Photos of our other work',
+    foto: (numero, total) => `Photo ${String(numero)} of ${String(total)}`,
+    fotosAnteriores: 'Previous photos',
+    fotosSiguientes: 'Next photos',
+    enInstagram: (usuario) => `${usuario} on Instagram`,
+    facebook: 'Our Facebook',
+    tiktok: 'Our TikTok',
+    compartir: 'Share',
+    copiado: 'Copied',
+    paraCompartir: 'To share, use this link',
+    copiarElEnlace: 'Copy link',
   },
 } satisfies MensajesDelCliente['vista'];

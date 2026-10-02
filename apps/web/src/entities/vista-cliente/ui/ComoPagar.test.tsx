@@ -15,14 +15,18 @@ import {
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
 } from '@/shared/idioma-del-cliente';
 
-import { EL_PAGO_SE_COORDINA, LOS_PAGOS_LOS_ANOTA_EL_TALLER } from '../model/textos';
+import { VistaDelCliente } from './VistaDelCliente';
 
 const PASOS_PARA_TRANSFERIR =
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.delDominio.comoPagar.pasosParaTransferir;
 
 const PEDILE_LOS_DATOS = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.comoPagar.pedileLosDatos;
-import { PAGAR_CON_MERCADO_PAGO } from './ComoPagar';
-import { VistaDelCliente } from './VistaDelCliente';
+
+const PAGAR_CON_MERCADO_PAGO =
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.comoPagar.pagarConMercadoPago;
+
+const { elPagoSeCoordina: EL_PAGO_SE_COORDINA, losAnotaElTaller: LOS_PAGOS_LOS_ANOTA_EL_TALLER } =
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.pagina.pagos;
 
 vi.mock('@/shared/api', () => ({
   urlDelArchivo: (ruta: string) => `https://cdn.maun.test/${ruta}`,

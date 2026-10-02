@@ -1,7 +1,6 @@
 import { claveBancariaDe, formatearCbu, type ComoPagar as Como } from '@maun/domain';
 
-import { useMensajesDelCliente } from '@/shared/idioma-del-cliente';
-import { fechaLarga, formatearPesos } from '@/shared/lib';
+import { useFormatosDelCliente, useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import { DatoCopiable, Icono, LogoDeMercadoPago } from '@/shared/ui';
 
 export interface ComoPagarProps {
@@ -10,23 +9,27 @@ export interface ComoPagarProps {
   id?: string;
 }
 
-export const PAGAR_CON_MERCADO_PAGO = 'Pagar con Mercado Pago';
-
 function DespuesViene({ siguiente }: { siguiente: NonNullable<Como['siguiente']> }) {
-  const importe = siguiente.monto === null ? '' : `: ${formatearPesos(siguiente.monto)}`;
+  const { comoPagar } = useMensajesDelCliente().vista;
+  const f = useFormatosDelCliente();
   return (
     <p className="mt-2.5 border-t border-hairline-soft pt-2.5 text-label leading-normal text-text-2">
-      Después, {siguiente.nombre}
-      {importe}, {siguiente.comoSePaga}.
+      {siguiente.monto === null
+        ? comoPagar.despues(siguiente.nombre, siguiente.comoSePaga)
+        : comoPagar.despuesConElImporte(
+            siguiente.nombre,
+            f.pesos(siguiente.monto),
+            siguiente.comoSePaga,
+          )}
     </p>
   );
 }
 
 function PorMercadoPago({ link }: { link: string }) {
-  const m = useMensajesDelCliente();
+  const { comoPagar } = useMensajesDelCliente().vista;
   return (
     <div className="mt-2.5 border-t border-hairline-soft pt-2.5">
-      <p className="text-label leading-relaxed text-text-2">{m.vista.comoPagar.oPorMercadoPago}</p>
+      <p className="text-label leading-relaxed text-text-2">{comoPagar.oPorMercadoPago}</p>
       <a
         href={link}
         target="_blank"
@@ -34,26 +37,26 @@ function PorMercadoPago({ link }: { link: string }) {
         className="mt-2 flex min-h-tap w-full items-center justify-center gap-2 rounded-pill bg-ink px-4 text-body font-semibold text-paper sm:w-auto"
       >
         <Icono nombre="arrow-up-right" tamano={18} />
-        {PAGAR_CON_MERCADO_PAGO}
+        {comoPagar.pagarConMercadoPago}
       </a>
     </div>
   );
 }
 
 function ElPresupuestoVencio({ vencio, hoy }: { vencio: string; hoy: string }) {
+  const { comoPagar } = useMensajesDelCliente().vista;
+  const f = useFormatosDelCliente();
   return (
     <p className="mt-2.5 flex items-start gap-2.5 rounded-field bg-atencion-tint px-3.5 py-3 text-body leading-relaxed text-pretty">
       <Icono nombre="triangle-alert" tamano={18} className="mt-[3px] flex-none text-atencion" />
-      <span>
-        Este presupuesto venció el {fechaLarga(vencio, hoy)}. Escribile al taller para actualizarlo
-        antes de pagar.
-      </span>
+      <span>{comoPagar.vencio(f.fechaLarga(vencio, hoy))}</span>
     </p>
   );
 }
 
 export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
-  const m = useMensajesDelCliente();
+  const { comoPagar } = useMensajesDelCliente().vista;
+  const f = useFormatosDelCliente();
   if (como === null) return null;
   if (como.vencio === null && !como.transferencia && !como.efectivo && !como.faltanLosDatos) {
     return null;
@@ -65,7 +68,7 @@ export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
   return (
     <section
       id={id}
-      aria-label="Cómo pagar"
+      aria-label={como.titulo}
       className="relative scroll-mt-4 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="flex items-center justify-between gap-3">
@@ -81,9 +84,9 @@ export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
         {como.monto !== null && como.montoParaPegar !== null && (
           <DatoCopiable
             etiqueta={como.etiquetaDelImporte}
-            valor={formatearPesos(como.monto)}
+            valor={f.pesosParaElBanco(como.monto)}
             paraCopiar={como.montoParaPegar}
-            nombre="Copiar el monto"
+            nombre={comoPagar.copiarElMonto}
             destacado
           />
         )}
@@ -91,28 +94,32 @@ export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
         {como.transferencia && (
           <>
             {cobro.alias !== null && (
-              <DatoCopiable etiqueta="Alias" valor={cobro.alias} nombre="Copiar el alias" />
+              <DatoCopiable
+                etiqueta={comoPagar.alias}
+                valor={cobro.alias}
+                nombre={comoPagar.copiarElAlias}
+              />
             )}
             {cobro.cbu !== null && (
               <DatoCopiable
-                etiqueta={clave === 'cvu' ? 'CVU' : 'CBU'}
+                etiqueta={clave === 'cvu' ? comoPagar.cvu : comoPagar.cbu}
                 valor={formatearCbu(cobro.cbu)}
                 paraCopiar={cobro.cbu}
-                nombre={clave === 'cvu' ? 'Copiar el CVU' : 'Copiar el CBU'}
+                nombre={clave === 'cvu' ? comoPagar.copiarElCvu : comoPagar.copiarElCbu}
               />
             )}
             {cobro.titular !== null && (
               <DatoCopiable
-                etiqueta="Titular de la cuenta"
+                etiqueta={comoPagar.titular}
                 valor={cobro.titular}
-                nombre="Copiar el titular"
+                nombre={comoPagar.copiarElTitular}
               />
             )}
             {cobro.cuit !== null && (
               <DatoCopiable
-                etiqueta="CUIT del titular"
+                etiqueta={comoPagar.cuit}
                 valor={cobro.cuit}
-                nombre="Copiar el CUIT"
+                nombre={comoPagar.copiarElCuit}
               />
             )}
           </>
@@ -125,15 +132,12 @@ export function ComoPagar({ como, hoy, id }: ComoPagarProps) {
 
       {como.transferencia && (cobro.titular !== null || cobro.cuit !== null) && (
         <p className="mt-1.5 text-label leading-relaxed text-text-2">
-          Antes de confirmar, tu banco te muestra a nombre de quién está la cuenta: fijate que sea
-          esta.
+          {comoPagar.fijateQueSeaEsta}
         </p>
       )}
 
       {como.faltanLosDatos && (
-        <p className="mt-1.5 text-label leading-relaxed text-text-2">
-          {m.vista.comoPagar.pedileLosDatos}
-        </p>
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">{comoPagar.pedileLosDatos}</p>
       )}
 
       {como.link !== null && <PorMercadoPago link={como.link} />}

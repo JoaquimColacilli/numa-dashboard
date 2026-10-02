@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER, type Idioma, type Moneda } from '@maun/domain';
+import { IDIOMA_BASE, MONEDA_DEL_TALLER, type Idioma, type Moneda } from '@maun/domain';
 
 import {
   diaYMes,
@@ -15,6 +15,7 @@ export interface FormatosDelCliente {
   idioma: Idioma;
   plata: (centavos: number, moneda: Moneda) => string;
   pesos: (centavos: number) => string;
+  pesosParaElBanco: (centavos: number) => string;
   porcentaje: (puntos: number) => string;
   fechaLarga: (fecha: string, hoy: string) => string;
   fechaEnUnaFrase: (fecha: string, hoy: string) => string;
@@ -29,6 +30,7 @@ export function formatosDelCliente(idioma: Idioma): FormatosDelCliente {
     idioma,
     plata: (centavos, moneda) => formatearPlata(centavos, moneda, idioma),
     pesos: (centavos) => formatearPlata(centavos, MONEDA_DEL_TALLER, idioma),
+    pesosParaElBanco: (centavos) => formatearPlata(centavos, MONEDA_DEL_TALLER, IDIOMA_BASE),
     porcentaje: (puntos) => formatearPorcentaje(puntos, idioma),
     fechaLarga: (fecha, hoy) => fechaLarga(fecha, hoy, idioma),
     fechaEnUnaFrase: (fecha, hoy) => fechaEnUnaFrase(fecha, hoy, idioma),

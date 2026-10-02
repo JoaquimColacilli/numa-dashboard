@@ -19,11 +19,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ConElIdiomaDelCliente,
+  formatosDelCliente,
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
 } from '@/shared/idioma-del-cliente';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
 
-import { SIN_PAGOS_APROBADO } from '../model/textos';
 import { VistaDelCliente } from './VistaDelCliente';
 
 vi.mock('@/shared/api', () => ({
@@ -32,7 +31,9 @@ vi.mock('@/shared/api', () => ({
 
 const HOY = '2026-09-18';
 
-const { delDominio } = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista;
+const { delDominio, pagina } = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista;
+
+const SIN_PAGOS_APROBADO = pagina.pagos.sinPagosAprobado;
 
 const COORDINAMOS_LA_ENTREGA_AL_APROBAR = delDominio.proyeccion.coordinamosLaEntregaAlAprobar;
 
@@ -1001,9 +1002,11 @@ describe('el estimativo y el relevamiento en el camino', () => {
   });
 });
 
+const EN_CASTELLANO = formatosDelCliente('es');
+
 const FORMATOS: Formatos = {
-  plata: (importe) => formatearPesos(importe),
-  porcentaje: formatearPorcentaje,
+  plata: (importe) => EN_CASTELLANO.pesos(importe),
+  porcentaje: EN_CASTELLANO.porcentaje,
 };
 
 const TALLER: DatosDelTaller = {

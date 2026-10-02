@@ -1,6 +1,7 @@
 import type { NotaDelRelevamiento } from '@maun/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
+import { useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import { useAlgoEnCurso, useAnchoDePantalla } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
@@ -44,6 +45,7 @@ function HojaDeLaNota({
   idTitulo: string;
   alCerrar: () => void;
 }) {
+  const { entendido } = useMensajesDelCliente().vista.notaDelRelevamiento;
   const dialogo = useRef<HTMLDialogElement>(null);
   const tocoElFondo = useRef(false);
   useAlgoEnCurso(true);
@@ -78,7 +80,7 @@ function HojaDeLaNota({
             dialogo.current?.close();
           }}
         >
-          Entendido
+          {entendido}
         </Button>
       </div>
     </dialog>
