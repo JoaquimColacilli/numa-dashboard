@@ -97,4 +97,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.editarProyecto.loQueHaceFalta.sacarDeLaLista('«NECESIDAD»'),
     tieneQueDecir: ['«NECESIDAD»'],
   },
+  'editarProyecto.cambiarLaMoneda.pagoEnPesos': {
+    llamar: (m) => m.editarProyecto.cambiarLaMoneda.pagoEnPesos('«CONCEPTO»', '«MONTO»'),
+    tieneQueDecir: ['«CONCEPTO»', '«MONTO»'],
+  },
 };

@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER, type BaseDeLaObligacion, type Fila } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type BaseDeLaObligacion, type Fila, type Moneda } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useRef, useState, type SyntheticEvent } from 'react';
 
@@ -48,6 +48,7 @@ export interface HojaDeTesoroNuevoProps {
   fila?: Fila;
   lugarInicial?: LugarDelTesoro;
   despuesDe?: string | null;
+  monedaInicial?: Moneda;
 }
 
 const BASES: readonly BaseDeLaObligacion[] = ['cobrado', 'ingreso'];
@@ -138,6 +139,7 @@ export function HojaDeTesoroNuevo({
   fila,
   lugarInicial = 'estante',
   despuesDe,
+  monedaInicial = MONEDA_DEL_TALLER,
 }: HojaDeTesoroNuevoProps) {
   const m = useMensajes().editarTesoro;
   const textos = m.nuevo;
@@ -154,8 +156,8 @@ export function HojaDeTesoroNuevo({
         (opcion) => opcion.id === lugarInicial,
       )?.sePuede ?? false;
     return {
-      borrador: borradorNuevo(tesoros),
-      lugar: posible ? lugarInicial : 'estante',
+      borrador: { ...borradorNuevo(tesoros), moneda: monedaInicial },
+      lugar: posible && monedaInicial === MONEDA_DEL_TALLER ? lugarInicial : 'estante',
       monto: null as number | null,
       porcentaje: '',
       porcentajeDelReparto: porcentajeSugerido(libre),

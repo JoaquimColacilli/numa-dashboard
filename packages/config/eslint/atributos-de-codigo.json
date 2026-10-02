@@ -150,6 +150,9 @@
     },
     "PantallaDeLaVista": {
       "elQueNoEsta": "qué no está: el enlace dado de baja o el trabajo borrado"
+    },
+    "HojaDeTesoroNuevo": {
+      "monedaInicial": "código de la moneda con que arranca el tesoro"
     }
   }
 }

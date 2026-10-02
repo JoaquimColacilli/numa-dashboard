@@ -11,8 +11,9 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { monedaDelTrabajo } from '@/shared/api';
 import { mensajes, useMensajes } from '@/shared/idioma';
-import { avisarEnPantalla, formatearPesos, metaDeAvisos, useIr } from '@/shared/lib';
+import { avisarEnPantalla, formatearPlata, metaDeAvisos, useIr } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
 export interface OpcionesDelTrabajoProps {
@@ -78,7 +79,7 @@ export function OpcionesDelTrabajo({
       clave: `opcion:${proyecto.id}`,
       tono: 'hecho',
       texto: valor
-        ? avisos.aprobaste(formatearPesos(opcion.monto_centavos))
+        ? avisos.aprobaste(formatearPlata(opcion.monto_centavos, monedaDelTrabajo(proyecto)))
         : avisos.sacasteLaAprobacion,
       accion: {
         etiqueta: avisos.deshacer,
@@ -136,7 +137,7 @@ export function OpcionesDelTrabajo({
                   esLaAprobada ? 'text-hogar' : ''
                 }`}
               >
-                {formatearPesos(opcion.monto_centavos)}
+                {formatearPlata(opcion.monto_centavos, monedaDelTrabajo(proyecto))}
               </span>
               <button
                 type="button"

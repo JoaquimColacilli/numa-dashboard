@@ -1,5 +1,8 @@
 export const editarProyecto = {
   pantalla: {
+    precioEn: 'Precio en',
+    monedas: { ARS: 'Pesos', USD: 'Dólares' },
+    laMonedaSeElige: 'La moneda se elige mientras el trabajo es una consulta.',
     cancelar: 'Cancelar',
     proyectoNuevo: 'Proyecto nuevo',
     editarProyecto: 'Editar proyecto',
@@ -59,6 +62,22 @@ export const editarProyecto = {
     },
     guardarProyecto: 'Guardar proyecto',
     guardarLosCambios: 'Guardar los cambios',
+  },
+  cambiarLaMoneda: {
+    titulo: { ARS: 'Pasar el trabajo a pesos', USD: 'Pasar el trabajo a dólares' },
+    bajada: 'Los costos estimados no se tocan: van siempre en pesos.',
+    losImportes: 'Los importes que ya cargaste',
+    pasarlos: { ARS: 'Pasarlos a pesos con este dólar', USD: 'Pasarlos a dólares con este dólar' },
+    dejarlosEnBlanco: 'Dejarlos en blanco',
+    losPagosEnPesos: 'Los pagos en pesos',
+    pagoEnPesos: (concepto: string, monto: string) => `${concepto}: te pagó ${monto} en pesos.`,
+    aQueDolar: '¿A qué dólar se toma?',
+    presupuestoEnLaOtraMoneda: {
+      ARS: 'El presupuesto que le mandaste es en pesos: mandale uno nuevo.',
+      USD: 'El presupuesto que le mandaste es en dólares: mandale uno nuevo.',
+    },
+    cambiar: 'Cambiar la moneda',
+    cancelar: 'Cancelar',
   },
   filas: {
     pagos: {

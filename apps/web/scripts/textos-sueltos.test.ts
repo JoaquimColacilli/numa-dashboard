@@ -111,6 +111,11 @@ const EXCEPCIONES: readonly Excepcion[] = [
       'Corta la app si una pantalla del taller se monta sin su proveedor: solo lo ve quien la arma.',
   },
   {
+    archivo: 'src/features/editar-proyecto/ui/FilasDinamicas.tsx',
+    texto: /^pagos\. \.(moneda|cotizacion|tesoroId)$/u,
+    motivo: 'Son rutas de campos de react-hook-form (pagos.N.moneda), no textos.',
+  },
+  {
     archivo: 'src/features/editar-proyecto/ui/FilasDeOpciones.tsx',
     texto: 'opciones. .detalle',
     motivo: 'Es la ruta del campo en react-hook-form (opciones.N.detalle), no un texto.',

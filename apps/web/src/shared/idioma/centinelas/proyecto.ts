@@ -252,6 +252,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.proyecto.plata.conSuValorEnPesos('«PAGADO»', '«EN PESOS»'),
     tieneQueDecir: ['«PAGADO»', '«EN PESOS»'],
   },
+  'proyecto.pago.entraAlTesoro': {
+    llamar: (m) => m.proyecto.pago.entraAlTesoro('«TESORO»'),
+    tieneQueDecir: ['«TESORO»'],
+  },
   'proyecto.pago.descuenta': {
     llamar: (m) => m.proyecto.pago.descuenta('«MONTO»'),
     tieneQueDecir: ['«MONTO»'],

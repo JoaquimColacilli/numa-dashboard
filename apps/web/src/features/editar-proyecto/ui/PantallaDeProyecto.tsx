@@ -1,4 +1,14 @@
-import { entregaEstimada, estaLiquidado, faseDe, type EstadoProyecto } from '@maun/domain';
+import {
+  entregaEstimada,
+  estaLiquidado,
+  ESTADOS_DE_CONSULTA,
+  faseDe,
+  MONEDA_DEL_TALLER,
+  MONEDAS,
+  monedaLeida,
+  type EstadoProyecto,
+  type Moneda,
+} from '@maun/domain';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -33,8 +43,10 @@ import {
   rutaDelProyecto,
   tiposParaSugerir,
   totalDeLasFilas,
+  totalesDeLosPagos,
   valoresDelFormulario,
   type FormularioDeProyecto,
+  type TesoroQueRecibeDolares,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -43,10 +55,12 @@ import {
   filaPorId,
   filasDe,
   mensajeDeSincronizacion,
+  tesorosDeLaReplica,
 } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   formatearPesos,
+  formatearPlata,
   hoyLocal,
   metaDeAvisos,
   useAltoVisible,
@@ -65,8 +79,10 @@ import {
   SeccionesEnFilas,
 } from '@/shared/ui';
 
+import { conLaOtraMoneda, monedaDeLoMandado, type CambioDeMoneda } from '../model/moneda';
 import { FilasDeOpciones } from './FilasDeOpciones';
-import { FilasDinamicas } from './FilasDinamicas';
+import { FilasDinamicas, type DolarDelDiaDelTaller } from './FilasDinamicas';
+import { HojaDeCambiarLaMoneda } from './HojaDeCambiarLaMoneda';
 
 const FECHA_ALINEADA = '@sm/datos:row-span-3 @sm/datos:grid @sm/datos:grid-rows-subgrid';
 
@@ -81,6 +97,34 @@ export interface PantallaDeProyectoProps {
   clienteInicial?: string;
   entregaInicial?: string;
   agregarUnaOpcion?: boolean;
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
+}
+
+function sePuedeCambiarLaMoneda(estado: EstadoProyecto | undefined): boolean {
+  return (
+    estado === undefined ||
+    estado === 'en_seguimiento' ||
+    (ESTADOS_DE_CONSULTA as readonly EstadoProyecto[]).includes(estado)
+  );
+}
+
+function tesorosQueRecibenDolares(
+  replica: Parameters<typeof tesorosDeLaReplica>[0],
+): TesoroQueRecibeDolares[] {
+  return tesorosDeLaReplica(replica)
+    .filter((tesoro) => tesoro.moneda === 'USD' && !tesoro.archivado)
+    .map((tesoro) => ({ id: tesoro.id, nombre: tesoro.nombre }));
+}
+
+function dolarDelDiaDelTaller(ajustes: ReturnType<typeof ajustesDe>): DolarDelDiaDelTaller | null {
+  const valor = ajustes?.dolar_del_dia_centavos ?? null;
+  const fecha = ajustes?.dolar_del_dia_el ?? null;
+  return valor === null || fecha === null ? null : { valor, fecha };
+}
+
+function monedaDeLosPagosNuevos(cobraEn: readonly string[] | null | undefined, delTrabajo: Moneda) {
+  const unica = cobraEn?.length === 1 ? cobraEn[0] : undefined;
+  return unica === undefined ? delTrabajo : monedaLeida(unica);
 }
 
 export function PantallaDeProyecto({
@@ -88,10 +132,12 @@ export function PantallaDeProyecto({
   clienteInicial,
   entregaInicial,
   agregarUnaOpcion = false,
+  alCrearUnTesoroEnDolares,
 }: PantallaDeProyectoProps) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const textos = useMensajes().editarProyecto.pantalla;
+  const textosDelFormulario = useMensajes().proyecto.formulario;
   const cancelar = useVolver(
     proyectoId === undefined ? '/proyectos' : rutaDelProyecto(proyectoId),
     textos.cancelar,
@@ -131,6 +177,7 @@ export function PantallaDeProyecto({
     handleSubmit,
     control,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormularioDeProyecto>({
     resolver: zodResolver(esquemaDeProyecto),
@@ -207,14 +254,45 @@ export function PantallaDeProyecto({
       ? ESTADOS_EN_ORDEN.filter((estado) => faseDe(estado) === 'activos')
       : estadosDisponibles(proyecto.estado);
 
+  const moneda = useWatch({ control, name: 'moneda' });
+  const [cambiandoA, setCambiandoA] = useState<Moneda | null>(null);
+  const monedaEditable = sePuedeCambiarLaMoneda(proyecto?.estado);
+  const tesorosEnDolares = tesorosQueRecibenDolares(replica);
+  const dolarDelDia = dolarDelDiaDelTaller(ajustesDe(replica));
+
   const hayOpciones = filasDeOpciones.length > 0;
   const presupuestoEfectivo = hayOpciones ? presupuestoDeLasOpciones(filasDeOpciones) : presupuesto;
 
-  const totalCobrado = totalDeLasFilas(filasDePagos);
+  const cobrado = totalesDeLosPagos(filasDePagos, moneda);
+  const totalCobrado = cobrado.enSuMoneda;
   const totalGastos = totalDeLasFilas(filasDeGastos);
   const saldo =
     presupuestoEfectivo === null ? null : Math.max(0, presupuestoEfectivo - totalCobrado);
-  const neta = totalCobrado - totalGastos;
+  const neta = cobrado.enPesos - totalGastos;
+
+  function elegirLaMoneda(hacia: Moneda): void {
+    if (hacia === moneda) return;
+    const valores = getValues();
+    const pidenSuDolar =
+      hacia !== MONEDA_DEL_TALLER &&
+      valores.pagos.some((pago) => pago.moneda === MONEDA_DEL_TALLER && (pago.monto ?? 0) > 0);
+    const conImportes =
+      (valores.presupuesto ?? 0) > 0 || valores.opciones.some((opcion) => (opcion.monto ?? 0) > 0);
+    if (conImportes || pidenSuDolar || monedaDeLoMandado(replica, proyectoId) !== null) {
+      setCambiandoA(hacia);
+      return;
+    }
+    setValue('moneda', hacia, { shouldDirty: true });
+  }
+
+  function cambiarLaMoneda(cambio: CambioDeMoneda): void {
+    const cambiado = conLaOtraMoneda(getValues(), cambio);
+    const opciones = { shouldDirty: true };
+    setValue('moneda', cambiado.moneda, opciones);
+    setValue('presupuesto', cambiado.presupuesto, opciones);
+    setValue('opciones', cambiado.opciones, opciones);
+    setValue('pagos', cambiado.pagos, opciones);
+  }
 
   function reabrirParaEditar(fila: NonNullable<typeof proyecto>): void {
     const hacia = fila.estado === 'perdido' ? 'presupuesto_enviado' : 'entregado';
@@ -347,6 +425,26 @@ export function PantallaDeProyecto({
                 ))}
               </datalist>
 
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="mb-1.5 text-label text-text-2">{textos.precioEn}</legend>
+                <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm/datos:max-w-80">
+                  {MONEDAS.map((una) => (
+                    <BotonDeOpcion
+                      key={una}
+                      elegido={moneda === una}
+                      etiqueta={textos.monedas[una]}
+                      deshabilitado={!monedaEditable}
+                      alElegir={() => {
+                        elegirLaMoneda(una);
+                      }}
+                    />
+                  ))}
+                </div>
+                {!monedaEditable && (
+                  <span className="text-meta text-text-3">{textos.laMonedaSeElige}</span>
+                )}
+              </fieldset>
+
               <CamposJuntos separacion="gap-5" campoMinimo="14rem">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={`${idCampos}-presupuesto`} className="text-label text-text-2">
@@ -357,7 +455,7 @@ export function PantallaDeProyecto({
                       errors.presupuesto ? 'border-alerta' : 'border-border'
                     } ${hayOpciones ? 'bg-surface' : ''}`}
                   >
-                    <AdornoDePlata className="text-money-lg text-text-3" />
+                    <AdornoDePlata moneda={moneda} className="text-money-lg text-text-3" />
                     {hayOpciones ? (
                       <output
                         id={`${idCampos}-presupuesto`}
@@ -366,7 +464,7 @@ export function PantallaDeProyecto({
                       >
                         {presupuestoEfectivo === null
                           ? textos.sinDefinir
-                          : formatearPesos(presupuestoEfectivo)}
+                          : formatearPlata(presupuestoEfectivo, moneda)}
                       </output>
                     ) : (
                       <Controller
@@ -379,6 +477,7 @@ export function PantallaDeProyecto({
                             value={field.value}
                             onChange={field.onChange}
                             onBlur={field.onBlur}
+                            moneda={moneda}
                             id={`${idCampos}-presupuesto`}
                             placeholder="0"
                             className="min-w-0 flex-1 bg-transparent text-money-lg font-semibold outline-none"
@@ -389,7 +488,9 @@ export function PantallaDeProyecto({
                   </div>
                   {errors.presupuesto ? (
                     <span role="alert" className="text-label font-medium text-alerta">
-                      {errors.presupuesto.message}
+                      {moneda === MONEDA_DEL_TALLER
+                        ? errors.presupuesto.message
+                        : textosDelFormulario.presupuestoNegativoEnDolares}
                     </span>
                   ) : (
                     <span className="text-meta text-text-3">
@@ -608,10 +709,21 @@ export function PantallaDeProyecto({
                 lista="pagos"
                 control={control}
                 register={register}
+                setValue={setValue}
                 errores={errors}
                 campos={pagos}
                 bloqueado={liquidado}
                 apertura={aperturaDeLaReplica(replica)}
+                delPago={{
+                  monedaDelTrabajo: moneda,
+                  monedaNueva: monedaDeLosPagosNuevos(
+                    (proyecto as { cobra_en?: string[] | null } | undefined)?.cobra_en,
+                    moneda,
+                  ),
+                  tesorosEnDolares,
+                  dolarDelDia,
+                  alCrearUnTesoroEnDolares,
+                }}
               />
               <FilasDinamicas
                 lista="gastos"
@@ -639,16 +751,18 @@ export function PantallaDeProyecto({
             <dl className="grid w-full grid-cols-2 gap-x-4 gap-y-1 tabular-nums @min-[21rem]/barra:flex @min-[21rem]/barra:w-auto @min-[21rem]/barra:min-w-[210px] @min-[21rem]/barra:flex-1 md:gap-6 lg:gap-8">
               <Total
                 etiqueta={textos.totales.presupuesto}
-                valor={presupuestoEfectivo === null ? '—' : formatearPesos(presupuestoEfectivo)}
+                valor={
+                  presupuestoEfectivo === null ? '—' : formatearPlata(presupuestoEfectivo, moneda)
+                }
               />
               <Total
                 etiqueta={textos.totales.cobrado}
-                valor={formatearPesos(totalCobrado)}
+                valor={formatearPlata(totalCobrado, moneda)}
                 tono="text-hogar"
               />
               <Total
                 etiqueta={textos.totales.saldo}
-                valor={saldo === null ? '—' : formatearPesos(saldo)}
+                valor={saldo === null ? '—' : formatearPlata(saldo, moneda)}
               />
               <Total
                 etiqueta={textos.totales.neta}
@@ -666,6 +780,18 @@ export function PantallaDeProyecto({
           </div>
         </footer>
       </form>
+      {cambiandoA !== null && (
+        <HojaDeCambiarLaMoneda
+          hacia={cambiandoA}
+          valores={getValues()}
+          dolarDelDia={dolarDelDia}
+          monedaDeLoMandado={monedaDeLoMandado(replica, proyectoId)}
+          alCerrar={() => {
+            setCambiandoA(null);
+          }}
+          alCambiar={cambiarLaMoneda}
+        />
+      )}
     </div>
   );
 }
@@ -688,18 +814,21 @@ function BotonDeOpcion({
   elegido,
   etiqueta,
   alElegir,
+  deshabilitado = false,
 }: {
   elegido: boolean;
   etiqueta: string;
   alElegir: () => void;
+  deshabilitado?: boolean;
 }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={elegido}
+      disabled={deshabilitado}
       onClick={alElegir}
-      className={`min-h-tap rounded-[16px] text-label ${
+      className={`min-h-tap rounded-[16px] text-label disabled:cursor-not-allowed ${
         elegido ? 'bg-elevado font-semibold text-ink shadow-float' : 'font-medium text-text-2'
       }`}
     >

@@ -189,15 +189,20 @@ export {
   esquemaDeProyecto,
   estadosDisponibles,
   filaVacia,
+  importeDeLaFila,
   opcionVacia,
+  pagoVacio,
   pedidoDeGuardado,
   presupuestoDeLasOpciones,
   totalDeLasFilas,
+  totalesDeLosPagos,
   valoresDelFormulario,
   versionDelGuardado,
   type FilaDeOpcion,
+  type FilaDePago,
   type FilaDinamica,
   type FormularioDeProyecto,
+  type TotalesDeLosPagos,
 } from './model/formulario';
 export {
   opcionAprobada,
@@ -263,12 +268,27 @@ export {
   type TareaDelPresupuesto,
 } from './model/tareas';
 export {
+  ayudaDelDolarDelPago,
+  conOtraMoneda,
   efectoDelPago,
+  erroresDelValorDelPago,
+  importeDelValor,
   loQueHaceElPago,
   loQueHizoElPago,
   plataDelPago,
   type EfectoDelPago,
+  type ErroresDelPago,
+  type TesoroQueRecibeDolares,
+  type ValorDelPago,
 } from './model/pago';
+export {
+  BotonDeLaMoneda,
+  CamposDelPago,
+  DetalleDelPago,
+  type BotonDeLaMonedaProps,
+  type CamposDelPagoProps,
+  type DetalleDelPagoProps,
+} from './ui/CamposDelPago';
 export {
   gastosDelProyecto,
   loCobradoEnPalabras,

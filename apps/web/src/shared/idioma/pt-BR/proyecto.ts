@@ -202,6 +202,8 @@ export const proyecto = {
     sinCliente: 'Escolha um cliente ou crie um novo aqui.',
     sinTitulo: 'Diga qual é o móvel.',
     presupuestoNegativo: 'Confira o orçamento: é em pesos.',
+    presupuestoNegativoEnDolares: 'Confira o orçamento: é em dólares.',
+    sinMontoEnDolares: 'Informe o valor, em dólares.',
     senaFueraDeRango: 'O sinal vai de 0 a 100.',
   },
   insumos: {
@@ -212,6 +214,21 @@ export const proyecto = {
     conSuValorEnPesos: (loQueSePago, enPesos) => `${loQueSePago} (${enPesos})`,
   },
   pago: {
+    tePago: 'O cliente pagou',
+    pasarADolares: 'Mudar para dólares',
+    pasarAPesos: 'Mudar para pesos',
+    ayudaDelDolar: {
+      pesosDeUnTrabajoEnDolares: 'O dólar do dia do pagamento, como diz o seu orçamento.',
+      dolaresDeUnTrabajoEnPesos: 'O que você combinou com o cliente nesse dia.',
+      dolaresDeUnTrabajoEnDolares: 'Quantos pesos cada dólar vale na divisão.',
+    },
+    entraA: 'Vai para',
+    entraAlTesoro: (nombre) => `Vai para “${nombre}”.`,
+    entraAMaun: 'Vai para o caixa da marcenaria.',
+    sinTesoroEnDolares:
+      'Um pagamento em dólares vai para uma caixinha em dólares, e você ainda não tem nenhuma.',
+    crearUnTesoroEnDolares: 'Criar uma caixinha em dólares',
+    elegiElTesoro: 'Escolha para qual caixinha em dólares vai.',
     descuenta: (monto) => `Abate ${monto} do preço.`,
     vale: (monto) => `Vale ${monto} na divisão.`,
     descontoConElDolar: (monto, dolar) => `Abateu ${monto} do preço, com o dólar a ${dolar}.`,

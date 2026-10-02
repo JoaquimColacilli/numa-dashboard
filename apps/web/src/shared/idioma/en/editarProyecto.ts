@@ -4,6 +4,9 @@ import { plural } from './plural';
 
 export const editarProyecto = {
   pantalla: {
+    precioEn: 'Price in',
+    monedas: { ARS: 'Pesos', USD: 'Dollars' },
+    laMonedaSeElige: 'The currency is chosen while the job is an inquiry.',
     cancelar: 'Cancel',
     proyectoNuevo: 'New job',
     editarProyecto: 'Edit job',
@@ -60,6 +63,25 @@ export const editarProyecto = {
     },
     guardarProyecto: 'Save job',
     guardarLosCambios: 'Save changes',
+  },
+  cambiarLaMoneda: {
+    titulo: { ARS: 'Switch the job to pesos', USD: 'Switch the job to dollars' },
+    bajada: "Estimated costs don't change: they're always in pesos.",
+    losImportes: 'The amounts you already entered',
+    pasarlos: {
+      ARS: 'Convert them to pesos at this rate',
+      USD: 'Convert them to dollars at this rate',
+    },
+    dejarlosEnBlanco: 'Leave them blank',
+    losPagosEnPesos: 'Payments in pesos',
+    pagoEnPesos: (concepto, monto) => `${concepto}: the client paid ${monto} in pesos.`,
+    aQueDolar: 'What dollar rate applies?',
+    presupuestoEnLaOtraMoneda: {
+      ARS: 'The quote you sent is in pesos: send a new one.',
+      USD: 'The quote you sent is in dollars: send a new one.',
+    },
+    cambiar: 'Change currency',
+    cancelar: 'Cancel',
   },
   filas: {
     pagos: {

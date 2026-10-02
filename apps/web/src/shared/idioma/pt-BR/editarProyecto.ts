@@ -4,6 +4,9 @@ import { plural } from './plural';
 
 export const editarProyecto = {
   pantalla: {
+    precioEn: 'Preço em',
+    monedas: { ARS: 'Pesos', USD: 'Dólares' },
+    laMonedaSeElige: 'A moeda é escolhida enquanto o projeto é uma consulta.',
     cancelar: 'Cancelar',
     proyectoNuevo: 'Novo projeto',
     editarProyecto: 'Editar projeto',
@@ -61,6 +64,25 @@ export const editarProyecto = {
     },
     guardarProyecto: 'Salvar projeto',
     guardarLosCambios: 'Salvar alterações',
+  },
+  cambiarLaMoneda: {
+    titulo: { ARS: 'Mudar o projeto para pesos', USD: 'Mudar o projeto para dólares' },
+    bajada: 'Os custos estimados não mudam: são sempre em pesos.',
+    losImportes: 'Os valores que você já informou',
+    pasarlos: {
+      ARS: 'Converter para pesos com este dólar',
+      USD: 'Converter para dólares com este dólar',
+    },
+    dejarlosEnBlanco: 'Deixar em branco',
+    losPagosEnPesos: 'Pagamentos em pesos',
+    pagoEnPesos: (concepto, monto) => `${concepto}: o cliente pagou ${monto} em pesos.`,
+    aQueDolar: 'A que dólar vale?',
+    presupuestoEnLaOtraMoneda: {
+      ARS: 'O orçamento que você enviou é em pesos: envie um novo.',
+      USD: 'O orçamento que você enviou é em dólares: envie um novo.',
+    },
+    cambiar: 'Mudar a moeda',
+    cancelar: 'Cancelar',
   },
   filas: {
     pagos: {

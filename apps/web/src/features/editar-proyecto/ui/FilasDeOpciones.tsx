@@ -1,3 +1,4 @@
+import { MONEDA_DEL_TALLER } from '@maun/domain';
 import { useEffect, useRef, useState } from 'react';
 import type { Control, FieldErrors, UseFieldArrayReturn, UseFormRegister } from 'react-hook-form';
 import { Controller, useWatch } from 'react-hook-form';
@@ -9,7 +10,7 @@ import {
   type FormularioDeProyecto,
 } from '@/entities/proyecto';
 import { useMensajes } from '@/shared/idioma';
-import { formatearPesos, uuidv7 } from '@/shared/lib';
+import { formatearPlata, uuidv7 } from '@/shared/lib';
 import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
 export interface FilasDeOpcionesProps {
@@ -34,6 +35,8 @@ export function FilasDeOpciones({
   bloqueado,
 }: FilasDeOpcionesProps) {
   const textos = useMensajes().editarProyecto.opciones;
+  const textosDelFormulario = useMensajes().proyecto.formulario;
+  const moneda = useWatch({ control, name: 'moneda' });
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
@@ -72,7 +75,7 @@ export function FilasDeOpciones({
           fila.detalle.trim() === ''
             ? fila.monto === null
               ? null
-              : formatearPesos(fila.monto)
+              : formatearPlata(fila.monto, moneda)
             : fila.detalle.trim(),
       });
     }
@@ -98,7 +101,7 @@ export function FilasDeOpciones({
             <span role="status" className="text-label text-text-2 tabular-nums">
               {aprobada === undefined || aprobada.monto === null
                 ? ''
-                : textos.aprobada(formatearPesos(aprobada.monto))}
+                : textos.aprobada(formatearPlata(aprobada.monto, moneda))}
             </span>
           </div>
           <p className="text-meta leading-normal text-text-3">{textos.ayuda}</p>
@@ -161,7 +164,7 @@ export function FilasDeOpciones({
                   errorDeFila?.monto ? 'border-alerta' : 'border-border'
                 }`}
               >
-                <AdornoDePlata className="text-text-3" />
+                <AdornoDePlata moneda={moneda} className="text-text-3" />
                 <Controller
                   control={control}
                   name={`opciones.${indice}.monto` as const}
@@ -172,6 +175,7 @@ export function FilasDeOpciones({
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
+                      moneda={moneda}
                       aria-label={textos.importe(indice + 1)}
                       placeholder="0"
                       disabled={bloqueado}
@@ -196,7 +200,9 @@ export function FilasDeOpciones({
                   role="alert"
                   className="col-span-3 text-label font-medium text-alerta @lg/opciones:col-span-4"
                 >
-                  {errorDeFila.monto.message}
+                  {moneda === MONEDA_DEL_TALLER
+                    ? textosDelFormulario.sinMonto
+                    : textosDelFormulario.sinMontoEnDolares}
                 </span>
               )}
             </li>
