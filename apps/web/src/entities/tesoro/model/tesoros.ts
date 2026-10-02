@@ -1,4 +1,4 @@
-import { CERO, type Money } from '@maun/domain';
+import { CERO, MONEDA_DEL_TALLER, type Money } from '@maun/domain';
 
 import {
   saldosEnLaMonedaDelTaller,
@@ -27,6 +27,7 @@ function deSiempre(clave: Tesoro): TesoroDeLaReplica {
   return {
     id: clave,
     clave,
+    moneda: MONEDA_DEL_TALLER,
     nombre: datos.nombre,
     descripcion: datos.descripcion,
     tinta: clave,

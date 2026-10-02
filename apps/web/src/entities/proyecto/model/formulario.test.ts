@@ -119,6 +119,27 @@ describe('el tipo de proyecto en el formulario grande', () => {
   });
 });
 
+describe('la moneda del trabajo en el formulario grande', () => {
+  const HOY = '2026-10-01';
+
+  it('va y vuelve por el formulario, y un trabajo nuevo arranca en pesos', () => {
+    const valores = valoresDelFormulario(proyecto({ moneda: 'USD' }), [], [], [], { hoy: HOY });
+    expect(valores.moneda).toBe('USD');
+    expect(datosDelFormulario(valores, HOY).moneda).toBe('USD');
+    expect(valoresDelFormulario(undefined, [], [], [], { hoy: HOY }).moneda).toBe('ARS');
+  });
+
+  it('una fila guardada en el dispositivo antes de la columna se lee en pesos', () => {
+    const vieja = proyecto();
+    delete (vieja as Partial<FilaDe<'proyectos'>>).moneda;
+    expect(valoresDelFormulario(vieja, [], [], [], { hoy: HOY }).moneda).toBe('ARS');
+  });
+
+  it('guardar manda la moneda que tiene, para que la base no la confunda con un pedido viejo', () => {
+    expect(datosActualesDelProyecto(proyecto({ moneda: 'USD' })).moneda).toBe('USD');
+  });
+});
+
 function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'> {
   return {
     household_id: 'h',

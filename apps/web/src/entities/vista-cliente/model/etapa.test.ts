@@ -10,6 +10,7 @@ function trabajo(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
     taller: 'Taller MAUN',
     cliente: 'Marcela Duarte',
     trabajo: 'Placard 3 puertas',
+    idioma: 'es',
     direccion: 'Olazábal 1240, Ituzaingó',
     estado: 'en_curso',
     precio: centavos(124_000_000),

@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER } from '@maun/domain';
+import { monedaLeida } from '@maun/domain';
 import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
@@ -52,7 +52,7 @@ function conTesoroNuevo(replica: Replica, nuevo: TesoroNuevo): Replica {
     ...nuevo,
     household_id: household.id,
     clave: null,
-    moneda: MONEDA_DEL_TALLER,
+    moneda: monedaLeida(nuevo.moneda),
     archivado_at: null,
     created_at: ahora,
     updated_at: ahora,

@@ -21,6 +21,7 @@ function tesoro(
   return {
     id,
     clave,
+    moneda: 'ARS',
     nombre,
     descripcion: `Para qué es ${nombre}`,
     tinta: clave ?? 'grana',

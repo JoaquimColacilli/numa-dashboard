@@ -26,6 +26,7 @@ function tesoro(
   return {
     id,
     clave,
+    moneda: 'ARS',
     nombre,
     descripcion: '',
     tinta,

@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ClienteMaun } from './cliente.ts';
 import { RespuestaInvalidaError } from './replica.ts';
 import {
+  COLUMNAS_DE_AJUSTES,
+  COLUMNAS_DE_COSTOS,
+  COLUMNAS_DE_FORMAS_DE_COBRO,
   COLUMNAS_DE_LA_ENTREGA,
+  COLUMNAS_DE_MOVIMIENTO,
   COLUMNAS_DE_PROYECTO,
   COLUMNAS_DE_TESORO,
   guardarLaFilaDelTaller,
@@ -22,6 +26,7 @@ const DATOS = {
   descripcion: '',
   estado: 'en_seguimiento',
   presupuesto_centavos: 90_000_000,
+  moneda: 'ARS',
   sena_bp: null,
   forma_pago: null,
   comprobante: 'sin_comprobante',
@@ -172,6 +177,78 @@ describe('la entrega del trabajo', () => {
     ]);
     for (const columna of COLUMNAS_DE_LA_ENTREGA) {
       expect(COLUMNAS_DE_PROYECTO).not.toContain(columna);
+    }
+  });
+});
+
+describe('las monedas y los idiomas en lo que se guarda', () => {
+  it('la moneda del trabajo viaja con sus datos; en qué paga y el dólar de los costos van por su lado', async () => {
+    const { cliente, rpc } = clienteFalso(GUARDADO);
+
+    await guardarProyecto(cliente, {
+      id: 'p',
+      version: 3,
+      datos: { ...DATOS, moneda: 'USD' },
+      pagos: [],
+      gastos: [],
+    });
+
+    const [, argumentos] = rpc.mock.lastCall as unknown as [string, { p_proyecto: object }];
+    expect(argumentos.p_proyecto).toMatchObject({ moneda: 'USD' });
+    expect(COLUMNAS_DE_PROYECTO).not.toContain('cobra_en');
+    expect(COLUMNAS_DE_PROYECTO).not.toContain('costos_cotizacion_centavos');
+    expect(COLUMNAS_DE_FORMAS_DE_COBRO).toContain('cobra_en');
+    expect(COLUMNAS_DE_COSTOS).toContain('costos_cotizacion_centavos');
+  });
+
+  it('cada pago lleva su moneda, su dólar y el tesoro al que entra', async () => {
+    const { cliente, rpc } = clienteFalso(GUARDADO);
+    const pagos = [
+      {
+        id: 'en-dolares',
+        fecha: '2026-09-30',
+        monto_centavos: 50_000,
+        concepto: 'Seña',
+        moneda: 'USD',
+        cotizacion_centavos: 145_000,
+        tesoro_id: 'dolares',
+      },
+      {
+        id: 'en-pesos',
+        fecha: '2026-09-30',
+        monto_centavos: 7_250_000,
+        concepto: 'Seña',
+        moneda: 'ARS',
+        cotizacion_centavos: 145_000,
+        tesoro_id: null,
+      },
+    ] as const;
+
+    await guardarProyecto(cliente, { id: 'p', version: 3, datos: DATOS, pagos, gastos: [] });
+
+    expect(rpc).toHaveBeenLastCalledWith(
+      'guardar_proyecto',
+      expect.objectContaining({ p_pagos: pagos }),
+    );
+  });
+
+  it('un tesoro elige su moneda al nacer y un cambio nunca la manda', () => {
+    expect(COLUMNAS_DE_TESORO).not.toContain('moneda');
+  });
+
+  it('un movimiento lleva su segundo importe, el de una compra o una venta', () => {
+    expect(COLUMNAS_DE_MOVIMIENTO).toContain('monto_destino_centavos');
+  });
+
+  it('los ajustes guardan el idioma de los clientes, el dólar del día y la cuenta en dólares', () => {
+    for (const columna of [
+      'idioma_de_los_clientes',
+      'dolar_del_dia_centavos',
+      'dolar_del_dia_el',
+      'cobro_dolares_cbu',
+      'cobro_dolares_alias',
+    ]) {
+      expect(COLUMNAS_DE_AJUSTES).toContain(columna);
     }
   });
 });

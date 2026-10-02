@@ -107,6 +107,7 @@ describe('mandar el presupuesto', () => {
       revisionId: 'r1',
       version: 2,
       documento: DOCUMENTO,
+      idioma: 'es',
       queCambio: null,
       mandadoEl: '2026-09-20',
       valeHasta: null,
@@ -120,7 +121,28 @@ describe('mandar el presupuesto', () => {
       p_que_cambio: '',
       p_mandado_el: '2026-09-20',
       p_vale_hasta: null,
+      p_idioma: 'es',
     });
+  });
+
+  it('manda el idioma en que se armó el documento, que es el que guarda la revisión', async () => {
+    const { cliente, rpc } = clienteFalso(MANDADO);
+
+    await mandarElPresupuesto(cliente, {
+      presupuestoId: 'b1',
+      revisionId: 'r1',
+      version: 2,
+      documento: DOCUMENTO,
+      idioma: 'pt-BR',
+      queCambio: null,
+      mandadoEl: '2026-09-20',
+      valeHasta: null,
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      'mandar_el_presupuesto',
+      expect.objectContaining({ p_idioma: 'pt-BR' }),
+    );
   });
 
   it('vuelve con la revisión, el borrador, el trabajo y sus próximos contactos', async () => {
@@ -131,6 +153,7 @@ describe('mandar el presupuesto', () => {
       revisionId: 'r1',
       version: 2,
       documento: DOCUMENTO,
+      idioma: 'es',
       queCambio: 'Sumamos un estante.',
       mandadoEl: '2026-09-20',
       valeHasta: '2026-10-05',

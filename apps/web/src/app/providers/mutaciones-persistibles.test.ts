@@ -366,6 +366,7 @@ function elEnvio(): EnvioDelPresupuesto {
       revisionId: 'r1',
       version: 2,
       documento: { forma: 1 } as unknown as EnvioDelPresupuesto['pedido']['documento'],
+      idioma: 'es',
       queCambio: null,
       mandadoEl: '2026-09-22',
       valeHasta: '2026-10-07',

@@ -5,6 +5,7 @@ import {
   esNumeroDePresupuesto,
   FORMAS_DE_COBRO,
   FORMAS_DE_COORDINAR,
+  idiomaLeido,
   INSTANCIAS_DE_PAGO,
   leerDocumento,
   RESPUESTAS_DE_ENTREGA,
@@ -327,6 +328,7 @@ function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
     mandadoEl: crudo.mandado_el,
     queCambio: textoQuePuedeFaltar(crudo.que_cambio),
     documento,
+    idioma: idiomaLeido(crudo.idioma),
     aceptadoEl: textoQuePuedeFaltar(crudo.aceptado_el),
     letra: textoQuePuedeFaltar(crudo.letra),
   };
@@ -338,6 +340,7 @@ export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
     taller: texto(objeto(cuerpo.taller, 'el taller').nombre, 'el nombre del taller'),
     cliente: texto(objeto(cuerpo.cliente, 'el cliente').nombre, 'el nombre del cliente'),
     trabajo: texto(cuerpo.trabajo, 'el trabajo'),
+    idioma: idiomaLeido(cuerpo.idioma),
     direccion: texto(cuerpo.direccion, 'la dirección'),
     estado: texto(cuerpo.estado, 'la etapa') as EstadoProyecto,
     precio: importeONada(cuerpo.precio_centavos, 'el precio'),

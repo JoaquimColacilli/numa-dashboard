@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER } from '@maun/domain';
+import { MONEDA_DEL_TALLER, monedaLeida } from '@maun/domain';
 import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
@@ -216,6 +216,34 @@ export function guardadoDeLoQueHaceFalta(
   };
 }
 
+type PagoVivo = Extract<PagoParaGuardar, { concepto: string }>;
+
+export function filaDelPagoGuardado(
+  pago: PagoVivo,
+  previo: FilaDe<'pagos'> | undefined,
+  { householdId, proyectoId, ahora }: { householdId: string; proyectoId: string; ahora: string },
+): FilaDe<'pagos'> {
+  return {
+    id: pago.id,
+    household_id: householdId,
+    proyecto_id: proyectoId,
+    fecha: pago.fecha,
+    concepto: pago.concepto,
+    monto_centavos: pago.monto_centavos,
+    ya_en_la_apertura: pago.ya_en_la_apertura ?? previo?.ya_en_la_apertura ?? false,
+    moneda: pago.moneda ?? previo?.moneda ?? MONEDA_DEL_TALLER,
+    cotizacion_centavos:
+      pago.cotizacion_centavos === undefined
+        ? (previo?.cotizacion_centavos ?? null)
+        : pago.cotizacion_centavos,
+    tesoro_id: pago.tesoro_id === undefined ? (previo?.tesoro_id ?? null) : pago.tesoro_id,
+    created_at: previo?.created_at ?? ahora,
+    updated_at: ahora,
+    deleted_at: null,
+    version: previo?.version ?? 1,
+  };
+}
+
 function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
   const household = householdDe(replica);
   if (!household) return replica;
@@ -252,7 +280,7 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
         costo_ayudante_centavos: null,
         cobro_sena: null,
         cobro_saldo: null,
-        moneda: MONEDA_DEL_TALLER,
+        moneda: monedaLeida(pedido.datos.moneda),
         cobra_en: null,
         costos_cotizacion_centavos: null,
         fecha_cobro: null,
@@ -292,23 +320,15 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
       siguiente = quitarFilaLocal(siguiente, 'pagos', pago.id);
       continue;
     }
-    const previo = filaPorId(siguiente, 'pagos', pago.id);
-    siguiente = aplicarFilaLocal(siguiente, 'pagos', {
-      id: pago.id,
-      household_id: household.id,
-      proyecto_id: pedido.id,
-      fecha: pago.fecha,
-      concepto: pago.concepto,
-      monto_centavos: pago.monto_centavos,
-      ya_en_la_apertura: pago.ya_en_la_apertura ?? previo?.ya_en_la_apertura ?? false,
-      moneda: previo?.moneda ?? MONEDA_DEL_TALLER,
-      cotizacion_centavos: previo?.cotizacion_centavos ?? null,
-      tesoro_id: previo?.tesoro_id ?? null,
-      created_at: previo?.created_at ?? ahora,
-      updated_at: ahora,
-      deleted_at: null,
-      version: previo?.version ?? 1,
-    });
+    siguiente = aplicarFilaLocal(
+      siguiente,
+      'pagos',
+      filaDelPagoGuardado(pago, filaPorId(siguiente, 'pagos', pago.id), {
+        householdId: household.id,
+        proyectoId: pedido.id,
+        ahora,
+      }),
+    );
   }
 
   for (const gasto of pedido.gastos) {

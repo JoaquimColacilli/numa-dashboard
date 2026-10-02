@@ -1,6 +1,8 @@
 import {
   esAnteriorALaApertura,
   ESTADOS,
+  MONEDA_DEL_TALLER,
+  MONEDAS,
   puedeCambiarEstado,
   type EstadoProyecto,
 } from '@maun/domain';
@@ -10,6 +12,7 @@ import {
   COLUMNAS_DE_PROYECTO,
   horaDeLaEntrega,
   horaDeLaVisita,
+  monedaDelTrabajo,
   visitaHecha,
   type BajaDeFilaHija,
   type CambiosDeProyecto,
@@ -82,6 +85,7 @@ export const esquemaDeProyecto = z.object({
   titulo: texto(200).min(1, { error: 'Contá qué mueble es.' }),
   descripcion: texto(10_000),
   estado: z.enum(ESTADOS),
+  moneda: z.enum(MONEDAS),
   presupuesto: z
     .number()
     .int()
@@ -178,6 +182,7 @@ export function valoresDelFormulario(
       titulo: '',
       descripcion: '',
       estado: 'en_curso',
+      moneda: MONEDA_DEL_TALLER,
       presupuesto: null,
       sena: '',
       forma_pago: 'transferencia',
@@ -208,6 +213,7 @@ export function valoresDelFormulario(
     titulo: proyecto.titulo,
     descripcion: proyecto.descripcion,
     estado: proyecto.estado,
+    moneda: monedaDelTrabajo(proyecto),
     presupuesto: proyecto.presupuesto_centavos,
     sena: propia === null ? '' : formatearPorcentaje(propia),
     forma_pago: proyecto.forma_pago,
@@ -263,6 +269,7 @@ export function datosDelFormulario(
       valores.opciones.length > 0
         ? presupuestoDeLasOpciones(valores.opciones)
         : valores.presupuesto,
+    moneda: valores.moneda,
     sena_bp:
       valores.sena.trim() === '' ? null : (parsearPorcentaje(valores.sena, SENA_MAXIMA_BP) ?? null),
     forma_pago: valores.forma_pago,

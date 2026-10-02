@@ -1,5 +1,6 @@
 import {
   huecosDelPresupuesto,
+  IDIOMA_BASE,
   leerBorrador,
   puedeCambiarEstado,
   textoDeLaGarantia,
@@ -380,6 +381,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
       presupuesto,
       revisiones: revisionesDelPresupuesto(deAhora, presupuesto.id),
       documento,
+      idioma: IDIOMA_BASE,
       queCambio,
       hoy,
       validezDias: borrador.validezDias,

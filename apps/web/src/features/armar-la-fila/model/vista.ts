@@ -1,6 +1,7 @@
 import {
   CERO,
   lugarLibreDelReparto,
+  MONEDA_DEL_TALLER,
   problemasDeLaFila,
   tipoDelPaso,
   type CambioDeLaFila,
@@ -152,6 +153,7 @@ export function tesoroDe(vista: Pick<VistaDeLaFila, 'tesoros'>, id: string): Tes
     vista.tesoros.find((tesoro) => tesoro.id === id) ?? {
       id,
       clave: null,
+      moneda: MONEDA_DEL_TALLER,
       nombre: 'Un tesoro que ya no está',
       descripcion: '',
       tinta: 'maun',

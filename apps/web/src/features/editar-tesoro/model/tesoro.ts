@@ -1,3 +1,5 @@
+import { MONEDA_DEL_TALLER } from '@maun/domain';
+
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import type { CambiosDeAjustes, CambiosDeTesoro, FilaDe, Tesoro, TesoroNuevo } from '@/shared/api';
 import {
@@ -153,6 +155,7 @@ export function tesoroNuevo(borrador: BorradorDelTesoro, id: string, orden: numb
     meta_centavos: metaParaGuardar(borrador.meta),
     rinde_anual_bp: null,
     orden,
+    moneda: MONEDA_DEL_TALLER,
   };
 }
 

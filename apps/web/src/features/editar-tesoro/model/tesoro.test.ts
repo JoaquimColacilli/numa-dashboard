@@ -23,6 +23,7 @@ import {
 function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>): TesoroDelTaller {
   return {
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     descripcion: 'Para la sierra nueva',
     tinta: 'petroleo',
@@ -121,6 +122,7 @@ describe('un tesoro nuevo', () => {
       meta_centavos: 250_000_000,
       rinde_anual_bp: null,
       orden: 3,
+      moneda: 'ARS',
     });
     expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3).meta_centavos).toBeNull();
     expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3).meta_centavos).toBeNull();

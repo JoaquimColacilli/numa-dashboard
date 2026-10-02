@@ -1,5 +1,6 @@
 import {
   esAnteriorALaApertura,
+  MONEDA_DEL_TALLER,
   vencimientoDelPresupuesto,
   type EstadoProyecto,
 } from '@maun/domain';
@@ -212,6 +213,7 @@ const DATOS_DE_UN_CONTACTO_NUEVO: DatosDeProyecto = {
   descripcion: '',
   estado: 'contacto',
   presupuesto_centavos: null,
+  moneda: MONEDA_DEL_TALLER,
   sena_bp: null,
   forma_pago: null,
   comprobante: 'sin_comprobante',

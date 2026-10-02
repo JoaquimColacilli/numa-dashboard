@@ -50,6 +50,7 @@ const ORDEN_DE_LOS_DE_SIEMPRE: readonly Tesoro[] = ['hogar', 'maun', 'diezmo', '
 export interface TesoroDeLaReplica {
   id: string;
   clave: Tesoro | null;
+  moneda: Moneda;
   nombre: string;
   descripcion: string;
   tinta: string;
@@ -82,6 +83,7 @@ export function tesorosDeLaReplica(replica: Replica): TesoroDeLaReplica[] {
       return {
         id: fila.id,
         clave: fila.clave,
+        moneda: monedaDelTesoro(fila),
         nombre: fila.nombre,
         descripcion: fila.descripcion,
         tinta: fila.tinta,
@@ -214,6 +216,10 @@ export function monedaDelTesoro(fila: FilaDe<'tesoros'>): Moneda {
   return monedaLeida((fila as Record<string, unknown>).moneda);
 }
 
+export function monedaDelTrabajo(fila: FilaDe<'proyectos'>): Moneda {
+  return monedaLeida((fila as Record<string, unknown>).moneda);
+}
+
 export function saldosEnLaMonedaDelTaller(replica: Replica): ReadonlyMap<string, Money> {
   const monedas = new Map(
     filasDe(replica, 'tesoros').map((tesoro) => [tesoro.id, monedaDelTesoro(tesoro)]),
@@ -285,15 +291,12 @@ export function insumosPorTrabajo(replica: Replica): Map<string, InsumosDelTraba
   const insumos = new Map<string, InsumosDelTrabajo>();
   for (const proyecto of filasDe(replica, 'proyectos')) {
     if (estaLiquidado(proyecto.estado)) continue;
-    const { cobrado, gastos } = totales.get(proyecto.id) ?? {
-      cobrado: dinero(0),
-      gastos: dinero(0),
-    };
+    const { cobradoEnPesos, gastos } = totales.get(proyecto.id) ?? SIN_TOTALES;
     insumos.set(proyecto.id, {
       proyectoId: proyecto.id,
-      entro: cobrado,
+      entro: cobradoEnPesos,
       gastado: gastos,
-      queda: restar(cobrado, gastos),
+      queda: restar(cobradoEnPesos, gastos),
     });
   }
   return insumos;

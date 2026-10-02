@@ -27,6 +27,7 @@ const ENCUESTA: EncuestaCompartida = {
   taller: 'Taller MAUN',
   cliente: 'Marcela',
   trabajo: 'Placard 3 puertas con interior en melamina',
+  idioma: 'es',
   resena: 'https://g.page/r/maun/review',
   preguntas: [
     {

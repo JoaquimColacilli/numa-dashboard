@@ -206,3 +206,14 @@ describe('los costos estimados no tocan el presupuesto', () => {
     );
   });
 });
+
+describe('el dólar de los costos', () => {
+  it('va con los costos: cambiarlo es un cambio de los costos, y el mismo no', () => {
+    expect(cambiaAlgunCosto(proyecto(), { costos_cotizacion_centavos: 145_000 })).toBe(true);
+    expect(
+      cambiaAlgunCosto(proyecto({ costos_cotizacion_centavos: 145_000 }), {
+        costos_cotizacion_centavos: 145_000,
+      }),
+    ).toBe(false);
+  });
+});

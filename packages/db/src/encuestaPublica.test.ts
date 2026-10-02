@@ -55,6 +55,7 @@ describe('la encuesta que devuelve la base', () => {
       taller: 'Taller MAUN',
       cliente: 'Marcela',
       trabajo: 'Placard 3 puertas',
+      idioma: 'es',
       resena: 'https://g.page/r/CaMaunTaller/review',
       preguntas: [CONFORME, CONOCISTE, MEJOR],
       contestada: null,
@@ -96,6 +97,13 @@ describe('la encuesta que devuelve la base', () => {
     expect(
       leerEncuestaCompartida(encuesta({ resena: 'https://otro-sitio.com/x' })).resena,
     ).toBeNull();
+  });
+
+  it('habla en el idioma de los clientes del taller; sin la clave, o con uno que no conoce, en español', () => {
+    expect(leerEncuestaCompartida(encuesta({ idioma: 'en' })).idioma).toBe('en');
+    expect(leerEncuestaCompartida(encuesta({ idioma: 'pt-BR' })).idioma).toBe('pt-BR');
+    expect(leerEncuestaCompartida(encuesta()).idioma).toBe('es');
+    expect(leerEncuestaCompartida(encuesta({ idioma: 'de' })).idioma).toBe('es');
   });
 
   it('rechaza lo que no tiene la forma esperada', () => {

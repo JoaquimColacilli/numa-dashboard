@@ -100,6 +100,7 @@ describe('leer la vista del cliente', () => {
       taller: 'Taller MAUN',
       cliente: 'Marcela Duarte',
       trabajo: 'Placard 3 puertas',
+      idioma: 'es',
       direccion: 'Olazábal 1240',
       estado: 'en_curso',
       precio: 124_000_000,
@@ -662,5 +663,34 @@ describe('el presupuesto que se le mandó', () => {
     expect(conPresupuesto({ ...bueno, revision: 1.5 })).toBeNull();
     expect(conPresupuesto({ ...bueno, mandado_el: null })).toBeNull();
     expect(conPresupuesto(bueno)).not.toBeNull();
+  });
+});
+
+describe('el idioma', () => {
+  const presupuesto = {
+    numero: '20260920-01',
+    revision: 1,
+    mandado_el: '2026-09-20',
+    contenido: CONTENIDO,
+  };
+
+  it('la página habla en el idioma de los clientes del taller, y el presupuesto en el de su revisión', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({ idioma: 'pt-BR', presupuesto: { ...presupuesto, idioma: 'en' } }),
+    );
+    expect(leido.idioma).toBe('pt-BR');
+    expect(leido.presupuesto?.idioma).toBe('en');
+  });
+
+  it('una respuesta de antes, sin la clave, o con un idioma que esta versión no conoce, se lee en español', () => {
+    const vieja = leerVistaDelCliente(respuesta({ presupuesto }));
+    expect(vieja.idioma).toBe('es');
+    expect(vieja.presupuesto?.idioma).toBe('es');
+
+    const desconocido = leerVistaDelCliente(
+      respuesta({ idioma: 'fr', presupuesto: { ...presupuesto, idioma: 'pt-PT' } }),
+    );
+    expect(desconocido.idioma).toBe('es');
+    expect(desconocido.presupuesto?.idioma).toBe('es');
   });
 });

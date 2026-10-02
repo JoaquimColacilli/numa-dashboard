@@ -44,6 +44,7 @@ function trabajo(entrega: Partial<EntregaQueSeCoordina>): TrabajoDelCliente {
     taller: 'Taller MAUN',
     cliente: 'Cintia Paz',
     trabajo: 'Placard de pasillo',
+    idioma: 'es',
     direccion: 'Olazábal 1240',
     estado: 'en_curso',
     precio: centavos(124_000_000),

@@ -17,6 +17,7 @@ const MATERIALES = '01900000-0000-7000-8000-000000000007';
 function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>): TesoroDelTaller {
   return {
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     descripcion: '',
     tinta: 'petroleo',

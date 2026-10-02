@@ -312,6 +312,15 @@ describe('los tesoros de la réplica', () => {
     expect(idDeLaClave(replica, 'maun')).toBe(MAUN);
   });
 
+  it('cada tesoro dice su moneda, y uno replicado antes de la columna está en pesos', () => {
+    const tesoros = tesorosDeLaReplica(
+      replicaCon({
+        tesoros: [...LOS_DE_SIEMPRE, tesoro(FIJOS, null, 'Dólares', { orden: 1, moneda: 'USD' })],
+      }),
+    );
+    expect(tesoros.map((uno) => uno.moneda)).toEqual(['ARS', 'ARS', 'ARS', 'ARS', 'USD']);
+  });
+
   it('sin tesoros replicados, cada clave es su propio id', () => {
     expect(tesorosDeLaReplica(replicaVacia('u'))).toEqual([]);
     expect(idDeLaClave(replicaVacia('u'), 'hogar')).toBe('hogar');
@@ -906,6 +915,27 @@ describe('los insumos de los trabajos', () => {
     expect(trabajos.map((uno) => uno.proyectoId)).toEqual(['curso', 'pasado']);
     expect(total).toBe(57_000_000);
     expect(insumosDelTaller(replicaVacia('u'))).toEqual({ total: 0, trabajos: [] });
+  });
+
+  it('un pago en dólares entra con su valor en pesos, al dólar al que se tomó', () => {
+    const conDolares = replicaCon({
+      proyectos: [trabajo('dolares', 'en_curso')],
+      pagos: [
+        pago('d1', 'dolares', 50_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 145_000,
+          tesoro_id: FIJOS,
+        }),
+        pago('d2', 'dolares', 1_000_000),
+      ],
+      gastos: [gasto('g4', 'dolares', 3_500_000)],
+    });
+    expect(insumosDelTrabajo(conDolares, 'dolares')).toEqual({
+      proyectoId: 'dolares',
+      entro: 73_500_000,
+      gastado: 3_500_000,
+      queda: 70_000_000,
+    });
   });
 });
 

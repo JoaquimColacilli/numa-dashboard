@@ -1,17 +1,21 @@
 import {
+  cobraEnLeido,
   formasDeCobro,
   hayComoTransferir,
   INSTANCIAS_DE_PAGO,
   type CobroDelTaller,
   type FormaDeCobro,
   type InstanciaDePago,
+  type Moneda,
 } from '@maun/domain';
 
 import type { CambiosDeFormasDeCobro, ColumnaDeFormaDeCobro, FilaDe } from '@/shared/api';
 
 import type { Proyecto } from './catalogos';
 
-export const COLUMNA_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, ColumnaDeFormaDeCobro>> = {
+type ColumnaDeLaInstancia = Exclude<ColumnaDeFormaDeCobro, 'cobra_en'>;
+
+export const COLUMNA_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, ColumnaDeLaInstancia>> = {
   sena: 'cobro_sena',
   saldo: 'cobro_saldo',
 };
@@ -54,6 +58,10 @@ export function formasGuardadas(
   return (proyecto as FilaQuizasSinFormas)[COLUMNA_DE_LA_INSTANCIA[instancia]] ?? null;
 }
 
+export function monedasGuardadas(proyecto: Proyecto): readonly Moneda[] | null {
+  return cobraEnLeido((proyecto as FilaQuizasSinFormas).cobra_en ?? null);
+}
+
 export function formasDelTrabajo(
   proyecto: Proyecto,
   instancia: InstanciaDePago,
@@ -82,17 +90,20 @@ export function formasComoEstan(proyecto: Proyecto): CambiosDeFormasDeCobro {
 }
 
 function iguales(
-  una: readonly FormaDeCobro[] | null,
-  otra: readonly FormaDeCobro[] | null | undefined,
+  una: readonly string[] | null,
+  otra: readonly string[] | null | undefined,
 ): boolean {
   if (una === null || otra === null || otra === undefined) return una === (otra ?? null);
   return una.length === otra.length && una.every((forma, indice) => forma === otra[indice]);
 }
 
 export function cambiaAlgunaForma(proyecto: Proyecto, cambios: CambiosDeFormasDeCobro): boolean {
-  return INSTANCIAS_DE_PAGO.some((instancia) => {
-    const columna = COLUMNA_DE_LA_INSTANCIA[instancia];
-    if (!(columna in cambios)) return false;
-    return !iguales(formasGuardadas(proyecto, instancia), cambios[columna]);
-  });
+  return (
+    INSTANCIAS_DE_PAGO.some((instancia) => {
+      const columna = COLUMNA_DE_LA_INSTANCIA[instancia];
+      if (!(columna in cambios)) return false;
+      return !iguales(formasGuardadas(proyecto, instancia), cambios[columna]);
+    }) ||
+    ('cobra_en' in cambios && !iguales(monedasGuardadas(proyecto), cambios.cobra_en))
+  );
 }

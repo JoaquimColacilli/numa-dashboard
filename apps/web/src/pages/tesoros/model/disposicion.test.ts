@@ -57,6 +57,7 @@ function tesoro(id: string, clave: TesoroDelTaller['clave'], nombre: string, tin
   return {
     id,
     clave,
+    moneda: 'ARS' as const,
     nombre,
     descripcion: '',
     tinta,

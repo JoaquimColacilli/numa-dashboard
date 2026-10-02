@@ -123,6 +123,8 @@ export {
   mesEnLaZona,
   metasDeLaReplica,
   modoDelReparto,
+  monedaDelTesoro,
+  monedaDelTrabajo,
   pedidoDeLaFila,
   porLaFila,
   reaperturaDeLaFila,

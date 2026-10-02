@@ -1,4 +1,4 @@
-import { IDIOMA_BASE, puedeCambiarEstado, sinBlancosEnLasPuntas } from '@maun/domain';
+import { idiomaLeido, puedeCambiarEstado, sinBlancosEnLasPuntas } from '@maun/domain';
 
 import {
   aplicarFilaLocal,
@@ -142,7 +142,7 @@ export function conElPresupuestoMandado(replica: Replica, envio: EnvioDelPresupu
     vale_hasta: pedido.valeHasta,
     que_cambio: revision > 1 ? sinBlancosEnLasPuntas(pedido.queCambio ?? '') : null,
     contenido: pedido.documento as unknown as Json,
-    idioma: IDIOMA_BASE,
+    idioma: idiomaLeido(pedido.idioma),
     created_at: momento,
     updated_at: momento,
     deleted_at: null,

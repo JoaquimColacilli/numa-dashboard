@@ -111,6 +111,8 @@ export {
   liquidacionesDeLaReplica,
   metasDeLaReplica,
   modoDelReparto,
+  monedaDelTesoro,
+  monedaDelTrabajo,
   objetivosDeLaReplica,
   porLaFila,
   reaperturaDeLaFila,

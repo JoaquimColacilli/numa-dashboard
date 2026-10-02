@@ -1,6 +1,7 @@
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
+import type { Idioma } from './idioma.ts';
 import { restar, sumarTodos, type Moneda, type Money } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
 import {
@@ -114,6 +115,7 @@ export interface PresupuestoDelTrabajo {
   mandadoEl: string;
   queCambio: string | null;
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   aceptadoEl: string | null;
   letra: string | null;
 }
@@ -122,6 +124,7 @@ export interface TrabajoDelCliente {
   taller: string;
   cliente: string;
   trabajo: string;
+  idioma: Idioma;
   direccion: string;
   estado: EstadoProyecto;
   precio: Money | null;
