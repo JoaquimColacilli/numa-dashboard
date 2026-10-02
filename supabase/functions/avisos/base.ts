@@ -1,4 +1,4 @@
-import type { PreferenciasDeAvisos } from '@maun/domain';
+import { idiomaLeido, type Idioma, type PreferenciasDeAvisos } from '@maun/domain';
 
 import type { FilasDeLaAgenda } from '../../../packages/db/src/agenda.ts';
 
@@ -12,8 +12,14 @@ export interface Suscripcion {
 export interface AvisoPorMandar extends Suscripcion {
   dia: string;
   zona?: string;
+  idioma?: string;
   preferencias: PreferenciasDeAvisos;
   filas: FilasDeLaAgenda;
+}
+
+export interface UsuarioDelToken {
+  id: string;
+  idioma: Idioma;
 }
 
 export interface Base {
@@ -21,7 +27,7 @@ export interface Base {
   anotarAviso(suscripcion: string, dia: string, mandado: boolean): Promise<void>;
   borrarSuscripcionVencida(endpoint: string): Promise<void>;
   suscripcionesParaProbar(usuario: string, endpoint: string | null): Promise<Suscripcion[]>;
-  usuarioDelToken(token: string): Promise<string | null>;
+  usuarioDelToken(token: string): Promise<UsuarioDelToken | null>;
 }
 
 export type Pedir = (url: string, init: RequestInit) => Promise<Response>;
@@ -65,8 +71,13 @@ export function baseDeSupabase(url: string, clave: string, pedir: Pedir = fetch)
         headers: { apikey: clave, Authorization: `Bearer ${token}` },
       });
       if (!respuesta.ok) return null;
-      const cuerpo = (await respuesta.json()) as { id?: unknown };
-      return typeof cuerpo.id === 'string' ? cuerpo.id : null;
+      const cuerpo = (await respuesta.json()) as {
+        id?: unknown;
+        user_metadata?: { idioma?: unknown } | null;
+      };
+      return typeof cuerpo.id === 'string'
+        ? { id: cuerpo.id, idioma: idiomaLeido(cuerpo.user_metadata?.idioma) }
+        : null;
     },
   };
 }

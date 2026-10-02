@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 
-import type { PreferenciasDeAvisos } from '@maun/domain';
+import type { CategoriaDerivada, EventoDeLaAgenda, PreferenciasDeAvisos } from '@maun/domain';
 import webpush from 'web-push';
 
-import { baseDeSupabase, type AvisoPorMandar, type Base, type Suscripcion } from './base.ts';
+import {
+  baseDeSupabase,
+  type AvisoPorMandar,
+  type Base,
+  type Suscripcion,
+  type UsuarioDelToken,
+} from './base.ts';
 import { configuracionDelEntorno } from './entorno.ts';
 import {
   laSuscripcionMurio,
@@ -37,6 +43,8 @@ interface Registro {
   borrados: string[];
 }
 
+const DE_LA_SESION: UsuarioDelToken = { id: 'u1', idioma: 'es' };
+
 function baseFalsa(
   avisos: AvisoPorMandar[] = [],
   suscripciones: Suscripcion[] = [],
@@ -54,7 +62,7 @@ function baseFalsa(
       return Promise.resolve();
     },
     suscripcionesParaProbar: () => Promise.resolve(suscripciones),
-    usuarioDelToken: (token) => Promise.resolve(token === 'sesion-valida' ? 'u1' : null),
+    usuarioDelToken: (token) => Promise.resolve(token === 'sesion-valida' ? DE_LA_SESION : null),
   };
 }
 
@@ -772,5 +780,240 @@ Deno.test(
     assert.ok((detalles.body?.length ?? 0) > 0);
     assert.equal(laSuscripcionMurio(new webpush.WebPushError('Gone', 410, {}, '', 'x')), true);
     assert.equal(laSuscripcionMurio(new webpush.WebPushError('Error', 500, {}, '', 'x')), false);
+  },
+);
+
+Deno.test(
+  'el aviso sale en el idioma de su persona, con su lang; sin un idioma que conozca, en castellano y sin lang',
+  async () => {
+    const enviar = enviadorQueContesta({});
+    await mandarLosAvisos(
+      [
+        { ...aviso('ingles', '2026-09-16'), idioma: 'en' },
+        { ...aviso('portugues', '2026-09-16'), idioma: 'pt-BR' },
+        { ...aviso('frances', '2026-09-16'), idioma: 'fr' },
+      ],
+      baseFalsa(),
+      enviar,
+      VAPID,
+    );
+
+    assert.deepEqual(
+      enviar.cargas.map((carga) => JSON.parse(carga) as unknown),
+      [
+        {
+          titulo: 'Coming up on your calendar',
+          cuerpo: 'Deliver: Cocina de Villalba (in 2 days)',
+          url: '/agenda',
+          etiqueta: `agenda-${DIA}`,
+          lang: 'en-US',
+        },
+        {
+          titulo: 'Próximos compromissos na agenda',
+          cuerpo: 'Entregar: Cocina de Villalba (em 2 dias)',
+          url: '/agenda',
+          etiqueta: `agenda-${DIA}`,
+          lang: 'pt-BR',
+        },
+        {
+          titulo: 'Lo que viene en la agenda',
+          cuerpo: 'Entregar: Cocina de Villalba (en 2 días)',
+          url: '/agenda',
+          etiqueta: `agenda-${DIA}`,
+        },
+      ],
+    );
+  },
+);
+
+Deno.test('el monto del vencimiento va con el formato de plata del idioma', async () => {
+  const cuota = {
+    dia: '2026-09-30',
+    renglones: [{ nombre: 'Cuota del auto', monto: 20_000_050, dia: 31 }],
+  };
+  const { cargas } = await cuerposDe([
+    { ...conVencimientos('ingles', cuota), idioma: 'en' },
+    { ...conVencimientos('portugues', cuota), idioma: 'pt-BR' },
+    { ...conVencimientos('ingles-redondo'), idioma: 'en' },
+    { ...conVencimientos('portugues-redondo'), idioma: 'pt-BR' },
+  ]);
+
+  assert.deepEqual(
+    cargas.map((carga) => [carga.titulo, carga.cuerpo]),
+    [
+      [
+        'You have 1 thing on your calendar today',
+        'Due: Cuota del auto, ARS\u00a0200,000.50 (today)',
+      ],
+      [
+        'Hoje você tem 1 compromisso na agenda',
+        'Vence: Cuota del auto, ARS\u00a0200.000,50 (hoje)',
+      ],
+      [
+        'You have 2 things on your calendar today',
+        'Due: Alquiler, ARS\u00a0500,000 (today)\nDue: Luz, ARS\u00a060,000 (today)',
+      ],
+      [
+        'Hoje você tem 2 compromissos na agenda',
+        'Vence: Alquiler, ARS\u00a0500.000 (hoje)\nVence: Luz, ARS\u00a060.000 (hoje)',
+      ],
+    ],
+  );
+});
+
+Deno.test(
+  'en inglés y en portugués cada renglón dice su acción y su cuándo, y resume lo que no entra',
+  () => {
+    const derivada = (
+      categoria: CategoriaDerivada,
+      fecha: string,
+      titulo: string,
+    ): EventoDeLaAgenda => ({
+      clase: 'derivada',
+      id: `${categoria}-${titulo}`,
+      categoria,
+      fecha,
+      hora: null,
+      proyectoId: 'p',
+      clienteId: 'c',
+      titulo,
+      cliente: '',
+      lugar: '',
+      hecha: false,
+      importante: false,
+      comprometida: false,
+      franja: null,
+    });
+    const eventos: EventoDeLaAgenda[] = [
+      derivada('seguimiento', DIA, 'Villalba'),
+      derivada('visita', '2026-09-15', 'UTN'),
+      derivada('presupuesto', '2026-09-17', 'Vestidor'),
+      {
+        clase: 'propia',
+        id: 'n1',
+        categoria: 'materiales',
+        fecha: '2026-09-17',
+        hora: null,
+        texto: 'Comprar melamina',
+        proyectoId: null,
+        proyecto: null,
+        hecha: false,
+        importante: false,
+      },
+      derivada('entrega', '2026-09-18', 'Placard'),
+    ];
+
+    const enIngles = cargaDelAviso(eventos, DIA, 'en');
+    assert.equal(enIngles.titulo, 'You have 1 thing on your calendar today');
+    assert.equal(
+      enIngles.cuerpo,
+      [
+        'Follow up with Villalba (today)',
+        'Site measure: UTN (tomorrow)',
+        'Send quote: Vestidor (in 3 days)',
+        'Comprar melamina (in 3 days)',
+        'and 1 more on your calendar',
+      ].join('\n'),
+    );
+
+    const enPortugues = cargaDelAviso(eventos, DIA, 'pt-BR');
+    assert.equal(enPortugues.titulo, 'Hoje você tem 1 compromisso na agenda');
+    assert.equal(
+      enPortugues.cuerpo,
+      [
+        'Retomar contato com Villalba (hoje)',
+        'Visita técnica: UTN (amanhã)',
+        'Enviar orçamento: Vestidor (em 3 dias)',
+        'Comprar melamina (em 3 dias)',
+        'e mais 1 na agenda',
+      ].join('\n'),
+    );
+  },
+);
+
+Deno.test(
+  'el aviso de prueba sale en el idioma de quien lo pide, y en castellano igual que antes',
+  async () => {
+    const casos = [
+      {
+        idioma: 'pt-BR',
+        carga: {
+          titulo: 'Notificação de teste',
+          cuerpo: 'Se você está vendo isto, as notificações chegam a este aparelho.',
+          url: '/ajustes/avisos',
+          etiqueta: 'prueba',
+          lang: 'pt-BR',
+        },
+      },
+      {
+        idioma: 'en',
+        carga: {
+          titulo: 'Test notification',
+          cuerpo: 'If you can see this, notifications are reaching this device.',
+          url: '/ajustes/avisos',
+          etiqueta: 'prueba',
+          lang: 'en-US',
+        },
+      },
+      {
+        idioma: 'es',
+        carga: {
+          titulo: 'Aviso de prueba',
+          cuerpo: 'Si ves esto, los avisos llegan a este dispositivo.',
+          url: '/ajustes/avisos',
+          etiqueta: 'prueba',
+        },
+      },
+    ] as const;
+
+    for (const { idioma, carga } of casos) {
+      const enviar = enviadorQueContesta({});
+      const base: Base = {
+        ...baseFalsa([], [suscripcion('telefono')]),
+        usuarioDelToken: () => Promise.resolve({ id: 'u1', idioma }),
+      };
+      const respuesta = await manejador(
+        CON_CLAVES,
+        base,
+        enviar,
+      )(
+        new Request('https://f.example/avisos/probar', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer sesion-valida' },
+        }),
+      );
+
+      assert.equal(respuesta.status, 200);
+      assert.deepEqual(JSON.parse(enviar.cargas[0] ?? '{}') as unknown, carga);
+    }
+  },
+);
+
+Deno.test(
+  'el usuario del token trae el idioma de su cuenta, validado contra los tres',
+  async () => {
+    const leer = (estado: number, cuerpo: unknown) =>
+      baseDeSupabase('https://ref.supabase.co', 'sb_publishable_x', () =>
+        Promise.resolve(new Response(JSON.stringify(cuerpo), { status: estado })),
+      ).usuarioDelToken('token');
+
+    assert.deepEqual(
+      await Promise.all([
+        leer(200, { id: 'u1', user_metadata: { idioma: 'pt-BR' } }),
+        leer(200, { id: 'u1', user_metadata: { idioma: 'en' } }),
+        leer(200, { id: 'u1', user_metadata: { idioma: 'fr' } }),
+        leer(200, { id: 'u1', user_metadata: null }),
+        leer(200, { id: 'u1' }),
+        leer(401, { message: 'token vencido' }),
+      ]),
+      [
+        { id: 'u1', idioma: 'pt-BR' },
+        { id: 'u1', idioma: 'en' },
+        { id: 'u1', idioma: 'es' },
+        { id: 'u1', idioma: 'es' },
+        { id: 'u1', idioma: 'es' },
+        null,
+      ],
+    );
   },
 );

@@ -64,12 +64,12 @@ export function crearManejador(dependencias: Dependencias): (pedido: Request) =>
         if (usuario === null) return json({ error: 'Hace falta una sesión.' }, 401);
         if (vapid === null) return json({ configurado: false }, 503);
         const suscripciones = await base.suscripcionesParaProbar(
-          usuario,
+          usuario.id,
           await endpointDelCuerpo(pedido),
         );
         return json({
           configurado: true,
-          ...(await mandarLaPrueba(suscripciones, base, enviar, vapid)),
+          ...(await mandarLaPrueba(suscripciones, base, enviar, vapid, usuario.idioma)),
         });
       }
 

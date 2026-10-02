@@ -129,7 +129,12 @@ export default defineConfig(({ mode }) => {
             name: 'app',
             environment: 'jsdom',
             setupFiles: ['./vitest.setup.ts'],
-            include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.ts', 'scripts/**/*.test.ts'],
+            include: [
+              'src/**/*.test.{ts,tsx}',
+              'netlify/**/*.test.ts',
+              'scripts/**/*.test.ts',
+              'sw/**/*.test.ts',
+            ],
             exclude: [...configDefaults.exclude, EN_NODE],
           },
         },

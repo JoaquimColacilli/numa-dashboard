@@ -6,6 +6,8 @@ import {
 } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 
+import { cargaDelPush, RUTA_DE_LA_AGENDA } from './carga';
+
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: (PrecacheEntry | string)[];
 };
@@ -16,51 +18,15 @@ function esPedidoDeActualizar(datos: unknown): boolean {
   );
 }
 
-interface CargaDelAviso {
-  titulo: string;
-  cuerpo: string;
-  url: string;
-  etiqueta: string;
-}
-
-const CARGA_SIN_DATOS: CargaDelAviso = {
-  titulo: 'NUMA',
-  cuerpo: 'Hay cosas en la agenda.',
-  url: '/agenda',
-  etiqueta: 'agenda',
-};
-
-function textoDe(datos: object, clave: keyof CargaDelAviso): string {
-  const valor = (datos as Readonly<Record<string, unknown>>)[clave];
-  return typeof valor === 'string' && valor !== '' ? valor : CARGA_SIN_DATOS[clave];
-}
-
-function cargaDelPush(datos: PushMessageData | null): CargaDelAviso {
-  if (datos === null) return CARGA_SIN_DATOS;
-  let valor: unknown;
-  try {
-    valor = datos.json();
-  } catch {
-    return CARGA_SIN_DATOS;
-  }
-  if (typeof valor !== 'object' || valor === null) return CARGA_SIN_DATOS;
-  return {
-    titulo: textoDe(valor, 'titulo'),
-    cuerpo: textoDe(valor, 'cuerpo'),
-    url: textoDe(valor, 'url'),
-    etiqueta: textoDe(valor, 'etiqueta'),
-  };
-}
-
 function urlDeLaApp(datos: unknown): string {
   const ruta =
     typeof datos === 'object' && datos !== null && 'url' in datos && typeof datos.url === 'string'
       ? datos.url
-      : CARGA_SIN_DATOS.url;
+      : RUTA_DE_LA_AGENDA;
   const destino = new URL(ruta, self.location.origin);
   return destino.origin === self.location.origin
     ? destino.href
-    : new URL(CARGA_SIN_DATOS.url, self.location.origin).href;
+    : new URL(RUTA_DE_LA_AGENDA, self.location.origin).href;
 }
 
 const VUELTA_POR_UN_AVISO = 'MAUN_VUELTA_POR_UN_AVISO';
@@ -103,7 +69,7 @@ self.addEventListener('push', (evento) => {
       tag: carga.etiqueta,
       icon: '/numa-192.png',
       badge: '/numa-insignia-96.png',
-      lang: 'es-AR',
+      lang: carga.lang,
       data: { url: carga.url },
     }),
   );
