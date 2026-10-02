@@ -68,6 +68,16 @@ export const configurarTaller = {
     comision:
       "Anything paid through this link is a Mercado Pago charge and they take a fee, even if your client pays with money from their own account: in Buenos Aires, 6.60% plus IVA (Argentine VAT) if you want the money right away, and 1.56% plus IVA if you wait 35 days. Transfers to your alias don't cost you anything.",
     verLosCostos: 'See the fees on Mercado Pago',
+    cuentaEnDolares: 'Your US dollar account',
+    ayudaDeLaCuentaEnDolares:
+      "Optional: you're usually paid in cash. The account holder and CUIT are the ones from your peso account.",
+    aliasEnDolares: 'US dollar account alias',
+    cbuEnDolares: 'US dollar account CBU',
+    dolarDelDia: "Today's dollar rate",
+    ayudaDelDolarDelDia:
+      'Set it using the rule in your quote. Your clients only see how many pesos it comes to today if you set it today.',
+    dolarDeHoy: 'You set it today.',
+    dolarDeOtroDia: (fecha) => `You set it on ${fecha}.`,
     guardar: 'Save details',
     errores: {
       aliasConOtrosCaracteres:

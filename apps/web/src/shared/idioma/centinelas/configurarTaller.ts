@@ -215,4 +215,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.configurarTaller.presupuesto.resumen.cuantosTextos(37, 41, 53),
     tieneQueDecir: ['37', '41', '53'],
   },
+  'configurarTaller.cobro.dolarDeOtroDia': {
+    llamar: (m) => m.configurarTaller.cobro.dolarDeOtroDia('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
 };

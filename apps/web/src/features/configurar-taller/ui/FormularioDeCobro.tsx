@@ -5,8 +5,8 @@ import { formatearCbu, formatearCuit } from '@maun/domain';
 
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
-import { useEstadoSync } from '@/shared/lib';
-import { Button, Campo, CamposJuntos } from '@/shared/ui';
+import { diaYMes, hoyEnElTaller, useEstadoSync } from '@/shared/lib';
+import { Button, Campo, CampoDelDolar, CamposJuntos } from '@/shared/ui';
 
 import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 import { diferencias } from '../model/cambios';
@@ -33,12 +33,16 @@ export function FormularioDeCobro({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
 
   const guardar = useMutation(MUTACION_DE_AJUSTES);
   const estadoSync = useEstadoSync();
+  const hoy = hoyEnElTaller();
 
   const guardando = guardar.isPending;
   const guardado =
     !guardando && !guardar.isError && guardar.isSuccess && estadoSync.tipo === 'sincronizado';
 
-  const cambiar = (campo: keyof DatosDeCobro, valor: string) => {
+  const cambiar = (
+    campo: Exclude<keyof DatosDeCobro, 'dolarDelDia' | 'dolarDelDiaEl'>,
+    valor: string,
+  ) => {
     setDatos((previos) => ({ ...previos, [campo]: valor }));
   };
 
@@ -141,6 +145,54 @@ export function FormularioDeCobro({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
           {m.verLosCostos}
         </a>
       </p>
+
+      <div className="mt-1 flex flex-col gap-3 border-t border-hairline-soft pt-4">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-body-lg font-semibold">{m.cuentaEnDolares}</h3>
+          <p className="text-label leading-normal text-text-2">{m.ayudaDeLaCuentaEnDolares}</p>
+        </div>
+        <CamposJuntos>
+          <Campo
+            etiqueta={m.aliasEnDolares}
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={datos.aliasEnDolares}
+            error={error?.campo === 'aliasEnDolares' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              cambiar('aliasEnDolares', evento.target.value);
+            }}
+          />
+          <Campo
+            etiqueta={m.cbuEnDolares}
+            inputMode="numeric"
+            value={datos.cbuEnDolares}
+            error={error?.campo === 'cbuEnDolares' ? error.mensaje : undefined}
+            onChange={(evento) => {
+              cambiar('cbuEnDolares', formatearCbu(evento.target.value));
+            }}
+          />
+        </CamposJuntos>
+        <CampoDelDolar
+          etiqueta={m.dolarDelDia}
+          value={datos.dolarDelDia}
+          onChange={(valor) => {
+            setDatos((previos) => ({ ...previos, dolarDelDia: valor, dolarDelDiaEl: hoy }));
+          }}
+          error={error?.campo === 'dolarDelDia' ? error.mensaje : undefined}
+          ayuda={[
+            ...(datos.dolarDelDia === null || datos.dolarDelDiaEl === null
+              ? []
+              : [
+                  datos.dolarDelDiaEl === hoy
+                    ? m.dolarDeHoy
+                    : m.dolarDeOtroDia(diaYMes(datos.dolarDelDiaEl, hoy)),
+                ]),
+            m.ayudaDelDolarDelDia,
+          ].join(' ')}
+        />
+      </div>
 
       {guardar.isError && (
         <p role="alert" className="text-label font-medium text-alerta">

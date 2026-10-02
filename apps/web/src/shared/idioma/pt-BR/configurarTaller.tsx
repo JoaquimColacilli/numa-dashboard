@@ -73,6 +73,16 @@ export const configurarTaller = {
     comision:
       'O que entrar por este link é uma cobrança do Mercado Pago e tem desconto de comissão, mesmo que o cliente pague com dinheiro da própria conta: em Buenos Aires, 6,60% mais IVA (o imposto argentino sobre o consumo) se você quiser o dinheiro na hora e 1,56% mais IVA esperando 35 dias. Receber por transferência no alias não custa nada.',
     verLosCostos: 'Ver as tarifas no Mercado Pago',
+    cuentaEnDolares: 'Sua conta em dólares',
+    ayudaDeLaCuentaEnDolares:
+      'Opcional: quase sempre você recebe em espécie. O titular e o CUIT são os da sua conta em pesos.',
+    aliasEnDolares: 'Alias da conta em dólares',
+    cbuEnDolares: 'CBU da conta em dólares',
+    dolarDelDia: 'Dólar do dia',
+    ayudaDelDolarDelDia:
+      'Informe pela regra do seu orçamento. Seus clientes só veem quantos pesos dá hoje se você informou hoje.',
+    dolarDeHoy: 'Você informou hoje.',
+    dolarDeOtroDia: (fecha) => `Você informou em ${fecha}.`,
     guardar: 'Salvar dados',
     errores: {
       aliasConOtrosCaracteres:

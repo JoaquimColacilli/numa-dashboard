@@ -74,6 +74,16 @@ export const configurarTaller = {
     comision:
       'Lo que entre por este enlace es un cobro de Mercado Pago y te descuenta comisión, aunque tu cliente pague con dinero de su propia cuenta: en Buenos Aires, 6,60 % más IVA si querés la plata al instante y 1,56 % más IVA esperando 35 días. Que te transfieran al alias no te cuesta nada.',
     verLosCostos: 'Ver los costos en Mercado Pago',
+    cuentaEnDolares: 'Tu cuenta en dólares',
+    ayudaDeLaCuentaEnDolares:
+      'Opcional: casi siempre te pagan en billetes. El titular y el CUIT son los de tu cuenta en pesos.',
+    aliasEnDolares: 'Alias de la cuenta en dólares',
+    cbuEnDolares: 'CBU de la cuenta en dólares',
+    dolarDelDia: 'Dólar del día',
+    ayudaDelDolarDelDia:
+      'Cargalo con la regla de tu presupuesto. Tus clientes ven cuántos pesos son hoy solo si lo cargaste hoy.',
+    dolarDeHoy: 'Lo cargaste hoy.',
+    dolarDeOtroDia: (fecha: string) => `Lo cargaste el ${fecha}.`,
     guardar: 'Guardar los datos',
     errores: {
       aliasConOtrosCaracteres:

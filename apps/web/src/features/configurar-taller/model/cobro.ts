@@ -15,8 +15,10 @@ import {
 
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
+import { errorDelDolar } from '@/shared/ui';
 
-export type CampoDeCobro = 'alias' | 'cbu' | 'titular' | 'cuit' | 'link';
+export type CampoDeCobro =
+  'alias' | 'cbu' | 'titular' | 'cuit' | 'link' | 'aliasEnDolares' | 'cbuEnDolares' | 'dolarDelDia';
 
 export interface DatosDeCobro {
   alias: string;
@@ -24,6 +26,10 @@ export interface DatosDeCobro {
   titular: string;
   cuit: string;
   link: string;
+  aliasEnDolares: string;
+  cbuEnDolares: string;
+  dolarDelDia: number | null;
+  dolarDelDiaEl: string | null;
 }
 
 export interface ErrorDeCobro {
@@ -33,8 +39,15 @@ export interface ErrorDeCobro {
 
 export const LARGO_DEL_TITULAR = 200;
 
-export type AjustesGuardados = Omit<FilaDe<'ajustes'>, 'cobro_link'> &
-  Partial<Pick<FilaDe<'ajustes'>, 'cobro_link'>>;
+type ColumnaQuePuedeFaltar =
+  | 'cobro_link'
+  | 'cobro_dolares_alias'
+  | 'cobro_dolares_cbu'
+  | 'dolar_del_dia_centavos'
+  | 'dolar_del_dia_el';
+
+export type AjustesGuardados = Omit<FilaDe<'ajustes'>, ColumnaQuePuedeFaltar> &
+  Partial<Pick<FilaDe<'ajustes'>, ColumnaQuePuedeFaltar>>;
 
 export function cobroDeLosAjustes(ajustes: AjustesGuardados): DatosDeCobro {
   return {
@@ -43,6 +56,10 @@ export function cobroDeLosAjustes(ajustes: AjustesGuardados): DatosDeCobro {
     titular: ajustes.cobro_titular,
     cuit: ajustes.cobro_cuit,
     link: ajustes.cobro_link ?? '',
+    aliasEnDolares: ajustes.cobro_dolares_alias ?? '',
+    cbuEnDolares: formatearCbu(ajustes.cobro_dolares_cbu ?? ''),
+    dolarDelDia: ajustes.dolar_del_dia_centavos ?? null,
+    dolarDelDiaEl: ajustes.dolar_del_dia_el ?? null,
   };
 }
 
@@ -53,26 +70,33 @@ export function cambiosDeCobro(datos: DatosDeCobro): CambiosDeAjustes {
     cobro_titular: datos.titular.trim(),
     cobro_cuit: formatearCuit(datos.cuit),
     cobro_link: normalizarLinkDeCobro(datos.link),
+    cobro_dolares_alias: normalizarAlias(datos.aliasEnDolares),
+    cobro_dolares_cbu: digitosDeCbu(datos.cbuEnDolares),
+    dolar_del_dia_centavos: datos.dolarDelDia,
+    dolar_del_dia_el: datos.dolarDelDia === null ? null : datos.dolarDelDiaEl,
   };
 }
 
-function errorDelAlias(alias: string): ErrorDeCobro | null {
+function errorDelAlias(
+  alias: string,
+  campo: 'alias' | 'aliasEnDolares' = 'alias',
+): ErrorDeCobro | null {
   const revision = revisarAlias(alias);
   if (revision.estado !== 'invalido') return null;
   const { errores } = mensajes().configurarTaller.cobro;
   return {
-    campo: 'alias',
+    campo,
     mensaje:
       revision.motivo === 'caracteres' ? errores.aliasConOtrosCaracteres : errores.aliasDeOtroLargo,
   };
 }
 
-function errorDelCbu(cbu: string): ErrorDeCobro | null {
+function errorDelCbu(cbu: string, campo: 'cbu' | 'cbuEnDolares' = 'cbu'): ErrorDeCobro | null {
   const revision = revisarCbu(cbu);
   if (revision.estado !== 'invalido') return null;
   const { errores } = mensajes().configurarTaller.cobro;
   return {
-    campo: 'cbu',
+    campo,
     mensaje:
       revision.motivo === 'largo'
         ? errores.cbuDeOtroLargo
@@ -114,13 +138,21 @@ function errorDelLink(link: string): ErrorDeCobro | null {
   };
 }
 
+function errorDelDolarDelDia(valor: number | null): ErrorDeCobro | null {
+  const mensaje = errorDelDolar(valor, false);
+  return mensaje === undefined ? null : { campo: 'dolarDelDia', mensaje };
+}
+
 export function errorDeCobro(datos: DatosDeCobro): ErrorDeCobro | null {
   return (
     errorDelAlias(datos.alias) ??
     errorDelCbu(datos.cbu) ??
     errorDelTitular(datos.titular) ??
     errorDelCuit(datos.cuit) ??
-    errorDelLink(datos.link)
+    errorDelLink(datos.link) ??
+    errorDelAlias(datos.aliasEnDolares, 'aliasEnDolares') ??
+    errorDelCbu(datos.cbuEnDolares, 'cbuEnDolares') ??
+    errorDelDolarDelDia(datos.dolarDelDia)
   );
 }
 
