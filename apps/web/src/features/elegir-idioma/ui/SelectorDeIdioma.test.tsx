@@ -80,22 +80,27 @@ describe('el idioma de la app', () => {
     expect(pedidos()).toEqual([]);
   });
 
-  it('el seudoidioma aparece solo con la clave del aparato, y vale solo en él', async () => {
-    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'disponible');
+  it('el seudoidioma no se ofrece, ni en desarrollo ni con la clave del aparato', () => {
+    vi.stubEnv('DEV', true);
+    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'activo');
+    montar();
+
+    expect(screen.getAllByRole('radio')).toHaveLength(3);
+    expect(screen.queryByText(/seudo/i)).not.toBeInTheDocument();
+  });
+
+  it('con el seudoidioma prendido en el aparato, elegir otro idioma lo guarda y el seudoidioma sigue', async () => {
+    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'activo');
+    await usarIdioma('es', true);
     const { pedidos } = montar();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Seudoidioma' }));
+    fireEvent.click(screen.getByRole('radio', { name: /English/ }));
 
+    expect(pedidos()).toEqual([{ idioma: 'en' }]);
+    expect(idiomaGuardadoDe(PERSONA.usuarioId)).toBe('en');
+    await vi.waitFor(() => {
+      expect(estadoDeLosMensajes()).toMatchObject({ idioma: 'es', seudo: true });
+    });
     expect(localStorage.getItem(CLAVE_DEL_SEUDOIDIOMA)).toBe('activo');
-    expect(pedidos()).toEqual([]);
-    await vi.waitFor(() => {
-      expect(estadoDeLosMensajes().seudo).toBe(true);
-    });
-
-    fireEvent.click(screen.getByRole('radio', { name: /Español/ }));
-    expect(localStorage.getItem(CLAVE_DEL_SEUDOIDIOMA)).toBe('disponible');
-    await vi.waitFor(() => {
-      expect(estadoDeLosMensajes().seudo).toBe(false);
-    });
   });
 });

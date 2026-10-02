@@ -1,6 +1,6 @@
 import { IDIOMA_BASE, type Idioma } from '@maun/domain';
 
-import { estadoDelSeudoidioma, seudoCatalogo } from '@/shared/lib';
+import { seudoCatalogo, seudoidiomaPrendido } from '@/shared/lib';
 
 import { es, type MensajesDelCliente } from './es';
 
@@ -15,7 +15,7 @@ const oyentes = new Set<() => void>();
 let enSeudo: MensajesDelCliente | undefined;
 
 export function conElSeudoidioma(): boolean {
-  return estadoDelSeudoidioma() === 'activo';
+  return seudoidiomaPrendido();
 }
 
 export function idiomaQueSeEscribe(idioma: Idioma): Idioma {

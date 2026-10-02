@@ -1,7 +1,7 @@
 import { IDIOMA_BASE, idiomaDeLaEtiqueta, idiomaDelNavegador, type Idioma } from '@maun/domain';
 
 import { claimsGuardados } from '@/shared/api';
-import { esUnaPaginaPublica, estadoDelSeudoidioma, idiomaGuardadoDe } from '@/shared/lib';
+import { esUnaPaginaPublica, idiomaGuardadoDe, seudoidiomaPrendido } from '@/shared/lib';
 
 export const ATRIBUTO_DEL_IDIOMA_DEL_TALLER = 'data-idioma-del-taller';
 
@@ -24,5 +24,5 @@ export function idiomaAlArrancar(ruta: string): Idioma {
 }
 
 export function seudoidiomaAlArrancar(ruta: string): boolean {
-  return !esUnaPaginaPublica(ruta) && estadoDelSeudoidioma() === 'activo';
+  return !esUnaPaginaPublica(ruta) && seudoidiomaPrendido();
 }

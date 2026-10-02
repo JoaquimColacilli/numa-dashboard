@@ -135,7 +135,7 @@ describe('el script del head y React eligen el mismo idioma', () => {
 describe('el seudoidioma al arrancar', () => {
   it('se prende con la clave del aparato, y nunca en la página del cliente', () => {
     expect(seudoidiomaAlArrancar('/')).toBe(false);
-    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'disponible');
+    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'si');
     expect(seudoidiomaAlArrancar('/')).toBe(false);
     localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'activo');
     expect(seudoidiomaAlArrancar('/')).toBe(true);

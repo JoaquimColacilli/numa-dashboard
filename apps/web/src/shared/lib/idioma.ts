@@ -5,8 +5,6 @@ export const CLAVE_DEL_IDIOMA = 'maun:idioma';
 
 export const CLAVE_DEL_SEUDOIDIOMA = 'maun:seudoidioma';
 
-export type EstadoDelSeudoidioma = 'activo' | 'disponible';
-
 export interface IdiomaEnUso {
   readonly idioma: Idioma;
   readonly seudo: boolean;
@@ -97,19 +95,10 @@ export function olvidarElIdioma(): void {
   }
 }
 
-export function fijarElSeudoidioma(estado: EstadoDelSeudoidioma): void {
+export function seudoidiomaPrendido(): boolean {
   try {
-    globalThis.localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, estado);
+    return globalThis.localStorage.getItem(CLAVE_DEL_SEUDOIDIOMA) === 'activo';
   } catch {
-    return;
-  }
-}
-
-export function estadoDelSeudoidioma(): EstadoDelSeudoidioma | null {
-  try {
-    const valor = globalThis.localStorage.getItem(CLAVE_DEL_SEUDOIDIOMA);
-    return valor === 'activo' || valor === 'disponible' ? valor : null;
-  } catch {
-    return null;
+    return false;
   }
 }

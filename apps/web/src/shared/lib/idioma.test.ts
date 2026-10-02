@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CLAVE_DEL_IDIOMA,
   CLAVE_DEL_SEUDOIDIOMA,
-  estadoDelSeudoidioma,
   etiquetaActual,
   fijarElIdiomaEnUso,
   guardarElIdioma,
@@ -11,6 +10,7 @@ import {
   idiomaEnUso,
   idiomaGuardadoDe,
   olvidarElIdioma,
+  seudoidiomaPrendido,
   suscribirseAlIdioma,
 } from './idioma';
 
@@ -69,13 +69,11 @@ describe('la copia local del idioma', () => {
 });
 
 describe('la clave del seudoidioma', () => {
-  it('solo vale activo o disponible', () => {
-    expect(estadoDelSeudoidioma()).toBeNull();
+  it('lo prende solo en activo', () => {
+    expect(seudoidiomaPrendido()).toBe(false);
     localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'activo');
-    expect(estadoDelSeudoidioma()).toBe('activo');
-    localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'disponible');
-    expect(estadoDelSeudoidioma()).toBe('disponible');
+    expect(seudoidiomaPrendido()).toBe(true);
     localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, 'si');
-    expect(estadoDelSeudoidioma()).toBeNull();
+    expect(seudoidiomaPrendido()).toBe(false);
   });
 });
