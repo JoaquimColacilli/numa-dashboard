@@ -3,6 +3,7 @@ import { useState, type SyntheticEvent } from 'react';
 
 import { diasQueValeElPresupuesto } from '@/entities/proyecto';
 import { mensajeDeSincronizacion, type CambiosDeAjustes, type FilaDe } from '@/shared/api';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   formatearPorcentaje,
   parsearPorcentaje,
@@ -24,11 +25,20 @@ const TODAS_LAS_PARTES: readonly ParteDeLaConfiguracion[] = ['taller', 'reparto'
 
 type CampoDelFormulario = 'nombre' | 'sueldo' | 'fijos' | 'meta' | 'tasa' | 'sena' | 'vigencia';
 
-const MENSAJE: Readonly<Partial<Record<CampoDelFormulario, string>>> = {
-  tasa: 'Escribí la tasa como un porcentaje, por ejemplo 40. Podés dejarla en 0.',
-  sena: 'Escribí la seña como un porcentaje entre 0 y 100, por ejemplo 50.',
-  vigencia: `Escribí cuántos días vale un presupuesto, entre 1 y ${String(DIAS_MAXIMOS_DE_UN_PRESUPUESTO)}. Lo normal son 15.`,
-};
+type ErroresDeLaConfiguracion = Mensajes['configurarTaller']['configuracion']['errores'];
+
+function mensajeDelCampo(campo: CampoDelFormulario, errores: ErroresDeLaConfiguracion): string {
+  switch (campo) {
+    case 'tasa':
+      return errores.tasa;
+    case 'sena':
+      return errores.sena;
+    case 'vigencia':
+      return errores.vigencia(DIAS_MAXIMOS_DE_UN_PRESUPUESTO);
+    default:
+      return errores.importe;
+  }
+}
 
 type ValorDelFormulario = [CampoDelFormulario, keyof CambiosDeAjustes, number | null | undefined];
 
@@ -48,6 +58,8 @@ export function FormularioDeConfiguracion({
   ajustes,
   partes = TODAS_LAS_PARTES,
 }: FormularioDeConfiguracionProps) {
+  const { configurarTaller } = useMensajes();
+  const m = configurarTaller.configuracion;
   const [nombre, setNombre] = useState(household.nombre);
   const [sueldo, setSueldo] = useState<number | null>(ajustes.sueldo_mensual_centavos);
   const [fijos, setFijos] = useState<number | null>(ajustes.costos_fijos_centavos);
@@ -83,7 +95,7 @@ export function FormularioDeConfiguracion({
     if (conElTaller && (nombreLimpio === '' || nombreLimpio.length > LARGO_DEL_NOMBRE)) {
       setError({
         campo: 'nombre',
-        mensaje: `Poné un nombre para el taller, de hasta ${String(LARGO_DEL_NOMBRE)} caracteres.`,
+        mensaje: m.errores.nombre(LARGO_DEL_NOMBRE),
       });
       return;
     }
@@ -111,8 +123,7 @@ export function FormularioDeConfiguracion({
     if (invalido) {
       setError({
         campo: invalido[0],
-        mensaje:
-          MENSAJE[invalido[0]] ?? 'Escribí un importe, por ejemplo 1.800.000. Podés dejarlo en 0.',
+        mensaje: mensajeDelCampo(invalido[0], m.errores),
       });
       return;
     }
@@ -143,7 +154,7 @@ export function FormularioDeConfiguracion({
       <CamposJuntos columnas={cuantos > 2 ? 3 : 2} deADos campoMinimo="12rem">
         {conElTaller && (
           <Campo
-            etiqueta="Nombre del taller"
+            etiqueta={m.nombreDelTaller}
             value={nombre}
             maxLength={LARGO_DEL_NOMBRE}
             error={error?.campo === 'nombre' ? error.mensaje : undefined}
@@ -154,11 +165,9 @@ export function FormularioDeConfiguracion({
         )}
         {conElReparto && (
           <MoneyInput
-            etiqueta="Sueldo que te asignás"
+            etiqueta={m.sueldo}
             ayuda={
-              ajustes.sueldo_tope_mensual
-                ? 'Lo que tu casa necesita por mes. Los cobros del mes lo van pagando y, una vez cubierto, lo que sobra queda en el taller.'
-                : 'Lo que cada trabajo cobrado transfiere al hogar.'
+              ajustes.sueldo_tope_mensual ? m.ayudaDelSueldoPorMes : m.ayudaDelSueldoPorTrabajo
             }
             value={sueldo}
             error={error?.campo === 'sueldo' ? error.mensaje : undefined}
@@ -167,8 +176,8 @@ export function FormularioDeConfiguracion({
         )}
         {conElReparto && (
           <MoneyInput
-            etiqueta="Costos fijos por mes"
-            ayuda="Alquiler, servicios y todo lo que se paga aunque no entre trabajo."
+            etiqueta={m.costosFijos}
+            ayuda={m.ayudaDeLosCostosFijos}
             value={fijos}
             error={error?.campo === 'fijos' ? error.mensaje : undefined}
             onChange={setFijos}
@@ -176,8 +185,8 @@ export function FormularioDeConfiguracion({
         )}
         {conCocos && (
           <MoneyInput
-            etiqueta="Meta de Cocos"
-            ayuda="A cuánto querés llegar en el ahorro invertido."
+            etiqueta={m.metaDeCocos}
+            ayuda={m.ayudaDeLaMeta}
             value={meta}
             error={error?.campo === 'meta' ? error.mensaje : undefined}
             onChange={setMeta}
@@ -185,9 +194,9 @@ export function FormularioDeConfiguracion({
         )}
         {conElTaller && (
           <Campo
-            etiqueta="Seña que pedís (%)"
+            etiqueta={m.sena}
             inputMode="decimal"
-            ayuda="Qué parte del presupuesto pedís para confirmar un trabajo. Lo normal es la mitad, y en un trabajo puntual la podés cambiar."
+            ayuda={m.ayudaDeLaSena}
             value={sena}
             error={error?.campo === 'sena' ? error.mensaje : undefined}
             onChange={(evento) => {
@@ -197,17 +206,17 @@ export function FormularioDeConfiguracion({
         )}
         {conElTaller && (
           <MoneyInput
-            etiqueta="Valor del relevamiento"
-            ayuda="Tu cliente lo ve en su página mientras falta ir a medir. Si lo dejás vacío, ve qué es el relevamiento pero no el precio."
+            etiqueta={m.relevamiento}
+            ayuda={m.ayudaDelRelevamiento}
             value={relevamiento}
             onChange={setRelevamiento}
           />
         )}
         {conElTaller && (
           <Campo
-            etiqueta="Días que vale un presupuesto"
+            etiqueta={m.vigencia}
             inputMode="numeric"
-            ayuda="Se cuentan desde el día que lo mandás. Tu cliente ve hasta cuándo puede dejar la seña, y en cada trabajo la fecha se puede cambiar."
+            ayuda={m.ayudaDeLaVigencia}
             value={vigencia}
             error={error?.campo === 'vigencia' ? error.mensaje : undefined}
             onChange={(evento) => {
@@ -217,9 +226,9 @@ export function FormularioDeConfiguracion({
         )}
         {conCocos && (
           <Campo
-            etiqueta="Tasa anual de Cocos (%)"
+            etiqueta={m.tasa}
             inputMode="decimal"
-            ayuda="Solo sirve para proyectar. Si no la sabés, dejala en 0."
+            ayuda={m.ayudaDeLaTasa}
             value={tasa}
             error={error?.campo === 'tasa' ? error.mensaje : undefined}
             onChange={(evento) => {
@@ -235,14 +244,12 @@ export function FormularioDeConfiguracion({
         </p>
       )}
       {guardando && estadoSync.tipo === 'sin-conexion' && (
-        <p className="text-label text-atencion">
-          Quedó en la cola: se guarda cuando vuelva la señal.
-        </p>
+        <p className="text-label text-atencion">{configurarTaller.enLaCola}</p>
       )}
-      {guardado && <p className="text-label text-hogar">Guardado.</p>}
+      {guardado && <p className="text-label text-hogar">{configurarTaller.guardado}</p>}
 
       <Button type="submit" cargando={guardando} className="mt-1 self-start">
-        {conElTaller ? 'Guardar la configuración' : 'Guardar el sueldo y los costos'}
+        {conElTaller ? m.guardarTodo : m.guardarElReparto}
       </Button>
     </form>
   );

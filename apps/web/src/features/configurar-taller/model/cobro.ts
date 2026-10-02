@@ -14,6 +14,7 @@ import {
 } from '@maun/domain';
 
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 export type CampoDeCobro = 'alias' | 'cbu' | 'titular' | 'cuit' | 'link';
 
@@ -58,26 +59,26 @@ export function cambiosDeCobro(datos: DatosDeCobro): CambiosDeAjustes {
 function errorDelAlias(alias: string): ErrorDeCobro | null {
   const revision = revisarAlias(alias);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
     campo: 'alias',
     mensaje:
-      revision.motivo === 'caracteres'
-        ? 'Un alias lleva letras, números, punto y guion medio. Nada más: ni espacios, ni guion bajo, ni acentos.'
-        : 'Un alias tiene entre 6 y 20 caracteres. Si no te acordás, miralo en tu banco.',
+      revision.motivo === 'caracteres' ? errores.aliasConOtrosCaracteres : errores.aliasDeOtroLargo,
   };
 }
 
 function errorDelCbu(cbu: string): ErrorDeCobro | null {
   const revision = revisarCbu(cbu);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
     campo: 'cbu',
     mensaje:
       revision.motivo === 'largo'
-        ? 'Un CBU o un CVU tiene 22 dígitos. Copialo de tu banco, no lo escribas de memoria.'
+        ? errores.cbuDeOtroLargo
         : revision.motivo === 'banco'
-          ? 'Este número no cierra: el control del banco da otro dígito. Revisá los primeros ocho.'
-          : 'Este número no cierra: el control de la cuenta da otro dígito. Revisá los últimos catorce.',
+          ? errores.cbuConOtroBanco
+          : errores.cbuConOtraCuenta,
   };
 }
 
@@ -86,7 +87,7 @@ function errorDelCuit(cuit: string): ErrorDeCobro | null {
   if (revision.estado !== 'invalido' || revision.motivo !== 'largo') return null;
   return {
     campo: 'cuit',
-    mensaje: 'Un CUIT tiene 11 dígitos. Dejalo vacío si no lo tenés a mano.',
+    mensaje: mensajes().configurarTaller.errorDelCuit,
   };
 }
 
@@ -94,21 +95,22 @@ function errorDelTitular(titular: string): ErrorDeCobro | null {
   if (titular.trim().length <= LARGO_DEL_TITULAR) return null;
   return {
     campo: 'titular',
-    mensaje: `El nombre del titular entra en ${String(LARGO_DEL_TITULAR)} caracteres.`,
+    mensaje: mensajes().configurarTaller.cobro.errores.titularLargo(LARGO_DEL_TITULAR),
   };
 }
 
 function errorDelLink(link: string): ErrorDeCobro | null {
   const revision = revisarLinkDeCobro(link);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
     campo: 'link',
     mensaje:
       revision.motivo === 'largo'
-        ? `Un link de Mercado Pago no pasa los ${String(LARGO_MAXIMO_DEL_LINK)} caracteres. Copialo de nuevo desde la app.`
+        ? errores.linkLargo(LARGO_MAXIMO_DEL_LINK)
         : revision.motivo === 'sin-https'
-          ? 'Pegá el link entero, arrancando por https://. Usá el botón de copiar de la app de Mercado Pago.'
-          : `Este link no es de Mercado Pago. Tiene que empezar por ${HOSTS_DE_MERCADO_PAGO.join(', ')}.`,
+          ? errores.linkSinHttps
+          : errores.linkDeOtroSitio(HOSTS_DE_MERCADO_PAGO.join(', ')),
   };
 }
 
@@ -125,27 +127,28 @@ export function errorDeCobro(datos: DatosDeCobro): ErrorDeCobro | null {
 export function avisoDelAlias(alias: string): string | undefined {
   const revision = revisarAlias(alias);
   if (revision.estado !== 'valido' || revision.aviso === null) return undefined;
+  const { avisos } = mensajes().configurarTaller.cobro;
   return revision.aviso === 'separador-en-la-punta'
-    ? 'Arranca o termina con un punto o un guion. La norma del banco central no lo prohíbe: si es el tuyo, guardalo igual.'
-    : 'Tiene dos puntos o guiones seguidos. La norma del banco central no lo prohíbe: si es el tuyo, guardalo igual.';
+    ? avisos.aliasConSeparadorEnLaPunta
+    : avisos.aliasConSeparadoresSeguidos;
 }
 
 export function avisoDelCuitDelTaller(cuit: string): string | undefined {
   const revision = revisarCuit(cuit);
-  if (revision.estado === 'ambiguo') {
-    return 'El verificador de este CUIT cae en el caso que no tiene una convención única. Guardalo igual si lo copiaste bien.';
-  }
+  const { avisos } = mensajes().configurarTaller.cobro;
+  if (revision.estado === 'ambiguo') return avisos.cuitAmbiguo;
   if (revision.estado === 'invalido' && revision.motivo === 'prefijo') {
-    return 'Los CUIT arrancan con 20, 23, 24, 27, 30, 33 o 34. Revisalo, pero podés guardarlo igual.';
+    return avisos.cuitConOtroPrefijo;
   }
   if (revision.estado === 'invalido' && revision.motivo === 'verificador') {
-    return 'El dígito verificador no cierra. Revisalo, pero podés guardarlo igual.';
+    return avisos.cuitConOtroVerificador;
   }
   return undefined;
 }
 
 export function etiquetaDeLaClave(cbu: string): string {
+  const textos = mensajes().configurarTaller.cobro;
   return revisarCbu(cbu).estado === 'valido' && claveBancariaDe(cbu) === 'cvu'
-    ? 'CVU de la billetera'
-    : 'CBU o CVU';
+    ? textos.cvuDeLaBilletera
+    : textos.cbuOCvu;
 }

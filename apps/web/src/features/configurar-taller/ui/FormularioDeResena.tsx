@@ -1,28 +1,17 @@
-import {
-  normalizarLinkDeResena,
-  revisarLinkDeResena,
-  type MotivoDelLinkDeResena,
-} from '@maun/domain';
+import { normalizarLinkDeResena, revisarLinkDeResena } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { useEstadoSync } from '@/shared/lib';
 import { Button, Campo } from '@/shared/ui';
 
 import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 
-export const AYUDA_DE_LA_RESENA =
-  'Opcional. En Google, buscá tu negocio, tocá «Pedir reseñas» y copiá el enlace que te da. Lo ve cada cliente después de contestar la encuesta, conteste lo que conteste.';
-
-const MENSAJE: Readonly<Record<MotivoDelLinkDeResena, string>> = {
-  largo: 'Ese enlace es demasiado largo. Copiá el corto que te da Google al tocar «Pedir reseñas».',
-  'sin-https': 'Tiene que empezar con https://. Copialo entero desde Google.',
-  'otro-sitio':
-    'Tiene que ser un enlace de Google para dejar una reseña, como los que empiezan con https://g.page/ o https://search.google.com/.',
-};
-
 export function FormularioDeResena({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
+  const { configurarTaller } = useMensajes();
+  const m = configurarTaller.resena;
   const [link, setLink] = useState(ajustes.resena_link);
   const [error, setError] = useState<string | undefined>(undefined);
   const guardar = useMutation(MUTACION_DE_AJUSTES);
@@ -36,7 +25,7 @@ export function FormularioDeResena({ ajustes }: { ajustes: FilaDe<'ajustes'> }) 
     evento.preventDefault();
     const revision = revisarLinkDeResena(link);
     if (revision.estado === 'invalido') {
-      setError(MENSAJE[revision.motivo]);
+      setError(m.errores[revision.motivo]);
       return;
     }
     setError(undefined);
@@ -52,12 +41,12 @@ export function FormularioDeResena({ ajustes }: { ajustes: FilaDe<'ajustes'> }) 
   return (
     <form noValidate className="flex flex-col gap-3" onSubmit={enviar}>
       <Campo
-        etiqueta="Enlace para dejar una reseña en Google"
+        etiqueta={m.enlace}
         inputMode="url"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        ayuda={AYUDA_DE_LA_RESENA}
+        ayuda={m.ayuda}
         value={link}
         error={error}
         onChange={(evento) => {
@@ -71,13 +60,11 @@ export function FormularioDeResena({ ajustes }: { ajustes: FilaDe<'ajustes'> }) 
         </p>
       )}
       {guardando && estadoSync.tipo === 'sin-conexion' && (
-        <p className="text-label text-atencion">
-          Quedó en la cola: se guarda cuando vuelva la señal.
-        </p>
+        <p className="text-label text-atencion">{configurarTaller.enLaCola}</p>
       )}
-      {guardado && <p className="text-label text-hogar">Guardado.</p>}
+      {guardado && <p className="text-label text-hogar">{configurarTaller.guardado}</p>}
       <Button type="submit" cargando={guardando} className="mt-1 self-start">
-        Guardar el enlace
+        {m.guardar}
       </Button>
     </form>
   );

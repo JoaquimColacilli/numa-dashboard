@@ -1,6 +1,7 @@
 import type { Hueco } from '@maun/domain';
 import { useCallback, useId, useRef, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, Campo, Casilla, FilaDeAcciones, Icono } from '@/shared/ui';
 
 import {
@@ -54,7 +55,9 @@ function FilaDeClausula({
   alCambiar,
   alQuitar,
 }: FilaDeClausulaProps) {
-  const textos = GRUPO[grupo];
+  const m = useMensajes().configurarTaller.presupuesto;
+  const textos = m.grupos[grupo];
+  const configuracion = GRUPO[grupo];
   const id = useId();
   const insertar = useRef<((hueco: Hueco) => void) | null>(null);
   const registrar = useCallback((funcion: ((hueco: Hueco) => void) | null) => {
@@ -62,6 +65,7 @@ function FilaDeClausula({
   }, []);
 
   if (!abierta) {
+    const resumen = resumenDelTexto(fila.texto, valores);
     return (
       <li
         data-clausula={fila.id}
@@ -70,7 +74,7 @@ function FilaDeClausula({
         <Casilla
           forma="suelta"
           tildada={fila.tildadaPorDefecto}
-          etiqueta={`${textos.tildada}: ${resumenDelTexto(fila.texto, valores)}`}
+          etiqueta={resumen === null ? textos.tildadaElTextoNuevo : textos.tildadaCon(resumen)}
           alCambiar={(tildadaPorDefecto) => {
             alCambiar({ tildadaPorDefecto });
           }}
@@ -82,17 +86,22 @@ function FilaDeClausula({
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-field py-2.5 pr-2 pl-1.5 text-left hover:bg-surface"
         >
           <span className="flex min-w-0 flex-col items-start">
-            <span className="sr-only">Cambiar: </span>
+            <span className="sr-only">{m.lista.cambiar} </span>
             {fila.titulo.trim() !== '' && (
-              <span className="text-body leading-normal font-semibold text-ink">{fila.titulo}</span>
+              <span translate="no" className="text-body leading-normal font-semibold text-ink">
+                {fila.titulo}
+              </span>
             )}
-            <span className="line-clamp-3 max-w-[36rem] text-body leading-normal text-pretty text-ink">
+            <span
+              translate="no"
+              className="line-clamp-3 max-w-[36rem] text-body leading-normal text-pretty text-ink"
+            >
               <TextoConDatos texto={fila.texto} valores={valores} />
             </span>
             {problema !== undefined && (
               <span className="mt-1 text-label font-medium text-alerta">{problema}</span>
             )}
-            <MarcaSinGuardar marca={marca} nuevo={textos.nuevo} />
+            <MarcaSinGuardar marca={marca} nueva={textos.nuevaSinGuardar} />
           </span>
           <Icono nombre="pencil-line" tamano={16} className="mt-0.5 text-text-3" />
         </button>
@@ -108,12 +117,12 @@ function FilaDeClausula({
     >
       <div className="rounded-field bg-surface px-3.5 pt-3.5 pb-4 md:px-4">
         <div className="flex max-w-[42rem] flex-col gap-4">
-          {textos.conTitulo && (
+          {configuracion.conTitulo && (
             <Campo
-              etiqueta="Título (opcional)"
+              etiqueta={m.lista.tituloOpcional}
               value={fila.titulo}
               maxLength={120}
-              ayuda="Va en negrita, arriba del texto."
+              ayuda={m.lista.ayudaDelTitulo}
               onChange={(evento) => {
                 alCambiar({ titulo: evento.target.value });
               }}
@@ -122,7 +131,7 @@ function FilaDeClausula({
           <div className="flex flex-col gap-1.5">
             <span className="text-label text-text-2">
               <span id={`${id}-etiqueta`}>{textos.etiquetaDelTexto}</span>
-              <span className="text-text-3"> · así lo lee tu cliente</span>
+              <span className="text-text-3"> · {m.lista.asiLoLeeTuCliente}</span>
             </span>
             <EditorConDatos
               texto={fila.texto}
@@ -131,7 +140,7 @@ function FilaDeClausula({
               descritoPor={problema === undefined ? undefined : `${id}-error`}
               invalido={problema !== undefined}
               enfocarAlAbrir={enfocarAlAbrir}
-              placeholder="Escribilo como querés que lo lea tu cliente…"
+              placeholder={m.lista.ejemploDelTexto}
               registrar={registrar}
               alCambiar={(texto) => {
                 alCambiar({ texto });
@@ -145,7 +154,7 @@ function FilaDeClausula({
           </div>
           <LeyendaDeLosDatos datos={datosDelTexto(fila.texto)} valores={valores} />
           <SumarUnDato
-            datos={textos.datos}
+            datos={configuracion.datos}
             alSumar={(hueco) => {
               insertar.current?.(hueco);
             }}
@@ -164,7 +173,7 @@ function FilaDeClausula({
               {textos.quitar}
             </Button>
             <Button variant="secundario" onClick={alCerrar}>
-              Listo
+              {m.lista.listo}
             </Button>
           </FilaDeAcciones>
         </div>
@@ -198,7 +207,8 @@ export function ListaDeClausulas({
   alCambiarLaLista,
   alAgregar,
 }: ListaDeClausulasProps) {
-  const textos = GRUPO[grupo];
+  const m = useMensajes().configurarTaller.presupuesto;
+  const textos = m.grupos[grupo];
   const lista = useRef<HTMLUListElement>(null);
   const [ordenando, setOrdenando] = useState(false);
   const [movida, setMovida] = useState<string | null>(null);
@@ -213,7 +223,7 @@ export function ListaDeClausulas({
   return (
     <>
       <CabeceraDeLaLista
-        resumen={`${textos.cuantas(enLaLista.length)} · ${textos.cuantasTildadas(tildadas, enLaLista.length)}`}
+        resumen={textos.resumen(enLaLista.length, tildadas)}
         ordenando={ordenando}
         sePuedeOrdenar={enLaLista.length > 1}
         alOrdenar={(sigue) => {
@@ -228,34 +238,46 @@ export function ListaDeClausulas({
         className="-mt-2 flex list-none flex-col @container/lista"
       >
         {ordenando
-          ? enLaLista.map((fila, posicion) => (
-              <FilaParaOrdenar
-                key={fila.id}
-                id={fila.id}
-                texto={
-                  fila.titulo.trim() === '' ? (
-                    <TextoConDatos texto={fila.texto} valores={valores} />
-                  ) : (
-                    fila.titulo
-                  )
-                }
-                que={resumenDelTexto(fila.titulo.trim() === '' ? fila.texto : fila.titulo, valores)}
-                primera={posicion === 0}
-                ultima={posicion === enLaLista.length - 1}
-                movida={movida === fila.id}
-                alMover={(hacia) => {
-                  setMovida(fila.id);
-                  alCambiarLaLista(moverEnLaLista(filas, fila.id, hacia));
-                  requestAnimationFrame(() => {
-                    lista.current
-                      ?.querySelector<HTMLButtonElement>(
-                        `[data-clausula="${fila.id}"] [data-mover="${hacia === -1 ? 'arriba' : 'abajo'}"]:not(:disabled), [data-clausula="${fila.id}"] [data-mover]:not(:disabled)`,
-                      )
-                      ?.focus();
-                  });
-                }}
-              />
-            ))
+          ? enLaLista.map((fila, posicion) => {
+              const que = resumenDelTexto(
+                fila.titulo.trim() === '' ? fila.texto : fila.titulo,
+                valores,
+              );
+              return (
+                <FilaParaOrdenar
+                  key={fila.id}
+                  id={fila.id}
+                  texto={
+                    <span translate="no">
+                      {fila.titulo.trim() === '' ? (
+                        <TextoConDatos texto={fila.texto} valores={valores} />
+                      ) : (
+                        fila.titulo
+                      )}
+                    </span>
+                  }
+                  etiquetas={
+                    que === null
+                      ? { subir: m.lista.subirElTextoNuevo, bajar: m.lista.bajarElTextoNuevo }
+                      : { subir: m.lista.subir(que), bajar: m.lista.bajar(que) }
+                  }
+                  primera={posicion === 0}
+                  ultima={posicion === enLaLista.length - 1}
+                  movida={movida === fila.id}
+                  alMover={(hacia) => {
+                    setMovida(fila.id);
+                    alCambiarLaLista(moverEnLaLista(filas, fila.id, hacia));
+                    requestAnimationFrame(() => {
+                      lista.current
+                        ?.querySelector<HTMLButtonElement>(
+                          `[data-clausula="${fila.id}"] [data-mover="${hacia === -1 ? 'arriba' : 'abajo'}"]:not(:disabled), [data-clausula="${fila.id}"] [data-mover]:not(:disabled)`,
+                        )
+                        ?.focus();
+                    });
+                  }}
+                />
+              );
+            })
           : filas.map((fila) =>
               fila.quitada ? (
                 <FilaQuitada
@@ -309,10 +331,7 @@ export function ListaDeClausulas({
         </button>
       )}
       {!ordenando && lleno && (
-        <p className="-mt-1.5 text-meta text-text-3">
-          Entran {String(cuantasPuedenSer(grupo))} como mucho: para sumar{' '}
-          {textos.nuevo === 'Nuevo' ? 'otro, quitá uno' : 'otra, quitá una'}.
-        </p>
+        <p className="-mt-1.5 text-meta text-text-3">{textos.lleno(cuantasPuedenSer(grupo))}</p>
       )}
     </>
   );

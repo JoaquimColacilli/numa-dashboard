@@ -1,6 +1,7 @@
 import type { Hueco } from '@maun/domain';
 import { useCallback, useId, useRef } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, Icono } from '@/shared/ui';
 
 import { datosDelTexto, type Valores } from '../../model/presupuestoDelTaller';
@@ -31,6 +32,7 @@ export function GarantiaDelPresupuesto({
   alCerrar,
   alCambiar,
 }: GarantiaDelPresupuestoProps) {
+  const textos = useMensajes().configurarTaller.presupuesto;
   const id = useId();
   const insertar = useRef<((hueco: Hueco) => void) | null>(null);
   const registrar = useCallback((funcion: ((hueco: Hueco) => void) | null) => {
@@ -47,13 +49,18 @@ export function GarantiaDelPresupuesto({
       >
         <span className="flex min-w-0 flex-col items-start">
           <span className="max-w-[36rem] text-body leading-relaxed text-pretty text-ink">
-            <span className="sr-only">Cambiar el texto de la garantía: </span>
-            <TextoConDatos texto={texto} valores={valores} />
+            <span className="sr-only">{textos.garantia.cambiarElTexto} </span>
+            <span translate="no">
+              <TextoConDatos texto={texto} valores={valores} />
+            </span>
           </span>
           {problema !== undefined && (
             <span className="mt-1 text-label font-medium text-alerta">{problema}</span>
           )}
-          <MarcaSinGuardar marca={texto === guardado ? null : 'cambiada'} nuevo="Nueva" />
+          <MarcaSinGuardar
+            marca={texto === guardado ? null : 'cambiada'}
+            nueva={textos.formas.nuevaSinGuardar}
+          />
         </span>
         <Icono nombre="pencil-line" tamano={16} className="mt-1 text-text-3" />
       </button>
@@ -67,8 +74,8 @@ export function GarantiaDelPresupuesto({
     >
       <div className="flex flex-col gap-1.5">
         <span className="text-label text-text-2">
-          <span id={`${id}-etiqueta`}>Texto de la garantía</span>
-          <span className="text-text-3"> · así lo lee tu cliente</span>
+          <span id={`${id}-etiqueta`}>{textos.garantia.texto}</span>
+          <span className="text-text-3"> · {textos.lista.asiLoLeeTuCliente}</span>
         </span>
         <EditorConDatos
           texto={texto}
@@ -93,7 +100,7 @@ export function GarantiaDelPresupuesto({
         }}
       />
       <Button variant="secundario" onClick={alCerrar} className="self-start px-6">
-        Listo
+        {textos.lista.listo}
       </Button>
     </div>
   );

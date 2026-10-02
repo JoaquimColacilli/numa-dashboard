@@ -1,28 +1,34 @@
 import type { Hueco } from '@maun/domain';
 import type { ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, Icono } from '@/shared/ui';
 
-import { DATO, type Marca, type Valores } from '../../model/presupuestoDelTaller';
+import type { Marca, Valores } from '../../model/presupuestoDelTaller';
 import { DATO_EN_EL_TEXTO } from './TextoConDatos';
 
 const BOTON_DE_MOVER =
   'flex size-11 flex-none items-center justify-center rounded-pill text-text-2 hover:bg-surface hover:text-ink disabled:text-text-3 disabled:opacity-40 disabled:hover:bg-transparent';
 
+export interface EtiquetasDeMover {
+  subir: string;
+  bajar: string;
+}
+
 interface BotonesDeMoverProps {
-  que: string;
+  etiquetas: EtiquetasDeMover;
   primera: boolean;
   ultima: boolean;
   alMover: (hacia: -1 | 1) => void;
 }
 
-function BotonesDeMover({ que, primera, ultima, alMover }: BotonesDeMoverProps) {
+function BotonesDeMover({ etiquetas, primera, ultima, alMover }: BotonesDeMoverProps) {
   return (
     <span className="flex flex-none">
       <button
         type="button"
         data-mover="arriba"
-        aria-label={`Subir ${que}`}
+        aria-label={etiquetas.subir}
         disabled={primera}
         onClick={() => {
           alMover(-1);
@@ -34,7 +40,7 @@ function BotonesDeMover({ que, primera, ultima, alMover }: BotonesDeMoverProps) 
       <button
         type="button"
         data-mover="abajo"
-        aria-label={`Bajar ${que}`}
+        aria-label={etiquetas.bajar}
         disabled={ultima}
         onClick={() => {
           alMover(1);
@@ -50,7 +56,7 @@ function BotonesDeMover({ que, primera, ultima, alMover }: BotonesDeMoverProps) 
 export function FilaParaOrdenar({
   id,
   texto,
-  que,
+  etiquetas,
   primera,
   ultima,
   movida,
@@ -58,7 +64,7 @@ export function FilaParaOrdenar({
 }: {
   id: string;
   texto: ReactNode;
-  que: string;
+  etiquetas: EtiquetasDeMover;
   primera: boolean;
   ultima: boolean;
   movida: boolean;
@@ -78,7 +84,7 @@ export function FilaParaOrdenar({
             {texto}
           </span>
         </span>
-        <BotonesDeMover que={que} primera={primera} ultima={ultima} alMover={alMover} />
+        <BotonesDeMover etiquetas={etiquetas} primera={primera} ultima={ultima} alMover={alMover} />
       </span>
     </li>
   );
@@ -88,7 +94,7 @@ export function CabeceraDeLaLista({
   resumen,
   ordenando,
   sePuedeOrdenar,
-  ayudaAlOrdenar = 'Subí o bajá cada uno: así salen en el presupuesto.',
+  ayudaAlOrdenar,
   alOrdenar,
 }: {
   resumen: string;
@@ -97,10 +103,11 @@ export function CabeceraDeLaLista({
   ayudaAlOrdenar?: string;
   alOrdenar: (ordenando: boolean) => void;
 }) {
+  const m = useMensajes().configurarTaller.presupuesto.lista;
   return (
     <div className="flex min-h-tap items-center justify-between gap-3 border-b border-hairline-soft pb-1">
       <p aria-live="polite" className="min-w-0 text-label leading-snug text-text-2">
-        {ordenando ? ayudaAlOrdenar : resumen}
+        {ordenando ? (ayudaAlOrdenar ?? m.ayudaAlOrdenar) : resumen}
       </p>
       {sePuedeOrdenar &&
         (ordenando ? (
@@ -112,7 +119,7 @@ export function CabeceraDeLaLista({
               alOrdenar(false);
             }}
           >
-            Listo
+            {m.listo}
           </Button>
         ) : (
           <button
@@ -123,24 +130,26 @@ export function CabeceraDeLaLista({
             className="-mr-1.5 inline-flex min-h-tap flex-none items-center gap-1.5 rounded-pill px-1.5 text-label font-semibold text-ink underline underline-offset-3 hover:bg-surface"
           >
             <Icono nombre="arrow-up-down" tamano={15} />
-            Ordenar
+            {m.ordenar}
           </button>
         ))}
     </div>
   );
 }
 
-export function MarcaSinGuardar({ marca, nuevo }: { marca: Marca; nuevo: string }) {
+export function MarcaSinGuardar({ marca, nueva }: { marca: Marca; nueva: string }) {
+  const m = useMensajes().configurarTaller.presupuesto.lista;
   if (marca === null) return null;
   return (
     <span className="mt-1 flex items-center gap-1.5 text-meta text-text-2">
       <Icono nombre="clock" tamano={13} />
-      {marca === 'nueva' ? `${nuevo}, sin guardar` : 'Cambiado, sin guardar'}
+      {marca === 'nueva' ? nueva : m.cambiadoSinGuardar}
     </span>
   );
 }
 
 export function FilaQuitada({ texto, alDeshacer }: { texto: ReactNode; alDeshacer: () => void }) {
+  const m = useMensajes().configurarTaller.presupuesto.lista;
   return (
     <li
       data-quitada=""
@@ -150,15 +159,26 @@ export function FilaQuitada({ texto, alDeshacer }: { texto: ReactNode; alDeshace
         <Icono nombre="trash-2" tamano={17} />
       </span>
       <span className="flex min-w-0 flex-col gap-0.5 px-1.5 py-2">
-        <span className="line-clamp-2 text-body leading-normal text-text-3 line-through">
+        <span
+          translate="no"
+          className="line-clamp-2 text-body leading-normal text-text-3 line-through"
+        >
           {texto}
         </span>
-        <span className="text-meta text-text-2">Se va cuando guardes.</span>
+        <span className="text-meta text-text-2">{m.seVaCuandoGuardes}</span>
       </span>
       <Button variant="terciario" size="chico" onClick={alDeshacer} className="min-h-tap">
-        Deshacer
+        {m.deshacer}
       </Button>
     </li>
+  );
+}
+
+function DatoQueSeCompleta({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className={DATO_EN_EL_TEXTO}>
+      {children}
+    </span>
   );
 }
 
@@ -169,14 +189,15 @@ export function LeyendaDeLosDatos({
   datos: readonly Hueco[];
   valores: Valores;
 }) {
+  const m = useMensajes().configurarTaller.presupuesto;
   if (datos.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-label font-semibold text-text-2">Lo marcado se completa solo</p>
+      <p className="text-label font-semibold text-text-2">{m.lista.loMarcadoSeCompletaSolo}</p>
       <ul className="flex flex-col gap-1.5">
         {datos.map((hueco) => (
           <li key={hueco} className="text-label leading-relaxed text-text-2">
-            <span className={DATO_EN_EL_TEXTO}>{valores[hueco]}</span> {DATO[hueco].explicacion}
+            {m.huecos[hueco].explicacion(DatoQueSeCompleta, valores[hueco])}
           </li>
         ))}
       </ul>
@@ -191,10 +212,11 @@ export function SumarUnDato({
   datos: readonly Hueco[];
   alSumar: (hueco: Hueco) => void;
 }) {
+  const m = useMensajes().configurarTaller.presupuesto;
   if (datos.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-label text-text-2">Sumar un dato que se completa solo</p>
+      <p className="text-label text-text-2">{m.lista.sumarUnDato}</p>
       <div className="flex flex-wrap gap-2">
         {datos.map((hueco) => (
           <button
@@ -209,7 +231,7 @@ export function SumarUnDato({
             className="inline-flex min-h-tap items-center gap-1.5 rounded-pill border border-dashed border-border bg-paper px-3.5 text-label font-medium text-ink hover:bg-surface"
           >
             <Icono nombre="plus" tamano={15} />
-            {DATO[hueco].nombre}
+            {m.huecos[hueco].nombre}
           </button>
         ))}
       </div>

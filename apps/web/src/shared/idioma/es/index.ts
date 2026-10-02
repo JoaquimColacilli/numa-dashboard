@@ -4,6 +4,7 @@ import { api } from './api';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
+import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
 import { editarProyecto } from './editarProyecto';
 import { editarTesoro } from './editarTesoro';
@@ -28,6 +29,7 @@ export const es = {
   armarElPresupuesto,
   avanzarLaConsulta,
   comun,
+  configurarTaller,
   coordinarLaEntrega,
   editarProyecto,
   editarTesoro,

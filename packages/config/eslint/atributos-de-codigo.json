@@ -116,7 +116,9 @@
     "attributionPosition": "posición de React Flow",
     "position": "posición de React Flow",
     "language": "etiqueta del idioma del PDF",
-    "list": "id del datalist que sugiere valores"
+    "list": "id del datalist que sugiere valores",
+    "etiquetadoPor": "id de la etiqueta del editor con datos (aria-labelledby)",
+    "descritoPor": "id del error del editor con datos (aria-describedby)"
   },
   "porElemento": {
     "Icono": {
@@ -132,6 +134,9 @@
     },
     "HojaDeLaFecha": {
       "que": "qué fecha se elige: estimada, comprometida o propuesta"
+    },
+    "MarcaSinGuardar": {
+      "marca": "nueva o cambiada: el estado de la fila sin guardar"
     }
   }
 }

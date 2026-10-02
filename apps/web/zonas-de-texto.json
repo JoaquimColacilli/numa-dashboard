@@ -19,7 +19,7 @@
     "src/features/armar-la-vidriera/",
     "src/features/cerrar-sesion/",
     "src/features/compartir-con-el-cliente/",
-    "src/features/configurar-taller/",
+    "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
     "src/features/crear-cuenta/",
     "src/features/cubrir-el-faltante/",
     "src/features/desbloquear-la-app/",

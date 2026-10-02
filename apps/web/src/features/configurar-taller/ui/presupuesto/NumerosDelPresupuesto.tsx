@@ -1,3 +1,4 @@
+import { useMensajes } from '@/shared/idioma';
 import { Campo, CamposJuntos, MoneyInput } from '@/shared/ui';
 
 import type { NumerosEditables } from '../../model/presupuestoDelTaller';
@@ -17,30 +18,27 @@ export function NumerosDelPresupuesto({
   problemas,
   alCambiar,
 }: NumerosDelPresupuestoProps) {
+  const m = useMensajes().configurarTaller.presupuesto.numeros;
   return (
     <>
       <CamposJuntos campoMinimo="14rem">
         <Campo
-          etiqueta="Plazo de fabricación (días hábiles)"
+          etiqueta={m.plazo}
           inputMode="numeric"
           className="tabular-nums"
           value={numeros.plazo}
-          ayuda={
-            problemas.plazo === undefined
-              ? 'El que arranca en cada presupuesto nuevo. En cada uno lo podés cambiar.'
-              : undefined
-          }
+          ayuda={problemas.plazo === undefined ? m.ayudaDelPlazo : undefined}
           error={problemas.plazo}
           onChange={(evento) => {
             alCambiar({ plazo: soloDigitos(evento.target.value) });
           }}
         />
         <Campo
-          etiqueta="Garantía (meses)"
+          etiqueta={m.garantia}
           inputMode="numeric"
           className="tabular-nums"
           value={numeros.garantia}
-          ayuda={problemas.garantia === undefined ? 'La ley pide por lo menos 6 meses.' : undefined}
+          ayuda={problemas.garantia === undefined ? m.ayudaDeLaGarantia : undefined}
           error={problemas.garantia}
           onChange={(evento) => {
             alCambiar({ garantia: soloDigitos(evento.target.value) });
@@ -49,26 +47,20 @@ export function NumerosDelPresupuesto({
       </CamposJuntos>
       <CamposJuntos campoMinimo="14rem">
         <Campo
-          etiqueta="Modificaciones incluidas"
+          etiqueta={m.modificaciones}
           inputMode="numeric"
           className="tabular-nums"
           value={numeros.modificaciones}
-          ayuda={
-            problemas.modificaciones === undefined
-              ? 'Las del diseño 3D que entran en el precio.'
-              : undefined
-          }
+          ayuda={problemas.modificaciones === undefined ? m.ayudaDeLasModificaciones : undefined}
           error={problemas.modificaciones}
           onChange={(evento) => {
             alCambiar({ modificaciones: soloDigitos(evento.target.value) });
           }}
         />
         <MoneyInput
-          etiqueta="Valor de una modificación de más"
+          etiqueta={m.valor}
           value={numeros.valor}
-          ayuda={
-            problemas.valor === undefined ? 'Lo que cobrás cada una que pase de esas.' : undefined
-          }
+          ayuda={problemas.valor === undefined ? m.ayudaDelValor : undefined}
           error={problemas.valor}
           onChange={(valor) => {
             alCambiar({ valor });

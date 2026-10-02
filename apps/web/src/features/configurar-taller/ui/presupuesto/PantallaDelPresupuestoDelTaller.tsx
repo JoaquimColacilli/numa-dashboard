@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import type { FilaDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   Ir,
   metaDeAvisos,
@@ -33,7 +34,6 @@ import {
   cuantosCambios,
   datosDelTaller,
   diferenciasDeLosDatos,
-  GRUPO,
   loQueSeDeshace,
   mismaPlantilla,
   plantillaDelBorrador,
@@ -76,24 +76,18 @@ function SalirSinGuardar({
   alSeguir: () => void;
   alDescartar: () => void;
 }) {
+  const m = useMensajes().configurarTaller.presupuesto.salir;
   const enCelular = useAnchoDePantalla() === 'movil';
   return (
-    <Hoja
-      titulo="¿Cerrar sin guardar?"
-      rol="alertdialog"
-      desdeAbajo={enCelular}
-      alCerrar={alSeguir}
-    >
+    <Hoja titulo={m.titulo} rol="alertdialog" desdeAbajo={enCelular} alCerrar={alSeguir}>
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
-        <p className="text-body leading-relaxed text-text-2">
-          Lo que cambiaste todavía no se guardó, y si salís se pierde.
-        </p>
+        <p className="text-body leading-relaxed text-text-2">{m.texto}</p>
         <FilaDeAcciones>
           <Button variant="secundario" onClick={alSeguir}>
-            Seguir editando
+            {m.seguirEditando}
           </Button>
           <Button variant="peligro" onClick={alDescartar}>
-            Descartar
+            {m.descartar}
           </Button>
         </FilaDeAcciones>
       </div>
@@ -110,7 +104,8 @@ export function PantallaDelPresupuestoDelTaller({
   nombreDelTaller,
   ajustes,
 }: PantallaDelPresupuestoDelTallerProps) {
-  const vuelta = useVolver(RUTA_DE_AJUSTES, 'Ajustes');
+  const m = useMensajes().configurarTaller.presupuesto;
+  const vuelta = useVolver(RUTA_DE_AJUSTES, m.ajustes);
   const [guardado, setGuardado] = useState<LoGuardado>(() => ({
     borrador: borradorDeLosAjustes(ajustes, nombreDelTaller),
     version: ajustes.plantilla_del_presupuesto_version,
@@ -307,11 +302,11 @@ export function PantallaDelPresupuestoDelTaller({
   const lista = (grupo: GrupoDeClausulas, lugar: LugarEnElPresupuesto) => (
     <SeccionEnFila
       id={`titulo-${grupo}`}
-      titulo={GRUPO[grupo].titulo}
+      titulo={m.grupos[grupo].titulo}
       bajada={
         <Bajada lugar={lugar}>
-          <p>{GRUPO[grupo].dondeVa}</p>
-          <p>{GRUPO[grupo].tildadas}</p>
+          <p>{m.grupos[grupo].dondeVa}</p>
+          <p>{m.grupos[grupo].tildadas}</p>
         </Bajada>
       }
     >
@@ -351,23 +346,17 @@ export function PantallaDelPresupuestoDelTaller({
           <Icono nombre="chevron-left" tamano={20} />
           {vuelta.etiqueta}
         </Ir>
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Tu presupuesto</h1>
-        <p className="max-w-[560px] text-body leading-relaxed text-pretty text-text-2">
-          Lo que se repite en todos tus presupuestos. Cada presupuesto nuevo arranca con esto y en
-          cada uno lo podés retocar; los que ya mandaste no cambian. Tocá un texto para cambiarlo.
-        </p>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{m.titulo}</h1>
+        <p className="max-w-[560px] text-body leading-relaxed text-pretty text-text-2">{m.queEs}</p>
       </header>
 
       <SeccionesEnFilas>
         <SeccionEnFila
           id="titulo-datos-del-presupuesto"
-          titulo="Tus datos en el presupuesto"
+          titulo={m.secciones.datos.titulo}
           bajada={
             <Bajada lugar="datos">
-              <p>
-                Van arriba de todo y al pie de cada hoja, como pide la ley: quién presupuesta, su
-                CUIT y su domicilio.
-              </p>
+              <p>{m.secciones.datos.bajada}</p>
             </Bajada>
           }
         >
@@ -387,12 +376,9 @@ export function PantallaDelPresupuestoDelTaller({
 
         <SeccionEnFila
           id="titulo-numeros-del-presupuesto"
-          titulo="Números"
+          titulo={m.secciones.numeros.titulo}
           bajada={
-            <p className="text-label leading-relaxed text-text-2">
-              Completan tus textos: lo que ves marcado en gris en los avisos y en la garantía sale
-              de acá.
-            </p>
+            <p className="text-label leading-relaxed text-text-2">{m.secciones.numeros.bajada}</p>
           }
         >
           <NumerosDelPresupuesto
@@ -412,11 +398,11 @@ export function PantallaDelPresupuestoDelTaller({
 
         <SeccionEnFila
           id="titulo-formas-de-pago"
-          titulo="Formas de pago"
+          titulo={m.secciones.formas.titulo}
           bajada={
             <Bajada lugar="formasDePago">
-              <p>Va después de los valores, con el plazo y la validez.</p>
-              <p>En cada presupuesto elegís una y la podés retocar. La primera va elegida.</p>
+              <p>{m.secciones.formas.dondeVa}</p>
+              <p>{m.secciones.formas.comoSeUsa}</p>
             </Bajada>
           }
         >
@@ -440,13 +426,10 @@ export function PantallaDelPresupuestoDelTaller({
 
         <SeccionEnFila
           id="titulo-garantia"
-          titulo="Garantía"
+          titulo={m.secciones.garantia.titulo}
           bajada={
             <Bajada lugar="garantia">
-              <p>
-                Cierra el presupuesto y no se puede quitar: la ley pide garantía en todo mueble
-                nuevo.
-              </p>
+              <p>{m.secciones.garantia.bajada}</p>
             </Bajada>
           }
         >
@@ -468,7 +451,7 @@ export function PantallaDelPresupuestoDelTaller({
           />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-textos-de-siempre" titulo="Los textos de siempre">
+        <SeccionEnFila id="titulo-textos-de-siempre" titulo={m.secciones.textosDeSiempre}>
           <LosTextosDeSiempre
             loQueSeDeshace={aDeshacer}
             conCambiosSinGuardar={!mismaPlantilla(borrador, guardado.borrador)}

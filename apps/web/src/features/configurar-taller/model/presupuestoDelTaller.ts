@@ -3,8 +3,10 @@ import {
   CONDICIONES_FISCALES,
   formatearCuit,
   HUECOS,
+  huecosDelPresupuesto,
   largoDelTexto,
   LARGOS_DEL_PRESUPUESTO,
+  MONEDA_DEL_TALLER,
   NOMBRE_DE_LA_CONDICION,
   PLANTILLA_DE_SIEMPRE,
   plantillaDelTaller,
@@ -17,12 +19,15 @@ import {
   type Clausula,
   type CondicionFiscal,
   type DatosDelTaller,
+  type Formatos,
   type Hueco,
   type PlantillaDelPresupuesto,
 } from '@maun/domain';
 
+import { senaDelTaller } from '@/entities/proyecto';
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { etiquetaActual, formatearPesos, formatearPlata, formatearPorcentaje } from '@/shared/lib';
 
 import { diferencias, type DiferenciasDeAjustes } from './cambios';
 import { VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE, valorDelRelevamiento } from './relevamiento';
@@ -73,17 +78,7 @@ export const GRUPOS_EN_ORDEN: readonly GrupoDeClausulas[] = [
   'condiciones',
 ];
 
-export interface TextosDelGrupo {
-  titulo: string;
-  cuantas: (cantidad: number) => string;
-  cuantasTildadas: (tildadas: number, total: number) => string;
-  dondeVa: string;
-  tildadas: string;
-  tildada: string;
-  agregar: string;
-  quitar: string;
-  etiquetaDelTexto: string;
-  nuevo: string;
+export interface ConfiguracionDelGrupo {
   conTitulo: boolean;
   datos: readonly Hueco[];
 }
@@ -96,111 +91,11 @@ const DATOS_DE_LOS_TEXTOS_LARGOS: readonly Hueco[] = [
   'sena',
 ];
 
-function tildadasEnFemenino(tildadas: number, total: number): string {
-  if (tildadas === 0) return total === 1 ? 'sin tildar' : 'ninguna tildada';
-  if (tildadas === total) return total === 1 ? 'tildada' : 'todas tildadas';
-  return tildadas === 1 ? '1 tildada' : `${String(tildadas)} tildadas`;
-}
-
-function tildadosEnMasculino(tildados: number, total: number): string {
-  if (tildados === 0) return total === 1 ? 'sin tildar' : 'ninguno tildado';
-  if (tildados === total) return total === 1 ? 'tildado' : 'todos tildados';
-  return tildados === 1 ? '1 tildado' : `${String(tildados)} tildados`;
-}
-
-export const GRUPO: Readonly<Record<GrupoDeClausulas, TextosDelGrupo>> = {
-  aTenerEnCuenta: {
-    titulo: 'A tener en cuenta',
-    cuantas: (cantidad) => (cantidad === 1 ? '1 aclaración' : `${String(cantidad)} aclaraciones`),
-    cuantasTildadas: tildadasEnFemenino,
-    dondeVa:
-      'Lo que el trabajo no incluye. Va en una caja, justo después del detalle de los muebles.',
-    tildadas:
-      'Lo que tildás acá sale tildado en cada presupuesto nuevo. Lo demás lo tildás vos cuando hace falta.',
-    tildada: 'Tildada en cada presupuesto nuevo',
-    agregar: 'Agregar una aclaración',
-    quitar: 'Quitar esta aclaración',
-    etiquetaDelTexto: 'Texto de la aclaración',
-    nuevo: 'Nueva',
-    conTitulo: false,
-    datos: [],
-  },
-  incluye: {
-    titulo: 'Qué incluye',
-    cuantas: (cantidad) => (cantidad === 1 ? '1 cosa' : `${String(cantidad)} cosas`),
-    cuantasTildadas: tildadasEnFemenino,
-    dondeVa: 'La lista con tildes que va después de «A\u00a0tener\u00a0en\u00a0cuenta».',
-    tildadas: 'Lo que tildás acá sale tildado en cada presupuesto nuevo.',
-    tildada: 'Tildada en cada presupuesto nuevo',
-    agregar: 'Agregar algo que incluye',
-    quitar: 'Quitarla de la lista',
-    etiquetaDelTexto: 'Lo que incluye',
-    nuevo: 'Nueva',
-    conTitulo: false,
-    datos: [],
-  },
-  avisos: {
-    titulo: 'Avisos',
-    cuantas: (cantidad) => (cantidad === 1 ? '1 aviso' : `${String(cantidad)} avisos`),
-    cuantasTildadas: tildadosEnMasculino,
-    dondeVa: 'Van al final del presupuesto, antes de las condiciones.',
-    tildadas: 'Lo que tildás acá sale tildado en cada presupuesto nuevo.',
-    tildada: 'Tildado en cada presupuesto nuevo',
-    agregar: 'Agregar un aviso',
-    quitar: 'Quitar este aviso',
-    etiquetaDelTexto: 'Texto del aviso',
-    nuevo: 'Nuevo',
-    conTitulo: false,
-    datos: DATOS_DE_LOS_TEXTOS_LARGOS,
-  },
-  condiciones: {
-    titulo: 'Condiciones',
-    cuantas: (cantidad) => (cantidad === 1 ? '1 condición' : `${String(cantidad)} condiciones`),
-    cuantasTildadas: tildadasEnFemenino,
-    dondeVa: 'Lo que tiene que dejar listo tu cliente. Van después de los avisos.',
-    tildadas: 'Lo que tildás acá sale tildado en cada presupuesto nuevo.',
-    tildada: 'Tildada en cada presupuesto nuevo',
-    agregar: 'Agregar una condición',
-    quitar: 'Quitar esta condición',
-    etiquetaDelTexto: 'Texto de la condición',
-    nuevo: 'Nueva',
-    conTitulo: true,
-    datos: DATOS_DE_LOS_TEXTOS_LARGOS,
-  },
-};
-
-export interface DatoQueSeCompleta {
-  nombre: string;
-  explicacion: string;
-}
-
-export const DATO: Readonly<Record<Hueco, DatoQueSeCompleta>> = {
-  plazo: {
-    nombre: 'El plazo',
-    explicacion:
-      'es el plazo de fabricación de cada presupuesto, en días hábiles. Arranca en el de «Números» y en cada presupuesto lo podés cambiar.',
-  },
-  modificaciones: {
-    nombre: 'Las modificaciones',
-    explicacion: 'son las que entran en el precio. Salen de «Números».',
-  },
-  valor_modificacion: {
-    nombre: 'El valor de una modificación',
-    explicacion: 'es lo que sale cada modificación de más. Sale de «Números».',
-  },
-  relevamiento: {
-    nombre: 'Lo pagado del relevamiento',
-    explicacion:
-      'es lo que te pagó tu cliente hasta el día que le mandás el presupuesto; acá va de ejemplo el valor del relevamiento de «Tu taller». Si no te pagó nada, este aviso no sale.',
-  },
-  sena: {
-    nombre: 'La seña',
-    explicacion: 'es la seña de cada trabajo; acá va de ejemplo la de «Tu taller».',
-  },
-  meses: {
-    nombre: 'Los meses de garantía',
-    explicacion: 'son los meses de garantía. Salen de «Números».',
-  },
+export const GRUPO: Readonly<Record<GrupoDeClausulas, ConfiguracionDelGrupo>> = {
+  aTenerEnCuenta: { conTitulo: false, datos: [] },
+  incluye: { conTitulo: false, datos: [] },
+  avisos: { conTitulo: false, datos: DATOS_DE_LOS_TEXTOS_LARGOS },
+  condiciones: { conTitulo: true, datos: DATOS_DE_LOS_TEXTOS_LARGOS },
 };
 
 export type ParteDelTexto = { tipo: 'texto'; texto: string } | { tipo: 'dato'; hueco: Hueco };
@@ -342,9 +237,10 @@ export function garantiaValida(numeros: NumerosEditables): number | null {
   return enteroEntre(numeros.garantia, desde, hasta);
 }
 
-function conSuPlural(cantidad: number, singular: string, plural: string): string {
-  return `${String(cantidad)} ${cantidad === 1 ? singular : plural}`;
-}
+const FORMATOS_DE_LA_MUESTRA: Formatos = {
+  plata: formatearPlata,
+  porcentaje: formatearPorcentaje,
+};
 
 export function valoresDeMuestra(
   numeros: NumerosEditables,
@@ -359,16 +255,22 @@ export function valoresDeMuestra(
     siempre.modificacionesIncluidas;
   const meses = garantiaValida(numeros) ?? garantiaValida(guardados) ?? siempre.garantiaMeses;
   const valor = numeros.valor ?? guardados.valor ?? siempre.valorDeUnaModificacion;
-  return {
-    plazo: String(plazo),
-    modificaciones: conSuPlural(modificaciones, 'modificación', 'modificaciones'),
-    valor_modificacion: formatearPesos(valor),
-    relevamiento: formatearPesos(
-      valorDelRelevamiento(ajustes) ?? VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE,
-    ),
-    sena: `${formatearPorcentaje(ajustes.sena_bp)}%`,
-    meses: conSuPlural(meses, 'mes', 'meses'),
-  };
+  return huecosDelPresupuesto(
+    {
+      plazoDeFabricacion: plazo,
+      plantilla: {
+        modificacionesIncluidas: modificaciones,
+        valorDeUnaModificacion: centavos(valor),
+        monedaDeLaModificacion: MONEDA_DEL_TALLER,
+        garantiaMeses: meses,
+      },
+      modificacion: null,
+      abonado: centavos(valorDelRelevamiento(ajustes) ?? VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE),
+      monedaDeLoAbonado: MONEDA_DEL_TALLER,
+      senaBp: senaDelTaller(ajustes),
+    },
+    FORMATOS_DE_LA_MUESTRA,
+  );
 }
 
 export type Marca = 'nueva' | 'cambiada' | null;
@@ -485,9 +387,8 @@ export function cambiosDeLaPantalla(
   };
 }
 
-function enUnaFrase(partes: readonly string[]): string {
-  if (partes.length <= 1) return partes[0] ?? '';
-  return `${partes.slice(0, -1).join(', ')} y ${partes.at(-1) ?? ''}`;
+function enUnaLista(partes: readonly string[]): string {
+  return new Intl.ListFormat(etiquetaActual(), { type: 'conjunction' }).format(partes);
 }
 
 export function cuantosCambios(cambios: CambiosDeLaPantalla): string {
@@ -499,28 +400,27 @@ export function cuantosCambios(cambios: CambiosDeLaPantalla): string {
     cambios.quitadas +
     Number(cambios.orden) +
     Number(cambios.tildes);
-  return cuenta === 1 ? '1 cambio' : `${String(cuenta)} cambios`;
+  return mensajes().configurarTaller.presupuesto.cambios.cuantos(cuenta);
 }
 
 export function textoDeLosCambios(cambios: CambiosDeLaPantalla): string {
+  const textos = mensajes().configurarTaller.presupuesto.cambios;
   const partes: string[] = [];
-  if (cambios.datos) partes.push('tus datos');
-  if (cambios.numeros) partes.push('los números');
-  const cantidades: [number, string, string][] = [
-    [cambios.nuevas, 'nuevo', 'nuevos'],
-    [cambios.cambiadas, 'cambiado', 'cambiados'],
-    [cambios.quitadas, 'quitado', 'quitados'],
-  ];
+  if (cambios.datos) partes.push(textos.tusDatos);
+  if (cambios.numeros) partes.push(textos.losNumeros);
+  const cantidades = [
+    [cambios.nuevas, 'nuevos'],
+    [cambios.cambiadas, 'cambiados'],
+    [cambios.quitadas, 'quitados'],
+  ] as const;
   cantidades
     .filter(([cantidad]) => cantidad > 0)
-    .forEach(([cantidad, singular, plural], indice) => {
-      const primero = indice === 0;
-      if (cantidad === 1) partes.push(`${primero ? 'un texto' : 'uno'} ${singular}`);
-      else partes.push(`${String(cantidad)} ${primero ? 'textos ' : ''}${plural}`);
+    .forEach(([cantidad, cuales], indice) => {
+      partes.push((indice === 0 ? textos.primero : textos.despues)[cuales](cantidad));
     });
-  if (cambios.orden) partes.push('el orden');
-  if (cambios.tildes) partes.push('lo que sale tildado');
-  return enUnaFrase(partes);
+  if (cambios.orden) partes.push(textos.elOrden);
+  if (cambios.tildes) partes.push(textos.loQueSaleTildado);
+  return enUnaLista(partes);
 }
 
 export type CampoConProblema =
@@ -553,34 +453,36 @@ export const LARGOS_DE_LOS_DATOS = {
 } as const;
 
 function problemasDeLosDatos(datos: DatosEditables): ProblemaDeLaPantalla[] {
+  const { configurarTaller } = mensajes();
+  const textos = configurarTaller.presupuesto.problemas;
   const problemas: ProblemaDeLaPantalla[] = [];
   if (largoDelTexto(datos.titular.trim()) > LARGOS_DE_LOS_DATOS.titular) {
     problemas.push({
       campo: 'titular',
-      mensaje: `El nombre entra en ${String(LARGOS_DE_LOS_DATOS.titular)} caracteres.`,
-      queRevisar: 'el nombre',
+      mensaje: textos.titularLargo(LARGOS_DE_LOS_DATOS.titular),
+      queRevisar: textos.elNombre,
     });
   }
   const cuit = revisarCuit(datos.cuit);
   if (cuit.estado === 'invalido' && cuit.motivo === 'largo') {
     problemas.push({
       campo: 'cuit',
-      mensaje: 'Un CUIT tiene 11 dígitos. Dejalo vacío si no lo tenés a mano.',
-      queRevisar: 'el CUIT',
+      mensaje: configurarTaller.errorDelCuit,
+      queRevisar: textos.elCuit,
     });
   }
   if (largoDelTexto(datos.domicilio.trim()) > LARGOS_DE_LOS_DATOS.domicilio) {
     problemas.push({
       campo: 'domicilio',
-      mensaje: `El domicilio entra en ${String(LARGOS_DE_LOS_DATOS.domicilio)} caracteres.`,
-      queRevisar: 'el domicilio',
+      mensaje: textos.domicilioLargo(LARGOS_DE_LOS_DATOS.domicilio),
+      queRevisar: textos.elDomicilio,
     });
   }
   if (largoDelTexto(datos.telefono.trim()) > LARGOS_DE_LOS_DATOS.telefono) {
     problemas.push({
       campo: 'telefono',
-      mensaje: `El teléfono entra en ${String(LARGOS_DE_LOS_DATOS.telefono)} caracteres.`,
-      queRevisar: 'el teléfono',
+      mensaje: textos.telefonoLargo(LARGOS_DE_LOS_DATOS.telefono),
+      queRevisar: textos.elTelefono,
     });
   }
   const email = datos.email.trim();
@@ -590,20 +492,21 @@ function problemasDeLosDatos(datos: DatosEditables): ProblemaDeLaPantalla[] {
   ) {
     problemas.push({
       campo: 'email',
-      mensaje: 'Revisá el mail: tiene que ser como taller@ejemplo.com.',
-      queRevisar: 'el mail',
+      mensaje: textos.emailMal,
+      queRevisar: textos.elEmail,
     });
   }
   return problemas;
 }
 
 function problemasDeLosNumeros(numeros: NumerosEditables): ProblemaDeLaPantalla[] {
+  const textos = mensajes().configurarTaller.presupuesto.problemas;
   const problemas: ProblemaDeLaPantalla[] = [];
   if (plazoValido(numeros) === null) {
     problemas.push({
       campo: 'plazo',
-      mensaje: 'Escribí el plazo en días hábiles, entre 1 y 365.',
-      queRevisar: 'el plazo de fabricación',
+      mensaje: textos.plazo,
+      queRevisar: textos.elPlazo,
     });
   }
   if (garantiaValida(numeros) === null) {
@@ -612,47 +515,49 @@ function problemasDeLosNumeros(numeros: NumerosEditables): ProblemaDeLaPantalla[
       campo: 'garantia',
       mensaje:
         /^\d+$/.test(numeros.garantia.trim()) && meses < RANGOS_DEL_PRESUPUESTO.garantiaMeses.desde
-          ? 'La ley pide por lo menos 6 meses.'
-          : 'Escribí los meses de garantía, entre 6 y 120.',
-      queRevisar: 'los meses de garantía',
+          ? textos.garantiaCorta
+          : textos.garantia,
+      queRevisar: textos.losMeses,
     });
   }
   if (modificacionesValidas(numeros) === null) {
     problemas.push({
       campo: 'modificaciones',
-      mensaje: 'Escribí cuántas entran en el precio, entre 0 y 10.',
-      queRevisar: 'las modificaciones incluidas',
+      mensaje: textos.modificaciones,
+      queRevisar: textos.lasModificaciones,
     });
   }
   if (numeros.valor === null) {
     problemas.push({
       campo: 'valor',
-      mensaje: 'Escribí cuánto sale una modificación de más. Puede ser 0.',
-      queRevisar: 'el valor de una modificación',
+      mensaje: textos.valor,
+      queRevisar: textos.elValor,
     });
   }
   return problemas;
 }
 
 function problemaDelTextoDeLaFila(id: string, texto: string): ProblemaDeLaPantalla | null {
+  const textos = mensajes().configurarTaller.presupuesto.problemas;
   if (!tieneTexto(texto)) {
     return {
       campo: `texto:${id}`,
-      mensaje: 'Escribí el texto o quitalo de la lista.',
-      queRevisar: 'un texto vacío',
+      mensaje: textos.textoVacio,
+      queRevisar: textos.unTextoVacio,
     };
   }
   if (largoDelTexto(texto.trim()) > LARGOS_DEL_PRESUPUESTO.textoDeClausula) {
     return {
       campo: `texto:${id}`,
-      mensaje: `Un texto entra en ${String(LARGOS_DEL_PRESUPUESTO.textoDeClausula)} caracteres.`,
-      queRevisar: 'un texto muy largo',
+      mensaje: textos.textoLargo(LARGOS_DEL_PRESUPUESTO.textoDeClausula),
+      queRevisar: textos.unTextoLargo,
     };
   }
   return null;
 }
 
 export function problemasDeLaPantalla(borrador: BorradorDeLaPantalla): ProblemaDeLaPantalla[] {
+  const textos = mensajes().configurarTaller.presupuesto.problemas;
   const problemas = [
     ...problemasDeLosDatos(borrador.datos),
     ...problemasDeLosNumeros(borrador.numeros),
@@ -667,44 +572,44 @@ export function problemasDeLaPantalla(borrador: BorradorDeLaPantalla): ProblemaD
   if (formas.length === 0) {
     problemas.push({
       campo: 'formas',
-      mensaje: 'Dejá por lo menos una forma de pago: en cada presupuesto elegís una.',
-      queRevisar: 'las formas de pago',
+      mensaje: textos.sinFormas,
+      queRevisar: textos.lasFormas,
     });
   }
   for (const forma of formas) {
     if (!tieneTexto(forma.nombre)) {
       problemas.push({
         campo: `nombre:${forma.id}`,
-        mensaje: 'Ponele un nombre, así la elegís en cada presupuesto.',
-        queRevisar: 'el nombre de una forma de pago',
+        mensaje: textos.formaSinNombre,
+        queRevisar: textos.elNombreDeLaForma,
       });
     }
     if (!tieneTexto(forma.texto)) {
       problemas.push({
         campo: `texto:${forma.id}`,
-        mensaje: 'Escribí cómo te paga o quitala.',
-        queRevisar: 'una forma de pago vacía',
+        mensaje: textos.formaVacia,
+        queRevisar: textos.unaFormaVacia,
       });
     }
   }
   if (!tieneTexto(borrador.garantia)) {
     problemas.push({
       campo: 'texto-de-la-garantia',
-      mensaje: 'La garantía no puede quedar vacía.',
-      queRevisar: 'el texto de la garantía',
+      mensaje: textos.garantiaVacia,
+      queRevisar: textos.elTextoDeLaGarantia,
     });
   } else if (largoDelTexto(borrador.garantia.trim()) > LARGOS_DEL_PRESUPUESTO.textoDeClausula) {
     problemas.push({
       campo: 'texto-de-la-garantia',
-      mensaje: `La garantía entra en ${String(LARGOS_DEL_PRESUPUESTO.textoDeClausula)} caracteres.`,
-      queRevisar: 'el texto de la garantía',
+      mensaje: textos.garantiaLarga(LARGOS_DEL_PRESUPUESTO.textoDeClausula),
+      queRevisar: textos.elTextoDeLaGarantia,
     });
   }
   if (problemas.length === 0 && problemaDeLaPlantilla(plantillaDelBorrador(borrador)) !== null) {
     problemas.push({
       campo: 'textos',
-      mensaje: 'Hay un texto que no se puede guardar así.',
-      queRevisar: 'los textos',
+      mensaje: textos.textos,
+      queRevisar: textos.losTextos,
     });
   }
   return problemas;
@@ -751,14 +656,15 @@ export function encabezadoDelPresupuesto(datos: DatosEditables): Encabezado {
   ]
     .map((partes) => partes.filter((parte) => parte !== ''))
     .filter((partes) => partes.length > 0);
+  const textos = mensajes().configurarTaller.presupuesto.datos;
   const faltan: string[] = [];
-  if (datos.cuit.trim() === '') faltan.push('tu CUIT');
-  if (datos.domicilio.trim() === '') faltan.push('tu domicilio');
+  if (datos.cuit.trim() === '') faltan.push(textos.tuCuit);
+  if (datos.domicilio.trim() === '') faltan.push(textos.tuDomicilio);
   return { renglones, faltan };
 }
 
 export function queFalta(faltan: readonly string[]): string {
-  return enUnaFrase(faltan);
+  return enUnaLista(faltan);
 }
 
 function textoCompleto(texto: string, valores: Valores): string {
@@ -793,64 +699,57 @@ export function loQueSeDeshace(
   guardada: PlantillaDelPresupuesto,
   valores: Valores,
 ): LoQueSeDeshace[] {
+  const textos = mensajes().configurarTaller.presupuesto;
+  const vuelve = textos.seDeshace;
   const siempre = PLANTILLA_DE_SIEMPRE;
   const cosas: LoQueSeDeshace[] = [];
   const sumar = (icono: IconoDeLoQueSeDeshace, texto: string) => {
     cosas.push({ icono, texto });
   };
-  const nombres: Readonly<Record<GrupoDeClausulas, [string, string]>> = {
-    aTenerEnCuenta: ['la aclaración que agregaste', 'las aclaraciones que agregaste'],
-    incluye: ['lo que sumaste a «Qué incluye»', 'lo que sumaste a «Qué incluye»'],
-    avisos: ['el aviso que agregaste', 'los avisos que agregaste'],
-    condiciones: ['la condición que agregaste', 'las condiciones que agregaste'],
-  };
   for (const grupo of GRUPOS_EN_ORDEN) {
+    const delGrupo = textos.grupos[grupo];
     const ahora = guardada[grupo];
     const deSiempre = siempre[grupo];
     const agregadas = ahora.filter(({ id }) => !deSiempre.some((clausula) => clausula.id === id));
     const [unaSola] = agregadas;
     if (agregadas.length === 1 && unaSola !== undefined) {
-      sumar('minus', `Se va ${nombres[grupo][0]}: «${textoCorto(unaSola.texto, valores)}»`);
+      sumar('minus', delGrupo.seVaUna(textoCorto(unaSola.texto, valores)));
     } else if (agregadas.length > 1) {
-      sumar('minus', `Se van ${nombres[grupo][1]} (${String(agregadas.length)}).`);
+      sumar('minus', delGrupo.seVanVarias(agregadas.length));
     }
     for (const clausula of deSiempre) {
+      const corto = textoCorto(clausula.texto, valores);
       const guardadaAhora = ahora.find(({ id }) => id === clausula.id);
       if (guardadaAhora === undefined) {
-        sumar('plus', `Vuelve «${textoCorto(clausula.texto, valores)}», que habías quitado.`);
+        sumar('plus', vuelve.vuelve(corto));
         continue;
       }
       if (guardadaAhora.texto !== clausula.texto || guardadaAhora.titulo !== clausula.titulo) {
-        sumar(
-          'pencil-line',
-          `«${textoCorto(clausula.texto, valores)}» vuelve a su texto de siempre.`,
-        );
+        sumar('pencil-line', vuelve.vuelveASuTexto(corto));
       }
       if (guardadaAhora.tildadaPorDefecto !== clausula.tildadaPorDefecto) {
         sumar(
           'list-checks',
-          `«${textoCorto(clausula.texto, valores)}» vuelve a salir ${
-            clausula.tildadaPorDefecto ? 'tildado' : 'sin tildar'
-          }.`,
+          clausula.tildadaPorDefecto ? vuelve.vuelveTildado(corto) : vuelve.vuelveSinTildar(corto),
         );
       }
     }
   }
   if (!mismasClaves(guardada.formasDePago, siempre.formasDePago)) {
-    sumar('wallet', 'Vuelven las tres formas de pago de siempre, con sus textos.');
+    sumar('wallet', vuelve.vuelvenLasFormas);
   } else if (
     guardada.formasDePago.some((forma, indice) => {
       const deSiempre = siempre.formasDePago[indice];
       return forma.texto !== deSiempre?.texto || forma.nombre !== deSiempre.nombre;
     })
   ) {
-    sumar('wallet', 'Las formas de pago vuelven a sus textos de siempre.');
+    sumar('wallet', vuelve.lasFormasVuelven);
   }
   if (guardada.garantia !== siempre.garantia) {
-    sumar('shield', 'La garantía vuelve a su texto de siempre.');
+    sumar('shield', vuelve.laGarantiaVuelveASuTexto);
   }
   if (guardada.plazoDeFabricacion !== siempre.plazoDeFabricacion) {
-    sumar('calendar', `El plazo vuelve a ${String(siempre.plazoDeFabricacion)} días hábiles.`);
+    sumar('calendar', vuelve.elPlazoVuelve(siempre.plazoDeFabricacion));
   }
   if (
     guardada.modificacionesIncluidas !== siempre.modificacionesIncluidas ||
@@ -858,13 +757,14 @@ export function loQueSeDeshace(
   ) {
     sumar(
       'pencil-ruler',
-      `Vuelven a entrar ${String(siempre.modificacionesIncluidas)} modificaciones, y cada una de más vale ${formatearPesos(
-        siempre.valorDeUnaModificacion,
-      )}.`,
+      vuelve.vuelvenLasModificaciones(
+        siempre.modificacionesIncluidas,
+        formatearPesos(siempre.valorDeUnaModificacion),
+      ),
     );
   }
   if (guardada.garantiaMeses !== siempre.garantiaMeses) {
-    sumar('shield', `La garantía vuelve a ${String(siempre.garantiaMeses)} meses.`);
+    sumar('shield', vuelve.laGarantiaVuelve(siempre.garantiaMeses));
   }
   return cosas;
 }
@@ -922,11 +822,11 @@ export function diferenciasDeLosDatos(
   return diferencias(ajustes, cambiosDeLosDatos(datos));
 }
 
-export function resumenDelTexto(texto: string, valores: Valores): string {
+export function resumenDelTexto(texto: string, valores: Valores): string | null {
   const completo = textoCompleto(texto, valores);
-  if (completo === '') return 'el texto nuevo';
+  if (completo === '') return null;
   const palabras = completo.split(/\s+/);
-  return `«${palabras.length <= 7 ? completo : `${palabras.slice(0, 6).join(' ')}…`}»`;
+  return palabras.length <= 7 ? completo : `${palabras.slice(0, 6).join(' ')}…`;
 }
 
 export function moverEnLaLista<T extends { id: string; quitada: boolean }>(
