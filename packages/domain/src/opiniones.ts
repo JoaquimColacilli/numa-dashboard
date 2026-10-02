@@ -63,46 +63,60 @@ export interface FormaDePregunta {
   opciones: readonly string[] | null;
 }
 
-function paso(valor: number, etiqueta: string, corta: string, polo: Polo, cara: Cara): Paso {
-  return { valor, etiqueta, corta, polo, cara };
+export interface TextosDelPaso {
+  etiqueta: string;
+  corta: string;
 }
 
-const PASOS_DE_LA_ESCALA: Readonly<Record<Escala, readonly Paso[]>> = {
-  conformidad: [
-    paso(1, 'Nada conforme', 'Nada', 'mal', 'enojada'),
-    paso(2, 'Poco conforme', 'Poco', 'mal', 'triste'),
-    paso(3, 'Ni bien ni mal', 'Así nomás', 'neutro', 'seria'),
-    paso(4, 'Conforme', 'Conforme', 'bien', 'contenta'),
-    paso(5, 'Muy conforme', 'Muy conforme', 'bien', 'riendo'),
-  ],
-  tiempos: [
-    paso(1, 'Llegó muy tarde', 'Muy tarde', 'mal', 'enojada'),
-    paso(2, 'Se atrasó', 'Se atrasó', 'mal', 'triste'),
-    paso(3, 'Más o menos a tiempo', 'Más o menos', 'neutro', 'seria'),
-    paso(4, 'Llegó cuando dijeron', 'A tiempo', 'bien', 'contenta'),
-    paso(5, 'Llegó antes de lo pautado', 'Antes', 'bien', 'riendo'),
-  ],
-  trato: [
-    paso(1, 'Costaba mucho', 'Costaba', 'mal', 'enojada'),
-    paso(2, 'Costaba un poco', 'Un poco', 'mal', 'triste'),
-    paso(3, 'Ni bien ni mal', 'Ni bien ni mal', 'neutro', 'seria'),
-    paso(4, 'Fácil', 'Fácil', 'bien', 'contenta'),
-    paso(5, 'Muy fácil', 'Muy fácil', 'bien', 'riendo'),
-  ],
-};
+export type ValorDeLaEscala = 1 | 2 | 3 | 4 | 5;
 
-const PASOS_DE_SI_TAL_VEZ_NO: readonly Paso[] = [
-  paso(3, 'Sí, sin dudarlo', 'Sí', 'bien', 'pulgar-arriba'),
-  paso(2, 'Tal vez', 'Tal vez', 'neutro', 'seria'),
-  paso(1, 'No', 'No', 'mal', 'pulgar-abajo'),
+export type ValorDeSiTalVezNo = 1 | 2 | 3;
+
+export type TextosDeLaEscala = Readonly<Record<ValorDeLaEscala, TextosDelPaso>>;
+
+export interface TextosDeLasEscalas extends Readonly<Record<Escala, TextosDeLaEscala>> {
+  readonly sitalvezno: Readonly<Record<ValorDeSiTalVezNo, TextosDelPaso>>;
+}
+
+interface CaraDelPaso<Valor extends number> {
+  valor: Valor;
+  polo: Polo;
+  cara: Cara;
+}
+
+const CARAS_DE_LA_ESCALA: readonly CaraDelPaso<ValorDeLaEscala>[] = [
+  { valor: 1, polo: 'mal', cara: 'enojada' },
+  { valor: 2, polo: 'mal', cara: 'triste' },
+  { valor: 3, polo: 'neutro', cara: 'seria' },
+  { valor: 4, polo: 'bien', cara: 'contenta' },
+  { valor: 5, polo: 'bien', cara: 'riendo' },
 ];
 
-export function pasosDe(pregunta: FormaDePregunta): readonly Paso[] {
+const CARAS_DE_SI_TAL_VEZ_NO: readonly CaraDelPaso<ValorDeSiTalVezNo>[] = [
+  { valor: 3, polo: 'bien', cara: 'pulgar-arriba' },
+  { valor: 2, polo: 'neutro', cara: 'seria' },
+  { valor: 1, polo: 'mal', cara: 'pulgar-abajo' },
+];
+
+function conSusPalabras<Valor extends number>(
+  caras: readonly CaraDelPaso<Valor>[],
+  palabras: Readonly<Record<Valor, TextosDelPaso>>,
+): Paso[] {
+  return caras.map(({ valor, polo, cara }) => ({
+    valor,
+    etiqueta: palabras[valor].etiqueta,
+    corta: palabras[valor].corta,
+    polo,
+    cara,
+  }));
+}
+
+export function pasosDe(pregunta: FormaDePregunta, escalas: TextosDeLasEscalas): readonly Paso[] {
   switch (pregunta.tipo) {
     case 'escala5':
-      return PASOS_DE_LA_ESCALA[pregunta.escala ?? ESCALA_POR_DEFECTO];
+      return conSusPalabras(CARAS_DE_LA_ESCALA, escalas[pregunta.escala ?? ESCALA_POR_DEFECTO]);
     case 'sitalvezno':
-      return PASOS_DE_SI_TAL_VEZ_NO;
+      return conSusPalabras(CARAS_DE_SI_TAL_VEZ_NO, escalas.sitalvezno);
     case 'una':
     case 'varias':
       return (pregunta.opciones ?? []).map((etiqueta, valor) => ({
@@ -117,18 +131,16 @@ export function pasosDe(pregunta: FormaDePregunta): readonly Paso[] {
   }
 }
 
-export function pasoDe(pregunta: FormaDePregunta, valor: number): Paso | null {
-  return pasosDe(pregunta).find((candidato) => candidato.valor === valor) ?? null;
-}
-
-export function porcentaje(parte: number, total: number): string {
-  if (total === 0) return '—';
-  return `${String(Math.round((parte * 100) / total))}% (${String(parte)} de ${String(total)})`;
+export function pasoDe(
+  pregunta: FormaDePregunta,
+  valor: number,
+  escalas: TextosDeLasEscalas,
+): Paso | null {
+  return pasosDe(pregunta, escalas).find((candidato) => candidato.valor === valor) ?? null;
 }
 
 export interface Promedio {
   decimas: number;
-  texto: string;
   n: number;
 }
 
@@ -136,14 +148,7 @@ export function promedio(valores: readonly number[]): Promedio | null {
   const n = valores.length;
   if (n === 0) return null;
   const suma = valores.reduce((total, valor) => total + valor, 0);
-  const decimas = Math.floor((20 * suma + n) / (2 * n));
-  const enteros = Math.floor(decimas / 10);
-  const resto = decimas % 10;
-  return {
-    decimas,
-    texto: resto === 0 ? String(enteros) : `${String(enteros)},${String(resto)}`,
-    n,
-  };
+  return { decimas: Math.floor((20 * suma + n) / (2 * n)), n };
 }
 
 export const SEGUNDOS_POR_TIPO: Readonly<Record<TipoDePregunta, number>> = {
@@ -160,14 +165,7 @@ export interface Duracion {
   segundos: number;
   texto: string;
   tono: TonoDelLargo;
-  nota: string;
 }
-
-const NOTAS_DEL_LARGO: Readonly<Record<TonoDelLargo, string>> = {
-  ok: 'Está en el largo que la gente contesta sin pensarlo.',
-  atencion: 'Se está poniendo larga. Arriba de tres minutos empiezan a abandonarla.',
-  alerta: 'Demasiado larga. A este largo la mitad la deja por la mitad.',
-};
 
 function tonoDelLargo(segundos: number): TonoDelLargo {
   if (segundos <= REFERENCIA_SEG) return 'ok';
@@ -179,13 +177,25 @@ export function duracion(tipos: readonly TipoDePregunta[]): Duracion {
     (suma, tipo) => suma + SEGUNDOS_POR_TIPO[tipo],
     SEGUNDOS_DE_ENTRADA,
   );
-  const tono = tonoDelLargo(segundos);
   return {
     segundos,
     texto: `${String(Math.floor(segundos / 60))}:${String(segundos % 60).padStart(2, '0')}`,
-    tono,
-    nota: NOTAS_DEL_LARGO[tono],
+    tono: tonoDelLargo(segundos),
   };
+}
+
+export function menosDeMinutos(segundos: number): number {
+  return Math.floor(segundos / 60) + 1;
+}
+
+export interface LoQueTieneLaEncuesta {
+  preguntas: number;
+  comentarios: number;
+}
+
+export function queTieneLaEncuesta(tipos: readonly TipoDePregunta[]): LoQueTieneLaEncuesta {
+  const comentarios = tipos.filter((tipo) => tipo === 'texto').length;
+  return { preguntas: tipos.length - comentarios, comentarios };
 }
 
 const NUMEROS = [
@@ -211,31 +221,6 @@ export function enPalabras(n: number, genero: Genero): string {
   return NUMEROS[n] ?? String(n);
 }
 
-function cuantas(n: number, singular: string, plural: string, genero: Genero): string {
-  return `${enPalabras(n, genero)} ${n === 1 ? singular : plural}`;
-}
-
-export function queTieneLaEncuesta(tipos: readonly TipoDePregunta[]): string {
-  const comentarios = tipos.filter((tipo) => tipo === 'texto').length;
-  const preguntas = tipos.length - comentarios;
-  const partes = [
-    ...(preguntas > 0 ? [cuantas(preguntas, 'pregunta', 'preguntas', 'femenino')] : []),
-    ...(comentarios > 0 ? [cuantas(comentarios, 'comentario', 'comentarios', 'masculino')] : []),
-  ];
-  if (partes.length === 0) return 'No tiene preguntas';
-  return `${tipos.length === 1 ? 'Es' : 'Son'} ${partes.join(' y ')}`;
-}
-
-export function cuantasPreguntas(tipos: readonly TipoDePregunta[]): string {
-  const preguntas = tipos.filter((tipo) => tipo !== 'texto').length;
-  if (preguntas === 0) return queTieneLaEncuesta(tipos);
-  return `${preguntas === 1 ? 'Es' : 'Son'} ${cuantas(preguntas, 'pregunta', 'preguntas', 'femenino')}`;
-}
-
-export function menosDe(segundos: number): string {
-  return `menos de ${cuantas(Math.floor(segundos / 60) + 1, 'minuto', 'minutos', 'masculino')}`;
-}
-
 export function primeraPalabra(texto: string): string {
   return texto.trim().split(/\s+/, 1).join('');
 }
@@ -244,17 +229,6 @@ export function elMueble(titulo: string): string {
   const primera = primeraPalabra(titulo);
   if (!/^\p{L}{2,}$/u.test(primera) || primera === primera.toUpperCase()) return 'mueble';
   return primera.toLowerCase();
-}
-
-export function nombresQueOpinaron(nombres: readonly string[]): string {
-  const unicos = [...new Set(nombres.map(primeraPalabra).filter((nombre) => nombre !== ''))];
-  if (unicos.length === 0) return '';
-  if (unicos.length === 1) return `${unicos.join('')} opinó`;
-  const [primeros, ultimo] =
-    unicos.length <= 3
-      ? [unicos.slice(0, -1), unicos.slice(-1).join('')]
-      : [unicos.slice(0, 2), `${String(unicos.length - 2)} más`];
-  return `${primeros.join(', ')} y ${ultimo} opinaron`;
 }
 
 export interface PreguntaEditable extends FormaDePregunta {
@@ -535,6 +509,7 @@ function elegidos(valor: ValorGuardado): readonly number[] {
 export function lineasDeLaRespuesta(
   preguntas: readonly PreguntaDeLaEncuesta[],
   renglones: readonly { preguntaId: string; valor: ValorGuardado }[],
+  escalas: TextosDeLasEscalas,
 ): LineaDeLaRespuesta[] {
   return preguntas.flatMap((pregunta) =>
     renglones
@@ -543,7 +518,9 @@ export function lineasDeLaRespuesta(
         const valores = elegidos(renglon.valor);
         return {
           pregunta,
-          pasos: pasosDe(pregunta).filter((candidato) => valores.includes(candidato.valor)),
+          pasos: pasosDe(pregunta, escalas).filter((candidato) =>
+            valores.includes(candidato.valor),
+          ),
           texto: typeof renglon.valor === 'string' ? renglon.valor : null,
         };
       }),
@@ -578,9 +555,13 @@ export interface ResultadoDePregunta {
   anteriores: readonly VersionAnterior[];
 }
 
-function conteosDe(pregunta: FormaDePregunta, valores: readonly ValorGuardado[]): Conteo[] {
+function conteosDe(
+  pregunta: FormaDePregunta,
+  valores: readonly ValorGuardado[],
+  escalas: TextosDeLasEscalas,
+): Conteo[] {
   const todos = valores.flatMap(elegidos);
-  return pasosDe(pregunta).map((candidato) => ({
+  return pasosDe(pregunta, escalas).map((candidato) => ({
     paso: candidato,
     n: todos.filter((valor) => valor === candidato.valor).length,
   }));
@@ -590,6 +571,7 @@ function resultadoDeLaSerie(
   vigente: PreguntaGuardada,
   viejas: readonly PreguntaGuardada[],
   porPregunta: ReadonlyMap<string, readonly Contestado[]>,
+  escalas: TextosDeLasEscalas,
 ): ResultadoDePregunta {
   const valoresDe = (pregunta: PreguntaGuardada): ValorGuardado[] =>
     (porPregunta.get(pregunta.id) ?? []).map(({ renglon }) => renglon.valor);
@@ -603,7 +585,7 @@ function resultadoDeLaSerie(
         pregunta,
         n: suyos.length,
         hasta: siguiente.creadaEl,
-        conteos: conteosDe(pregunta, suyos),
+        conteos: conteosDe(pregunta, suyos, escalas),
       });
     }
     siguiente = pregunta;
@@ -612,7 +594,7 @@ function resultadoDeLaSerie(
     pregunta: vigente,
     n: valores.length,
     modo: modoDeMostrar(vigente, valores.length),
-    conteos: conteosDe(vigente, valores),
+    conteos: conteosDe(vigente, valores, escalas),
     promedio:
       vigente.tipo === 'escala5'
         ? promedio(valores.filter((valor): valor is number => typeof valor === 'number'))
@@ -655,7 +637,6 @@ export interface ResumenDeOpiniones {
   situacion: Situacion;
   enviadas: number;
   contestadas: number;
-  tasa: string;
   desde: string | null;
   meses: number;
   titular: { pregunta: PreguntaGuardada; promedio: Promedio | null } | null;
@@ -714,7 +695,11 @@ function momentoDelPedido(pedido: PedidoMandado): string {
   return pedido.envio.contestadaA ?? pedido.envio.enviadaA;
 }
 
-export function resumenDeOpiniones(datos: DatosDeLasOpiniones, hoy: string): ResumenDeOpiniones {
+export function resumenDeOpiniones(
+  datos: DatosDeLasOpiniones,
+  hoy: string,
+  escalas: TextosDeLasEscalas,
+): ResumenDeOpiniones {
   const trabajos = new Map(datos.trabajos.map((trabajo) => [trabajo.proyectoId, trabajo]));
   const proyectoDe = new Map(datos.encuestas.map((encuesta) => [encuesta.id, encuesta.proyectoId]));
   const preguntaDe = new Map(datos.preguntas.map((pregunta) => [pregunta.id, pregunta]));
@@ -730,7 +715,7 @@ export function resumenDeOpiniones(datos: DatosDeLasOpiniones, hoy: string): Res
     for (const renglon of respuesta.renglones) {
       const pregunta = preguntaDe.get(renglon.preguntaId);
       if (pregunta?.titular === true && typeof renglon.valor === 'number') {
-        return pasoDe(pregunta, renglon.valor);
+        return pasoDe(pregunta, renglon.valor, escalas);
       }
     }
     return null;
@@ -772,6 +757,7 @@ export function resumenDeOpiniones(datos: DatosDeLasOpiniones, hoy: string): Res
         vigente,
         versionesDe(base, vigente.serie).filter((pregunta) => pregunta.numero < vigente.numero),
         porPregunta,
+        escalas,
       ),
     );
 
@@ -780,7 +766,7 @@ export function resumenDeOpiniones(datos: DatosDeLasOpiniones, hoy: string): Res
         .sort((a, b) => a.respuesta.contestadaA.localeCompare(b.respuesta.contestadaA))
         .flatMap(({ respuesta, renglon }) => {
           const encontrado =
-            typeof renglon.valor === 'number' ? pasoDe(titular, renglon.valor) : null;
+            typeof renglon.valor === 'number' ? pasoDe(titular, renglon.valor, escalas) : null;
           return encontrado
             ? [
                 {
@@ -821,7 +807,6 @@ export function resumenDeOpiniones(datos: DatosDeLasOpiniones, hoy: string): Res
     situacion,
     enviadas,
     contestadas,
-    tasa: porcentaje(contestadas, enviadas),
     desde,
     meses,
     titular: titular

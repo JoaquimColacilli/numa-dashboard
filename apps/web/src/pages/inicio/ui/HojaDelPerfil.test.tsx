@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { NovedadesDeOpiniones } from '@/entities/opinion';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import { HojaDelPerfil } from './HojaDelPerfil';
 import { UltimaOpinion } from './UltimaOpinion';
@@ -98,7 +99,11 @@ describe('la línea de Inicio', () => {
             respuestaId: 'r1',
             cliente: 'Nadia Roldán',
             trabajo: 'Escritorio en L con pasacables',
-            titular: pasoDe({ tipo: 'escala5', escala: 'conformidad', opciones: null }, 5),
+            titular: pasoDe(
+              { tipo: 'escala5', escala: 'conformidad', opciones: null },
+              5,
+              mensajes().opinion.escalas,
+            ),
             comentario: 'Quedó impecable.',
           }}
         />
@@ -118,7 +123,11 @@ describe('la línea de Inicio', () => {
             respuestaId: 'r2',
             cliente: '',
             trabajo: 'MESA',
-            titular: pasoDe({ tipo: 'escala5', escala: 'conformidad', opciones: null }, 4),
+            titular: pasoDe(
+              { tipo: 'escala5', escala: 'conformidad', opciones: null },
+              4,
+              mensajes().opinion.escalas,
+            ),
             comentario: null,
           }}
         />

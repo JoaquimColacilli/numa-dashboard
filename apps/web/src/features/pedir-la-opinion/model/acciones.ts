@@ -10,6 +10,7 @@ import {
   type FilaDeEncuesta,
   type FilaDePregunta,
 } from '@/entities/opinion';
+import { mensajes } from '@/shared/idioma';
 import {
   avisarEnPantalla,
   metaDeAvisos,
@@ -82,7 +83,7 @@ export function agregarPropia(
   avisar({
     clave: `propia-${id}`,
     tono: 'hecho',
-    texto: 'La sumamos a la encuesta de este trabajo.',
+    texto: mensajes().pedirLaOpinion.avisos.laSumamos,
   });
   return id;
 }
@@ -99,12 +100,13 @@ export function sacarPropia(
     pregunta,
     'preguntaPropia',
   );
+  const { avisos } = mensajes().pedirLaOpinion;
   avisar({
     clave: `propia-fuera-${pregunta.id}`,
     tono: 'hecho',
-    texto: 'Sacaste la pregunta.',
+    texto: avisos.sacaste,
     accion: {
-      etiqueta: 'Deshacer',
+      etiqueta: avisos.deshacer,
       alTocar: () => {
         guardarPreguntaEnLaCola(
           cliente,

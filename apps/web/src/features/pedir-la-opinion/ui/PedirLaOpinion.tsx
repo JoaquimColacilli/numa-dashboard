@@ -1,4 +1,4 @@
-import { duracion, menosDe, primeraPalabra, queTieneLaEncuesta } from '@maun/domain';
+import { duracion, menosDeMinutos, queTieneLaEncuesta } from '@maun/domain';
 import { onlineManager, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 
@@ -10,8 +10,9 @@ import {
   pedidoDelTrabajo,
   type FilaDeEncuesta,
 } from '@/entities/opinion';
-import { useReplicaDelTaller } from '@/entities/replica';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   avisarEnPantalla,
   copiar,
@@ -46,13 +47,16 @@ import {
   tokenDelPedido,
 } from '../model/acciones';
 import { loQueVaARecibir } from '../model/encuesta';
-import { despuesDeLaEntrega, mensajeDelPedido, mensajeDelRecordatorio } from '../model/mensajes';
+import {
+  diasDespuesDeLaEntrega,
+  mensajeDelPedido,
+  mensajeDelRecordatorio,
+  nombreDelCliente,
+} from '../model/mensajes';
+import { useWhatsappDeLaEncuesta } from '../model/whatsapp';
 import { PreguntasDelTrabajo } from './PreguntasDelTrabajo';
 
 const ESPERA_DEL_COPIADO_MS = 2200;
-
-const SIN_SENAL =
-  'Para crear el enlace de la encuesta hace falta señal. Cuando vuelva, tocá de nuevo.';
 
 const BOTON =
   'inline-flex min-h-field items-center justify-center gap-2.25 rounded-pill px-4.5 text-body font-medium no-underline';
@@ -93,6 +97,14 @@ function Encabezado({
   );
 }
 
+function AOpinionesPreguntas({ children }: { children: ReactNode }) {
+  return (
+    <Ir a={RUTA_DE_PREGUNTAS} className="font-medium text-ink underline underline-offset-3">
+      {children}
+    </Ir>
+  );
+}
+
 function useCopiado(): [boolean, (texto: string) => void] {
   const [copiado, setCopiado] = useState(false);
 
@@ -112,22 +124,28 @@ function useCopiado(): [boolean, (texto: string) => void] {
       void copiar(texto).then((como) => {
         if (como !== 'copiado') return;
         setCopiado(true);
-        avisarEnPantalla({ clave: 'enlace-copiado', tono: 'hecho', texto: 'Enlace copiado.' });
+        avisarEnPantalla({
+          clave: 'enlace-copiado',
+          tono: 'hecho',
+          texto: mensajes().pedirLaOpinion.enlaceCopiado,
+        });
       });
     },
   ];
 }
 
 function BotonDeCopiar({ copiado, alTocar }: { copiado: boolean; alTocar: () => void }) {
+  const textos = useMensajes().pedirLaOpinion;
   return (
     <button type="button" onClick={alTocar} className={SECUNDARIO}>
       {copiado ? <Tilde dibujar tamano={18} grosor={2} /> : <Icono nombre="copy" tamano={18} />}
-      {copiado ? 'Copiado' : 'Copiar el enlace'}
+      {copiado ? textos.copiado : textos.copiarElEnlace}
     </button>
   );
 }
 
-function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: string }) {
+function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: string | null }) {
+  const textos = useMensajes().pedirLaOpinion.darDeBaja;
   const [preguntando, setPreguntando] = useState(false);
   const baja = useMutation({
     ...MUTACION_DE_BAJA_DE_ENCUESTA,
@@ -144,12 +162,12 @@ function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: str
         }}
         className="self-start text-label font-medium text-text-2 underline underline-offset-3 hover:text-ink"
       >
-        Dar de baja este enlace
+        {textos.abrir}
       </button>
       <ConSalida valor={preguntando}>
         {() => (
           <Hoja
-            titulo="¿Dar de baja el enlace?"
+            titulo={textos.titulo}
             rol="alertdialog"
             ancho="angosto"
             alCerrar={() => {
@@ -157,15 +175,10 @@ function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: str
             }}
           >
             <div className="flex flex-col gap-4 px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-6">
-              <p className="text-body leading-relaxed text-text-2">
-                El enlace que le mandaste a {nombre} deja de andar: si lo abre, le va a decir que no
-                funciona. Después podés mandarle uno nuevo desde acá.
-              </p>
+              <p className="text-body leading-relaxed text-text-2">{textos.texto(nombre)}</p>
               {baja.isError && (
                 <p role="alert" className="text-label font-medium text-alerta">
-                  {onlineManager.isOnline()
-                    ? mensajeDeSincronizacion(baja.error)
-                    : 'Para darlo de baja hace falta señal.'}
+                  {onlineManager.isOnline() ? mensajeDeSincronizacion(baja.error) : textos.sinSenal}
                 </p>
               )}
               <FilaDeAcciones>
@@ -181,7 +194,7 @@ function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: str
                       .catch(() => undefined);
                   }}
                 >
-                  Dar de baja
+                  {textos.confirmar}
                 </Button>
                 <Button
                   variant="secundario"
@@ -189,7 +202,7 @@ function DarDeBaja({ encuesta, nombre }: { encuesta: FilaDeEncuesta; nombre: str
                     setPreguntando(false);
                   }}
                 >
-                  Cancelar
+                  {textos.cancelar}
                 </Button>
               </FilaDeAcciones>
             </div>
@@ -206,7 +219,9 @@ export interface PedirLaOpinionProps {
 }
 
 export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
+  const textos = useMensajes().pedirLaOpinion;
   const replica = useReplicaDelTaller();
+  const whatsapp = useWhatsappDeLaEncuesta(idiomaDeLosClientes(replica));
   const queryClient = useQueryClient();
   const idDelBloque = useId();
   const hoy = hoyLocal();
@@ -225,7 +240,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
   const recibe = useMemo(() => loQueVaARecibir(replica, proyecto.id), [replica, proyecto.id]);
   const tipos = recibe.map((pregunta) => pregunta.tipo);
   const nombreCompleto = cliente?.nombre ?? '';
-  const nombre = primeraPalabra(nombreCompleto) || 'tu cliente';
+  const nombre = nombreDelCliente(nombreCompleto);
   const telefono = cliente?.telefono ?? '';
 
   function crearElEnlace(): void {
@@ -257,11 +272,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
 
   const pie = (
     <p className="max-w-[560px] px-1 text-label leading-relaxed text-text-3">
-      La encuesta que recibe sale de{' '}
-      <Ir a={RUTA_DE_PREGUNTAS} className="font-medium text-ink underline underline-offset-3">
-        Opiniones › Preguntas
-      </Ir>
-      , más lo que agregues acá.
+      {textos.pie(AOpinionesPreguntas)}
     </p>
   );
 
@@ -276,19 +287,19 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
           <Encabezado
             id={idDelBloque}
             icono="message-square-quote"
-            titulo={`${nombre} ya te contestó`}
+            titulo={textos.contestada.titulo(nombre)}
             chip={
               <span className="rounded-pill bg-ink px-2 py-0.5 text-badge font-semibold text-paper">
-                contestada
+                {textos.contestada.chip}
               </span>
             }
             bajada={
               ficha === null
-                ? 'Contestó la encuesta.'
-                : `Contestó el ${diaYMes(ficha.contestadaEl, hoy)}${despuesDeLaEntrega(
-                    proyecto.fecha_entrega,
-                    ficha.contestadaEl,
-                  )}.`
+                ? textos.contestada.contestoLaEncuesta
+                : textos.contestada.contestoEl(
+                    diaYMes(ficha.contestadaEl, hoy),
+                    diasDespuesDeLaEntrega(proyecto.fecha_entrega, ficha.contestadaEl),
+                  )
             }
           />
           {respuesta !== undefined && (
@@ -303,11 +314,14 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
               )}
               <span className="min-w-0 flex-1">
                 <span className="block text-body font-semibold">
-                  {ficha?.titular?.etiqueta ?? 'Ver lo que contestó'}
+                  {ficha?.titular?.etiqueta ?? textos.contestada.verLoQueContesto}
                 </span>
                 {ficha?.comentario !== null && ficha?.comentario !== undefined && (
-                  <span className="mt-1 block text-body-sm leading-relaxed text-text-2">
-                    «{ficha.comentario}»
+                  <span
+                    translate="no"
+                    className="mt-1 block text-body-sm leading-relaxed text-text-2"
+                  >
+                    {textos.contestada.comentario(ficha.comentario)}
                   </span>
                 )}
               </span>
@@ -317,7 +331,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
             </Ir>
           )}
           <Ir a={RUTA_DE_OPINIONES} className={`${SECUNDARIO} self-start`}>
-            Ver todas las opiniones
+            {textos.contestada.verTodas}
           </Ir>
         </section>
         <PreguntasDelTrabajo proyectoId={proyecto.id} nombre={nombre} situacion="contestada" />
@@ -338,24 +352,24 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
           <Encabezado
             id={idDelBloque}
             icono="send"
-            titulo="Le pediste la opinión"
+            titulo={textos.mandada.titulo}
             chip={
               <span className="rounded-pill bg-surface px-2 py-0.5 text-badge font-semibold text-text-2">
-                sin contestar
+                {textos.mandada.chip}
               </span>
             }
-            bajada="El enlace le llegó por WhatsApp. Cuando conteste, te aparece acá y en Opiniones."
+            bajada={textos.mandada.bajada}
           />
           <p className="flex items-center gap-1.75 text-body-sm text-text-2">
             <span aria-hidden className="size-2 flex-none rounded-pill bg-text-3" />
-            Le llegó {haceCuanto(pedido.envio.enviadaEl, hoy)}, todavía no contestó
+            {textos.mandada.leLlego(haceCuanto(pedido.envio.enviadaEl, hoy))}
           </p>
           <FilaDeAcciones>
             {!recordada && (
               <a
                 href={whatsappCon(
                   telefono,
-                  mensajeDelRecordatorio(nombreCompleto, proyecto.titulo, enlace),
+                  mensajeDelRecordatorio(whatsapp, nombreCompleto, proyecto.titulo, enlace),
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -365,7 +379,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
                 className={PRIMARIO}
               >
                 <Icono nombre="bell" tamano={18} />
-                Recordárselo una vez
+                {textos.mandada.recordarselo}
               </a>
             )}
             <BotonDeCopiar
@@ -381,8 +395,8 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
             }`}
           >
             {recordada && pedido.envio.recordadaEl !== null
-              ? `Ya le recordaste una vez, el ${diaYMes(pedido.envio.recordadaEl, hoy)}. No hay un segundo recordatorio: insistirle dos veces a un cliente que te pagó molesta más de lo que suma.`
-              : 'Un recordatorio y nada más. Si después de eso no contesta, quedó así y está bien.'}
+              ? textos.mandada.yaLeRecordaste(diaYMes(pedido.envio.recordadaEl, hoy))
+              : textos.mandada.unRecordatorio}
           </p>
           <DarDeBaja encuesta={encuesta} nombre={nombre} />
         </section>
@@ -394,6 +408,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
 
   const enlace = enlaceDeLaEncuesta(token);
   const sinPreguntas = recibe.length === 0;
+  const loQueTiene = queTieneLaEncuesta(tipos);
 
   return (
     <div className="flex flex-col gap-3 md:gap-4">
@@ -404,12 +419,16 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
         <Encabezado
           id={idDelBloque}
           icono="message-square-plus"
-          titulo={`Pedile la opinión a ${nombre}`}
+          titulo={textos.sinMandar.titulo(nombre)}
           chip={null}
           bajada={
             sinPreguntas
-              ? 'La encuesta no tiene ninguna pregunta todavía. Agregá alguna en Opiniones › Preguntas antes de pedirla.'
-              : `${queTieneLaEncuesta(tipos)}. Le llega un enlace, lo abre sin cuenta y te contesta en ${menosDe(duracion(tipos).segundos)}.`
+              ? textos.sinMandar.sinPreguntas
+              : textos.sinMandar.queTiene(
+                  loQueTiene.preguntas,
+                  loQueTiene.comentarios,
+                  menosDeMinutos(duracion(tipos).segundos),
+                )
           }
         />
         {!sinPreguntas && (
@@ -417,7 +436,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
             <a
               href={whatsappCon(
                 telefono,
-                mensajeDelPedido(nombreCompleto, proyecto.titulo, enlace),
+                mensajeDelPedido(whatsapp, nombreCompleto, proyecto.titulo, enlace),
               )}
               target="_blank"
               rel="noopener noreferrer"
@@ -428,7 +447,7 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
               className={PRIMARIO}
             >
               <Icono nombre="message-circle" tamano={18} />
-              Pedírsela por WhatsApp
+              {textos.sinMandar.pedirsela}
             </a>
             <BotonDeCopiar
               copiado={copiado}
@@ -442,15 +461,13 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
         )}
         {sinSenal && (
           <p role="alert" className="text-label font-medium text-alerta">
-            {SIN_SENAL}
+            {textos.sinSenal}
           </p>
         )}
         {envio.isError && !sinSenal && (
           <div role="alert" className="flex flex-col items-start gap-2 text-label text-alerta">
             <p className="font-medium">
-              No se pudo crear el enlace. {mensajeDeSincronizacion(envio.error)} Si ya le mandaste
-              el mensaje, tocá «Reintentar»: el enlace que le llegó empieza a andar sin mandarle
-              nada de nuevo.
+              {textos.sinMandar.noSeCreo(mensajeDeSincronizacion(envio.error))}
             </p>
             <Button
               variant="secundario"
@@ -459,14 +476,13 @@ export function PedirLaOpinion({ proyecto, cliente }: PedirLaOpinionProps) {
                 if (conSenal()) crearElEnlace();
               }}
             >
-              Reintentar
+              {textos.sinMandar.reintentar}
             </Button>
           </div>
         )}
         {!sinPreguntas && (
           <p className="rounded-field bg-surface px-3.5 py-3 text-label leading-relaxed text-text-2">
-            Lo que se pide el mismo día que entregás se contesta bastante más que lo mismo pedido
-            una semana después. Si podés, mandásela ahora.
+            {textos.sinMandar.elMismoDia}
           </p>
         )}
       </section>

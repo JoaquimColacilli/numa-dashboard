@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   comoGuardar,
   comoLaVeElCliente,
-  cuantasPreguntas,
   duracion,
   elMueble,
   encuestaBase,
@@ -14,15 +13,13 @@ import {
   fueMandado,
   limpiarBorrador,
   lineasDeLaRespuesta,
-  menosDe,
+  menosDeMinutos,
   mesesDeHistoria,
   mismaForma,
   modoDeMostrar,
-  nombresQueOpinaron,
   pasoDe,
   pasosDe,
   pedidosPorTrabajo,
-  porcentaje,
   primeraPalabra,
   promedio,
   propiasDelTrabajo,
@@ -45,10 +42,40 @@ import {
   type PreguntaGuardada,
   type RenglonGuardado,
   type RespuestaGuardada,
+  type TextosDeLasEscalas,
   type TipoDePregunta,
   type TrabajoOpinado,
   type ValorGuardado,
 } from './opiniones.ts';
+
+const PALABRAS: TextosDeLasEscalas = {
+  conformidad: {
+    1: { etiqueta: 'Nada conforme', corta: 'Nada' },
+    2: { etiqueta: 'Poco conforme', corta: 'Poco' },
+    3: { etiqueta: 'Ni bien ni mal', corta: 'Así nomás' },
+    4: { etiqueta: 'Conforme', corta: 'Conforme' },
+    5: { etiqueta: 'Muy conforme', corta: 'Muy conforme' },
+  },
+  tiempos: {
+    1: { etiqueta: 'Llegó muy tarde', corta: 'Muy tarde' },
+    2: { etiqueta: 'Se atrasó', corta: 'Se atrasó' },
+    3: { etiqueta: 'Más o menos a tiempo', corta: 'Más o menos' },
+    4: { etiqueta: 'Llegó cuando dijeron', corta: 'A tiempo' },
+    5: { etiqueta: 'Llegó antes de lo pautado', corta: 'Antes' },
+  },
+  trato: {
+    1: { etiqueta: 'Costaba mucho', corta: 'Costaba' },
+    2: { etiqueta: 'Costaba un poco', corta: 'Un poco' },
+    3: { etiqueta: 'Ni bien ni mal', corta: 'Ni bien ni mal' },
+    4: { etiqueta: 'Fácil', corta: 'Fácil' },
+    5: { etiqueta: 'Muy fácil', corta: 'Muy fácil' },
+  },
+  sitalvezno: {
+    1: { etiqueta: 'No', corta: 'No' },
+    2: { etiqueta: 'Tal vez', corta: 'Tal vez' },
+    3: { etiqueta: 'Sí, sin dudarlo', corta: 'Sí' },
+  },
+};
 
 function pregunta(id: string, cambios: Partial<PreguntaGuardada> = {}): PreguntaGuardada {
   return {
@@ -193,29 +220,35 @@ describe('los umbrales, escritos una sola vez', () => {
 describe('las caritas y sus palabras', () => {
   it('cada escala tiene sus cinco palabras, del peor al mejor, con su polo', () => {
     expect(ESCALAS).toEqual(['conformidad', 'tiempos', 'trato']);
-    expect(pasosDe(CONFORME).map((p) => p.etiqueta)).toEqual([
+    expect(pasosDe(CONFORME, PALABRAS).map((p) => p.etiqueta)).toEqual([
       'Nada conforme',
       'Poco conforme',
       'Ni bien ni mal',
       'Conforme',
       'Muy conforme',
     ]);
-    expect(pasosDe(TIEMPOS).map((p) => p.corta)).toEqual([
+    expect(pasosDe(TIEMPOS, PALABRAS).map((p) => p.corta)).toEqual([
       'Muy tarde',
       'Se atrasó',
       'Más o menos',
       'A tiempo',
       'Antes',
     ]);
-    expect(pasosDe(pregunta('q', { escala: 'trato' })).map((p) => p.etiqueta)).toEqual([
+    expect(pasosDe(pregunta('q', { escala: 'trato' }), PALABRAS).map((p) => p.etiqueta)).toEqual([
       'Costaba mucho',
       'Costaba un poco',
       'Ni bien ni mal',
       'Fácil',
       'Muy fácil',
     ]);
-    expect(pasosDe(CONFORME).map((p) => p.polo)).toEqual(['mal', 'mal', 'neutro', 'bien', 'bien']);
-    expect(pasosDe(CONFORME).map((p) => p.cara)).toEqual([
+    expect(pasosDe(CONFORME, PALABRAS).map((p) => p.polo)).toEqual([
+      'mal',
+      'mal',
+      'neutro',
+      'bien',
+      'bien',
+    ]);
+    expect(pasosDe(CONFORME, PALABRAS).map((p) => p.cara)).toEqual([
       'enojada',
       'triste',
       'seria',
@@ -225,15 +258,17 @@ describe('las caritas y sus palabras', () => {
   });
 
   it('una escala sin juego de palabras usa el de conformidad', () => {
-    expect(pasosDe(pregunta('q', { escala: null }))).toEqual(pasosDe(CONFORME));
+    expect(pasosDe(pregunta('q', { escala: null }), PALABRAS)).toEqual(pasosDe(CONFORME, PALABRAS));
   });
 
   it('sí, tal vez, no: el sí primero, y el sí es el 3', () => {
-    expect(pasosDe(RECOMIENDA).map((p) => [p.valor, p.etiqueta, p.polo, p.cara])).toEqual([
-      [3, 'Sí, sin dudarlo', 'bien', 'pulgar-arriba'],
-      [2, 'Tal vez', 'neutro', 'seria'],
-      [1, 'No', 'mal', 'pulgar-abajo'],
-    ]);
+    expect(pasosDe(RECOMIENDA, PALABRAS).map((p) => [p.valor, p.etiqueta, p.polo, p.cara])).toEqual(
+      [
+        [3, 'Sí, sin dudarlo', 'bien', 'pulgar-arriba'],
+        [2, 'Tal vez', 'neutro', 'seria'],
+        [1, 'No', 'mal', 'pulgar-abajo'],
+      ],
+    );
   });
 
   it('las opciones valen su posición y no tienen polo', () => {
@@ -242,38 +277,34 @@ describe('las caritas y sus palabras', () => {
       escala: null,
       opciones: ['Instagram', 'Cartel'],
     });
-    expect(pasosDe(opciones)).toEqual([
+    expect(pasosDe(opciones, PALABRAS)).toEqual([
       { valor: 0, etiqueta: 'Instagram', corta: 'Instagram', polo: null, cara: null },
       { valor: 1, etiqueta: 'Cartel', corta: 'Cartel', polo: null, cara: null },
     ]);
-    expect(pasosDe(pregunta('q', { tipo: 'una', escala: null, opciones: null }))).toEqual([]);
-    expect(pasosDe(MEJOR)).toEqual([]);
+    expect(pasosDe(pregunta('q', { tipo: 'una', escala: null, opciones: null }), PALABRAS)).toEqual(
+      [],
+    );
+    expect(pasosDe(MEJOR, PALABRAS)).toEqual([]);
   });
 
   it('busca el paso de un valor, y no inventa el que no existe', () => {
-    expect(pasoDe(CONFORME, 5)?.etiqueta).toBe('Muy conforme');
-    expect(pasoDe(CONFORME, 6)).toBeNull();
+    expect(pasoDe(CONFORME, 5, PALABRAS)?.etiqueta).toBe('Muy conforme');
+    expect(pasoDe(CONFORME, 6, PALABRAS)).toBeNull();
   });
 });
 
 describe('los números que se muestran', () => {
-  it('un porcentaje va siempre con el conteo, sin decimales', () => {
-    expect(porcentaje(9, 17)).toBe('53% (9 de 17)');
-    expect(porcentaje(1, 8)).toBe('13% (1 de 8)');
-    expect(porcentaje(0, 0)).toBe('—');
-  });
-
-  it('el promedio lleva una coma y un decimal como mucho, y sin ,0', () => {
+  it('el promedio va en décimas, con su cuenta', () => {
     expect(promedio([])).toBeNull();
-    expect(promedio([5])).toEqual({ decimas: 50, texto: '5', n: 1 });
-    expect(promedio([4, 5])).toEqual({ decimas: 45, texto: '4,5', n: 2 });
-    expect(promedio([4, 4, 5])).toEqual({ decimas: 43, texto: '4,3', n: 3 });
-    expect(promedio([5, 5, 4])?.texto).toBe('4,7');
+    expect(promedio([5])).toEqual({ decimas: 50, n: 1 });
+    expect(promedio([4, 5])).toEqual({ decimas: 45, n: 2 });
+    expect(promedio([4, 4, 5])).toEqual({ decimas: 43, n: 3 });
+    expect(promedio([5, 5, 4])?.decimas).toBe(47);
   });
 
   it('redondea la mitad para arriba con enteros, sin errores de coma flotante', () => {
     const veinte = [...Array<number>(11).fill(4), ...Array<number>(9).fill(5)];
-    expect(promedio(veinte)?.texto).toBe('4,5');
+    expect(promedio(veinte)?.decimas).toBe(45);
   });
 });
 
@@ -283,7 +314,6 @@ describe('cuánto lleva contestarla', () => {
       segundos: 80,
       texto: '1:20',
       tono: 'ok',
-      nota: 'Está en el largo que la gente contesta sin pensarlo.',
     });
   });
 
@@ -293,22 +323,26 @@ describe('cuánto lleva contestarla', () => {
     expect(duracion([]).texto).toBe('0:08');
   });
 
-  it('lo dice en palabras', () => {
-    expect(menosDe(80)).toBe('menos de dos minutos');
-    expect(menosDe(30)).toBe('menos de un minuto');
-    expect(queTieneLaEncuesta(['escala5', 'escala5', 'escala5', 'sitalvezno', 'texto'])).toBe(
-      'Son cuatro preguntas y un comentario',
-    );
-    expect(queTieneLaEncuesta(['escala5'])).toBe('Es una pregunta');
-    expect(queTieneLaEncuesta(['texto'])).toBe('Es un comentario');
-    expect(queTieneLaEncuesta(['texto', 'texto'])).toBe('Son dos comentarios');
-    expect(queTieneLaEncuesta([])).toBe('No tiene preguntas');
-    expect(cuantasPreguntas(['escala5', 'escala5', 'escala5', 'sitalvezno', 'texto'])).toBe(
-      'Son cuatro preguntas',
-    );
-    expect(cuantasPreguntas(['una', 'texto'])).toBe('Es una pregunta');
-    expect(cuantasPreguntas(['texto'])).toBe('Es un comentario');
+  it('se contesta en menos de los minutos enteros que siguen', () => {
+    expect(menosDeMinutos(80)).toBe(2);
+    expect(menosDeMinutos(30)).toBe(1);
+    expect(menosDeMinutos(120)).toBe(3);
+  });
+
+  it('cuenta las preguntas aparte de los comentarios', () => {
+    expect(queTieneLaEncuesta(['escala5', 'escala5', 'escala5', 'sitalvezno', 'texto'])).toEqual({
+      preguntas: 4,
+      comentarios: 1,
+    });
+    expect(queTieneLaEncuesta(['una', 'varias'])).toEqual({ preguntas: 2, comentarios: 0 });
+    expect(queTieneLaEncuesta(['texto', 'texto'])).toEqual({ preguntas: 0, comentarios: 2 });
+    expect(queTieneLaEncuesta([])).toEqual({ preguntas: 0, comentarios: 0 });
+  });
+
+  it('los números chicos, en palabras y con su género, para el castellano', () => {
     expect(enPalabras(1, 'masculino')).toBe('un');
+    expect(enPalabras(1, 'femenino')).toBe('una');
+    expect(enPalabras(4, 'femenino')).toBe('cuatro');
     expect(enPalabras(13, 'femenino')).toBe('13');
   });
 });
@@ -330,21 +364,6 @@ describe('los nombres', () => {
   it('la primera palabra, sin blancos', () => {
     expect(primeraPalabra('  Marcela Duarte ')).toBe('Marcela');
     expect(primeraPalabra('')).toBe('');
-  });
-
-  it('quiénes opinaron, sin repetir y sin una lista eterna', () => {
-    expect(nombresQueOpinaron([])).toBe('');
-    expect(nombresQueOpinaron(['', '  '])).toBe('');
-    expect(nombresQueOpinaron(['Nadia Roldán'])).toBe('Nadia opinó');
-    expect(nombresQueOpinaron(['Nadia Roldán', 'Hernán Cabrera', 'Nadia R.'])).toBe(
-      'Nadia y Hernán opinaron',
-    );
-    expect(nombresQueOpinaron(['Nadia', 'Hernán', 'Marcela'])).toBe(
-      'Nadia, Hernán y Marcela opinaron',
-    );
-    expect(nombresQueOpinaron(['Nadia', 'Hernán', 'Marcela', 'Diego', 'Carla'])).toBe(
-      'Nadia, Hernán y 3 más opinaron',
-    );
   });
 });
 
@@ -571,11 +590,15 @@ describe('la encuesta base', () => {
 
   it('muestra una respuesta como la leyó el cliente, pregunta por pregunta', () => {
     const varias = pregunta('varias', { tipo: 'varias', escala: null, opciones: ['A', 'B', 'C'] });
-    const lineas = lineasDeLaRespuesta(comoSeManda([CONFORME, varias, MEJOR, TIEMPOS]), [
-      { preguntaId: 'q-mejor', valor: 'Todo bien' },
-      { preguntaId: 'varias', valor: [0, 2] },
-      { preguntaId: 'q-conforme', valor: 5 },
-    ]);
+    const lineas = lineasDeLaRespuesta(
+      comoSeManda([CONFORME, varias, MEJOR, TIEMPOS]),
+      [
+        { preguntaId: 'q-mejor', valor: 'Todo bien' },
+        { preguntaId: 'varias', valor: [0, 2] },
+        { preguntaId: 'q-conforme', valor: 5 },
+      ],
+      PALABRAS,
+    );
     expect(
       lineas.map((linea) => [linea.pregunta.id, linea.pasos.map((p) => p.etiqueta), linea.texto]),
     ).toEqual([
@@ -593,12 +616,12 @@ describe('Resultados, según cuánto hay', () => {
     const resumen = resumenDeOpiniones(
       { preguntas: BASE, encuestas: [], respuestas: [], trabajos: [] },
       hoy,
+      PALABRAS,
     );
     expect(resumen).toMatchObject({
       situacion: 'sin-enviar',
       enviadas: 0,
       contestadas: 0,
-      tasa: '—',
       desde: null,
       meses: 0,
       comentarios: [],
@@ -622,6 +645,7 @@ describe('Resultados, según cuánto hay', () => {
         trabajos: [{ proyectoId: 'p1', cliente: 'Graciela Ruiz', trabajo: 'Mueble de recibidor' }],
       },
       hoy,
+      PALABRAS,
     );
     expect(resumen).toMatchObject({
       situacion: 'sin-respuestas',
@@ -636,29 +660,29 @@ describe('Resultados, según cuánto hay', () => {
   });
 
   it('nueve respuestas: un punto por persona, sin barras ni tendencia', () => {
-    const resumen = resumenDeOpiniones(muchas(9, '2026-04-01', 20), hoy);
+    const resumen = resumenDeOpiniones(muchas(9, '2026-04-01', 20), hoy, PALABRAS);
     expect(resumen.situacion).toBe('con-respuestas');
-    expect(resumen.tasa).toBe('100% (9 de 9)');
+    expect(resumen).toMatchObject({ enviadas: 9, contestadas: 9 });
     expect(resumen.preguntas.map((r) => [r.pregunta.id, r.n, r.modo])).toEqual([
       ['q-conforme', 9, 'puntos'],
       ['q-tiempos', 9, 'puntos'],
       ['q-recomienda', 9, 'puntos'],
     ]);
     expect(resumen.preguntas[0]?.conteos.map((c) => c.n)).toEqual([2, 2, 2, 2, 1]);
-    expect(resumen.titular?.promedio).toEqual({ decimas: 28, texto: '2,8', n: 9 });
+    expect(resumen.titular?.promedio).toEqual({ decimas: 28, n: 9 });
     expect(resumen.evolucion.conEvolucion).toBe(false);
     expect(resumen.evolucion.puntos).toHaveLength(9);
   });
 
   it('doce respuestas en tres meses: barras, pero la evolución todavía es una tira en orden', () => {
-    const resumen = resumenDeOpiniones(muchas(12, '2026-06-15', 7), hoy);
+    const resumen = resumenDeOpiniones(muchas(12, '2026-06-15', 7), hoy, PALABRAS);
     expect(resumen.preguntas[0]?.modo).toBe('barras');
     expect(resumen.meses).toBe(3);
     expect(resumen.evolucion.conEvolucion).toBe(false);
   });
 
   it('treinta y cuatro respuestas y dos años: barras y evolución', () => {
-    const resumen = resumenDeOpiniones(muchas(34, '2024-08-01', 22), hoy);
+    const resumen = resumenDeOpiniones(muchas(34, '2024-08-01', 22), hoy, PALABRAS);
     expect(resumen.preguntas[0]?.modo).toBe('barras');
     expect(resumen.meses).toBeGreaterThanOrEqual(UMBRAL_MESES);
     expect(resumen.evolucion.conEvolucion).toBe(true);
@@ -752,7 +776,7 @@ describe('Resultados, con todo lo que puede pasar', () => {
       { proyectoId: 'p3', cliente: 'Omar Peralta', trabajo: 'Placard de dos puertas' },
     ],
   };
-  const resumen = resumenDeOpiniones(datos, hoy);
+  const resumen = resumenDeOpiniones(datos, hoy, PALABRAS);
 
   it('los comentarios van enteros, del más nuevo al más viejo, y solo los de la encuesta base', () => {
     expect(
@@ -780,7 +804,7 @@ describe('Resultados, con todo lo que puede pasar', () => {
   });
 
   it('las propias no entran en el promedio general', () => {
-    expect(resumen.titular?.promedio).toEqual({ decimas: 40, texto: '4', n: 3 });
+    expect(resumen.titular?.promedio).toEqual({ decimas: 40, n: 3 });
     expect(resumen.preguntas.map((r) => r.pregunta.id)).not.toContain('altura');
   });
 
@@ -802,11 +826,11 @@ describe('Resultados, con todo lo que puede pasar', () => {
 
   it('lo que falta leer, del más nuevo al más viejo', () => {
     expect(resumen.sinLeer.map((r) => r.id)).toEqual(['huerfana', 'r1']);
-    expect(resumen.tasa).toBe('75% (3 de 4)');
+    expect(resumen).toMatchObject({ enviadas: 4, contestadas: 3 });
   });
 
   it('sin la pregunta del número de arriba, no hay titular ni evolución', () => {
-    const sinTitular = resumenDeOpiniones({ ...datos, preguntas: [TIEMPOS, MEJOR] }, hoy);
+    const sinTitular = resumenDeOpiniones({ ...datos, preguntas: [TIEMPOS, MEJOR] }, hoy, PALABRAS);
     expect(sinTitular.titular).toBeNull();
     expect(sinTitular.evolucion.puntos).toEqual([]);
     expect(sinTitular.comentarios.map((c) => c.titular)).toEqual([null, null, null]);
@@ -832,6 +856,7 @@ describe('Resultados, con todo lo que puede pasar', () => {
         ],
       },
       hoy,
+      PALABRAS,
     );
     expect(conTexto.titular?.promedio).toBeNull();
     expect(conTexto.evolucion.puntos).toEqual([]);
@@ -842,6 +867,7 @@ describe('Resultados, con todo lo que puede pasar', () => {
     const conRaro = resumenDeOpiniones(
       { ...datos, respuestas: [respuesta('r9', 'e3', '2026-09-20', [renglon(CONFORME, 9)])] },
       hoy,
+      PALABRAS,
     );
     expect(conRaro.evolucion.puntos).toEqual([]);
     expect(conRaro.titular?.promedio?.n).toBe(1);

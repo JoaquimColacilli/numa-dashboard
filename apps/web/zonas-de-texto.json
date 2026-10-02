@@ -1,11 +1,8 @@
 {
   "faltan": [
-    "src/entities/opinion/",
     "src/entities/vista-cliente/model/presupuesto.ts",
     "src/entities/vista-cliente/ui/ElPresupuesto.tsx",
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
-    "src/features/pedir-la-opinion/",
-    "src/pages/encuesta-publica/",
     "src/shared/pdf/"
   ]
 }

@@ -38,6 +38,7 @@ import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { llevarLaAgenda } from './llevarLaAgenda';
 import { movimiento } from './movimiento';
+import { opinion } from './opinion';
 import { paginaAcceso } from './paginaAcceso';
 import { paginaAgenda } from './paginaAgenda';
 import { paginaAjustes } from './paginaAjustes';
@@ -52,6 +53,7 @@ import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { paginaRecuperar } from './paginaRecuperar';
 import { paginaTesoros } from './paginaTesoros';
+import { pedirLaOpinion } from './pedirLaOpinion';
 import { proyecto } from './proyecto';
 import { recibirAvisos } from './recibirAvisos';
 import { recuperarAcceso } from './recuperarAcceso';
@@ -100,6 +102,7 @@ export const en = {
   liquidarProyecto,
   llevarLaAgenda,
   movimiento,
+  opinion,
   paginaAcceso,
   paginaAgenda,
   paginaAjustes,
@@ -114,6 +117,7 @@ export const en = {
   paginaProyectos,
   paginaRecuperar,
   paginaTesoros,
+  pedirLaOpinion,
   proyecto,
   recibirAvisos,
   recuperarAcceso,
