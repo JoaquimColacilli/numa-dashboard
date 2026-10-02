@@ -8,6 +8,7 @@ import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { armarLaVidriera } from './armarLaVidriera';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
+import { cerrarSesion } from './cerrarSesion';
 import { cliente } from './cliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
@@ -47,6 +48,7 @@ export const en = {
   armarElPresupuesto,
   armarLaVidriera,
   avanzarLaConsulta,
+  cerrarSesion,
   cliente,
   comun,
   configurarTaller,

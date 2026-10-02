@@ -1,8 +1,10 @@
+import { useMensajes } from '@/shared/idioma';
 import { Icono } from '@/shared/ui';
 
-import { avisoDePendientes, useSalir } from './useSalir';
+import { useSalir } from './useSalir';
 
 export function FilaParaSalir({ className = '' }: { className?: string }) {
+  const m = useMensajes();
   const { pendientes, confirmando, saliendo, error, confirmar, cerrar } = useSalir();
   const pideConfirmar = pendientes > 0 && !confirmando;
 
@@ -22,11 +24,15 @@ export function FilaParaSalir({ className = '' }: { className?: string }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-body-lg leading-snug font-medium text-text-2">
-            {saliendo ? 'Cerrando…' : confirmando ? 'Cerrar sesión igual' : 'Cerrar sesión'}
+            {saliendo
+              ? m.cerrarSesion.cerrando
+              : confirmando
+                ? m.cerrarSesion.cerrarSesionIgual
+                : m.cerrarSesion.cerrarSesion}
           </span>
           {pendientes > 0 && (
             <span className="mt-px block text-label leading-snug text-atencion">
-              {avisoDePendientes(pendientes)}
+              {m.cerrarSesion.hayCambiosSinSincronizar({ cantidad: pendientes })}
             </span>
           )}
         </span>

@@ -13,12 +13,6 @@ export interface Salida {
   cerrar: () => Promise<void>;
 }
 
-export function avisoDePendientes(pendientes: number): string {
-  return pendientes === 1
-    ? 'Hay 1 cambio sin sincronizar: si cerrás sesión, se pierde.'
-    : `Hay ${String(pendientes)} cambios sin sincronizar: si cerrás sesión, se pierden.`;
-}
-
 export function useSalir(): Salida {
   const queryClient = useQueryClient();
   const pendientes = useIsMutating();

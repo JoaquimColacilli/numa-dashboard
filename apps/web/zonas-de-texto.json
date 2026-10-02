@@ -10,7 +10,6 @@
     "src/entities/vista-cliente/",
     "src/features/ajustar-cocos/",
     "src/features/armar-la-fila/",
-    "src/features/cerrar-sesion/",
     "src/features/compartir-con-el-cliente/",
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
     "src/features/crear-cuenta/",
