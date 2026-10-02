@@ -1,6 +1,7 @@
 import type { Mensajes } from '../es';
 
 import { api } from './api';
+import { armarElPresupuesto } from './armarElPresupuesto';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
@@ -24,6 +25,7 @@ import { ui } from './ui';
 
 export const ptBR = {
   api,
+  armarElPresupuesto,
   avanzarLaConsulta,
   comun,
   coordinarLaEntrega,

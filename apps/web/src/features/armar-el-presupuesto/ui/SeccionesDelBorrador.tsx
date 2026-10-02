@@ -19,6 +19,7 @@ import {
 } from '@maun/domain';
 import { useId, useState, type ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
   formatearPesos,
@@ -77,6 +78,14 @@ export interface ConElBorrador {
   alCambiar: (siguiente: BorradorDelPresupuesto) => void;
 }
 
+function MontoPagado({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className="font-semibold text-hogar tabular-nums">
+      {children}
+    </span>
+  );
+}
+
 function Seccion({
   numero,
   id,
@@ -132,6 +141,7 @@ function Validez({
   hoy: string;
   alCambiar: (dias: number | null) => void;
 }) {
+  const m = useMensajes().armarElPresupuesto.validez;
   const id = useId();
   const [otro, setOtro] = useState(
     dias !== null && !(VALIDECES as readonly number[]).includes(dias),
@@ -140,7 +150,7 @@ function Validez({
   const opciones: { valor: string; etiqueta: string; alElegir: () => void; ancha?: boolean }[] = [
     ...VALIDECES.map((valor) => ({
       valor: String(valor),
-      etiqueta: `${String(valor)} días`,
+      etiqueta: m.dias(valor),
       alElegir: () => {
         setOtro(false);
         alCambiar(valor);
@@ -148,7 +158,7 @@ function Validez({
     })),
     {
       valor: 'otro',
-      etiqueta: 'Otro',
+      etiqueta: m.otro,
       alElegir: () => {
         setOtro(true);
         if (dias === null) alCambiar(deAjustes);
@@ -156,7 +166,7 @@ function Validez({
     },
     {
       valor: 'sin',
-      etiqueta: 'Sin vencimiento',
+      etiqueta: m.sinVencimiento,
       ancha: true,
       alElegir: () => {
         setOtro(false);
@@ -167,10 +177,10 @@ function Validez({
 
   return (
     <fieldset className="@container flex min-w-0 flex-col gap-1.5">
-      <legend className="mb-1.5 text-label text-text-2">Validez</legend>
+      <legend className="mb-1.5 text-label text-text-2">{m.titulo}</legend>
       <div
         role="radiogroup"
-        aria-label="Validez"
+        aria-label={m.titulo}
         className="grid max-w-[38rem] grid-cols-3 gap-1 rounded-panel bg-ink/6 p-1 @min-[32rem]:grid-cols-5"
       >
         {opciones.map((opcion) => (
@@ -196,8 +206,8 @@ function Validez({
         <div className="mt-2">
           <CampoConUnidad
             id={`${id}-dias`}
-            etiqueta="Cuántos días vale"
-            unidad="días corridos"
+            etiqueta={m.cuantosDias}
+            unidad={m.diasCorridos}
             valor={String(dias)}
             alCambiar={(texto) => {
               const numero = Number(texto);
@@ -207,10 +217,8 @@ function Validez({
         </div>
       )}
       <span className="text-meta text-text-3">
-        {dias === null
-          ? 'Tu cliente no ve una fecha límite.'
-          : `Si lo mandás hoy, vale hasta el ${fechaLarga(sumarDias(hoy, dias), hoy)}.`}
-        {dias === deAjustes && ` Los ${String(deAjustes)} días salen de Ajustes.`}
+        {dias === null ? m.sinFechaLimite : m.valeHasta(fechaLarga(sumarDias(hoy, dias), hoy))}
+        {dias === deAjustes && ` ${m.salenDeAjustes(deAjustes)}`}
       </span>
     </fieldset>
   );
@@ -231,51 +239,43 @@ export function EncabezadoDelBorrador({
   hoy: string;
   diasDeAjustes: number;
 }) {
+  const m = useMensajes().armarElPresupuesto.encabezado;
   const id = useId();
   return (
-    <Seccion
-      numero={1}
-      id="presupuesto-encabezado"
-      titulo="Encabezado"
-      bajada="El número, la fecha y tu cliente salen solos. El título y la obra van arriba de todo."
-    >
+    <Seccion numero={1} id="presupuesto-encabezado" titulo={m.titulo} bajada={m.bajada}>
       <div className="flex flex-col gap-5">
         <dl className="flex flex-col">
           <DatoFijo
-            clave="Número"
+            clave={m.numero}
             valor={
-              numero === null
-                ? 'Se asigna al mandarlo'
-                : `Nº ${numero} · próxima: Rev. ${String(revisionQueSeManda)}`
+              numero === null ? m.seAsignaAlMandarlo : m.numeroYProxima(numero, revisionQueSeManda)
             }
             nota={
-              numero === null
-                ? `Lleva el día en que lo mandes, como ${hoy.replaceAll('-', '')}-01.`
-                : 'El número no cambia: cada vez que lo mandás, sube la revisión.'
+              numero === null ? m.llevaElDia(`${hoy.replaceAll('-', '')}-01`) : m.elNumeroNoCambia
             }
           />
           <DatoFijo
-            clave="Cliente"
-            valor={cliente === '' ? 'Sin cliente' : cliente}
-            nota="Sale de su ficha."
+            clave={m.cliente}
+            valor={cliente === '' ? m.sinCliente : <span translate="no">{cliente}</span>}
+            nota={m.saleDeSuFicha}
           />
         </dl>
         <CamposJuntos separacion="gap-5">
           <Campo
-            etiqueta="Título"
+            etiqueta={m.tituloDelTrabajo}
             data-campo="titulo"
             value={borrador.titulo}
             maxLength={LARGOS_DEL_PRESUPUESTO.titulo}
-            placeholder="Cocina, placard del dormitorio…"
+            placeholder={m.ejemploDelTitulo}
             onChange={(evento) => {
               alCambiar({ ...borrador, titulo: evento.target.value });
             }}
           />
           <Campo
-            etiqueta="Obra"
+            etiqueta={m.obra}
             value={borrador.obra}
             maxLength={LARGOS_DEL_PRESUPUESTO.obra}
-            placeholder="Calle y número, barrio"
+            placeholder={m.ejemploDeLaObra}
             onChange={(evento) => {
               alCambiar({ ...borrador, obra: evento.target.value });
             }}
@@ -291,8 +291,8 @@ export function EncabezadoDelBorrador({
         />
         <CampoConUnidad
           id={`${id}-plazo`}
-          etiqueta="Plazo de fabricación"
-          unidad="días hábiles"
+          etiqueta={m.plazo}
+          unidad={m.diasHabiles}
           valor={String(borrador.plazoDeFabricacion)}
           alCambiar={(texto) => {
             const numero = Number(texto);
@@ -300,7 +300,7 @@ export function EncabezadoDelBorrador({
               alCambiar({ ...borrador, plazoDeFabricacion: Math.min(numero, 365) });
             }
           }}
-          ayuda="Desde que se acredita la seña. Lo usan el aviso del plazo y la entrega estimada."
+          ayuda={m.ayudaDelPlazo}
         />
       </div>
     </Seccion>
@@ -328,7 +328,16 @@ function FichaDelMueble({
   alMover: (hacia: -1 | 1) => void;
   alQuitar: () => void;
 }) {
-  const nombreVisible = nombre.trim() === '' ? `el mueble ${String(numero)}` : `«${nombre.trim()}»`;
+  const m = useMensajes().armarElPresupuesto.detalle.mueble;
+  const nombreVisible = nombre.trim();
+  const etiquetas =
+    nombreVisible === ''
+      ? { subir: m.subir(numero), bajar: m.bajar(numero), quitar: m.quitar(numero) }
+      : {
+          subir: m.subirLlamado(nombreVisible),
+          bajar: m.bajarLlamado(nombreVisible),
+          quitar: m.quitarLlamado(nombreVisible),
+        };
   return (
     <li
       data-mueble={id}
@@ -336,10 +345,10 @@ function FichaDelMueble({
     >
       <Globo numero={numero} />
       <input
-        aria-label={`Nombre del mueble ${String(numero)}`}
+        aria-label={m.nombre(numero)}
         value={nombre}
         maxLength={LARGOS_DEL_PRESUPUESTO.nombreDelMueble}
-        placeholder="Bajomesada, alacena, placard…"
+        placeholder={m.ejemploDelNombre}
         onChange={(evento) => {
           alCambiar({ nombre: evento.target.value });
         }}
@@ -347,7 +356,7 @@ function FichaDelMueble({
       />
       <div className="col-span-2 flex min-w-0 flex-col gap-1.5">
         <label htmlFor={`${id}-descripcion`} className="text-label text-text-2">
-          Descripción técnica
+          {m.descripcionTecnica}
         </label>
         <TextoQueCrece
           id={`${id}-descripcion`}
@@ -355,20 +364,18 @@ function FichaDelMueble({
           valor={descripcion}
           filasMinimas={5}
           maxLength={LARGOS_DEL_PRESUPUESTO.descripcionDelMueble}
-          placeholder="Bajomesada en L 2.07 x 1.83, altura 880 mm, en Melamina sobre Aglomerado de 18 mm Blanco…"
+          placeholder={m.ejemploDeLaDescripcion}
           alCambiar={(texto) => {
             alCambiar({ descripcion: texto });
           }}
         />
-        <span className="text-meta text-text-3">
-          Medidas, material y espesor, color y marca de la placa.
-        </span>
+        <span className="text-meta text-text-3">{m.queLleva}</span>
       </div>
       <div className="col-span-2 -my-1 flex items-center justify-between">
         <span className="-ml-2.5 flex">
           <BotonDeLaFila
             icono="arrow-up"
-            etiqueta={`Subir ${nombreVisible}`}
+            etiqueta={etiquetas.subir}
             deshabilitado={primero}
             alTocar={() => {
               alMover(-1);
@@ -376,7 +383,7 @@ function FichaDelMueble({
           />
           <BotonDeLaFila
             icono="arrow-down"
-            etiqueta={`Bajar ${nombreVisible}`}
+            etiqueta={etiquetas.bajar}
             deshabilitado={ultimo}
             alTocar={() => {
               alMover(1);
@@ -384,12 +391,7 @@ function FichaDelMueble({
           />
         </span>
         <span className="-mr-2.5">
-          <BotonDeLaFila
-            icono="trash-2"
-            etiqueta={`Quitar ${nombreVisible}`}
-            peligro
-            alTocar={alQuitar}
-          />
+          <BotonDeLaFila icono="trash-2" etiqueta={etiquetas.quitar} peligro alTocar={alQuitar} />
         </span>
       </div>
     </li>
@@ -397,29 +399,31 @@ function FichaDelMueble({
 }
 
 export function DetalleDelBorrador({ borrador, alCambiar }: ConElBorrador) {
+  const m = useMensajes().armarElPresupuesto.detalle;
   const id = useId();
   const [quitado, setQuitado] = useState<MuebleQuitado | null>(null);
   const muebles = borrador.muebles;
   const conDescripcion = muebles.filter(({ descripcion }) => descripcion.trim() !== '').length;
+  const nombreDelQuitado = quitado?.mueble.nombre.trim() ?? '';
 
   return (
     <Seccion
       numero={2}
       id="presupuesto-detalle"
-      titulo="Detalle"
-      bajada="Cada mueble con su nombre y su descripción técnica, en el orden en que los va a leer tu cliente."
-      cuenta={muebles.length === 1 ? '1 mueble' : `${String(muebles.length)} muebles`}
+      titulo={m.titulo}
+      bajada={m.bajada}
+      cuenta={m.cuantos(muebles.length)}
     >
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${id}-descripcion`} className="text-label text-text-2">
-          Descripción general <span className="text-text-3">(opcional)</span>
+          {m.descripcionGeneral} <span className="text-text-3">{m.opcional}</span>
         </label>
         <TextoQueCrece
           id={`${id}-descripcion`}
           valor={borrador.descripcion}
           filasMinimas={2}
           maxLength={LARGOS_DEL_PRESUPUESTO.descripcion}
-          placeholder="Lo que vale para todo el trabajo: la línea, los materiales, cómo abren los frentes…"
+          placeholder={m.ejemploGeneral}
           alCambiar={(texto) => {
             alCambiar({ ...borrador, descripcion: texto });
           }}
@@ -428,19 +432,17 @@ export function DetalleDelBorrador({ borrador, alCambiar }: ConElBorrador) {
 
       <div className="flex flex-col gap-2.5 border-t border-hairline-soft pt-3.5">
         <p className="flex items-baseline justify-between gap-3 text-label">
-          <span className="font-semibold">Muebles</span>
+          <span className="font-semibold">{m.muebles}</span>
           {muebles.length > 0 && (
             <span className="text-text-2 tabular-nums">
               {conDescripcion === muebles.length
-                ? 'todos con su descripción'
-                : `${String(conDescripcion)} de ${String(muebles.length)} con descripción`}
+                ? m.todosConDescripcion
+                : m.conDescripcion(conDescripcion, muebles.length)}
             </span>
           )}
         </p>
         {muebles.length === 0 ? (
-          <p className="text-label text-text-2">
-            Sin muebles. Agregá por lo menos uno con su descripción para poder mandarlo.
-          </p>
+          <p className="text-label text-text-2">{m.sinMuebles}</p>
         ) : (
           <ol className="flex list-none flex-col gap-2.5">
             {muebles.map((mueble, indice) => (
@@ -469,11 +471,9 @@ export function DetalleDelBorrador({ borrador, alCambiar }: ConElBorrador) {
         )}
         {quitado !== null && (
           <BarraDeDeshacer
-            texto={`Quité ${
-              quitado.mueble.nombre.trim() === ''
-                ? 'el mueble'
-                : `«${quitado.mueble.nombre.trim()}»`
-            }.`}
+            texto={
+              nombreDelQuitado === '' ? m.quiteElMueble : m.quiteElMuebleLlamado(nombreDelQuitado)
+            }
             alDeshacer={() => {
               alCambiar(conElMuebleDeVuelta(borrador, quitado));
               setQuitado(null);
@@ -493,7 +493,7 @@ export function DetalleDelBorrador({ borrador, alCambiar }: ConElBorrador) {
           }}
         >
           <Icono nombre="plus" tamano={16} />
-          Agregar un mueble
+          {m.agregarUnMueble}
         </Button>
       </div>
     </Seccion>
@@ -503,6 +503,7 @@ export function DetalleDelBorrador({ borrador, alCambiar }: ConElBorrador) {
 function RenglonDeLaLista({
   texto,
   etiqueta,
+  etiquetaDeSacar,
   placeholder,
   alCambiar,
   alQuitar,
@@ -510,6 +511,7 @@ function RenglonDeLaLista({
 }: {
   texto: string;
   etiqueta: string;
+  etiquetaDeSacar: string;
   placeholder?: string;
   alCambiar: (texto: string) => void;
   alQuitar: () => void;
@@ -528,7 +530,7 @@ function RenglonDeLaLista({
           alCambiar={alCambiar}
         />
       </div>
-      <BotonDeLaFila icono="trash-2" etiqueta={`Sacar ${etiqueta}`} peligro alTocar={alQuitar} />
+      <BotonDeLaFila icono="trash-2" etiqueta={etiquetaDeSacar} peligro alTocar={alQuitar} />
     </li>
   );
 }
@@ -589,6 +591,7 @@ export function HerrajesDelBorrador({
   alCambiar,
   deLoQueHaceFalta,
 }: ConElBorrador & { deLoQueHaceFalta: readonly string[] }) {
+  const m = useMensajes().armarElPresupuesto.herrajes;
   const [traidos, setTraidos] = useState<{ ids: { id: string; texto: string }[] } | null>(null);
   const [sinNuevos, setSinNuevos] = useState(false);
   const { mostrar, lista } = borrador.herrajes;
@@ -597,12 +600,14 @@ export function HerrajesDelBorrador({
     <Seccion
       numero={3}
       id="presupuesto-herrajes"
-      titulo="Herrajes"
-      bajada="Uno por renglón, con sus propiedades. Podés traer los de «Lo que hace falta»: vienen sin las cantidades."
+      titulo={m.titulo}
+      bajada={m.bajada}
       cuenta={
         lista.length === 0
           ? undefined
-          : `${String(lista.length)} ${lista.length === 1 ? 'herraje' : 'herrajes'}${mostrar ? '' : ' · no se muestran'}`
+          : mostrar
+            ? m.cuantos(lista.length)
+            : m.cuantosSinMostrar(lista.length)
       }
     >
       <Interruptor
@@ -612,17 +617,13 @@ export function HerrajesDelBorrador({
         }}
         className="min-h-tap self-start rounded-pill pr-2"
       >
-        <span className="text-body font-medium">Mostrarlos en el presupuesto</span>
+        <span className="text-body font-medium">{m.mostrarlos}</span>
       </Interruptor>
-      {!mostrar && (
-        <p className="-mt-1.5 text-label leading-relaxed text-text-2">
-          No van en el presupuesto. La lista queda guardada por si los volvés a mostrar.
-        </p>
-      )}
+      {!mostrar && <p className="-mt-1.5 text-label leading-relaxed text-text-2">{m.noVan}</p>}
 
       {lista.length === 0 ? (
         <p className="border-t border-hairline-soft pt-3 text-label text-text-2">
-          Todavía no hay herrajes. Traelos de «Lo que hace falta» o escribilos acá abajo.
+          {m.todaviaNoHay}
         </p>
       ) : (
         <ul className={`list-none border-t border-hairline-soft ${mostrar ? '' : 'opacity-60'}`}>
@@ -630,7 +631,8 @@ export function HerrajesDelBorrador({
             <RenglonDeLaLista
               key={herraje.id}
               texto={herraje.texto}
-              etiqueta={`Herraje ${String(indice + 1)}`}
+              etiqueta={m.herraje(indice + 1)}
+              etiquetaDeSacar={m.sacarElHerraje(indice + 1)}
               maximo={LARGOS_DEL_PRESUPUESTO.herraje}
               alCambiar={(texto) => {
                 alCambiar(conElHerrajeEditado(borrador, herraje.id, texto));
@@ -645,9 +647,7 @@ export function HerrajesDelBorrador({
 
       {traidos !== null && (
         <BarraDeDeshacer
-          texto={`Traje ${String(traidos.ids.length)} ${
-            traidos.ids.length === 1 ? 'herraje' : 'herrajes'
-          } de «Lo que hace falta».`}
+          texto={m.traje(traidos.ids.length)}
           alDeshacer={() => {
             alCambiar(sinLosTraidos(borrador, traidos.ids));
             setTraidos(null);
@@ -659,13 +659,13 @@ export function HerrajesDelBorrador({
       )}
       {sinNuevos && (
         <p role="status" className="text-label text-text-2">
-          Ya están todos los herrajes de «Lo que hace falta».
+          {m.yaEstanTodos}
         </p>
       )}
 
       <AgregarRenglon
-        etiqueta="Agregar un herraje"
-        placeholder="Correderas, bisagras, pistones…"
+        etiqueta={m.agregarUnHerraje}
+        placeholder={m.ejemploDelHerraje}
         maximo={LARGOS_DEL_PRESUPUESTO.herraje}
         alAgregar={(texto) => {
           alCambiar(conUnHerrajeMas(borrador, { id: uuidv7(), texto }));
@@ -684,7 +684,7 @@ export function HerrajesDelBorrador({
         }}
       >
         <Icono nombre="list-checks" tamano={16} />
-        Traer de «Lo que hace falta»
+        {m.traer}
       </Button>
     </Seccion>
   );
@@ -706,6 +706,7 @@ function CasillaDeLaPlantilla({
   huecos: HuecosDelEditor;
   alCambiar: (tildada: boolean) => void;
 }) {
+  const m = useMensajes().armarElPresupuesto.casillas;
   const esperaUnPago = usaElHueco(clausula.texto, 'relevamiento') && huecos.abonado <= 0;
   const texto = completarHuecos(clausula.texto, huecos.valores);
   const va = tildada && !esperaUnPago;
@@ -719,13 +720,13 @@ function CasillaDeLaPlantilla({
           className={`max-w-[38rem] min-w-0 text-body leading-relaxed ${va ? 'text-ink' : 'text-text-3'}`}
         >
           {clausula.titulo !== null && (
-            <span className="block font-semibold">{clausula.titulo}</span>
-          )}
-          {texto}
-          {esperaUnPago && (
-            <span className="mt-1 block text-meta text-text-3">
-              Aparece cuando tu cliente pague algo: dice cuánto ya pagó.
+            <span translate="no" className="block font-semibold">
+              {clausula.titulo}
             </span>
+          )}
+          <span translate="no">{texto}</span>
+          {esperaUnPago && (
+            <span className="mt-1 block text-meta text-text-3">{m.apareceCuandoPague}</span>
           )}
         </span>
       </label>
@@ -738,20 +739,16 @@ export function CasillasDelBorrador({
   alCambiar,
   numero,
   grupo,
-  titulo,
-  bajada,
   clausulas,
   huecos,
-  placeholder,
 }: ConElBorrador & {
   numero: number;
   grupo: GrupoDeCasillas;
-  titulo: string;
-  bajada: string;
   clausulas: readonly Clausula[];
   huecos: HuecosDelEditor;
-  placeholder: string;
 }) {
+  const m = useMensajes().armarElPresupuesto.casillas;
+  const textos = m[grupo];
   const seleccion = borrador[grupo];
   const tildadas = new Set(seleccion.tildadas);
   const van =
@@ -766,9 +763,9 @@ export function CasillasDelBorrador({
     <Seccion
       numero={numero}
       id={`presupuesto-${grupo}`}
-      titulo={titulo}
-      bajada={bajada}
-      cuenta={`Van ${String(van)} de ${String(total)}`}
+      titulo={textos.titulo}
+      bajada={textos.bajada}
+      cuenta={m.van(van, total)}
     >
       <ul className="list-none">
         {clausulas.map((clausula) => (
@@ -785,14 +782,15 @@ export function CasillasDelBorrador({
       </ul>
       {seleccion.propias.length > 0 && (
         <div className="flex flex-col gap-1 border-t border-hairline-soft pt-3">
-          <p className="text-label font-semibold">Solo en este presupuesto</p>
+          <p className="text-label font-semibold">{m.soloEnEste}</p>
           <ul className="list-none">
             {seleccion.propias.map((propia, indice) => (
               <RenglonDeLaLista
                 key={propia.id}
                 texto={propia.texto}
-                etiqueta={`${titulo}: propia ${String(indice + 1)}`}
-                placeholder={placeholder}
+                etiqueta={textos.propia(indice + 1)}
+                etiquetaDeSacar={textos.sacarLaPropia(indice + 1)}
+                placeholder={textos.ejemplo}
                 maximo={LARGOS_DEL_PRESUPUESTO.propia}
                 alCambiar={(texto) => {
                   alCambiar(conLaPropiaEditada(borrador, grupo, propia.id, texto));
@@ -814,7 +812,7 @@ export function CasillasDelBorrador({
         }}
       >
         <Icono nombre="plus" tamano={16} />
-        Agregar otra
+        {m.agregarOtra}
       </Button>
     </Seccion>
   );
@@ -831,15 +829,18 @@ function CuentaDeLaSena({
   senaPropia: boolean;
   abonado: Money;
 }) {
+  const textos = useMensajes().armarElPresupuesto;
+  const m = textos.sena;
   const conImporte = opcionesDelEditor(valores).filter((opcion) => opcion.monto > 0);
   const documentables = valoresDelTrabajo(totalDelEditor(valores), conImporte);
-  const deQuien = senaPropia ? 'de este trabajo' : 'del taller';
+  const deQuien = senaPropia ? 'trabajo' : 'taller';
   const porcentaje = `${formatearPorcentaje(senaBp)}%`;
   if (documentables === null || (valores.opciones.length > 0 && conImporte.length === 0)) {
     return (
       <p className="max-w-[30rem] rounded-field bg-surface px-3.5 py-3 text-label leading-relaxed text-text-2">
-        Con el total, acá se ve la seña del {porcentaje} {deQuien}
-        {abonado > 0 ? ` y lo que ya pagó (${formatearPesos(abonado)}).` : '.'}
+        {abonado > 0
+          ? m.conElTotalYLoPagado[deQuien](porcentaje, formatearPesos(abonado))
+          : m.conElTotal[deQuien](porcentaje)}
       </p>
     );
   }
@@ -849,22 +850,30 @@ function CuentaDeLaSena({
     if (cuenta === undefined) return null;
     return (
       <div className="flex max-w-[30rem] flex-col gap-2 rounded-field bg-surface px-3.5 py-3 text-body">
-        <p className="text-label font-medium text-text-2">La seña que le vas a pedir</p>
+        <p className="text-label font-medium text-text-2">{m.laQueLeVasAPedir}</p>
         <LineaDePuntos
-          izquierda={`Seña del ${porcentaje} ${deQuien}`}
-          derecha={<span className="font-semibold">{formatearPesos(cuenta.sena)}</span>}
+          izquierda={m.senaDel[deQuien](porcentaje)}
+          derecha={
+            <span translate="no" className="font-semibold">
+              {formatearPesos(cuenta.sena)}
+            </span>
+          }
         />
         {abonado > 0 && (
           <>
             <LineaDePuntos
-              izquierda="Ya pagó"
-              derecha={<span className="font-semibold text-hogar">{formatearPesos(abonado)}</span>}
+              izquierda={m.yaPago}
+              derecha={
+                <span translate="no" className="font-semibold text-hogar">
+                  {formatearPesos(abonado)}
+                </span>
+              }
             />
             <div className="border-t border-ink pt-2">
               <LineaDePuntos
                 className="font-semibold"
-                izquierda="Le falta para la seña"
-                derecha={formatearPesos(cuenta.faltaParaLaSena)}
+                izquierda={m.leFaltaParaLaSena}
+                derecha={<span translate="no">{formatearPesos(cuenta.faltaParaLaSena)}</span>}
               />
             </div>
           </>
@@ -874,21 +883,21 @@ function CuentaDeLaSena({
   }
   return (
     <div className="flex max-w-[30rem] flex-col gap-2 rounded-field bg-surface px-3.5 py-3 text-body">
-      <p className="text-label font-medium text-text-2">
-        La seña del {porcentaje} {deQuien}, según la que elija
-      </p>
+      <p className="text-label font-medium text-text-2">{m.segunLaQueElija[deQuien](porcentaje)}</p>
       {cuentas.map((cuenta) => (
         <LineaDePuntos
           key={cuenta.id ?? cuenta.letra}
-          izquierda={`Opción ${cuenta.letra ?? ''}`}
-          derecha={<span className="font-semibold">{formatearPesos(cuenta.sena)}</span>}
+          izquierda={textos.opcion(cuenta.letra ?? '')}
+          derecha={
+            <span translate="no" className="font-semibold">
+              {formatearPesos(cuenta.sena)}
+            </span>
+          }
         />
       ))}
       {abonado > 0 && (
         <p className="border-t border-hairline pt-2 text-label leading-relaxed text-text-2">
-          Ya pagó{' '}
-          <span className="font-semibold text-hogar tabular-nums">{formatearPesos(abonado)}</span>:
-          se descuenta de la seña de la que elija.
+          {m.yaPagoSeDescuenta(MontoPagado, formatearPesos(abonado))}
         </p>
       )}
     </div>
@@ -908,6 +917,7 @@ export function ValoresDelBorrador({
   senaPropia: boolean;
   abonado: Money;
 }) {
+  const m = useMensajes().armarElPresupuesto.valores;
   const id = useId();
   const conOpciones = valores.opciones.length > 0;
 
@@ -915,9 +925,9 @@ export function ValoresDelBorrador({
     <Seccion
       numero={6}
       id="presupuesto-valores"
-      titulo="Valores"
-      bajada="Es el presupuesto del trabajo: si lo cambiás acá, cambia también en la ficha. La seña la calcula la app."
-      cuenta={conOpciones ? `${String(valores.opciones.length)} opciones` : undefined}
+      titulo={m.titulo}
+      bajada={m.bajada}
+      cuenta={conOpciones ? m.opciones(valores.opciones.length) : undefined}
     >
       {conOpciones ? (
         <div className="@container/valores flex flex-col gap-2.5">
@@ -930,16 +940,19 @@ export function ValoresDelBorrador({
                   className="flex flex-wrap items-start gap-x-2 gap-y-2 border-t border-hairline-soft py-2.5 first:border-t-0 first:pt-0"
                 >
                   <span className="flex min-w-0 flex-[1_1_16rem] items-start gap-2">
-                    <span className="mt-1.5 flex size-8 flex-none items-center justify-center rounded-field bg-surface text-label font-semibold text-ink">
+                    <span
+                      translate="no"
+                      className="mt-1.5 flex size-8 flex-none items-center justify-center rounded-field bg-surface text-label font-semibold text-ink"
+                    >
                       {letra}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
                       <TextoQueCrece
                         variante="renglon"
-                        aria-label={`Qué incluye la opción ${letra}`}
+                        aria-label={m.queIncluye(letra)}
                         valor={opcion.descripcion}
                         maxLength={LARGOS_DEL_DOCUMENTO.descripcionDeLaOpcion}
-                        placeholder="Qué la hace distinta: frentes, material, un mueble más…"
+                        placeholder={m.ejemploDeLaOpcion}
                         alCambiar={(texto) => {
                           alCambiar({
                             ...valores,
@@ -952,7 +965,7 @@ export function ValoresDelBorrador({
                       {opcion.aprobada && (
                         <span className="flex items-center gap-1 text-meta font-semibold text-hogar">
                           <Icono nombre="check" tamano={13} />
-                          La aprobó
+                          {m.laAprobo}
                         </span>
                       )}
                     </span>
@@ -963,7 +976,7 @@ export function ValoresDelBorrador({
                       <MoneyInput
                         data-campo={indice === 0 ? 'valores' : undefined}
                         value={opcion.monto}
-                        aria-label={`Importe de la opción ${letra}`}
+                        aria-label={m.importe(letra)}
                         placeholder="0"
                         onChange={(monto) => {
                           alCambiar({
@@ -980,7 +993,7 @@ export function ValoresDelBorrador({
                     </span>
                     <BotonDeLaFila
                       icono="trash-2"
-                      etiqueta={`Quitar la opción ${letra}`}
+                      etiqueta={m.quitar(letra)}
                       peligro
                       alTocar={() => {
                         alCambiar({
@@ -1009,14 +1022,14 @@ export function ValoresDelBorrador({
             }}
           >
             <Icono nombre="plus" tamano={16} />
-            Agregar una opción
+            {m.agregarUnaOpcion}
           </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`${id}-total`} className="text-label text-text-2">
-              Total del presupuesto
+              {m.total}
             </label>
             <span className="flex h-15 max-w-(--campo-medio) items-center gap-1.5 rounded-field border border-border bg-paper px-3.5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
               <AdornoDePlata className="text-money-lg text-text-3" />
@@ -1041,7 +1054,7 @@ export function ValoresDelBorrador({
             }}
           >
             <Icono nombre="plus" tamano={16} />
-            Ofrecerle más de una opción
+            {m.masDeUnaOpcion}
           </Button>
         </div>
       )}
@@ -1056,6 +1069,7 @@ export function FormaDePagoDelBorrador({
   plantilla,
   huecos,
 }: ConElBorrador & { plantilla: PlantillaDelPresupuesto; huecos: HuecosDelEditor }) {
+  const m = useMensajes().armarElPresupuesto.formaDePago;
   const id = useId();
   const elegida = borrador.formaDePago;
   const deLaPlantilla = (forma: FormaElegida) =>
@@ -1069,22 +1083,21 @@ export function FormaDePagoDelBorrador({
       : completarHuecos(textoDeLaForma(plantilla, elegida) ?? '', huecos.valores);
   const retocada = elegida !== null && elegida.texto !== null;
   const opciones = [
-    ...plantilla.formasDePago.map((forma) => ({ valor: forma.id, etiqueta: forma.nombre })),
-    { valor: 'ninguna', etiqueta: 'No mostrarla' },
+    ...plantilla.formasDePago.map((forma) => ({
+      valor: forma.id,
+      etiqueta: forma.nombre,
+      dato: true,
+    })),
+    { valor: 'ninguna', etiqueta: m.noMostrarla, dato: false },
   ];
 
   return (
-    <Seccion
-      numero={7}
-      id="presupuesto-forma-de-pago"
-      titulo="Forma de pago"
-      bajada="Elegí una de tus formas de siempre y retocá el texto para este trabajo. No cambia cómo te paga en su página."
-    >
+    <Seccion numero={7} id="presupuesto-forma-de-pago" titulo={m.titulo} bajada={m.bajada}>
       <fieldset className="@container flex min-w-0 flex-col gap-1.5">
-        <legend className="sr-only">Forma de pago</legend>
+        <legend className="sr-only">{m.titulo}</legend>
         <div
           role="radiogroup"
-          aria-label="Forma de pago"
+          aria-label={m.titulo}
           className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @min-[36rem]:grid-cols-4"
         >
           {opciones.map((opcion) => {
@@ -1096,6 +1109,7 @@ export function FormaDePagoDelBorrador({
                 type="button"
                 role="radio"
                 aria-checked={esta}
+                translate={opcion.dato ? 'no' : undefined}
                 onClick={() => {
                   alCambiar(
                     conLaForma(
@@ -1119,15 +1133,12 @@ export function FormaDePagoDelBorrador({
         </div>
       </fieldset>
       {elegida === null ? (
-        <p className="text-label leading-relaxed text-text-2">
-          La forma de pago no va en este presupuesto. Tu cliente igual ve en su página cómo pagarte
-          la seña.
-        </p>
+        <p className="text-label leading-relaxed text-text-2">{m.noVa}</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           <span className="flex items-baseline justify-between gap-3">
             <label htmlFor={`${id}-texto`} className="text-label text-text-2">
-              Lo que dice, para este trabajo
+              {m.loQueDice}
             </label>
             {retocada && (
               <button
@@ -1139,7 +1150,7 @@ export function FormaDePagoDelBorrador({
                 }}
                 className="-my-3 min-h-tap px-1 text-label font-medium underline underline-offset-3"
               >
-                Volver al de siempre
+                {m.volverAlDeSiempre}
               </button>
             )}
           </span>
@@ -1158,9 +1169,7 @@ export function FormaDePagoDelBorrador({
             }}
           />
           <span className="text-meta text-text-3">
-            {retocada
-              ? 'Retocado para este trabajo. La de siempre sigue igual en Ajustes.'
-              : `El ${huecos.valores.sena} es la seña de este trabajo.`}
+            {retocada ? m.retocado : m.laSenaDeEsteTrabajo(huecos.valores.sena)}
           </span>
         </div>
       )}
@@ -1169,15 +1178,19 @@ export function FormaDePagoDelBorrador({
 }
 
 export function GarantiaDelBorrador({ texto, meses }: { texto: string; meses: number }) {
+  const m = useMensajes().armarElPresupuesto.garantia;
   return (
     <Seccion
       numero={10}
       id="presupuesto-garantia"
-      titulo="Garantía"
-      bajada="Va siempre: la ley pide por lo menos 6 meses para un mueble nuevo."
-      cuenta={`${String(meses)} ${meses === 1 ? 'mes' : 'meses'}`}
+      titulo={m.titulo}
+      bajada={m.bajada}
+      cuenta={m.meses(meses)}
     >
-      <p className="flex items-start gap-3 rounded-field bg-surface px-3.5 py-3 text-body leading-relaxed text-ink">
+      <p
+        translate="no"
+        className="flex items-start gap-3 rounded-field bg-surface px-3.5 py-3 text-body leading-relaxed text-ink"
+      >
         <Icono nombre="shield" tamano={18} className="mt-0.5 flex-none text-text-2" />
         {texto}
       </p>
@@ -1186,7 +1199,7 @@ export function GarantiaDelBorrador({ texto, meses }: { texto: string; meses: nu
         className="inline-flex min-h-tap items-center gap-1.5 self-start rounded-field text-label font-semibold underline underline-offset-3"
       >
         <Icono nombre="settings" tamano={16} />
-        Se cambia en Ajustes
+        {m.seCambiaEnAjustes}
       </Ir>
     </Seccion>
   );
