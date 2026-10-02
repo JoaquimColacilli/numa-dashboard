@@ -17,6 +17,7 @@ import { crearCuenta } from './crearCuenta';
 import { desbloquearLaApp } from './desbloquearLaApp';
 import { editarCliente } from './editarCliente';
 import { editarLaEncuesta } from './editarLaEncuesta';
+import { editarPerfil } from './editarPerfil';
 import { editarProyecto } from './editarProyecto';
 import { editarTesoro } from './editarTesoro';
 import { enlace } from './enlace';
@@ -60,6 +61,7 @@ export const es = {
   desbloquearLaApp,
   editarCliente,
   editarLaEncuesta,
+  editarPerfil,
   editarProyecto,
   editarTesoro,
   enlace,

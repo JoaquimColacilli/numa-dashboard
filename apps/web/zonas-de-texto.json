@@ -13,7 +13,6 @@
     "src/features/compartir-con-el-cliente/",
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
     "src/features/cubrir-el-faltante/",
-    "src/features/editar-perfil/",
     "src/features/editar-tesoro/",
     "src/features/elegir-tema/",
     "src/features/pedir-la-opinion/",

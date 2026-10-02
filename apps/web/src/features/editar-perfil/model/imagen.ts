@@ -1,3 +1,4 @@
+import { mensajes } from '@/shared/idioma';
 import { codificarLienzo, lienzoDelDocumento, type LienzoDeSalida } from '@/shared/lib';
 
 import { LADO_DE_SALIDA, type Recorte } from './encuadre';
@@ -23,7 +24,7 @@ export async function recortarYCodificar(
   lienzo.width = LADO_DE_SALIDA;
   lienzo.height = LADO_DE_SALIDA;
   const contexto = lienzo.getContext('2d');
-  if (!contexto) throw new Error('Este navegador no puede preparar la foto.');
+  if (!contexto) throw new Error(mensajes().editarPerfil.esteNavegadorNoPuedePrepararla);
 
   contexto.imageSmoothingEnabled = true;
   contexto.imageSmoothingQuality = 'high';
@@ -43,6 +44,6 @@ export async function recortarYCodificar(
   lienzo.width = 0;
   lienzo.height = 0;
 
-  if (!salida) throw new Error('No se pudo preparar la foto. Probá de nuevo.');
+  if (!salida) throw new Error(mensajes().editarPerfil.noSePudoPrepararla);
   return salida;
 }

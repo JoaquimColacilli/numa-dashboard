@@ -124,6 +124,11 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: 'useSesionActiva solo se usa adentro de una ruta con sesión.',
     motivo: 'Es un error de programación: salta si el hook se usa fuera de una ruta con sesión.',
   },
+  {
+    archivo: 'src/features/editar-perfil/ui/RecortadorDeFoto.tsx',
+    texto: 'translate( px, px)',
+    motivo: 'Es el valor del transform del estilo, no un texto.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {
