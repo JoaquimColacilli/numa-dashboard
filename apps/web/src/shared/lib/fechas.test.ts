@@ -28,6 +28,12 @@ describe('las fechas del presupuesto', () => {
     expect(fechaDelRotulo('2030-01-02')).toBe('02/01/30');
   });
 
+  it('en portugués, el primer día del mes va con su ordinal: «1º de dezembro»', () => {
+    expect(fechaConAnio('2026-12-01', 'pt-BR')).toBe('1º de dezembro de 2026');
+    expect(fechaConAnio('2026-12-02', 'pt-BR')).toBe('2 de dezembro de 2026');
+    expect(fechaConAnio('2026-12-01', 'en')).toBe('December 1, 2026');
+  });
+
   it('en inglés y en portugués, la del rótulo nombra el mes: nunca una fecha solo en números', () => {
     expect(fechaDelRotulo('2026-09-17', 'en')).toBe('Sep 17, 2026');
     expect(fechaDelRotulo('2026-09-17', 'pt-BR')).toBe('17 set. 2026');
@@ -168,15 +174,15 @@ describe('las fechas en inglés y en portugués', () => {
   it('usan lo que da Intl con la etiqueta del idioma, con el año solo si no es el de hoy', () => {
     expect(fechaLarga('2026-10-01', HOY, 'en')).toBe('Thu, Oct 1');
     expect(fechaLarga('2025-12-03', HOY, 'en')).toBe('Wed, Dec 3, 2025');
-    expect(fechaLarga('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1 de out.');
+    expect(fechaLarga('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1º de out.');
     expect(fechaEnUnaFrase('2026-10-01', HOY, 'en')).toBe('Thu, October 1');
-    expect(fechaEnUnaFrase('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1 de outubro');
+    expect(fechaEnUnaFrase('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1º de outubro');
     expect(diaYMes('2025-12-03', HOY, 'en')).toBe('December 3, 2025');
-    expect(diaYMes('2026-10-01', HOY, 'pt-BR')).toBe('1 de outubro');
+    expect(diaYMes('2026-10-01', HOY, 'pt-BR')).toBe('1º de outubro');
     expect(fechaConAnio('2026-10-01', 'en')).toBe('October 1, 2026');
-    expect(fechaConAnio('2026-10-01', 'pt-BR')).toBe('1 de outubro de 2026');
+    expect(fechaConAnio('2026-10-01', 'pt-BR')).toBe('1º de outubro de 2026');
     expect(diaYMesCorto('2026-10-01', 'en')).toBe('Oct 1');
-    expect(diaYMesCorto('2026-10-01', 'pt-BR')).toBe('1 de out.');
+    expect(diaYMesCorto('2026-10-01', 'pt-BR')).toBe('1º de out.');
   });
 
   it('el nombre del mes va con mayúscula, porque se muestra solo', () => {

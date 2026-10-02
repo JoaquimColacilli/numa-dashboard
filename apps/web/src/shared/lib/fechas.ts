@@ -80,7 +80,12 @@ function conIntl(fecha: string, idioma: Idioma, opciones: Intl.DateTimeFormatOpt
     });
     FORMATOS_DE_FECHA.set(clave, formato);
   }
-  return formato.format(comoUtc(fecha));
+  const dia = comoUtc(fecha);
+  if (idioma !== 'pt-BR' || dia.getUTCDate() !== 1) return formato.format(dia);
+  return formato
+    .formatToParts(dia)
+    .map((parte) => (parte.type === 'day' ? `${parte.value}º` : parte.value))
+    .join('');
 }
 
 const RELATIVOS = new Map<Idioma, Intl.RelativeTimeFormat>();
