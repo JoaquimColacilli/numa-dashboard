@@ -5,7 +5,6 @@
     "src/features/compartir-con-el-cliente/",
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
     "src/features/pedir-la-opinion/",
-    "src/features/ver-novedades/",
     "src/pages/encuesta-publica/",
     "src/pages/vista-cliente/",
     "src/shared/lib/telefono.ts",

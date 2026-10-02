@@ -57,6 +57,7 @@ import { recuperarAcceso } from './recuperarAcceso';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
 import { ui } from './ui';
+import { verNovedades } from './verNovedades';
 
 export const es = {
   activarHuella,
@@ -116,6 +117,7 @@ export const es = {
   registrarMovimiento,
   replica,
   ui,
+  verNovedades,
 } as const;
 
 export type Mensajes = Ensanchar<typeof es>;

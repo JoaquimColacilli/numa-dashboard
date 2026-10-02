@@ -57,6 +57,7 @@ import { recuperarAcceso } from './recuperarAcceso';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
 import { ui } from './ui';
+import { verNovedades } from './verNovedades';
 
 export const en = {
   activarHuella,
@@ -116,4 +117,5 @@ export const en = {
   registrarMovimiento,
   replica,
   ui,
+  verNovedades,
 } satisfies Mensajes;

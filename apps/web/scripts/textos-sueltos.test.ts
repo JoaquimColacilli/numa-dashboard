@@ -99,6 +99,12 @@ const EXCEPCIONES: readonly Excepcion[] = [
       'Las categorías que se ofrecen se guardan en castellano en cada movimiento: son claves de movimiento.categorias, que las muestra en el idioma de quien mira con categoriaEnPantalla.',
   },
   {
+    archivo: 'src/features/ver-novedades/model/novedades.ts',
+    texto: /./su,
+    motivo:
+      'Las novedades son contenido con su propio idioma, no textos de la app: las de antes quedan en castellano y las nuevas traen sus líneas en los tres idiomas, atadas por novedades.test.ts.',
+  },
+  {
     archivo: 'src/entities/replica/model/contexto.ts',
     texto: 'Falta ProveedorDeReplica: las pantallas del taller se montan adentro suyo.',
     motivo:

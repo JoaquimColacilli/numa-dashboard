@@ -1,9 +1,22 @@
-export interface Novedad {
+import type { Idioma } from '@maun/domain';
+
+export type LineasEnLosTresIdiomas = Readonly<Record<Idioma, readonly string[]>>;
+
+export interface NovedadEnLosTresIdiomas {
+  version: string;
+  lineas: LineasEnLosTresIdiomas;
+}
+
+export interface NovedadDeAntes {
   version: string;
   lineas: readonly string[];
 }
 
-export const NOVEDADES: readonly Novedad[] = [
+export type Novedad = NovedadEnLosTresIdiomas | NovedadDeAntes;
+
+export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [];
+
+export const NOVEDADES_DE_ANTES: readonly NovedadDeAntes[] = [
   {
     version: '2026-10-01',
     lineas: [
@@ -258,3 +271,24 @@ export const NOVEDADES: readonly Novedad[] = [
     ],
   },
 ];
+
+export const NOVEDADES: readonly Novedad[] = [
+  ...NOVEDADES_EN_LOS_TRES_IDIOMAS,
+  ...NOVEDADES_DE_ANTES,
+];
+
+export function esDeAntes(novedad: Novedad): novedad is NovedadDeAntes {
+  return Array.isArray(novedad.lineas);
+}
+
+export function lineasDeLaNovedad(novedad: Novedad, idioma: Idioma): readonly string[] {
+  if (esDeAntes(novedad)) return idioma === 'es' ? novedad.lineas : [];
+  return novedad.lineas[idioma];
+}
+
+export function novedadesEnElIdioma(
+  novedades: readonly Novedad[],
+  idioma: Idioma,
+): readonly Novedad[] {
+  return novedades.filter((novedad) => lineasDeLaNovedad(novedad, idioma).length > 0);
+}
