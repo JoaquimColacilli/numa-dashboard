@@ -1,12 +1,14 @@
 import { useState, type SyntheticEvent } from 'react';
 
 import { cambiarContrasena, mensajeDeAcceso } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { marcarDesbloqueada } from '@/shared/lib';
 import { Button, CampoDeContrasena } from '@/shared/ui';
 
 const LARGO_MINIMO = 6;
 
 export function FormularioDeNuevaContrasena({ alCambiar }: { alCambiar: () => void }) {
+  const m = useMensajes();
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<{ campo?: 'contrasena'; mensaje: string } | undefined>(
     undefined,
@@ -18,7 +20,7 @@ export function FormularioDeNuevaContrasena({ alCambiar }: { alCambiar: () => vo
     if (contrasena.length < LARGO_MINIMO) {
       setError({
         campo: 'contrasena',
-        mensaje: `La contraseña tiene que tener al menos ${String(LARGO_MINIMO)} caracteres.`,
+        mensaje: m.recuperarAcceso.contrasenaCorta({ minimo: LARGO_MINIMO }),
       });
       return;
     }
@@ -44,10 +46,10 @@ export function FormularioDeNuevaContrasena({ alCambiar }: { alCambiar: () => vo
       }}
     >
       <CampoDeContrasena
-        etiqueta="Contraseña nueva"
+        etiqueta={m.recuperarAcceso.contrasenaNueva}
         name="new-password"
         autoComplete="new-password"
-        ayuda={`Al menos ${String(LARGO_MINIMO)} caracteres. Con el ojo ves lo que escribiste.`}
+        ayuda={m.recuperarAcceso.alMenos({ minimo: LARGO_MINIMO })}
         value={contrasena}
         error={error?.campo === 'contrasena' ? error.mensaje : undefined}
         onChange={(evento) => {
@@ -60,7 +62,7 @@ export function FormularioDeNuevaContrasena({ alCambiar }: { alCambiar: () => vo
         </p>
       )}
       <Button type="submit" size="grande" cargando={guardando} className="mt-1 w-full">
-        {guardando ? 'Guardando…' : 'Guardar la contraseña'}
+        {guardando ? m.recuperarAcceso.guardando : m.recuperarAcceso.guardarLaContrasena}
       </Button>
     </form>
   );

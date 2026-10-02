@@ -18,7 +18,6 @@
     "src/features/elegir-tema/",
     "src/features/pedir-la-opinion/",
     "src/features/recibir-avisos/",
-    "src/features/recuperar-acceso/",
     "src/features/ver-novedades/",
     "src/pages/acceso/",
     "src/pages/ajustes/",

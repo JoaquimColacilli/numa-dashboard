@@ -37,6 +37,7 @@ import { paginaInicio } from './paginaInicio';
 import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { proyecto } from './proyecto';
+import { recuperarAcceso } from './recuperarAcceso';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
 import { ui } from './ui';
@@ -79,6 +80,7 @@ export const en = {
   paginaOpiniones,
   paginaProyectos,
   proyecto,
+  recuperarAcceso,
   registrarMovimiento,
   replica,
   ui,
