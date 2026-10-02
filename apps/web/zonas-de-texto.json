@@ -15,7 +15,6 @@
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
     "src/features/crear-cuenta/",
     "src/features/cubrir-el-faltante/",
-    "src/features/desbloquear-la-app/",
     "src/features/editar-perfil/",
     "src/features/editar-tesoro/",
     "src/features/elegir-tema/",

@@ -12,6 +12,7 @@ import { cliente } from './cliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
+import { desbloquearLaApp } from './desbloquearLaApp';
 import { editarCliente } from './editarCliente';
 import { editarLaEncuesta } from './editarLaEncuesta';
 import { editarProyecto } from './editarProyecto';
@@ -50,6 +51,7 @@ export const en = {
   comun,
   configurarTaller,
   coordinarLaEntrega,
+  desbloquearLaApp,
   editarCliente,
   editarLaEncuesta,
   editarProyecto,

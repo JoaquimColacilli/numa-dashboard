@@ -10,6 +10,7 @@ import {
 
 import { useNombreDeLaPersona, useSesionActiva } from '@/entities/sesion';
 import { entrar, esFalloDeRed, mensajeDeAcceso, pedirRecuperacion } from '@/shared/api';
+import { mensajes, useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   anotarCredencial,
   bloqueoDe,
@@ -20,29 +21,9 @@ import {
 } from '@/shared/lib';
 import { Button, CampoDeContrasena, ENLACE_DE_CAMPO, Icono, PantallaDeAcceso } from '@/shared/ui';
 
-import {
-  FASE_INICIAL,
-  siguienteFase,
-  type MotivoDelFormulario,
-  type OrigenDelPedido,
-} from '../model/fase';
+import { FASE_INICIAL, siguienteFase, type OrigenDelPedido } from '../model/fase';
 
 const RUTA_DEL_ENLACE = '/acceso/nueva-contrasena';
-
-const NOTA =
-  'La app se abre pidiendo la huella porque lo activaste en este teléfono. Se cambia en Ajustes.';
-
-const SIN_SENAL_PARA_LA_CONTRASENA =
-  'Sin señal no se puede entrar con la contraseña: se verifica contra el servidor. Probá con la huella.';
-
-const BAJADA: Readonly<Record<MotivoDelFormulario, string>> = {
-  'eligio-la-contrasena': 'Entrá con tu contraseña, o probá otra vez con la huella.',
-  'no-se-confirmo': 'La huella no se confirmó. Probala otra vez o entrá con tu contraseña.',
-  'sin-respuesta':
-    'El pedido de la huella no respondió. Probala otra vez o entrá con tu contraseña.',
-  'no-disponible': 'No pudimos usar la huella en este teléfono.',
-  interrumpida: 'Probá otra vez con la huella o entrá con tu contraseña.',
-};
 
 function conElFoco(signal: AbortSignal): Promise<boolean> {
   if (document.hasFocus()) return Promise.resolve(true);
@@ -70,12 +51,15 @@ async function desenlaceDeLaHuella(
   return resultado;
 }
 
-function saludo(nombre: string): string {
+function saludo(nombre: string, m: Mensajes): string {
   const primero = nombre.trim().split(/\s+/)[0] ?? '';
-  return primero === '' ? 'Hola' : `Hola, ${primero}`;
+  return primero === ''
+    ? m.desbloquearLaApp.hola
+    : m.desbloquearLaApp.holaConNombre({ nombre: primero });
 }
 
 function BotonDeLaHuella({ pidiendo, alTocar }: { pidiendo: boolean; alTocar: () => void }) {
+  const m = useMensajes();
   return (
     <Button
       variant="secundario"
@@ -85,7 +69,7 @@ function BotonDeLaHuella({ pidiendo, alTocar }: { pidiendo: boolean; alTocar: ()
       onClick={alTocar}
     >
       {!pidiendo && <Icono nombre="fingerprint" tamano={20} />}
-      {pidiendo ? 'Esperando la huella…' : 'Probar con la huella'}
+      {pidiendo ? m.desbloquearLaApp.esperandoLaHuella : m.desbloquearLaApp.probarConLaHuella}
     </Button>
   );
 }
@@ -99,6 +83,7 @@ function FormularioDeContrasena({
   pidiendo: boolean;
   alProbarHuella: () => void;
 }) {
+  const m = useMensajes();
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<{ campo?: 'contrasena'; mensaje: string } | undefined>(
     undefined,
@@ -109,7 +94,7 @@ function FormularioDeContrasena({
   async function enviar(evento: SyntheticEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (contrasena === '') {
-      setError({ campo: 'contrasena', mensaje: 'Escribí tu contraseña.' });
+      setError({ campo: 'contrasena', mensaje: m.desbloquearLaApp.escribiTuContrasena });
       return;
     }
     setEntrando(true);
@@ -119,7 +104,9 @@ function FormularioDeContrasena({
       marcarDesbloqueada();
     } catch (fallo) {
       setError({
-        mensaje: esFalloDeRed(fallo) ? SIN_SENAL_PARA_LA_CONTRASENA : mensajeDeAcceso(fallo),
+        mensaje: esFalloDeRed(fallo)
+          ? mensajes().desbloquearLaApp.sinSenalParaLaContrasena
+          : mensajeDeAcceso(fallo),
       });
       setEntrando(false);
     }
@@ -131,7 +118,7 @@ function FormularioDeContrasena({
       await pedirRecuperacion(email, `${window.location.origin}${RUTA_DEL_ENLACE}`);
       setEnlace({
         error: false,
-        texto: `Te mandamos un enlace a ${email} para poner una contraseña nueva. Abrilo desde este teléfono.`,
+        texto: mensajes().desbloquearLaApp.teMandamosUnEnlace({ email }),
       });
     } catch (fallo) {
       setEnlace({ error: true, texto: mensajeDeAcceso(fallo) });
@@ -148,7 +135,7 @@ function FormularioDeContrasena({
     >
       <input type="hidden" name="username" autoComplete="username" value={email} />
       <CampoDeContrasena
-        etiqueta="Contraseña"
+        etiqueta={m.desbloquearLaApp.contrasena}
         name="password"
         autoComplete="current-password"
         accesorio={
@@ -159,7 +146,7 @@ function FormularioDeContrasena({
               void pedirEnlace();
             }}
           >
-            ¿La olvidaste?
+            {m.desbloquearLaApp.laOlvidaste}
           </button>
         }
         value={contrasena}
@@ -182,7 +169,7 @@ function FormularioDeContrasena({
         </p>
       )}
       <Button type="submit" size="grande" cargando={entrando} className="mt-1 w-full">
-        {entrando ? 'Entrando…' : 'Entrar'}
+        {entrando ? m.desbloquearLaApp.entrando : m.desbloquearLaApp.entrar}
       </Button>
       <BotonDeLaHuella pidiendo={pidiendo} alTocar={alProbarHuella} />
     </form>
@@ -190,6 +177,7 @@ function FormularioDeContrasena({
 }
 
 export function PantallaDeBloqueo({ otraCuenta }: { otraCuenta?: ReactNode }) {
+  const m = useMensajes();
   const { usuarioId, email, foto } = useSesionActiva();
   const nombre = useNombreDeLaPersona();
   const sinSenal = useEstadoSync().tipo === 'sin-conexion';
@@ -234,16 +222,16 @@ export function PantallaDeBloqueo({ otraCuenta }: { otraCuenta?: ReactNode }) {
   if (motivo === null) {
     return (
       <PantallaDeAcceso
-        titulo={saludo(nombre)}
-        bajada="Tocá el sensor de huella para abrir el taller."
+        titulo={saludo(nombre, m)}
+        bajada={m.desbloquearLaApp.tocaElSensor}
         persona={persona}
-        nota={NOTA}
+        nota={m.desbloquearLaApp.nota}
         pie={otraCuenta}
       >
         <div className="flex flex-col gap-3">
           <p role="status" className="flex min-h-tap items-center gap-3 text-body text-text-2">
             <Icono nombre="fingerprint" tamano={26} className="flex-none text-ink" />
-            Esperando la huella…
+            {m.desbloquearLaApp.esperandoLaHuella}
           </p>
           <Button
             size="grande"
@@ -253,10 +241,10 @@ export function PantallaDeBloqueo({ otraCuenta }: { otraCuenta?: ReactNode }) {
             }}
           >
             <Icono nombre="fingerprint" tamano={20} />
-            Usar la huella
+            {m.desbloquearLaApp.usarLaHuella}
           </Button>
           <Button variant="terciario" className="-ml-3 self-start" onClick={usarContrasena}>
-            Entrar con la contraseña
+            {m.desbloquearLaApp.entrarConLaContrasena}
           </Button>
         </div>
       </PantallaDeAcceso>
@@ -270,10 +258,10 @@ export function PantallaDeBloqueo({ otraCuenta }: { otraCuenta?: ReactNode }) {
 
   return (
     <PantallaDeAcceso
-      titulo={saludo(nombre)}
-      bajada={BAJADA[motivo]}
+      titulo={saludo(nombre, m)}
+      bajada={m.desbloquearLaApp.bajada[motivo]}
       persona={persona}
-      nota={NOTA}
+      nota={m.desbloquearLaApp.nota}
       pie={otraCuenta}
     >
       {sinSenal ? (
@@ -282,11 +270,11 @@ export function PantallaDeBloqueo({ otraCuenta }: { otraCuenta?: ReactNode }) {
             role="alert"
             className="flex flex-col gap-1 rounded-field bg-atencion-tint px-3.5 py-3 text-label leading-relaxed text-atencion"
           >
-            <p className="font-semibold">Sin señal solo podés entrar con la huella.</p>
+            <p className="font-semibold">{m.desbloquearLaApp.sinSenalSoloConLaHuella}</p>
             <p>
               {motivo === 'no-disponible'
-                ? 'La huella de este teléfono no respondió. Cuando vuelva la señal vas a poder entrar con tu contraseña.'
-                : 'Cuando vuelva la señal también vas a poder entrar con tu contraseña.'}
+                ? m.desbloquearLaApp.laHuellaNoRespondio
+                : m.desbloquearLaApp.cuandoVuelvaLaSenal}
             </p>
           </div>
           <BotonDeLaHuella pidiendo={pidiendo} alTocar={probarHuella} />
