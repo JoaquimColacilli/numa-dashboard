@@ -1,6 +1,32 @@
 import type { Mensajes } from '../es';
 
 export const registrarMovimiento = {
+  editar: 'Editar movimentação',
+  cargar: 'Registrar movimentação',
+  tipo: 'Tipo',
+  detalleDelTipo: 'Detalhe do tipo',
+  cubreElMes: (mes) =>
+    `Cobre o que faltava para os custos fixos de ${mes}, então continua sendo uma transferência entre caixinhas.`,
+  saleDe: 'Sai de',
+  entraA: 'Entra em',
+  cuantaPlata: 'Valor',
+  categoria: 'Categoria',
+  queFue: 'O que foi',
+  cuando: 'Quando',
+  hoy: 'Hoje',
+  ayer: 'Ontem',
+  otraFecha: 'Outra data',
+  faltanLosLados: 'Escolha de qual caixinha o dinheiro sai e para qual vai.',
+  faltaElTesoro: 'Escolha de qual caixinha o dinheiro sai.',
+  faltaElMonto: 'Informe o valor, por exemplo 12.500.',
+  seVaABorrar: (monto) =>
+    `Esta movimentação de ${monto} será excluída e os saldos serão recalculados sem ela.`,
+  borrarlo: 'Excluir',
+  dejarlo: 'Manter',
+  quedaEnLaCola: 'Ficou pendente: sincroniza quando a internet voltar.',
+  borrar: 'Excluir',
+  guardarLosCambios: 'Salvar alterações',
+  cargarElMovimiento: 'Registrar movimentação',
   cambio: {
     salenDe: 'Saem de',
     entranA: 'Entram em',

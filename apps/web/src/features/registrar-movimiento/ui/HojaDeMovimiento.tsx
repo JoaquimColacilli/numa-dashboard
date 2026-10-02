@@ -19,6 +19,7 @@ import {
   claseDe,
   clasesDelGrupo,
   destinosDeLaClase,
+  esCategoriaDelCatalogo,
   esUnCambio,
   GRUPOS,
   hayDolaresParaCargar,
@@ -52,8 +53,8 @@ import {
   formatearPlata,
   hayCambios,
   hoyLocal,
+  mesEnUnaFrase,
   metaDeAvisos,
-  nombreDelMes,
   TESORO,
   TINTA,
   useEstadoSync,
@@ -62,10 +63,6 @@ import {
 import { AdornoDePlata, Button, Campo, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared/ui';
 
 const UN_DIA_MS = 86_400_000;
-
-const FALTAN_LOS_LADOS = 'Elegí de qué tesoro sale la plata y a cuál entra.';
-
-const FALTA_EL_TESORO = 'Elegí de qué tesoro sale la plata.';
 
 const LUGAR_DEL_GRUPO: Readonly<Record<GrupoDeMovimiento, string>> = {
   ingreso: 'col-span-2 @min-[30rem]:col-span-1',
@@ -268,13 +265,14 @@ function Segmentado({
   soloEntreTesoros: boolean;
   alElegir: (nuevo: GrupoDeMovimiento) => void;
 }) {
+  const m = useMensajes();
   const grupos = GRUPOS.filter((opcion) => conDolares || opcion.id !== 'dolares');
   const lugar = conDolares ? LUGAR_CON_LOS_DOLARES : LUGAR_DEL_GRUPO;
   return (
     <div className="@container">
       <div
         role="radiogroup"
-        aria-label="Tipo"
+        aria-label={m.registrarMovimiento.tipo}
         className={`grid grid-cols-6 gap-0.5 rounded-panel bg-ink/6 p-1 ${
           conDolares ? '@min-[30rem]:grid-cols-6' : '@min-[30rem]:grid-cols-5'
         }`}
@@ -327,6 +325,7 @@ function ElegirTesoro({
             <button
               key={tesoro.id}
               type="button"
+              translate="no"
               aria-pressed={activo}
               onClick={() => {
                 alElegir(tesoro.id);
@@ -630,7 +629,7 @@ export function HojaDeMovimiento({
   }
 
   function errorDelMonto(): string {
-    if (!cambio) return 'Escribí cuánta plata es, por ejemplo 12.500.';
+    if (!cambio) return m.registrarMovimiento.faltaElMonto;
     return clase === 'compra_de_dolares'
       ? m.registrarMovimiento.cambio.faltaLoQuePagaste
       : m.registrarMovimiento.cambio.faltaLoQueVendiste;
@@ -648,7 +647,11 @@ export function HojaDeMovimiento({
       faltaLoRecibido ? m.registrarMovimiento.cambio.faltaLoQueRecibiste : undefined,
     );
     setErrorDeLosLados(
-      lados === null ? (datos.eligeElTesoro ? FALTA_EL_TESORO : FALTAN_LOS_LADOS) : undefined,
+      lados === null
+        ? datos.eligeElTesoro
+          ? m.registrarMovimiento.faltaElTesoro
+          : m.registrarMovimiento.faltanLosLados
+        : undefined,
     );
     if (importe === null || importe === 0 || faltaLoRecibido || lados === null) return;
 
@@ -706,7 +709,7 @@ export function HojaDeMovimiento({
   const selectorDeCategoria = categorias.length > 0 && (
     <label className="flex flex-col gap-1.5">
       <span className="text-label text-text-2">
-        {cambio ? m.registrarMovimiento.cambio.queDolar : 'Categoría'}
+        {cambio ? m.registrarMovimiento.cambio.queDolar : m.registrarMovimiento.categoria}
       </span>
       <select
         value={categoria}
@@ -716,12 +719,21 @@ export function HojaDeMovimiento({
         className="h-field rounded-field border border-border bg-paper px-3 text-body-lg text-ink"
       >
         {categorias.map((opcion) => (
-          <option key={opcion} value={opcion}>
+          <option
+            key={opcion}
+            value={opcion}
+            translate={esCategoriaDelCatalogo(opcion) ? undefined : 'no'}
+          >
             {categoriaEnPantalla(opcion)}
           </option>
         ))}
         {!categorias.includes(categoria) && categoria !== '' && (
-          <option value={categoria}>{categoria}</option>
+          <option
+            value={categoria}
+            translate={esCategoriaDelCatalogo(categoria) ? undefined : 'no'}
+          >
+            {categoriaEnPantalla(categoria)}
+          </option>
         )}
       </select>
     </label>
@@ -729,7 +741,7 @@ export function HojaDeMovimiento({
 
   const campoQueFue = (
     <Campo
-      etiqueta="Qué fue"
+      etiqueta={m.registrarMovimiento.queFue}
       value={descripcion}
       maxLength={500}
       placeholder={datos.ejemplo}
@@ -747,7 +759,7 @@ export function HojaDeMovimiento({
 
   return (
     <Hoja
-      titulo={movimiento ? 'Editar el movimiento' : 'Cargar un movimiento'}
+      titulo={movimiento ? m.registrarMovimiento.editar : m.registrarMovimiento.cargar}
       alCerrar={alCerrar}
       conCambios={hayCambios(
         {
@@ -786,13 +798,16 @@ export function HojaDeMovimiento({
 
           {cubreElMes !== null && (
             <p className="text-label leading-relaxed text-text-2">
-              Cubre lo que faltaba para los gastos fijos de {nombreDelMes(cubreElMes).toLowerCase()}
-              , así que sigue siendo un pase entre tesoros.
+              {m.registrarMovimiento.cubreElMes(mesEnUnaFrase(cubreElMes))}
             </p>
           )}
 
           {clasesDelGrupo(datos.grupo).length > 1 && (
-            <div role="group" aria-label="Detalle del tipo" className="flex flex-wrap gap-2">
+            <div
+              role="group"
+              aria-label={m.registrarMovimiento.detalleDelTipo}
+              className="flex flex-wrap gap-2"
+            >
               {clasesDelGrupo(datos.grupo)
                 .filter(
                   (opcion) =>
@@ -885,13 +900,13 @@ export function HojaDeMovimiento({
               {datos.eligeLosLados && (
                 <div className="flex flex-col gap-3">
                   <ElegirTesoro
-                    etiqueta="Sale de"
+                    etiqueta={m.registrarMovimiento.saleDe}
                     opciones={origenes}
                     elegido={desde}
                     alElegir={elegirDesde}
                   />
                   <ElegirTesoro
-                    etiqueta="Entra a"
+                    etiqueta={m.registrarMovimiento.entraA}
                     opciones={destinos}
                     elegido={hacia}
                     alElegir={elegirHacia}
@@ -903,7 +918,11 @@ export function HojaDeMovimiento({
               {datos.eligeElTesoro && (
                 <div className="flex flex-col gap-3">
                   <ElegirTesoro
-                    etiqueta={datos.entraAlTesoro === true ? 'Entra a' : 'Sale de'}
+                    etiqueta={
+                      datos.entraAlTesoro === true
+                        ? m.registrarMovimiento.entraA
+                        : m.registrarMovimiento.saleDe
+                    }
                     opciones={paraElegir}
                     elegido={tesoroElegido}
                     alElegir={elegirElTesoro}
@@ -913,7 +932,7 @@ export function HojaDeMovimiento({
               )}
 
               <CampoDePlata
-                etiqueta="Cuánta plata"
+                etiqueta={m.registrarMovimiento.cuantaPlata}
                 moneda={monedaDelMonto}
                 valor={monto}
                 error={error}
@@ -930,11 +949,11 @@ export function HojaDeMovimiento({
           )}
 
           <div className="@container flex flex-col gap-1.5">
-            <span className="text-label text-text-2">Cuándo</span>
+            <span className="text-label text-text-2">{m.registrarMovimiento.cuando}</span>
             <div className="flex flex-wrap gap-2">
               {[
-                { id: hoy, etiqueta: 'Hoy' },
-                { id: ayer, etiqueta: 'Ayer' },
+                { id: hoy, etiqueta: m.registrarMovimiento.hoy },
+                { id: ayer, etiqueta: m.registrarMovimiento.ayer },
               ].map((atajo) => (
                 <button
                   key={atajo.id}
@@ -955,7 +974,7 @@ export function HojaDeMovimiento({
               <input
                 type="date"
                 value={fecha}
-                aria-label="Otra fecha"
+                aria-label={m.registrarMovimiento.otraFecha}
                 onChange={(evento) => {
                   setFecha(evento.target.value);
                 }}
@@ -981,13 +1000,13 @@ export function HojaDeMovimiento({
           {confirmandoBaja && movimiento && (
             <div className="flex flex-col gap-2.5 rounded-field border border-alerta px-3.5 py-3">
               <p className="text-label leading-relaxed">
-                Se va a borrar este movimiento de{' '}
-                {formatearPlata(movimiento.monto_centavos, monedaDelBorrado)} y los saldos se
-                recalculan sin él.
+                {m.registrarMovimiento.seVaABorrar(
+                  formatearPlata(movimiento.monto_centavos, monedaDelBorrado),
+                )}
               </p>
               <FilaDeAcciones>
                 <Button variant="peligro" size="chico" onClick={confirmarBaja}>
-                  Borrarlo
+                  {m.registrarMovimiento.borrarlo}
                 </Button>
                 <Button
                   variant="secundario"
@@ -996,7 +1015,7 @@ export function HojaDeMovimiento({
                     setConfirmandoBaja(false);
                   }}
                 >
-                  Dejarlo
+                  {m.registrarMovimiento.dejarlo}
                 </Button>
               </FilaDeAcciones>
             </div>
@@ -1008,9 +1027,7 @@ export function HojaDeMovimiento({
             </p>
           )}
           {enVuelo && estadoSync.tipo === 'sin-conexion' && (
-            <p className="text-label text-atencion">
-              Queda en la cola: se sincroniza cuando vuelva la señal.
-            </p>
+            <p className="text-label text-atencion">{m.registrarMovimiento.quedaEnLaCola}</p>
           )}
         </div>
 
@@ -1025,11 +1042,13 @@ export function HojaDeMovimiento({
                 }}
               >
                 <Icono nombre="trash-2" tamano={16} />
-                Borrar
+                {m.registrarMovimiento.borrar}
               </Button>
             )}
             <Button type="submit" cargando={enVuelo}>
-              {movimiento ? 'Guardar los cambios' : 'Cargar el movimiento'}
+              {movimiento
+                ? m.registrarMovimiento.guardarLosCambios
+                : m.registrarMovimiento.cargarElMovimiento}
             </Button>
           </FilaDeAcciones>
         </footer>
