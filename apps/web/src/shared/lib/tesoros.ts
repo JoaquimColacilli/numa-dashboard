@@ -152,6 +152,7 @@ export const ICONOS_DE_TESORO: readonly NombreDeIcono[] = [
   'vault',
   'landmark',
   'coins',
+  'banknote',
   'trending-up',
   'piggy-bank',
   'car',

@@ -9,6 +9,7 @@ import {
   borradorNuevo,
   cambiosDeCocos,
   cambiosDelTesoro,
+  conLaMoneda,
   datosQueSeEditan,
   hayDiferencias,
   iconosParaElegir,
@@ -76,7 +77,7 @@ describe('el borrador de un tesoro', () => {
     expect(quienUsaLaTinta([herramientas, archivado], 'petroleo', 'x')).toBeUndefined();
   });
 
-  it('ofrece los 16 íconos, y suma el que ya tiene si no está entre ellos', () => {
+  it('ofrece los 17 íconos, y suma el que ya tiene si no está entre ellos', () => {
     expect(iconosParaElegir('wrench')).toEqual(ICONOS_DE_TESORO);
     expect(iconosParaElegir('house')).toEqual(['house', ...ICONOS_DE_TESORO]);
   });
@@ -127,6 +128,14 @@ describe('un tesoro nuevo', () => {
     });
     expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3).meta_centavos).toBeNull();
     expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3).meta_centavos).toBeNull();
+  });
+
+  it('en pesos nace con la caja fuerte y en dólares con los billetes, salvo que se haya elegido otro', () => {
+    expect(borradorNuevo([])).toMatchObject({ moneda: 'ARS', icono: 'vault' });
+    expect(borradorNuevo([], 'USD')).toMatchObject({ moneda: 'USD', icono: 'banknote' });
+    expect(conLaMoneda(borradorNuevo([]), 'USD').icono).toBe('banknote');
+    expect(conLaMoneda(borradorNuevo([], 'USD'), 'ARS').icono).toBe('vault');
+    expect(conLaMoneda({ ...borradorNuevo([]), icono: 'plane' }, 'USD').icono).toBe('plane');
   });
 
   it('nace en pesos, y en dólares si se elige, con la meta en su moneda', () => {

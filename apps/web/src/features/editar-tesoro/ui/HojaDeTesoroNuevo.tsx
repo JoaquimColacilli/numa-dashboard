@@ -33,6 +33,7 @@ import {
 } from '../model/lugar';
 import {
   borradorNuevo,
+  conLaMoneda,
   hayErrores,
   ordenAlFinal,
   revisarElTesoro,
@@ -156,7 +157,7 @@ export function HojaDeTesoroNuevo({
         (opcion) => opcion.id === lugarInicial,
       )?.sePuede ?? false;
     return {
-      borrador: { ...borradorNuevo(tesoros), moneda: monedaInicial },
+      borrador: borradorNuevo(tesoros, monedaInicial),
       lugar: posible && monedaInicial === MONEDA_DEL_TALLER ? lugarInicial : 'estante',
       monto: null as number | null,
       porcentaje: '',
@@ -181,7 +182,10 @@ export function HojaDeTesoroNuevo({
   const opciones = opcionesDeLugar(laFila, nombreDe(laFila.superavit), borrador.moneda);
 
   function cambiar(cambios: Partial<BorradorDelTesoro>) {
-    setBorrador((previo) => ({ ...previo, ...cambios }));
+    setBorrador((previo) => {
+      const { moneda, ...resto } = cambios;
+      return { ...(moneda === undefined ? previo : conLaMoneda(previo, moneda)), ...resto };
+    });
     if ('nombre' in cambios || 'descripcion' in cambios) setErrores({});
     if (cambios.moneda !== undefined && cambios.moneda !== MONEDA_DEL_TALLER) {
       setLugar('estante');

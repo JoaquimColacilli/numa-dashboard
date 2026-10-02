@@ -65,6 +65,7 @@ export const editarTesoro = {
     vault: 'Cofre',
     landmark: 'Banco',
     coins: 'Moedas',
+    banknote: 'Cédulas',
     'trending-up': 'Seta para cima',
     'piggy-bank': 'Porquinho',
     car: 'Carro',

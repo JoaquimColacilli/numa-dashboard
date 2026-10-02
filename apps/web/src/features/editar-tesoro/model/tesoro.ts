@@ -69,16 +69,28 @@ export function tintaSugerida(tesoros: readonly ConTinta[]): TintaDeTesoro {
   );
 }
 
-export function borradorNuevo(tesoros: readonly ConTinta[]): BorradorDelTesoro {
+export function iconoDeFabrica(moneda: Moneda): NombreDeIcono {
+  return moneda === MONEDA_DEL_TALLER ? 'vault' : 'banknote';
+}
+
+export function borradorNuevo(
+  tesoros: readonly ConTinta[],
+  moneda: Moneda = MONEDA_DEL_TALLER,
+): BorradorDelTesoro {
   return {
     nombre: '',
     descripcion: '',
-    moneda: MONEDA_DEL_TALLER,
+    moneda,
     tinta: tintaSugerida(tesoros),
-    icono: 'vault',
+    icono: iconoDeFabrica(moneda),
     meta: null,
     rinde: '0',
   };
+}
+
+export function conLaMoneda(borrador: BorradorDelTesoro, moneda: Moneda): BorradorDelTesoro {
+  const deFabrica = borrador.icono === iconoDeFabrica(borrador.moneda);
+  return { ...borrador, moneda, icono: deFabrica ? iconoDeFabrica(moneda) : borrador.icono };
 }
 
 export function borradorDe(tesoro: TesoroDelTaller): BorradorDelTesoro {
