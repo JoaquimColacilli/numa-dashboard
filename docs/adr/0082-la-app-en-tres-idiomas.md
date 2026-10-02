@@ -347,14 +347,14 @@ en su `user_metadata`.
   texto se salga de su caja (Início, Finanças, Caixinhas, una ficha, el cobro, Clientes, la ficha de una
   clienta y Configurações), y `hueco.spec.ts` corre también en portugués. La pasada en portugués a 320 encontró
   lo que el castellano no mostraba: lo pendiente en pesos y en dólares en un renglón (ahora va una moneda debajo
-  de la otra), el título «Caixinhas» debajo de sus botones y los atajos de la prueba de un cobro (ahora bajan de
-  renglón cuando no entran), «Financeiro» en la barra de abajo (en portugués la sección se llama «Finanças»),
-  los montos con «ARS» de las tarjetas de Inicio, que la regla de `MontoQueEntra` medía como cifras (ahora
-  cada mayúscula cuenta por 1,25, y un monto en pesos del castellano, que no tiene letras, sale igual que
-  antes), y un «+-0%» de la comparación con el mes anterior. La cuenta de prueba
+  de la otra); el título «Caixinhas» debajo de sus botones, los atajos de la prueba de un cobro y el total de los
+  insumos cuando es largo (ahora bajan de renglón cuando no entran); «Financeiro» en la barra de abajo (en
+  portugués la sección se llama «Finanças»); los montos con «ARS» de las tarjetas de Inicio, que la regla de
+  `MontoQueEntra` medía como cifras (ahora cada mayúscula cuenta por 1,25, y un monto en pesos del castellano, que
+  no tiene letras, sale igual que antes), y un «+-0%» de la comparación con el mes anterior. La cuenta de prueba
   queda en castellano una vez por corrida, en `sesion.setup.ts`: hacerlo en cada test topaba con el límite de
   pedidos de Supabase Auth. Un contexto que arma un spec con `browser.newContext` hereda el `locale` y la sesión
-  del proyecto.
+  del proyecto. Los specs que se saltean en el celular no limpian en su `afterEach`, que corre igual.
 - Lo que no se pudo probar: Safari en un iPhone y Firefox con los formatos de `Intl` (lo de este documento sale
   de Chromium y Node), un aviso push de verdad en inglés y en portugués, el traductor del navegador y la app
   instalada cambiando de idioma sin señal.
