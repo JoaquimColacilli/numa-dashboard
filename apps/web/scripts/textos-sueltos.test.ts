@@ -109,6 +109,16 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: 'opciones. .detalle',
     motivo: 'Es la ruta del campo en react-hook-form (opciones.N.detalle), no un texto.',
   },
+  {
+    archivo: 'src/entities/agenda/ui/GrillaDelMes.tsx',
+    texto: 'repeat( , minmax(var(--celda-min), auto))',
+    motivo: 'Es CSS: las filas de la grilla del mes, una por semana.',
+  },
+  {
+    archivo: 'src/features/llevar-la-agenda/ui/HojaDeAnotacion.tsx',
+    texto: 'repeating-linear-gradient(transparent 0 27px, var(--paper-notas-line) 27px 28px)',
+    motivo: 'Es CSS: los renglones del cuaderno detrás del texto de la anotación.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

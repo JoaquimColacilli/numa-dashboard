@@ -8,7 +8,6 @@ import {
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import {
-  CATEGORIA,
   conLoHechoAlFinal,
   DetalleDelDia,
   DIAS_DE_LA_SEMANA,
@@ -42,24 +41,21 @@ import {
   useMoverEnLaAgenda,
 } from '@/features/llevar-la-agenda';
 import { datosDeLaAgendaDeLaReplica, filaPorId } from '@/shared/api';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import { hoyLocal, useAnchoDePantalla, type NuevoAviso } from '@/shared/lib';
 import { Button, ConSalida, EstadoVacio, Hoja, Icono, Pagina } from '@/shared/ui';
 
 type Filtro = 'todo' | CategoriaDeAgenda | 'marcado';
 
-const FILTROS: readonly { id: Filtro; etiqueta: string }[] = [
-  { id: 'todo', etiqueta: 'Todo' },
-  ...CATEGORIAS_DE_AGENDA.map((categoria) => ({
-    id: categoria,
-    etiqueta: CATEGORIA[categoria].etiqueta,
-  })),
-  { id: 'marcado', etiqueta: 'Marcado' },
-];
+const FILTROS: readonly Filtro[] = ['todo', ...CATEGORIAS_DE_AGENDA, 'marcado'];
+
+function etiquetaDelFiltro(m: Mensajes, filtro: Filtro): string {
+  if (filtro === 'todo') return m.paginaAgenda.todo;
+  if (filtro === 'marcado') return m.paginaAgenda.marcado;
+  return m.agenda.categorias[filtro];
+}
 
 const DURACION_DEL_AVISO_DEL_DIA_MS = 5000;
-
-const MES_VACIO =
-  'Las visitas y las entregas aparecen solas cuando cargás un contacto o un proyecto, y los vencimientos cuando le ponés día de pago a un compromiso en Tesoros. Lo que comprás o hacés en el taller lo anotás vos.';
 
 function pasaElFiltro(evento: EventoDeLaAgenda, filtro: Filtro): boolean {
   if (filtro === 'todo') return true;
@@ -74,11 +70,12 @@ function BotonesDelMes({
   alAnterior: () => void;
   alSiguiente: () => void;
 }) {
+  const textos = useMensajes().paginaAgenda;
   return (
     <>
       <button
         type="button"
-        aria-label="Mes anterior"
+        aria-label={textos.mesAnterior}
         onClick={alAnterior}
         className="flex size-tap items-center justify-center rounded-pill border border-hairline bg-paper hover:bg-ink/5"
       >
@@ -86,7 +83,7 @@ function BotonesDelMes({
       </button>
       <button
         type="button"
-        aria-label="Mes siguiente"
+        aria-label={textos.mesSiguiente}
         onClick={alSiguiente}
         className="flex size-tap items-center justify-center rounded-pill border border-hairline bg-paper hover:bg-ink/5"
       >
@@ -119,6 +116,8 @@ function ListaDelMes({
   alAbrirElDia,
   alAnotar,
 }: ListaDelMesProps) {
+  const m = useMensajes();
+  const textos = m.paginaAgenda;
   const primero = `${mes}-01`;
   const desde = desdeElPrincipio ? primero : dia;
   const dias = diasConEventos(
@@ -132,10 +131,10 @@ function ListaDelMes({
     return (
       <EstadoVacio
         ilustracion="agenda-vacia"
-        etiqueta="El mes está vacío"
+        etiqueta={textos.elMesEstaVacio}
         className="mt-4"
-        titulo="Todavía no hay nada en el mes"
-        detalle={MES_VACIO}
+        titulo={textos.nadaEnElMes}
+        detalle={textos.mesVacio}
       >
         <Button
           size="grande"
@@ -143,7 +142,7 @@ function ListaDelMes({
             alAnotar(dia);
           }}
         >
-          Anotar lo primero
+          {textos.anotarLoPrimero}
         </Button>
       </EstadoVacio>
     );
@@ -158,19 +157,16 @@ function ListaDelMes({
           className="mt-2 flex h-10 w-full items-center justify-center gap-1.5 rounded-pill border border-hairline bg-paper text-label font-medium text-text-2"
         >
           <Icono nombre="chevron-up" tamano={14} />
-          Días anteriores
+          {textos.diasAnteriores}
         </button>
       )}
 
       {dias.map(({ fecha, eventos: delDia }) => {
         const etiqueta = etiquetaDelDia(fecha, hoy);
         const pasado = fecha < hoy;
+        const enPalabras = diaEnPalabras(fecha);
         return (
-          <section
-            key={fecha}
-            aria-label={diaEnPalabras(fecha)}
-            className="flex flex-col gap-1.5 pt-4"
-          >
+          <section key={fecha} aria-label={enPalabras} className="flex flex-col gap-1.5 pt-4">
             <div className="flex items-center gap-2 px-1">
               <span
                 aria-hidden
@@ -180,6 +176,7 @@ function ListaDelMes({
               </span>
               <span
                 aria-hidden
+                translate="no"
                 className={`text-label font-semibold ${pasado ? 'text-text-3' : ''}`}
               >
                 {DIAS_DE_LA_SEMANA[diaDeLaSemana(fecha)]}
@@ -190,26 +187,26 @@ function ListaDelMes({
                     etiqueta === 'hoy' ? 'bg-ink text-paper' : 'bg-ink/6 text-text-2'
                   }`}
                 >
-                  {etiqueta}
+                  {m.agenda.etiquetasDelDia[etiqueta]}
                 </span>
               )}
               <span className="flex-1" />
               {delDia.length > 0 && (
                 <button
                   type="button"
-                  aria-label={`Anotar algo para el ${diaEnPalabras(fecha)}`}
+                  aria-label={textos.anotarAlgoPara(enPalabras)}
                   onClick={() => {
                     alAnotar(fecha);
                   }}
                   className="apretable flex h-9 items-center gap-1.5 rounded-pill border border-dashed border-border px-3 text-label font-medium"
                 >
                   <Icono nombre="plus" tamano={14} />
-                  Anotar
+                  {textos.anotar}
                 </button>
               )}
               <button
                 type="button"
-                aria-label={`Ver el ${diaEnPalabras(fecha)}`}
+                aria-label={textos.verElDia(enPalabras)}
                 onClick={() => {
                   alAbrirElDia(fecha);
                 }}
@@ -220,17 +217,17 @@ function ListaDelMes({
             </div>
             {delDia.length === 0 ? (
               <div className="flex items-center justify-between gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-3">
-                <span className="text-body text-text-3">Nada anotado para este día</span>
+                <span className="text-body text-text-3">{textos.nadaAnotado}</span>
                 <button
                   type="button"
-                  aria-label={`Anotar algo para el ${diaEnPalabras(fecha)}`}
+                  aria-label={textos.anotarAlgoPara(enPalabras)}
                   onClick={() => {
                     alAnotar(fecha);
                   }}
                   className="apretable flex h-9 items-center gap-1.5 rounded-pill border border-dashed border-border px-3 text-label font-medium"
                 >
                   <Icono nombre="plus" tamano={14} />
-                  Anotar
+                  {textos.anotar}
                 </button>
               </div>
             ) : (
@@ -251,13 +248,15 @@ function ListaDelMes({
       })}
 
       <p className="py-5.5 text-center text-label text-text-3">
-        Hasta acá {mesEnPalabras(mes, hoy)}. Con las flechas de arriba pasás al mes que viene.
+        {textos.hastaAca(mesEnPalabras(mes, hoy))}
       </p>
     </div>
   );
 }
 
 export function AgendaPage() {
+  const m = useMensajes();
+  const textos = m.paginaAgenda;
   const replica = useReplicaDelTaller();
   const ancho = useAnchoDePantalla();
   const acciones = useAccionesDeLaAgenda();
@@ -426,8 +425,8 @@ export function AgendaPage() {
       <Pagina className="pb-6">
         <header className="flex items-end justify-between gap-2.5">
           <div className="min-w-0">
-            <p className="text-label text-text-2">hoy es {diaEnPalabras(hoy)}</p>
-            <h1 className="font-display text-h1 leading-tight">Agenda</h1>
+            <p className="text-label text-text-2">{textos.hoyEs(diaEnPalabras(hoy))}</p>
+            <h1 className="font-display text-h1 leading-tight">{textos.titulo}</h1>
           </div>
           <div className="flex items-center gap-2">
             {fueraDeHoy && (
@@ -436,7 +435,7 @@ export function AgendaPage() {
                 onClick={irAHoy}
                 className="h-9 rounded-pill border border-ink px-3 text-label font-semibold"
               >
-                Hoy
+                {textos.hoy}
               </button>
             )}
             <BotonesDelMes
@@ -451,7 +450,11 @@ export function AgendaPage() {
         </header>
 
         <div className="mt-2.5 flex items-baseline justify-between gap-2">
-          <h2 aria-live="polite" className="text-section font-semibold first-letter:uppercase">
+          <h2
+            aria-live="polite"
+            translate="no"
+            className="text-section font-semibold first-letter:uppercase"
+          >
             {mesEnPalabras(mes, hoy)}
           </h2>
           <span className="text-meta text-text-3">{resumenDelMes(delMes)}</span>
@@ -552,11 +555,12 @@ export function AgendaPage() {
     <Pagina>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-label text-text-2">hoy es {diaEnPalabras(hoy)}</p>
+          <p className="text-label text-text-2">{textos.hoyEs(diaEnPalabras(hoy))}</p>
           <div className="flex flex-wrap items-baseline gap-x-3">
-            <h1 className="font-display text-h1-lg leading-tight">Agenda</h1>
+            <h1 className="font-display text-h1-lg leading-tight">{textos.titulo}</h1>
             <h2
               aria-live="polite"
+              translate="no"
               className="font-display text-h1 leading-tight text-text-2 first-letter:uppercase"
             >
               {mesEnPalabras(mes, hoy)}
@@ -568,7 +572,7 @@ export function AgendaPage() {
           <div className="flex items-center">
             <button
               type="button"
-              aria-label="Mes anterior"
+              aria-label={textos.mesAnterior}
               onClick={() => {
                 setDiaAbierto(null);
                 irAlMes(mesPrevio(mes));
@@ -584,11 +588,11 @@ export function AgendaPage() {
                 mes === mesDeHoy ? 'font-semibold' : 'font-medium'
               }`}
             >
-              Hoy
+              {textos.hoy}
             </button>
             <button
               type="button"
-              aria-label="Mes siguiente"
+              aria-label={textos.mesSiguiente}
               onClick={() => {
                 setDiaAbierto(null);
                 irAlMes(mesSiguiente(mes));
@@ -604,17 +608,17 @@ export function AgendaPage() {
             }}
           >
             <Icono nombre="plus" tamano={18} grosor={2} />
-            Anotar algo
+            {textos.anotarAlgo}
           </Button>
         </div>
       </header>
 
       <div
         role="group"
-        aria-label="Qué mostrar"
+        aria-label={textos.queMostrar}
         className="flex flex-wrap items-center gap-2 pt-4 pb-3"
       >
-        {FILTROS.map(({ id, etiqueta }) => {
+        {FILTROS.map((id) => {
           const activo = filtro === id;
           return (
             <button
@@ -637,19 +641,21 @@ export function AgendaPage() {
                   className={activo ? 'brightness-[3] grayscale' : ''}
                 />
               )}
-              {etiqueta}
+              {etiquetaDelFiltro(m, id)}
             </button>
           );
         })}
         <span className="flex-1" />
         <span className="flex items-center gap-1.5 text-meta text-text-3">
           <span aria-hidden className="size-3 rounded-pill ring-[1.5px] ring-ag-marca" />
-          marcado a mano
+          {textos.marcadoAMano}
         </span>
       </div>
 
       {delMes.length === 0 && (
-        <p className="mb-3 max-w-[640px] text-label leading-relaxed text-text-2">{MES_VACIO}</p>
+        <p className="mb-3 max-w-[640px] text-label leading-relaxed text-text-2">
+          {textos.mesVacio}
+        </p>
       )}
 
       <p role="status" aria-live="assertive" className="sr-only">
@@ -679,7 +685,7 @@ export function AgendaPage() {
             id={idDeLaCapa}
             popover="auto"
             tabIndex={-1}
-            aria-label={`El ${diaEnPalabras(diaAbierto)}`}
+            aria-label={textos.elDia(diaEnPalabras(diaAbierto))}
             onToggle={(evento) => {
               if (evento.newState !== 'closed') return;
               setDiaAbierto(null);

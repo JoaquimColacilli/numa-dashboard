@@ -8,7 +8,13 @@ import {
   type PointerEvent,
 } from 'react';
 
+import { mensajes } from '@/shared/idioma';
+
 import { diaEnPalabras, nombreDelEvento } from '../model/calendario';
+
+function textos() {
+  return mensajes().agenda.arrastre;
+}
 
 export const ESPERA_DEL_DEDO_MS = 350;
 export const MOVIMIENTO_QUE_ARRASTRA_PX = 4;
@@ -103,7 +109,7 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
       soltar();
       enCurso.current = null;
       setArrastre(null);
-      setAnuncio(`Lo dejaste donde estaba, el ${diaEnPalabras(evento.fecha)}.`);
+      setAnuncio(textos().loDejaste(diaEnPalabras(evento.fecha)));
     },
     [soltar],
   );
@@ -114,11 +120,11 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
       enCurso.current = null;
       setArrastre(null);
       if (arrastrado.destino === arrastrado.evento.fecha) {
-        setAnuncio(`Lo dejaste donde estaba, el ${diaEnPalabras(arrastrado.evento.fecha)}.`);
+        setAnuncio(textos().loDejaste(diaEnPalabras(arrastrado.evento.fecha)));
         return;
       }
       setAnuncio(
-        `Moviste ${nombreDelEvento(arrastrado.evento)} al ${diaEnPalabras(arrastrado.destino)}. El aviso tiene Deshacer.`,
+        textos().moviste(nombreDelEvento(arrastrado.evento), diaEnPalabras(arrastrado.destino)),
       );
       alMover(arrastrado.evento, arrastrado.destino);
       devolverElFoco(arrastrado.evento.id, arrastrado.destino);
@@ -148,10 +154,12 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
 
   function empezar(evento: EventoDeLaAgenda, conQue: ConQue): void {
     anotar({ evento, destino: evento.fecha, conQue });
+    const nombre = nombreDelEvento(evento);
+    const dia = diaEnPalabras(evento.fecha);
     setAnuncio(
       conQue === 'teclado'
-        ? `Agarraste ${nombreDelEvento(evento)}, del ${diaEnPalabras(evento.fecha)}. Movelo con las flechas, soltalo con Enter y cancelá con Escape.`
-        : `Agarraste ${nombreDelEvento(evento)}, del ${diaEnPalabras(evento.fecha)}.`,
+        ? textos().agarrasteConTeclado(nombre, dia)
+        : textos().agarraste(nombre, dia),
     );
   }
 
@@ -159,7 +167,7 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
     const previo = enCurso.current;
     if (previo === null || previo.destino === destino) return;
     anotar({ ...previo, destino });
-    setAnuncio(`${nombreDelEvento(evento)}, sobre el ${diaEnPalabras(destino)}.`);
+    setAnuncio(textos().sobre(nombreDelEvento(evento), diaEnPalabras(destino)));
   }
 
   function propsDelChip(evento: EventoDeLaAgenda): PropsDelChip | undefined {
@@ -263,7 +271,7 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
         const indice = fechas.indexOf(arrastrado.destino);
         const siguiente = fechas[indice + paso];
         if (siguiente === undefined) {
-          setAnuncio('No hay día para ese lado.');
+          setAnuncio(textos().sinDia);
           return;
         }
         moverA(siguiente, evento);

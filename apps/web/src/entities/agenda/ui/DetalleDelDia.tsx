@@ -1,5 +1,6 @@
 import type { EventoDeLaAgenda } from '@maun/domain';
 
+import { useMensajes } from '@/shared/idioma';
 import type { AccionDelAviso } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -47,6 +48,8 @@ export function DetalleDelDia({
   alDescartarElAviso,
   ahora,
 }: DetalleDelDiaProps) {
+  const m = useMensajes();
+  const textos = m.agenda.dia;
   const accionDelAviso = aviso?.accion ?? null;
   const etiqueta = etiquetaDelDia(fecha, hoy);
   const { raiz, acciones: accionesConFoco } = useAccionesConFoco<HTMLDivElement>(acciones);
@@ -59,12 +62,16 @@ export function DetalleDelDia({
             <h2 className="flex flex-wrap items-baseline gap-2">
               <span className="font-display text-h1-lg leading-none">{numeroDelDia(fecha)}</span>
               <span className="text-body font-medium">
-                <span className="sr-only">{diaEnPalabras(fecha)}</span>
-                <span aria-hidden>{mesEnPalabras(fecha.slice(0, 7), hoy)}</span>
+                <span translate="no" className="sr-only">
+                  {diaEnPalabras(fecha)}
+                </span>
+                <span translate="no" aria-hidden>
+                  {mesEnPalabras(fecha.slice(0, 7), hoy)}
+                </span>
               </span>
               {etiqueta !== null && (
                 <span className="rounded-pill bg-ink px-2 py-0.5 text-badge font-semibold text-paper">
-                  {etiqueta}
+                  {m.agenda.etiquetasDelDia[etiqueta]}
                 </span>
               )}
             </h2>
@@ -73,7 +80,7 @@ export function DetalleDelDia({
           {alCerrar !== undefined && (
             <button
               type="button"
-              aria-label="Cerrar el día"
+              aria-label={textos.cerrar}
               onClick={alCerrar}
               className="flex size-10 flex-none items-center justify-center rounded-pill hover:bg-surface"
             >
@@ -87,10 +94,9 @@ export function DetalleDelDia({
         {!conEncabezado && <p className="pt-3 text-label text-text-2">{resumenDelDia(eventos)}</p>}
         {eventos.length === 0 ? (
           <div className="flex flex-col gap-2.5 pt-5.5 pb-3">
-            <p className="text-body-lg font-semibold">Este día está libre</p>
+            <p className="text-body-lg font-semibold">{textos.libre}</p>
             <p className="max-w-[340px] text-body leading-relaxed text-text-2">
-              No hay entregas ni visitas, y todavía no anotaste nada. Si tenés que comprar algo o
-              dejar algo listo, anotalo.
+              {textos.libreDetalle}
             </p>
             <CaminosALosTrabajos fecha={fecha} alIr={alIrAUnTrabajo} />
           </div>
@@ -135,7 +141,7 @@ export function DetalleDelDia({
           className="apretable flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-dashed border-border bg-paper font-medium hover:border-ink hover:bg-surface"
         >
           <Icono nombre="plus" tamano={18} />
-          Anotar algo para este día
+          {textos.anotar}
         </button>
       </div>
     </div>

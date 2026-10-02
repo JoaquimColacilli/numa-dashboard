@@ -5,6 +5,7 @@ import type {
   EventoVencimiento,
 } from '@maun/domain';
 
+import { useMensajes } from '@/shared/idioma';
 import { rutaDelCliente, rutaDelProyecto, useAnchoDePantalla, Ir } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
@@ -14,13 +15,7 @@ import {
   textoDelEvento,
   urgenciaDelEvento,
 } from '../model/calendario';
-import {
-  CATEGORIA,
-  DERIVADA,
-  ESTA_COMPROMETIDA,
-  FRANJA_DEL_EVENTO,
-  VENCIMIENTO,
-} from '../model/categorias';
+import { CATEGORIA } from '../model/categorias';
 import { sePuedeRegistrarElPago } from '../model/vencimientos';
 import { CasillaDeAnotacion, MarcaConAnillo, MarcaDeCategoria } from './MarcaDeCategoria';
 
@@ -86,26 +81,30 @@ function Contenido({
   tachar?: boolean;
   alTerminarDeTachar?: () => void;
 }) {
+  const m = useMensajes();
   const categoria = CATEGORIA[evento.categoria];
   const urgencia = urgenciaDelEvento(evento, hoy);
   const detalle = detalleDelEvento(evento);
+  const detalleSinTraducir = evento.clase === 'vencimiento' ? undefined : 'no';
   const { hecha } = evento;
   const accion =
     evento.clase === 'derivada'
-      ? DERIVADA[evento.categoria].accion
+      ? m.agenda.derivadas[evento.categoria].accion
       : evento.clase === 'vencimiento'
-        ? VENCIMIENTO.accion
+        ? m.agenda.vencimiento.accion
         : null;
 
   return (
     <>
       <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         {evento.hora !== null && (
-          <span className="text-label font-semibold text-text-2 tabular-nums">{evento.hora}</span>
+          <span translate="no" className="text-label font-semibold text-text-2 tabular-nums">
+            {evento.hora}
+          </span>
         )}
         {evento.clase === 'derivada' && evento.franja !== null && (
           <span className="text-label font-semibold text-text-2">
-            {FRANJA_DEL_EVENTO[evento.franja]}
+            {m.agenda.franjas[evento.franja]}
           </span>
         )}
         {accion !== null && (
@@ -120,6 +119,7 @@ function Contenido({
           </span>
         )}
         <span
+          translate="no"
           className={`leading-snug text-pretty ${
             hecha ? 'text-label text-text-3 line-through' : 'text-body text-ink'
           } ${tachar ? 'relative decoration-transparent' : ''}`}
@@ -142,11 +142,13 @@ function Contenido({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-label text-text-2">
             {detalle !== '' &&
               (enElDia ? (
-                <span>
+                <span translate={detalleSinTraducir}>
                   <DetalleConEnlaces evento={evento} />
                 </span>
               ) : (
-                <span className="max-w-full truncate">{detalle}</span>
+                <span translate={detalleSinTraducir} className="max-w-full truncate">
+                  {detalle}
+                </span>
               ))}
             {urgencia !== null && urgencia.tono !== 'normal' && (
               <span
@@ -158,7 +160,7 @@ function Contenido({
             {evento.clase === 'propia' && enElDia && (
               <span className="inline-flex items-center gap-1.5 text-text-3">
                 <MarcaDeCategoria categoria={evento.categoria} tamano="chica" />
-                {categoria.etiqueta}
+                {m.agenda.categorias[evento.categoria]}
               </span>
             )}
           </span>
@@ -174,10 +176,11 @@ function BotonDeLaMarca({
   evento: EventoDeLaAgenda;
   acciones: AccionesDeLaAgenda;
 }) {
+  const m = useMensajes();
   return (
     <button
       type="button"
-      aria-label={evento.importante ? 'Sacarle la marca de importante' : 'Marcar como importante'}
+      aria-label={evento.importante ? m.agenda.sacarLaMarca : m.agenda.marcarComoImportante}
       aria-pressed={evento.importante}
       onClick={() => {
         acciones.alMarcar(evento);
@@ -204,8 +207,15 @@ function FilaDerivada({
   enElDia: boolean;
   sinBorde: boolean;
 }) {
-  const derivada = DERIVADA[evento.categoria];
+  const m = useMensajes();
+  const derivada = m.agenda.derivadas[evento.categoria];
   const conGrilla = useAnchoDePantalla() !== 'movil';
+  const comoSeMueve =
+    evento.categoria === 'seguimiento'
+      ? m.agenda.comoSeMueve.seguimiento
+      : conGrilla
+        ? m.agenda.comoSeMueve.arrastrando
+        : m.agenda.comoSeMueve.conLaFecha;
   const abrir = () => {
     acciones.alAbrirTrabajo(evento);
   };
@@ -239,14 +249,8 @@ function FilaDerivada({
               <Icono nombre="link-2" tamano={14} />
               <span className="min-w-[10rem] flex-1">
                 {evento.comprometida
-                  ? ESTA_COMPROMETIDA
-                  : `${derivada.origen}. ${
-                      evento.categoria === 'seguimiento'
-                        ? 'Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va.'
-                        : conGrilla
-                          ? 'Arrastrala en el mes para moverla, o cambiá la fecha ahí.'
-                          : 'Para moverla, cambiá la fecha ahí.'
-                    }`}
+                  ? m.agenda.estaComprometida
+                  : `${derivada.origen} ${comoSeMueve}`}
               </span>
               {registrar !== undefined && (
                 <Button
@@ -255,7 +259,7 @@ function FilaDerivada({
                     registrar(evento);
                   }}
                 >
-                  Registrar el contacto
+                  {m.agenda.registrarElContacto}
                 </Button>
               )}
               <Button variant="secundario" size="chico" onClick={abrir}>
@@ -271,7 +275,7 @@ function FilaDerivada({
           {evento.hecha && (
             <button
               type="button"
-              aria-label={`${derivada.abrir}: ${evento.titulo}`}
+              aria-label={derivada.abrirUno(evento.titulo)}
               onClick={abrir}
               className="flex size-9 items-center justify-center rounded-pill text-text-3 hover:bg-surface hover:text-ink"
             >
@@ -289,6 +293,7 @@ function FilaDerivada({
 }
 
 function Pagado() {
+  const m = useMensajes();
   return (
     <span
       aria-hidden
@@ -296,7 +301,7 @@ function Pagado() {
       className="flex flex-none items-center gap-1 text-meta font-semibold text-text-2"
     >
       <Icono nombre="check" tamano={14} grosor={2.25} />
-      {VENCIMIENTO.pagado}
+      {m.agenda.vencimiento.pagado}
     </span>
   );
 }
@@ -316,6 +321,7 @@ function FilaDeVencimiento({
   sinBorde: boolean;
   alAbrirElDia?: (fecha: string) => void;
 }) {
+  const m = useMensajes();
   const abrir = acciones.alAbrirVencimiento;
   const sePuede = sePuedeRegistrarElPago(evento, hoy);
   const registrar = sePuede ? acciones.alRegistrarElPago : undefined;
@@ -338,7 +344,7 @@ function FilaDeVencimiento({
           registrar(evento);
         }}
       >
-        {VENCIMIENTO.registrar}
+        {m.agenda.vencimiento.registrar}
       </Button>
     );
 
@@ -369,7 +375,8 @@ function FilaDeVencimiento({
             <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-field bg-surface px-2.5 py-2 text-meta leading-snug text-text-2">
               <Icono nombre="link-2" tamano={14} />
               <span className="min-w-[10rem] flex-1">
-                {VENCIMIENTO.origen}.{sePuede ? '' : ` ${VENCIMIENTO.masAdelante}`}
+                {m.agenda.vencimiento.origen}
+                {sePuede ? '' : ` ${m.agenda.vencimiento.masAdelante}`}
               </span>
               {botonDelPago}
               {abrir !== undefined && (
@@ -380,7 +387,7 @@ function FilaDeVencimiento({
                     abrir(evento);
                   }}
                 >
-                  {VENCIMIENTO.verEnTesoros}
+                  {m.agenda.vencimiento.verEnTesoros}
                 </Button>
               )}
             </div>
@@ -409,6 +416,7 @@ export function FilaDeEvento({
   sinBorde = false,
   alAbrirElDia,
 }: FilaDeEventoProps) {
+  const m = useMensajes();
   if (evento.clase === 'vencimiento') {
     return (
       <FilaDeVencimiento
@@ -483,7 +491,7 @@ export function FilaDeEvento({
           <BotonDeLaMarca evento={evento} acciones={acciones} />
           <button
             type="button"
-            aria-label={`Borrar «${evento.texto}»`}
+            aria-label={m.agenda.borrar(evento.texto)}
             onClick={() => {
               acciones.alBorrar(evento);
             }}

@@ -1,5 +1,6 @@
 import type { Mensajes } from '../es';
 
+import { agenda } from './agenda';
 import { api } from './api';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
@@ -13,7 +14,9 @@ import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
+import { llevarLaAgenda } from './llevarLaAgenda';
 import { movimiento } from './movimiento';
+import { paginaAgenda } from './paginaAgenda';
 import { paginaAnalitico } from './paginaAnalitico';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaFinanzas } from './paginaFinanzas';
@@ -25,6 +28,7 @@ import { replica } from './replica';
 import { ui } from './ui';
 
 export const en = {
+  agenda,
   api,
   armarElPresupuesto,
   avanzarLaConsulta,
@@ -38,7 +42,9 @@ export const en = {
   hacerElSeguimiento,
   lib,
   liquidarProyecto,
+  llevarLaAgenda,
   movimiento,
+  paginaAgenda,
   paginaAnalitico,
   paginaDiezmo,
   paginaFinanzas,

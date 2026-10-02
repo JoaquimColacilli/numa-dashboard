@@ -1,6 +1,8 @@
 import type { EventoDeLaAgenda } from '@maun/domain';
 import { useLayoutEffect, useRef } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
+
 import {
   cuentaDelDia,
   diaDeLaSemana,
@@ -22,6 +24,7 @@ export interface TiraDelMesProps {
 }
 
 export function TiraDelMes({ mes, hoy, elegido, eventos, alElegir }: TiraDelMesProps) {
+  const textos = useMensajes().agenda.tira;
   const contenedor = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -35,7 +38,7 @@ export function TiraDelMes({ mes, hoy, elegido, eventos, alElegir }: TiraDelMesP
     <div
       ref={contenedor}
       role="group"
-      aria-label="Días del mes"
+      aria-label={textos.diasDelMes}
       className="flex snap-x snap-proximity gap-0.5 overflow-x-auto border-b border-hairline px-(--page-pad-mobile) pt-2 pb-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {fechasDelMes(mes).map((fecha) => {
@@ -55,7 +58,11 @@ export function TiraDelMes({ mes, hoy, elegido, eventos, alElegir }: TiraDelMesP
             data-fecha={fecha}
             aria-pressed={esElegido}
             aria-current={esHoy ? 'date' : undefined}
-            aria-label={`${diaEnPalabras(fecha)}, ${cuentaDelDia(delDia)}${marcado ? ', con algo marcado' : ''}`}
+            aria-label={
+              marcado
+                ? textos.diaMarcado(diaEnPalabras(fecha), cuentaDelDia(delDia))
+                : textos.dia(diaEnPalabras(fecha), cuentaDelDia(delDia))
+            }
             onClick={() => {
               alElegir(fecha);
             }}
@@ -63,7 +70,7 @@ export function TiraDelMes({ mes, hoy, elegido, eventos, alElegir }: TiraDelMesP
               marcado && !esElegido ? 'ring-[1.5px] ring-ag-marca' : ''
             }`}
           >
-            <span aria-hidden className="text-badge leading-none opacity-75">
+            <span aria-hidden translate="no" className="text-badge leading-none opacity-75">
               {INICIALES_DE_LA_SEMANA[diaDeLaSemana(fecha)]}
             </span>
             <span aria-hidden className="font-display text-body-lg leading-tight">

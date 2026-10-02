@@ -2,14 +2,10 @@ import { CATEGORIAS_PROPIAS, sumarDias } from '@maun/domain';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
-import {
-  AYUDA_DE_LA_PROPIA,
-  CaminosALosTrabajos,
-  CATEGORIA,
-  MarcaDeCategoria,
-} from '@/entities/agenda';
+import { CaminosALosTrabajos, MarcaDeCategoria } from '@/entities/agenda';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { filasDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { hoyLocal, uuidv7 } from '@/shared/lib';
 import { Button, Campo, Hoja } from '@/shared/ui';
 
@@ -47,6 +43,8 @@ export function HojaDeAnotacion({
   alAnotar,
   avisar,
 }: HojaDeAnotacionProps) {
+  const m = useMensajes();
+  const textos = m.llevarLaAgenda.hoja;
   const cliente = useQueryClient();
   const replica = useReplicaDelTaller();
   const ids = useId();
@@ -59,11 +57,11 @@ export function HojaDeAnotacion({
   const hoy = hoyLocal();
   const manana = sumarDias(hoy, 1);
   const atajos = [
-    { etiqueta: 'Hoy', fecha: hoy },
-    { etiqueta: 'Mañana', fecha: manana },
+    { etiqueta: textos.hoy, fecha: hoy },
+    { etiqueta: textos.manana, fecha: manana },
     ...(fechaInicial === hoy || fechaInicial === manana
       ? []
-      : [{ etiqueta: 'El día elegido', fecha: fechaInicial }]),
+      : [{ etiqueta: textos.elDiaElegido, fecha: fechaInicial }]),
   ];
   const trabajos = trabajosParaAnotar(filasDe(replica, 'proyectos'), filasDe(replica, 'clientes'));
 
@@ -94,7 +92,7 @@ export function HojaDeAnotacion({
 
   return (
     <Hoja
-      titulo="Anotar algo"
+      titulo={textos.titulo}
       alCerrar={alCerrar}
       conCambios={hayCambiosEnLaAnotacion(iniciales, valores)}
     >
@@ -102,7 +100,7 @@ export function HojaDeAnotacion({
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`${ids}-texto`} className="text-label text-text-2">
-              Qué hay que hacer
+              {textos.queHayQueHacer}
             </label>
             <textarea
               ref={campoDeTexto}
@@ -113,7 +111,7 @@ export function HojaDeAnotacion({
               onChange={(evento) => {
                 cambiar('texto', evento.target.value);
               }}
-              placeholder="Comprar melamina, retirar el pulpo, pintar la cajonera…"
+              placeholder={textos.ejemplo}
               aria-invalid={errores.texto !== undefined}
               aria-describedby={errores.texto === undefined ? undefined : `${ids}-texto-error`}
               style={RENGLONES_DEL_CUADERNO}
@@ -130,7 +128,7 @@ export function HojaDeAnotacion({
 
           <div className="flex flex-col gap-1.5">
             <span id={`${ids}-categoria`} className="text-label text-text-2">
-              Qué es
+              {textos.queEs}
             </span>
             <div
               role="radiogroup"
@@ -157,10 +155,10 @@ export function HojaDeAnotacion({
                       <span
                         className={`block text-body ${elegida ? 'font-semibold' : 'font-medium'}`}
                       >
-                        {CATEGORIA[categoria].etiqueta}
+                        {m.agenda.categorias[categoria]}
                       </span>
                       <span className="block text-meta text-text-2">
-                        {AYUDA_DE_LA_PROPIA[categoria]}
+                        {m.agenda.ayudaDeLaPropia[categoria]}
                       </span>
                     </span>
                   </button>
@@ -176,7 +174,7 @@ export function HojaDeAnotacion({
           </div>
 
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-label text-text-2">Cuándo</legend>
+            <legend className="mb-1.5 text-label text-text-2">{textos.cuando}</legend>
             <div className="flex flex-wrap gap-2">
               {atajos.map((atajo) => {
                 const elegido = valores.fecha === atajo.fecha;
@@ -198,7 +196,7 @@ export function HojaDeAnotacion({
               })}
               <input
                 type="date"
-                aria-label="Otro día"
+                aria-label={textos.otroDia}
                 value={valores.fecha}
                 onChange={(evento) => {
                   cambiar('fecha', evento.target.value);
@@ -217,17 +215,17 @@ export function HojaDeAnotacion({
           <div className="@container">
             <div className="grid gap-4 @sm:grid-cols-2">
               <Campo
-                etiqueta="Hora"
+                etiqueta={textos.hora}
                 type="time"
                 value={valores.hora}
                 onChange={(evento) => {
                   cambiar('hora', evento.target.value);
                 }}
-                ayuda="Opcional: el día es lo que manda."
+                ayuda={textos.horaOpcional}
               />
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={`${ids}-trabajo`} className="text-label text-text-2">
-                  Trabajo
+                  {textos.trabajo}
                 </label>
                 <select
                   id={`${ids}-trabajo`}
@@ -237,14 +235,14 @@ export function HojaDeAnotacion({
                   }}
                   className="h-field min-w-0 rounded-field border border-border bg-paper px-3 text-body-lg text-ink"
                 >
-                  <option value="">Sin trabajo</option>
+                  <option value="">{textos.sinTrabajo}</option>
                   {trabajos.map((trabajo) => (
-                    <option key={trabajo.id} value={trabajo.id}>
+                    <option key={trabajo.id} value={trabajo.id} translate="no">
                       {trabajo.etiqueta}
                     </option>
                   ))}
                 </select>
-                <span className="text-meta text-text-3">Opcional.</span>
+                <span className="text-meta text-text-3">{textos.opcional}</span>
               </div>
             </div>
           </div>
@@ -266,17 +264,15 @@ export function HojaDeAnotacion({
               <span className={`size-2 rounded-pill ${valores.importante ? 'bg-ag-marca' : ''}`} />
             </span>
             <span className="text-body leading-snug">
-              Marcarlo como importante
-              <span className="block text-meta text-text-2">
-                Como el círculo del cuaderno: lo importante de la semana.
-              </span>
+              {textos.marcarlo}
+              <span className="block text-meta text-text-2">{textos.comoElCirculo}</span>
             </span>
           </button>
         </div>
 
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
           <Button type="submit" size="grande" className="w-full">
-            Anotarlo
+            {textos.anotarlo}
           </Button>
         </footer>
       </form>

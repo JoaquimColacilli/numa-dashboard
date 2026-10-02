@@ -6,6 +6,7 @@ import {
 } from '@maun/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Icono } from '@/shared/ui';
 
 import { conLoHechoAlFinal, diaEnPalabras, estaHecha } from '../model/calendario';
@@ -24,6 +25,7 @@ function minutosDeAhora(ahora: Date): number {
 }
 
 export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHorasProps) {
+  const textos = useMensajes().agenda.dia;
   const [todoElReloj, setTodoElReloj] = useState(false);
   const idDeLaFranja = useId();
   const idDeLoHecho = useId();
@@ -51,15 +53,15 @@ export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHora
     <div className="flex min-h-0 flex-1 flex-col">
       <section aria-labelledby={idDeLaFranja} className="flex-none pt-3">
         <p id={idDeLaFranja} className="text-meta font-semibold text-text-3">
-          Todo el día
+          {textos.todoElDia}
         </p>
         {!quedaAlgoPendiente && (
           <p className="border-t border-hairline-soft py-2.5 text-body text-text-2">
-            No queda nada pendiente para este día.
+            {textos.nadaPendiente}
           </p>
         )}
         {pendientes.length > 0 && (
-          <ul aria-label={`Lo pendiente del ${diaEnPalabras(fecha)}`}>
+          <ul aria-label={textos.pendienteDel(diaEnPalabras(fecha))}>
             {pendientes.map((evento) => (
               <FilaDeEvento key={evento.id} evento={evento} hoy={hoy} acciones={acciones} enElDia />
             ))}
@@ -68,7 +70,7 @@ export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHora
         {hechas.length > 0 && (
           <div className="pt-2">
             <p id={idDeLoHecho} className="pb-1.5 text-meta font-semibold text-text-3">
-              Hecho
+              {textos.hecho}
             </p>
             <ul aria-labelledby={idDeLoHecho}>
               {hechas.map((evento) => (
@@ -85,7 +87,7 @@ export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHora
         )}
         {dia.todoElDia.length === 0 && quedaAlgoPendiente && (
           <p className="border-t border-hairline-soft py-2.5 text-label text-text-2">
-            Nada sin hora para este día.
+            {textos.nadaSinHora}
           </p>
         )}
       </section>
@@ -104,6 +106,7 @@ export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHora
               className="grid grid-cols-[3rem_1fr] items-start gap-2 border-t border-hairline-soft"
             >
               <span
+                translate="no"
                 className={`py-2 text-meta tabular-nums ${
                   laDeAhora ? 'font-semibold text-alerta' : 'text-text-3'
                 }`}
@@ -139,7 +142,7 @@ export function DiaPorHoras({ fecha, hoy, eventos, acciones, ahora }: DiaPorHora
           className="mt-2 mb-1 flex min-h-tap w-full items-center justify-center gap-1.5 rounded-pill text-label font-medium text-text-2 hover:bg-surface"
         >
           <Icono nombre={todoElReloj ? 'chevron-up' : 'clock'} tamano={14} />
-          {todoElReloj ? 'Ver solo el horario del taller' : 'Ver las demás horas'}
+          {todoElReloj ? textos.soloElHorario : textos.lasDemasHoras}
         </button>
       </div>
     </div>

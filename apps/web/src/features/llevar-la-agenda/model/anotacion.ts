@@ -1,6 +1,7 @@
 import { estaLiquidado, type CategoriaPropia } from '@maun/domain';
 
 import type { AnotacionNueva, FilaDe } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { compararTextos, fechaDelEnlace, hayCambios } from '@/shared/lib';
 
 export const LARGO_MAXIMO_DEL_TEXTO = 500;
@@ -50,13 +51,14 @@ export function fechaDelParametro(valor: string | null, porDefecto: string): str
 }
 
 export function erroresDeLaAnotacion(valores: ValoresDeLaAnotacion): ErroresDeLaAnotacion {
+  const textos = mensajes().llevarLaAgenda.errores;
   const errores: ErroresDeLaAnotacion = {};
   const texto = valores.texto.trim();
-  if (texto === '') errores.texto = 'Escribí qué hay que hacer.';
+  if (texto === '') errores.texto = textos.faltaElTexto;
   else if (texto.length > LARGO_MAXIMO_DEL_TEXTO) {
-    errores.texto = `No puede pasar de ${String(LARGO_MAXIMO_DEL_TEXTO)} caracteres.`;
+    errores.texto = textos.largoMaximo(LARGO_MAXIMO_DEL_TEXTO);
   }
-  if (!esFecha(valores.fecha)) errores.fecha = 'Elegí el día.';
+  if (!esFecha(valores.fecha)) errores.fecha = textos.faltaElDia;
   return errores;
 }
 

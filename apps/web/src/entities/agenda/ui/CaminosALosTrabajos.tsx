@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { useLocation } from 'react-router';
 
+import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
   esRutaDeHoja,
@@ -19,6 +20,7 @@ export interface CaminosALosTrabajosProps {
 }
 
 export function CaminosALosTrabajos({ fecha, alIr }: CaminosALosTrabajosProps) {
+  const textos = useMensajes().agenda.caminos;
   const location = useLocation();
   const fondo = useUbicacionVisible();
   const idDeLaExplicacion = useId();
@@ -31,8 +33,7 @@ export function CaminosALosTrabajos({ fecha, alIr }: CaminosALosTrabajosProps) {
   return (
     <div className="flex flex-col gap-1">
       <p id={idDeLaExplicacion} className="text-meta leading-snug text-text-2">
-        Las visitas y las entregas no se anotan: salen del contacto y del proyecto, y aparecen solas
-        en la agenda.
+        {textos.explicacion}
       </p>
       <ul aria-labelledby={idDeLaExplicacion} className="flex flex-col">
         <li>
@@ -45,8 +46,8 @@ export function CaminosALosTrabajos({ fecha, alIr }: CaminosALosTrabajosProps) {
           >
             <MarcaDeCategoria categoria="visita" />
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-body font-medium">Cargar una consulta</span>
-              <span className="block text-meta text-text-2">con la visita ese día</span>
+              <span className="block text-body font-medium">{textos.cargarUnaConsulta}</span>
+              <span className="block text-meta text-text-2">{textos.conLaVisita}</span>
             </span>
             <Icono nombre="chevron-right" tamano={16} className="text-text-3" />
           </Ir>
@@ -60,8 +61,8 @@ export function CaminosALosTrabajos({ fecha, alIr }: CaminosALosTrabajosProps) {
           >
             <MarcaDeCategoria categoria="entrega" />
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-body font-medium">Cargar un proyecto</span>
-              <span className="block text-meta text-text-2">con la entrega estimada ese día</span>
+              <span className="block text-body font-medium">{textos.cargarUnProyecto}</span>
+              <span className="block text-meta text-text-2">{textos.conLaEntrega}</span>
             </span>
             <Icono nombre="chevron-right" tamano={16} className="text-text-3" />
           </Ir>
