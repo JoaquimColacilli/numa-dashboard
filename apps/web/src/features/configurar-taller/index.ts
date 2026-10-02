@@ -14,6 +14,7 @@ export {
 } from './ui/FormularioDeConfiguracion';
 export { FormularioDeRedes } from './ui/FormularioDeRedes';
 export { FormularioDeResena } from './ui/FormularioDeResena';
+export { IdiomaDeLosClientes } from './ui/IdiomaDeLosClientes';
 export {
   PantallaDelPresupuestoDelTaller,
   type PantallaDelPresupuestoDelTallerProps,

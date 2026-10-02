@@ -182,6 +182,11 @@ export const lib = {
       enCola: ANOTADO_EM_ESPERA,
       error: 'Não foi possível mudar a forma de pagamento do cliente.',
     },
+    idiomaDeLosClientes: {
+      hecho: 'Pronto: seus clientes agora leem no idioma que você escolheu.',
+      enCola: ANOTADO_EM_ESPERA,
+      error: 'Não foi possível mudar o idioma dos seus clientes.',
+    },
     archivoCompartido: {
       hecho: 'Pronto: seu cliente já pode ver.',
       enCola: ANOTADO_EM_ESPERA,

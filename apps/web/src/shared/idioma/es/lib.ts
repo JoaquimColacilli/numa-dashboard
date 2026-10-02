@@ -175,6 +175,11 @@ export const lib = {
       enCola: 'Anotado sin señal: se guarda solo cuando vuelva.',
       error: 'No se pudo cambiar cómo te paga.',
     },
+    idiomaDeLosClientes: {
+      hecho: 'Listo: tus clientes leen en el idioma que elegiste.',
+      enCola: 'Anotado sin señal: se guarda solo cuando vuelva.',
+      error: 'No se pudo cambiar el idioma de tus clientes.',
+    },
     archivoCompartido: {
       hecho: 'Listo: ya lo ve tu cliente.',
       enCola: 'Anotado sin señal: se guarda solo cuando vuelva.',

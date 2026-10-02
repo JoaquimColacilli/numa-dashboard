@@ -141,6 +141,7 @@ export {
   estadoDelSeudoidioma,
   etiquetaActual,
   fijarElIdiomaEnUso,
+  fijarElSeudoidioma,
   guardarElIdioma,
   idiomaActual,
   enLista,

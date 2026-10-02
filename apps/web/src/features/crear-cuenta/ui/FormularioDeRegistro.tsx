@@ -2,6 +2,7 @@ import { useState, type SyntheticEvent } from 'react';
 
 import { crearCuenta, mensajeDeAcceso } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
+import { idiomaActual } from '@/shared/lib';
 import { Button, Campo, CampoDeContrasena } from '@/shared/ui';
 
 const MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -44,7 +45,12 @@ export function FormularioDeRegistro({
     setEnviando(true);
     setError(undefined);
     try {
-      await crearCuenta(email, contrasena, `${window.location.origin}${RUTA_DE_CONFIRMACION}`);
+      await crearCuenta(
+        email,
+        contrasena,
+        `${window.location.origin}${RUTA_DE_CONFIRMACION}`,
+        idiomaActual(),
+      );
       alCrear(email);
     } catch (fallo) {
       setError({ mensaje: mensajeDeAcceso(fallo) });

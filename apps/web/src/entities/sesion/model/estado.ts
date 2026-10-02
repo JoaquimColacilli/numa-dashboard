@@ -1,3 +1,5 @@
+import type { Idioma } from '@maun/domain';
+
 import type { Claims } from '@/shared/api';
 
 export type EstadoSesion =
@@ -9,6 +11,7 @@ export type EstadoSesion =
       email: string;
       nombre: string;
       foto: string;
+      idioma?: Idioma | null;
       porRecuperacion: boolean;
     };
 
@@ -24,6 +27,7 @@ export function sesionDe(claims: Claims | undefined, porRecuperacion = false): E
     email: claims.email,
     nombre: claims.nombre,
     foto: claims.foto,
+    idioma: claims.idioma,
     porRecuperacion,
   };
 }

@@ -28,6 +28,7 @@ import { editarLaEncuesta } from './editarLaEncuesta';
 import { editarPerfil } from './editarPerfil';
 import { editarProyecto } from './editarProyecto';
 import { editarTesoro } from './editarTesoro';
+import { elegirIdioma } from './elegirIdioma';
 import { elegirTema } from './elegirTema';
 import { enlace } from './enlace';
 import { fila } from './fila';
@@ -93,6 +94,7 @@ export const es = {
   editarPerfil,
   editarProyecto,
   editarTesoro,
+  elegirIdioma,
   elegirTema,
   enlace,
   fila,

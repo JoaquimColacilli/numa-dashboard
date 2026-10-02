@@ -10,6 +10,7 @@ import { useMensajes } from '@/shared/idioma';
 import { esCelular, useAppBloqueada, useVueltaPorUnAviso, vigilarElBloqueo } from '@/shared/lib';
 
 import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
+import { IdiomaDeLaCuenta } from '../arranque/IdiomaDeLaCuenta';
 import { useTextosDelArranque } from '../arranque/textos';
 import { CargaQueTarda, ErrorDeCarga } from '../layout/ErrorDeCarga';
 import { ProveedorDeLaPuerta } from '../navegacion/ProveedorDeLaPuerta';
@@ -71,8 +72,10 @@ export function RutaConSesion() {
         email: sesion.email,
         nombre: sesion.nombre,
         foto: sesion.foto,
+        idioma: sesion.idioma,
       }}
     >
+      <IdiomaDeLaCuenta />
       <ProveedorDeLaPuerta>
         <ConBloqueo usuarioId={sesion.usuarioId} />
       </ProveedorDeLaPuerta>

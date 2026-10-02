@@ -88,6 +88,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.configurarTaller.cuit('«NUMERO»'),
     tieneQueDecir: ['«NUMERO»'],
   },
+  'configurarTaller.idiomaDeLosClientes.revisaTusTextos': {
+    llamar: (m) => m.configurarTaller.idiomaDeLosClientes.revisaTusTextos('«IDIOMA»'),
+    tieneQueDecir: ['«IDIOMA»'],
+  },
   'configurarTaller.configuracion.errores.nombre': {
     llamar: (m) => m.configurarTaller.configuracion.errores.nombre(37),
     tieneQueDecir: ['37'],

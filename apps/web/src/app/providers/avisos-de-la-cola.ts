@@ -41,6 +41,7 @@ const OPERACION: Readonly<Record<QueSeGuarda, OperacionRechazada>> = {
   enlaceDelCliente: 'proyecto',
   bajaDelEnlace: 'proyecto',
   formasDeCobro: 'proyecto',
+  idiomaDeLosClientes: 'guardado',
   archivoCompartido: 'guardado',
   archivoNoCompartido: 'guardado',
   contactoBorrado: 'baja-de-proyecto',

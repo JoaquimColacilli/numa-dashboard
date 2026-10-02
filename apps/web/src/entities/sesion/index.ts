@@ -1,8 +1,12 @@
 export {
+  CLAVE_DEL_IDIOMA_DE_LA_PERSONA,
   CLAVE_DEL_PERFIL,
   LARGO_MAXIMO_DEL_NOMBRE,
+  MUTACION_DEL_IDIOMA_DE_LA_PERSONA,
   MUTACION_DEL_PERFIL,
+  useIdiomaDeLaPersona,
   useNombreDeLaPersona,
+  type CambioDelIdioma,
   type CambioDelPerfil,
 } from './api/perfil';
 export { useSesion } from './api/useSesion';

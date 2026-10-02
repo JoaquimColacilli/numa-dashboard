@@ -1,3 +1,4 @@
+import type { Idioma } from '@maun/domain';
 import { createContext, useContext } from 'react';
 
 export interface SesionActiva {
@@ -5,6 +6,7 @@ export interface SesionActiva {
   email: string;
   nombre: string;
   foto: string;
+  idioma?: Idioma | null;
 }
 
 export const ContextoDeSesion = createContext<SesionActiva | undefined>(undefined);

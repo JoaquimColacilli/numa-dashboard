@@ -67,6 +67,7 @@ export {
   crearCuenta,
   entrar,
   escucharSesion,
+  guardarElIdiomaDeLaPersona,
   guardarNombreDeLaPersona,
   leerClaims,
   pedirRecuperacion,

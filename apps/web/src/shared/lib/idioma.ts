@@ -97,6 +97,14 @@ export function olvidarElIdioma(): void {
   }
 }
 
+export function fijarElSeudoidioma(estado: EstadoDelSeudoidioma): void {
+  try {
+    globalThis.localStorage.setItem(CLAVE_DEL_SEUDOIDIOMA, estado);
+  } catch {
+    return;
+  }
+}
+
 export function estadoDelSeudoidioma(): EstadoDelSeudoidioma | null {
   try {
     const valor = globalThis.localStorage.getItem(CLAVE_DEL_SEUDOIDIOMA);

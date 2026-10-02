@@ -187,6 +187,11 @@ export const lib = {
       enCola: ANOTADO_EN_COLA,
       error: "Couldn't change how your client pays you.",
     },
+    idiomaDeLosClientes: {
+      hecho: 'Done: your clients now read in the language you picked.',
+      enCola: ANOTADO_EN_COLA,
+      error: "Couldn't change your clients' language.",
+    },
     archivoCompartido: {
       hecho: 'Done: your client can see it now.',
       enCola: ANOTADO_EN_COLA,

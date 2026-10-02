@@ -25,10 +25,12 @@ import {
   FormularioDeRedes,
   FormularioDeResena,
   hayRedesCargadas,
+  IdiomaDeLosClientes,
   ResumenDelPresupuesto,
   type ParteDeLaConfiguracion,
 } from '@/features/configurar-taller';
 import { FormularioDePerfil } from '@/features/editar-perfil';
+import { SelectorDeIdioma } from '@/features/elegir-idioma';
 import { SelectorDeTema } from '@/features/elegir-tema';
 import { VersionDeLaApp } from '@/features/ver-novedades';
 import {
@@ -207,6 +209,10 @@ export function AjustesPage() {
           <SelectorDeTema />
         </SeccionEnFila>
 
+        <SeccionEnFila id="titulo-idioma" titulo={m.paginaAjustes.idioma}>
+          <SelectorDeIdioma />
+        </SeccionEnFila>
+
         <SeccionEnFila id="titulo-dispositivo" titulo={m.paginaAjustes.esteDispositivo}>
           <p className="text-body text-text-2">{describirEstadoSync(estadoSync)}</p>
           <p className="text-label text-text-3 tabular-nums">
@@ -286,6 +292,7 @@ export function AjustesPage() {
               ajustes={ajustes}
               partes={SOLO_EL_TALLER}
             />
+            <IdiomaDeLosClientes ajustes={ajustes} />
           </SeccionEnFila>
         )}
 

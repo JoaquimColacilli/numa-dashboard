@@ -23,6 +23,18 @@ export const configurarTaller = {
   enLaCola: 'Quedó en la cola: se guarda cuando vuelva la señal.',
   cuit: (numero: string) => `CUIT ${numero}`,
   errorDelCuit: 'Un CUIT tiene 11 dígitos. Dejalo vacío si no lo tenés a mano.',
+  idiomaDeLosClientes: {
+    tusClientesLeenEn: 'Tus clientes leen en',
+    ayuda:
+      'Es el idioma de su página, del presupuesto en PDF, de la encuesta y de los mensajes que les mandás. Lo que escribiste vos queda como lo escribiste.',
+    revisaTusTextos: (idioma: string) =>
+      `Tus textos del presupuesto y tus preguntas de la encuesta siguen como los escribiste: revisalos si querés que tu cliente los lea en ${idioma}.`,
+    enUnaFrase: {
+      es: 'español',
+      en: 'inglés',
+      'pt-BR': 'portugués',
+    },
+  },
   configuracion: {
     nombreDelTaller: 'Nombre del taller',
     sueldo: 'Sueldo que te asignás',

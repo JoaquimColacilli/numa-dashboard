@@ -217,6 +217,17 @@ describe('el estado de la sesión al abrir la app', () => {
     expect(store.leerEstadoSesion()).toEqual({ tipo: 'anonimo', vencida: true });
   });
 
+  it('el idioma de la cuenta viaja con la sesión: si cambia en otro aparato, la sesión renovada lo trae', async () => {
+    api.leerClaims.mockResolvedValue(ANA);
+    const store = await arrancar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.leerEstadoSesion()).toMatchObject({ tipo: 'activa', idioma: null });
+
+    api.oyente?.({ ...ANA, idioma: 'pt-BR' }, 'otro');
+
+    expect(store.leerEstadoSesion()).toMatchObject({ tipo: 'activa', idioma: 'pt-BR' });
+  });
+
   it('sin un cierre en el medio, la validación que contesta tarde se sigue aplicando', async () => {
     const contestar = validacionEnCamino();
     const store = await arrancar();

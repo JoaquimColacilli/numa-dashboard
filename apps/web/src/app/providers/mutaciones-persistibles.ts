@@ -89,7 +89,12 @@ import {
   MUTACION_DEL_ENVIO,
 } from '@/entities/presupuesto';
 import { CLAVE_DE_AJUSTES, MUTACION_DE_AJUSTES } from '@/entities/replica';
-import { CLAVE_DEL_PERFIL, MUTACION_DEL_PERFIL } from '@/entities/sesion';
+import {
+  CLAVE_DEL_IDIOMA_DE_LA_PERSONA,
+  CLAVE_DEL_PERFIL,
+  MUTACION_DEL_IDIOMA_DE_LA_PERSONA,
+  MUTACION_DEL_PERFIL,
+} from '@/entities/sesion';
 import {
   CLAVE_DE_ARCHIVO_DE_TESORO,
   CLAVE_DE_TESORO,
@@ -136,6 +141,12 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DEL_PERFIL, MUTACION_DEL_PERFIL);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(
+      CLAVE_DEL_IDIOMA_DE_LA_PERSONA,
+      MUTACION_DEL_IDIOMA_DE_LA_PERSONA,
+    );
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_CLIENTE_NUEVO, MUTACION_DE_CLIENTE_NUEVO);

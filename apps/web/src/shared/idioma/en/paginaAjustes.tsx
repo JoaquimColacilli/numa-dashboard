@@ -10,6 +10,7 @@ export const paginaAjustes = {
   verElSujeto: ({ sujeto }) => `View “${sujeto}”`,
   tuPerfil: 'Your profile',
   apariencia: 'Appearance',
+  idioma: 'Language',
   esteDispositivo: 'This device',
   avisosDeLaAgenda: 'Calendar notifications',
   unRecordatorioALaManana:

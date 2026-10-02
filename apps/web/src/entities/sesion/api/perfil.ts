@@ -1,11 +1,18 @@
+import { esIdioma, IDIOMA_BASE, type Idioma } from '@maun/domain';
 import { useMutationState, type MutationOptions } from '@tanstack/react-query';
 
-import { debeReintentarse, guardarNombreDeLaPersona } from '@/shared/api';
+import {
+  debeReintentarse,
+  guardarElIdiomaDeLaPersona,
+  guardarNombreDeLaPersona,
+} from '@/shared/api';
 import { COLA_DE_SALIDA, guardarCacheAhora } from '@/shared/lib';
 
 import { useSesionActiva } from '../model/contexto';
 
 export const CLAVE_DEL_PERFIL = ['perfil', 'nombre'] as const;
+
+export const CLAVE_DEL_IDIOMA_DE_LA_PERSONA = ['perfil', 'idioma'] as const;
 
 export const LARGO_MAXIMO_DEL_NOMBRE = 60;
 
@@ -16,9 +23,24 @@ export interface CambioDelPerfil {
   nombre: string;
 }
 
+export interface CambioDelIdioma {
+  idioma: Idioma;
+}
+
 export const MUTACION_DEL_PERFIL: MutationOptions<void, unknown, CambioDelPerfil> = {
   mutationKey: CLAVE_DEL_PERFIL,
   mutationFn: ({ nombre }) => guardarNombreDeLaPersona(nombre),
+  scope: COLA_DE_SALIDA,
+  gcTime: DURACION_DEL_RECHAZO_MS,
+  retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
+  onMutate: async () => {
+    await guardarCacheAhora();
+  },
+};
+
+export const MUTACION_DEL_IDIOMA_DE_LA_PERSONA: MutationOptions<void, unknown, CambioDelIdioma> = {
+  mutationKey: CLAVE_DEL_IDIOMA_DE_LA_PERSONA,
+  mutationFn: ({ idioma }) => guardarElIdiomaDeLaPersona(idioma),
   scope: COLA_DE_SALIDA,
   gcTime: DURACION_DEL_RECHAZO_MS,
   retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
@@ -36,6 +58,10 @@ function esCambioDelPerfil(valor: unknown): valor is CambioDelPerfil {
   );
 }
 
+function esCambioDelIdioma(valor: unknown): valor is CambioDelIdioma {
+  return typeof valor === 'object' && valor !== null && 'idioma' in valor && esIdioma(valor.idioma);
+}
+
 export function useNombreDeLaPersona(): string {
   const { nombre } = useSesionActiva();
   const pendientes = useMutationState({
@@ -43,4 +69,13 @@ export function useNombreDeLaPersona(): string {
     select: (mutacion) => mutacion.state.variables,
   });
   return pendientes.findLast(esCambioDelPerfil)?.nombre ?? nombre;
+}
+
+export function useIdiomaDeLaPersona(): Idioma {
+  const { idioma } = useSesionActiva();
+  const pendientes = useMutationState({
+    filters: { mutationKey: CLAVE_DEL_IDIOMA_DE_LA_PERSONA, status: 'pending' },
+    select: (mutacion) => mutacion.state.variables,
+  });
+  return pendientes.findLast(esCambioDelIdioma)?.idioma ?? idioma ?? IDIOMA_BASE;
 }

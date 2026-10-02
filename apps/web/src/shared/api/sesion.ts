@@ -140,11 +140,12 @@ export async function crearCuenta(
   email: string,
   contrasena: string,
   volverA: string,
+  idioma: Idioma,
 ): Promise<void> {
   const { data, error } = await clienteMaun().auth.signUp({
     email,
     password: contrasena,
-    options: { emailRedirectTo: volverA },
+    options: { emailRedirectTo: volverA, data: { idioma } },
   });
   if (error) throw error;
   if (esAltaRepetida(data.user)) throw new RechazoDeAcceso('user_already_exists');
@@ -171,6 +172,11 @@ export async function cambiarContrasena(contrasena: string): Promise<void> {
 
 export async function guardarNombreDeLaPersona(nombre: string): Promise<void> {
   const { error } = await clienteMaun().auth.updateUser({ data: { nombre } });
+  if (error) throw error;
+}
+
+export async function guardarElIdiomaDeLaPersona(idioma: Idioma): Promise<void> {
+  const { error } = await clienteMaun().auth.updateUser({ data: { idioma } });
   if (error) throw error;
 }
 

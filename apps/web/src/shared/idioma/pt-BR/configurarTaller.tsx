@@ -19,6 +19,18 @@ export const configurarTaller = {
   cuit: (numero) => `CUIT ${numero}`,
   errorDelCuit:
     'Um CUIT (identificação fiscal argentina) tem 11 dígitos. Deixe em branco se não tiver em mãos.',
+  idiomaDeLosClientes: {
+    tusClientesLeenEn: 'Seus clientes leem em',
+    ayuda:
+      'É o idioma da página deles, do orçamento em PDF, da pesquisa de satisfação e das mensagens que você manda. O que você mesmo escreveu fica como você escreveu.',
+    revisaTusTextos: (idioma) =>
+      `Seus textos do orçamento e suas perguntas da pesquisa continuam como você escreveu: revise se quiser que seu cliente os leia em ${idioma}.`,
+    enUnaFrase: {
+      es: 'espanhol',
+      en: 'inglês',
+      'pt-BR': 'português',
+    },
+  },
   configuracion: {
     nombreDelTaller: 'Nome da marcenaria',
     sueldo: 'Seu pró-labore',

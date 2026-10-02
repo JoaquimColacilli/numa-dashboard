@@ -13,6 +13,18 @@ export const configurarTaller = {
   cuit: (numero) => `CUIT ${numero}`,
   errorDelCuit:
     "A CUIT (Argentine tax ID) has 11 digits. Leave it blank if you don't have it handy.",
+  idiomaDeLosClientes: {
+    tusClientesLeenEn: 'Your clients read in',
+    ayuda:
+      "It's the language of their page, the PDF quote, the survey and the messages you send them. What you wrote yourself stays as you wrote it.",
+    revisaTusTextos: (idioma) =>
+      `Your quote texts and your survey questions stay as you wrote them: review them if you want your client to read them in ${idioma}.`,
+    enUnaFrase: {
+      es: 'Spanish',
+      en: 'English',
+      'pt-BR': 'Portuguese',
+    },
+  },
   configuracion: {
     nombreDelTaller: 'Shop name',
     sueldo: "Your owner's pay",
