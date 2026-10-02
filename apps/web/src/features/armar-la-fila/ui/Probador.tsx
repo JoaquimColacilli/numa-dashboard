@@ -98,7 +98,11 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
           onChange={cambiarMonto}
         />
       )}
-      <div className={forma === 'celular' ? 'grid grid-cols-3 gap-1.5' : 'flex flex-wrap gap-1.5'}>
+      <div
+        className={
+          forma === 'celular' ? 'flex flex-wrap gap-x-1.5 gap-y-2' : 'flex flex-wrap gap-1.5'
+        }
+      >
         {ATAJOS_DE_LA_PRUEBA.map((monto) => {
           const elegido = prueba.monto === monto;
           return (
@@ -110,10 +114,10 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
               onClick={() => {
                 alProbar({ ...prueba, monto });
               }}
-              className={`apretable relative rounded-pill border px-3 text-label tabular-nums ${
+              className={`apretable relative rounded-pill border text-label tabular-nums ${
                 forma === 'celular'
-                  ? 'min-h-9 before:absolute before:inset-x-0 before:-inset-y-1'
-                  : 'min-h-tap'
+                  ? 'min-h-9 max-w-1/2 flex-1 px-1.5 before:absolute before:inset-x-0 before:-inset-y-1'
+                  : 'min-h-tap px-3'
               } ${
                 elegido
                   ? 'border-ink bg-ink font-semibold text-paper'

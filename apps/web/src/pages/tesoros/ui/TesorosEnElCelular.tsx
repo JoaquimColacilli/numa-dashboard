@@ -101,12 +101,12 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
           }}
         />
       ) : (
-        <header className="flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-0.5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-1 flex-col gap-0.5">
             <span className="text-label text-text-2">{textos.comoSeReparte}</span>
             <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.tesoros}</h1>
           </div>
-          <div className="flex flex-none items-center gap-2 pb-0.5">
+          <div className="ml-auto flex flex-none items-center gap-2 pb-0.5">
             <button
               ref={botonDelPlano}
               type="button"
