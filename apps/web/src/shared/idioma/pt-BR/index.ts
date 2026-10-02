@@ -8,6 +8,7 @@ import { cliente } from './cliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
+import { editarCliente } from './editarCliente';
 import { editarProyecto } from './editarProyecto';
 import { editarTesoro } from './editarTesoro';
 import { enlace } from './enlace';
@@ -37,6 +38,7 @@ export const ptBR = {
   comun,
   configurarTaller,
   coordinarLaEntrega,
+  editarCliente,
   editarProyecto,
   editarTesoro,
   enlace,

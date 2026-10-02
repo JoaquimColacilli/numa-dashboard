@@ -22,6 +22,7 @@ import {
   type FormularioDeCliente,
 } from '@/entities/cliente';
 import { mensajeDeSincronizacion, type DatosDeCliente } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, FondoDelElegido, Hoja } from '@/shared/ui';
 
@@ -33,6 +34,7 @@ export interface HojaDeClienteProps {
 }
 
 export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: HojaDeClienteProps) {
+  const textos = useMensajes().editarCliente;
   const idTitulo = useId();
   const primerCampo = useRef<HTMLInputElement>(null);
 
@@ -86,7 +88,7 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
 
   return (
     <Hoja
-      titulo={cliente ? 'Editar cliente' : 'Cliente nuevo'}
+      titulo={cliente ? textos.editar : textos.nuevo}
       alCerrar={alCerrar}
       ancho="amplio"
       conCambios={isDirty}
@@ -106,16 +108,16 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
                 refDelNombre(nodo);
                 primerCampo.current = nodo;
               }}
-              etiqueta="Nombre"
+              etiqueta={textos.nombre}
               autoComplete="name"
-              placeholder="Como lo tenés agendado"
+              placeholder={textos.comoLoTenesAgendado}
               error={errors.nombre?.message}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
               <Campo
                 {...register('telefono')}
-                etiqueta="Teléfono"
+                etiqueta={textos.telefono}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -124,34 +126,34 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
               />
               <Campo
                 {...register('zona')}
-                etiqueta="Zona"
+                etiqueta={textos.zona}
                 autoComplete="address-level2"
-                placeholder="Localidad o barrio"
+                placeholder={textos.localidadOBarrio}
                 error={errors.zona?.message}
               />
             </div>
 
             <Campo
               {...register('email')}
-              etiqueta="Email"
+              etiqueta={textos.email}
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="Opcional"
+              placeholder={textos.opcional}
               error={errors.email?.message}
             />
 
             <Campo
               {...register('direccion')}
-              etiqueta="Dirección"
+              etiqueta={textos.direccion}
               autoComplete="street-address"
-              placeholder="Calle y número, localidad"
+              placeholder={textos.calleYNumero}
               error={errors.direccion?.message}
             />
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${idTitulo}-origen`} className="text-label text-text-2">
-                Cómo llegó
+                {textos.comoLlego}
               </label>
               <select
                 {...register('origen_contacto', {
@@ -160,7 +162,7 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
                 id={`${idTitulo}-origen`}
                 className="h-field rounded-field border border-border bg-paper px-3 text-body-lg text-ink"
               >
-                <option value="">Sin especificar</option>
+                <option value="">{textos.sinEspecificar}</option>
                 {ORIGENES_EN_ORDEN.map((id) => (
                   <option key={id} value={id}>
                     {ORIGEN[id].etiqueta}
@@ -172,16 +174,20 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
             {origen !== null && (
               <Campo
                 {...register('origen_detalle')}
-                etiqueta={origen === 'referido' ? 'Quién lo refirió' : 'Detalle'}
+                etiqueta={origen === 'referido' ? textos.quienLoRefirio : textos.detalle}
                 placeholder={
-                  origen === 'referido' ? 'Nombre de quien lo recomendó' : 'Lo que quieras anotar'
+                  origen === 'referido'
+                    ? textos.nombreDeQuienLoRecomendo
+                    : textos.loQueQuierasAnotar
                 }
                 error={errors.origen_detalle?.message}
               />
             )}
 
             <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-label text-text-2">Condición frente al IVA</legend>
+              <legend className="mb-1.5 text-label text-text-2">
+                {textos.condicionFrenteAlIva}
+              </legend>
               <div className="relative grid grid-cols-4 gap-0.5 rounded-pill bg-ink/6 p-1">
                 <FondoDelElegido elegido={condicion} />
                 {CONDICIONES_EN_ORDEN.map((id) => (
@@ -204,7 +210,10 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
                 ))}
               </div>
               <span className="text-meta text-text-3">
-                {CONDICION[condicion].etiqueta}. Emite {CONDICION[condicion].comprobante}.
+                {textos.condicionYComprobante(
+                  CONDICION[condicion].etiqueta,
+                  CONDICION[condicion].comprobante,
+                )}
               </span>
             </fieldset>
 
@@ -226,16 +235,16 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
                   />
                   <Campo
                     {...register('razon_social')}
-                    etiqueta="Razón social"
+                    etiqueta={textos.razonSocial}
                     autoComplete="organization"
-                    placeholder="Si factura a una empresa"
+                    placeholder={textos.siFacturaAUnaEmpresa}
                     error={errors.razon_social?.message}
                   />
                 </div>
                 <Campo
                   {...register('domicilio_fiscal')}
-                  etiqueta="Domicilio fiscal"
-                  placeholder="Si es distinto de la dirección"
+                  etiqueta={textos.domicilioFiscal}
+                  placeholder={textos.siEsDistinto}
                   error={errors.domicilio_fiscal?.message}
                 />
               </>
@@ -243,13 +252,13 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${idTitulo}-notas`} className="text-label text-text-2">
-                Notas
+                {textos.notas}
               </label>
               <textarea
                 {...register('notas')}
                 id={`${idTitulo}-notas`}
                 rows={3}
-                placeholder="Lo que convenga recordar de este cliente"
+                placeholder={textos.loQueConvengaRecordar}
                 className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
               />
             </div>
@@ -264,10 +273,10 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={enVuelo}>
-                {cliente ? 'Guardar los cambios' : 'Guardar cliente'}
+                {cliente ? textos.guardarLosCambios : textos.guardarCliente}
               </Button>
             </FilaDeAcciones>
           </footer>
