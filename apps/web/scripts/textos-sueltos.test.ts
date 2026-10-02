@@ -34,6 +34,42 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Cada idioma se nombra en su propio idioma, y es igual en los tres catálogos.',
   },
   {
+    archivo: 'src/shared/lib/fechas.ts',
+    texto:
+      /^(mié|sáb|Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|de de|hace días|año|años|mañana|en días|en meses)$/u,
+    motivo:
+      'Las fechas en castellano conservan sus formatos tal cual (glosario, Fechas); en inglés y en portugués salen de Intl.',
+  },
+  {
+    archivo: 'src/shared/lib/push.ts',
+    texto:
+      /^(La suscripción del navegador no trae sus claves\.|La app no tiene su service worker activo\.)$/u,
+    motivo:
+      'Errores internos de la suscripción: recibir-avisos los cambia por su propio mensaje, el dueño no los lee.',
+  },
+  {
+    archivo: 'src/shared/lib/rutas.ts',
+    texto: /^\/proyectos\/ \/(editar|cobrar|cerrar|aprobar|compartir|presupuesto)$/u,
+    motivo: 'Son rutas de la app con el id en el medio: no las lee nadie.',
+  },
+  {
+    archivo: 'src/shared/lib/seudo.tsx',
+    texto: /^\p{L}$/u,
+    motivo: 'La tabla de letras acentuadas con que se arma el seudoidioma, no un texto.',
+  },
+  {
+    archivo: 'src/shared/lib/taller.ts',
+    texto: 'Taller MAUN',
+    motivo: 'Una marca: «Taller MAUN» no se traduce (glosario).',
+  },
+  {
+    archivo: 'src/shared/lib/tesoros.ts',
+    texto:
+      /^(Hogar|Maun|Diezmo|Cocos|La plata de la familia|La caja del taller|Lo apartado de cada ingreso|Ahorro para la casa propia)$/u,
+    motivo:
+      'Los nombres y las descripciones que la base sembró para los cuatro tesoros de siempre: son datos y no se traducen (glosario).',
+  },
+  {
     archivo: 'src/main.ts',
     texto: 'Falta el elemento #root en index.html.',
     motivo: 'Solo lo ve quien arma la app, no quien la usa.',

@@ -1,10 +1,15 @@
 import { diasEntre, sumarDias } from '@maun/domain';
 
 import { diasDelMes } from './fechas';
+import { tablaDeLib, type TextosDeLib } from './textos';
 
-export const DIAS_DE_LA_SEMANA = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'] as const;
+export const DIAS_DE_LA_SEMANA: TextosDeLib['semana']['dias'] = tablaDeLib(
+  (textos) => textos.semana.dias,
+);
 
-export const INICIALES_DE_LA_SEMANA = ['l', 'm', 'm', 'j', 'v', 's', 'd'] as const;
+export const INICIALES_DE_LA_SEMANA: TextosDeLib['semana']['iniciales'] = tablaDeLib(
+  (textos) => textos.semana.iniciales,
+);
 
 const UN_LUNES = '2024-01-01';
 

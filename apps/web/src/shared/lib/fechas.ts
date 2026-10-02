@@ -1,6 +1,7 @@
 import { ETIQUETAS_DE_IDIOMA, type Idioma } from '@maun/domain';
 
 import { idiomaActual } from './idioma';
+import { textosDeLib } from './textos';
 
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES_CORTOS = [
@@ -50,8 +51,8 @@ export function hoyEnElTaller(ahora: Date = new Date()): string {
 const FORMA_DEL_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 export function errorDeLaFechaDeLaPlata(fecha: string, hoy: string): string | undefined {
-  if (!FORMA_DEL_DIA.test(fecha)) return 'Poné el día en que entró la plata.';
-  if (fecha > hoy) return 'Esa fecha todavía no llegó: tiene que ser hoy o antes.';
+  if (!FORMA_DEL_DIA.test(fecha)) return textosDeLib().fechaDeLaPlata.falta;
+  if (fecha > hoy) return textosDeLib().fechaDeLaPlata.futura;
   return undefined;
 }
 

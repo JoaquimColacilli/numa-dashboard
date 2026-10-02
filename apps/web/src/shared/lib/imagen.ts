@@ -1,3 +1,5 @@
+import { textosDeLib } from './textos';
+
 export interface MedidasDeImagen {
   readonly ancho: number;
   readonly alto: number;
@@ -35,7 +37,7 @@ export interface LienzoDeSalida {
 
 export class ImagenIlegible extends Error {
   constructor() {
-    super('No se pudo leer esa imagen. Probá con una foto JPEG, PNG o WebP.');
+    super(textosDeLib().imagenIlegible);
     this.name = 'ImagenIlegible';
   }
 }

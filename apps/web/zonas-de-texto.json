@@ -60,7 +60,7 @@
     "src/pages/vista-cliente/",
     "src/shared/api/",
     "src/shared/config/",
-    "src/shared/lib/",
+    "src/shared/lib/telefono.ts",
     "src/shared/pdf/",
     "src/shared/ui/"
   ]
