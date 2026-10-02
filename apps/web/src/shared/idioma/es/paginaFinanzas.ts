@@ -1,0 +1,24 @@
+export const paginaFinanzas = {
+  titulo: 'Finanzas',
+  cargarMovimiento: 'Cargar movimiento',
+  contra: (actual: string, previo: string) => `${actual} contra ${previo}`,
+  todos: 'Todos',
+  sentidos: {
+    todos: 'Todo',
+    entra: 'Entradas',
+    sale: 'Salidas',
+    mueve: 'Entre tesoros',
+  },
+  buscarEnElLibro: 'Buscar en el libro',
+  buscarPorLoQueAnotaste: 'Buscar por lo que anotaste',
+  mes: 'Mes',
+  mesYAnio: (mes: string, anio: string) => `${mes} ${anio}`,
+  todosLosMeses: 'Todos los meses',
+  nadaConEsosFiltros: 'Nada con esos filtros',
+  probaConOtroMes: 'Probá con otro mes o sacá los filtros.',
+  limpiarLosFiltros: 'Limpiar los filtros',
+  todaviaNoHayMovimientos: 'Todavía no hay movimientos',
+  cargaElPrimerGasto:
+    'Cargá el primer gasto o ingreso. Los cobros y las compras de cada trabajo se anotan solos desde el trabajo.',
+  cargarElPrimero: 'Cargar el primero',
+} as const;

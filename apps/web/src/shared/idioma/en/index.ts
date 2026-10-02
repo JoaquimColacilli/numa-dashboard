@@ -13,6 +13,7 @@ import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { paginaAnalitico } from './paginaAnalitico';
 import { paginaDiezmo } from './paginaDiezmo';
+import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
@@ -32,6 +33,7 @@ export const en = {
   movimiento,
   paginaAnalitico,
   paginaDiezmo,
+  paginaFinanzas,
   paginaInicio,
   registrarMovimiento,
   replica,
