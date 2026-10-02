@@ -1,5 +1,5 @@
 import { mensajes } from '@/shared/idioma';
-import { fechaLarga, formatearPesos } from '@/shared/lib';
+import { fechaLarga, formatearLaPlata } from '@/shared/lib';
 import type { NombreDeIcono, TonoDelPaso } from '@/shared/ui';
 
 import { fechaConSuFranja, type TonoDeEntrega } from './entrega';
@@ -64,8 +64,8 @@ export function situacionDeLaObra(
   if (proyecto.estado === 'entregado') {
     return {
       proximoPaso:
-        saldo !== null && saldo > 0
-          ? textos.faltaCobrar(formatearPesos(saldo))
+        saldo !== null && saldo.importe > 0
+          ? textos.faltaCobrar(formatearLaPlata(saldo))
           : textos.faltaCobrarloYRepartir,
       detalle:
         proyecto.fecha_entrega === null

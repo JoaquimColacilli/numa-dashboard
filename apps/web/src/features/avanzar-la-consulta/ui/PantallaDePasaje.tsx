@@ -36,6 +36,7 @@ import { useMensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
   formatearPesos,
+  formatearPlata,
   formatearPorcentaje,
   hoyEnElTaller,
   uuidv7,
@@ -130,13 +131,13 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
   );
   const esperada = senaDelPasaje(
     aprobado,
-    resumen.cobrado,
+    resumen.cobradoEnSuMoneda.importe,
     senaDelTaller(ajustesDe(replica)),
     senaDelProyecto(proyecto),
   );
   const [sena, setSena] = useState<number | null>(() => senaSugerida(esperada));
   const [senaAMano, setSenaAMano] = useState(false);
-  const cuenta = resumenDelPasaje(aprobado, resumen.cobrado, sena);
+  const cuenta = resumenDelPasaje(aprobado, resumen.cobradoEnSuMoneda.importe, sena);
   const [idDelPago] = useState(uuidv7);
   const [diaDeLaSena, setDiaDeLaSena] = useState(hoy);
   const [senaMarcada, setSenaMarcada] = useState(true);
@@ -152,7 +153,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
       senaSugerida(
         senaDelPasaje(
           otra?.monto_centavos ?? null,
-          resumen.cobrado,
+          resumen.cobradoEnSuMoneda.importe,
           senaDelTaller(ajustesDe(replica)),
           senaDelProyecto(proyecto),
         ),
@@ -222,7 +223,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         </span>
       </label>
       <div className="flex h-15 items-center gap-1.5 rounded-field border border-border px-3.5">
-        <AdornoDePlata className="text-money-lg text-text-3" />
+        <AdornoDePlata moneda={resumen.moneda} className="text-money-lg text-text-3" />
         <MoneyInput
           id={`${idCampos}-sena`}
           placeholder="0"
@@ -347,7 +348,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                       translate="no"
                       className="flex-none text-money font-semibold tabular-nums"
                     >
-                      {formatearPesos(una.monto_centavos)}
+                      {formatearPlata(una.monto_centavos, resumen.moneda)}
                     </span>
                   </label>
                 ))}
@@ -376,7 +377,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                     falta === undefined ? 'border-ink' : 'border-alerta'
                   }`}
                 >
-                  <AdornoDePlata className="text-money-lg text-text-3" />
+                  <AdornoDePlata moneda={resumen.moneda} className="text-money-lg text-text-3" />
                   <MoneyInput
                     ref={campoDelPresupuesto}
                     id={`${idCampos}-presupuesto`}
@@ -394,7 +395,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                           senaSugerida(
                             senaDelPasaje(
                               centavos,
-                              resumen.cobrado,
+                              resumen.cobradoEnSuMoneda.importe,
                               senaDelTaller(ajustesDe(replica)),
                               senaDelProyecto(proyecto),
                             ),
@@ -425,7 +426,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
               <div className={CIFRA}>
                 <dt className="text-text-2">{textos.presupuestoAprobado}</dt>
                 <dd translate="no" className="text-right font-semibold @min-[44rem]:text-left">
-                  {aprobado === null ? '—' : formatearPesos(aprobado)}
+                  {aprobado === null ? '—' : formatearPlata(aprobado, resumen.moneda)}
                 </dd>
               </div>
             )}
@@ -435,7 +436,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                 translate="no"
                 className="text-right font-medium text-hogar @min-[44rem]:text-left"
               >
-                {formatearPesos(cuenta.antes)}
+                {formatearPlata(cuenta.antes, resumen.moneda)}
               </dd>
             </div>
             <div className={CIFRA}>
@@ -444,7 +445,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                 translate="no"
                 className="text-right font-medium text-hogar @min-[44rem]:text-left"
               >
-                {formatearPesos(cuenta.ahora)}
+                {formatearPlata(cuenta.ahora, resumen.moneda)}
               </dd>
             </div>
             <div className={CIFRA}>
@@ -453,13 +454,13 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                 translate="no"
                 className="text-right font-semibold text-hogar @min-[44rem]:text-left"
               >
-                {formatearPesos(cuenta.cobrado)}
+                {formatearPlata(cuenta.cobrado, resumen.moneda)}
               </dd>
             </div>
             <div className={CIFRA}>
               <dt className="text-text-2">{textos.saldoACobrar}</dt>
               <dd translate="no" className="text-right font-semibold @min-[44rem]:text-left">
-                {cuenta.saldo === null ? '—' : formatearPesos(cuenta.saldo)}
+                {cuenta.saldo === null ? '—' : formatearPlata(cuenta.saldo, resumen.moneda)}
               </dd>
             </div>
             {resumen.gastos > 0 && (

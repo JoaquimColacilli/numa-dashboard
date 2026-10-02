@@ -260,7 +260,12 @@ export function contactosEnOrden(
         resumen,
         ultimoContacto: diaDelUltimoContacto(resumen.proyecto, ultimaActividad),
         ultimaActividad,
-        situacion: situacionDelContacto(resumen.proyecto, ultimaActividad, hoy, resumen.cobrado),
+        situacion: situacionDelContacto(
+          resumen.proyecto,
+          ultimaActividad,
+          hoy,
+          resumen.cobradoEnPesos,
+        ),
       };
     })
     .sort(compararContactos);

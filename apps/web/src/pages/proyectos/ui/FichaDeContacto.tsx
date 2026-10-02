@@ -4,9 +4,11 @@ import { AccionesDeContacto, rutaDelCliente } from '@/entities/cliente';
 import {
   BloqueDeLaSena,
   CostosDeCotizar,
+  enOtrosTesoros,
   EstadoBadge,
   gastosDelProyecto,
   insumosDelProyecto,
+  loCobradoEnPalabras,
   opcionesDelProyecto,
   pagosDelProyecto,
   presupuestoVencido,
@@ -38,7 +40,9 @@ import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
+  formatearLaPlata,
   formatearPesos,
+  formatearPlata,
   hoyLocal,
   relativa,
   rutaDeCompartir,
@@ -116,7 +120,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
   const gastos = gastosDelProyecto(replica, proyecto.id);
   const insumos = insumosDelProyecto(replica, proyecto.id);
   const ultimaActividad = ultimasActividades(replica).get(proyecto.id) ?? proyecto.updated_at;
-  const situacion = situacionDelContacto(proyecto, ultimaActividad, hoy, resumen.cobrado);
+  const situacion = situacionDelContacto(proyecto, ultimaActividad, hoy, resumen.cobradoEnPesos);
   const nombre = cliente?.nombre ?? resumen.nombreDelCliente;
   const relevado = yaSeRelevo(proyecto, hoy);
   const esperaAlCliente =
@@ -212,7 +216,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
               proyecto={proyecto}
               etapa={etapa}
               situacion={situacion}
-              cobrado={resumen.cobrado}
+              cobrado={resumen.cobradoEnPesos}
               conOpciones={opcionesDelProyecto(replica, proyecto.id).length > 0}
               alAgendar={() => {
                 setEditando('visita');
@@ -227,13 +231,15 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
           <OpcionesDelTrabajo proyecto={proyecto} ofreceCargarLaPrimera />
 
           <BloqueDeLaSena
-            sena={senaDelTrabajo(replica, proyecto, resumen.cobrado)}
+            sena={senaDelTrabajo(replica, proyecto, resumen.cobradoEnSuMoneda)}
+            moneda={resumen.moneda}
             propia={senaDelProyecto(proyecto) !== null}
           />
 
-          {insumos !== null && (insumos.entro !== 0 || insumos.gastado !== 0) && (
-            <InsumosDelTrabajo insumos={insumos} />
-          )}
+          {insumos !== null &&
+            (insumos.entro !== 0 || insumos.gastado !== 0 || insumos.enDolares.length > 0) && (
+              <InsumosDelTrabajo insumos={insumos} otros={enOtrosTesoros(replica, insumos)} />
+            )}
 
           {etapa !== 'a_presupuestar' && <CostosDeCotizar proyecto={proyecto} />}
 
@@ -267,16 +273,20 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
               />
               <Dato
                 clave={comun.senaCobrada}
-                valor={resumen.cobrado > 0 ? formatearPesos(resumen.cobrado) : comun.sinSena}
-                tono={resumen.cobrado > 0 ? 'text-hogar' : ''}
-                dato={resumen.cobrado > 0}
+                valor={
+                  resumen.cobradoEnPesos > 0
+                    ? formatearLaPlata(resumen.cobradoEnSuMoneda)
+                    : comun.sinSena
+                }
+                tono={resumen.cobradoEnPesos > 0 ? 'text-hogar' : ''}
+                dato={resumen.cobradoEnPesos > 0}
               />
               <Dato
                 clave={comun.presupuesto}
                 valor={
                   proyecto.presupuesto_centavos === null
                     ? comun.todaviaSinPresupuesto
-                    : formatearPesos(proyecto.presupuesto_centavos)
+                    : formatearPlata(proyecto.presupuesto_centavos, resumen.moneda)
                 }
                 dato={proyecto.presupuesto_centavos !== null}
               />
@@ -354,8 +364,8 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
           >
             <h2 className="text-section font-semibold">{comun.siNoSale}</h2>
             <p className="mt-1 text-label leading-relaxed text-text-2">
-              {resumen.cobrado > 0
-                ? textos.siNoSaleConSena(formatearPesos(resumen.cobrado))
+              {resumen.cobradoEnPesos > 0
+                ? textos.siNoSaleConSena(loCobradoEnPalabras(resumen))
                 : textos.siNoSaleSinSena}
             </p>
             <FilaDeAcciones className="mt-2.5">

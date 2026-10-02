@@ -31,7 +31,7 @@ import { useMensajes } from '@/shared/idioma';
 import {
   alternar,
   conFondo,
-  formatearPesos,
+  formatearLaPlata,
   hoyLocal,
   useAnchoDePantalla,
   type Sentido,
@@ -105,31 +105,31 @@ function Tarjeta({ resumen, hoy }: { resumen: ResumenDeProyecto; hoy: string }) 
           <div>
             <dt className="text-meta text-text-3">{comun.presupuesto}</dt>
             <dd translate="no" className="text-body font-medium">
-              {proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto)}
+              {proyecto.presupuesto_centavos === null ? '—' : formatearLaPlata(resumen.precio)}
             </dd>
           </div>
           <div>
             <dt className="text-meta text-text-3">{comun.cobrado}</dt>
             <dd translate="no" className="text-body font-medium">
-              {formatearPesos(resumen.cobrado)}
+              {formatearLaPlata(resumen.cobradoEnSuMoneda)}
             </dd>
           </div>
           <div>
             <dt className="text-meta text-text-3">{comun.saldo}</dt>
             <dd
-              translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
+              translate={resumen.saldo !== null && resumen.saldo.importe <= 0 ? undefined : 'no'}
               className={`text-body font-semibold ${
                 resumen.saldo === null
                   ? 'text-text-3'
-                  : resumen.saldo > 0
+                  : resumen.saldo.importe > 0
                     ? 'text-ink'
                     : 'text-hogar'
               }`}
             >
               {resumen.saldo === null
                 ? '—'
-                : resumen.saldo > 0
-                  ? formatearPesos(resumen.saldo)
+                : resumen.saldo.importe > 0
+                  ? formatearLaPlata(resumen.saldo)
                   : comun.sinSaldo}
             </dd>
           </div>
@@ -223,25 +223,25 @@ function Tabla({
               <td translate="no" className="px-2.5 text-right tabular-nums whitespace-nowrap">
                 {resumen.proyecto.presupuesto_centavos === null
                   ? '—'
-                  : formatearPesos(resumen.presupuesto)}
+                  : formatearLaPlata(resumen.precio)}
               </td>
               <td translate="no" className="px-2.5 text-right tabular-nums whitespace-nowrap">
-                {formatearPesos(resumen.cobrado)}
+                {formatearLaPlata(resumen.cobradoEnSuMoneda)}
               </td>
               <td
-                translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
+                translate={resumen.saldo !== null && resumen.saldo.importe <= 0 ? undefined : 'no'}
                 className={`px-2.5 text-right font-semibold tabular-nums whitespace-nowrap ${
                   resumen.saldo === null
                     ? 'text-text-3'
-                    : resumen.saldo > 0
+                    : resumen.saldo.importe > 0
                       ? 'text-ink'
                       : 'text-hogar'
                 }`}
               >
                 {resumen.saldo === null
                   ? '—'
-                  : resumen.saldo > 0
-                    ? formatearPesos(resumen.saldo)
+                  : resumen.saldo.importe > 0
+                    ? formatearLaPlata(resumen.saldo)
                     : comun.sinSaldo}
               </td>
               <td className="px-2.5 whitespace-nowrap">

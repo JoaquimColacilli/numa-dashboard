@@ -1,5 +1,10 @@
 import { AyudaDeLosInsumos } from '@/entities/fila';
-import { fraseDeLosInsumos, type InsumosDeUnTrabajo } from '@/entities/proyecto';
+import {
+  fraseDeLosInsumos,
+  frasesDeOtrosTesoros,
+  type EnOtroTesoro,
+  type InsumosDeUnTrabajo,
+} from '@/entities/proyecto';
 import { useMensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 
@@ -27,7 +32,13 @@ function Numero({
   );
 }
 
-export function InsumosDelTrabajo({ insumos }: { insumos: InsumosDeUnTrabajo }) {
+export function InsumosDelTrabajo({
+  insumos,
+  otros = [],
+}: {
+  insumos: InsumosDeUnTrabajo;
+  otros?: readonly EnOtroTesoro[];
+}) {
   const textos = useMensajes().paginaProyectos.insumos;
   const puso = fraseDeLosInsumos(insumos);
   return (
@@ -56,6 +67,11 @@ export function InsumosDelTrabajo({ insumos }: { insumos: InsumosDeUnTrabajo }) 
       {puso !== null && (
         <p className="mt-2 text-label leading-relaxed font-medium text-atencion">{puso}</p>
       )}
+      {frasesDeOtrosTesoros(otros).map((frase) => (
+        <p key={frase} className="mt-2 text-label leading-relaxed text-text-2">
+          {frase}
+        </p>
+      ))}
     </section>
   );
 }

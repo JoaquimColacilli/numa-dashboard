@@ -1,6 +1,7 @@
 import {
   ETIQUETAS_DE_IDIOMA,
   MONEDA_DEL_TALLER,
+  totalesPorMoneda,
   type Idioma,
   type Moneda,
   type Plata,
@@ -65,6 +66,21 @@ export function formatearPesos(centavos: number): string {
 
 export function formatearLaPlata(una: Plata, idioma: Idioma = idiomaActual()): string {
   return formatearPlata(una.importe, una.moneda, idioma);
+}
+
+export function porMoneda(platas: Iterable<Plata>): Plata[] {
+  return totalesPorMoneda(platas)
+    .map(({ total }) => total)
+    .filter((total) => total.importe !== 0);
+}
+
+export function formatearPorMoneda(
+  platas: Iterable<Plata>,
+  idioma: Idioma = idiomaActual(),
+): string {
+  const totales = porMoneda(platas);
+  if (totales.length === 0) return formatearPlata(0, MONEDA_DEL_TALLER, idioma);
+  return totales.map((total) => formatearLaPlata(total, idioma)).join(' · ');
 }
 
 export function adornosDelCampo(moneda: Moneda, idioma: Idioma = idiomaActual()): AdornosDelCampo {

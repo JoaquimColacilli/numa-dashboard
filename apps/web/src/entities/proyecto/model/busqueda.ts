@@ -1,4 +1,4 @@
-import type { EstadoProyecto, Fase } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type EstadoProyecto, type Fase } from '@maun/domain';
 
 import { mensajes } from '@/shared/idioma';
 import { criterioPorId, ordenar, type Criterio, type Sentido } from '@/shared/lib';
@@ -43,6 +43,10 @@ export function filtrarPorEstado(
     : resumenes.filter((resumen) => resumen.proyecto.estado === estado);
 }
 
+function primeroLosPesos(resumen: ResumenDeProyecto): number {
+  return resumen.moneda === MONEDA_DEL_TALLER ? 0 : 1;
+}
+
 export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
   {
     id: 'cliente',
@@ -69,8 +73,9 @@ export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
     },
     tipo: 'numero',
     leer: (resumen) =>
-      resumen.proyecto.presupuesto_centavos === null ? undefined : resumen.presupuesto,
+      resumen.proyecto.presupuesto_centavos === null ? undefined : resumen.precio.importe,
     inicial: 'desc',
+    grupo: primeroLosPesos,
   },
   {
     id: 'cobrado',
@@ -78,8 +83,9 @@ export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
       return mensajes().proyecto.orden.cobrado;
     },
     tipo: 'numero',
-    leer: (resumen) => resumen.cobrado,
+    leer: (resumen) => resumen.cobradoEnSuMoneda.importe,
     inicial: 'desc',
+    grupo: primeroLosPesos,
   },
   {
     id: 'saldo',
@@ -87,8 +93,9 @@ export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
       return mensajes().proyecto.orden.saldo;
     },
     tipo: 'numero',
-    leer: (resumen) => resumen.saldo ?? undefined,
+    leer: (resumen) => resumen.saldo?.importe,
     inicial: 'desc',
+    grupo: primeroLosPesos,
   },
   {
     id: 'entrega',

@@ -31,8 +31,9 @@ export const ORDENES: readonly (Criterio<ResumenDeCliente> & { id: Orden })[] = 
       return mensajes().cliente.ordenes.facturado;
     },
     tipo: 'numero',
-    leer: (resumen) => resumen.facturado,
+    leer: (resumen) => resumen.facturado[0]?.importe,
     inicial: 'desc',
+    grupo: (resumen) => (resumen.facturado[0]?.moneda === 'USD' ? 1 : 0),
   },
 ];
 

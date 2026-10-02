@@ -1,4 +1,4 @@
-import { centavos, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, plata, puntosBasicos, type Fila } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -145,10 +145,14 @@ const RESUMEN = {
   cliente: undefined,
   nombreDelCliente: 'Marcela Duarte',
   fase: 'activos',
-  presupuesto: centavos(1_000_000),
-  cobrado: centavos(1_000_000),
+  moneda: 'ARS',
+  precio: plata('ARS', 1_000_000),
+  cobradoEnSuMoneda: plata('ARS', 1_000_000),
+  cobradoEnPesos: centavos(1_000_000),
+  enMaun: centavos(1_000_000),
+  enDolares: [],
   gastos: centavos(0),
-  saldo: centavos(0),
+  saldo: plata('ARS', 0),
   entrega: { fecha: null, comprometida: false, franja: null },
   urgencia: undefined,
 } as unknown as ResumenDeProyecto;

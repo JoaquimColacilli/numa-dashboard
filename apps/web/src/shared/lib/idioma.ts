@@ -32,6 +32,20 @@ export function etiquetaActual(): string {
   return ETIQUETAS_DE_IDIOMA[enUso.idioma];
 }
 
+const LISTAS = new Map<Idioma, Intl.ListFormat>();
+
+export function enLista(partes: readonly string[], idioma: Idioma = enUso.idioma): string {
+  let formato = LISTAS.get(idioma);
+  if (formato === undefined) {
+    formato = new Intl.ListFormat(ETIQUETAS_DE_IDIOMA[idioma], {
+      style: 'long',
+      type: 'conjunction',
+    });
+    LISTAS.set(idioma, formato);
+  }
+  return formato.format(partes);
+}
+
 export function fijarElIdiomaEnUso(idioma: Idioma, seudo = false): void {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = ETIQUETAS_DE_IDIOMA[idioma];

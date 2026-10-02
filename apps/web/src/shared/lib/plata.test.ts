@@ -1,10 +1,13 @@
+import { plata } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
   adornosDelCampo,
   formatearPesos,
   formatearPlata,
+  formatearPorMoneda,
   marcadorDelCampo,
+  porMoneda,
   separadoresDelCampo,
 } from './plata';
 
@@ -74,6 +77,28 @@ describe('formatearPlata', () => {
     expect(conEspaciosComunes(formatearPlata(120000, 'USD', 'pt-BR'))).toBe('US$ 1.200');
     expect(conEspaciosComunes(formatearPlata(-5, 'ARS', 'en'))).toBe('-ARS 0.05');
     expect(formatearPlata(Number.MAX_SAFE_INTEGER, 'USD', 'en')).toBe('US$90,071,992,547,409.91');
+  });
+});
+
+describe('la plata de varias monedas', () => {
+  it('suma cada moneda aparte, pesos primero y sin los ceros', () => {
+    expect(
+      porMoneda([
+        plata('USD', 120_000),
+        plata('ARS', 300_000_000),
+        plata('USD', 30_000),
+        plata('ARS', -300_000_000),
+      ]),
+    ).toEqual([{ importe: 150_000, moneda: 'USD' }]);
+  });
+
+  it('se escribe una al lado de la otra, y sin nada es cero pesos', () => {
+    expect(
+      conEspaciosComunes(
+        formatearPorMoneda([plata('USD', 120_000), plata('ARS', 320_000_000)], 'es'),
+      ),
+    ).toBe('$ 3.200.000 · US$ 1.200');
+    expect(conEspaciosComunes(formatearPorMoneda([], 'es'))).toBe('$ 0');
   });
 });
 

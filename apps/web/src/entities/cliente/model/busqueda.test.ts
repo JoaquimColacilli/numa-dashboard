@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { plata } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import { buscarClientes, corteDeOrigenes, ordenarClientes } from './busqueda';
@@ -28,8 +28,8 @@ function resumen(
     facturados: 0,
     ultimo: undefined,
     fechaDelUltimo: undefined,
-    facturado: centavos(0),
-    saldo: centavos(0),
+    facturado: [],
+    saldo: [],
     ...datos,
   };
 }
@@ -78,9 +78,9 @@ describe('buscarClientes', () => {
 
 describe('ordenarClientes', () => {
   const conDatos = [
-    resumen('Zulema', {}, { facturado: centavos(100), fechaDelUltimo: '2026-01-01' }),
-    resumen('ana', {}, { facturado: centavos(300), fechaDelUltimo: '2026-05-01' }),
-    resumen('Beto', {}, { facturado: centavos(200) }),
+    resumen('Zulema', {}, { facturado: [plata('ARS', 100)], fechaDelUltimo: '2026-01-01' }),
+    resumen('ana', {}, { facturado: [plata('ARS', 300)], fechaDelUltimo: '2026-05-01' }),
+    resumen('Beto', {}, { facturado: [plata('ARS', 200)] }),
   ];
 
   it('por nombre, sin que las mayúsculas manden', () => {
@@ -96,6 +96,21 @@ describe('ordenarClientes', () => {
       'ana',
       'Beto',
       'Zulema',
+    ]);
+  });
+
+  it('por total facturado nunca compara pesos con dólares: primero los de pesos', () => {
+    const conDolares = [
+      ...conDatos,
+      resumen('Dora', {}, { facturado: [plata('USD', 900_000)] }),
+      resumen('Eva', {}, { facturado: [plata('ARS', 50), plata('USD', 1)] }),
+    ];
+    expect(ordenarClientes(conDolares, 'facturado').map((r) => r.cliente.nombre)).toEqual([
+      'ana',
+      'Beto',
+      'Zulema',
+      'Eva',
+      'Dora',
     ]);
   });
 

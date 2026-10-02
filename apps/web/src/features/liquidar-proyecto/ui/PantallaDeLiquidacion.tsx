@@ -2,6 +2,7 @@ import {
   centavos,
   esAnteriorALaApertura,
   planDeLaLiquidacion,
+  plata,
   type EstadoLiquidado,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
@@ -39,6 +40,7 @@ import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
   etiquetaActual,
+  formatearLaPlata,
   formatearPesos,
   hoyEnElTaller,
   mesDeLaFecha,
@@ -78,13 +80,13 @@ function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
     {
       clave: textos.presupuesto,
       valor:
-        resumen.proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto),
+        resumen.proyecto.presupuesto_centavos === null ? '—' : formatearLaPlata(resumen.precio),
       esDato: true,
       tono: '',
     },
     {
       clave: textos.cobrado,
-      valor: formatearPesos(resumen.cobrado),
+      valor: formatearLaPlata(resumen.cobradoEnSuMoneda),
       esDato: true,
       tono: 'text-hogar',
     },
@@ -93,12 +95,16 @@ function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
       valor:
         resumen.saldo === null
           ? '—'
-          : resumen.saldo > 0
-            ? formatearPesos(resumen.saldo)
+          : resumen.saldo.importe > 0
+            ? formatearLaPlata(resumen.saldo)
             : textos.sinSaldo,
-      esDato: resumen.saldo === null || resumen.saldo > 0,
+      esDato: resumen.saldo === null || resumen.saldo.importe > 0,
       tono:
-        resumen.saldo === null ? 'text-text-3' : resumen.saldo > 0 ? 'text-atencion' : 'text-hogar',
+        resumen.saldo === null
+          ? 'text-text-3'
+          : resumen.saldo.importe > 0
+            ? 'text-atencion'
+            : 'text-hogar',
     },
   ];
 
@@ -147,9 +153,9 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
 
-  const faltaCobrar = destino === 'cobrado' && resumen.saldo !== null && resumen.saldo > 0;
+  const faltaCobrar = destino === 'cobrado' && resumen.saldo !== null && resumen.saldo.importe > 0;
   const [conPagoFinal, setConPagoFinal] = useState(faltaCobrar);
-  const [monto, setMonto] = useState<number | null>(resumen.saldo);
+  const [monto, setMonto] = useState<number | null>(resumen.saldo?.importe ?? null);
   const [fechaDelPago, setFechaDelPago] = useState(hoy);
   const [concepto, setConcepto] = useState(pantalla.conceptoDelPagoFinal);
   const [fechaElegida, setFechaElegida] = useState<string | null>(null);
@@ -233,7 +239,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   );
   const { sena } = pantalla;
   const loQueRetiene = [
-    sena.retenida(formatearPesos(resumen.cobrado)),
+    sena.retenida(formatearPesos(resumen.cobradoEnPesos)),
     ajustes.perdidoConDiezmo ? sena.diezmo(formatearPesos(liquidacion.diezmo)) : sena.sinDiezmo,
     ...(otrasObligaciones.length > 0
       ? [sena.otrasObligaciones(aCadaTesoro(otrasObligaciones))]
@@ -298,7 +304,9 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                 }}
                 className="size-4 accent-ink"
               />
-              {pantalla.registrarElPagoFinalDe(formatearPesos(centavos(resumen.saldo ?? 0)))}
+              {pantalla.registrarElPagoFinalDe(
+                formatearLaPlata(resumen.saldo ?? plata(resumen.moneda, 0)),
+              )}
             </label>
             <p className="mt-1 text-meta leading-normal text-text-3">
               {pantalla.ayudaDelPagoFinal}
@@ -358,7 +366,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
         >
           <h2 className="font-semibold">{sena.titulo}</h2>
           <p className="mt-1.5 max-w-[48rem]">
-            {resumen.cobrado > 0 ? loQueRetiene : sinSenaRetenida}
+            {resumen.cobradoEnPesos > 0 ? loQueRetiene : sinSenaRetenida}
           </p>
           <p className="mt-1.5 max-w-[48rem]">{sena.sePuedeDeshacer}</p>
         </section>

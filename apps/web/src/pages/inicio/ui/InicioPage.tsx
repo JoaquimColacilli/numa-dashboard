@@ -3,10 +3,12 @@ import {
   CERO,
   centavos,
   estadoDelDiezmo,
+  plata,
   proyeccionCocos,
   restar,
   type FilaDelMes,
   type Money,
+  type Plata,
 } from '@maun/domain';
 import { useMemo, useState } from 'react';
 
@@ -39,6 +41,7 @@ import {
   filasDe,
   saldosDeLaReplica,
   sistemaDeLaReplica,
+  totalesPorProyecto,
   type FilaDe,
   type Replica,
 } from '@/shared/api';
@@ -48,6 +51,7 @@ import {
   diasDelMes,
   fechaLarga,
   formatearPesos,
+  formatearPorMoneda,
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
@@ -138,17 +142,14 @@ function mensajeDelMes(
   };
 }
 
-function saldoPendiente(replica: Replica, pendientes: readonly FilaDe<'proyectos'>[]): Money {
-  const pagos = filasDe(replica, 'pagos');
-  let total = 0;
-  for (const proyecto of pendientes) {
-    const cobrado = pagos
-      .filter((pago) => pago.proyecto_id === proyecto.id)
-      .reduce((suma, pago) => suma + pago.monto_centavos, 0);
-    const falta = (proyecto.presupuesto_centavos ?? 0) - cobrado;
-    if (falta > 0) total += falta;
-  }
-  return centavos(total);
+function saldoPendiente(replica: Replica, pendientes: readonly FilaDe<'proyectos'>[]): Plata[] {
+  const totales = totalesPorProyecto(replica);
+  return pendientes.flatMap((proyecto) => {
+    const cobrado = totales.get(proyecto.id)?.cobradoEnSuMoneda;
+    if (cobrado === undefined) return [];
+    const falta = (proyecto.presupuesto_centavos ?? 0) - cobrado.importe;
+    return falta > 0 ? [plata(cobrado.moneda, falta)] : [];
+  });
 }
 
 function Acceso({
@@ -426,7 +427,7 @@ export function InicioPage() {
                   icono="hand-coins"
                   etiqueta={textos.pendienteDeCobro}
                   titulo={textos.proyectosEnCurso(pendientes.length)}
-                  valor={formatearPesos(saldoPendiente(replica, pendientes))}
+                  valor={formatearPorMoneda(saldoPendiente(replica, pendientes))}
                   valorTalCual
                   alElegir={irA('/proyectos')}
                 />

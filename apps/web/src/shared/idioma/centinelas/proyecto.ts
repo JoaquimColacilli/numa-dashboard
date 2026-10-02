@@ -244,4 +244,28 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.proyecto.liquidacionesSinConfirmar.cuentan(3),
     tieneQueDecir: ['3'],
   },
+  'proyecto.insumos.enOtroTesoro': {
+    llamar: (m) => m.proyecto.insumos.enOtroTesoro('«MONTO»', '«TESORO»'),
+    tieneQueDecir: ['«MONTO»', '«TESORO»'],
+  },
+  'proyecto.plata.conSuValorEnPesos': {
+    llamar: (m) => m.proyecto.plata.conSuValorEnPesos('«PAGADO»', '«EN PESOS»'),
+    tieneQueDecir: ['«PAGADO»', '«EN PESOS»'],
+  },
+  'proyecto.pago.descuenta': {
+    llamar: (m) => m.proyecto.pago.descuenta('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'proyecto.pago.vale': {
+    llamar: (m) => m.proyecto.pago.vale('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'proyecto.pago.descontoConElDolar': {
+    llamar: (m) => m.proyecto.pago.descontoConElDolar('«MONTO»', '«DÓLAR»'),
+    tieneQueDecir: ['«MONTO»', '«DÓLAR»'],
+  },
+  'proyecto.pago.valioConElDolar': {
+    llamar: (m) => m.proyecto.pago.valioConElDolar('«MONTO»', '«DÓLAR»'),
+    tieneQueDecir: ['«MONTO»', '«DÓLAR»'],
+  },
 };

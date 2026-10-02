@@ -26,8 +26,8 @@ export function filasDeCobro(
 ): readonly FilaDeCobro[] {
   const { proyecto } = resumen;
   const pendientes = instanciasPendientes({
-    presupuesto: proyecto.presupuesto_centavos === null ? null : resumen.presupuesto,
-    cobrado: resumen.cobrado,
+    presupuesto: proyecto.presupuesto_centavos === null ? null : resumen.precio.importe,
+    cobrado: resumen.cobradoEnSuMoneda.importe,
     porcentajeDelTaller: senaDelTaller(ajustes),
     porcentajeDelTrabajo: senaDelProyecto(proyecto),
   });

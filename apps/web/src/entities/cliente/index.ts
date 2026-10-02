@@ -48,7 +48,6 @@ export {
   type FormularioDeCliente,
 } from './model/formulario';
 export {
-  cobradoDelProyecto,
   fechaDelProyecto,
   resumenDeCliente,
   resumenesDeClientes,

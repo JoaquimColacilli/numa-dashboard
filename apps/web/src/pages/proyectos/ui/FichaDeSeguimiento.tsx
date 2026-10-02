@@ -2,11 +2,13 @@ import { useCallback, useState, type ReactNode } from 'react';
 
 import { AccionesDeContacto, rutaDelCliente } from '@/entities/cliente';
 import {
+  enOtrosTesoros,
   ESTADO,
   EstadoBadge,
   etapaAlVolver,
   historiaDelSeguimiento,
   insumosDelProyecto,
+  loCobradoEnPalabras,
   pendienteDelSeguimiento,
   RUTA_DE_SEGUIMIENTO,
   rutaDeCierre,
@@ -23,7 +25,8 @@ import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
-  formatearPesos,
+  formatearLaPlata,
+  formatearPlata,
   hoyEnElTaller,
   relativa,
   useAvisosDelProyecto,
@@ -219,14 +222,16 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
               <Dato clave={comun.presupuesto} dato={proyecto.presupuesto_centavos !== null}>
                 {proyecto.presupuesto_centavos === null
                   ? comun.todaviaSinPresupuesto
-                  : formatearPesos(proyecto.presupuesto_centavos)}
+                  : formatearPlata(proyecto.presupuesto_centavos, resumen.moneda)}
               </Dato>
               <Dato
                 clave={comun.senaCobrada}
-                tono={resumen.cobrado > 0 ? 'text-hogar' : ''}
-                dato={resumen.cobrado > 0}
+                tono={resumen.cobradoEnPesos > 0 ? 'text-hogar' : ''}
+                dato={resumen.cobradoEnPesos > 0}
               >
-                {resumen.cobrado > 0 ? formatearPesos(resumen.cobrado) : comun.sinSena}
+                {resumen.cobradoEnPesos > 0
+                  ? formatearLaPlata(resumen.cobradoEnSuMoneda)
+                  : comun.sinSena}
               </Dato>
               <Dato clave={comun.telefono} dato={telefono.trim() !== ''}>
                 {telefono.trim() === '' ? comun.sinTelefono : telefono}
@@ -234,9 +239,10 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
             </dl>
           </section>
 
-          {insumos !== null && (insumos.entro !== 0 || insumos.gastado !== 0) && (
-            <InsumosDelTrabajo insumos={insumos} />
-          )}
+          {insumos !== null &&
+            (insumos.entro !== 0 || insumos.gastado !== 0 || insumos.enDolares.length > 0) && (
+              <InsumosDelTrabajo insumos={insumos} otros={enOtrosTesoros(replica, insumos)} />
+            )}
 
           <section
             aria-labelledby="historia-del-seguimiento"
@@ -287,8 +293,8 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
           >
             <h2 className="text-section font-semibold">{comun.siNoSale}</h2>
             <p className="mt-1 text-label leading-relaxed text-text-2">
-              {resumen.cobrado > 0
-                ? textos.siNoSaleConSena(formatearPesos(resumen.cobrado))
+              {resumen.cobradoEnPesos > 0
+                ? textos.siNoSaleConSena(loCobradoEnPalabras(resumen))
                 : textos.siNoSaleSinSena}
             </p>
             <Button

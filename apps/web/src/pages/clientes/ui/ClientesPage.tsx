@@ -14,7 +14,7 @@ import {
 import { useReplicaDelTaller } from '@/entities/replica';
 import { HojaDeCliente } from '@/features/editar-cliente';
 import { useMensajes, type Mensajes } from '@/shared/idioma';
-import { formatearPesos, relativa, useIr } from '@/shared/lib';
+import { formatearPorMoneda, relativa, useIr } from '@/shared/lib';
 import { Button, ConSalida, EstadoVacio, FondoDelElegido, Icono, Pagina } from '@/shared/ui';
 
 function detalleDe(m: Mensajes, resumen: ResumenDeCliente, hoy: string): string {
@@ -63,12 +63,12 @@ function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
           translate="no"
           className="hidden text-right text-body font-medium tabular-nums lg:block"
         >
-          {resumen.facturado > 0 ? formatearPesos(resumen.facturado) : '—'}
+          {resumen.facturado.length > 0 ? formatearPorMoneda(resumen.facturado) : '—'}
         </span>
         <span className="text-right whitespace-nowrap">
-          {resumen.saldo > 0 ? (
+          {resumen.saldo.length > 0 ? (
             <span className="inline-block rounded-pill bg-atencion-tint px-2 py-0.5 text-badge font-semibold text-atencion tabular-nums">
-              {textos.debe(formatearPesos(resumen.saldo))}
+              {textos.debe(formatearPorMoneda(resumen.saldo))}
             </span>
           ) : (
             <Icono nombre="chevron-right" tamano={18} className="inline text-text-3" />

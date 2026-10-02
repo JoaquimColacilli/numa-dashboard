@@ -1,10 +1,11 @@
-import type { SenaDelTrabajo } from '@maun/domain';
+import type { Moneda, SenaDelTrabajo } from '@maun/domain';
 
 import { useMensajes } from '@/shared/idioma';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { formatearPlata, formatearPorcentaje } from '@/shared/lib';
 
 export interface BloqueDeLaSenaProps {
-  sena: SenaDelTrabajo;
+  sena: SenaDelTrabajo<Moneda>;
+  moneda: Moneda;
   propia: boolean;
 }
 
@@ -32,7 +33,7 @@ function Numero({
   );
 }
 
-export function BloqueDeLaSena({ sena, propia }: BloqueDeLaSenaProps) {
+export function BloqueDeLaSena({ sena, moneda, propia }: BloqueDeLaSenaProps) {
   const textos = useMensajes().proyecto.sena;
 
   if (sena.situacion === 'sin-presupuesto') {
@@ -62,10 +63,14 @@ export function BloqueDeLaSena({ sena, propia }: BloqueDeLaSenaProps) {
       </div>
 
       <dl className="mt-2.5 grid grid-cols-1 gap-1.5 @min-[28rem]:grid-cols-3 @min-[28rem]:gap-x-3">
-        <Numero clave={textos.sena} valor={formatearPesos(sena.esperada)} />
-        <Numero clave={textos.cobrado} valor={formatearPesos(sena.cobrado)} tono="text-hogar" />
+        <Numero clave={textos.sena} valor={formatearPlata(sena.esperada, moneda)} />
+        <Numero
+          clave={textos.cobrado}
+          valor={formatearPlata(sena.cobrado, moneda)}
+          tono="text-hogar"
+        />
         {sena.situacion === 'falta' ? (
-          <Numero clave={textos.falta} valor={formatearPesos(sena.falta)} />
+          <Numero clave={textos.falta} valor={formatearPlata(sena.falta, moneda)} />
         ) : (
           <Numero clave={textos.falta} valor={textos.nada} tono="text-hogar" dato={false} />
         )}
@@ -73,7 +78,9 @@ export function BloqueDeLaSena({ sena, propia }: BloqueDeLaSenaProps) {
 
       {sena.situacion === 'cubierta' && (
         <p className="mt-2 text-label leading-relaxed text-hogar">
-          {sena.deMas > 0 ? textos.cubiertaDeMas(formatearPesos(sena.deMas)) : textos.cubierta}
+          {sena.deMas > 0
+            ? textos.cubiertaDeMas(formatearPlata(sena.deMas, moneda))
+            : textos.cubierta}
         </p>
       )}
     </section>

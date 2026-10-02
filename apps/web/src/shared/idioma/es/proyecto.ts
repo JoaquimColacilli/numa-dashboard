@@ -209,6 +209,19 @@ export const proyecto = {
   },
   insumos: {
     tallerPuso: (monto: string) => `El taller puso ${monto}.`,
+    enOtroTesoro: (monto: string, tesoro: string) =>
+      `Además, ${monto} de este trabajo están en «${tesoro}».`,
+  },
+  plata: {
+    conSuValorEnPesos: (loQueSePago: string, enPesos: string) => `${loQueSePago} (${enPesos})`,
+  },
+  pago: {
+    descuenta: (monto: string) => `Descuenta ${monto} del precio.`,
+    vale: (monto: string) => `Para el reparto vale ${monto}.`,
+    descontoConElDolar: (monto: string, dolar: string) =>
+      `Descontó ${monto} del precio, con el dólar a ${dolar}.`,
+    valioConElDolar: (monto: string, dolar: string) =>
+      `Para el reparto valió ${monto}, con el dólar a ${dolar}.`,
   },
   liquidacion: {
     operaciones: {

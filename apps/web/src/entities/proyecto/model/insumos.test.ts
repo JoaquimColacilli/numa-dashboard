@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
 
-import { fraseDeLosInsumos, insumosDeLosTrabajos, insumosDelProyecto } from './insumos';
+import {
+  enOtrosTesoros,
+  fraseDeLosInsumos,
+  frasesDeOtrosTesoros,
+  insumosDeLosTrabajos,
+  insumosDelProyecto,
+} from './insumos';
 
 function replicaDelTaller(): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
@@ -34,6 +40,7 @@ describe('los insumos', () => {
       entro: 50_000_000,
       gastado: 20_000_000,
       queda: 30_000_000,
+      enDolares: [],
       tallerPuso: null,
     });
     const alacena = insumosDelProyecto(replica, 'p2');
@@ -42,6 +49,35 @@ describe('los insumos', () => {
       'El taller puso $ 150.000.',
     );
     expect(insumosDelProyecto(replica, 'p3')).toBeNull();
+  });
+
+  it('lo que entró a un tesoro en dólares no es de Maun: va aparte, con el nombre del tesoro', () => {
+    const base = replicaDelTaller();
+    const replica = {
+      ...base,
+      tablas: {
+        ...base.tablas,
+        tesoros: { usd: { id: 'usd', nombre: 'Dólares' } },
+        pagos: {
+          ...base.tablas.pagos,
+          f: {
+            id: 'f',
+            proyecto_id: 'p1',
+            monto_centavos: 100_000,
+            moneda: 'USD',
+            cotizacion_centavos: 154_000,
+            tesoro_id: 'usd',
+          },
+        },
+      },
+    } as unknown as Replica;
+    const insumos = insumosDelProyecto(replica, 'p1');
+    expect(insumos).toMatchObject({ entro: 50_000_000, queda: 30_000_000 });
+    const otros = enOtrosTesoros(replica, insumos ?? { enDolares: [] });
+    expect(otros).toEqual([{ nombre: 'Dólares', monto: 100_000 }]);
+    expect(frasesDeOtrosTesoros(otros).map((frase) => frase.replace(/\s/g, ' '))).toEqual([
+      'Además, US$ 1.000 de este trabajo están en «Dólares».',
+    ]);
   });
 
   it('del taller: el total y cada trabajo con plata, por título', () => {

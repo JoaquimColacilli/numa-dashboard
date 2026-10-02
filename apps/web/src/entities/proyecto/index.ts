@@ -147,9 +147,12 @@ export {
   type OpcionesDelCobro,
 } from './model/por-la-fila';
 export {
+  enOtrosTesoros,
   fraseDeLosInsumos,
+  frasesDeOtrosTesoros,
   insumosDeLosTrabajos,
   insumosDelProyecto,
+  type EnOtroTesoro,
   type InsumosDeLosTrabajos,
   type InsumosDeUnTrabajo,
 } from './model/insumos';
@@ -260,11 +263,20 @@ export {
   type TareaDelPresupuesto,
 } from './model/tareas';
 export {
+  efectoDelPago,
+  loQueHaceElPago,
+  loQueHizoElPago,
+  plataDelPago,
+  type EfectoDelPago,
+} from './model/pago';
+export {
   gastosDelProyecto,
+  loCobradoEnPalabras,
   metricasDeProyectos,
   pagosDelProyecto,
   resumenDeProyecto,
   resumenesDeProyectos,
+  saldoDelPrecio,
   type MetricasDeProyectos,
   type ResumenDeProyecto,
 } from './model/resumen';

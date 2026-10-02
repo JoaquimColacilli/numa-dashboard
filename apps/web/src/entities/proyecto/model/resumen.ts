@@ -1,7 +1,24 @@
-import { centavos, faseDe, type Fase, type Money } from '@maun/domain';
+import {
+  centavos,
+  faseDe,
+  plata,
+  sumarTodos,
+  type Fase,
+  type Moneda,
+  type Money,
+  type Plata,
+} from '@maun/domain';
 
-import { filasDe, totalesPorProyecto, type FilaDe, type Replica } from '@/shared/api';
+import {
+  filasDe,
+  monedaDelTrabajo,
+  totalesPorProyecto,
+  type EnUnTesoroEnDolares,
+  type FilaDe,
+  type Replica,
+} from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
+import { enLista, formatearPesos, formatearPlata } from '@/shared/lib';
 
 import type { Gasto, Pago, Proyecto } from './catalogos';
 import {
@@ -16,16 +33,20 @@ export interface ResumenDeProyecto {
   cliente: FilaDe<'clientes'> | undefined;
   nombreDelCliente: string;
   fase: Fase;
-  presupuesto: Money;
-  cobrado: Money;
+  moneda: Moneda;
+  precio: Plata;
+  cobradoEnSuMoneda: Plata;
+  cobradoEnPesos: Money;
+  enMaun: Money;
+  enDolares: readonly EnUnTesoroEnDolares[];
   gastos: Money;
-  saldo: Money | null;
+  saldo: Plata | null;
   entrega: EntregaDelResumen;
   urgencia: Urgencia | undefined;
 }
 
-function saldoDe(presupuesto: number | null, cobrado: number): Money | null {
-  return presupuesto === null ? null : centavos(Math.max(0, presupuesto - cobrado));
+export function saldoDelPrecio(precio: number | null, cobrado: Plata): Plata | null {
+  return precio === null ? null : plata(cobrado.moneda, Math.max(0, precio - cobrado.importe));
 }
 
 export function resumenesDeProyectos(replica: Replica, hoy: string): ResumenDeProyecto[] {
@@ -36,24 +57,42 @@ export function resumenesDeProyectos(replica: Replica, hoy: string): ResumenDePr
   return filasDe(replica, 'proyectos').map((proyecto) => {
     const cliente = clientes.get(proyecto.cliente_id);
     const entrega = entregaDelResumen(proyecto);
-    const { cobrado, gastos } = totales.get(proyecto.id) ?? {
-      cobrado: centavos(0),
-      gastos: centavos(0),
-    };
+    const moneda = monedaDelTrabajo(proyecto);
+    const delTrabajo = totales.get(proyecto.id);
+    const cobradoEnSuMoneda = delTrabajo?.cobradoEnSuMoneda ?? plata(moneda, 0);
 
     return {
       proyecto,
       cliente,
       nombreDelCliente: cliente?.nombre ?? sinCliente,
       fase: faseDe(proyecto.estado),
-      presupuesto: centavos(proyecto.presupuesto_centavos ?? 0),
-      cobrado,
-      gastos,
-      saldo: saldoDe(proyecto.presupuesto_centavos, cobrado),
+      moneda,
+      precio: plata(moneda, proyecto.presupuesto_centavos ?? 0),
+      cobradoEnSuMoneda,
+      cobradoEnPesos: delTrabajo?.cobradoEnPesos ?? centavos(0),
+      enMaun: delTrabajo?.enMaun ?? centavos(0),
+      enDolares: delTrabajo?.enDolares ?? [],
+      gastos: delTrabajo?.gastos ?? centavos(0),
+      saldo: saldoDelPrecio(proyecto.presupuesto_centavos, cobradoEnSuMoneda),
       entrega,
       urgencia: urgenciaDeEntrega(entrega.fecha, proyecto.estado, hoy),
     };
   });
+}
+
+export function loCobradoEnPalabras(
+  resumen: Pick<ResumenDeProyecto, 'cobradoEnPesos' | 'enMaun' | 'enDolares'>,
+): string {
+  const dolares = sumarTodos<'USD'>(resumen.enDolares.map((uno) => uno.monto));
+  if (dolares === 0) return formatearPesos(resumen.cobradoEnPesos);
+  const partes = [
+    ...(resumen.enMaun > 0 ? [formatearPesos(resumen.enMaun)] : []),
+    formatearPlata(dolares, 'USD'),
+  ];
+  return mensajes().proyecto.plata.conSuValorEnPesos(
+    enLista(partes),
+    formatearPesos(resumen.cobradoEnPesos),
+  );
 }
 
 export function resumenDeProyecto(
@@ -96,7 +135,7 @@ export function metricasDeProyectos(resumenes: readonly ResumenDeProyecto[]): Me
   for (const resumen of resumenes) {
     if (resumen.fase === 'activos' || resumen.fase === 'historial') total += 1;
     if (resumen.proyecto.estado === 'en_curso') enCurso += 1;
-    if (resumen.proyecto.estado === 'entregado' && (resumen.saldo ?? 0) > 0) {
+    if (resumen.proyecto.estado === 'entregado' && (resumen.saldo?.importe ?? 0) > 0) {
       entregadosConSaldo += 1;
     }
     if (resumen.proyecto.estado === 'cobrado') cobrados += 1;

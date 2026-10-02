@@ -395,6 +395,7 @@ describe('el panel de detalle', () => {
                 entro: centavos(100_000_000),
                 gastado: centavos(40_000_000),
                 queda: centavos(60_000_000),
+                enDolares: [],
                 tallerPuso: null,
               },
             ],

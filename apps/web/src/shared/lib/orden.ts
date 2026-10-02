@@ -12,6 +12,7 @@ export interface Criterio<T> {
   tipo: TipoDeOrden;
   leer: (fila: T) => string | number | undefined;
   inicial: Sentido;
+  grupo?: (fila: T) => number;
 }
 
 const COMPARADORES = new Map<Idioma, Intl.Collator>();
@@ -60,6 +61,8 @@ export function ordenar<T>(
   const signo = sentido === 'asc' ? 1 : -1;
 
   return [...filas].sort((uno, otro) => {
+    const grupos = (criterio.grupo?.(uno) ?? 0) - (criterio.grupo?.(otro) ?? 0);
+    if (grupos !== 0) return grupos;
     const izquierda = criterio.leer(uno);
     const derecha = criterio.leer(otro);
 

@@ -15,7 +15,7 @@ import {
 } from '@/entities/proyecto';
 import type { Replica } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
-import { conFondo, fechaLarga, formatearPesos, useIr } from '@/shared/lib';
+import { conFondo, fechaLarga, formatearLaPlata, formatearPlata, useIr } from '@/shared/lib';
 import { Button, EstadoVacio, Icono } from '@/shared/ui';
 
 function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: string }) {
@@ -28,17 +28,17 @@ function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: 
   if (proyecto.fecha_visita !== null) {
     datos.push({ clave: textos.visita, valor: fechaLarga(proyecto.fecha_visita, hoy), tono: '' });
   }
-  if (resumen.cobrado > 0) {
+  if (resumen.cobradoEnPesos > 0) {
     datos.push({
       clave: comun.senaCobrada,
-      valor: formatearPesos(resumen.cobrado),
+      valor: formatearLaPlata(resumen.cobradoEnSuMoneda),
       tono: 'text-hogar',
     });
   }
   if (proyecto.presupuesto_centavos !== null) {
     datos.push({
       clave: comun.presupuesto,
-      valor: formatearPesos(proyecto.presupuesto_centavos),
+      valor: formatearPlata(proyecto.presupuesto_centavos, resumen.moneda),
       tono: '',
     });
   }

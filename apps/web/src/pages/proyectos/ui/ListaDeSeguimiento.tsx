@@ -13,7 +13,7 @@ import {
 } from '@/entities/proyecto';
 import type { Replica } from '@/shared/api';
 import { mensajes, useMensajes } from '@/shared/idioma';
-import { fechaLarga, formatearPesos, relativa } from '@/shared/lib';
+import { fechaLarga, formatearLaPlata, formatearPlata, relativa } from '@/shared/lib';
 import { Button, EstadoVacio, Icono } from '@/shared/ui';
 
 function cuandoLeToca({ pendiente, atrasado, esHoy }: EnSeguimiento, hoy: string): string {
@@ -78,15 +78,15 @@ function TarjetaDeSeguimiento({ fila, hoy }: { fila: EnSeguimiento; hoy: string 
           <>
             <dt className="text-text-3">{comun.presupuesto}</dt>
             <dd translate="no" className="font-medium">
-              {formatearPesos(proyecto.presupuesto_centavos)}
+              {formatearPlata(proyecto.presupuesto_centavos, resumen.moneda)}
             </dd>
           </>
         )}
-        {resumen.cobrado > 0 && (
+        {resumen.cobradoEnPesos > 0 && (
           <>
             <dt className="text-text-3">{comun.senaCobrada}</dt>
             <dd translate="no" className="font-medium text-hogar">
-              {formatearPesos(resumen.cobrado)}
+              {formatearLaPlata(resumen.cobradoEnSuMoneda)}
             </dd>
           </>
         )}

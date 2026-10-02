@@ -20,11 +20,12 @@ import {
 import { EstadoBadge, RUTA_DE_PROYECTO_NUEVO, rutaDelProyecto } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { HojaDeCliente } from '@/features/editar-cliente';
-import { mensajeDeSincronizacion } from '@/shared/api';
+import { mensajeDeSincronizacion, monedaDelTrabajo } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
-  formatearPesos,
+  formatearPlata,
+  formatearPorMoneda,
   hoyLocal,
   Ir,
   metaDeAvisos,
@@ -130,18 +131,18 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
           <div className="py-2.5 @min-[22.5rem]:pr-3">
             <dt className="text-meta text-text-2">{textos.totalFacturado}</dt>
             <dd translate="no" className="text-money-lg font-semibold tabular-nums">
-              {formatearPesos(resumen.facturado)}
+              {formatearPorMoneda(resumen.facturado)}
             </dd>
           </div>
           <div className="border-t border-hairline-soft py-2.5 @min-[22.5rem]:border-t-0 @min-[22.5rem]:border-l @min-[22.5rem]:pl-3">
             <dt className="text-meta text-text-2">{textos.saldoPendiente}</dt>
             <dd
-              translate={resumen.saldo > 0 ? 'no' : undefined}
+              translate={resumen.saldo.length > 0 ? 'no' : undefined}
               className={`text-money-lg font-semibold tabular-nums ${
-                resumen.saldo > 0 ? 'text-atencion' : 'text-hogar'
+                resumen.saldo.length > 0 ? 'text-atencion' : 'text-hogar'
               }`}
             >
-              {resumen.saldo > 0 ? formatearPesos(resumen.saldo) : textos.sinSaldo}
+              {resumen.saldo.length > 0 ? formatearPorMoneda(resumen.saldo) : textos.sinSaldo}
             </dd>
           </div>
         </dl>
@@ -189,7 +190,7 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
                   >
                     {proyecto.presupuesto_centavos === null
                       ? textos.sinPresupuesto
-                      : formatearPesos(proyecto.presupuesto_centavos)}
+                      : formatearPlata(proyecto.presupuesto_centavos, monedaDelTrabajo(proyecto))}
                   </span>
                   <span className="mt-1 block">
                     <EstadoBadge estado={proyecto.estado} />

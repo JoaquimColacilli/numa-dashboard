@@ -10,9 +10,14 @@ import {
 } from '@/entities/proyecto';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { aperturaDeLaReplica, filasDe, mensajeDeSincronizacion } from '@/shared/api';
+import {
+  aperturaDeLaReplica,
+  filasDe,
+  mensajeDeSincronizacion,
+  totalesDelProyecto,
+} from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
-import { formatearPesos, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
+import { formatearLaPlata, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, Hoja, MoneyInput } from '@/shared/ui';
 
 import {
@@ -59,7 +64,7 @@ export function HojaDeContacto({
   const clientes = filasDe(replica, 'clientes');
   const pagos = proyecto === undefined ? [] : pagosDelProyecto(replica, proyecto.id);
   const sena = senaEditable(pagos);
-  const cobrado = pagos.reduce((suma, pago) => suma + pago.monto_centavos, 0);
+  const cobrado = totalesDelProyecto(replica, proyecto?.id ?? '').cobradoEnSuMoneda;
 
   const alAbrir = useRef({ id: proyecto?.id ?? uuidv7(), idDeSenaNueva: uuidv7() });
   const [iniciales] = useState<ValoresDelContacto>(() =>
@@ -241,7 +246,7 @@ export function HojaDeContacto({
                     translate="no"
                     className="flex h-field items-center text-body-lg font-semibold tabular-nums"
                   >
-                    {formatearPesos(cobrado)}
+                    {formatearLaPlata(cobrado)}
                   </span>
                   <span className="text-meta text-text-3">{textos.variosPagos(pagos.length)}</span>
                 </div>

@@ -1,4 +1,4 @@
-import { centavos, puntosBasicos, SENA_HABITUAL } from '@maun/domain';
+import { plata, puntosBasicos, SENA_HABITUAL } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
@@ -269,7 +269,7 @@ describe('la seña del trabajo, de punta a punta', () => {
   const replica = replicaCon({ ajustes: [ajustes()] });
 
   it('sin presupuesto lo dice, no muestra ceros', () => {
-    expect(senaDelTrabajo(replica, proyecto(), centavos(0))).toEqual({
+    expect(senaDelTrabajo(replica, proyecto(), plata('ARS', 0))).toEqual({
       situacion: 'sin-presupuesto',
     });
   });
@@ -279,7 +279,7 @@ describe('la seña del trabajo, de punta a punta', () => {
       senaDelTrabajo(
         replica,
         proyecto({ presupuesto_centavos: 230_000_000 }),
-        centavos(15_000_000),
+        plata('ARS', 15_000_000),
       ),
     ).toMatchObject({ situacion: 'falta', esperada: 115_000_000, falta: 100_000_000 });
   });
@@ -289,7 +289,7 @@ describe('la seña del trabajo, de punta a punta', () => {
       senaDelTrabajo(
         replica,
         proyecto({ presupuesto_centavos: 230_000_000, sena_bp: 3000 }),
-        centavos(0),
+        plata('ARS', 0),
       ),
     ).toMatchObject({ porcentaje: puntosBasicos(3000), esperada: 69_000_000 });
   });
@@ -299,8 +299,18 @@ describe('la seña del trabajo, de punta a punta', () => {
       senaDelTrabajo(
         replica,
         proyecto({ presupuesto_centavos: 230_000_000 }),
-        centavos(150_000_000),
+        plata('ARS', 150_000_000),
       ),
     ).toMatchObject({ situacion: 'cubierta', deMas: 35_000_000 });
+  });
+
+  it('en un trabajo en dólares va en dólares, con la visita en pesos descontada a su dólar', () => {
+    expect(
+      senaDelTrabajo(
+        replica,
+        proyecto({ presupuesto_centavos: 200_000, moneda: 'USD' }),
+        plata('USD', 8_276),
+      ),
+    ).toMatchObject({ situacion: 'falta', esperada: 100_000, cobrado: 8_276, falta: 91_724 });
   });
 });

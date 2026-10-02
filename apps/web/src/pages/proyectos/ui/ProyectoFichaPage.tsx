@@ -4,6 +4,7 @@ import {
   puedeCerrarPerdido,
   puedeCobrar,
   type EstadoProyecto,
+  type Moneda,
 } from '@maun/domain';
 import { useParams } from 'react-router';
 
@@ -14,6 +15,8 @@ import {
   CostosDeCotizar,
   despieceDelProyecto,
   DistribucionDespiece,
+  efectoDelPago,
+  enOtrosTesoros,
   esEtapaDeConsulta,
   EstadoBadge,
   ETAPAS,
@@ -22,9 +25,11 @@ import {
   gastosDelProyecto,
   insumosDelProyecto,
   listoDelTrabajo,
+  loQueHizoElPago,
   MarcaDeLiquidacion,
   MarcaDeListo,
   pagosDelProyecto,
+  plataDelPago,
   RUTA_DE_PROYECTOS,
   resumenDeProyecto,
   rutaDeCierre,
@@ -33,6 +38,7 @@ import {
   senaDelProyecto,
   senaDelTrabajo,
   useLiquidacionEnVuelo,
+  type Pago,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
@@ -51,10 +57,12 @@ import {
 } from '@/features/editar-proyecto';
 import { BotonDeReversion } from '@/features/liquidar-proyecto';
 import { PedirLaOpinion } from '@/features/pedir-la-opinion';
+import { importeDelPago } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
+  formatearLaPlata,
   formatearPesos,
   hoyLocal,
   rutaDeCompartir,
@@ -106,6 +114,16 @@ function Dato({
         )}
       </div>
     </div>
+  );
+}
+
+function EfectoDelPagoGuardado({ pago, moneda }: { pago: Pago; moneda: Moneda }) {
+  const efecto = efectoDelPago(importeDelPago(pago), moneda);
+  if (efecto === null) return null;
+  return (
+    <span translate="no" className="mt-0.5 block text-meta text-text-2">
+      {loQueHizoElPago(efecto)}
+    </span>
   );
 }
 
@@ -344,7 +362,7 @@ export function ProyectoFichaPage() {
               translate="no"
               className="text-money-lg font-semibold tabular-nums whitespace-nowrap"
             >
-              {proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto)}
+              {proyecto.presupuesto_centavos === null ? '—' : formatearLaPlata(resumen.precio)}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-2 border-t border-hairline-soft py-3 @lg:block @lg:border-t-0 @lg:border-l @lg:px-4 @lg:py-0">
@@ -353,25 +371,25 @@ export function ProyectoFichaPage() {
               translate="no"
               className="text-money-lg font-semibold text-hogar tabular-nums whitespace-nowrap"
             >
-              {formatearPesos(resumen.cobrado)}
+              {formatearLaPlata(resumen.cobradoEnSuMoneda)}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-2 border-t border-hairline-soft py-3 @lg:block @lg:border-t-0 @lg:border-l @lg:px-4 @lg:py-0">
             <dt className="text-meta text-text-2">{comun.saldo}</dt>
             <dd
-              translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
+              translate={resumen.saldo !== null && resumen.saldo.importe <= 0 ? undefined : 'no'}
               className={`text-money-lg font-semibold tabular-nums whitespace-nowrap ${
                 resumen.saldo === null
                   ? 'text-text-3'
-                  : resumen.saldo > 0
+                  : resumen.saldo.importe > 0
                     ? 'text-ink'
                     : 'text-hogar'
               }`}
             >
               {resumen.saldo === null
                 ? '—'
-                : resumen.saldo > 0
-                  ? formatearPesos(resumen.saldo)
+                : resumen.saldo.importe > 0
+                  ? formatearLaPlata(resumen.saldo)
                   : comun.sinSaldo}
             </dd>
           </div>
@@ -388,11 +406,14 @@ export function ProyectoFichaPage() {
             )}
 
             <BloqueDeLaSena
-              sena={senaDelTrabajo(replica, proyecto, resumen.cobrado)}
+              sena={senaDelTrabajo(replica, proyecto, resumen.cobradoEnSuMoneda)}
+              moneda={resumen.moneda}
               propia={senaDelProyecto(proyecto) !== null}
             />
 
-            {insumos !== null && <InsumosDelTrabajo insumos={insumos} />}
+            {insumos !== null && (
+              <InsumosDelTrabajo insumos={insumos} otros={enOtrosTesoros(replica, insumos)} />
+            )}
 
             <AvanceDeLaObra resumen={resumen} hoy={hoy} />
 
@@ -408,8 +429,8 @@ export function ProyectoFichaPage() {
                     }}
                   >
                     <Icono nombre="hand-coins" tamano={18} />
-                    {resumen.saldo !== null && resumen.saldo > 0
-                      ? textos.cobrarElSaldo(formatearPesos(resumen.saldo))
+                    {resumen.saldo !== null && resumen.saldo.importe > 0
+                      ? textos.cobrarElSaldo(formatearLaPlata(resumen.saldo))
                       : textos.cobrarYRepartir}
                   </Button>
                 )}
@@ -479,12 +500,13 @@ export function ProyectoFichaPage() {
                       <span translate="no" className="mt-0.5 block text-meta text-text-3">
                         {fechaLarga(pago.fecha, hoy)}
                       </span>
+                      <EfectoDelPagoGuardado pago={pago} moneda={resumen.moneda} />
                     </span>
                     <span
                       translate="no"
                       className="py-2.5 text-body-lg font-semibold tabular-nums whitespace-nowrap"
                     >
-                      {formatearPesos(pago.monto_centavos)}
+                      {formatearLaPlata(plataDelPago(pago))}
                     </span>
                   </li>
                 ))}

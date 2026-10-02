@@ -206,6 +206,16 @@ export const proyecto = {
   },
   insumos: {
     tallerPuso: (monto) => `A marcenaria colocou ${monto}.`,
+    enOtroTesoro: (monto, tesoro) => `Além disso, ${monto} deste projeto estão em “${tesoro}”.`,
+  },
+  plata: {
+    conSuValorEnPesos: (loQueSePago, enPesos) => `${loQueSePago} (${enPesos})`,
+  },
+  pago: {
+    descuenta: (monto) => `Abate ${monto} do preço.`,
+    vale: (monto) => `Vale ${monto} na divisão.`,
+    descontoConElDolar: (monto, dolar) => `Abateu ${monto} do preço, com o dólar a ${dolar}.`,
+    valioConElDolar: (monto, dolar) => `Valeu ${monto} na divisão, com o dólar a ${dolar}.`,
   },
   liquidacion: {
     operaciones: {
