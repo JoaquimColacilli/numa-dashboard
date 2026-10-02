@@ -2,6 +2,7 @@ import type { PreguntaDeLaEncuesta } from '@maun/domain';
 import { useState } from 'react';
 
 import { FormularioDeLaEncuesta, GraciasPorContestar } from '@/entities/opinion';
+import { useMensajes } from '@/shared/idioma';
 import { Hoja } from '@/shared/ui';
 
 export interface VistaPreviaProps {
@@ -12,14 +13,11 @@ export interface VistaPreviaProps {
 }
 
 export function VistaPrevia({ taller, preguntas, resena, alCerrar }: VistaPreviaProps) {
+  const textos = useMensajes().editarLaEncuesta.vistaPrevia;
   const [contestada, setContestada] = useState(false);
 
   return (
-    <Hoja
-      titulo="Así la ve tu cliente"
-      bajada="No se guarda nada de lo que toques acá"
-      alCerrar={alCerrar}
-    >
+    <Hoja titulo={textos.titulo} bajada={textos.bajada} alCerrar={alCerrar}>
       <div className="flex min-h-0 flex-1 justify-center overflow-auto bg-surface p-4.5">
         <div className="h-fit w-[390px] max-w-full flex-none overflow-hidden rounded-telefono border border-border bg-mesa shadow-float">
           {contestada ? (

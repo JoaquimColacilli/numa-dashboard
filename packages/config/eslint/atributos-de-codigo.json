@@ -118,7 +118,8 @@
     "language": "etiqueta del idioma del PDF",
     "list": "id del datalist que sugiere valores",
     "etiquetadoPor": "id de la etiqueta del editor con datos (aria-labelledby)",
-    "descritoPor": "id del error del editor con datos (aria-describedby)"
+    "descritoPor": "id del error del editor con datos (aria-describedby)",
+    "idDeLaRespuesta": "id de la respuesta de la encuesta"
   },
   "porElemento": {
     "Icono": {
