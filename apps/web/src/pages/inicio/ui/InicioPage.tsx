@@ -73,6 +73,7 @@ import {
 } from '@/shared/lib';
 import { Avatar, ConSalida, Icono, Pagina, PrincipalYApoyo, type NombreDeIcono } from '@/shared/ui';
 
+import { comparacionConElMesAnterior } from '../model/comparacion';
 import { faltaParaLosTopes, faltantesEnInicio } from '../model/la-fila';
 import { panoramaDelTaller } from '../model/panorama';
 import { conLaMetaDeCocos, tiposEnLasTarjetas } from '../model/tesoros';
@@ -90,15 +91,6 @@ import { UltimaOpinion } from './UltimaOpinion';
 const DIAS_DE_PROYECCION = 365;
 
 type TextosDeInicio = Mensajes['paginaInicio'];
-
-function comparacion(valor: Money, previo: Money, mes: string, textos: TextosDeInicio): string {
-  if (previo <= 0) return '';
-  const variacion = Math.round(((valor - previo) / previo) * 100);
-  const anterior = mesEnUnaFrase(mesAnterior(mes));
-  return variacion >= 0
-    ? textos.comparacion.subio(variacion, anterior)
-    : textos.comparacion.bajo(Math.abs(variacion), anterior);
-}
 
 export interface MensajeDelMes {
   texto: string;
@@ -521,7 +513,12 @@ export function InicioPage() {
               </div>
               <dl className="grid grid-cols-1 gap-2 @min-[28rem]:grid-cols-3 @min-[28rem]:gap-3">
                 {estadisticas.map((estadistica) => {
-                  const vs = comparacion(estadistica.valor, estadistica.previo, mes, textos);
+                  const vs = comparacionConElMesAnterior(
+                    estadistica.valor,
+                    estadistica.previo,
+                    mes,
+                    textos,
+                  );
                   return (
                     <div
                       key={estadistica.id}
