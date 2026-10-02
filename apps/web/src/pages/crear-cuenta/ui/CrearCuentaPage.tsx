@@ -1,20 +1,30 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { ConfirmacionDelAlta, FormularioDeRegistro } from '@/features/crear-cuenta';
+import { useMensajes } from '@/shared/idioma';
 import { Ir } from '@/shared/lib';
 import { ENLACE_DE_ACCESO, PantallaDeAcceso } from '@/shared/ui';
 
+function Entra({ children }: { children: ReactNode }) {
+  return (
+    <Ir a="/acceso" className={ENLACE_DE_ACCESO}>
+      {children}
+    </Ir>
+  );
+}
+
 export function CrearCuentaPage() {
+  const m = useMensajes();
   const [email, setEmail] = useState('');
   const [enviado, setEnviado] = useState(false);
 
   if (enviado) {
     return (
       <PantallaDeAcceso
-        titulo="Revisá tu correo"
+        titulo={m.paginaCrearCuenta.revisaTuCorreo}
         pose="saludando"
-        bajada="Falta un paso: confirmar que el mail es tuyo."
-        nota="El servidor de mails manda pocos por hora. Si pediste varios seguidos, esperá un rato antes de volver a intentar."
+        bajada={m.paginaCrearCuenta.faltaUnPaso}
+        nota={m.paginaCrearCuenta.pocosMailsPorHora}
       >
         <ConfirmacionDelAlta
           email={email}
@@ -28,18 +38,11 @@ export function CrearCuentaPage() {
 
   return (
     <PantallaDeAcceso
-      titulo="Creá tu cuenta"
+      titulo={m.paginaCrearCuenta.creaTuCuenta}
       pose="midiendo"
-      bajada="Confirmás el mail y tu taller se crea solo, vacío y listo para cargar."
-      nota="Una vez adentro, la app anda aunque no haya señal."
-      pie={
-        <p>
-          ¿Ya tenés cuenta?{' '}
-          <Ir a="/acceso" className={ENLACE_DE_ACCESO}>
-            Entrá
-          </Ir>
-        </p>
-      }
+      bajada={m.paginaCrearCuenta.confirmasElMail}
+      nota={m.paginaCrearCuenta.unaVezAdentro}
+      pie={<p>{m.paginaCrearCuenta.yaTenesCuenta({ Enlace: Entra })}</p>}
     >
       <FormularioDeRegistro
         emailInicial={email}
