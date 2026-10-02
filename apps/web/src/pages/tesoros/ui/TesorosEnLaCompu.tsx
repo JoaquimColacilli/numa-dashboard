@@ -278,6 +278,7 @@ export function TesorosEnLaCompu({
         {conPanel && (
           <aside
             aria-label={textos.detalle}
+            data-reparto="detalle"
             className={`flex-none overflow-y-auto border-l border-hairline bg-paper px-5 pt-5 pb-8 ${
               ancho === 'compu' ? 'w-[380px]' : 'w-[340px]'
             }`}
