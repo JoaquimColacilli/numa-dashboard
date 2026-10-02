@@ -1,6 +1,8 @@
 import {
   analisisDeEntregas,
   BASES_DE_OBLIGACION,
+  centavosEn,
+  cotizacionLeida,
   estaLiquidado,
   fechaDeApertura,
   filaDeSiempre,
@@ -14,6 +16,7 @@ import {
   saldosDelLibroPorId,
   sumar,
   sumarTodos,
+  valorEnPesos,
   type AnalisisDeEntregas,
   type AporteDelMes,
   type BaseDeLaObligacion,
@@ -25,6 +28,7 @@ import {
   type EstadoLiquidado,
   type Fila,
   type GastoDeUnTesoro,
+  type ImporteDeUnPago,
   type LiquidacionDelMes,
   type LiquidacionRegistrada,
   type ModoDePaso,
@@ -126,6 +130,14 @@ function movimientoConIds(replica: Replica, movimiento: FilaDe<'movimientos'>) {
   };
 }
 
+export function importeDelPago(pago: FilaDe<'pagos'>): ImporteDeUnPago {
+  const quizas = pago as Partial<FilaDe<'pagos'>>;
+  const valor = cotizacionLeida(quizas.cotizacion_centavos ?? null);
+  return monedaLeida(quizas.moneda) === 'USD'
+    ? { moneda: 'USD', monto: centavosEn('USD', pago.monto_centavos), cotizacion: valor }
+    : { moneda: MONEDA_DEL_TALLER, monto: dinero(pago.monto_centavos), cotizacion: valor };
+}
+
 function montoDestinoDe(movimiento: FilaDe<'movimientos'>): Money<Moneda> | null {
   const valor = (movimiento as Partial<FilaDe<'movimientos'>>).monto_destino_centavos;
   return valor === undefined || valor === null ? null : dinero(valor);
@@ -147,14 +159,20 @@ export function datosDelLibro(replica: Replica): DatosDelLibro {
       descripcion: movimiento.descripcion,
       proyectoId: movimiento.proyecto_id,
     })),
-    pagos: filasDe(replica, 'pagos').map((pago) => ({
-      id: pago.id,
-      proyectoId: pago.proyecto_id,
-      fecha: pago.fecha,
-      concepto: pago.concepto,
-      monto: dinero(pago.monto_centavos),
-      yaEnLaApertura: (pago as Partial<typeof pago>).ya_en_la_apertura === true,
-    })),
+    pagos: filasDe(replica, 'pagos').map((pago) => {
+      const importe = importeDelPago(pago);
+      return {
+        id: pago.id,
+        proyectoId: pago.proyecto_id,
+        fecha: pago.fecha,
+        concepto: pago.concepto,
+        monto: importe.monto,
+        moneda: importe.moneda,
+        cotizacion: importe.cotizacion,
+        tesoroId: (pago as Partial<typeof pago>).tesoro_id ?? null,
+        yaEnLaApertura: (pago as Partial<typeof pago>).ya_en_la_apertura === true,
+      };
+    }),
     gastos: filasDe(replica, 'gastos').map((gasto) => ({
       id: gasto.id,
       proyectoId: gasto.proyecto_id,
@@ -214,15 +232,27 @@ export function aperturaDeLaReplica(replica: Replica): string | null {
 
 export interface TotalesDelProyecto {
   cobrado: Money;
+  cobradoEnPesos: Money;
   gastos: Money;
 }
 
+const SIN_TOTALES: TotalesDelProyecto = {
+  cobrado: dinero(0),
+  cobradoEnPesos: dinero(0),
+  gastos: dinero(0),
+};
+
 export function totalesPorProyecto(replica: Replica): Map<string, TotalesDelProyecto> {
   const cobrado = new Map<string, number>();
+  const cobradoEnPesos = new Map<string, number>();
   const gastos = new Map<string, number>();
 
   for (const pago of filasDe(replica, 'pagos')) {
     cobrado.set(pago.proyecto_id, (cobrado.get(pago.proyecto_id) ?? 0) + pago.monto_centavos);
+    cobradoEnPesos.set(
+      pago.proyecto_id,
+      (cobradoEnPesos.get(pago.proyecto_id) ?? 0) + valorEnPesos(importeDelPago(pago)),
+    );
   }
   for (const gasto of filasDe(replica, 'gastos')) {
     gastos.set(gasto.proyecto_id, (gastos.get(gasto.proyecto_id) ?? 0) + gasto.monto_centavos);
@@ -232,6 +262,7 @@ export function totalesPorProyecto(replica: Replica): Map<string, TotalesDelProy
   for (const proyecto of filasDe(replica, 'proyectos')) {
     totales.set(proyecto.id, {
       cobrado: dinero(cobrado.get(proyecto.id) ?? 0),
+      cobradoEnPesos: dinero(cobradoEnPesos.get(proyecto.id) ?? 0),
       gastos: dinero(gastos.get(proyecto.id) ?? 0),
     });
   }
@@ -239,7 +270,7 @@ export function totalesPorProyecto(replica: Replica): Map<string, TotalesDelProy
 }
 
 export function totalesDelProyecto(replica: Replica, proyectoId: string): TotalesDelProyecto {
-  return totalesPorProyecto(replica).get(proyectoId) ?? { cobrado: dinero(0), gastos: dinero(0) };
+  return totalesPorProyecto(replica).get(proyectoId) ?? SIN_TOTALES;
 }
 
 export interface InsumosDelTrabajo {
@@ -560,7 +591,7 @@ export function entradaDeLaLiquidacion(
     entrada: {
       destino,
       fecha,
-      cobrado: cobrado ?? totales.cobrado,
+      cobrado: cobrado ?? totales.cobradoEnPesos,
       gastos: gastos ?? totales.gastos,
       fila,
       sistema: sistemaDeLaReplica(replica),

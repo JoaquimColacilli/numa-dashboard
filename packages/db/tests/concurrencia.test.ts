@@ -583,6 +583,72 @@ describe('los movimientos contra las liquidaciones del mismo taller, con conexio
   });
 });
 
+const CONSULTA_CON_LA_VISITA_DEL_SEED = '5eed0000-0000-7000-8000-000000020008';
+
+const TESORO_EN_DOLARES = `insert into public.tesoros (nombre, tinta, icono, moneda)
+  values ('Dólares', 'petroleo', 'banknote', 'USD') returning id`;
+
+const PAGO_EN_DOLARES_A_COCOS = `insert into public.pagos (proyecto_id, fecha, monto_centavos, moneda, cotizacion_centavos, tesoro_id)
+  select $1, '2026-09-20', 50000, 'USD', 145000, t.id
+  from public.tesoros t where t.household_id = $2 and t.clave = 'cocos'`;
+
+const PAGO_EN_PESOS_SIN_DOLAR = `insert into public.pagos (proyecto_id, fecha, monto_centavos)
+  values ($1, '2026-09-20', 1000000)`;
+
+describe('los pagos en dólares contra los tesoros y la moneda del trabajo, con conexiones reales y todo en rollback', () => {
+  it('un pago que entra a un tesoro espera a que termine de archivarse un tesoro del mismo taller: toma el trabajo y después los ajustes, que son con los que se archiva', async () => {
+    const archivo = await sesion();
+    const pago = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(archivo);
+    await entrarAlHousehold(archivo);
+    const { rows: nuevo } = await archivo.query<{ id: string }>(TESORO_EN_DOLARES);
+    await archivo.query('update public.tesoros set archivado_at = now() where id = $1', [
+      nuevo[0]?.id,
+    ]);
+
+    await abrirTransaccion(pago);
+    await entrarAlHousehold(pago);
+    const pidPago = await pidDe(pago);
+    const alta = sinRechazoSuelto(
+      pago.query(PAGO_EN_DOLARES_A_COCOS, [LEAD_DEL_SEED, HOUSEHOLD_DEL_SEED]),
+    );
+
+    expect(await esperarQueEspere(monitor, pidPago)).toContain(await pidDe(archivo));
+
+    await archivo.query('rollback');
+    await expect(alta).rejects.toMatchObject({ code: 'MN037' });
+  });
+
+  it('un pago en pesos y pasar su trabajo a dólares se esperan en el trabajo, y el que llega segundo ve los pagos sin su dólar', async () => {
+    const pago = await sesion();
+    const moneda = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(pago);
+    await entrarAlHousehold(pago);
+    await pago.query(PAGO_EN_PESOS_SIN_DOLAR, [CONSULTA_CON_LA_VISITA_DEL_SEED]);
+
+    await abrirTransaccion(moneda);
+    await entrarAlHousehold(moneda);
+    const pidMoneda = await pidDe(moneda);
+    const cambio = sinRechazoSuelto(
+      moneda.query("update public.proyectos set moneda = 'USD' where id = $1", [
+        CONSULTA_CON_LA_VISITA_DEL_SEED,
+      ]),
+    );
+
+    expect(await esperarQueEspere(monitor, pidMoneda)).toContain(await pidDe(pago));
+
+    await pago.query('rollback');
+    await expect(cambio).resolves.toBeDefined();
+    await expect(moneda.query('set constraints all immediate')).rejects.toMatchObject({
+      code: 'MN039',
+    });
+  });
+});
+
 interface ParaMandar {
   presupuesto: string;
   documento: string;
