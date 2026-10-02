@@ -12,7 +12,6 @@
     "src/features/armar-la-fila/",
     "src/features/compartir-con-el-cliente/",
     "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
-    "src/features/crear-cuenta/",
     "src/features/cubrir-el-faltante/",
     "src/features/editar-perfil/",
     "src/features/editar-tesoro/",

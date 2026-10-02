@@ -13,6 +13,7 @@ import { cliente } from './cliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
+import { crearCuenta } from './crearCuenta';
 import { desbloquearLaApp } from './desbloquearLaApp';
 import { editarCliente } from './editarCliente';
 import { editarLaEncuesta } from './editarLaEncuesta';
@@ -54,6 +55,7 @@ export const ptBR = {
   comun,
   configurarTaller,
   coordinarLaEntrega,
+  crearCuenta,
   desbloquearLaApp,
   editarCliente,
   editarLaEncuesta,
