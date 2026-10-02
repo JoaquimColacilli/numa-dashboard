@@ -138,7 +138,7 @@ export const editarProyecto = {
     todaviaNoEstaListo: 'Desmarcar como pronto',
   },
   loQueHaceFalta: {
-    titulo: 'O que falta',
+    titulo: 'O que é preciso',
     ayuda:
       'Os materiais e as ferragens que é preciso pedir, e as ferramentas que é preciso ter no dia em que você fizer. Aparecem sugestões do que você já usou.',
     todoListo: 'tudo pronto',

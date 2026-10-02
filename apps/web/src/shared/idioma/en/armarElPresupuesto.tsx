@@ -239,7 +239,7 @@ export const armarElPresupuesto = {
     noVence: "It doesn't expire: we don't show them a deadline.",
     valeHasta: (fecha) => `It's valid until ${fecha}.`,
     pasaA: (estado) => <>Moves to {estado}</>,
-    seTilda: "“Build the quote” gets checked off in What's left.",
+    seTilda: '“Build the quote” gets checked off in To do.',
     quedaGuardada: (revision) =>
       `Revision ${String(revision)} stays saved on the job page, with its PDF.`,
     queCambio: 'What changed',

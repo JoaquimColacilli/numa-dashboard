@@ -391,8 +391,8 @@ export const configurarTaller = {
       vacio: 'Your name or company name, your CUIT, your tax status and your address go here.',
       enComoTePagan: (Quien, quien) => (
         <>
-          In “How you get paid” you have <Quien>{quien}</Quien>. If you quote under that name, you
-          don't need to type them again.
+          In “How clients pay you” you have <Quien>{quien}</Quien>. If you quote under that name,
+          you don't need to type them again.
         </>
       ),
       usarElCobro: 'Use the account holder and CUIT',

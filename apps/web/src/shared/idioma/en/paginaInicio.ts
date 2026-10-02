@@ -202,7 +202,7 @@ export const paginaInicio = {
     agenda: 'Calendar',
     laApp: 'The app',
     ajustes: 'Settings',
-    tuTaller: 'Your shop, how you get paid, and your showcase',
+    tuTaller: 'Your shop, how clients pay you, and your showcase',
   },
   hoyEnLaAgenda: {
     titulo: 'Today on the calendar',

@@ -131,7 +131,7 @@ export const editarProyecto = {
     borrarElProyecto: 'Delete job',
   },
   avance: {
-    titulo: "What's next",
+    titulo: 'To do',
     yaEstaListo: 'Mark as ready',
     todaviaNoEstaListo: 'Mark as not ready',
   },

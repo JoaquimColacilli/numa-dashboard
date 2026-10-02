@@ -8,7 +8,7 @@ export const avanzarLaConsulta = {
     senaAlAprobar: 'Deposit',
   },
   avance: {
-    queFalta: "What's left",
+    queFalta: 'To do',
     etapa: 'Stage',
   },
   tareas: {

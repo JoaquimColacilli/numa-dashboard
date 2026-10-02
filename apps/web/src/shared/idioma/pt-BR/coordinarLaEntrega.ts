@@ -32,7 +32,7 @@ export const coordinarLaEntrega = {
       'A entrega confirmada já passou: o cliente não a vê. Mude a data ou marque em O que falta que você já entregou.',
   },
   mientrasLoFabricas:
-    'O cliente vê a data prevista como “Previsão de entrega”. Quando o móvel estiver pronto, toque em Já está pronto e vocês combinam o dia.',
+    'O cliente vê a data prevista como “Previsão de entrega”. Quando o móvel estiver pronto, toque em Marcar como pronto e vocês combinam o dia.',
   proponeleUnDia: 'Proponha um dia ou peça que o cliente marque os dias e horários que lhe servem.',
   lePropusisteEl: (fecha) => `Você propôs ${fecha}. Ainda sem resposta.`,
   lePedisteSusDias: 'Você pediu os dias ao cliente. Ainda sem resposta.',

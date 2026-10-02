@@ -29,10 +29,10 @@ export const coordinarLaEntrega = {
     estimada:
       "The estimated delivery has passed: your client can't see it. Move it to an upcoming day.",
     comprometida:
-      "The confirmed delivery has passed: your client can't see it. Change it, or mark it as delivered in What's left.",
+      "The confirmed delivery has passed: your client can't see it. Change it, or mark it as delivered in To do.",
   },
   mientrasLoFabricas:
-    "Your client sees the estimated date as “Estimated delivery.” When it's done, tap It's ready and you'll set the day with them.",
+    "Your client sees the estimated date as “Estimated delivery.” When it's done, tap Mark as ready and you'll set the day with them.",
   proponeleUnDia: 'Propose a day, or ask them to mark the days and times that work for them.',
   lePropusisteEl: (fecha) => `You proposed ${fecha}. No reply yet.`,
   lePedisteSusDias: 'You asked for their days. No reply yet.',
