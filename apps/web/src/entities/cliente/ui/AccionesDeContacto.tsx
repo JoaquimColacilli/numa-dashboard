@@ -1,3 +1,4 @@
+import { useMensajes } from '@/shared/idioma';
 import { Icono, type NombreDeIcono } from '@/shared/ui';
 
 import { enlaceDeLlamada, enlaceDeWhatsapp } from '../model/contacto';
@@ -13,25 +14,29 @@ interface Accion {
   icono: NombreDeIcono;
   etiqueta: string;
   nombreAccesible: string;
+  sinTelefono: string;
   href: string | null;
   externo: boolean;
 }
 
 export function AccionesDeContacto({ nombre, telefono, amplias = false }: AccionesDeContactoProps) {
+  const textos = useMensajes().cliente.contacto;
   const acciones: readonly Accion[] = [
     {
       id: 'llamar',
       icono: 'phone',
-      etiqueta: 'Llamar',
-      nombreAccesible: `Llamar a ${nombre}`,
+      etiqueta: textos.llamar,
+      nombreAccesible: textos.llamarA(nombre),
+      sinTelefono: textos.llamarASinTelefono(nombre),
       href: enlaceDeLlamada(telefono),
       externo: false,
     },
     {
       id: 'whatsapp',
       icono: 'message-circle',
-      etiqueta: 'WhatsApp',
-      nombreAccesible: `Escribirle a ${nombre} por WhatsApp`,
+      etiqueta: textos.whatsapp,
+      nombreAccesible: textos.escribirleA(nombre),
+      sinTelefono: textos.escribirleASinTelefono(nombre),
       href: enlaceDeWhatsapp(telefono),
       externo: true,
     },
@@ -50,8 +55,8 @@ export function AccionesDeContacto({ nombre, telefono, amplias = false }: Accion
               key={accion.id}
               type="button"
               disabled
-              aria-label={`${accion.nombreAccesible}: no tiene teléfono cargado`}
-              title="Sin teléfono cargado"
+              aria-label={accion.sinTelefono}
+              title={textos.sinTelefono}
               className={`${forma} cursor-not-allowed text-text-3`}
             >
               <Icono nombre={accion.icono} tamano={amplias ? 20 : 18} />
@@ -63,7 +68,8 @@ export function AccionesDeContacto({ nombre, telefono, amplias = false }: Accion
               href={accion.href}
               aria-label={accion.nombreAccesible}
               title={accion.nombreAccesible}
-              {...(accion.externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              target={accion.externo ? '_blank' : undefined}
+              rel={accion.externo ? 'noopener noreferrer' : undefined}
               className={`${forma} text-ink hover:bg-surface`}
             >
               <Icono nombre={accion.icono} tamano={amplias ? 20 : 18} />
@@ -73,9 +79,7 @@ export function AccionesDeContacto({ nombre, telefono, amplias = false }: Accion
         )}
       </div>
       {amplias && telefono.trim() === '' && (
-        <p className="px-1 text-meta text-text-3">
-          Sin teléfono cargado: agregalo desde Editar para poder llamar o escribir.
-        </p>
+        <p className="px-1 text-meta text-text-3">{textos.agregaloDesdeEditar}</p>
       )}
     </div>
   );

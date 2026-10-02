@@ -5,7 +5,6 @@
     "src/app/providers/",
     "src/app/router/",
     "src/entities/archivo/",
-    "src/entities/cliente/",
     "src/entities/fila/",
     "src/entities/opinion/",
     "src/entities/sesion/",

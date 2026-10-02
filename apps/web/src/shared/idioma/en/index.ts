@@ -4,6 +4,7 @@ import { agenda } from './agenda';
 import { api } from './api';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
+import { cliente } from './cliente';
 import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
@@ -32,6 +33,7 @@ export const en = {
   api,
   armarElPresupuesto,
   avanzarLaConsulta,
+  cliente,
   comun,
   configurarTaller,
   coordinarLaEntrega,
