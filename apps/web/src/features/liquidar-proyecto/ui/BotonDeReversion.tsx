@@ -1,6 +1,6 @@
 import { ESTADOS_DE_CONSULTA, type EstadoProyecto } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import {
   ESTADO,
@@ -12,16 +12,22 @@ import {
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { elTallerVaPorMes, mensajeDeSincronizacion, repartosDelProyecto } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga, formatearPesos, hoyEnElTaller, TINTA } from '@/shared/lib';
 import { Button, FilaDeAcciones, Icono } from '@/shared/ui';
 
 const POR_DEFECTO: EstadoProyecto = 'presupuesto_enviado';
+
+function Negrita({ children }: { children: ReactNode }) {
+  return <strong>{children}</strong>;
+}
 
 export interface BotonDeReversionProps {
   proyecto: Proyecto;
 }
 
 export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
+  const textos = useMensajes().liquidarProyecto.reversion;
   const replica = useReplicaDelTaller();
   const revertir = useMutation(MUTACION_DE_REVERSION);
   const [abierto, setAbierto] = useState(false);
@@ -30,6 +36,7 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
   const esCobro = proyecto.estado === 'cobrado';
   const destino = esCobro ? 'entregado' : hacia;
   const vuelve = loQueVuelveAlReabrir(replica, proyecto);
+  const cual = esCobro ? textos.cobro : textos.presupuesto;
 
   function confirmar(): void {
     revertir.mutate({
@@ -53,7 +60,7 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
           }}
         >
           <Icono nombre="arrow-left-right" tamano={16} />
-          {esCobro ? 'Reabrir el cobro' : 'Reactivar el presupuesto'}
+          {cual.abrir}
         </Button>
         {revertir.isError && (
           <p role="alert" className="mt-1.5 text-label font-medium text-alerta">
@@ -70,24 +77,19 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
 
   return (
     <section
-      aria-label={esCobro ? 'Reabrir el cobro' : 'Reactivar el presupuesto'}
+      aria-label={cual.abrir}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
-      <h3 className="text-section font-semibold">
-        {esCobro ? '¿Reabrís el cobro?' : '¿Reactivás el presupuesto?'}
-      </h3>
+      <h3 className="text-section font-semibold">{cual.pregunta}</h3>
 
       {proyecto.reparto_ya_en_la_apertura && vuelve.length > 0 ? (
-        <p className="mt-1.5 text-label leading-relaxed text-text-2">
-          Este reparto ya estaba en tus saldos cuando empezaste con la app, así que deshacerlo no
-          mueve plata de los tesoros. Los pagos y los gastos vuelven a poder editarse.
-        </p>
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">{textos.yaEnLaApertura}</p>
       ) : vuelve.length > 0 ? (
         <>
           <p className="mt-1.5 text-label leading-relaxed text-text-2">
-            Se deshace el reparto. Esto vuelve de cada tesoro a la caja del taller:
+            {textos.seDeshaceElReparto}
           </p>
-          <ul aria-label="Lo que vuelve a la caja del taller" className="mt-1.5 list-none">
+          <ul aria-label={textos.loQueVuelve} className="mt-1.5 list-none">
             {vuelve.map((tesoro) => (
               <li
                 key={tesoro.tesoro}
@@ -97,10 +99,13 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
                   aria-hidden
                   className={`size-3 flex-none rounded-[3px] ${TINTA[tesoro.tinta].fondo}`}
                 />
-                <span className={`min-w-0 flex-1 font-medium ${TINTA[tesoro.tinta].texto}`}>
+                <span
+                  translate="no"
+                  className={`min-w-0 flex-1 font-medium ${TINTA[tesoro.tinta].texto}`}
+                >
                   {tesoro.nombre}
                 </span>
-                <span className="flex-none font-semibold tabular-nums">
+                <span translate="no" className="flex-none font-semibold tabular-nums">
                   {formatearPesos(tesoro.monto)}
                 </span>
               </li>
@@ -108,33 +113,25 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
           </ul>
           {proyecto.fecha_cobro !== null && (
             <p className="mt-1.5 text-label leading-relaxed text-text-2">
-              El mes de {fechaLarga(proyecto.fecha_cobro, hoyEnElTaller())} deja de contar esta
-              liquidación, y lo que les falte a los topes de la fila queda a la vista.
+              {textos.elMesDe(fechaLarga(proyecto.fecha_cobro, hoyEnElTaller()))}
             </p>
           )}
         </>
       ) : (
-        <p className="mt-1.5 text-label leading-relaxed text-text-2">
-          Este reparto no movió ningún tesoro, así que deshacerlo tampoco mueve plata. Los pagos y
-          los gastos vuelven a poder editarse.
-        </p>
+        <p className="mt-1.5 text-label leading-relaxed text-text-2">{textos.sinTesoros}</p>
       )}
 
       {esCobro ? (
         <p className="mt-2 text-meta leading-relaxed text-text-3">
-          Vuelve a <strong>Entregado</strong>. Cuando lo vuelvas a cobrar, el día de este cobro
-          {proyecto.fecha_cobro !== null
-            ? ` (${fechaLarga(proyecto.fecha_cobro, hoyEnElTaller())})`
-            : ''}{' '}
-          viene puesto y lo podés corregir. Se vuelve a cobrar con la misma fila de este cobro:
-          corregir un gasto no te reescribe los topes ni el reparto con la fila de hoy.
-          {elTallerVaPorMes(replica) &&
-            ' Lo que sí mira es lo que tu sueldo ya recibió ese mes, como en un cobro nuevo.'}
+          {proyecto.fecha_cobro === null
+            ? textos.vuelveAEntregadoSinFecha(Negrita)
+            : textos.vuelveAEntregado(Negrita, fechaLarga(proyecto.fecha_cobro, hoyEnElTaller()))}
+          {elTallerVaPorMes(replica) && ` ${textos.loQueSiMira}`}
         </p>
       ) : (
         <>
           <label className="mt-3 block text-label text-text-2" htmlFor="estado-al-reactivar">
-            Vuelve a las consultas, en
+            {textos.vuelveALasConsultas}
           </label>
           <select
             id="estado-al-reactivar"
@@ -151,24 +148,20 @@ export function BotonDeReversion({ proyecto }: BotonDeReversionProps) {
             ))}
           </select>
           <p className="mt-2 text-meta leading-relaxed text-text-3">
-            A diferencia de reabrir un cobro, esto <strong>no guarda la fecha</strong>: un
-            presupuesto que revive está vivo otra vez, y si más adelante lo volvés a dar por perdido
-            es un cierre nuevo, con el día que elijas y la fila de ese momento.
+            {textos.noGuardaLaFecha(Negrita)}
           </p>
         </>
       )}
 
       <FilaDeAcciones className="mt-3.5">
-        <Button onClick={confirmar}>
-          {esCobro ? 'Reabrir y deshacer el reparto' : 'Reactivar y deshacer el reparto'}
-        </Button>
+        <Button onClick={confirmar}>{cual.confirmar}</Button>
         <Button
           variant="secundario"
           onClick={() => {
             setAbierto(false);
           }}
         >
-          Dejarlo como está
+          {textos.dejarloComoEsta}
         </Button>
       </FilaDeAcciones>
     </section>

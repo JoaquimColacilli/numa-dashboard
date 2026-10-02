@@ -37,7 +37,6 @@
     "src/features/elegir-tema/",
     "src/features/iniciar-sesion/",
     "src/features/leer-las-opiniones/",
-    "src/features/liquidar-proyecto/",
     "src/features/llevar-la-agenda/",
     "src/features/pedir-la-opinion/",
     "src/features/recibir-avisos/",

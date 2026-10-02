@@ -8,6 +8,7 @@ import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
 import { inicio } from './inicio';
 import { lib } from './lib';
+import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { registrarMovimiento } from './registrarMovimiento';
 
@@ -20,6 +21,7 @@ export const en = {
   hacerElSeguimiento,
   inicio,
   lib,
+  liquidarProyecto,
   movimiento,
   registrarMovimiento,
 } satisfies Mensajes;
