@@ -1,0 +1,66 @@
+export const ui = {
+  hoja: {
+    cerrar: 'Cerrar',
+    cerrarSinGuardar: '¿Cerrar sin guardar?',
+    seVaAPerder: 'Lo que cargaste todavía no se guardó, y si cerrás se pierde.',
+    seguirEditando: 'Seguir editando',
+    descartar: 'Descartar',
+  },
+  deshacer: 'Deshacer',
+  comparacion: {
+    ocultarLosNumeros: 'Ocultar los números',
+    verLosNumeros: 'Ver los números',
+    concepto: 'Concepto',
+    diferencia: 'Diferencia',
+  },
+  copiar: {
+    copiar: 'Copiar',
+    copiado: 'Copiado',
+    seleccionado: 'Quedó seleccionado: mantené apretado y elegí Copiar',
+    noSePudo: 'No se pudo copiar. Marcalo con el dedo y copialo desde el menú del teléfono.',
+  },
+  guardado: {
+    sinGuardar: 'Sin guardar',
+    sinSenal: 'Sin señal: se guarda cuando vuelva',
+    guardando: 'Guardando…',
+    noSePudo: 'No se pudo guardar',
+    guardado: 'Guardado',
+  },
+  mail: {
+    loMandamosA: 'Lo mandamos a',
+    cambiar: 'Cambiar',
+    mandandoDeNuevo: 'Mandándolo de nuevo…',
+    reenviarEn: (espera: string) => `Reenviar en ${espera}`,
+    reenviar: 'Reenviar el mail',
+    mandadoDeNuevo: (email: string) => `Te lo mandamos de nuevo a ${email}.`,
+  },
+  panelDeAvisos: {
+    entendido: 'Entendido, sacalo de acá',
+  },
+  acceso: {
+    lema: 'Cuánto falta cobrar, qué se entrega esta semana y a dónde va cada peso cuando se cobra.',
+    unTaller: 'Un taller, cuatro tesoros.',
+  },
+  rotulo: {
+    etiqueta: 'Rótulo del presupuesto',
+    presupuesto: 'Presupuesto',
+    numero: (numero: string) => `Nº ${numero}`,
+    sinNumero: 'Sin número todavía',
+    revision: 'Rev.',
+    emitido: 'Emitido',
+    opcion: 'Opción',
+    aceptado: 'Aceptado',
+    valeHasta: 'Vale hasta',
+    sinVencimiento: 'Sin vencimiento',
+    vencio: 'Venció',
+  },
+  visor: {
+    anterior: 'Anterior',
+    siguiente: 'Siguiente',
+    abrirAparte: 'Abrir en otra pestaña',
+    cuenta: (actual: string, total: string) => `${actual} de ${total}`,
+  },
+  contrasena: {
+    mostrar: 'Mostrar la contraseña',
+  },
+} as const;

@@ -2,10 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 
 import { Avatar, Eliseo, Lamina, Logotipo, type PoseDeEliseo } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
 import { useAnchoDePantalla, useVentanaVisible } from '@/shared/lib';
-
-const LEMA =
-  'Cuánto falta cobrar, qué se entrega esta semana y a dónde va cada peso cuando se cobra.';
 
 const ALTO_COMPACTO = 620;
 const MARGEN_AL_ACOMODAR = 12;
@@ -92,6 +90,7 @@ export function PantallaDeAcceso({
   pose,
   animarElDibujo = false,
 }: PantallaDeAccesoProps) {
+  const { acceso: textos } = useMensajes().ui;
   const ancho = useAnchoDePantalla();
   const ventana = useVentanaVisible();
   const desplazable = useRef<HTMLDivElement>(null);
@@ -150,16 +149,20 @@ export function PantallaDeAcceso({
             <Logotipo className="mt-0.5 h-[23px] w-auto" />
           </p>
           <p className="text-label text-sobre-marca/60 lg:row-start-3 lg:self-end">
-            Un taller, cuatro tesoros.
+            {textos.unTaller}
           </p>
           {!compacto &&
             (persona && nombreVisible !== undefined ? (
               <div className="mt-auto flex min-w-0 items-center gap-3.5 pt-8 lg:row-start-2 lg:mt-0 lg:self-center lg:pt-0">
                 <Avatar nombre={nombreVisible} foto={persona.foto} tamano="grande" />
                 <div className="min-w-0">
-                  <p className="truncate text-body-lg font-semibold">{nombreVisible}</p>
+                  <p translate="no" className="truncate text-body-lg font-semibold">
+                    {nombreVisible}
+                  </p>
                   {persona.nombre !== '' && (
-                    <p className="truncate text-label text-sobre-marca/70">{persona.email}</p>
+                    <p translate="no" className="truncate text-label text-sobre-marca/70">
+                      {persona.email}
+                    </p>
                   )}
                 </div>
               </div>
@@ -183,7 +186,7 @@ export function PantallaDeAcceso({
                     pose === undefined ? 'pt-4 lg:pt-0' : 'hidden lg:block'
                   }`}
                 >
-                  {LEMA}
+                  {textos.lema}
                 </p>
               </div>
             ))}

@@ -70,6 +70,16 @@ const EXCEPCIONES: readonly Excepcion[] = [
       'Los nombres y las descripciones que la base sembró para los cuatro tesoros de siempre: son datos y no se traducen (glosario).',
   },
   {
+    archivo: 'src/shared/ui/LogoDeMercadoPago.tsx',
+    texto: 'Mercado Pago',
+    motivo: 'Una marca: no se traduce (glosario).',
+  },
+  {
+    archivo: 'src/shared/ui/PantallaDeAcceso.tsx',
+    texto: 'translateY( px)',
+    motivo: 'Es CSS: sube la pantalla con el teclado del celular.',
+  },
+  {
     archivo: 'src/main.ts',
     texto: 'Falta el elemento #root en index.html.',
     motivo: 'Solo lo ve quien arma la app, no quien la usa.',

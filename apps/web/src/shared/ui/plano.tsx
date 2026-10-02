@@ -110,6 +110,7 @@ export function RotuloEnCasillas({
             >
               <dt className="text-[10px] leading-none text-text-3">{casilla.titulo}</dt>
               <dd
+                translate="no"
                 className={`flex items-center gap-1 leading-none font-semibold tabular-nums ${tono.valor}`}
               >
                 {tono.icono !== null && <Icono nombre={tono.icono} tamano={12} grosor={2} />}

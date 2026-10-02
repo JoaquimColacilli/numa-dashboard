@@ -12,6 +12,7 @@ import {
 
 import { Button, FilaDeAcciones, Icono } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
 import {
   anotarHojaAbierta,
   useAlgoEnCurso,
@@ -128,6 +129,7 @@ export function Hoja({
   tituloGrande = false,
   alTeclear,
 }: HojaProps) {
+  const { hoja: textos } = useMensajes().ui;
   const pantalla = useAnchoDePantalla();
   const altoVisible = useAltoVisible();
   const idTitulo = useId();
@@ -286,7 +288,7 @@ export function Hoja({
         <button
           type="button"
           onClick={pedirCierre}
-          aria-label="Cerrar"
+          aria-label={textos.cerrar}
           className="flex size-11 flex-none items-center justify-center rounded-field text-text-2 hover:bg-surface"
         >
           <Icono nombre="x" tamano={20} />
@@ -302,21 +304,21 @@ export function Hoja({
         >
           <div>
             <p id={idPregunta} className="text-body-lg leading-snug font-semibold">
-              ¿Cerrar sin guardar?
+              {textos.cerrarSinGuardar}
             </p>
             <p
               id={`${idPregunta}-detalle`}
               className="mt-0.5 text-label leading-relaxed text-text-2"
             >
-              Lo que cargaste todavía no se guardó, y si cerrás se pierde.
+              {textos.seVaAPerder}
             </p>
           </div>
           <FilaDeAcciones>
             <Button variant="secundario" data-seguir-editando onClick={seguirEditando}>
-              Seguir editando
+              {textos.seguirEditando}
             </Button>
             <Button variant="peligro" onClick={descartar}>
-              Descartar
+              {textos.descartar}
             </Button>
           </FilaDeAcciones>
         </div>

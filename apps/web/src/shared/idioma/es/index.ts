@@ -13,6 +13,7 @@ import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
+import { ui } from './ui';
 
 export const es = {
   api,
@@ -28,6 +29,7 @@ export const es = {
   movimiento,
   paginaAnalitico,
   registrarMovimiento,
+  ui,
 } as const;
 
 export type Mensajes = Ensanchar<typeof es>;

@@ -13,6 +13,7 @@ import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
+import { ui } from './ui';
 
 export const ptBR = {
   api,
@@ -28,4 +29,5 @@ export const ptBR = {
   movimiento,
   paginaAnalitico,
   registrarMovimiento,
+  ui,
 } satisfies Mensajes;

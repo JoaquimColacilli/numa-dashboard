@@ -13,6 +13,7 @@ import { liquidarProyecto } from './liquidarProyecto';
 import { movimiento } from './movimiento';
 import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
+import { ui } from './ui';
 
 export const en = {
   api,
@@ -28,4 +29,5 @@ export const en = {
   movimiento,
   paginaAnalitico,
   registrarMovimiento,
+  ui,
 } satisfies Mensajes;

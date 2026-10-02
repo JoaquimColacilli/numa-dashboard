@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 
 import { Icono } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 
 export interface BarraComparada {
@@ -42,6 +43,7 @@ export function ComparacionMensual({
   etiquetaActual,
   barras,
 }: ComparacionMensualProps) {
+  const { comparacion: textos } = useMensajes().ui;
   const [conNumeros, setConNumeros] = useState(false);
   const idTabla = useId();
 
@@ -56,11 +58,11 @@ export function ComparacionMensual({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="text-label font-semibold">{titulo}</span>
         <span className="flex gap-3 text-meta text-text-2">
-          <span className="flex items-center gap-1.5">
+          <span translate="no" className="flex items-center gap-1.5">
             <span aria-hidden className="size-2 rounded-[2px] bg-border" />
             {etiquetaPrevia}
           </span>
-          <span className="flex items-center gap-1.5">
+          <span translate="no" className="flex items-center gap-1.5">
             <span aria-hidden className="size-2 rounded-[2px] bg-ink" />
             {etiquetaActual}
           </span>
@@ -124,7 +126,7 @@ export function ComparacionMensual({
         className="mt-1 flex min-h-tap items-center gap-1.5 text-meta font-semibold text-ink underline underline-offset-3"
       >
         <Icono nombre={conNumeros ? 'arrow-up' : 'arrow-down'} tamano={14} />
-        {conNumeros ? 'Ocultar los números' : 'Ver los números'}
+        {conNumeros ? textos.ocultarLosNumeros : textos.verLosNumeros}
       </button>
 
       <div id={idTabla} hidden={!conNumeros}>
@@ -133,16 +135,16 @@ export function ComparacionMensual({
           <thead>
             <tr className="text-meta text-text-2">
               <th scope="col" className="py-1 text-left font-medium">
-                Concepto
+                {textos.concepto}
               </th>
-              <th scope="col" className="py-1 text-right font-medium">
+              <th scope="col" translate="no" className="py-1 text-right font-medium">
                 {etiquetaPrevia}
               </th>
-              <th scope="col" className="py-1 text-right font-medium">
+              <th scope="col" translate="no" className="py-1 text-right font-medium">
                 {etiquetaActual}
               </th>
               <th scope="col" className="py-1 text-right font-medium">
-                Diferencia
+                {textos.diferencia}
               </th>
             </tr>
           </thead>
@@ -152,9 +154,16 @@ export function ComparacionMensual({
                 <th scope="row" className="py-1.5 text-left font-medium">
                   {barra.etiqueta}
                 </th>
-                <td className="py-1.5 text-right text-text-2">{formatearPesos(barra.previo)}</td>
-                <td className="py-1.5 text-right font-semibold">{formatearPesos(barra.actual)}</td>
-                <td className={`py-1.5 text-right font-semibold ${tonoDeLaVariacion(barra)}`}>
+                <td translate="no" className="py-1.5 text-right text-text-2">
+                  {formatearPesos(barra.previo)}
+                </td>
+                <td translate="no" className="py-1.5 text-right font-semibold">
+                  {formatearPesos(barra.actual)}
+                </td>
+                <td
+                  translate="no"
+                  className={`py-1.5 text-right font-semibold ${tonoDeLaVariacion(barra)}`}
+                >
                   {variacion(barra)}
                 </td>
               </tr>
