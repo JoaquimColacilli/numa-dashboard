@@ -305,6 +305,27 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Descuenta … del precio / Para el reparto vale … | Covers … of the price / Counts as … for the split | Abate … do preço / Vale … na divisão | La ficha y la fila de un pago |
 | Dólar (el campo) / Del día / MEP / Blue | Dollar rate / Today / MEP / Blue | Dólar / Do dia / MEP / Blue | El campo del dólar |
 | Tu cuenta en dólares / Dólar del día | Your US dollar account / Today's dollar rate | Sua conta em dólares / Dólar do dia | Ajustes, Cómo te pagan |
+| En pesos / En dólares | In pesos / In dollars | Em pesos / Em dólares | Cómo pagar, una sección por moneda |
+| Hoy son $X, con el dólar a $Y de hoy. | That's X today, at today's dollar rate of Y. | Hoje são X, com o dólar do dia a Y. | El precio en dólares en la página del cliente |
+| Son $X, con el dólar a $Y del (fecha). | That's X at the (date) dollar rate of Y. | São X, com o dólar de (data) a Y. | Lo mismo, con el dólar de otro día |
+| Hoy, en pesos / Copiar el monto en pesos | Today, in pesos / Copy amount in pesos | Hoje, em pesos / Copiar o valor em pesos | Un saldo en dólares que se paga en pesos |
+| El importe en pesos te lo pasa el taller el día que pagás. | We'll give you the amount in pesos on the day you pay. | Informamos o valor em pesos no dia em que você pagar. | Sin el dólar de hoy |
+| El importe en dólares lo acordás con el taller el día que pagás. | We'll agree on the amount in dollars with you on the day you pay. | O valor em dólares você combina com a gente no dia em que pagar. | Un trabajo en pesos que se paga en dólares |
+| Pagaste $X con el dólar a $Y | You paid X at Y per dollar | Você pagou X com o dólar a Y | Lo que pagaste, en la otra moneda |
+| Cuando hay dólares | When dollars are involved | Quando há dólares | Tu presupuesto, en Ajustes |
+| Precio en dólares, te paga en pesos (y las otras cuatro) | Price in dollars, client pays in pesos | Preço em dólares, o cliente paga em pesos | Las cláusulas de la moneda |
+| Lo que lee tu cliente / una cláusula de los dólares | What your client reads / a dollar clause | O que o cliente lê / uma cláusula dos dólares | Las cláusulas de la moneda |
+| Lo que dice de la moneda, para este trabajo / Retocada para este trabajo / Volver a la de siempre | What it says about the currency, for this job / Tweaked for this job / Back to the default | O que diz sobre a moeda, para este projeto / Ajustada para este projeto / Voltar à padrão | El borrador del presupuesto |
+| Valor de una modificación de más | Price of each extra modification | Valor de cada modificação extra | El borrador del presupuesto |
+| Lo que ya pagó, en el aviso del relevamiento | What they've already paid, in the site measure notice | O que o cliente já pagou, no aviso da visita técnica | El borrador del presupuesto |
+| ¿A cuánto está hoy el dólar del presupuesto? | What's today's dollar rate for this quote? | Quanto está o dólar hoje para este orçamento? | La hoja de mandar |
+| Moneda | Currency | Moeda | El presupuesto, junto a la forma de pago |
+| Son $X con el dólar a $Y, el que vale para pagos del (fecha). | That's X at Y per dollar, the rate for payments made on (date). | São X com o dólar a Y, a cotação válida para pagamentos feitos em (data). | La referencia en pesos del presupuesto |
+| Dólar del día (para todos tus trabajos) / Vale para hoy. / Vale para el (día). | Today's dollar rate (for all your jobs) / Valid for today. / Valid for (day). | Dólar do dia (para todos os seus projetos) / Vale para hoje. / Vale para o dia (dia). | Cómo te paga |
+| Para recibir dólares por transferencia, cargá tu cuenta en dólares en Ajustes. | To get paid in dollars by bank transfer, add your US dollar account in Settings. | Para receber dólares por transferência, registre sua conta em dólares em Configurações. | Cómo te paga |
+| Lo que te dejó en la visita. | What they left you at the visit. | O que o cliente deixou na visita. | La hoja del contacto, una seña en dólares |
+| Poné el presupuesto que aprobó, en dólares. | Enter the quote they approved, in dollars. | Informe o orçamento que o cliente aprovou, em dólares. | El pase a aprobado |
+| Flecha de la fila | Waterfall arrow | Seta da fila | El lienzo de Tesoros, para el lector de pantalla |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del
@@ -317,4 +338,7 @@ está»; «Toward the deposit» / «Abatido do sinal»; «Price» / «Valor» pa
 media» / «Siga a gente nas redes»; la conformidad en portugués con «Gostei…», que evita el género de «satisfeito/a»; «So-so» para
 «Así nomás»; «It arrived when promised»; «Obrigado», que lleva el género de quien habla; «Prices» para «Valores»
 («Pricing» sería la otra); «Validity» como título y «Valid for» en el rótulo; «Incluso» como título de sección;
-«Instalação de eletrodomésticos não inclusa».
+«Instalação de eletrodomésticos não inclusa»; «When dollars are involved»; «at the (date) dollar rate of»; «Informamos o
+valor…», en primera persona del plural; «dollar clause» para «cláusula de la moneda»; «the rate for payments made on» y «a
+cotação válida para pagamentos feitos em»; «Valid for (day)» cuando ese día ya pasó, que dice para qué día vale y no si
+todavía vale; «Vale para o dia 1º de outubro»; «Waterfall arrow».
