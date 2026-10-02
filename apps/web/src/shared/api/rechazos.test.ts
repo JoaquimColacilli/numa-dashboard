@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { usarIdioma } from '@/shared/idioma';
 
 import { traducirRechazo, type ContextoDelRechazo } from './rechazos';
 
 function deLaBase(codigo: string, mensaje = 'mensaje de la base', hint = ''): unknown {
   return { code: codigo, message: mensaje, hint, details: 'un detail que nadie muestra' };
+}
+
+function conDetalle(codigo: string, mensaje: string, hint: string, detalle: string): unknown {
+  return { code: codigo, message: mensaje, hint, details: detalle };
 }
 
 function texto(codigo: string, contexto: ContextoDelRechazo): string {
@@ -274,5 +280,176 @@ describe('los rechazos del presupuesto', () => {
     expect(texto('MN033', { operacion: 'presupuesto' })).toBe(
       'El día del envío todavía no llegó. Revisá la fecha y la hora de tu aparato, y volvé a mandarlo.',
     );
+  });
+});
+
+describe('los rechazos que mostraban el texto de la base dicen lo mismo, ahora desde el catálogo', () => {
+  it('MN012: el cliente ya contestó, al pedirle otra encuesta o al tocar sus preguntas', () => {
+    expect(traducirRechazo(deLaBase('MN012', 'Ese cliente ya contestó'))).toEqual({
+      titulo: 'Ese cliente ya contestó',
+      queHacer: 'Volvé a intentarlo, y si sigue igual avisá.',
+      codigo: 'MN012',
+    });
+    expect(
+      traducirRechazo(
+        deLaBase(
+          'MN012',
+          'Ese cliente ya contestó: sus preguntas quedan como están',
+          'Para preguntarle algo más, escribile.',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'Ese cliente ya contestó: sus preguntas quedan como están',
+      queHacer: 'Para preguntarle algo más, escribile.',
+      codigo: 'MN012',
+    });
+  });
+
+  it('MN013 y MN014: la pregunta que ya salió y la que cambió desde otro lado', () => {
+    expect(texto('MN013', { operacion: 'guardado' })).toBe(
+      'Esa pregunta ya salió en una encuesta: cómo se contesta no cambia Guardala como pregunta nueva: lo que ya contestaron queda aparte, con su texto.',
+    );
+    expect(texto('MN014', { operacion: 'guardado' })).toBe(
+      'La pregunta cambió desde otro lado Ya hay una versión más nueva de esta pregunta. Volvé a abrir Preguntas y cambiala ahí.',
+    );
+  });
+
+  it('MN015: la opinión se pide con el trabajo entregado y con preguntas en la encuesta', () => {
+    expect(
+      traducirRechazo(
+        deLaBase(
+          'MN015',
+          'La opinión se le pide al cliente cuando el trabajo está entregado',
+          'Marcá el trabajo como entregado y pedísela desde ahí.',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'La opinión se le pide al cliente cuando el trabajo está entregado',
+      queHacer: 'Marcá el trabajo como entregado y pedísela desde ahí.',
+      codigo: 'MN015',
+    });
+    expect(
+      traducirRechazo(
+        deLaBase(
+          'MN015',
+          'La encuesta no tiene preguntas',
+          'Volvé a preguntar al menos una en Opiniones › Preguntas.',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'La encuesta no tiene preguntas',
+      queHacer: 'Volvé a preguntar al menos una en Opiniones › Preguntas.',
+      codigo: 'MN015',
+    });
+  });
+
+  it('MN021: cada motivo de la propuesta de entrega sale de su detail', () => {
+    expect(
+      traducirRechazo(
+        conDetalle(
+          'MN021',
+          'La entrega se coordina con el mueble listo',
+          'Marcá en la ficha que ya está listo y proponele el día.',
+          'sin_listo',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'La entrega se coordina con el mueble listo.',
+      queHacer: 'Marcá en la ficha que ya está listo y proponele el día. No se guardó nada.',
+      codigo: 'MN021',
+    });
+    expect(
+      traducirRechazo(
+        conDetalle(
+          'MN021',
+          'La entrega ya está comprometida',
+          'Para cambiarla, cambiá la fecha comprometida en la ficha.',
+          'comprometida',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'La entrega ya está comprometida.',
+      queHacer: 'Para cambiarla, cambiá la fecha comprometida en la ficha. No se guardó nada.',
+      codigo: 'MN021',
+    });
+    expect(
+      traducirRechazo(
+        conDetalle(
+          'MN021',
+          'El día que le proponés tiene que ser desde mañana',
+          'Elegí un día desde mañana.',
+          'fecha',
+        ),
+      ),
+    ).toEqual({
+      titulo: 'El día que le proponés tiene que ser desde mañana.',
+      queHacer: 'Elegí un día desde mañana. No se guardó nada.',
+      codigo: 'MN021',
+    });
+  });
+});
+
+describe('los rechazos de los dólares', () => {
+  it.each([
+    [
+      'MN034',
+      'Ese tesoro sigue en su moneda.',
+      'La moneda de un tesoro no se cambia. Si lo necesitás en la otra moneda, creá uno nuevo y pasá la plata con una compra o una venta.',
+    ],
+    [
+      'MN035',
+      'Entre pesos y dólares es una compra o una venta.',
+      'Un pase entre tesoros va en la misma moneda. Para pasar de pesos a dólares, cargalo como compra o venta de dólares.',
+    ],
+    ['MN036', 'La moneda ya no se cambia.', 'Un trabajo elige su moneda mientras es una consulta.'],
+    [
+      'MN037',
+      'Ese tesoro no recibe este pago.',
+      'Elegí un tesoro en dólares que no esté archivado.',
+    ],
+    ['MN038', 'Esto se armó con la app sin actualizar.', 'Volvé a cargarlo.'],
+    [
+      'MN039',
+      'Falta el dólar de un pago.',
+      'Un pago en pesos de un trabajo en dólares necesita a qué dólar se tomó. Abrí el trabajo y completalo.',
+    ],
+  ])('%s', (codigo, titulo, queHacer) => {
+    expect(traducirRechazo(deLaBase(codigo, 'lo que diga la base', 'y su hint'))).toEqual({
+      titulo,
+      queHacer,
+      codigo,
+    });
+  });
+});
+
+describe('los rechazos en los otros idiomas', () => {
+  afterEach(async () => {
+    await usarIdioma('es');
+  });
+
+  it('en inglés el trabajo va entre comillas y la frase es entera', async () => {
+    await usarIdioma('en');
+    expect(texto('MN002', { operacion: 'cobro', sujeto: 'Placard' })).toBe(
+      '“Placard” was deleted. You may have deleted it from another device. If you need it, add it again.',
+    );
+    expect(texto('MN007', { operacion: 'cobro' })).toBe(
+      "This job hasn't been delivered yet. You get paid for what you already delivered. Mark it as delivered, then mark it as paid.",
+    );
+  });
+
+  it('en portugués el sujeto lleva su sustantivo, así la frase no adivina el género del título', async () => {
+    await usarIdioma('pt-BR');
+    expect(texto('MN001', { operacion: 'proyecto', sujeto: 'Mesada', estado: 'perdido' })).toBe(
+      'O projeto “Mesada” está encerrado como perdido e os números dele foram fechados. Reative o orçamento, registre o que faltar e feche de novo: a divisão do sinal é refeita.',
+    );
+  });
+
+  it('un código que no se conoce sigue mostrando lo que dice la base', async () => {
+    await usarIdioma('en');
+    expect(traducirRechazo(deLaBase('23514', 'viola un check', ''))).toEqual({
+      titulo: 'viola un check',
+      queHacer: 'Try again, and if it keeps happening, report it.',
+      codigo: '23514',
+    });
   });
 });

@@ -1,5 +1,6 @@
 import type { Ensanchar } from '@/shared/lib';
 
+import { api } from './api';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
@@ -14,6 +15,7 @@ import { paginaAnalitico } from './paginaAnalitico';
 import { registrarMovimiento } from './registrarMovimiento';
 
 export const es = {
+  api,
   avanzarLaConsulta,
   comun,
   coordinarLaEntrega,

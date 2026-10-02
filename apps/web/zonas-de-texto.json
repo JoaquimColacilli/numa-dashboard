@@ -58,7 +58,6 @@
     "src/pages/recuperar/",
     "src/pages/tesoros/",
     "src/pages/vista-cliente/",
-    "src/shared/api/",
     "src/shared/config/",
     "src/shared/lib/telefono.ts",
     "src/shared/pdf/",
