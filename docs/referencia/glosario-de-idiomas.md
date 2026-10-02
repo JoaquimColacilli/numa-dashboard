@@ -276,6 +276,35 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Dejar de preguntarla / Volver a preguntarla | Stop asking it / Ask it again | Parar de perguntar / Voltar a perguntar | La encuesta |
 | Reseñas en Google / Pedir reseñas | Google reviews / Ask for reviews | Avaliações no Google / Pedir avaliações | Ajustes |
 | Categorías: Docencia, Changas, Servicios, Flete, Distribución, Apertura, Cubrir el mes, Gasto fijo | Teaching, Odd jobs, Utilities, Freight, Split, Starting balances, Covering the month, Fixed cost | Aulas, Bicos, Serviços, Frete, Divisão, Saldos iniciais, Cobertura do mês, Custo fixo | Los movimientos |
+| En qué anda / El camino de tu mueble / Lo que fue pasando | Where it stands / Your furniture, step by step / What's happened so far | Em que pé está / Seu móvel, passo a passo / O que já aconteceu | La página del cliente |
+| Lo que pagaste / Fotos y planos | What you've paid / Photos and drawings | O que você pagou / Fotos e desenhos | La página del cliente |
+| Seña para arrancar / Pagaste / Vale | Deposit to get started / You paid / Price | Sinal para começar / Você pagou / Valor | Las cifras de la página del cliente |
+| Te falta pagar / Está saldado / Falta el presupuesto | Left to pay / Paid in full / No quote yet | Falta pagar / Está quitado / Falta o orçamento | El saldo de la página del cliente |
+| A cuenta de la seña | Toward the deposit | Abatido do sinal | Lo pagado antes de aprobar |
+| Datos del trabajo / Empezamos / A confirmar / A coordinar | Job details / We started / To be confirmed / To be arranged | Dados do projeto / Começamos / A confirmar / A combinar | La página del cliente |
+| ¡Buenas noticias! Lo estamos entregando el … | Good news! We're delivering on … | Boa notícia! Vamos entregar em … | La entrega comprometida |
+| Coordinemos la entrega / Me queda bien / No puedo ese día | Let's set up the delivery / Works for me / That day doesn't work | Vamos combinar a entrega / Fica bom para mim / Não posso nesse dia | La entrega en la página del cliente |
+| Más trabajos del taller / El taller en las redes | More of our work / Find us on social media | Mais trabalhos nossos / Siga a gente nas redes | La vidriera |
+| Compartir con el cliente / Ver cómo lo ve él / Cómo te paga | Share with the client / See what your client sees / How your client pays | Compartilhar com o cliente / Ver como o cliente vê / Como o cliente paga | Compartir |
+| Mostrarle el código QR / Volver a empezar | Show them the QR code / Start over | Mostrar o código QR / Começar de novo | Compartir y la vista previa |
+| Conformidad: Nada / Poco conforme / Ni bien ni mal / Conforme / Muy conforme | Not satisfied at all / Not very satisfied / Neither good nor bad / Satisfied / Very satisfied | Não gostei nada / Gostei pouco / Nem bem nem mal / Gostei / Gostei muito | La encuesta |
+| Tiempos: Llegó muy tarde / Se atrasó / Más o menos a tiempo / Llegó cuando dijeron / Llegó antes | It arrived very late / It was delayed / More or less on time / It arrived when promised / It arrived earlier than agreed | Chegou com muito atraso / Atrasou / Mais ou menos no prazo / Chegou no prazo combinado / Chegou antes do combinado | La encuesta |
+| Trato: Costaba mucho / Costaba un poco / Ni bien ni mal / Fácil / Muy fácil | Really hard / A bit hard / Neither good nor bad / Easy / Very easy | Foi muito difícil / Foi um pouco difícil / Nem bem nem mal / Fácil / Muito fácil | La encuesta |
+| Sí, sin dudarlo / Tal vez / No | Yes, absolutely / Maybe / No | Sim, com certeza / Talvez / Não | La encuesta |
+| Tipos de pregunta: Escala de cinco / Una sola opción / Varias opciones / Texto libre | Five-point scale / Single choice / Multiple choice / Free text | Escala de cinco / Uma opção só / Várias opções / Texto livre | El editor de la encuesta |
+| Mandar mi opinión / Dejar una reseña | Send my feedback / Leave a review | Enviar minha opinião / Deixar uma avaliação | La encuesta |
+| Pedírsela por WhatsApp / Recordárselo una vez / Copiar el enlace | Ask via WhatsApp / Remind them once / Copy link | Pedir pelo WhatsApp / Lembrar uma vez / Copiar link | Pedir la opinión |
+| contestada / sin contestar | answered / no answer yet | respondida / sem resposta | Pedir la opinión |
+| Muebles a medida / Pregunta propia de este trabajo | Custom furniture / Custom question for this job | Móveis sob medida / Pergunta própria deste projeto | La encuesta |
+| Valores / A tener en cuenta / Incluye (secciones del presupuesto) | Prices / Good to know / What's included | Valores / Observações / Incluso | El presupuesto y el PDF |
+| Seña a abonar / Acordado al aprobar | Deposit due / Agreed on approval | Sinal a pagar / Acordado na aprovação | El presupuesto y el PDF |
+| Relevamiento técnico y diseño 3D ya abonado | Site measure and 3D design already paid | Visita técnica e projeto 3D já pagos | El presupuesto |
+| Obra / Trabajo (en el rótulo) | Job site / Job | Obra / Projeto | El rótulo del PDF |
+| Escribirle al taller / Sin venc. | Message the shop / No expiry | Falar com a marcenaria / Sem venc. | El presupuesto y el rótulo |
+| La aclaración de la leyenda de ARCA | Not valid as an invoice. | Não é válido como nota fiscal. | El pie del PDF |
+| Descuenta … del precio / Para el reparto vale … | Covers … of the price / Counts as … for the split | Abate … do preço / Vale … na divisão | La ficha y la fila de un pago |
+| Dólar (el campo) / Del día / MEP / Blue | Dollar rate / Today / MEP / Blue | Dólar / Do dia / MEP / Blue | El campo del dólar |
+| Tu cuenta en dólares / Dólar del día | Your US dollar account / Today's dollar rate | Sua conta em dólares / Dólar do dia | Ajustes, Cómo te pagan |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del
@@ -283,4 +312,9 @@ menú de Mercado Pago («Cobrar», «Link de pago», «Link sin monto definido»
 los muestra esa app; «Responsable inscripto» (Registered VAT taxpayer / Contribuinte inscrito no IVA), «Exento» (VAT-exempt /
 Isento de IVA), «Factura A/B/C» y «Remito» (Delivery note / Nota de entrega); «Diseñar / Despiezar / Cotizar» (Design / Make the
 cut list / Price the materials); «Escritura y sellos» (Deed and stamp tax / Escritura e impostos); «Venta de sobrantes» (Leftover
-sales); «huella» en un iPhone, donde es Face ID; «mueble» como «piece» en el editor del presupuesto.
+sales); «huella» en un iPhone, donde es Face ID; «mueble» como «piece» en el editor del presupuesto; «Where it stands» / «Em que pé
+está»; «Toward the deposit» / «Abatido do sinal»; «Price» / «Valor» para «Vale»; «That day doesn't work»; «Find us on social
+media» / «Siga a gente nas redes»; la conformidad en portugués con «Gostei…», que evita el género de «satisfeito/a»; «So-so» para
+«Así nomás»; «It arrived when promised»; «Obrigado», que lleva el género de quien habla; «Prices» para «Valores»
+(«Pricing» sería la otra); «Validity» como título y «Valid for» en el rótulo; «Incluso» como título de sección;
+«Instalação de eletrodomésticos não inclusa».
