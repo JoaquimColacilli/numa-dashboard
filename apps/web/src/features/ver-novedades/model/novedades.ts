@@ -14,7 +14,31 @@ export interface NovedadDeAntes {
 
 export type Novedad = NovedadEnLosTresIdiomas | NovedadDeAntes;
 
-export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [];
+export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [
+  {
+    version: '2026-10-02',
+    lineas: {
+      es: [
+        'Ahora podés tener tesoros en dólares. Cargás cada compra o venta con lo que pagaste y lo que recibiste, y la app te dice a cuánto te quedó el dólar.',
+        'Cada trabajo puede ir en dólares: elegís si tu cliente ve el precio en pesos o en dólares, y si te paga en pesos, en dólares o en las dos.',
+        'Lo que te pagan en dólares entra a tu tesoro en dólares, y el reparto del cobro sigue en pesos. Si al cobrar Maun queda en negativo, la app te avisa antes.',
+        'La app ya se puede usar en inglés y en portugués. Lo elegís en Ajustes, y ahí también elegís en qué idioma ven tus clientes su página y el presupuesto.',
+      ],
+      en: [
+        'You can now keep buckets in dollars. Enter each purchase or sale with what you paid and what you got, and the app shows you the rate it came to.',
+        'Any job can be in dollars: you choose whether your client sees the price in pesos or in dollars, and whether they pay you in pesos, in dollars or in both.',
+        'What you get paid in dollars goes into your dollar bucket, and the split of each payment stays in pesos. If collecting would leave Maun in the red, the app warns you first.',
+        'You can now use the app in English and in Portuguese. Pick it in Settings, where you also choose the language your clients see their page and quote in.',
+      ],
+      'pt-BR': [
+        'Agora você pode ter caixinhas em dólares. Você registra cada compra ou venda com o que pagou e o que recebeu, e o app mostra a quanto saiu o dólar.',
+        'Cada projeto pode ser em dólares: você escolhe se o cliente vê o preço em pesos ou em dólares, e se ele te paga em pesos, em dólares ou nos dois.',
+        'O que você recebe em dólares entra na sua caixinha em dólares, e a divisão do recebimento continua em pesos. Se ao receber o Maun ficar no vermelho, o app avisa antes.',
+        'Agora dá para usar o app em inglês e em português. Você escolhe em Configurações, e lá também escolhe em que idioma seus clientes veem a página deles e o orçamento.',
+      ],
+    },
+  },
+];
 
 export const NOVEDADES_DE_ANTES: readonly NovedadDeAntes[] = [
   {
