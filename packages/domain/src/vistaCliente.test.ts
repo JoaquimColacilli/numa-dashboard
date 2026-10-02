@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DIAS_HABILES_DE_ENTREGA, entregaEstimada, sumarDias, sumarDiasHabiles } from './fechas.ts';
+import type { Idioma } from './idioma.ts';
 import { centavos, puntosBasicos, type Money } from './money.ts';
 import type { FormaDeCobro } from './pagos.ts';
 import {
@@ -38,6 +39,7 @@ import {
   type HitoDelTrabajo,
   type PagoDelCliente,
   type PagoPendiente,
+  type PresupuestoDelTrabajo,
   type PropuestaDeEntrega,
   type RespuestaDelCliente,
   type TitularDeLaVista,
@@ -2832,6 +2834,8 @@ function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
     {
       plata: (importe) => `$${String(importe / 100)}`,
       porcentaje: (puntos) => String(puntos / 100),
+      modificaciones: (cantidad) => `${String(cantidad)} modificaciones`,
+      meses: (cantidad) => `${String(cantidad)} meses`,
     },
   );
 }
@@ -2878,13 +2882,11 @@ describe('el presupuesto en la página del cliente', () => {
       etapa: 'mandado',
       numero: '20260826-01',
       revision: 2,
-      numeroVisible: 'Nº 20260826-01 · Rev. 2',
+      idioma: 'es',
       mandadoEl: '2026-09-02',
       queCambio: 'Pasamos la alacena a Gris Grafito.',
       valeHasta: VALE_HASTA,
       vencio: null,
-      mensajeParaElTaller: 'Hola, te escribo por el presupuesto Nº 20260826-01 Rev. 2.',
-      nombreDelArchivo: 'Presupuesto 20260826-01 Rev 2 - Paula Benítez.pdf',
       pideLaSena: true,
     });
     expect(vista.elPresupuesto?.documento.abonado).toBe(RELEVAMIENTO);
@@ -2905,11 +2907,20 @@ describe('el presupuesto en la página del cliente', () => {
 
   it('la primera revisión no dice qué cambió', () => {
     const vista = esperandoLaSena(vistaDelCliente(mandado({}, 1), HOY));
-    expect(vista.elPresupuesto).toMatchObject({
-      numeroVisible: 'Nº 20260826-01',
-      queCambio: null,
-      nombreDelArchivo: 'Presupuesto 20260826-01 - Paula Benítez.pdf',
+    expect(vista.elPresupuesto).toMatchObject({ revision: 1, queCambio: null });
+  });
+
+  it('el presupuesto va en el idioma de su revisión, aunque los clientes ya lean en otro', () => {
+    const base = mandado();
+    const enIngles = mandado({
+      idioma: 'pt-BR',
+      presupuesto: { ...(base.presupuesto as PresupuestoDelTrabajo), idioma: 'en' },
     });
+    expect(esperandoLaSena(vistaDelCliente(enIngles, HOY)).elPresupuesto?.idioma).toBe('en');
+    const deAntes = mandado({
+      presupuesto: { ...(base.presupuesto as PresupuestoDelTrabajo), idioma: 'fr' as Idioma },
+    });
+    expect(esperandoLaSena(vistaDelCliente(deAntes, HOY)).elPresupuesto?.idioma).toBe('es');
   });
 
   it('con la seña ya cubierta no la pide', () => {
@@ -3013,7 +3024,9 @@ describe('el presupuesto en la página del cliente', () => {
       aceptadoEl: '2026-09-04',
       letra: 'A',
       acordado: null,
-      numeroVisible: 'Nº 20260826-01 · Rev. 2',
+      numero: '20260826-01',
+      revision: 2,
+      idioma: 'es',
     });
     expect(vista.elPresupuesto?.cuentas).toHaveLength(1);
   });

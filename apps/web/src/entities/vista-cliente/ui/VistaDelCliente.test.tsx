@@ -1007,6 +1007,8 @@ const EN_CASTELLANO = formatosDelCliente('es');
 const FORMATOS: Formatos = {
   plata: (importe) => EN_CASTELLANO.pesos(importe),
   porcentaje: EN_CASTELLANO.porcentaje,
+  modificaciones: MENSAJES_DEL_CLIENTE_EN_CASTELLANO.documento.modificaciones,
+  meses: MENSAJES_DEL_CLIENTE_EN_CASTELLANO.documento.meses,
 };
 
 const TALLER: DatosDelTaller = {

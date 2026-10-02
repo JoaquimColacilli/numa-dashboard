@@ -48,6 +48,9 @@ const DOCUMENTO = documentoDelPresupuesto(
   {
     plata: (importe) => `$ ${String(importe / 100)}`,
     porcentaje: (puntos) => String(puntos / 100),
+    modificaciones: (cantidad) =>
+      `${String(cantidad)} ${cantidad === 1 ? 'modificación' : 'modificaciones'}`,
+    meses: (cantidad) => `${String(cantidad)} ${cantidad === 1 ? 'mes' : 'meses'}`,
   },
 );
 

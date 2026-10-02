@@ -28,10 +28,13 @@ import {
   monedaDeLoAbonado,
   monedaDeLoAbonadoDelDocumento,
   monedaDelDocumento,
+  MOTIVOS_DE_LO_QUE_FALTA,
   NOMBRE_DE_LA_CONDICION,
   nombreDelArchivo,
   numeroVisible,
   PLANTILLA_DE_SIEMPRE,
+  PLANTILLAS_DE_SIEMPRE,
+  plantillaDeSiempre,
   plantillaDelTaller,
   plazoDelPresupuesto,
   problemaDeLaPlantilla,
@@ -41,7 +44,6 @@ import {
   recortado,
   resumenDeLosValores,
   soloLaAceptada,
-  TEXTOS_DE_LO_QUE_FALTA,
   textoDeLaForma,
   textoDeLaGarantia,
   tildadasPorDefecto,
@@ -50,17 +52,49 @@ import {
   usaElHueco,
   valoresDelTrabajo,
   type BorradorDelPresupuesto,
+  type Clausula,
   type DatosDelTaller,
   type DocumentoDelPresupuesto,
   type EntradaDelDocumento,
   type Formatos,
+  type FrasesDelNumero,
   type PlantillaDelPresupuesto,
 } from './presupuesto.ts';
 import { calcularSena } from './sena.ts';
 
+function conSuPlural(cantidad: number, singular: string, plural: string): string {
+  return `${String(cantidad)} ${cantidad === 1 ? singular : plural}`;
+}
+
 const FORMATOS: Formatos = {
   plata: (importe, moneda) => `${moneda === 'USD' ? 'US$' : '$'}${String(importe / 100)}`,
   porcentaje: (puntos) => String(puntos / 100),
+  modificaciones: (cantidad) => conSuPlural(cantidad, 'modificación', 'modificaciones'),
+  meses: (cantidad) => conSuPlural(cantidad, 'mes', 'meses'),
+};
+
+const DEL_NUMERO: FrasesDelNumero = {
+  sinNumero: 'Sin número todavía',
+  numero: (numero) => `Nº ${numero}`,
+  conRevision: (numero, revision) => `Nº ${numero} · Rev. ${String(revision)}`,
+};
+
+const DEL_ARCHIVO: FrasesDelNumero = {
+  sinNumero: 'Presupuesto (borrador)',
+  numero: (numero) => `Presupuesto ${numero}`,
+  conRevision: (numero, revision) => `Presupuesto ${numero} Rev ${String(revision)}`,
+};
+
+const DEL_TITULO: FrasesDelNumero = {
+  sinNumero: 'Presupuesto (borrador)',
+  numero: (numero) => `Presupuesto ${numero}`,
+  conRevision: (numero, revision) => `Presupuesto ${numero} · Rev. ${String(revision)}`,
+};
+
+const DEL_MENSAJE: Omit<FrasesDelNumero, 'sinNumero'> = {
+  numero: (numero) => `Hola, te escribo por el presupuesto Nº ${numero}.`,
+  conRevision: (numero, revision) =>
+    `Hola, te escribo por el presupuesto Nº ${numero} Rev. ${String(revision)}.`,
 };
 
 const pesos = (importe: number): string => FORMATOS.plata(centavos(importe), 'ARS');
@@ -223,7 +257,7 @@ describe('la plantilla de siempre', () => {
 
   it('pasa su propia validación y se lee igual', () => {
     expect(problemaDeLaPlantilla(PLANTILLA_DE_SIEMPRE)).toBeNull();
-    expect(leerPlantilla(copia(PLANTILLA_DE_SIEMPRE))).toEqual(PLANTILLA_DE_SIEMPRE);
+    expect(leerPlantilla(copia(PLANTILLA_DE_SIEMPRE), 'es')).toEqual(PLANTILLA_DE_SIEMPRE);
   });
 
   it('las condiciones fiscales tienen su nombre para el documento', () => {
@@ -231,10 +265,82 @@ describe('la plantilla de siempre', () => {
   });
 });
 
+describe('la plantilla de siempre en cada idioma', () => {
+  function forma(plantilla: PlantillaDelPresupuesto) {
+    const ids = (clausulas: readonly Clausula[]) =>
+      clausulas.map(({ id, titulo, tildadaPorDefecto }) => [
+        id,
+        titulo === null,
+        tildadaPorDefecto,
+      ]);
+    return {
+      numeros: [
+        plantilla.plazoDeFabricacion,
+        plantilla.modificacionesIncluidas,
+        plantilla.valorDeUnaModificacion,
+        plantilla.monedaDeLaModificacion,
+        plantilla.garantiaMeses,
+      ],
+      incluye: ids(plantilla.incluye),
+      aTenerEnCuenta: ids(plantilla.aTenerEnCuenta),
+      avisos: ids(plantilla.avisos),
+      condiciones: ids(plantilla.condiciones),
+      formas: plantilla.formasDePago.map(({ id }) => id),
+    };
+  }
+
+  it('la castellana es la de siempre, los textos de Eliseo', () => {
+    expect(plantillaDeSiempre('es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(PLANTILLAS_DE_SIEMPRE.es).toBe(PLANTILLA_DE_SIEMPRE);
+  });
+
+  it.each(['en', 'pt-BR'] as const)(
+    'en %s tiene los mismos números, ids y tildes, con sus propios textos',
+    (idioma) => {
+      const traducida = plantillaDeSiempre(idioma);
+      expect(problemaDeLaPlantilla(traducida)).toBeNull();
+      expect(forma(traducida)).toEqual(forma(PLANTILLA_DE_SIEMPRE));
+      expect(traducida.garantia).not.toBe(PLANTILLA_DE_SIEMPRE.garantia);
+      expect(traducida.clausulasDeLaMoneda.dolaresEnPesos).toContain(
+        'Banco de la Nación Argentina',
+      );
+      const textos = [
+        ...[
+          ...traducida.incluye,
+          ...traducida.aTenerEnCuenta,
+          ...traducida.avisos,
+          ...traducida.condiciones,
+        ].map(({ texto }) => texto),
+        ...traducida.formasDePago.map(({ texto }) => texto),
+        traducida.garantia,
+      ];
+      const huecos = (texto: string) => texto.match(/\{[a-z_]+\}/g) ?? [];
+      const deSiempre = [
+        ...[
+          ...PLANTILLA_DE_SIEMPRE.incluye,
+          ...PLANTILLA_DE_SIEMPRE.aTenerEnCuenta,
+          ...PLANTILLA_DE_SIEMPRE.avisos,
+          ...PLANTILLA_DE_SIEMPRE.condiciones,
+        ].map(({ texto }) => texto),
+        ...PLANTILLA_DE_SIEMPRE.formasDePago.map(({ texto }) => texto),
+        PLANTILLA_DE_SIEMPRE.garantia,
+      ];
+      expect(textos.map(huecos)).toEqual(deSiempre.map(huecos));
+    },
+  );
+});
+
 describe('la plantilla del taller', () => {
-  it('sin plantilla guardada, es la de siempre', () => {
-    expect(plantillaDelTaller(null)).toBe(PLANTILLA_DE_SIEMPRE);
-    expect(plantillaDelTaller({ forma: 2 })).toBe(PLANTILLA_DE_SIEMPRE);
+  it('sin plantilla guardada, es la de siempre en el idioma de los clientes', () => {
+    expect(plantillaDelTaller(null, 'es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller({ forma: 2 }, 'es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller(null, 'en')).toBe(PLANTILLAS_DE_SIEMPRE.en);
+    expect(plantillaDelTaller(null, 'pt-BR')).toBe(PLANTILLAS_DE_SIEMPRE['pt-BR']);
+  });
+
+  it('una guardada es del dueño: no cambia con el idioma de los clientes', () => {
+    const guardada = copia(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller(guardada, 'en')).toEqual(PLANTILLA_DE_SIEMPRE);
   });
 
   it('con una guardada, se lee: un título vacío es sin título', () => {
@@ -243,7 +349,7 @@ describe('la plantilla del taller', () => {
     guardada.avisos = [
       { id: 'aviso-agenda', titulo: '', texto: 'Reservamos la fecha.', tildadaPorDefecto: true },
     ];
-    const leida = plantillaDelTaller(guardada);
+    const leida = plantillaDelTaller(guardada, 'es');
     expect(leida.plazoDeFabricacion).toBe(35);
     expect(leida.avisos).toEqual([
       { id: 'aviso-agenda', titulo: null, texto: 'Reservamos la fecha.', tildadaPorDefecto: true },
@@ -253,7 +359,7 @@ describe('la plantilla del taller', () => {
   it('una cláusula sin la clave del título se lee sin título', () => {
     const guardada = copia(PLANTILLA_DE_SIEMPRE);
     guardada.incluye = [{ id: 'uno', texto: 'Traslados.', tildadaPorDefecto: true }];
-    expect(leerPlantilla(guardada)?.incluye[0]?.titulo).toBeNull();
+    expect(leerPlantilla(guardada, 'es')?.incluye[0]?.titulo).toBeNull();
   });
 });
 
@@ -416,7 +522,7 @@ describe('problemaDeLaPlantilla', () => {
   });
 
   it('una plantilla que no se puede guardar no se lee', () => {
-    expect(leerPlantilla(conCambios({ garantia: '' }))).toBeNull();
+    expect(leerPlantilla(conCambios({ garantia: '' }), 'es')).toBeNull();
   });
 
   it('la moneda de la modificación es una de la lista, y sin ella es la del taller', () => {
@@ -427,9 +533,12 @@ describe('problemaDeLaPlantilla', () => {
     const sinMoneda = copia(PLANTILLA_DE_SIEMPRE);
     delete sinMoneda.monedaDeLaModificacion;
     expect(problemaDeLaPlantilla(sinMoneda)).toBeNull();
-    expect(leerPlantilla(sinMoneda)?.monedaDeLaModificacion).toBe('ARS');
+    expect(leerPlantilla(sinMoneda, 'es')?.monedaDeLaModificacion).toBe('ARS');
     expect(
-      leerPlantilla(conCambios({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 })),
+      leerPlantilla(
+        conCambios({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 }),
+        'es',
+      ),
     ).toMatchObject({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 });
   });
 
@@ -458,12 +567,15 @@ describe('problemaDeLaPlantilla', () => {
     const sinClausulas = copia(PLANTILLA_DE_SIEMPRE);
     delete sinClausulas.clausulasDeLaMoneda;
     expect(problemaDeLaPlantilla(sinClausulas)).toBeNull();
-    expect(leerPlantilla(sinClausulas)?.clausulasDeLaMoneda).toEqual(
+    expect(leerPlantilla(sinClausulas, 'es')?.clausulasDeLaMoneda).toEqual(
       CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
+    );
+    expect(leerPlantilla(sinClausulas, 'en')?.clausulasDeLaMoneda).toEqual(
+      plantillaDeSiempre('en').clausulasDeLaMoneda,
     );
     const propias = { ...CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE, dolaresEnPesos: 'Al dólar MEP.' };
     expect(
-      leerPlantilla(conCambios({ clausulasDeLaMoneda: { ...propias, extra: 'x' } }))
+      leerPlantilla(conCambios({ clausulasDeLaMoneda: { ...propias, extra: 'x' } }), 'pt-BR')
         ?.clausulasDeLaMoneda,
     ).toEqual(propias);
   });
@@ -669,9 +781,33 @@ describe('los huecos', () => {
   });
 
   it('la garantía dice sus meses', () => {
-    expect(textoDeLaGarantia(PLANTILLA_DE_SIEMPRE)).toMatch(
+    expect(textoDeLaGarantia(PLANTILLA_DE_SIEMPRE, FORMATOS)).toMatch(
       /^Garantía de 6 meses desde la entrega/,
     );
+  });
+
+  it('los meses y las modificaciones los escribe el idioma del documento', () => {
+    const enIngles: Formatos = {
+      ...FORMATOS,
+      modificaciones: (cantidad) => `${String(cantidad)} modifications`,
+      meses: (cantidad) => `${String(cantidad)} months`,
+    };
+    expect(textoDeLaGarantia(plantillaDeSiempre('en'), enIngles)).toMatch(
+      /^Warranty for 6 months from delivery/,
+    );
+    expect(
+      huecosDelPresupuesto(
+        {
+          plazoDeFabricacion: 30,
+          plantilla: PLANTILLA_DE_SIEMPRE,
+          modificacion: null,
+          abonado: RELEVAMIENTO,
+          monedaDeLoAbonado: 'ARS',
+          senaBp: SENA_BP,
+        },
+        enIngles,
+      ),
+    ).toMatchObject({ modificaciones: '2 modifications', meses: '6 months' });
   });
 });
 
@@ -959,44 +1095,44 @@ describe('el plazo del presupuesto', () => {
 
 describe('el número y el archivo', () => {
   it('el número visible lleva la revisión desde la segunda', () => {
-    expect(numeroVisible(null, 1)).toBe('Sin número todavía');
-    expect(numeroVisible('20260826-01', 1)).toBe('Nº 20260826-01');
-    expect(numeroVisible('20260826-01', 2)).toBe('Nº 20260826-01 · Rev. 2');
+    expect(numeroVisible(null, 1, DEL_NUMERO)).toBe('Sin número todavía');
+    expect(numeroVisible('20260826-01', 1, DEL_NUMERO)).toBe('Nº 20260826-01');
+    expect(numeroVisible('20260826-01', 2, DEL_NUMERO)).toBe('Nº 20260826-01 · Rev. 2');
   });
 
   it('el nombre del archivo lleva el número, la revisión y el cliente', () => {
     const conCliente = { cliente: 'Paula Benítez' };
-    expect(nombreDelArchivo(conCliente, '20260826-01', 1)).toBe(
+    expect(nombreDelArchivo(conCliente, '20260826-01', 1, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01 - Paula Benítez.pdf',
     );
-    expect(nombreDelArchivo(conCliente, '20260826-01', 2)).toBe(
+    expect(nombreDelArchivo(conCliente, '20260826-01', 2, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01 Rev 2 - Paula Benítez.pdf',
     );
-    expect(nombreDelArchivo(conCliente, null, 1)).toBe(
+    expect(nombreDelArchivo(conCliente, null, 1, DEL_ARCHIVO)).toBe(
       'Presupuesto (borrador) - Paula Benítez.pdf',
     );
   });
 
   it('sin caracteres que un sistema no deja en un nombre de archivo', () => {
-    expect(nombreDelArchivo({ cliente: 'Ana/Luis: "Casa"*?<>|\\\u0007' }, '20260826-01', 1)).toBe(
-      'Presupuesto 20260826-01 - Ana Luis Casa.pdf',
-    );
-    expect(nombreDelArchivo({ cliente: ' / ' }, '20260826-01', 1)).toBe(
+    expect(
+      nombreDelArchivo({ cliente: 'Ana/Luis: "Casa"*?<>|\\\u0007' }, '20260826-01', 1, DEL_ARCHIVO),
+    ).toBe('Presupuesto 20260826-01 - Ana Luis Casa.pdf');
+    expect(nombreDelArchivo({ cliente: ' / ' }, '20260826-01', 1, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01.pdf',
     );
   });
 
   it('el título del archivo, como el pie del documento', () => {
-    expect(tituloDelArchivo(null, 1)).toBe('Presupuesto (borrador)');
-    expect(tituloDelArchivo('20260826-01', 1)).toBe('Presupuesto 20260826-01');
-    expect(tituloDelArchivo('20260826-01', 2)).toBe('Presupuesto 20260826-01 · Rev. 2');
+    expect(tituloDelArchivo(null, 1, DEL_TITULO)).toBe('Presupuesto (borrador)');
+    expect(tituloDelArchivo('20260826-01', 1, DEL_TITULO)).toBe('Presupuesto 20260826-01');
+    expect(tituloDelArchivo('20260826-01', 2, DEL_TITULO)).toBe('Presupuesto 20260826-01 · Rev. 2');
   });
 
   it('el mensaje para escribirle al taller nombra el presupuesto', () => {
-    expect(mensajeParaElTaller('20260826-01', 1)).toBe(
+    expect(mensajeParaElTaller('20260826-01', 1, DEL_MENSAJE)).toBe(
       'Hola, te escribo por el presupuesto Nº 20260826-01.',
     );
-    expect(mensajeParaElTaller('20260826-01', 3)).toBe(
+    expect(mensajeParaElTaller('20260826-01', 3, DEL_MENSAJE)).toBe(
       'Hola, te escribo por el presupuesto Nº 20260826-01 Rev. 3.',
     );
   });
@@ -1030,40 +1166,52 @@ describe('problemasParaMandar', () => {
       valores: null,
     });
     expect(problemasParaMandar(vacio, 2, '  ')).toEqual([
-      { campo: 'titulo', texto: TEXTOS_DE_LO_QUE_FALTA.titulo },
-      { campo: 'muebles', texto: TEXTOS_DE_LO_QUE_FALTA.muebles },
-      { campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.total },
-      { campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambio },
+      { campo: 'titulo', motivo: 'titulo' },
+      { campo: 'muebles', motivo: 'muebles' },
+      { campo: 'valores', motivo: 'total' },
+      { campo: 'queCambio', motivo: 'queCambio' },
     ]);
   });
 
   it('un total en cero falta; con opciones, cada una necesita su importe', () => {
     expect(
       problemasParaMandar(documento({ valores: { tipo: 'total', total: centavos(0) } }), 1, ''),
-    ).toEqual([{ campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.total }]);
+    ).toEqual([{ campo: 'valores', motivo: 'total' }]);
     const conUnaEnCero = valoresDelTrabajo(null, [OPCION_A, { ...OPCION_B, monto: centavos(0) }]);
     expect(problemasParaMandar(documento({ valores: conUnaEnCero }), 1, '')).toEqual([
-      { campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.opciones },
+      { campo: 'valores', motivo: 'opciones' },
     ]);
     expect(
       problemasParaMandar(documento({ valores: { tipo: 'opciones', opciones: [] } }), 1, ''),
-    ).toEqual([{ campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.opciones }]);
+    ).toEqual([{ campo: 'valores', motivo: 'opciones' }]);
   });
 
   it('desde la segunda revisión pide qué cambió, en 280 caracteres como mucho', () => {
     expect(problemasParaMandar(documento(), 2, 'Cambió el color.')).toEqual([]);
     expect(problemasParaMandar(documento(), 2, ` ${textoDe(280, 'é')} `)).toEqual([]);
     expect(problemasParaMandar(documento(), 2, textoDe(281))).toEqual([
-      { campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambioLargo },
+      { campo: 'queCambio', motivo: 'queCambioLargo' },
+    ]);
+  });
+
+  it('dice el motivo con un código: el texto lo escribe la app en el idioma del dueño', () => {
+    expect(MOTIVOS_DE_LO_QUE_FALTA).toEqual([
+      'titulo',
+      'muebles',
+      'total',
+      'opciones',
+      'queCambio',
+      'queCambioLargo',
     ]);
   });
 });
 
 describe('resumenDeLosValores y abonadoEn', () => {
   it('resume el total o las opciones', () => {
-    expect(resumenDeLosValores(null, pesos)).toBeNull();
-    expect(resumenDeLosValores({ tipo: 'total', total: TOTAL }, pesos)).toBe('$2181000');
-    expect(resumenDeLosValores(valoresDelTrabajo(null, [OPCION_A, OPCION_B]), pesos)).toBe(
+    const opcion = (letra: string, importe: string) => `Opción ${letra} ${importe}`;
+    expect(resumenDeLosValores(null, pesos, opcion)).toBeNull();
+    expect(resumenDeLosValores({ tipo: 'total', total: TOTAL }, pesos, opcion)).toBe('$2181000');
+    expect(resumenDeLosValores(valoresDelTrabajo(null, [OPCION_A, OPCION_B]), pesos, opcion)).toBe(
       'Opción A $2181000 · Opción B $2740000',
     );
   });

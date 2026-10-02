@@ -1,4 +1,9 @@
-import { CONDICIONES_FISCALES, formatearCuit, NOMBRE_DE_LA_CONDICION } from '@maun/domain';
+import {
+  CONDICIONES_FISCALES,
+  formatearCuit,
+  NOMBRE_DE_LA_CONDICION,
+  type Idioma,
+} from '@maun/domain';
 import { useId, useState, type ReactNode } from 'react';
 
 import { useMensajes } from '@/shared/idioma';
@@ -14,14 +19,22 @@ import {
 import { CabeceraDelDocumento } from './CabeceraDelDocumento';
 import { EnTramos } from './piezas';
 
-function Membrete({ nombre, datos }: { nombre: string; datos: DatosEditables }) {
+function Membrete({
+  nombre,
+  idioma,
+  datos,
+}: {
+  nombre: string;
+  idioma: Idioma;
+  datos: DatosEditables;
+}) {
   const m = useMensajes().configurarTaller.presupuesto.datos;
   const { renglones } = encabezadoDelPresupuesto(datos);
   return (
     <figure className="flex flex-col gap-2">
       <figcaption className="text-label text-text-2">{m.asiSale}</figcaption>
       <div className="flex flex-col gap-3 rounded-field bg-surface px-4 pt-3.5 pb-4 @container/membrete">
-        <CabeceraDelDocumento nombre={nombre} />
+        <CabeceraDelDocumento nombre={nombre} idioma={idioma} />
         {renglones.length === 0 ? (
           <p className="text-label leading-relaxed text-text-3">{m.vacio}</p>
         ) : (
@@ -75,6 +88,7 @@ function UsarElCobro({ cobro, alUsar }: { cobro: DatosDeCobroParaUsar; alUsar: (
 
 export interface DatosDelPresupuestoProps {
   nombre: string;
+  idioma: Idioma;
   datos: DatosEditables;
   cobro: DatosDeCobroParaUsar | null;
   problemas: Readonly<Record<string, string>>;
@@ -83,6 +97,7 @@ export interface DatosDelPresupuestoProps {
 
 export function DatosDelPresupuesto({
   nombre,
+  idioma,
   datos,
   cobro,
   problemas,
@@ -100,7 +115,7 @@ export function DatosDelPresupuesto({
   if (!abiertos && !conProblemas) {
     return (
       <>
-        <Membrete nombre={nombre} datos={datos} />
+        <Membrete nombre={nombre} idioma={idioma} datos={datos} />
         <Button
           variant="secundario"
           size="chico"
@@ -118,7 +133,7 @@ export function DatosDelPresupuesto({
 
   return (
     <>
-      <Membrete nombre={nombre} datos={datos} />
+      <Membrete nombre={nombre} idioma={idioma} datos={datos} />
       {vacios && cobro !== null && (
         <UsarElCobro
           cobro={cobro}

@@ -1,6 +1,8 @@
 import { nombreDelArchivo, tituloDelArchivo } from '@maun/domain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { cargarMensajesDelCliente, mensajesDelClienteListos } from '@/shared/idioma-del-cliente';
+
 import {
   compartirElArchivo,
   descargarElArchivo,
@@ -27,11 +29,6 @@ export interface OpcionesDelPdf {
   alAbrir?: boolean;
   generar?: (presupuesto: PresupuestoEnPdf) => Promise<Blob>;
 }
-
-export const PREPARANDO_EL_PDF = 'Preparando el PDF…';
-
-export const NO_SE_PUDO_ARMAR_EL_PDF =
-  'No pudimos armar el PDF. Tocá de nuevo para probar otra vez.';
 
 export const DEMORA_PARA_PREPARAR_MS = 700;
 
@@ -64,8 +61,8 @@ function pedir(
   if (guardado !== undefined) return Promise.resolve(guardado);
   const yaPedido = enCamino.get(firma);
   if (yaPedido !== undefined) return yaPedido;
-  const pedido = generar(presupuesto)
-    .then((archivo) => {
+  const pedido = Promise.all([generar(presupuesto), cargarMensajesDelCliente(presupuesto.idioma)])
+    .then(([archivo]) => {
       guardar(firma, archivo);
       return archivo;
     })
@@ -77,15 +74,24 @@ function pedir(
 }
 
 function nombreDe(presupuesto: PresupuestoEnPdf): string {
+  const m = mensajesDelClienteListos(presupuesto.idioma);
+  if (m === undefined) return '';
   return nombreDelArchivo(
     presupuesto.documento,
     presupuesto.borrador ? null : presupuesto.numero,
     presupuesto.revision,
+    m.pdf.archivo,
   );
 }
 
 function tituloDe(presupuesto: PresupuestoEnPdf): string {
-  return tituloDelArchivo(presupuesto.borrador ? null : presupuesto.numero, presupuesto.revision);
+  const m = mensajesDelClienteListos(presupuesto.idioma);
+  if (m === undefined) return '';
+  return tituloDelArchivo(
+    presupuesto.borrador ? null : presupuesto.numero,
+    presupuesto.revision,
+    m.pdf.titulo,
+  );
 }
 
 function archivoDe(archivo: Blob, presupuesto: PresupuestoEnPdf): File {

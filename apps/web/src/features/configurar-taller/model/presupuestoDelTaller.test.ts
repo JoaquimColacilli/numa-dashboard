@@ -1,4 +1,9 @@
-import { centavos, PLANTILLA_DE_SIEMPRE, type PlantillaDelPresupuesto } from '@maun/domain';
+import {
+  centavos,
+  PLANTILLA_DE_SIEMPRE,
+  plantillaDeSiempre,
+  type PlantillaDelPresupuesto,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { FilaDe, Json } from '@/shared/api';
@@ -61,6 +66,9 @@ describe('lo guardado en los ajustes', () => {
     expect(plantillaDeLosAjustes(AJUSTES)).toBe(PLANTILLA_DE_SIEMPRE);
     expect(plantillaDeLosAjustes(ajustes({ plantilla_del_presupuesto: { forma: 2 } }))).toBe(
       PLANTILLA_DE_SIEMPRE,
+    );
+    expect(plantillaDeLosAjustes(ajustes({ idioma_de_los_clientes: 'pt-BR' }))).toBe(
+      plantillaDeSiempre('pt-BR'),
     );
     const propia: PlantillaDelPresupuesto = { ...PLANTILLA_DE_SIEMPRE, plazoDeFabricacion: 35 };
     expect(
@@ -126,6 +134,21 @@ describe('los datos que se completan solos', () => {
         ajustes({ relevamiento_centavos: null }),
       ),
     ).toMatchObject({ modificaciones: '1 modificación', meses: '6 meses' });
+  });
+
+  it('en otro idioma de los clientes, los ejemplos se escriben como los lee el cliente', () => {
+    const enIngles = ajustes({ idioma_de_los_clientes: 'en' });
+    const valores = valoresDeMuestra(
+      borradorDeLosAjustes(enIngles, 'x').numeros,
+      DE_SIEMPRE.numeros,
+      enIngles,
+    );
+    expect(valores).toMatchObject({
+      modificaciones: '2 modifications',
+      meses: '6 months',
+      sena: '50%',
+    });
+    expect(valores.valor_modificacion.replace(/\s/g, ' ')).toBe('ARS 50,000');
   });
 });
 
@@ -312,7 +335,7 @@ describe('el membrete y lo que se guarda de los datos', () => {
 describe('volver a los textos de siempre', () => {
   it('con los de siempre no hay nada que deshacer', () => {
     const valores = valoresDeMuestra(DE_SIEMPRE.numeros, DE_SIEMPRE.numeros, AJUSTES);
-    expect(loQueSeDeshace(PLANTILLA_DE_SIEMPRE, valores)).toEqual([]);
+    expect(loQueSeDeshace(PLANTILLA_DE_SIEMPRE, valores, PLANTILLA_DE_SIEMPRE)).toEqual([]);
   });
 
   it('dice cada cosa que vuelve: lo agregado se va, lo quitado vuelve y los números vuelven', () => {
@@ -338,7 +361,7 @@ describe('volver a los textos de siempre', () => {
       formasDePago: PLANTILLA_DE_SIEMPRE.formasDePago.slice(0, 2),
       garantia: 'Otra garantía.',
     };
-    const cosas = loQueSeDeshace(propia, valores);
+    const cosas = loQueSeDeshace(propia, valores, PLANTILLA_DE_SIEMPRE);
     expect(cosas.map(({ icono }) => icono)).toEqual([
       'list-checks',
       'minus',
@@ -368,6 +391,7 @@ describe('el borrador de la pantalla', () => {
         email: '',
       },
       PLANTILLA_DE_SIEMPRE,
+      'es',
     );
     expect(borrador.listas.incluye).toHaveLength(PLANTILLA_DE_SIEMPRE.incluye.length);
     expect(borrador.listas.incluye.every(({ quitada }) => !quitada)).toBe(true);

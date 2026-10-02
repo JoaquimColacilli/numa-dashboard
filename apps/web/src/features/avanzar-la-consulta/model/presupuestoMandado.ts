@@ -51,13 +51,19 @@ export function ayudaDeLaEntrega(plazo: number, delPresupuesto: boolean): string
 }
 
 function loQueDice(mandado: LoMandadoAlCliente, enElPresupuesto: number | null): string {
-  const { acordado } = mensajes().avanzarLaConsulta.pasaje;
+  const { avanzarLaConsulta, armarElPresupuesto, ui } = mensajes();
+  const { acordado } = avanzarLaConsulta.pasaje;
   if (mandado.numero === NUMERO_PENDIENTE) {
     return enElPresupuesto === null
       ? acordado.noEstaEnElQueLeMandaste
       : acordado.elQueLeMandasteDice(formatearPesos(enElPresupuesto));
   }
-  const numero = numeroVisible(mandado.numero, mandado.revision);
+  const { listo } = armarElPresupuesto.mandar;
+  const numero = numeroVisible(mandado.numero, mandado.revision, {
+    sinNumero: ui.rotulo.sinNumero,
+    numero: listo.numero,
+    conRevision: listo.numeroYRevision,
+  });
   return enElPresupuesto === null
     ? acordado.noEstaEn(numero)
     : acordado.dice(numero, formatearPesos(enElPresupuesto));

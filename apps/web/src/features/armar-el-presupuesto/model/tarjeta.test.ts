@@ -218,7 +218,7 @@ describe('el PDF de la tarjeta', () => {
     const conBorrador = estadoDeLaTarjeta(conElBorrador(vacia()), uno, HOY);
     if (conBorrador.cual !== 'borrador') throw new Error('Se esperaba un borrador.');
     expect(pdfDeLaTarjeta(conBorrador)).toEqual(
-      pdfDelBorrador(conBorrador.documento, '20260915-01', 1),
+      pdfDelBorrador(conBorrador.documento, '20260915-01', 1, 'es'),
     );
     expect(pdfDeLaTarjeta(conBorrador)?.borrador).toBe(true);
 
@@ -259,5 +259,34 @@ describe('el PDF de la tarjeta', () => {
       aceptado: { el: '2026-09-25', letra: null, acordado: null },
       borrador: false,
     });
+  });
+
+  it('una revisión sale en el idioma en que se mandó, y el borrador en el de los clientes', () => {
+    const uno = proyecto({ estado: 'presupuesto_enviado' });
+    const mandado = estadoDeLaTarjeta(
+      conLaRevision(conElBorrador(vacia()), uno, 1, null),
+      uno,
+      HOY,
+    );
+    if (mandado.cual !== 'mandado') throw new Error('Se esperaba un mandado.');
+    const enIngles = { ...mandado.ultima, fila: { ...mandado.ultima.fila, idioma: 'en' } };
+    expect(pdfDeLaTarjeta(mandado)?.idioma).toBe('es');
+    expect(pdfDeLaRevision(enIngles, null).idioma).toBe('en');
+    expect(pdfDelAceptado(enIngles, enIngles.documento, null, null, null).idioma).toBe('en');
+    const desconocido = { ...mandado.ultima, fila: { ...mandado.ultima.fila, idioma: 'fr' } };
+    expect(pdfDeLaRevision(desconocido, null).idioma).toBe('es');
+
+    const base = conElBorrador(vacia());
+    const enPortugues = {
+      ...base,
+      tablas: {
+        ...base.tablas,
+        ajustes: { a: { ...METADATOS, id: 'a', idioma_de_los_clientes: 'pt-BR' } },
+      },
+    } as unknown as Replica;
+    const borrador = estadoDeLaTarjeta(enPortugues, uno, HOY);
+    if (borrador.cual !== 'borrador') throw new Error('Se esperaba un borrador.');
+    expect(pdfDeLaTarjeta(borrador)?.idioma).toBe('pt-BR');
+    expect(borrador.documento.garantia).toMatch(/^Garantia de 6 meses/);
   });
 });

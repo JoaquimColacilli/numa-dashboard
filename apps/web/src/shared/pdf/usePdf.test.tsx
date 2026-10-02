@@ -7,8 +7,10 @@ import {
   valoresDelTrabajo,
   type DocumentoDelPresupuesto,
 } from '@maun/domain';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { cargarMensajesDelCliente } from '@/shared/idioma-del-cliente';
 
 import type { PresupuestoEnPdf } from './tipos';
 import { DEMORA_PARA_PREPARAR_MS, olvidarLosPdfGuardados, usePdfDelPresupuesto } from './usePdf';
@@ -40,12 +42,18 @@ function documento(): DocumentoDelPresupuesto {
       senaBp: puntosBasicos(5_000),
       abonado: centavos(0),
     },
-    { plata: (importe) => String(importe), porcentaje: (puntos) => String(puntos / 100) },
+    {
+      plata: (importe) => String(importe),
+      porcentaje: (puntos) => String(puntos / 100),
+      modificaciones: String,
+      meses: String,
+    },
   );
 }
 
 const MANDADO: PresupuestoEnPdf = {
   documento: documento(),
+  idioma: 'es',
   numero: '20260910-01',
   revision: 1,
   mandadoEl: '2026-09-10',
@@ -213,5 +221,35 @@ describe('el PDF del presupuesto', () => {
 
     expect(descargados).toEqual([]);
     expect(result.current.estado).toBe('sin-preparar');
+  });
+
+  it('el archivo se llama en el idioma del presupuesto', async () => {
+    await cargarMensajesDelCliente('en');
+    const { result } = renderHook(() =>
+      usePdfDelPresupuesto({ ...MANDADO, idioma: 'en' }, { generar }),
+    );
+
+    expect(result.current.nombre).toBe('Quote 20260910-01 - Lucía Ferreyra.pdf');
+    act(() => {
+      result.current.descargar();
+    });
+    await terminar();
+    expect(descargados).toEqual(['Quote 20260910-01 - Lucía Ferreyra.pdf']);
+  });
+
+  it('si el idioma todavía no llegó, lo trae junto con el PDF y lo baja con su nombre', async () => {
+    const { result } = renderHook(() =>
+      usePdfDelPresupuesto({ ...MANDADO, idioma: 'pt-BR', revision: 2 }, { generar }),
+    );
+
+    act(() => {
+      result.current.descargar();
+    });
+    await terminar();
+    await waitFor(() => {
+      expect(descargados).toEqual(['Orçamento 20260910-01 Rev 2 - Lucía Ferreyra.pdf']);
+      expect(result.current.estado).toBe('listo');
+    });
+    expect(result.current.nombre).toBe('Orçamento 20260910-01 Rev 2 - Lucía Ferreyra.pdf');
   });
 });

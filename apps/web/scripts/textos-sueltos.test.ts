@@ -77,6 +77,17 @@ const EXCEPCIONES: readonly Excepcion[] = [
       'Los nombres y las descripciones que la base sembró para los cuatro tesoros de siempre: son datos y no se traducen (glosario).',
   },
   {
+    archivo: 'src/shared/pdf/fuentes.ts',
+    texto: /^(IBM Plex Sans|Young Serif)$/u,
+    motivo: 'Son los nombres con que se registran las letras del PDF: no los lee nadie.',
+  },
+  {
+    archivo: 'src/shared/pdf/leyenda.ts',
+    texto: /^(DOCUMENTO NO VÁLIDO COMO FACTURA|Documento no válido como factura)$/u,
+    motivo:
+      'La leyenda de ARCA va en castellano en los tres idiomas (glosario); en inglés y en portugués la aclaración sale del catálogo.',
+  },
+  {
     archivo: 'src/shared/ui/LogoDeMercadoPago.tsx',
     texto: 'Mercado Pago',
     motivo: 'Una marca: no se traduce (glosario).',

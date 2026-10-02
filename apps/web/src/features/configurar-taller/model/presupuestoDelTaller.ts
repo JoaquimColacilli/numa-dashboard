@@ -4,11 +4,12 @@ import {
   formatearCuit,
   HUECOS,
   huecosDelPresupuesto,
+  idiomaLeido,
   largoDelTexto,
   LARGOS_DEL_PRESUPUESTO,
   MONEDA_DEL_TALLER,
   NOMBRE_DE_LA_CONDICION,
-  PLANTILLA_DE_SIEMPRE,
+  plantillaDeSiempre,
   plantillaDelTaller,
   problemaDeLaPlantilla,
   RANGOS_DEL_PRESUPUESTO,
@@ -19,15 +20,16 @@ import {
   type Clausula,
   type CondicionFiscal,
   type DatosDelTaller,
-  type Formatos,
   type Hueco,
+  type Idioma,
   type PlantillaDelPresupuesto,
 } from '@maun/domain';
 
 import { senaDelTaller } from '@/entities/proyecto';
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
-import { etiquetaActual, formatearPesos, formatearPlata, formatearPorcentaje } from '@/shared/lib';
+import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
+import { etiquetaActual, formatearPesos } from '@/shared/lib';
 
 import { diferencias, type DiferenciasDeAjustes } from './cambios';
 import { VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE, valorDelRelevamiento } from './relevamiento';
@@ -54,8 +56,15 @@ export function datosDelTaller(ajustes: Ajustes, nombre: string): DatosDelTaller
   };
 }
 
+export function idiomaDeLosClientesDeLosAjustes(ajustes: Ajustes): Idioma {
+  return idiomaLeido(ajustes.idioma_de_los_clientes);
+}
+
 export function plantillaDeLosAjustes(ajustes: Ajustes): PlantillaDelPresupuesto {
-  return plantillaDelTaller(ajustes.plantilla_del_presupuesto);
+  return plantillaDelTaller(
+    ajustes.plantilla_del_presupuesto,
+    idiomaDeLosClientesDeLosAjustes(ajustes),
+  );
 }
 
 export interface DatosDeCobroParaUsar {
@@ -156,6 +165,7 @@ export interface NumerosEditables {
 }
 
 export interface BorradorDeLaPantalla {
+  idioma: Idioma;
   datos: DatosEditables;
   numeros: NumerosEditables;
   listas: Readonly<Record<GrupoDeClausulas, readonly FilaEditable[]>>;
@@ -196,8 +206,10 @@ export function numerosEditables(plantilla: PlantillaDelPresupuesto): NumerosEdi
 export function borradorDeLaPantalla(
   datos: DatosDelTaller,
   plantilla: PlantillaDelPresupuesto,
+  idioma: Idioma,
 ): BorradorDeLaPantalla {
   return {
+    idioma,
     datos: datosEditables(datos),
     numeros: numerosEditables(plantilla),
     listas: {
@@ -212,7 +224,11 @@ export function borradorDeLaPantalla(
 }
 
 export function borradorDeLosAjustes(ajustes: Ajustes, nombre: string): BorradorDeLaPantalla {
-  return borradorDeLaPantalla(datosDelTaller(ajustes, nombre), plantillaDeLosAjustes(ajustes));
+  return borradorDeLaPantalla(
+    datosDelTaller(ajustes, nombre),
+    plantillaDeLosAjustes(ajustes),
+    idiomaDeLosClientesDeLosAjustes(ajustes),
+  );
 }
 
 function enteroEntre(texto: string, desde: number, hasta: number): number | null {
@@ -237,17 +253,13 @@ export function garantiaValida(numeros: NumerosEditables): number | null {
   return enteroEntre(numeros.garantia, desde, hasta);
 }
 
-const FORMATOS_DE_LA_MUESTRA: Formatos = {
-  plata: formatearPlata,
-  porcentaje: formatearPorcentaje,
-};
-
 export function valoresDeMuestra(
   numeros: NumerosEditables,
   guardados: NumerosEditables,
   ajustes: Ajustes,
 ): Valores {
-  const siempre = PLANTILLA_DE_SIEMPRE;
+  const idioma = idiomaDeLosClientesDeLosAjustes(ajustes);
+  const siempre = plantillaDeSiempre(idioma);
   const plazo = plazoValido(numeros) ?? plazoValido(guardados) ?? siempre.plazoDeFabricacion;
   const modificaciones =
     modificacionesValidas(numeros) ??
@@ -269,7 +281,7 @@ export function valoresDeMuestra(
       monedaDeLoAbonado: MONEDA_DEL_TALLER,
       senaBp: senaDelTaller(ajustes),
     },
-    FORMATOS_DE_LA_MUESTRA,
+    formatosDelDocumento(idioma),
   );
 }
 
@@ -698,10 +710,10 @@ export interface LoQueSeDeshace {
 export function loQueSeDeshace(
   guardada: PlantillaDelPresupuesto,
   valores: Valores,
+  siempre: PlantillaDelPresupuesto,
 ): LoQueSeDeshace[] {
   const textos = mensajes().configurarTaller.presupuesto;
   const vuelve = textos.seDeshace;
-  const siempre = PLANTILLA_DE_SIEMPRE;
   const cosas: LoQueSeDeshace[] = [];
   const sumar = (icono: IconoDeLoQueSeDeshace, texto: string) => {
     cosas.push({ icono, texto });
@@ -777,7 +789,7 @@ export function plantillaDelBorrador(borrador: BorradorDeLaPantalla): PlantillaD
       texto: texto.trim(),
       tildadaPorDefecto,
     }));
-  const siempre = PLANTILLA_DE_SIEMPRE;
+  const siempre = plantillaDeSiempre(borrador.idioma);
   return {
     forma: 1,
     plazoDeFabricacion: plazoValido(borrador.numeros) ?? siempre.plazoDeFabricacion,

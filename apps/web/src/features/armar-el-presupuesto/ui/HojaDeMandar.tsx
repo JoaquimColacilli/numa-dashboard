@@ -1,9 +1,10 @@
 import {
+  idiomaLeido,
   LARGOS_DEL_PRESUPUESTO,
   problemasParaMandar,
-  TEXTOS_DE_LO_QUE_FALTA,
   type CampoQueFalta,
   type DocumentoDelPresupuesto,
+  type Idioma,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState, type MouseEvent, type ReactNode } from 'react';
@@ -22,7 +23,7 @@ import {
   whatsappCon,
   type TextosDelMensajeAlCliente,
 } from '@/shared/lib';
-import { PREPARANDO_EL_PDF, usePdfDelPresupuesto } from '@/shared/pdf';
+import { usePdfDelPresupuesto, useTextosDelPdf } from '@/shared/pdf';
 import {
   Button,
   FilaDeAcciones,
@@ -33,14 +34,6 @@ import {
   TextoQueCrece,
   type NombreDeIcono,
 } from '@/shared/ui';
-
-type ClaveDeLoQueFalta = keyof typeof TEXTOS_DE_LO_QUE_FALTA;
-
-const CLAVES_DE_LO_QUE_FALTA = Object.keys(TEXTOS_DE_LO_QUE_FALTA) as ClaveDeLoQueFalta[];
-
-function claveDeLoQueFalta(texto: string): ClaveDeLoQueFalta | undefined {
-  return CLAVES_DE_LO_QUE_FALTA.find((clave) => TEXTOS_DE_LO_QUE_FALTA[clave] === texto);
-}
 
 function Renglon({ icono, children }: { icono: NombreDeIcono; children: ReactNode }) {
   return (
@@ -93,6 +86,7 @@ function Listo({
   hoy,
   valeHasta,
   documento,
+  idioma,
   cliente,
   trabajo,
   telefono,
@@ -106,6 +100,7 @@ function Listo({
   hoy: string;
   valeHasta: string | null;
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   cliente: string;
   trabajo: string;
   telefono: string;
@@ -115,6 +110,7 @@ function Listo({
   alCerrar: () => void;
 }) {
   const m = useMensajes().armarElPresupuesto.mandar.listo;
+  const textosDelPdf = useTextosDelPdf();
   const id = useId();
   const enCelular = useAnchoDePantalla() === 'movil';
   const esLaPrimera = revision <= 1;
@@ -122,6 +118,7 @@ function Listo({
   const pdf = usePdfDelPresupuesto(
     {
       documento,
+      idioma,
       numero,
       revision,
       mandadoEl: hoy,
@@ -204,7 +201,7 @@ function Listo({
             <Button variant="secundario" onClick={pdf.descargar}>
               <Icono nombre="download" tamano={16} />
               {pdf.estado === 'preparando' && pdf.esperando === 'descargar'
-                ? PREPARANDO_EL_PDF
+                ? textosDelPdf.preparando
                 : m.descargarElPdf}
             </Button>
           </div>
@@ -299,6 +296,7 @@ export function HojaDeMandar({
         hoy={mandar.data.revision.mandado_el}
         valeHasta={mandar.data.revision.vale_hasta}
         documento={documento}
+        idioma={idiomaLeido(mandar.data.revision.idioma)}
         cliente={cliente}
         trabajo={trabajo}
         telefono={telefono}
@@ -357,28 +355,23 @@ export function HojaDeMandar({
                 <ul className="flex flex-col">
                   {problemas
                     .filter(({ campo }) => campo !== 'queCambio')
-                    .map((problema) => {
-                      const clave = claveDeLoQueFalta(problema.texto);
-                      return (
-                        <li key={problema.campo}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alIrAlCampo(problema.campo);
-                            }}
-                            className="flex min-h-tap w-full items-center gap-3 text-left text-body text-ink"
-                          >
-                            <span className="min-w-0 flex-1">
-                              {clave === undefined ? problema.texto : m.loQueFalta[clave]}
-                            </span>
-                            <span className="flex flex-none items-center gap-1 text-label font-semibold underline underline-offset-3">
-                              {m.campos[problema.campo]}
-                              <Icono nombre="chevron-right" tamano={16} />
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
+                    .map((problema) => (
+                      <li key={problema.campo}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            alIrAlCampo(problema.campo);
+                          }}
+                          className="flex min-h-tap w-full items-center gap-3 text-left text-body text-ink"
+                        >
+                          <span className="min-w-0 flex-1">{m.loQueFalta[problema.motivo]}</span>
+                          <span className="flex flex-none items-center gap-1 text-label font-semibold underline underline-offset-3">
+                            {m.campos[problema.campo]}
+                            <Icono nombre="chevron-right" tamano={16} />
+                          </span>
+                        </button>
+                      </li>
+                    ))}
                 </ul>
               </section>
             )}

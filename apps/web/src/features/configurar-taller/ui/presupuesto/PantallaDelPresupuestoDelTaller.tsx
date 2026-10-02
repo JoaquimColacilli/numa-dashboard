@@ -1,4 +1,4 @@
-import { PLANTILLA_DE_SIEMPRE } from '@maun/domain';
+import { plantillaDeSiempre } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -34,6 +34,7 @@ import {
   cuantosCambios,
   datosDelTaller,
   diferenciasDeLosDatos,
+  idiomaDeLosClientesDeLosAjustes,
   loQueSeDeshace,
   mismaPlantilla,
   plantillaDelBorrador,
@@ -106,6 +107,7 @@ export function PantallaDelPresupuestoDelTaller({
 }: PantallaDelPresupuestoDelTallerProps) {
   const m = useMensajes().configurarTaller.presupuesto;
   const vuelta = useVolver(RUTA_DE_AJUSTES, m.ajustes);
+  const idioma = idiomaDeLosClientesDeLosAjustes(ajustes);
   const [guardado, setGuardado] = useState<LoGuardado>(() => ({
     borrador: borradorDeLosAjustes(ajustes, nombreDelTaller),
     version: ajustes.plantilla_del_presupuesto_version,
@@ -148,7 +150,11 @@ export function PantallaDelPresupuestoDelTaller({
   const porCampo: Readonly<Record<string, string>> = Object.fromEntries(
     problemas.map(({ campo, mensaje }) => [campo, mensaje]),
   );
-  const aDeshacer = loQueSeDeshace(plantillaDelBorrador(guardado.borrador), valores);
+  const aDeshacer = loQueSeDeshace(
+    plantillaDelBorrador(guardado.borrador),
+    valores,
+    plantillaDeSiempre(idioma),
+  );
   const cobro = cobroParaUsar(ajustes);
 
   function cambiar(cambio: (previo: BorradorDeLaPantalla) => BorradorDeLaPantalla): void {
@@ -268,7 +274,8 @@ export function PantallaDelPresupuestoDelTaller({
     const antes = guardado;
     const deSiempre = borradorDeLaPantalla(
       datosDelTaller(ajustes, nombreDelTaller),
-      PLANTILLA_DE_SIEMPRE,
+      plantillaDeSiempre(idioma),
+      idioma,
     );
     guardarLosTextos.mutate(
       {
@@ -362,6 +369,7 @@ export function PantallaDelPresupuestoDelTaller({
         >
           <DatosDelPresupuesto
             nombre={nombreDelTaller}
+            idioma={idioma}
             datos={borrador.datos}
             cobro={cobro}
             problemas={porCampo}

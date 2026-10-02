@@ -4,14 +4,13 @@ import {
   type DocumentoDelPresupuesto,
 } from '@maun/domain';
 
-import { fechaConAnio, fechaDelRotulo } from '@/shared/lib';
-
+import type { LenguaDelPdf } from './lengua';
 import { ANCHO_DE_LA_OPCION, ANCHO_DE_LA_REVISION } from './medidas';
 import type { PresupuestoEnPdf } from './tipos';
 
-export const LEYENDA_DE_ARCA = 'DOCUMENTO NO VÁLIDO COMO FACTURA';
+export { LEYENDA_DE_ARCA } from './leyenda';
 
-export const LEMA_DEL_TALLER = 'Muebles a medida';
+const SIN_DATO = '—';
 
 export function mediodiaEnElTaller(fecha: string): Date {
   return new Date(`${fecha}T12:00:00-03:00`);
@@ -21,17 +20,21 @@ export function fechaDeCreacion(p: PresupuestoEnPdf): Date | undefined {
   return p.borrador || p.mandadoEl === null ? undefined : mediodiaEnElTaller(p.mandadoEl);
 }
 
-export function tituloDelPdf(p: PresupuestoEnPdf): string {
-  if (p.numero === null) return 'Presupuesto (borrador)';
+export function tituloDelPdf(p: PresupuestoEnPdf, { m }: LenguaDelPdf): string {
+  const { titulo } = m.pdf;
+  if (p.numero === null) return titulo.sinNumero;
   const conRevision =
-    p.revision <= 1
-      ? `Presupuesto ${p.numero}`
-      : `Presupuesto ${p.numero} · Rev. ${String(p.revision)}`;
-  return p.borrador ? `${conRevision} (borrador)` : conRevision;
+    p.revision <= 1 ? titulo.numero(p.numero) : titulo.conRevision(p.numero, p.revision);
+  return p.borrador ? titulo.enBorrador(conRevision) : conRevision;
 }
 
-export function textoDeLaPagina(titulo: string, pagina: number, total: number): string {
-  return `${titulo} · Página ${String(pagina)} de ${String(total)}`;
+export function textoDeLaPagina(
+  titulo: string,
+  pagina: number,
+  total: number,
+  { m }: LenguaDelPdf,
+): string {
+  return m.pdf.pagina(titulo, pagina, total);
 }
 
 export function deQuienEs(documento: DocumentoDelPresupuesto): string {
@@ -62,55 +65,75 @@ export interface CasillaDelPdf {
   ancho?: number;
 }
 
-export function casillasDelRotuloDelPdf(p: PresupuestoEnPdf): CasillaDelPdf[] {
+export function casillasDelRotuloDelPdf(
+  p: PresupuestoEnPdf,
+  { m, f }: LenguaDelPdf,
+): CasillaDelPdf[] {
+  const { rotulo } = m.ui;
+  const delPdf = m.pdf.rotulo;
   if (p.borrador) {
     const dias = p.documento.validezDias;
     return [
       {
-        titulo: 'Rev.',
-        valor: p.numero === null ? '—' : String(p.revision),
+        titulo: rotulo.revision,
+        valor: p.numero === null ? SIN_DATO : String(p.revision),
         ancho: ANCHO_DE_LA_REVISION,
       },
-      { titulo: 'Emitido', valor: '—' },
-      { titulo: 'Validez', valor: dias === null ? 'Sin venc.' : `${String(dias)} días` },
+      { titulo: rotulo.emitido, valor: SIN_DATO },
+      {
+        titulo: delPdf.validez,
+        valor: dias === null ? delPdf.sinVencimiento : delPdf.dias(dias),
+      },
     ];
   }
   const emitido: CasillaDelPdf[] = [
-    { titulo: 'Rev.', valor: String(p.revision), ancho: ANCHO_DE_LA_REVISION },
-    { titulo: 'Emitido', valor: p.mandadoEl === null ? '—' : fechaDelRotulo(p.mandadoEl) },
+    { titulo: rotulo.revision, valor: String(p.revision), ancho: ANCHO_DE_LA_REVISION },
+    {
+      titulo: rotulo.emitido,
+      valor: p.mandadoEl === null ? SIN_DATO : f.fechaDelRotulo(p.mandadoEl),
+    },
   ];
   if (p.aceptado !== null) {
     const { letra, el } = p.aceptado;
     return [
       ...emitido,
-      ...(letra === null ? [] : [{ titulo: 'Opción', valor: letra, ancho: ANCHO_DE_LA_OPCION }]),
-      ...(el === null ? [] : [{ titulo: 'Aceptado', valor: fechaDelRotulo(el) }]),
+      ...(letra === null
+        ? []
+        : [{ titulo: rotulo.opcion, valor: letra, ancho: ANCHO_DE_LA_OPCION }]),
+      ...(el === null ? [] : [{ titulo: rotulo.aceptado, valor: f.fechaDelRotulo(el) }]),
     ];
   }
   return [
     ...emitido,
     p.valeHasta === null
-      ? { titulo: 'Validez', valor: 'Sin venc.' }
-      : { titulo: 'Vale hasta', valor: fechaDelRotulo(p.valeHasta) },
+      ? { titulo: delPdf.validez, valor: delPdf.sinVencimiento }
+      : { titulo: rotulo.valeHasta, valor: f.fechaDelRotulo(p.valeHasta) },
   ];
 }
 
-export function textoDeLaValidez(p: PresupuestoEnPdf): string | null {
+export function textoDeLaValidez(p: PresupuestoEnPdf, { m, f }: LenguaDelPdf): string | null {
+  const { validez } = m.pdf;
   if (p.aceptado !== null) return null;
   if (p.borrador) {
     const dias = p.documento.validezDias;
-    return dias === null ? 'Sin vencimiento.' : `${String(dias)} días desde que se manda.`;
+    return dias === null ? validez.sinVencimiento : validez.dias(dias);
   }
-  return p.valeHasta === null ? 'Sin vencimiento.' : `Hasta el ${fechaConAnio(p.valeHasta)}.`;
+  return p.valeHasta === null ? validez.sinVencimiento : validez.hasta(f.fechaConAnio(p.valeHasta));
 }
 
-export function textoDelPlazo(dias: number): string {
-  return `${String(dias)} días hábiles desde la seña.`;
+export function textoDelPlazo(dias: number, { m }: LenguaDelPdf): string {
+  return m.pdf.plazo(dias);
 }
 
-export function lineaDelAceptado(el: string | null, letra: string | null): string {
-  const cuando = el === null ? 'Aceptado' : `Aceptado el ${fechaConAnio(el)}`;
-  return letra === null ? cuando : `${cuando} · Opción ${letra}`;
+export function lineaDelAceptado(
+  el: string | null,
+  letra: string | null,
+  { m, f }: LenguaDelPdf,
+): string {
+  const { aceptado } = m.pdf;
+  if (el === null) return letra === null ? aceptado.sinFecha : aceptado.sinFechaConOpcion(letra);
+  const fecha = f.fechaConAnio(el);
+  return letra === null ? aceptado.el(fecha) : aceptado.elConOpcion(fecha, letra);
 }
 
 export function conQueCambio(p: PresupuestoEnPdf): boolean {

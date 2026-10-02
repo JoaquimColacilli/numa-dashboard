@@ -6410,6 +6410,9 @@ function comoLista(valor: unknown): Objeto[] {
 const FORMATOS_DEL_PRESUPUESTO: Formatos = {
   plata: (importe, moneda) => `${moneda === 'USD' ? 'US$' : '$'} ${String(importe / 100)}`,
   porcentaje: (puntos) => String(puntos / 100),
+  modificaciones: (cantidad) =>
+    `${String(cantidad)} ${cantidad === 1 ? 'modificación' : 'modificaciones'}`,
+  meses: (cantidad) => `${String(cantidad)} ${cantidad === 1 ? 'mes' : 'meses'}`,
 };
 
 const TALLER_DEL_PRESUPUESTO: DatosDelTaller = {

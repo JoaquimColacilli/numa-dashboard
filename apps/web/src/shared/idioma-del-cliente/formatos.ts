@@ -1,15 +1,24 @@
-import { IDIOMA_BASE, MONEDA_DEL_TALLER, type Idioma, type Moneda } from '@maun/domain';
+import {
+  IDIOMA_BASE,
+  MONEDA_DEL_TALLER,
+  type Formatos,
+  type Idioma,
+  type Moneda,
+} from '@maun/domain';
 
 import {
   diaYMes,
   diaYMesCorto,
   fechaConAnio,
+  fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
   formatearPlata,
   formatearPorcentaje,
   nombreDelMes,
 } from '@/shared/lib';
+
+import { textosDelDocumento } from './documento';
 
 export interface FormatosDelCliente {
   idioma: Idioma;
@@ -22,6 +31,7 @@ export interface FormatosDelCliente {
   diaYMes: (fecha: string, hoy: string) => string;
   diaYMesCorto: (fecha: string) => string;
   fechaConAnio: (fecha: string) => string;
+  fechaDelRotulo: (fecha: string) => string;
   nombreDelMes: (mes: string) => string;
 }
 
@@ -37,6 +47,18 @@ export function formatosDelCliente(idioma: Idioma): FormatosDelCliente {
     diaYMes: (fecha, hoy) => diaYMes(fecha, hoy, idioma),
     diaYMesCorto: (fecha) => diaYMesCorto(fecha, idioma),
     fechaConAnio: (fecha) => fechaConAnio(fecha, idioma),
+    fechaDelRotulo: (fecha) => fechaDelRotulo(fecha, idioma),
     nombreDelMes: (mes) => nombreDelMes(mes, idioma),
+  };
+}
+
+export function formatosDelDocumento(idioma: Idioma): Formatos {
+  const f = formatosDelCliente(idioma);
+  const textos = textosDelDocumento(idioma);
+  return {
+    plata: (centavos) => f.pesos(centavos),
+    porcentaje: f.porcentaje,
+    modificaciones: textos.modificaciones,
+    meses: textos.meses,
   };
 }

@@ -1,39 +1,20 @@
 import {
+  mensajeParaElTaller,
   NOMBRE_DE_LA_CONDICION,
   type DatosDelTaller,
   type PresupuestoAceptado,
   type PresupuestoMandado,
 } from '@maun/domain';
 
-import { enlaceParaEscribir, fechaLarga, formatearPesos, formatearPorcentaje } from '@/shared/lib';
-import type { PresupuestoEnPdf } from '@/shared/pdf';
+import type { FormatosDelCliente, MensajesDelCliente } from '@/shared/idioma-del-cliente';
+import { enlaceParaEscribir } from '@/shared/lib';
+import { LEYENDA_DE_ARCA_EN_UNA_FRASE, type PresupuestoEnPdf } from '@/shared/pdf';
 import type { DatosDelRotulo } from '@/shared/ui';
-
-export const EL_PRESUPUESTO = 'El presupuesto';
-
-export const EL_PRESUPUESTO_QUE_ACEPTASTE = 'El presupuesto que aceptaste';
-
-export const ELEGI_LA_OPCION = 'Elegí la opción que prefieras y avisale al taller.';
-
-export const DOCUMENTO_NO_VALIDO = 'Documento no válido como factura';
-
-export const ESCRIBIRLE_AL_TALLER = 'Escribirle al taller';
-
-export const COMO_DEJAR_LA_SENA = 'Cómo dejar la seña';
-
-export const VER_EL_DETALLE = 'Ver el detalle';
-
-export const BORRADOR = 'Borrador';
-
-export const DESCARGAR_EL_PDF = 'Descargar el PDF';
-
-export const COMPARTIR = 'Compartir';
-
-export const COMPARTIR_EL_PDF = 'Compartir el PDF';
 
 export function pdfDelMandado(presupuesto: PresupuestoMandado): PresupuestoEnPdf {
   return {
     documento: presupuesto.documento,
+    idioma: presupuesto.idioma,
     numero: presupuesto.numero,
     revision: presupuesto.revision,
     mandadoEl: presupuesto.mandadoEl,
@@ -47,6 +28,7 @@ export function pdfDelMandado(presupuesto: PresupuestoMandado): PresupuestoEnPdf
 export function pdfDelBorrador(presupuesto: PresupuestoMandado): PresupuestoEnPdf {
   return {
     documento: presupuesto.documento,
+    idioma: presupuesto.idioma,
     numero: presupuesto.numero === '' ? null : presupuesto.numero,
     revision: presupuesto.revision,
     mandadoEl: null,
@@ -60,6 +42,7 @@ export function pdfDelBorrador(presupuesto: PresupuestoMandado): PresupuestoEnPd
 export function pdfDelAceptado(presupuesto: PresupuestoAceptado): PresupuestoEnPdf {
   return {
     documento: presupuesto.documento,
+    idioma: presupuesto.idioma,
     numero: presupuesto.numero,
     revision: presupuesto.revision,
     mandadoEl: presupuesto.mandadoEl,
@@ -100,42 +83,36 @@ export interface LineaDelVencido {
   queHacer: string;
 }
 
-export function lineaDelVencido(vencio: string, hoy: string): LineaDelVencido {
-  return {
-    cuando: `Venció el ${fechaLarga(vencio, hoy)}.`,
-    queHacer: 'Escribile al taller para actualizarlo.',
-  };
+export function lineaDelVencido(
+  vencio: string,
+  hoy: string,
+  m: MensajesDelCliente,
+  f: FormatosDelCliente,
+): LineaDelVencido {
+  const { vencido } = m.presupuesto;
+  return { cuando: vencido.cuando(f.fechaLarga(vencio, hoy)), queHacer: vencido.queHacer };
 }
 
-export function queCambioEnLaRevision(revision: number): string {
-  return `Qué cambió en la revisión ${String(revision)}`;
+export function textoDeLaValidez(
+  presupuesto: PresupuestoMandado,
+  hoy: string,
+  m: MensajesDelCliente,
+  f: FormatosDelCliente,
+): string {
+  const { validez } = m.presupuesto;
+  if (presupuesto.vencio !== null) return validez.vencio(f.fechaLarga(presupuesto.vencio, hoy));
+  if (presupuesto.valeHasta === null) return validez.sinVencimiento;
+  return validez.hasta(f.fechaLarga(presupuesto.valeHasta, hoy));
 }
 
-export function claveDeLaSena(senaBp: number): string {
-  return `Seña (${formatearPorcentaje(senaBp)}%)`;
+export interface ParteDelPie {
+  texto: string;
+  tipo: 'leyenda' | 'aclaracion' | 'dato';
 }
 
-export function textoDeLaValidez(presupuesto: PresupuestoMandado, hoy: string): string {
-  if (presupuesto.vencio !== null) return `Venció el ${fechaLarga(presupuesto.vencio, hoy)}`;
-  if (presupuesto.valeHasta === null) return 'Sin vencimiento';
-  return `Hasta el ${fechaLarga(presupuesto.valeHasta, hoy)}`;
-}
-
-export function textoDelPlazo(dias: number): string {
-  return dias === 1 ? '1 día hábil' : `${String(dias)} días hábiles`;
-}
-
-export function cuantoDuraLaGarantia(meses: number): string {
-  return meses === 1 ? '1 mes' : `${String(meses)} meses`;
-}
-
-export function textoDelAcordado(acordado: number): string {
-  return `Acordado al aprobar: ${formatearPesos(acordado)}`;
-}
-
-export function partesDelPie(taller: DatosDelTaller): string[] {
-  return [
-    DOCUMENTO_NO_VALIDO,
+export function partesDelPie(taller: DatosDelTaller, m: MensajesDelCliente): ParteDelPie[] {
+  const { leyendaDeArca } = m.documento;
+  const datos = [
     taller.nombre,
     taller.titular,
     taller.cuit === '' ? '' : `CUIT ${taller.cuit}`,
@@ -146,8 +123,21 @@ export function partesDelPie(taller: DatosDelTaller): string[] {
   ]
     .map((parte) => parte.trim())
     .filter((parte) => parte !== '');
+  return [
+    { texto: LEYENDA_DE_ARCA_EN_UNA_FRASE, tipo: 'leyenda' },
+    ...(leyendaDeArca.aclarar
+      ? [{ texto: leyendaDeArca.aclaracion, tipo: 'aclaracion' } as const]
+      : []),
+    ...datos.map((texto) => ({ texto, tipo: 'dato' }) as const),
+  ];
 }
 
-export function enlaceParaEscribirleAlTaller(presupuesto: PresupuestoMandado): string | null {
-  return enlaceParaEscribir(presupuesto.documento.taller.telefono, presupuesto.mensajeParaElTaller);
+export function enlaceParaEscribirleAlTaller(
+  presupuesto: PresupuestoMandado,
+  m: MensajesDelCliente,
+): string | null {
+  return enlaceParaEscribir(
+    presupuesto.documento.taller.telefono,
+    mensajeParaElTaller(presupuesto.numero, presupuesto.revision, m.presupuesto.mensajeAlTaller),
+  );
 }

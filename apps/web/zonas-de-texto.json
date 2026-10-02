@@ -1,8 +1,3 @@
 {
-  "faltan": [
-    "src/entities/vista-cliente/model/presupuesto.ts",
-    "src/entities/vista-cliente/ui/ElPresupuesto.tsx",
-    "src/features/configurar-taller/ui/presupuesto/CabeceraDelDocumento.tsx",
-    "src/shared/pdf/"
-  ]
+  "faltan": []
 }

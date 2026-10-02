@@ -1,15 +1,12 @@
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
-import type { Idioma } from './idioma.ts';
+import { idiomaLeido, type Idioma } from './idioma.ts';
 import { restar, sumarTodos, type Moneda, type Money } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
 import {
   acordadoAlAprobar,
   cuentasDelPresupuesto,
-  mensajeParaElTaller,
-  nombreDelArchivo,
-  numeroVisible,
   plazoDelPresupuesto,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
@@ -373,11 +370,10 @@ export interface RelevamientoPorHacer {
 interface LoComunDelPresupuesto {
   numero: string;
   revision: number;
-  numeroVisible: string;
+  idioma: Idioma;
   mandadoEl: string;
   documento: DocumentoDelPresupuesto;
   cuentas: readonly CuentaDeUnValor<Moneda>[];
-  nombreDelArchivo: string;
 }
 
 export interface PresupuestoMandado extends LoComunDelPresupuesto {
@@ -385,7 +381,6 @@ export interface PresupuestoMandado extends LoComunDelPresupuesto {
   queCambio: string | null;
   valeHasta: string | null;
   vencio: string | null;
-  mensajeParaElTaller: string;
   pideLaSena: boolean;
 }
 
@@ -667,14 +662,13 @@ function loComunDelPresupuesto(
   return {
     numero,
     revision,
-    numeroVisible: numeroVisible(numero, revision),
+    idioma: idiomaLeido(presupuesto.idioma),
     mandadoEl,
     documento,
     cuentas:
       documento.valores === null
         ? []
         : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado),
-    nombreDelArchivo: nombreDelArchivo(documento, numero, revision),
   };
 }
 
@@ -695,7 +689,6 @@ function presupuestoMandado(
     queCambio: presupuesto.revision > 1 ? presupuesto.queCambio : null,
     valeHasta,
     vencio,
-    mensajeParaElTaller: mensajeParaElTaller(presupuesto.numero, presupuesto.revision),
     pideLaSena:
       vencio === null &&
       presupuesto.documento.valores?.tipo === 'total' &&

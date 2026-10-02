@@ -1,6 +1,5 @@
 import {
   huecosDelPresupuesto,
-  IDIOMA_BASE,
   leerBorrador,
   puedeCambiarEstado,
   textoDeLaGarantia,
@@ -26,7 +25,7 @@ import {
   tareaHecha,
   type Proyecto,
 } from '@/entities/proyecto';
-import { useReplicaDelTaller } from '@/entities/replica';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { ElPresupuesto } from '@/entities/vista-cliente';
 import { ajustesDe, filaPorId, mensajeDeSincronizacion } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
@@ -48,7 +47,7 @@ import {
   useVolver,
   uuidv7,
 } from '@/shared/lib';
-import { PREPARANDO_EL_PDF, usePdfDelPresupuesto } from '@/shared/pdf';
+import { usePdfDelPresupuesto, useTextosDelPdf } from '@/shared/pdf';
 import {
   Button,
   ConSalida,
@@ -62,7 +61,7 @@ import {
   abonadoDeHoy,
   borradorGuardado,
   documentoDeHoy,
-  FORMATOS_DE_LA_APP,
+  formatosDeLaReplica,
   nombreDelCliente,
   plantillaDeLaReplica,
   senaDeHoy,
@@ -201,7 +200,10 @@ export interface PantallaDelPresupuestoProps {
 
 export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps) {
   const textos = useMensajes().armarElPresupuesto;
+  const textosDelPdf = useTextosDelPdf();
   const replica = useReplicaDelTaller();
+  const idioma = idiomaDeLosClientes(replica);
+  const formatos = formatosDeLaReplica(replica);
   const cerrar = useVolver(rutaDelProyecto(proyecto.id), textos.cerrar, { fija: true });
   const ancho = useAnchoDePantalla();
   const altoVisible = useAltoVisible();
@@ -346,7 +348,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
         monedaDeLoAbonado: 'ARS',
         senaBp,
       },
-      FORMATOS_DE_LA_APP,
+      formatos,
     ),
     abonado,
   };
@@ -360,7 +362,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     abonado,
   });
 
-  const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision), {
+  const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision, idioma), {
     alAbrir: true,
   });
 
@@ -384,7 +386,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
       presupuesto,
       revisiones: revisionesDelPresupuesto(deAhora, presupuesto.id),
       documento,
-      idioma: IDIOMA_BASE,
+      idioma,
       queCambio,
       hoy,
       validezDias: borrador.validezDias,
@@ -470,7 +472,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
           >
             <p className="px-1 text-label leading-relaxed text-text-2">{textos.asiLoVeria}</p>
             <ElPresupuesto
-              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, abonado)}
+              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, abonado, idioma)}
               hoy={hoy}
               hayComoPagar={false}
               borrador
@@ -540,7 +542,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 huecos={huecos}
               />
               <GarantiaDelBorrador
-                texto={textoDeLaGarantia(plantilla)}
+                texto={textoDeLaGarantia(plantilla, formatos)}
                 meses={plantilla.garantiaMeses}
               />
             </SeccionesEnFilas>
@@ -582,7 +584,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             </span>
             <span className="hidden sm:inline">
               {pdf.estado === 'preparando' && pdf.esperando === 'descargar'
-                ? PREPARANDO_EL_PDF
+                ? textosDelPdf.preparando
                 : textos.verElPdf}
             </span>
           </Button>

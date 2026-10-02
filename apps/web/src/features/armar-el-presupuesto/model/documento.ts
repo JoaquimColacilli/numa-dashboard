@@ -28,20 +28,24 @@ import {
   senaDelTaller,
   type Proyecto,
 } from '@/entities/proyecto';
+import { idiomaDeLosClientes } from '@/entities/replica';
 import { ajustesDe, filaPorId, householdDe, type Replica } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje, nombreDelTaller, uuidv7 } from '@/shared/lib';
+import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
+import { nombreDelTaller, uuidv7 } from '@/shared/lib';
 
-export const FORMATOS_DE_LA_APP: Formatos = {
-  plata: (importe) => formatearPesos(importe),
-  porcentaje: formatearPorcentaje,
-};
+export function formatosDeLaReplica(replica: Replica): Formatos {
+  return formatosDelDocumento(idiomaDeLosClientes(replica));
+}
 
 function esCondicionFiscal(valor: unknown): valor is CondicionFiscal {
   return (CONDICIONES_FISCALES as readonly unknown[]).includes(valor);
 }
 
 export function plantillaDeLaReplica(replica: Replica): PlantillaDelPresupuesto {
-  return plantillaDelTaller(ajustesDe(replica)?.plantilla_del_presupuesto);
+  return plantillaDelTaller(
+    ajustesDe(replica)?.plantilla_del_presupuesto,
+    idiomaDeLosClientes(replica),
+  );
 }
 
 export function datosDelTaller(replica: Replica): DatosDelTaller {
@@ -141,5 +145,5 @@ export function entradaDeHoy({
 }
 
 export function documentoDeHoy(entrada: EntradaDeHoy): DocumentoDelPresupuesto {
-  return documentoDelPresupuesto(entradaDeHoy(entrada), FORMATOS_DE_LA_APP);
+  return documentoDelPresupuesto(entradaDeHoy(entrada), formatosDeLaReplica(entrada.replica));
 }

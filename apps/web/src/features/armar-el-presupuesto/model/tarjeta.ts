@@ -8,6 +8,7 @@ import {
   vencioElPresupuesto,
   type DocumentoDelPresupuesto,
   type EstadoProyecto,
+  type Idioma,
   type Moneda,
   type Money,
   type OpcionDelDocumento,
@@ -25,13 +26,14 @@ import {
   vigenciaDelPresupuesto,
   type Proyecto,
 } from '@/entities/proyecto';
+import { idiomaDeLosClientes } from '@/entities/replica';
 import type { Replica } from '@/shared/api';
 
 import {
   borradorGuardado,
   documentoDeHoy,
   entradaDeHoy,
-  FORMATOS_DE_LA_APP,
+  formatosDeLaReplica,
   totalDeHoy,
 } from './documento';
 
@@ -42,7 +44,12 @@ export interface RevisionLeida {
 
 export type EstadoDeLaTarjeta =
   | { cual: 'sin-borrador' }
-  | { cual: 'borrador'; presupuesto: FilaDelPresupuesto; documento: DocumentoDelPresupuesto }
+  | {
+      cual: 'borrador';
+      presupuesto: FilaDelPresupuesto;
+      documento: DocumentoDelPresupuesto;
+      idioma: Idioma;
+    }
   | {
       cual: 'mandado';
       presupuesto: FilaDelPresupuesto;
@@ -95,6 +102,7 @@ export function estadoDeLaTarjeta(
       cual: 'borrador',
       presupuesto,
       documento: documentoDeHoy({ replica, proyecto, borrador }),
+      idioma: idiomaDeLosClientes(replica),
     };
   }
 
@@ -112,7 +120,7 @@ export function estadoDeLaTarjeta(
         hayCambiosSinMandar(
           entradaDeHoy({ replica, proyecto, borrador }),
           ultima.documento,
-          FORMATOS_DE_LA_APP,
+          formatosDeLaReplica(replica),
         ),
       valeHasta,
       vencido: seMandaOtra && vencioElPresupuesto(valeHasta, hoy),

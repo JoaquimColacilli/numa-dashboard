@@ -50,6 +50,13 @@ export const ESTILOS = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'center',
   },
+  aclaracionDeLaLeyenda: {
+    marginTop: 3,
+    fontSize: LETRA_MAS_CHICA,
+    lineHeight: 1.3,
+    color: COLOR.text2,
+    textAlign: 'center',
+  },
   derecha: { flexGrow: 1, flexBasis: 0, alignItems: 'flex-end', marginTop: 5 },
   rotulo: { width: ANCHO_DEL_ROTULO, borderWidth: HILO, borderColor: COLOR.ink },
   rotuloArriba: { paddingHorizontal: 6, paddingTop: 6, paddingBottom: 7 },

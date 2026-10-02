@@ -1,4 +1,11 @@
-import type { DocumentoDelPresupuesto, Moneda, Money, OpcionDelDocumento } from '@maun/domain';
+import {
+  idiomaLeido,
+  type DocumentoDelPresupuesto,
+  type Idioma,
+  type Moneda,
+  type Money,
+  type OpcionDelDocumento,
+} from '@maun/domain';
 
 import { NUMERO_PENDIENTE } from '@/entities/presupuesto';
 import type { PresupuestoEnPdf } from '@/shared/pdf';
@@ -9,9 +16,11 @@ export function pdfDelBorrador(
   documento: DocumentoDelPresupuesto,
   numero: string | null,
   revision: number,
+  idioma: Idioma,
 ): PresupuestoEnPdf {
   return {
     documento,
+    idioma,
     numero,
     revision,
     mandadoEl: null,
@@ -26,6 +35,10 @@ export function numeroDeLaRevision({ fila }: RevisionLeida): string | null {
   return fila.numero === NUMERO_PENDIENTE ? null : fila.numero;
 }
 
+function idiomaDeLaRevision({ fila }: RevisionLeida): Idioma {
+  return idiomaLeido(fila.idioma);
+}
+
 export function pdfDeLaRevision(
   revision: RevisionLeida,
   valeHasta: string | null,
@@ -33,6 +46,7 @@ export function pdfDeLaRevision(
   const numero = numeroDeLaRevision(revision);
   return {
     documento: revision.documento,
+    idioma: idiomaDeLaRevision(revision),
     numero,
     revision: revision.fila.revision,
     mandadoEl: revision.fila.mandado_el,
@@ -52,6 +66,7 @@ export function pdfDelAceptado(
 ): PresupuestoEnPdf {
   return {
     documento,
+    idioma: idiomaDeLaRevision(revision),
     numero: numeroDeLaRevision(revision),
     revision: revision.fila.revision,
     mandadoEl: revision.fila.mandado_el,
@@ -67,7 +82,7 @@ export function pdfDeLaTarjeta(estado: EstadoDeLaTarjeta): PresupuestoEnPdf | nu
     case 'sin-borrador':
       return null;
     case 'borrador':
-      return pdfDelBorrador(estado.documento, estado.presupuesto.numero, 1);
+      return pdfDelBorrador(estado.documento, estado.presupuesto.numero, 1, estado.idioma);
     case 'mandado':
       return pdfDeLaRevision(estado.ultima, estado.valeHasta);
     case 'aceptado':

@@ -11,7 +11,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { TABLAS_REPLICADAS, type Json, type Replica, type TablaReplicada } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
 
 import {
   avisoDelAcordado,
@@ -60,7 +60,7 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
     },
-    { plata: (importe) => formatearPesos(importe), porcentaje: formatearPorcentaje },
+    formatosDelDocumento('es'),
   );
 }
 

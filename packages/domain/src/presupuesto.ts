@@ -8,6 +8,7 @@ import {
 } from './cotizacion.ts';
 import { largoDelTexto, sinBlancosEnLasPuntas, tieneTexto } from './encuesta.ts';
 import { DIAS_HABILES_DE_ENTREGA, esFechaQueExiste } from './fechas.ts';
+import type { Idioma } from './idioma.ts';
 import {
   aplicarPorcentaje,
   BASE_PUNTOS_BASICOS,
@@ -286,6 +287,310 @@ export const PLANTILLA_DE_SIEMPRE: PlantillaDelPresupuesto = {
   garantia:
     'Garantía de {meses} desde la entrega e instalación, por defectos de fabricación o de instalación. No cubre daños por golpes, humedad o filtraciones, calor o sol directo, un uso distinto del previsto, ni arreglos hechos por otras personas.',
 };
+
+const PLANTILLA_DE_SIEMPRE_EN_INGLES: PlantillaDelPresupuesto = {
+  forma: 1,
+  plazoDeFabricacion: PLANTILLA_DE_SIEMPRE.plazoDeFabricacion,
+  modificacionesIncluidas: PLANTILLA_DE_SIEMPRE.modificacionesIncluidas,
+  valorDeUnaModificacion: PLANTILLA_DE_SIEMPRE.valorDeUnaModificacion,
+  monedaDeLaModificacion: PLANTILLA_DE_SIEMPRE.monedaDeLaModificacion,
+  clausulasDeLaMoneda: {
+    dolaresEnPesos:
+      'Payment is made in pesos. Each payment is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before the payment date, and is deducted from the balance in dollars.',
+    dolaresEnDolares:
+      'Payment is made in US dollars. If any part is paid in pesos, it is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before that payment.',
+    dolaresEnPesosODolares:
+      'Payment is made in US dollars or in pesos. Each payment in pesos is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before the payment date, and is deducted from the balance in dollars.',
+    pesosEnDolares:
+      'Payment is made in US dollars. Each payment is converted at the rate agreed on that day and is deducted from the balance in pesos.',
+    pesosEnPesosODolares:
+      'If any part is paid in dollars, it is converted at the rate agreed on that day and is deducted from the balance in pesos.',
+  },
+  garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  incluye: [
+    {
+      id: 'incluye-visita',
+      titulo: null,
+      texto: 'Home visit to take measurements and settle the details.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-diseno',
+      titulo: null,
+      texto: '3D design based on the agreed requirements.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-fabricacion',
+      titulo: null,
+      texto: 'Development and manufacturing based on the proposed design.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-transporte',
+      titulo: null,
+      texto: 'Transport and delivery.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-instalacion',
+      titulo: null,
+      texto: 'Installation and finishing work at the home.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  aTenerEnCuenta: [
+    { id: 'no-mesada', titulo: null, texto: 'Countertop not included.', tildadaPorDefecto: false },
+    {
+      id: 'no-bacha',
+      titulo: null,
+      texto: 'Sink and faucets not included.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-conexiones',
+      titulo: null,
+      texto: 'Water, gas, and electrical connections not included.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-electrodomesticos',
+      titulo: null,
+      texto: 'Appliance installation not included.',
+      tildadaPorDefecto: false,
+    },
+  ],
+  formasDePago: [
+    {
+      id: 'sena-y-entrega',
+      nombre: 'Deposit and balance on delivery',
+      texto: '{sena} deposit to confirm the job, and the balance on delivery.',
+    },
+    {
+      id: 'sena-y-cuotas',
+      nombre: 'Deposit and installments',
+      texto:
+        '{sena} deposit to confirm the job, and the balance in installments, to be agreed before work begins.',
+    },
+    {
+      id: 'todo-al-confirmar',
+      nombre: 'Full payment upfront',
+      texto: 'Full payment when the job is confirmed.',
+    },
+  ],
+  avisos: [
+    {
+      id: 'aviso-plazo',
+      titulo: null,
+      texto:
+        'The estimated lead time is {plazo} business days from when the deposit clears and the final project specifications are confirmed. This lead time reflects current production and material supply times. If the work is finished before the stated lead time, the client will be notified to arrange an earlier delivery. The stated lead times may be affected by delays in material supply, logistics, or external factors beyond the manufacturing process. Should any of these occur, the client will be informed in a timely manner.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-aceptacion',
+      titulo: null,
+      texto:
+        'Paying the deposit and starting the project imply acceptance of the design, technical specifications, lead times, and conditions set out in this document.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-modificaciones',
+      titulo: null,
+      texto:
+        'This quote includes a 3D design and up to {modificaciones}. Additional modifications (a complete redesign) have an estimated cost of {valor_modificacion} each.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-relevamiento',
+      titulo: null,
+      texto:
+        'The amount paid for the site measure and 3D design ({relevamiento}) covers the site visit, measurements, layout, and 3D design. This amount is already included in the total of this quote and is deducted from the deposit.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-colores',
+      titulo: null,
+      texto:
+        'The colors and patterns of the boards may look different on screens or in samples than they do in reality.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  condiciones: [
+    {
+      id: 'condicion-espacio',
+      titulo: 'Installation site conditions',
+      texto:
+        'The client must ensure adequate access and space for bringing in and installing the furniture. Exceptional situations that call for special maneuvers or additional work may require prior coordination.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'condicion-perforaciones',
+      titulo: null,
+      texto:
+        'The client is solely responsible for disclosing and clearly marking the routes of cables and pipes in walls that may be drilled. MAUN is not liable for damage resulting from drilling in areas that were not marked or were incorrectly reported by the owner.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  garantia:
+    'Warranty for {meses} from delivery and installation, against manufacturing or installation defects. It does not cover damage from impacts, moisture or leaks, heat or direct sunlight, use other than intended, or repairs made by others.',
+};
+
+const PLANTILLA_DE_SIEMPRE_EN_PORTUGUES: PlantillaDelPresupuesto = {
+  forma: 1,
+  plazoDeFabricacion: PLANTILLA_DE_SIEMPRE.plazoDeFabricacion,
+  modificacionesIncluidas: PLANTILLA_DE_SIEMPRE.modificacionesIncluidas,
+  valorDeUnaModificacion: PLANTILLA_DE_SIEMPRE.valorDeUnaModificacion,
+  monedaDeLaModificacion: PLANTILLA_DE_SIEMPRE.monedaDeLaModificacion,
+  clausulasDeLaMoneda: {
+    dolaresEnPesos:
+      'O pagamento é feito em pesos. Cada pagamento é convertido pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior à data do pagamento e é descontado do saldo em dólares.',
+    dolaresEnDolares:
+      'O pagamento é feito em dólares norte-americanos. Se alguma parte for paga em pesos, ela é convertida pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior a esse pagamento.',
+    dolaresEnPesosODolares:
+      'O pagamento é feito em dólares norte-americanos ou em pesos. Cada pagamento em pesos é convertido pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior à data do pagamento e é descontado do saldo em dólares.',
+    pesosEnDolares:
+      'O pagamento é feito em dólares norte-americanos. Cada pagamento é convertido pela cotação combinada nesse dia e é descontado do saldo em pesos.',
+    pesosEnPesosODolares:
+      'Se uma parte for paga em dólares, ela é convertida pela cotação combinada nesse dia e é descontada do saldo em pesos.',
+  },
+  garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  incluye: [
+    {
+      id: 'incluye-visita',
+      titulo: null,
+      texto: 'Visita ao local para medição e definição dos detalhes.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-diseno',
+      titulo: null,
+      texto: 'Projeto 3D conforme os requisitos estabelecidos.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-fabricacion',
+      titulo: null,
+      texto: 'Desenvolvimento e fabricação com base no projeto proposto.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-transporte',
+      titulo: null,
+      texto: 'Transporte e entrega.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-instalacion',
+      titulo: null,
+      texto: 'Montagem e acabamentos no local.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  aTenerEnCuenta: [
+    { id: 'no-mesada', titulo: null, texto: 'Bancada não inclusa.', tildadaPorDefecto: false },
+    {
+      id: 'no-bacha',
+      titulo: null,
+      texto: 'Cuba e torneira não inclusas.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-conexiones',
+      titulo: null,
+      texto: 'Ligações de água, gás e eletricidade não inclusas.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-electrodomesticos',
+      titulo: null,
+      texto: 'Instalação de eletrodomésticos não inclusa.',
+      tildadaPorDefecto: false,
+    },
+  ],
+  formasDePago: [
+    {
+      id: 'sena-y-entrega',
+      nombre: 'Sinal e saldo na entrega',
+      texto: 'Sinal de {sena} para confirmar o projeto e o saldo na entrega.',
+    },
+    {
+      id: 'sena-y-cuotas',
+      nombre: 'Sinal e parcelas',
+      texto:
+        'Sinal de {sena} para confirmar o projeto e o saldo em parcelas, a combinar antes de começar.',
+    },
+    {
+      id: 'todo-al-confirmar',
+      nombre: 'Tudo na confirmação',
+      texto: 'Pagamento total na confirmação do projeto.',
+    },
+  ],
+  avisos: [
+    {
+      id: 'aviso-plazo',
+      titulo: null,
+      texto:
+        'O prazo estimado de fabricação é de {plazo} dias úteis a partir do recebimento do sinal e da confirmação das especificações finais do projeto. Este prazo considera os tempos atuais de produção e de fornecimento de materiais. Caso o trabalho seja concluído antes do prazo indicado, o cliente será avisado para combinar uma entrega antecipada. Os prazos indicados podem ser afetados por atrasos no fornecimento de materiais, na logística ou por fatores externos alheios ao processo de fabricação. Caso essas situações ocorram, o cliente será informado oportunamente.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-aceptacion',
+      titulo: null,
+      texto:
+        'O pagamento do sinal e o início do projeto implicam a aceitação do design, das especificações técnicas, dos prazos de fabricação e das condições detalhadas neste documento.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-modificaciones',
+      titulo: null,
+      texto:
+        'Este orçamento inclui projeto 3D e até {modificaciones}. Modificações adicionais (novo projeto completo) têm um valor estimado de {valor_modificacion} cada.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-relevamiento',
+      titulo: null,
+      texto:
+        'O valor pago pela visita técnica e pelo projeto 3D ({relevamiento}) cobre a visita à obra, a tomada de medidas, o estudo e o projeto 3D. Esse valor já está incluído no total deste orçamento e é descontado do valor do sinal.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-colores',
+      titulo: null,
+      texto:
+        'As cores e os padrões das chapas podem parecer diferentes nas telas ou nas amostras do que são na realidade.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  condiciones: [
+    {
+      id: 'condicion-espacio',
+      titulo: 'Condições do local de montagem',
+      texto:
+        'O cliente deverá garantir condições adequadas de acesso e de espaço para a entrada e a montagem do mobiliário. Situações excepcionais que exijam manobras especiais ou trabalhos adicionais podem precisar de coordenação prévia.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'condicion-perforaciones',
+      titulo: null,
+      texto:
+        'É responsabilidade exclusiva do cliente informar e deixar claramente definidos os trajetos de cabos e tubulações nas paredes que possam ser perfuradas. A MAUN não se responsabiliza por danos decorrentes de perfurações em áreas não sinalizadas ou informadas incorretamente pelo proprietário.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  garantia:
+    'Garantia de {meses} a partir da entrega e da montagem, contra defeitos de fabricação ou de montagem. Não cobre danos causados por batidas, umidade ou infiltrações, calor ou sol direto, uso diferente do previsto, nem reparos feitos por terceiros.',
+};
+
+export const PLANTILLAS_DE_SIEMPRE: Readonly<Record<Idioma, PlantillaDelPresupuesto>> = {
+  es: PLANTILLA_DE_SIEMPRE,
+  en: PLANTILLA_DE_SIEMPRE_EN_INGLES,
+  'pt-BR': PLANTILLA_DE_SIEMPRE_EN_PORTUGUES,
+};
+
+export function plantillaDeSiempre(idioma: Idioma): PlantillaDelPresupuesto {
+  return PLANTILLAS_DE_SIEMPRE[idioma];
+}
 
 export interface Propia {
   id: string;
@@ -590,13 +895,11 @@ export function completarHuecos(
   });
 }
 
-function conSuPlural(cantidad: number, singular: string, plural: string): string {
-  return `${String(cantidad)} ${cantidad === 1 ? singular : plural}`;
-}
-
 export interface Formatos {
   plata: (importe: Money<Moneda>, moneda: Moneda) => string;
   porcentaje: (puntos: PuntosBasicos) => string;
+  modificaciones: (cantidad: number) => string;
+  meses: (cantidad: number) => string;
 }
 
 interface ComunDeLaEntrada {
@@ -643,24 +946,19 @@ export function huecosDelPresupuesto(
   const modificacion = modificacionDelPresupuesto(plantilla, entrada);
   return {
     plazo: String(entrada.plazoDeFabricacion),
-    modificaciones: conSuPlural(
-      plantilla.modificacionesIncluidas,
-      'modificación',
-      'modificaciones',
-    ),
+    modificaciones: formatos.modificaciones(plantilla.modificacionesIncluidas),
     valor_modificacion: formatos.plata(modificacion.importe, modificacion.moneda),
     relevamiento: formatos.plata(entrada.abonado, entrada.monedaDeLoAbonado),
     sena: `${formatos.porcentaje(entrada.senaBp)}%`,
-    meses: conSuPlural(plantilla.garantiaMeses, 'mes', 'meses'),
+    meses: formatos.meses(plantilla.garantiaMeses),
   };
 }
 
 export function textoDeLaGarantia(
   plantilla: Pick<PlantillaDelPresupuesto, 'garantia' | 'garantiaMeses'>,
+  formatos: Pick<Formatos, 'meses'>,
 ): string {
-  return completarHuecos(plantilla.garantia, {
-    meses: conSuPlural(plantilla.garantiaMeses, 'mes', 'meses'),
-  });
+  return completarHuecos(plantilla.garantia, { meses: formatos.meses(plantilla.garantiaMeses) });
 }
 
 function limpio(texto: string): string {
@@ -840,9 +1138,25 @@ export function plazoDelPresupuesto(
   return documento?.plazoDeFabricacion ?? DIAS_HABILES_DE_ENTREGA;
 }
 
-export function numeroVisible(numero: string | null, revision: number): string {
-  if (numero === null) return 'Sin número todavía';
-  return revision <= 1 ? `Nº ${numero}` : `Nº ${numero} · Rev. ${String(revision)}`;
+export interface FrasesConNumero {
+  numero: (numero: string) => string;
+  conRevision: (numero: string, revision: number) => string;
+}
+
+export interface FrasesDelNumero extends FrasesConNumero {
+  sinNumero: string;
+}
+
+function conElNumero(numero: string, revision: number, frases: FrasesConNumero): string {
+  return revision <= 1 ? frases.numero(numero) : frases.conRevision(numero, revision);
+}
+
+export function numeroVisible(
+  numero: string | null,
+  revision: number,
+  frases: FrasesDelNumero,
+): string {
+  return numero === null ? frases.sinNumero : conElNumero(numero, revision, frases);
 }
 
 const PROHIBIDOS_EN_UN_ARCHIVO = '/\\:*?"<>|';
@@ -857,52 +1171,56 @@ export function nombreDelArchivo(
   documento: Pick<DocumentoDelPresupuesto, 'cliente'>,
   numero: string | null,
   revision: number,
+  frases: FrasesDelNumero,
 ): string {
   const cliente = sinProhibidos(documento.cliente).replace(/\s+/g, ' ').trim();
-  const cabeza =
-    numero === null
-      ? 'Presupuesto (borrador)'
-      : revision <= 1
-        ? `Presupuesto ${numero}`
-        : `Presupuesto ${numero} Rev ${String(revision)}`;
+  const cabeza = numeroVisible(numero, revision, frases);
   return `${cliente === '' ? cabeza : `${cabeza} - ${cliente}`}.pdf`;
 }
 
-export function tituloDelArchivo(numero: string | null, revision: number): string {
-  if (numero === null) return 'Presupuesto (borrador)';
-  return revision <= 1
-    ? `Presupuesto ${numero}`
-    : `Presupuesto ${numero} · Rev. ${String(revision)}`;
+export function tituloDelArchivo(
+  numero: string | null,
+  revision: number,
+  frases: FrasesDelNumero,
+): string {
+  return numeroVisible(numero, revision, frases);
 }
 
-export function mensajeParaElTaller(numero: string, revision: number): string {
-  const cual = revision <= 1 ? `Nº ${numero}` : `Nº ${numero} Rev. ${String(revision)}`;
-  return `Hola, te escribo por el presupuesto ${cual}.`;
+export function mensajeParaElTaller(
+  numero: string,
+  revision: number,
+  frases: FrasesConNumero,
+): string {
+  return conElNumero(numero, revision, frases);
 }
 
 export const CAMPOS_QUE_FALTAN = ['titulo', 'muebles', 'valores', 'queCambio'] as const;
 
 export type CampoQueFalta = (typeof CAMPOS_QUE_FALTAN)[number];
 
+export const MOTIVOS_DE_LO_QUE_FALTA = [
+  'titulo',
+  'muebles',
+  'total',
+  'opciones',
+  'queCambio',
+  'queCambioLargo',
+] as const;
+
+export type MotivoDeLoQueFalta = (typeof MOTIVOS_DE_LO_QUE_FALTA)[number];
+
 export interface LoQueFalta {
   campo: CampoQueFalta;
-  texto: string;
+  motivo: MotivoDeLoQueFalta;
 }
 
-export const TEXTOS_DE_LO_QUE_FALTA = {
-  titulo: 'Ponele un título al trabajo.',
-  muebles: 'Describí por lo menos un mueble.',
-  total: 'Poné el total del presupuesto.',
-  opciones: 'Cada opción necesita su importe.',
-  queCambio: 'Contale a tu cliente qué cambió.',
-  queCambioLargo: 'Lo que cambió tiene que entrar en 280 caracteres.',
-} as const;
-
-function faltanLosValores(valores: ValoresDelPresupuesto<Moneda> | null): string | null {
-  if (valores === null) return TEXTOS_DE_LO_QUE_FALTA.total;
-  if (valores.tipo === 'total') return valores.total <= 0 ? TEXTOS_DE_LO_QUE_FALTA.total : null;
+function faltanLosValores(
+  valores: ValoresDelPresupuesto<Moneda> | null,
+): MotivoDeLoQueFalta | null {
+  if (valores === null) return 'total';
+  if (valores.tipo === 'total') return valores.total <= 0 ? 'total' : null;
   return valores.opciones.length === 0 || valores.opciones.some(({ total }) => total <= 0)
-    ? TEXTOS_DE_LO_QUE_FALTA.opciones
+    ? 'opciones'
     : null;
 }
 
@@ -912,20 +1230,18 @@ export function problemasParaMandar(
   queCambio: string,
 ): LoQueFalta[] {
   const falta: LoQueFalta[] = [];
-  if (!tieneTexto(documento.titulo)) {
-    falta.push({ campo: 'titulo', texto: TEXTOS_DE_LO_QUE_FALTA.titulo });
-  }
+  if (!tieneTexto(documento.titulo)) falta.push({ campo: 'titulo', motivo: 'titulo' });
   if (!documento.muebles.some(({ descripcion }) => tieneTexto(descripcion))) {
-    falta.push({ campo: 'muebles', texto: TEXTOS_DE_LO_QUE_FALTA.muebles });
+    falta.push({ campo: 'muebles', motivo: 'muebles' });
   }
   const deLosValores = faltanLosValores(documento.valores);
-  if (deLosValores !== null) falta.push({ campo: 'valores', texto: deLosValores });
+  if (deLosValores !== null) falta.push({ campo: 'valores', motivo: deLosValores });
   if (revisionQueSeManda > 1) {
     const escrito = sinBlancosEnLasPuntas(queCambio);
     if (escrito === '') {
-      falta.push({ campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambio });
+      falta.push({ campo: 'queCambio', motivo: 'queCambio' });
     } else if (largoDelTexto(escrito) > LARGOS_DEL_PRESUPUESTO.queCambio) {
-      falta.push({ campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambioLargo });
+      falta.push({ campo: 'queCambio', motivo: 'queCambioLargo' });
     }
   }
   return falta;
@@ -934,10 +1250,11 @@ export function problemasParaMandar(
 export function resumenDeLosValores<M extends Moneda = MonedaDelTaller>(
   valores: ValoresDelPresupuesto<M> | null,
   plata: (importe: Money<M>) => string,
+  opcion: (letra: string, importe: string) => string,
 ): string | null {
   if (valores === null) return null;
   if (valores.tipo === 'total') return plata(valores.total);
-  return valores.opciones.map(({ letra, total }) => `Opción ${letra} ${plata(total)}`).join(' · ');
+  return valores.opciones.map(({ letra, total }) => opcion(letra, plata(total))).join(' · ');
 }
 
 function igualesEnProfundidad(una: unknown, otra: unknown): boolean {
@@ -1275,7 +1592,7 @@ function clausulasDe(valor: unknown): Clausula[] {
   }));
 }
 
-export function leerPlantilla(valor: unknown): PlantillaDelPresupuesto | null {
+export function leerPlantilla(valor: unknown, idioma: Idioma): PlantillaDelPresupuesto | null {
   if (problemaDeLaPlantilla(valor) !== null) return null;
   const leida = valor as Readonly<Record<string, unknown>>;
   const monedaDeLaModificacion = esMoneda(leida.monedaDeLaModificacion)
@@ -1293,7 +1610,7 @@ export function leerPlantilla(valor: unknown): PlantillaDelPresupuesto | null {
     monedaDeLaModificacion,
     clausulasDeLaMoneda:
       clausulas === undefined
-        ? CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE
+        ? plantillaDeSiempre(idioma).clausulasDeLaMoneda
         : {
             dolaresEnPesos: clausulas.dolaresEnPesos,
             dolaresEnDolares: clausulas.dolaresEnDolares,
@@ -1315,8 +1632,8 @@ export function leerPlantilla(valor: unknown): PlantillaDelPresupuesto | null {
   };
 }
 
-export function plantillaDelTaller(guardada: unknown): PlantillaDelPresupuesto {
-  return leerPlantilla(guardada) ?? PLANTILLA_DE_SIEMPRE;
+export function plantillaDelTaller(guardada: unknown, idioma: Idioma): PlantillaDelPresupuesto {
+  return leerPlantilla(guardada, idioma) ?? plantillaDeSiempre(idioma);
 }
 
 export type ProblemaDelPresupuesto =

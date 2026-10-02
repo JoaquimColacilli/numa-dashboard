@@ -160,27 +160,31 @@ describe('cómo lo ve tu cliente, mientras lo armás', () => {
 
   it('es la página del cliente con lo de hoy: sin número todavía, vale desde hoy y pide la seña', () => {
     const documento = documentoDeHoy({ replica: replica(), proyecto: PROYECTO, borrador });
-    const vista = comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0));
+    const vista = comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0), 'es');
     expect(vista).toMatchObject({
       etapa: 'mandado',
       numero: '',
-      numeroVisible: 'Sin número todavía',
+      idioma: 'es',
       mandadoEl: '2026-09-22',
       valeHasta: '2026-10-02',
       vencio: null,
       queCambio: null,
-      mensajeParaElTaller: '',
       pideLaSena: true,
-      nombreDelArchivo: 'Presupuesto (borrador).pdf',
     });
     expect(vista.cuentas).toHaveLength(1);
   });
 
   it('con número, el de la revisión que se va a mandar; con opciones o la seña cubierta, no pide la seña', () => {
     const documento = documentoDeHoy({ replica: replica(), proyecto: PROYECTO, borrador });
-    const segunda = comoLoVeElCliente(documento, '20260915-01', 2, '2026-09-22', centavos(800_000));
-    expect(segunda.numeroVisible).toBe('Nº 20260915-01 · Rev. 2');
-    expect(segunda.mensajeParaElTaller).not.toBe('');
+    const segunda = comoLoVeElCliente(
+      documento,
+      '20260915-01',
+      2,
+      '2026-09-22',
+      centavos(800_000),
+      'es',
+    );
+    expect(segunda).toMatchObject({ numero: '20260915-01', revision: 2 });
     expect(segunda.pideLaSena).toBe(false);
 
     const conOpciones = documentoDeHoy({
@@ -193,12 +197,39 @@ describe('cómo lo ve tu cliente, mientras lo armás', () => {
         { id: 'o2', descripcion: 'Laqueado', monto: centavos(900_000) },
       ],
     });
-    const vista = comoLoVeElCliente(conOpciones, null, 1, '2026-09-22', centavos(0));
+    const vista = comoLoVeElCliente(conOpciones, null, 1, '2026-09-22', centavos(0), 'es');
     expect(vista.cuentas).toHaveLength(2);
     expect(vista.pideLaSena).toBe(false);
     expect(
-      comoLoVeElCliente({ ...conOpciones, validezDias: null }, null, 1, '2026-09-22', centavos(0))
-        .valeHasta,
+      comoLoVeElCliente(
+        { ...conOpciones, validezDias: null },
+        null,
+        1,
+        '2026-09-22',
+        centavos(0),
+        'es',
+      ).valeHasta,
     ).toBeNull();
+  });
+});
+
+describe('el documento en el idioma de los clientes', () => {
+  const enIngles = replica({
+    ajustes: { a: { ...METADATOS, id: 'a', idioma_de_los_clientes: 'en' } },
+  });
+
+  it('sin plantilla propia, son los textos de siempre en su idioma, con los datos escritos como los lee', () => {
+    const borrador = borradorGuardado(enIngles, PROYECTO, null);
+    const documento = documentoDeHoy({ replica: enIngles, proyecto: PROYECTO, borrador });
+    expect(documento.garantia).toMatch(/^Warranty for 6 months from delivery/);
+    expect(documento.formaDePago).toBe(
+      '50% deposit to confirm the job, and the balance on delivery.',
+    );
+    expect(documento.avisos.map(({ texto }) => texto)).toContainEqual(
+      expect.stringContaining('up to 2 modifications'),
+    );
+    expect(comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0), 'en').idioma).toBe(
+      'en',
+    );
   });
 });

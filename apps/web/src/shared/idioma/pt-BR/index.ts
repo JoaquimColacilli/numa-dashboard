@@ -53,6 +53,7 @@ import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { paginaRecuperar } from './paginaRecuperar';
 import { paginaTesoros } from './paginaTesoros';
+import { pdf } from './pdf';
 import { pedirLaOpinion } from './pedirLaOpinion';
 import { proyecto } from './proyecto';
 import { recibirAvisos } from './recibirAvisos';
@@ -117,6 +118,7 @@ export const ptBR = {
   paginaProyectos,
   paginaRecuperar,
   paginaTesoros,
+  pdf,
   pedirLaOpinion,
   proyecto,
   recibirAvisos,

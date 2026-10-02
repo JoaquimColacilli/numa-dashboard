@@ -5,11 +5,54 @@ export interface EtiquetasDeLaVista {
   imagen: string | null;
 }
 
-export const DESCRIPCION_DE_LA_VISTA =
-  'Seguí cómo va tu mueble: en qué anda, qué pagaste y qué falta.';
+export type IdiomaDelEnlace = 'es' | 'en' | 'pt-BR';
 
-export const DESCRIPCION_DE_LA_ENCUESTA =
-  'Contanos cómo te fue con el trabajo. Son un par de minutos y lo lee el dueño del taller.';
+export interface TextosDelEnlace {
+  descripcionDeLaVista: string;
+  descripcionDeLaEncuesta: string;
+  encuestaDe: (taller: string) => string;
+  unaEncuestaDelTaller: string;
+}
+
+export const TEXTOS_DEL_ENLACE: Readonly<Record<IdiomaDelEnlace, TextosDelEnlace>> = {
+  es: {
+    descripcionDeLaVista: 'Seguí cómo va tu mueble: en qué anda, qué pagaste y qué falta.',
+    descripcionDeLaEncuesta:
+      'Contanos cómo te fue con el trabajo. Son un par de minutos y lo lee el dueño del taller.',
+    encuestaDe: (taller) => `Encuesta de ${taller}`,
+    unaEncuestaDelTaller: 'Una encuesta del taller',
+  },
+  en: {
+    descripcionDeLaVista:
+      "See how your furniture is coming along: where it's at, what you've paid, and what's left.",
+    descripcionDeLaEncuesta:
+      'Tell us how the job went. It only takes a couple of minutes, and the shop owner reads it.',
+    encuestaDe: (taller) => `Survey from ${taller}`,
+    unaEncuestaDelTaller: 'A survey from the shop',
+  },
+  'pt-BR': {
+    descripcionDeLaVista:
+      'Acompanhe o andamento do seu móvel: em que etapa está, o que você já pagou e o que falta.',
+    descripcionDeLaEncuesta:
+      'Conte para a gente como foi o projeto. Leva só alguns minutos, e quem lê é o dono da marcenaria.',
+    encuestaDe: (taller) => `Pesquisa de satisfação de ${taller}`,
+    unaEncuestaDelTaller: 'Uma pesquisa de satisfação da marcenaria',
+  },
+};
+
+export const ETIQUETA_DEL_IDIOMA: Readonly<Record<IdiomaDelEnlace, string>> = {
+  es: 'es-AR',
+  en: 'en-US',
+  'pt-BR': 'pt-BR',
+};
+
+export function idiomaDelEnlace(valor: unknown): IdiomaDelEnlace {
+  return valor === 'en' || valor === 'pt-BR' ? valor : 'es';
+}
+
+export const DESCRIPCION_DE_LA_VISTA = TEXTOS_DEL_ENLACE.es.descripcionDeLaVista;
+
+export const DESCRIPCION_DE_LA_ENCUESTA = TEXTOS_DEL_ENLACE.es.descripcionDeLaEncuesta;
 
 export const TITULO_GENERICO = 'MAUN';
 
@@ -73,9 +116,10 @@ export function tokenDeLaRuta(ruta: string): string | null {
   return TOKEN_DE_UN_ENLACE.test(token) ? token : null;
 }
 
-export function tituloDeLaEncuesta(taller: string): string {
+export function tituloDeLaEncuesta(taller: string, idioma: IdiomaDelEnlace = 'es'): string {
   const delTaller = taller.trim();
-  return delTaller === '' ? 'Una encuesta del taller' : `Encuesta de ${delTaller}`;
+  const textos = TEXTOS_DEL_ENLACE[idioma];
+  return delTaller === '' ? textos.unaEncuestaDelTaller : textos.encuestaDe(delTaller);
 }
 
 export function tituloDeLaVista(trabajo: string, taller: string): string {
@@ -89,13 +133,29 @@ export function etiquetasGenericas(
   url: string,
   imagen: string | null,
   clase: ClaseDeEnlace = 'vista',
+  idioma: IdiomaDelEnlace = 'es',
 ): EtiquetasDeLaVista {
+  const textos = TEXTOS_DEL_ENLACE[idioma];
   return {
     titulo: TITULO_GENERICO,
-    descripcion: clase === 'encuesta' ? DESCRIPCION_DE_LA_ENCUESTA : DESCRIPCION_DE_LA_VISTA,
+    descripcion:
+      clase === 'encuesta' ? textos.descripcionDeLaEncuesta : textos.descripcionDeLaVista,
     url,
     imagen,
   };
+}
+
+const LA_APERTURA_DEL_HTML = /<html(\s[^>]*)?>/i;
+
+const EL_LANG = /\slang\s*=\s*(["'])[^"']*\1/i;
+
+const LA_MARCA_DEL_IDIOMA = /\sdata-idioma-del-taller(\s*=\s*(["'])[^"']*\2)?/i;
+
+export function conElIdiomaDelTaller(html: string, idioma: IdiomaDelEnlace): string {
+  return html.replace(LA_APERTURA_DEL_HTML, (_apertura, atributos: string | undefined) => {
+    const otros = (atributos ?? '').replace(EL_LANG, '').replace(LA_MARCA_DEL_IDIOMA, '');
+    return `<html lang="${ETIQUETA_DEL_IDIOMA[idioma]}" data-idioma-del-taller="${idioma}"${otros}>`;
+  });
 }
 
 function bloqueDelHead(etiquetas: EtiquetasDeLaVista): string {

@@ -1,17 +1,20 @@
-import type {
-  CuentaDeUnValor,
-  DocumentoDelPresupuesto,
-  Moneda,
-  PresupuestoAceptado,
-  PresupuestoMandado,
-  TextoConTitulo,
+import {
+  type CuentaDeUnValor,
+  type DocumentoDelPresupuesto,
+  type Moneda,
+  type PresupuestoAceptado,
+  type PresupuestoMandado,
+  type TextoConTitulo,
 } from '@maun/domain';
 import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
 
-import { formatearPesos } from '@/shared/lib';
 import {
-  NO_SE_PUDO_ARMAR_EL_PDF,
-  PREPARANDO_EL_PDF,
+  ConElIdiomaDelCliente,
+  useFormatosDelCliente,
+  useMensajesDelCliente,
+} from '@/shared/idioma-del-cliente';
+import {
+  IDIOMA_DE_LA_LEYENDA,
   sePuedenCompartirArchivos,
   usePdfDelPresupuesto,
   type PdfDelPresupuesto,
@@ -28,31 +31,16 @@ import {
 } from '@/shared/ui';
 
 import {
-  BORRADOR,
-  claveDeLaSena,
-  COMO_DEJAR_LA_SENA,
-  COMPARTIR,
-  COMPARTIR_EL_PDF,
-  cuantoDuraLaGarantia,
-  DESCARGAR_EL_PDF,
-  EL_PRESUPUESTO,
-  EL_PRESUPUESTO_QUE_ACEPTASTE,
-  ELEGI_LA_OPCION,
   enlaceParaEscribirleAlTaller,
-  ESCRIBIRLE_AL_TALLER,
   ID_DE_COMO_PAGAR,
   lineaDelVencido,
   partesDelPie,
   pdfDelAceptado,
   pdfDelBorrador,
   pdfDelMandado,
-  queCambioEnLaRevision,
   rotuloDelAceptado,
   rotuloDelMandado,
   textoDeLaValidez,
-  textoDelAcordado,
-  textoDelPlazo,
-  VER_EL_DETALLE,
 } from '../model/presupuesto';
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
@@ -78,7 +66,9 @@ function ListaConPuntos({ renglones }: { renglones: readonly string[] }) {
       {renglones.map((renglon, indice) => (
         <li key={`${String(indice)}-${renglon}`} className="flex gap-2.5 text-body leading-normal">
           <span aria-hidden className="mt-2 size-1.5 flex-none rounded-pill bg-text-3" />
-          <span className="min-w-0 text-pretty">{renglon}</span>
+          <span translate="no" className="min-w-0 text-pretty">
+            {renglon}
+          </span>
         </li>
       ))}
     </ul>
@@ -88,25 +78,32 @@ function ListaConPuntos({ renglones }: { renglones: readonly string[] }) {
 function ElTrabajo({ documento }: { documento: DocumentoDelPresupuesto }) {
   return (
     <div>
-      <h3 className="text-body-lg leading-normal font-semibold text-pretty">{documento.titulo}</h3>
+      <h3 translate="no" className="text-body-lg leading-normal font-semibold text-pretty">
+        {documento.titulo}
+      </h3>
       {documento.obra !== '' && (
         <p className="mt-0.5 flex items-start gap-1.5 text-label leading-normal text-text-2">
           <Icono nombre="map-pin" tamano={14} className="mt-[3px] flex-none" />
-          <span className="min-w-0">{documento.obra}</span>
+          <span translate="no" className="min-w-0">
+            {documento.obra}
+          </span>
         </p>
       )}
       {documento.descripcion !== '' && (
-        <p className={`mt-3 ${TEXTO_CORRIDO} text-text-2`}>{documento.descripcion}</p>
+        <p translate="no" className={`mt-3 ${TEXTO_CORRIDO} text-text-2`}>
+          {documento.descripcion}
+        </p>
       )}
     </div>
   );
 }
 
 function Detalle({ muebles }: { muebles: DocumentoDelPresupuesto['muebles'] }) {
+  const m = useMensajesDelCliente().presupuesto;
   if (muebles.length === 0) return null;
   return (
     <div className={BLOQUE}>
-      <TituloDeBloque>Detalle</TituloDeBloque>
+      <TituloDeBloque>{m.secciones.detalle}</TituloDeBloque>
       <ol className="mt-3.5 flex flex-col gap-5">
         {muebles.map((mueble, indice) => (
           <li
@@ -114,7 +111,7 @@ function Detalle({ muebles }: { muebles: DocumentoDelPresupuesto['muebles'] }) {
             className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3"
           >
             <Globo numero={indice + 1} className="-mt-px" />
-            <div className="min-w-0">
+            <div translate="no" className="min-w-0">
               <p className="text-body leading-normal font-semibold">{mueble.nombre}</p>
               {mueble.descripcion !== '' && (
                 <p className={`mt-1 ${TEXTO_CORRIDO} text-text-2`}>{mueble.descripcion}</p>
@@ -128,10 +125,11 @@ function Detalle({ muebles }: { muebles: DocumentoDelPresupuesto['muebles'] }) {
 }
 
 function Herrajes({ herrajes }: { herrajes: readonly string[] }) {
+  const m = useMensajesDelCliente().presupuesto;
   if (herrajes.length === 0) return null;
   return (
     <div className={BLOQUE}>
-      <TituloDeBloque>Herrajes</TituloDeBloque>
+      <TituloDeBloque>{m.secciones.herrajes}</TituloDeBloque>
       <div className="mt-3">
         <ListaConPuntos renglones={herrajes} />
       </div>
@@ -140,10 +138,11 @@ function Herrajes({ herrajes }: { herrajes: readonly string[] }) {
 }
 
 function ATenerEnCuenta({ renglones }: { renglones: readonly string[] }) {
+  const m = useMensajesDelCliente().presupuesto;
   if (renglones.length === 0) return null;
   return (
     <div className="mt-5 rounded-field bg-surface px-3.5 pt-3 pb-3.5">
-      <TituloDeBloque>A tener en cuenta</TituloDeBloque>
+      <TituloDeBloque>{m.secciones.aTenerEnCuenta}</TituloDeBloque>
       <div className="mt-2.5">
         <ListaConPuntos renglones={renglones} />
       </div>
@@ -152,10 +151,11 @@ function ATenerEnCuenta({ renglones }: { renglones: readonly string[] }) {
 }
 
 function Incluye({ renglones }: { renglones: readonly string[] }) {
+  const m = useMensajesDelCliente().presupuesto;
   if (renglones.length === 0) return null;
   return (
     <div className={BLOQUE}>
-      <TituloDeBloque>Incluye</TituloDeBloque>
+      <TituloDeBloque>{m.secciones.incluye}</TituloDeBloque>
       <ul className="mt-3 flex flex-col gap-1.5">
         {renglones.map((renglon, indice) => (
           <li
@@ -163,7 +163,9 @@ function Incluye({ renglones }: { renglones: readonly string[] }) {
             className="flex gap-2.5 text-body leading-normal"
           >
             <Icono nombre="check" tamano={16} grosor={2} className="mt-[3px] flex-none" />
-            <span className="min-w-0 text-pretty">{renglon}</span>
+            <span translate="no" className="min-w-0 text-pretty">
+              {renglon}
+            </span>
           </li>
         ))}
       </ul>
@@ -176,55 +178,63 @@ interface LoQueSeMuestraDeLosValores {
   acordado: number | null;
 }
 
+function Monto({ children }: { children: string }) {
+  return <span translate="no">{children}</span>;
+}
+
 function CuentasDeUnValor({
   cuenta,
   senaBp,
   como,
+  plata,
 }: {
   cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
   como: LoQueSeMuestraDeLosValores;
+  plata: (importe: number) => string;
 }) {
+  const m = useMensajesDelCliente().presupuesto.valores;
+  const f = useFormatosDelCliente();
   const pago = como.conLoPagado && cuenta.pagado > 0;
   return (
     <div className="flex flex-col text-body leading-normal">
       <LineaDePuntos
         className="pb-1"
-        izquierda={<span className="font-semibold">Total</span>}
+        izquierda={<span className="font-semibold">{m.total}</span>}
         derecha={
-          <span className="text-money-lg leading-tight font-semibold">
-            {formatearPesos(cuenta.total)}
+          <span translate="no" className="text-money-lg leading-tight font-semibold">
+            {plata(cuenta.total)}
           </span>
         }
       />
       {como.acordado !== null && (
         <p className="pb-1 text-label leading-normal font-semibold">
-          {textoDelAcordado(como.acordado)}
+          {m.acordado(plata(como.acordado))}
         </p>
       )}
       <LineaDePuntos
         className="py-1"
-        izquierda={claveDeLaSena(senaBp)}
-        derecha={formatearPesos(cuenta.sena)}
+        izquierda={m.sena(f.porcentaje(senaBp))}
+        derecha={<Monto>{plata(cuenta.sena)}</Monto>}
       />
       {pago && (
         <>
           <LineaDePuntos
             className="py-1"
-            izquierda="Ya pagaste"
-            derecha={formatearPesos(cuenta.pagado)}
+            izquierda={m.yaPagaste}
+            derecha={<Monto>{plata(cuenta.pagado)}</Monto>}
           />
           <div className="mt-1 border-t border-ink pt-1.5">
             {cuenta.faltaParaLaSena > 0 ? (
               <LineaDePuntos
                 className="py-1 font-semibold"
-                izquierda="Te falta para la seña"
-                derecha={formatearPesos(cuenta.faltaParaLaSena)}
+                izquierda={m.teFaltaParaLaSena}
+                derecha={<Monto>{plata(cuenta.faltaParaLaSena)}</Monto>}
               />
             ) : (
               <p className="flex items-center gap-1.5 py-1 font-semibold text-hogar">
                 <Icono nombre="circle-check" tamano={16} className="flex-none" />
-                La seña está cubierta
+                {m.laSenaEstaCubierta}
               </p>
             )}
           </div>
@@ -233,8 +243,8 @@ function CuentasDeUnValor({
       {como.conLoPagado && (
         <LineaDePuntos
           className="py-1 text-text-2"
-          izquierda="Después, el saldo"
-          derecha={formatearPesos(cuenta.saldo)}
+          izquierda={m.despuesElSaldo}
+          derecha={<Monto>{plata(cuenta.saldo)}</Monto>}
         />
       )}
     </div>
@@ -252,14 +262,16 @@ function Valores({
   conEleccion: boolean;
   como: LoQueSeMuestraDeLosValores;
 }) {
+  const m = useMensajesDelCliente().presupuesto;
+  const plata = useFormatosDelCliente().pesos;
   const [unica] = cuentas;
   if (unica === undefined) return null;
   if (documento.valores?.tipo !== 'opciones') {
     return (
       <div className={BLOQUE}>
-        <TituloDeBloque>Valores</TituloDeBloque>
+        <TituloDeBloque>{m.secciones.valores}</TituloDeBloque>
         <div className="mt-3">
-          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} />
+          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} plata={plata} />
         </div>
       </div>
     );
@@ -267,42 +279,57 @@ function Valores({
   if (cuentas.length === 1) {
     return (
       <div className={BLOQUE}>
-        <TituloDeBloque>Valores</TituloDeBloque>
-        <h4 className="mt-3 text-body leading-normal font-semibold">Opción {unica.letra}</h4>
+        <TituloDeBloque>{m.secciones.valores}</TituloDeBloque>
+        <h4 className="mt-3 text-body leading-normal font-semibold">
+          {m.valores.opcion(unica.letra ?? '')}
+        </h4>
         {unica.descripcion !== '' && (
-          <p className="mt-0.5 max-w-[560px] text-label leading-relaxed text-pretty text-text-2">
+          <p
+            translate="no"
+            className="mt-0.5 max-w-[560px] text-label leading-relaxed text-pretty text-text-2"
+          >
             {unica.descripcion}
           </p>
         )}
         <div className="mt-3">
-          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} />
+          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} plata={plata} />
         </div>
       </div>
     );
   }
   return (
     <div className={`${BLOQUE} @container/valores`}>
-      <TituloDeBloque>Valores</TituloDeBloque>
+      <TituloDeBloque>{m.secciones.valores}</TituloDeBloque>
       <ul className="mt-3 grid grid-cols-1 gap-3 @min-[34rem]/valores:grid-cols-2">
         {cuentas.map((cuenta) => (
           <li
             key={cuenta.id ?? cuenta.letra}
             className="flex flex-col rounded-field border border-hairline px-3.5 pt-3 pb-2.5"
           >
-            <h4 className="text-body leading-normal font-semibold">Opción {cuenta.letra}</h4>
+            <h4 className="text-body leading-normal font-semibold">
+              {m.valores.opcion(cuenta.letra ?? '')}
+            </h4>
             {cuenta.descripcion !== '' && (
-              <p className="mt-0.5 text-label leading-relaxed text-pretty text-text-2">
+              <p
+                translate="no"
+                className="mt-0.5 text-label leading-relaxed text-pretty text-text-2"
+              >
                 {cuenta.descripcion}
               </p>
             )}
             <div className="mt-auto pt-3">
-              <CuentasDeUnValor cuenta={cuenta} senaBp={documento.senaBp} como={como} />
+              <CuentasDeUnValor
+                cuenta={cuenta}
+                senaBp={documento.senaBp}
+                como={como}
+                plata={plata}
+              />
             </div>
           </li>
         ))}
       </ul>
       {conEleccion && (
-        <p className="mt-3 text-body leading-normal text-text-2">{ELEGI_LA_OPCION}</p>
+        <p className="mt-3 text-body leading-normal text-text-2">{m.valores.elegiLaOpcion}</p>
       )}
     </div>
   );
@@ -331,16 +358,19 @@ function FormaPlazoYValidez({
   documento: DocumentoDelPresupuesto;
   validez: ValidezDelDocumento | null;
 }) {
+  const m = useMensajesDelCliente().presupuesto;
   return (
     <dl className={`${BLOQUE} flex flex-col gap-3`}>
       {documento.formaDePago !== null && (
-        <Definicion clave="Forma de pago">{documento.formaDePago}</Definicion>
+        <Definicion clave={m.definiciones.formaDePago}>
+          <span translate="no">{documento.formaDePago}</span>
+        </Definicion>
       )}
-      <Definicion clave="Plazo de fabricación">
-        {textoDelPlazo(documento.plazoDeFabricacion)}
+      <Definicion clave={m.definiciones.plazo}>
+        {m.diasHabiles(documento.plazoDeFabricacion)}
       </Definicion>
       {validez !== null && (
-        <Definicion clave="Validez">
+        <Definicion clave={m.definiciones.validez}>
           {validez.vencida ? (
             <span className="inline-flex items-center gap-1.5 font-medium text-atencion">
               <Icono nombre="triangle-alert" tamano={15} className="flex-none" />
@@ -366,7 +396,7 @@ function Clausulas({ textos }: { textos: readonly TextoConTitulo[] }) {
           <span aria-hidden className="text-body leading-relaxed text-text-3 tabular-nums">
             {indice + 1}.
           </span>
-          <div className={TEXTO_CORRIDO}>
+          <div translate="no" className={TEXTO_CORRIDO}>
             {texto.titulo !== null && <p className="font-semibold">{texto.titulo}</p>}
             <p className="text-text-2">{texto.texto}</p>
           </div>
@@ -402,23 +432,26 @@ function Plegable({
 }
 
 function LoQueHayQueSaber({ documento }: { documento: DocumentoDelPresupuesto }) {
+  const m = useMensajesDelCliente().presupuesto;
   const { avisos, condiciones, garantia } = documento;
   if (avisos.length === 0 && condiciones.length === 0 && garantia === '') return null;
   return (
     <div className="mt-5 border-t border-hairline-soft">
       {avisos.length > 0 && (
-        <Plegable titulo="Avisos" resumen={String(avisos.length)}>
+        <Plegable titulo={m.secciones.avisos} resumen={String(avisos.length)}>
           <Clausulas textos={avisos} />
         </Plegable>
       )}
       {condiciones.length > 0 && (
-        <Plegable titulo="Condiciones" resumen={String(condiciones.length)}>
+        <Plegable titulo={m.secciones.condiciones} resumen={String(condiciones.length)}>
           <Clausulas textos={condiciones} />
         </Plegable>
       )}
       {garantia !== '' && (
-        <Plegable titulo="Garantía" resumen={cuantoDuraLaGarantia(documento.garantiaMeses)}>
-          <p className={`pl-6 ${TEXTO_CORRIDO} text-text-2`}>{garantia}</p>
+        <Plegable titulo={m.secciones.garantia} resumen={m.meses(documento.garantiaMeses)}>
+          <p translate="no" className={`pl-6 ${TEXTO_CORRIDO} text-text-2`}>
+            {garantia}
+          </p>
         </Plegable>
       )}
     </div>
@@ -426,18 +459,21 @@ function LoQueHayQueSaber({ documento }: { documento: DocumentoDelPresupuesto })
 }
 
 function PieDelDocumento({ documento }: { documento: DocumentoDelPresupuesto }) {
-  const partes = partesDelPie(documento.taller);
+  const m = useMensajesDelCliente();
+  const partes = partesDelPie(documento.taller, m);
   return (
     <p className="mt-5 text-meta leading-relaxed text-pretty text-text-3">
       {partes.map((parte, indice) => (
-        <Fragment key={`${String(indice)}-${parte}`}>
+        <Fragment key={`${String(indice)}-${parte.texto}`}>
           {indice > 0 && ' · '}
           <span
-            className={`${indice === 0 ? 'font-medium text-text-2' : ''} ${
-              parte.length <= PARTE_QUE_NO_SE_CORTA ? 'whitespace-nowrap' : ''
+            translate={parte.tipo === 'aclaracion' ? undefined : 'no'}
+            lang={parte.tipo === 'leyenda' ? IDIOMA_DE_LA_LEYENDA : undefined}
+            className={`${parte.tipo === 'dato' ? '' : 'font-medium text-text-2'} ${
+              parte.texto.length <= PARTE_QUE_NO_SE_CORTA ? 'whitespace-nowrap' : ''
             }`}
           >
-            {parte}
+            {parte.texto}
           </span>
         </Fragment>
       ))}
@@ -472,11 +508,6 @@ function CuerpoDelDocumento({
   );
 }
 
-function textoDelEstado(pdf: PdfDelPresupuesto): string {
-  if (pdf.estado === 'preparando') return PREPARANDO_EL_PDF;
-  return pdf.estado === 'listo' && pdf.esperando === null ? 'El PDF está listo.' : '';
-}
-
 function Acciones({
   pdf,
   conCompartir,
@@ -490,22 +521,23 @@ function Acciones({
   comoDejarLaSena: boolean;
   className?: string;
 }) {
+  const { acciones, pdf: textos } = useMensajesDelCliente().presupuesto;
   const [compartible] = useState(() => conCompartir && sePuedenCompartirArchivos());
   const preparando = pdf.estado === 'preparando';
   const descargar = (
     <Button variant="secundario" onClick={pdf.descargar}>
       <Icono nombre="download" tamano={18} />
-      {preparando && pdf.esperando === 'descargar' ? PREPARANDO_EL_PDF : DESCARGAR_EL_PDF}
+      {preparando && pdf.esperando === 'descargar' ? textos.preparando : acciones.descargar}
     </Button>
   );
   const compartir = compartible ? (
     <Button variant="secundario" onClick={pdf.compartir}>
       <Icono nombre="share-2" tamano={18} />
       {preparando && pdf.esperando === 'compartir'
-        ? PREPARANDO_EL_PDF
+        ? textos.preparando
         : pdf.estado === 'listo'
-          ? COMPARTIR_EL_PDF
-          : COMPARTIR}
+          ? acciones.compartirElPdf
+          : acciones.compartir}
     </Button>
   ) : null;
   const aEscribir =
@@ -517,10 +549,15 @@ function Acciones({
         className={BOTON_QUE_ES_UN_ENLACE}
       >
         <Icono nombre="message-circle" tamano={18} />
-        {ESCRIBIRLE_AL_TALLER}
+        {acciones.escribirle}
       </a>
     );
   const sonTres = compartir !== null && aEscribir !== null;
+  const estado = preparando
+    ? textos.preparando
+    : pdf.estado === 'listo' && pdf.esperando === null
+      ? textos.listo
+      : '';
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <FilaDeAcciones>
@@ -530,11 +567,11 @@ function Acciones({
       </FilaDeAcciones>
       {sonTres && <FilaDeAcciones>{aEscribir}</FilaDeAcciones>}
       <p role="status" className="sr-only">
-        {textoDelEstado(pdf)}
+        {estado}
       </p>
       {pdf.estado === 'fallo' && (
         <p role="alert" className="text-label leading-normal text-alerta">
-          {NO_SE_PUDO_ARMAR_EL_PDF}
+          {textos.noSePudo}
         </p>
       )}
       {comoDejarLaSena && (
@@ -542,7 +579,7 @@ function Acciones({
           href={`#${ID_DE_COMO_PAGAR}`}
           className="flex min-h-tap items-center justify-center gap-1.5 text-body font-medium text-ink underline underline-offset-3 @min-[52rem]/apoyo:hidden"
         >
-          {COMO_DEJAR_LA_SENA}
+          {acciones.comoDejarLaSena}
           <Icono nombre="arrow-down" tamano={16} />
         </a>
       )}
@@ -557,12 +594,14 @@ export interface ElPresupuestoProps {
   borrador?: boolean;
 }
 
-export function ElPresupuesto({
+function ElPresupuestoMandado({
   presupuesto,
   hoy,
   hayComoPagar,
   borrador = false,
 }: ElPresupuestoProps) {
+  const m = useMensajesDelCliente();
+  const f = useFormatosDelCliente();
   const titulo = useId();
   const pdf = usePdfDelPresupuesto(
     useMemo(
@@ -571,9 +610,10 @@ export function ElPresupuesto({
     ),
     { alAbrir: borrador },
   );
-  const vencido = presupuesto.vencio === null ? null : lineaDelVencido(presupuesto.vencio, hoy);
+  const vencido =
+    presupuesto.vencio === null ? null : lineaDelVencido(presupuesto.vencio, hoy, m, f);
   const validez: ValidezDelDocumento = {
-    texto: textoDeLaValidez(presupuesto, hoy),
+    texto: textoDeLaValidez(presupuesto, hoy, m, f),
     vencida: presupuesto.vencio !== null,
   };
   const rotulo = rotuloDelMandado(presupuesto);
@@ -582,11 +622,11 @@ export function ElPresupuesto({
     <section aria-labelledby={titulo} data-quieta className={`@container ${TARJETA}`}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={titulo} className="text-section font-semibold">
-          {EL_PRESUPUESTO}
+          {m.presupuesto.titulo}
         </h2>
         {borrador && (
           <span className="rounded-pill border border-border px-2 py-0.5 text-badge font-semibold text-text-2">
-            {BORRADOR}
+            {m.presupuesto.borrador}
           </span>
         )}
       </div>
@@ -612,9 +652,11 @@ export function ElPresupuesto({
           <MarcaDeRevision numero={presupuesto.revision} suelta />
           <div className="min-w-0">
             <h3 className="text-label leading-normal font-semibold text-text-2">
-              {queCambioEnLaRevision(presupuesto.revision)}
+              {m.presupuesto.queCambio(presupuesto.revision)}
             </h3>
-            <p className={`mt-0.5 ${TEXTO_CORRIDO}`}>{presupuesto.queCambio}</p>
+            <p translate="no" className={`mt-0.5 ${TEXTO_CORRIDO}`}>
+              {presupuesto.queCambio}
+            </p>
           </div>
         </div>
       )}
@@ -633,7 +675,7 @@ export function ElPresupuesto({
         className="mt-5"
         pdf={pdf}
         conCompartir={!borrador}
-        escribir={borrador ? null : enlaceParaEscribirleAlTaller(presupuesto)}
+        escribir={borrador ? null : enlaceParaEscribirleAlTaller(presupuesto, m)}
         comoDejarLaSena={!borrador && presupuesto.pideLaSena && hayComoPagar}
       />
 
@@ -642,23 +684,32 @@ export function ElPresupuesto({
   );
 }
 
+export function ElPresupuesto(props: ElPresupuestoProps) {
+  return (
+    <ConElIdiomaDelCliente idioma={props.presupuesto.idioma}>
+      <ElPresupuestoMandado {...props} />
+    </ConElIdiomaDelCliente>
+  );
+}
+
 export interface ElPresupuestoAceptadoProps {
   presupuesto: PresupuestoAceptado;
 }
 
-export function ElPresupuestoAceptado({ presupuesto }: ElPresupuestoAceptadoProps) {
+function ElPresupuestoQueAcepto({ presupuesto }: ElPresupuestoAceptadoProps) {
+  const m = useMensajesDelCliente().presupuesto;
   const titulo = useId();
   const pdf = usePdfDelPresupuesto(useMemo(() => pdfDelAceptado(presupuesto), [presupuesto]));
   return (
     <section aria-labelledby={titulo} data-quieta className={`@container ${TARJETA}`}>
       <h2 id={titulo} className="text-section font-semibold">
-        {EL_PRESUPUESTO_QUE_ACEPTASTE}
+        {m.elQueAceptaste}
       </h2>
 
       <RotuloDelPresupuesto className="mt-3" {...rotuloDelAceptado(presupuesto)} />
 
       <BloquePlegable
-        titulo={VER_EL_DETALLE}
+        titulo={m.verElDetalle}
         abiertoAlPrincipio={false}
         enTarjeta={false}
         enRenglon
@@ -686,5 +737,13 @@ export function ElPresupuestoAceptado({ presupuesto }: ElPresupuestoAceptadoProp
         comoDejarLaSena={false}
       />
     </section>
+  );
+}
+
+export function ElPresupuestoAceptado(props: ElPresupuestoAceptadoProps) {
+  return (
+    <ConElIdiomaDelCliente idioma={props.presupuesto.idioma}>
+      <ElPresupuestoQueAcepto {...props} />
+    </ConElIdiomaDelCliente>
   );
 }

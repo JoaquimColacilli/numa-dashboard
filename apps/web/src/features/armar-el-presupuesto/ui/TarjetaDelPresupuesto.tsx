@@ -15,8 +15,8 @@ import {
   useIr,
 } from '@/shared/lib';
 import {
-  PREPARANDO_EL_PDF,
   usePdfDelPresupuesto,
+  useTextosDelPdf,
   type PdfDelPresupuesto,
   type PresupuestoEnPdf,
 } from '@/shared/pdf';
@@ -120,11 +120,12 @@ function BotonDelPdf({
   etiqueta?: string;
 }) {
   const m = useMensajes().armarElPresupuesto;
+  const textosDelPdf = useTextosDelPdf();
   return (
     <Button variant="secundario" size={size} className="flex-none" onClick={pdf.descargar}>
       <Icono nombre="file-text" tamano={size === 'chico' ? 15 : 16} />
       {pdf.estado === 'preparando' && pdf.esperando === 'descargar'
-        ? PREPARANDO_EL_PDF
+        ? textosDelPdf.preparando
         : (etiqueta ?? m.verElPdf)}
     </Button>
   );

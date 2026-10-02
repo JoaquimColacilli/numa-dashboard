@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OpcionDePresupuesto, Proyecto, ResumenDeProyecto } from '@/entities/proyecto';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
 
 import { PantallaDePasaje } from './PantallaDePasaje';
 
@@ -77,7 +77,7 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
     },
-    { plata: (importe) => formatearPesos(importe), porcentaje: formatearPorcentaje },
+    formatosDelDocumento('es'),
   );
 }
 

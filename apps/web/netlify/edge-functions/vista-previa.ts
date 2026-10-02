@@ -1,14 +1,16 @@
 import {
   claseDelEnlace,
+  conElIdiomaDelTaller,
   conLasEtiquetas,
-  DESCRIPCION_DE_LA_ENCUESTA,
-  DESCRIPCION_DE_LA_VISTA,
   etiquetasGenericas,
+  idiomaDelEnlace,
+  TEXTOS_DEL_ENLACE,
   tituloDeLaEncuesta,
   tituloDeLaVista,
   tokenDeLaRuta,
   type ClaseDeEnlace,
   type EtiquetasDeLaVista,
+  type IdiomaDelEnlace,
 } from '../etiquetas.ts';
 
 interface ContextoDeNetlify {
@@ -22,6 +24,17 @@ export const IMAGEN_DE_LA_VISTA = '/taller-512.png';
 interface TituloDelTrabajo {
   trabajo: string;
   taller: string;
+  idioma: IdiomaDelEnlace;
+}
+
+interface TallerDeLaEncuesta {
+  taller: string | null;
+  idioma: IdiomaDelEnlace;
+}
+
+interface EtiquetasEnSuIdioma {
+  etiquetas: EtiquetasDeLaVista;
+  idioma: IdiomaDelEnlace | null;
 }
 
 function desdeElObjeto(global: string, nombre: string): string | undefined {
@@ -58,7 +71,11 @@ function leerElTitulo(valor: unknown): TituloDelTrabajo | null {
   const trabajo: unknown = Reflect.get(valor, 'trabajo');
   const taller: unknown = Reflect.get(valor, 'taller');
   if (typeof trabajo !== 'string') return null;
-  return { trabajo, taller: typeof taller === 'string' ? taller : '' };
+  return {
+    trabajo,
+    taller: typeof taller === 'string' ? taller : '',
+    idioma: idiomaDelEnlace(Reflect.get(valor, 'idioma')),
+  };
 }
 
 // El tope no usa AbortSignal: Netlify no lo documenta entre las APIs que soporta su runtime. Una
@@ -101,11 +118,14 @@ async function tituloDelEnlace(token: string): Promise<TituloDelTrabajo | null> 
   return leerElTitulo(await consultar('titulo_compartido', token));
 }
 
-async function tallerDeLaEncuesta(token: string): Promise<string | null> {
+async function tallerDeLaEncuesta(token: string): Promise<TallerDeLaEncuesta | null> {
   const encuesta = await consultar('encuesta_compartida', token);
   if (typeof encuesta !== 'object' || encuesta === null) return null;
   const taller: unknown = Reflect.get(encuesta, 'taller');
-  return typeof taller === 'string' ? taller : null;
+  return {
+    taller: typeof taller === 'string' ? taller : null,
+    idioma: idiomaDelEnlace(Reflect.get(encuesta, 'idioma')),
+  };
 }
 
 async function etiquetasDelEnlace(
@@ -113,27 +133,37 @@ async function etiquetasDelEnlace(
   token: string | null,
   url: string,
   imagen: string,
-): Promise<EtiquetasDeLaVista> {
+): Promise<EtiquetasEnSuIdioma> {
   if (clase === 'encuesta') {
-    const taller = token === null ? null : await tallerDeLaEncuesta(token);
-    return taller === null
-      ? etiquetasGenericas(url, imagen, 'encuesta')
-      : {
-          titulo: tituloDeLaEncuesta(taller),
-          descripcion: DESCRIPCION_DE_LA_ENCUESTA,
-          url,
-          imagen,
-        };
+    const encuesta = token === null ? null : await tallerDeLaEncuesta(token);
+    if (encuesta === null) {
+      return { etiquetas: etiquetasGenericas(url, imagen, 'encuesta'), idioma: null };
+    }
+    const { taller, idioma } = encuesta;
+    return {
+      etiquetas:
+        taller === null
+          ? etiquetasGenericas(url, imagen, 'encuesta', idioma)
+          : {
+              titulo: tituloDeLaEncuesta(taller, idioma),
+              descripcion: TEXTOS_DEL_ENLACE[idioma].descripcionDeLaEncuesta,
+              url,
+              imagen,
+            },
+      idioma,
+    };
   }
   const trabajo = token === null ? null : await tituloDelEnlace(token);
-  return trabajo === null
-    ? etiquetasGenericas(url, imagen)
-    : {
-        titulo: tituloDeLaVista(trabajo.trabajo, trabajo.taller),
-        descripcion: DESCRIPCION_DE_LA_VISTA,
-        url,
-        imagen,
-      };
+  if (trabajo === null) return { etiquetas: etiquetasGenericas(url, imagen), idioma: null };
+  return {
+    etiquetas: {
+      titulo: tituloDeLaVista(trabajo.trabajo, trabajo.taller),
+      descripcion: TEXTOS_DEL_ENLACE[trabajo.idioma].descripcionDeLaVista,
+      url,
+      imagen,
+    },
+    idioma: trabajo.idioma,
+  };
 }
 
 export default async function vistaPrevia(
@@ -149,12 +179,13 @@ export default async function vistaPrevia(
   const canonica = `${direccion.origin}${direccion.pathname}`;
   const imagen = `${direccion.origin}${IMAGEN_DE_LA_VISTA}`;
 
-  const etiquetas = await etiquetasDelEnlace(
+  const { etiquetas, idioma } = await etiquetasDelEnlace(
     claseDelEnlace(direccion.pathname),
     tokenDeLaRuta(direccion.pathname),
     canonica,
     imagen,
   );
+  const conEtiquetas = conLasEtiquetas(await respuesta.text(), etiquetas);
 
   const cabeceras = new Headers(respuesta.headers);
   cabeceras.set('content-type', 'text/html; charset=utf-8');
@@ -163,7 +194,7 @@ export default async function vistaPrevia(
   cabeceras.set('cache-control', 'no-store, must-revalidate');
   cabeceras.delete('content-length');
 
-  return new Response(conLasEtiquetas(await respuesta.text(), etiquetas), {
+  return new Response(idioma === null ? conEtiquetas : conElIdiomaDelTaller(conEtiquetas, idioma), {
     status: respuesta.status,
     statusText: respuesta.statusText,
     headers: cabeceras,
