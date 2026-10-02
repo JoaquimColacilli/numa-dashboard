@@ -12,19 +12,21 @@ import {
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import type { Replica } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { fechaLarga, formatearPesos, relativa } from '@/shared/lib';
 import { Button, EstadoVacio, Icono } from '@/shared/ui';
 
 function cuandoLeToca({ pendiente, atrasado, esHoy }: EnSeguimiento, hoy: string): string {
-  if (pendiente === undefined) return 'Sin fecha para volver a escribirle';
-  if (esHoy) return 'Le toca hoy';
-  if (atrasado) {
-    return `Atrasado: le tocaba el ${fechaLarga(pendiente.fecha, hoy)}, ${relativa(pendiente.fecha, hoy)}`;
-  }
-  return `El ${fechaLarga(pendiente.fecha, hoy)}, ${relativa(pendiente.fecha, hoy)}`;
+  const textos = mensajes().paginaProyectos.listaDeSeguimiento;
+  if (pendiente === undefined) return textos.sinFecha;
+  if (esHoy) return textos.leTocaHoy;
+  const fecha = fechaLarga(pendiente.fecha, hoy);
+  const cuando = relativa(pendiente.fecha, hoy);
+  return atrasado ? textos.atrasado(fecha, cuando) : textos.elDia(fecha, cuando);
 }
 
 function TarjetaDeSeguimiento({ fila, hoy }: { fila: EnSeguimiento; hoy: string }) {
+  const { comun, listaDeSeguimiento: textos } = useMensajes().paginaProyectos;
   const { resumen, pendiente, atrasado, esHoy } = fila;
   const { proyecto, cliente } = resumen;
   const nota = pendiente?.nota.trim() ?? '';
@@ -52,7 +54,7 @@ function TarjetaDeSeguimiento({ fila, hoy }: { fila: EnSeguimiento; hoy: string 
       }
     >
       <div>
-        <p className="text-label font-semibold">Volver a escribirle</p>
+        <p className="text-label font-semibold">{textos.volverAEscribirle}</p>
         <p
           className={`mt-0.5 flex items-center gap-1.5 text-meta ${
             atrasado || esHoy ? 'font-semibold text-atencion' : 'text-text-2'
@@ -63,21 +65,29 @@ function TarjetaDeSeguimiento({ fila, hoy }: { fila: EnSeguimiento; hoy: string 
         </p>
       </div>
 
-      {nota !== '' && <p className="line-clamp-2 text-meta leading-snug text-text-2">{nota}</p>}
+      {nota !== '' && (
+        <p translate="no" className="line-clamp-2 text-meta leading-snug text-text-2">
+          {nota}
+        </p>
+      )}
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-meta tabular-nums">
-        <dt className="text-text-3">Estaba en</dt>
+        <dt className="text-text-3">{comun.estabaEn}</dt>
         <dd className="font-medium">{ESTADO[etapaAlVolver(pendiente)].etiqueta}</dd>
         {proyecto.presupuesto_centavos !== null && (
           <>
-            <dt className="text-text-3">Presupuesto</dt>
-            <dd className="font-medium">{formatearPesos(proyecto.presupuesto_centavos)}</dd>
+            <dt className="text-text-3">{comun.presupuesto}</dt>
+            <dd translate="no" className="font-medium">
+              {formatearPesos(proyecto.presupuesto_centavos)}
+            </dd>
           </>
         )}
         {resumen.cobrado > 0 && (
           <>
-            <dt className="text-text-3">Seña cobrada</dt>
-            <dd className="font-medium text-hogar">{formatearPesos(resumen.cobrado)}</dd>
+            <dt className="text-text-3">{comun.senaCobrada}</dt>
+            <dd translate="no" className="font-medium text-hogar">
+              {formatearPesos(resumen.cobrado)}
+            </dd>
           </>
         )}
       </dl>
@@ -92,6 +102,7 @@ export interface ListaDeSeguimientoProps {
 }
 
 export function ListaDeSeguimiento({ resumenes, replica, hoy }: ListaDeSeguimientoProps) {
+  const { comun, listaDeSeguimiento: textos } = useMensajes().paginaProyectos;
   const [consulta, setConsulta] = useState('');
 
   const enSeguimiento = useMemo(
@@ -108,8 +119,8 @@ export function ListaDeSeguimiento({ resumenes, replica, hoy }: ListaDeSeguimien
     return (
       <EstadoVacio
         ilustracion="sin-seguimiento"
-        titulo="Nadie en seguimiento"
-        detalle="Cuando una consulta te diga «por ahora no», pasala a seguimiento desde su ficha con el día en que le volvés a escribir. Acá quedan en orden, los atrasados primero, y la agenda te avisa cuándo toca."
+        titulo={textos.vacioTitulo}
+        detalle={textos.vacioDetalle}
       />
     );
   }
@@ -125,8 +136,8 @@ export function ListaDeSeguimiento({ resumenes, replica, hoy }: ListaDeSeguimien
             onChange={(evento) => {
               setConsulta(evento.target.value);
             }}
-            placeholder="Buscar por cliente o trabajo"
-            aria-label="Buscar en seguimiento"
+            placeholder={comun.buscarPorClienteOTrabajo}
+            aria-label={textos.buscarEnSeguimiento}
             className="min-w-0 flex-1 bg-transparent text-label outline-none"
           />
         </label>
@@ -134,24 +145,20 @@ export function ListaDeSeguimiento({ resumenes, replica, hoy }: ListaDeSeguimien
 
       {visibles.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-panel border border-dashed border-border px-5 py-6 text-center">
-          <p className="text-body-lg text-text-2">
-            Nadie en seguimiento coincide con «{consulta}».
-          </p>
+          <p className="text-body-lg text-text-2">{textos.nadieCoincide(consulta)}</p>
           <Button
             variant="secundario"
             onClick={() => {
               setConsulta('');
             }}
           >
-            Limpiar la búsqueda
+            {comun.limpiarLaBusqueda}
           </Button>
         </div>
       ) : (
         <>
-          <p className="px-1 text-meta text-text-2">
-            Por el día en que le volvés a escribir: los atrasados, primero.
-          </p>
-          <TarjetasDeProyectos etiqueta="En seguimiento">
+          <p className="px-1 text-meta text-text-2">{textos.orden}</p>
+          <TarjetasDeProyectos etiqueta={textos.enSeguimiento}>
             {visibles.map((fila) => (
               <TarjetaDeSeguimiento key={fila.resumen.proyecto.id} fila={fila} hoy={hoy} />
             ))}

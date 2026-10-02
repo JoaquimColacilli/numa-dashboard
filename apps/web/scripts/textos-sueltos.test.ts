@@ -104,6 +104,11 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo:
       'Corta la app si una pantalla del taller se monta sin su proveedor: solo lo ve quien la arma.',
   },
+  {
+    archivo: 'src/features/editar-proyecto/ui/FilasDeOpciones.tsx',
+    texto: 'opciones. .detalle',
+    motivo: 'Es la ruta del campo en react-hook-form (opciones.N.detalle), no un texto.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

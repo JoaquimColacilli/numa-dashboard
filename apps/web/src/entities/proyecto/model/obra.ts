@@ -1,3 +1,4 @@
+import { mensajes } from '@/shared/idioma';
 import { fechaLarga, formatearPesos } from '@/shared/lib';
 import type { NombreDeIcono, TonoDelPaso } from '@/shared/ui';
 
@@ -22,35 +23,39 @@ export function situacionDeLaObra(
   hoy: string,
 ): SituacionDeLaObra | undefined {
   const { proyecto, urgencia, saldo, entrega } = resumen;
+  const textos = mensajes().proyecto.obra;
 
   if (proyecto.estado === 'en_curso') {
     if (entrega.comprometida && entrega.fecha !== null && urgencia !== undefined) {
       return {
-        proximoPaso: 'Falta entregarlo',
-        detalle: `Entrega comprometida: ${fechaConSuFranja(entrega.fecha, entrega.franja, hoy)} (${urgencia.texto})`,
+        proximoPaso: textos.faltaEntregarlo,
+        detalle: textos.entregaComprometida(
+          fechaConSuFranja(entrega.fecha, entrega.franja, hoy),
+          urgencia.texto,
+        ),
         icono: urgencia.tono === 'ok' ? 'truck' : urgencia.icono,
         tono: TONO_DE_LA_ENTREGA[urgencia.tono],
       };
     }
     if (entrega.listo !== null) {
       return {
-        proximoPaso: 'Falta acordar la entrega',
-        detalle: `Está listo desde el ${fechaLarga(entrega.listo, hoy)}`,
+        proximoPaso: textos.faltaAcordarLaEntrega,
+        detalle: textos.listoDesde(fechaLarga(entrega.listo, hoy)),
         icono: 'calendar-days',
         tono: 'normal',
       };
     }
     if (proyecto.entrega_estimada === null || urgencia === undefined) {
       return {
-        proximoPaso: 'Falta entregarlo',
-        detalle: 'Sin fecha de entrega estimada',
+        proximoPaso: textos.faltaEntregarlo,
+        detalle: textos.sinEntregaEstimada,
         icono: 'calendar',
         tono: 'normal',
       };
     }
     return {
-      proximoPaso: 'Falta entregarlo',
-      detalle: `Entrega estimada: ${urgencia.texto}`,
+      proximoPaso: textos.faltaEntregarlo,
+      detalle: textos.entregaEstimada(urgencia.texto),
       icono: urgencia.icono,
       tono: TONO_DE_LA_ENTREGA[urgencia.tono],
     };
@@ -60,12 +65,12 @@ export function situacionDeLaObra(
     return {
       proximoPaso:
         saldo !== null && saldo > 0
-          ? `Falta cobrar ${formatearPesos(saldo)}`
-          : 'Falta cobrarlo y repartir',
+          ? textos.faltaCobrar(formatearPesos(saldo))
+          : textos.faltaCobrarloYRepartir,
       detalle:
         proyecto.fecha_entrega === null
-          ? 'Entregado, sin fecha de entrega'
-          : `Entregado el ${fechaLarga(proyecto.fecha_entrega, hoy)}`,
+          ? textos.entregadoSinFecha
+          : textos.entregadoEl(fechaLarga(proyecto.fecha_entrega, hoy)),
       icono: 'calendar-check',
       tono: 'normal',
     };

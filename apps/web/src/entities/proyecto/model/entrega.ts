@@ -6,6 +6,7 @@ import {
   franjaDeLaEntrega,
   type CambiosDeLaEntrega,
 } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import { diasHasta, fechaLarga, hoyLocal, relativa } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
@@ -34,10 +35,9 @@ export function cambiaAlgoDeLaEntrega(proyecto: Proyecto, cambios: CambiosDeLaEn
   );
 }
 
-export const FRANJA_DE_LA_ENTREGA: Readonly<Record<FranjaDeEntrega, string>> = {
-  manana: 'a la mañana',
-  tarde: 'a la tarde',
-};
+export const FRANJA_DE_LA_ENTREGA: Readonly<Record<FranjaDeEntrega, string>> = textosDelIdioma(
+  () => mensajes().proyecto.entrega.franjas,
+);
 
 export function fechaConSuFranja(
   fecha: string,
@@ -45,7 +45,7 @@ export function fechaConSuFranja(
   hoy: string,
 ): string {
   const dia = fechaLarga(fecha, hoy);
-  return franja === null ? dia : `${dia}, ${FRANJA_DE_LA_ENTREGA[franja]}`;
+  return franja === null ? dia : mensajes().proyecto.entrega.conFranja[franja](dia);
 }
 
 export interface EntregaDelResumen {
@@ -106,18 +106,21 @@ export function urgenciaDeEntrega(
 ): Urgencia | undefined {
   if (entregaEstimada === null || estado === 'entregado' || estaLiquidado(estado)) return undefined;
 
+  const textos = mensajes().proyecto.entrega;
   const dias = diasHasta(entregaEstimada, hoy);
   if (dias < 0) {
     return {
-      texto: `vencida ${relativa(entregaEstimada, hoy)}`,
+      texto: textos.vencida(relativa(entregaEstimada, hoy)),
       tono: 'vencida',
       dias,
       icono: ICONO.vencida,
     };
   }
-  if (dias === 0) return { texto: 'vence hoy', tono: 'vencida', dias, icono: ICONO.vencida };
-  if (dias === 1) return { texto: 'vence mañana', tono: 'atencion', dias, icono: ICONO.atencion };
+  if (dias === 0) return { texto: textos.venceHoy, tono: 'vencida', dias, icono: ICONO.vencida };
+  if (dias === 1) {
+    return { texto: textos.venceManana, tono: 'atencion', dias, icono: ICONO.atencion };
+  }
 
   const tono: TonoDeEntrega = dias <= 7 ? 'atencion' : 'ok';
-  return { texto: `en ${String(dias)} días`, tono, dias, icono: ICONO[tono] };
+  return { texto: textos.enDias(dias), tono, dias, icono: ICONO[tono] };
 }

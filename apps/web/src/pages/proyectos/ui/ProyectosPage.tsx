@@ -27,6 +27,7 @@ import {
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
 import {
   alternar,
   conFondo,
@@ -51,20 +52,27 @@ function etapaDeLaRuta(pathname: string, busqueda: URLSearchParams): Fase {
 }
 
 function Metricas({ resumenes }: { resumenes: readonly ResumenDeProyecto[] }) {
+  const textos = useMensajes().paginaProyectos.lista.metricas;
   const metricas = metricasDeProyectos(resumenes);
   const filas = [
-    { valor: metricas.total, etiqueta: 'proyectos' },
-    { valor: metricas.enCurso, etiqueta: 'en curso' },
-    { valor: metricas.entregadosConSaldo, etiqueta: 'entregados con saldo' },
-    { valor: metricas.cobrados, etiqueta: 'cobrados' },
+    { clave: 'proyectos', valor: metricas.total, etiqueta: textos.proyectos },
+    { clave: 'en-curso', valor: metricas.enCurso, etiqueta: textos.enCurso },
+    {
+      clave: 'entregados-con-saldo',
+      valor: metricas.entregadosConSaldo,
+      etiqueta: textos.entregadosConSaldo,
+    },
+    { clave: 'cobrados', valor: metricas.cobrados, etiqueta: textos.cobrados },
   ];
 
   return (
     <div className="@container">
       <dl className="grid grid-cols-2 gap-y-3 rounded-panel border border-hairline bg-paper py-3 @min-[22rem]:grid-cols-4 @min-[22rem]:gap-y-0 @min-[22rem]:divide-x @min-[22rem]:divide-hairline-soft">
         {filas.map((fila) => (
-          <div key={fila.etiqueta} className="min-w-0 px-3">
-            <dd className="text-money-lg leading-tight font-semibold tabular-nums">{fila.valor}</dd>
+          <div key={fila.clave} className="min-w-0 px-3">
+            <dd translate="no" className="text-money-lg leading-tight font-semibold tabular-nums">
+              {fila.valor}
+            </dd>
             <dt className="mt-0.5 text-meta leading-snug text-text-2">{fila.etiqueta}</dt>
           </div>
         ))}
@@ -74,6 +82,7 @@ function Metricas({ resumenes }: { resumenes: readonly ResumenDeProyecto[] }) {
 }
 
 function Tarjeta({ resumen, hoy }: { resumen: ResumenDeProyecto; hoy: string }) {
+  const { comun } = useMensajes().paginaProyectos;
   const { proyecto } = resumen;
 
   return (
@@ -94,18 +103,21 @@ function Tarjeta({ resumen, hoy }: { resumen: ResumenDeProyecto; hoy: string }) 
       <div className="@container">
         <dl className="grid grid-cols-2 gap-2 tabular-nums @min-[23rem]:grid-cols-3">
           <div>
-            <dt className="text-meta text-text-3">Presupuesto</dt>
-            <dd className="text-body font-medium">
+            <dt className="text-meta text-text-3">{comun.presupuesto}</dt>
+            <dd translate="no" className="text-body font-medium">
               {proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto)}
             </dd>
           </div>
           <div>
-            <dt className="text-meta text-text-3">Cobrado</dt>
-            <dd className="text-body font-medium">{formatearPesos(resumen.cobrado)}</dd>
+            <dt className="text-meta text-text-3">{comun.cobrado}</dt>
+            <dd translate="no" className="text-body font-medium">
+              {formatearPesos(resumen.cobrado)}
+            </dd>
           </div>
           <div>
-            <dt className="text-meta text-text-3">Saldo</dt>
+            <dt className="text-meta text-text-3">{comun.saldo}</dt>
             <dd
+              translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
               className={`text-body font-semibold ${
                 resumen.saldo === null
                   ? 'text-text-3'
@@ -118,7 +130,7 @@ function Tarjeta({ resumen, hoy }: { resumen: ResumenDeProyecto; hoy: string }) 
                 ? '—'
                 : resumen.saldo > 0
                   ? formatearPesos(resumen.saldo)
-                  : 'Sin saldo'}
+                  : comun.sinSaldo}
             </dd>
           </div>
         </dl>
@@ -144,6 +156,7 @@ function Tabla({
   sentido: Sentido;
   alOrdenar: (id: string) => void;
 }) {
+  const { comun } = useMensajes().paginaProyectos;
   return (
     <div className="rounded-panel border border-hairline bg-paper px-1.5">
       <table className="w-full border-collapse text-body">
@@ -200,21 +213,23 @@ function Tabla({
               <td className="w-full max-w-0 px-2.5">
                 <Ir
                   a={rutaDelProyecto(resumen.proyecto.id)}
+                  translate="no"
                   className="block truncate font-medium"
                   title={resumen.proyecto.titulo}
                 >
                   {resumen.proyecto.titulo}
                 </Ir>
               </td>
-              <td className="px-2.5 text-right tabular-nums whitespace-nowrap">
+              <td translate="no" className="px-2.5 text-right tabular-nums whitespace-nowrap">
                 {resumen.proyecto.presupuesto_centavos === null
                   ? '—'
                   : formatearPesos(resumen.presupuesto)}
               </td>
-              <td className="px-2.5 text-right tabular-nums whitespace-nowrap">
+              <td translate="no" className="px-2.5 text-right tabular-nums whitespace-nowrap">
                 {formatearPesos(resumen.cobrado)}
               </td>
               <td
+                translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
                 className={`px-2.5 text-right font-semibold tabular-nums whitespace-nowrap ${
                   resumen.saldo === null
                     ? 'text-text-3'
@@ -227,7 +242,7 @@ function Tabla({
                   ? '—'
                   : resumen.saldo > 0
                     ? formatearPesos(resumen.saldo)
-                    : 'Sin saldo'}
+                    : comun.sinSaldo}
               </td>
               <td className="px-2.5 whitespace-nowrap">
                 <EntregaRelativa
@@ -263,8 +278,9 @@ function HojaDeOrden({
   alElegir: (id: string) => void;
   alCerrar: () => void;
 }) {
+  const textos = useMensajes().paginaProyectos.lista;
   return (
-    <Hoja titulo="Ordenar por" desdeAbajo alCerrar={alCerrar}>
+    <Hoja titulo={textos.ordenarPor} desdeAbajo alCerrar={alCerrar}>
       <div className="px-5 pt-1 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         {CRITERIOS.map((criterio) => (
           <button
@@ -288,23 +304,8 @@ function HojaDeOrden({
 
 function Vacio({ etapa }: { etapa: Exclude<Fase, 'consultas' | 'seguimiento'> }) {
   const ir = useIr();
-  const textos: Record<
-    Exclude<Fase, 'consultas' | 'seguimiento'>,
-    { titulo: string; detalle: string }
-  > = {
-    activos: {
-      titulo: 'Todavía no hay proyectos activos',
-      detalle:
-        'Acá están los trabajos que te aprobaron. Los contactos y los presupuestos que esperan respuesta viven en Consultas, y pasan solos a esta pestaña cuando los aprobás.',
-    },
-    historial: {
-      titulo: 'Todavía no cerraste ningún proyecto',
-      detalle:
-        'Cuando cobres el primero, acá va a quedar el historial con lo que ganaste en cada uno.',
-    },
-  };
-
-  const texto = textos[etapa];
+  const textos = useMensajes().paginaProyectos.lista;
+  const texto = textos.vacio[etapa];
 
   return (
     <EstadoVacio
@@ -317,7 +318,7 @@ function Vacio({ etapa }: { etapa: Exclude<Fase, 'consultas' | 'seguimiento'> })
           ir(RUTA_DE_PROYECTO_NUEVO);
         }}
       >
-        Cargar un proyecto
+        {textos.cargarUnProyecto}
       </Button>
     </EstadoVacio>
   );
@@ -330,6 +331,7 @@ export function ProyectosPage() {
   const { pathname } = location;
   const [busqueda] = useSearchParams();
   const ancho = useAnchoDePantalla();
+  const { comun, lista: textos } = useMensajes().paginaProyectos;
 
   const [consulta, setConsulta] = useState('');
   const [filtro, setFiltro] = useState<EstadoProyecto | 'todos'>('todos');
@@ -368,7 +370,7 @@ export function ProyectosPage() {
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Proyectos</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{comun.proyectos}</h1>
         {etapa === 'consultas' || etapa === 'seguimiento' ? (
           <Button
             onClick={() => {
@@ -376,7 +378,7 @@ export function ProyectosPage() {
             }}
           >
             <Icono nombre="user-plus" tamano={18} />
-            Cargar contacto
+            {textos.cargarContacto}
           </Button>
         ) : (
           <Button
@@ -385,7 +387,7 @@ export function ProyectosPage() {
             }}
           >
             <Icono nombre="plus" tamano={18} />
-            Nuevo proyecto
+            {textos.nuevoProyecto}
           </Button>
         )}
       </header>
@@ -393,7 +395,7 @@ export function ProyectosPage() {
       <div className="@container max-w-[640px]">
         <div
           role="tablist"
-          aria-label="Etapa"
+          aria-label={textos.etapa}
           className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @min-[34rem]:grid-cols-4"
         >
           {ETAPAS.map((opcion) => {
@@ -421,7 +423,9 @@ export function ProyectosPage() {
                 )}
                 <span data-etiqueta-de-la-pestana className="relative flex items-center gap-1.5">
                   {opcion.etiqueta}
-                  <span className="text-meta text-text-3 tabular-nums">{cuantos}</span>
+                  <span translate="no" className="text-meta text-text-3 tabular-nums">
+                    {cuantos}
+                  </span>
                 </span>
               </button>
             );
@@ -451,8 +455,8 @@ export function ProyectosPage() {
                   onChange={(evento) => {
                     setConsulta(evento.target.value);
                   }}
-                  placeholder="Buscar por cliente"
-                  aria-label="Buscar por cliente"
+                  placeholder={textos.buscarPorCliente}
+                  aria-label={textos.buscarPorCliente}
                   className="min-w-0 flex-1 bg-transparent text-label outline-none"
                 />
               </label>
@@ -471,7 +475,7 @@ export function ProyectosPage() {
                       activo ? 'border-ink bg-ink text-paper' : 'border-hairline bg-paper text-ink'
                     }`}
                   >
-                    {estado === 'todos' ? 'Todos' : ESTADO[estado].etiqueta}
+                    {estado === 'todos' ? comun.todos : ESTADO[estado].etiqueta}
                   </button>
                 );
               })}
@@ -485,7 +489,7 @@ export function ProyectosPage() {
                   className="ml-auto flex h-9 items-center gap-1.5 rounded-pill border border-hairline bg-paper px-3.5 text-label font-medium"
                 >
                   <Icono nombre="arrow-up-down" tamano={14} />
-                  {CRITERIOS.find((criterio) => criterio.id === orden)?.etiqueta ?? 'Ordenar'}
+                  {CRITERIOS.find((criterio) => criterio.id === orden)?.etiqueta ?? textos.ordenar}
                 </button>
               )}
             </div>
@@ -493,9 +497,7 @@ export function ProyectosPage() {
             {filas.length === 0 ? (
               <div className="flex flex-col items-center gap-3 rounded-panel border border-dashed border-border px-5 py-6 text-center">
                 <p className="text-body-lg text-text-2">
-                  {buscando
-                    ? `Ningún proyecto coincide con «${consulta}».`
-                    : 'Ningún proyecto está en ese estado.'}
+                  {buscando ? textos.ningunoCoincide(consulta) : textos.ningunoEnEseEstado}
                 </p>
                 <Button
                   variant="secundario"
@@ -504,7 +506,7 @@ export function ProyectosPage() {
                     setFiltro('todos');
                   }}
                 >
-                  Limpiar la búsqueda
+                  {comun.limpiarLaBusqueda}
                 </Button>
               </div>
             ) : enEscritorio ? (
@@ -516,7 +518,7 @@ export function ProyectosPage() {
                 alOrdenar={ordenarPor}
               />
             ) : (
-              <TarjetasDeProyectos etiqueta="Proyectos">
+              <TarjetasDeProyectos etiqueta={comun.proyectos}>
                 {filas.map((resumen) => (
                   <Tarjeta key={resumen.proyecto.id} resumen={resumen} hoy={hoy} />
                 ))}

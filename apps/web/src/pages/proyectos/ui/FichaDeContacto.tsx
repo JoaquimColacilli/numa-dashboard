@@ -34,6 +34,7 @@ import {
 } from '@/features/editar-proyecto';
 import { AvanceDelContacto, HojaDeContacto } from '@/features/avanzar-la-consulta';
 import { HojaDePonerEnSeguimiento } from '@/features/hacer-el-seguimiento';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
@@ -63,17 +64,21 @@ function Dato({
   valor,
   tono = '',
   accion,
+  dato = false,
 }: {
   clave: string;
   valor: string;
   tono?: string;
   accion?: ReactNode;
+  dato?: boolean;
 }) {
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-3 border-t border-hairline-soft py-2.5 text-body first:border-t-0">
       <dt className="text-text-3">{clave}</dt>
       <dd className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${tono}`}>
-        <span className="leading-snug font-medium tabular-nums">{valor}</span>
+        <span translate={dato ? 'no' : undefined} className="leading-snug font-medium tabular-nums">
+          {valor}
+        </span>
         {accion}
       </dd>
     </div>
@@ -83,9 +88,10 @@ function Dato({
 type HojaAbierta = 'contacto' | 'visita' | 'vigencia' | 'por-ahora-no' | null;
 
 function textoDeLaVigencia(valeHasta: string | null, vencido: boolean, hoy: string): string {
-  if (valeHasta === null) return 'Sin fecha';
-  if (vencido) return `Venció el ${fechaLarga(valeHasta, hoy)}`;
-  return `${fechaLarga(valeHasta, hoy)}, ${relativa(valeHasta, hoy)}`;
+  const { comun, contacto } = mensajes().paginaProyectos;
+  if (valeHasta === null) return contacto.sinFecha;
+  if (vencido) return contacto.vencioEl(fechaLarga(valeHasta, hoy));
+  return comun.fechaYCuando(fechaLarga(valeHasta, hoy), relativa(valeHasta, hoy));
 }
 
 export interface FichaDeContactoProps {
@@ -96,7 +102,8 @@ export interface FichaDeContactoProps {
 export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
-  const vuelta = useVolver(RUTA_DE_CONSULTAS, 'Consultas');
+  const { comun, contacto: textos } = useMensajes().paginaProyectos;
+  const vuelta = useVolver(RUTA_DE_CONSULTAS, textos.consultas);
   const avisos = useAvisosDelProyecto(resumen.proyecto.id);
   const [editando, setEditando] = useState<HojaAbierta>(null);
   const cerrarLaHoja = useCallback(() => {
@@ -133,17 +140,17 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
             variant="herramienta"
             size="herramienta"
             className="sm:px-4"
-            aria-label="Mostrarle al cliente"
+            aria-label={comun.mostrarleAlCliente}
             onClick={() => {
               ir(rutaDeCompartir(proyecto.id));
             }}
           >
             <Icono nombre="eye" tamano={16} />
-            <span className="hidden sm:inline">Mostrarle al cliente</span>
+            <span className="hidden sm:inline">{comun.mostrarleAlCliente}</span>
           </Button>
           <BorradoDelProyecto
             proyecto={proyecto}
-            sustantivo="contacto"
+            variante="contacto"
             alBorrar={() => {
               ir(RUTA_DE_CONSULTAS, { como: 'terminar' });
             }}
@@ -152,13 +159,13 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
             variant="herramienta"
             size="herramienta"
             className="sm:px-4"
-            aria-label="Editar"
+            aria-label={comun.editar}
             onClick={() => {
               setEditando('contacto');
             }}
           >
             <Icono nombre="pencil" tamano={16} />
-            <span className="hidden sm:inline">Editar</span>
+            <span className="hidden sm:inline">{comun.editar}</span>
           </Button>
         </div>
       </div>
@@ -172,6 +179,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
         ) : (
           <Ir
             a={rutaDelCliente(cliente.id)}
+            translate="no"
             className="inline-flex items-center gap-1.5 self-start text-label font-medium text-text-2"
           >
             {cliente.nombre}
@@ -179,7 +187,10 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
           </Ir>
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg">
+          <h1
+            translate="no"
+            className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg"
+          >
             {proyecto.titulo}
           </h1>
           <EstadoBadge estado={proyecto.estado} />
@@ -193,7 +204,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
         separacion="gap-y-3 @min-[40rem]/apoyo:gap-y-4"
         apoyo={
           <div className="flex flex-col gap-3 md:gap-4">
-            <section aria-label={`Contactar a ${nombre}`}>
+            <section aria-label={comun.contactarA(nombre)}>
               <AccionesDeContacto nombre={nombre} telefono={cliente?.telefono ?? ''} amplias />
             </section>
 
@@ -227,97 +238,103 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
           {etapa !== 'a_presupuestar' && <CostosDeCotizar proyecto={proyecto} />}
 
           <section
-            aria-label="Datos del contacto"
+            aria-label={textos.datosDelContacto}
             className="rounded-panel border border-hairline bg-paper px-4 pb-1.5 md:px-5"
           >
             <dl>
               <Dato
-                clave={relevado ? 'Relevamiento' : 'Visita'}
+                clave={relevado ? textos.relevamiento : textos.visita}
                 valor={
                   proyecto.fecha_visita === null
-                    ? 'Sin fecha'
-                    : `${fechaLarga(proyecto.fecha_visita, hoy)}, ${relativa(proyecto.fecha_visita, hoy)}`
+                    ? textos.sinFecha
+                    : comun.fechaYCuando(
+                        fechaLarga(proyecto.fecha_visita, hoy),
+                        relativa(proyecto.fecha_visita, hoy),
+                      )
                 }
                 accion={
                   <Button
                     variant="secundario"
                     size="chico"
-                    aria-label={
-                      relevado ? 'Cambiar el día del relevamiento' : 'Cambiar el día de la visita'
-                    }
+                    aria-label={relevado ? textos.cambiarElRelevamiento : textos.cambiarLaVisita}
                     onClick={() => {
                       setEditando('visita');
                     }}
                   >
-                    Cambiar
+                    {textos.cambiar}
                   </Button>
                 }
               />
               <Dato
-                clave="Seña cobrada"
-                valor={resumen.cobrado > 0 ? formatearPesos(resumen.cobrado) : 'Sin seña'}
+                clave={comun.senaCobrada}
+                valor={resumen.cobrado > 0 ? formatearPesos(resumen.cobrado) : comun.sinSena}
                 tono={resumen.cobrado > 0 ? 'text-hogar' : ''}
+                dato={resumen.cobrado > 0}
               />
               <Dato
-                clave="Presupuesto"
+                clave={comun.presupuesto}
                 valor={
                   proyecto.presupuesto_centavos === null
-                    ? 'Todavía sin presupuesto'
+                    ? comun.todaviaSinPresupuesto
                     : formatearPesos(proyecto.presupuesto_centavos)
                 }
+                dato={proyecto.presupuesto_centavos !== null}
               />
               {proyecto.estado === 'presupuesto_enviado' && (
                 <Dato
-                  clave="Vale hasta"
+                  clave={textos.valeHasta}
                   valor={textoDeLaVigencia(vigenciaDelPresupuesto(proyecto), vencido, hoy)}
                   tono={vencido ? 'font-semibold text-atencion' : ''}
                   accion={
                     <Button
                       variant="secundario"
                       size="chico"
-                      aria-label="Cambiar hasta cuándo vale el presupuesto"
+                      aria-label={textos.cambiarLaVigencia}
                       onClick={() => {
                         setEditando('vigencia');
                       }}
                     >
-                      Cambiar
+                      {textos.cambiar}
                     </Button>
                   }
                 />
               )}
               {!esperaAlCliente && (
                 <Dato
-                  clave="Presupuesto antes del"
+                  clave={textos.presupuestoAntesDel}
                   valor={
                     proyecto.vencimiento_presupuesto === null
-                      ? 'Sin fecha límite'
-                      : `${fechaLarga(proyecto.vencimiento_presupuesto, hoy)}, ${relativa(proyecto.vencimiento_presupuesto, hoy)}`
+                      ? textos.sinFechaLimite
+                      : comun.fechaYCuando(
+                          fechaLarga(proyecto.vencimiento_presupuesto, hoy),
+                          relativa(proyecto.vencimiento_presupuesto, hoy),
+                        )
                   }
                 />
               )}
               <Dato
-                clave="Teléfono"
+                clave={comun.telefono}
                 valor={
                   cliente === undefined || cliente.telefono.trim() === ''
-                    ? 'Sin teléfono'
+                    ? comun.sinTelefono
                     : cliente.telefono
                 }
+                dato={cliente !== undefined && cliente.telefono.trim() !== ''}
               />
               {gastos.length > 0 && (
-                <Dato clave="Gastos cargados" valor={formatearPesos(resumen.gastos)} />
+                <Dato clave={textos.gastosCargados} valor={formatearPesos(resumen.gastos)} dato />
               )}
             </dl>
             {(pagos.length > 0 || gastos.length > 0) && (
               <p className="mt-1.5 text-meta leading-relaxed text-text-3">
-                La seña ya entró a la caja del taller y los gastos ya salieron: se ven en Finanzas
-                desde el día que los cargaste.
+                {textos.yaEntroALaCaja}
               </p>
             )}
             <Ir
               a={rutaDeEdicion(proyecto.id)}
               className="mt-2 flex min-h-tap w-fit items-center gap-1.5 rounded-field text-label font-medium underline underline-offset-3"
             >
-              Cargar otro pago o un gasto
+              {textos.cargarOtroPago}
             </Ir>
           </section>
 
@@ -325,23 +342,21 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
 
           <NotasDelProyecto
             proyecto={proyecto}
-            titulo="Notas"
-            placeholder="Lo que te dijo por teléfono, medidas, cómo llegar…"
+            titulo={comun.notas}
+            placeholder={comun.notasEjemplo}
           />
 
           <ArchivosDelTrabajo proyectoId={proyecto.id} />
 
           <section
-            aria-label="Si no sale"
+            aria-label={comun.siNoSale}
             className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
-            <h2 className="text-section font-semibold">Si no sale</h2>
+            <h2 className="text-section font-semibold">{comun.siNoSale}</h2>
             <p className="mt-1 text-label leading-relaxed text-text-2">
-              Si te dijo «por ahora no», pasalo a seguimiento con el día en que le volvés a
-              escribir: sale de tus consultas y la agenda te avisa. Si no va,{' '}
               {resumen.cobrado > 0
-                ? `la seña de ${formatearPesos(resumen.cobrado)} se liquida como ingreso del taller, y el contacto pasa al historial. Se puede reactivar.`
-                : 'pasa al historial sin mover plata. Se puede reactivar.'}
+                ? textos.siNoSaleConSena(formatearPesos(resumen.cobrado))
+                : textos.siNoSaleSinSena}
             </p>
             <FilaDeAcciones className="mt-2.5">
               <Button
@@ -351,7 +366,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
                 }}
               >
                 <Icono nombre="clock" tamano={16} />
-                Por ahora no
+                {textos.porAhoraNo}
               </Button>
               <Button
                 variant="secundario"
@@ -360,7 +375,7 @@ export function FichaDeContacto({ resumen, etapa }: FichaDeContactoProps) {
                 }}
               >
                 <Icono nombre="x" tamano={16} />
-                Dar por perdido
+                {comun.darPorPerdido}
               </Button>
             </FilaDeAcciones>
           </section>

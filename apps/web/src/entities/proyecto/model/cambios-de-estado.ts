@@ -8,6 +8,7 @@ import {
 } from '@maun/domain';
 
 import type { CambiosDeProyecto } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
@@ -27,23 +28,26 @@ function sinLiquidar(estado: EstadoProyecto): estado is EstadoSinLiquidar {
 }
 
 function etiquetaDelCambio(desde: EstadoProyecto, hacia: EstadoSinLiquidar): string {
+  const cambios = mensajes().proyecto.cambios;
   switch (hacia) {
     case 'contacto':
-      return 'Volver a contacto';
+      return cambios.volverAContacto;
     case 'presupuesto_estimativo':
-      return 'Mandé un estimativo';
+      return cambios.mandeUnEstimativo;
     case 'relevamiento':
-      return 'Pasar a relevamiento';
+      return cambios.pasarARelevamiento;
     case 'a_presupuestar':
-      return 'Pasar a presupuestar';
+      return cambios.pasarAPresupuestar;
     case 'presupuesto_enviado':
-      return faseDe(desde) === 'consultas' ? 'Mandé el presupuesto' : 'Volvió a presupuesto';
+      return faseDe(desde) === 'consultas'
+        ? cambios.mandeElPresupuesto
+        : cambios.volvioAPresupuesto;
     case 'en_curso':
-      return faseDe(desde) === 'consultas' ? 'Ya lo aprobó' : 'Volvió al taller';
+      return faseDe(desde) === 'consultas' ? cambios.yaLoAprobo : cambios.volvioAlTaller;
     case 'en_seguimiento':
-      return 'Por ahora no';
+      return cambios.porAhoraNo;
     case 'entregado':
-      return 'Ya lo entregué';
+      return cambios.yaLoEntregue;
   }
 }
 

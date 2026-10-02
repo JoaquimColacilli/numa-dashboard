@@ -1,5 +1,6 @@
 import type { EstadoProyecto, Fase } from '@maun/domain';
 
+import { mensajes } from '@/shared/idioma';
 import { criterioPorId, ordenar, type Criterio, type Sentido } from '@/shared/lib';
 
 import { ESTADO } from './catalogos';
@@ -45,21 +46,27 @@ export function filtrarPorEstado(
 export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
   {
     id: 'cliente',
-    etiqueta: 'Cliente',
+    get etiqueta() {
+      return mensajes().proyecto.orden.cliente;
+    },
     tipo: 'texto',
     leer: (resumen) => resumen.nombreDelCliente,
     inicial: 'asc',
   },
   {
     id: 'trabajo',
-    etiqueta: 'Trabajo',
+    get etiqueta() {
+      return mensajes().proyecto.orden.trabajo;
+    },
     tipo: 'texto',
     leer: (resumen) => resumen.proyecto.titulo,
     inicial: 'asc',
   },
   {
     id: 'presupuesto',
-    etiqueta: 'Presupuesto',
+    get etiqueta() {
+      return mensajes().proyecto.orden.presupuesto;
+    },
     tipo: 'numero',
     leer: (resumen) =>
       resumen.proyecto.presupuesto_centavos === null ? undefined : resumen.presupuesto,
@@ -67,28 +74,36 @@ export const CRITERIOS: readonly Criterio<ResumenDeProyecto>[] = [
   },
   {
     id: 'cobrado',
-    etiqueta: 'Cobrado',
+    get etiqueta() {
+      return mensajes().proyecto.orden.cobrado;
+    },
     tipo: 'numero',
     leer: (resumen) => resumen.cobrado,
     inicial: 'desc',
   },
   {
     id: 'saldo',
-    etiqueta: 'Saldo',
+    get etiqueta() {
+      return mensajes().proyecto.orden.saldo;
+    },
     tipo: 'numero',
     leer: (resumen) => resumen.saldo ?? undefined,
     inicial: 'desc',
   },
   {
     id: 'entrega',
-    etiqueta: 'Entrega',
+    get etiqueta() {
+      return mensajes().proyecto.orden.entrega;
+    },
     tipo: 'fecha',
     leer: (resumen) => resumen.entrega.fecha ?? undefined,
     inicial: 'asc',
   },
   {
     id: 'estado',
-    etiqueta: 'Estado',
+    get etiqueta() {
+      return mensajes().proyecto.orden.estado;
+    },
     tipo: 'texto',
     leer: (resumen) => ESTADO[resumen.proyecto.estado].etiqueta,
     inicial: 'asc',

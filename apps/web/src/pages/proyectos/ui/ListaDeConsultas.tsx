@@ -14,28 +14,30 @@ import {
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import type { Replica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { conFondo, fechaLarga, formatearPesos, useIr } from '@/shared/lib';
 import { Button, EstadoVacio, Icono } from '@/shared/ui';
 
 function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: string }) {
+  const { comun, consultas: textos } = useMensajes().paginaProyectos;
   const { resumen, situacion } = contacto;
   const { proyecto, cliente } = resumen;
   const atencion = situacion.fria || situacion.vencido;
 
   const datos: { clave: string; valor: string; tono: string }[] = [];
   if (proyecto.fecha_visita !== null) {
-    datos.push({ clave: 'Visita', valor: fechaLarga(proyecto.fecha_visita, hoy), tono: '' });
+    datos.push({ clave: textos.visita, valor: fechaLarga(proyecto.fecha_visita, hoy), tono: '' });
   }
   if (resumen.cobrado > 0) {
     datos.push({
-      clave: 'Seña cobrada',
+      clave: comun.senaCobrada,
       valor: formatearPesos(resumen.cobrado),
       tono: 'text-hogar',
     });
   }
   if (proyecto.presupuesto_centavos !== null) {
     datos.push({
-      clave: 'Presupuesto',
+      clave: comun.presupuesto,
       valor: formatearPesos(proyecto.presupuesto_centavos),
       tono: '',
     });
@@ -80,14 +82,18 @@ function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: 
           {datos.map((dato) => (
             <div key={dato.clave} className="contents">
               <dt className="text-text-3">{dato.clave}</dt>
-              <dd className={`font-medium ${dato.tono}`}>{dato.valor}</dd>
+              <dd translate="no" className={`font-medium ${dato.tono}`}>
+                {dato.valor}
+              </dd>
             </div>
           ))}
         </dl>
       )}
 
       {proyecto.notas !== '' && (
-        <p className="line-clamp-2 text-meta leading-snug text-text-2">{proyecto.notas}</p>
+        <p translate="no" className="line-clamp-2 text-meta leading-snug text-text-2">
+          {proyecto.notas}
+        </p>
       )}
     </TarjetaDeProyecto>
   );
@@ -102,6 +108,7 @@ export interface ListaDeConsultasProps {
 export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasProps) {
   const ir = useIr();
   const location = useLocation();
+  const { comun, consultas: textos } = useMensajes().paginaProyectos;
   const [consulta, setConsulta] = useState('');
   const [filtro, setFiltro] = useState<EstadoProyecto | 'todos'>('todos');
 
@@ -123,8 +130,8 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
     return (
       <EstadoVacio
         ilustracion="sin-consultas"
-        titulo="No hay consultas por ahora"
-        detalle="Cuando te llame alguien, cargalo acá con lo que pide y la fecha de la visita. Si en la visita te dejó una seña, anotala: entra a la caja del taller desde ese día. Cuando lo apruebe, pasa a Activos."
+        titulo={textos.vacioTitulo}
+        detalle={textos.vacioDetalle}
       >
         <Button
           onClick={() => {
@@ -132,7 +139,7 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
           }}
         >
           <Icono nombre="user-plus" tamano={18} />
-          Cargar el primer contacto
+          {textos.cargarElPrimero}
         </Button>
       </EstadoVacio>
     );
@@ -151,8 +158,8 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
             onChange={(evento) => {
               setConsulta(evento.target.value);
             }}
-            placeholder="Buscar por cliente o trabajo"
-            aria-label="Buscar contacto"
+            placeholder={comun.buscarPorClienteOTrabajo}
+            aria-label={textos.buscarContacto}
             className="min-w-0 flex-1 bg-transparent text-label outline-none"
           />
         </label>
@@ -171,7 +178,7 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
                 activo ? 'border-ink bg-ink text-paper' : 'border-hairline bg-paper text-ink'
               }`}
             >
-              {estado === 'todos' ? 'Todos' : ESTADO[estado].etiqueta}
+              {estado === 'todos' ? comun.todos : ESTADO[estado].etiqueta}
             </button>
           );
         })}
@@ -180,9 +187,7 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
       {visibles.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-panel border border-dashed border-border px-5 py-6 text-center">
           <p className="text-body-lg text-text-2">
-            {buscando
-              ? `Ningún contacto coincide con «${consulta}».`
-              : 'Ningún contacto está en esa etapa.'}
+            {buscando ? textos.ningunoCoincide(consulta) : textos.ningunoEnEsaEtapa}
           </p>
           <Button
             variant="secundario"
@@ -191,15 +196,13 @@ export function ListaDeConsultas({ resumenes, replica, hoy }: ListaDeConsultasPr
               setFiltro('todos');
             }}
           >
-            Limpiar la búsqueda
+            {comun.limpiarLaBusqueda}
           </Button>
         </div>
       ) : (
         <>
-          <p className="px-1 text-meta text-text-2">
-            Primero lo que hace más que espera; las visitas agendadas, al final.
-          </p>
-          <TarjetasDeProyectos etiqueta="Contactos">
+          <p className="px-1 text-meta text-text-2">{textos.orden}</p>
+          <TarjetasDeProyectos etiqueta={textos.contactos}>
             {visibles.map((contacto) => (
               <TarjetaDeContacto key={contacto.resumen.proyecto.id} contacto={contacto} hoy={hoy} />
             ))}

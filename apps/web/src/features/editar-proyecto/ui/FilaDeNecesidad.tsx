@@ -7,6 +7,7 @@ import {
 import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
 
 import { nombreConCantidad, type Necesidad, type TipoDeLaLista } from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
 import { Icono, Tilde } from '@/shared/ui';
 
 const CIFRAS_DE_LA_CANTIDAD = String(CANTIDAD_MAXIMA).length;
@@ -68,6 +69,7 @@ export function FilaDeNecesidad({
   alEditar,
   alQuitar,
 }: FilaDeNecesidadProps) {
+  const textos = useMensajes().editarProyecto.loQueHaceFalta;
   const cantidad = useEdicionEnLaFila(
     necesidad.cantidad === null ? '' : String(necesidad.cantidad),
     (escrito) => escrito.replace(/\D/g, '').slice(0, CIFRAS_DE_LA_CANTIDAD),
@@ -102,7 +104,7 @@ export function FilaDeNecesidad({
           type="checkbox"
           checked={necesidad.listo}
           disabled={bloqueado}
-          aria-label={`${lista.listo}: ${nombreConCantidad(necesidad)}`}
+          aria-label={lista.casilla(nombreConCantidad(necesidad))}
           onChange={(evento) => {
             setRecienTildada(evento.target.checked);
             alTildar(evento.target.checked);
@@ -129,7 +131,7 @@ export function FilaDeNecesidad({
         maxLength={CIFRAS_DE_LA_CANTIDAD}
         readOnly={bloqueado}
         placeholder="–"
-        aria-label={`Cantidad de ${necesidad.nombre}`}
+        aria-label={textos.cantidadDe(necesidad.nombre)}
         className={`h-11 w-10 flex-none px-1 text-center text-body font-semibold tabular-nums placeholder:font-normal placeholder:text-text-3 ${campo} ${
           necesidad.cantidad === null && necesidad.listo ? 'text-text-3' : tono
         }`}
@@ -138,6 +140,7 @@ export function FilaDeNecesidad({
       <div className="grid min-w-0 flex-1">
         <span
           aria-hidden
+          translate="no"
           className={`invisible col-start-1 row-start-1 min-h-11 border border-transparent px-1.5 py-2.5 text-body leading-normal break-words whitespace-pre-wrap ${
             tachar ? 'tachado-que-corre' : ''
           }`}
@@ -155,7 +158,7 @@ export function FilaDeNecesidad({
           spellCheck={false}
           maxLength={LARGO_MAXIMO_DEL_NOMBRE}
           readOnly={bloqueado}
-          aria-label={`Nombre de ${necesidad.nombre}`}
+          aria-label={textos.nombreDe(necesidad.nombre)}
           className={`col-start-1 row-start-1 min-h-11 resize-none overflow-hidden px-1.5 py-2.5 text-body leading-normal break-words ${campo} ${tono} ${
             tachar ? 'decoration-transparent' : ''
           }`}
@@ -165,7 +168,7 @@ export function FilaDeNecesidad({
       <button
         type="button"
         disabled={bloqueado}
-        aria-label={`Sacar ${nombreConCantidad(necesidad)} de la lista`}
+        aria-label={textos.sacarDeLaLista(nombreConCantidad(necesidad))}
         onClick={alQuitar}
         className="mt-0.5 flex size-10 flex-none items-center justify-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta"
       >

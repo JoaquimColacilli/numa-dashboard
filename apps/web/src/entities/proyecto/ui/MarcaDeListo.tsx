@@ -1,3 +1,5 @@
+import { useMensajes } from '@/shared/idioma';
+
 import { estaListo } from '../model/entrega';
 import type { Proyecto } from '../model/catalogos';
 
@@ -6,10 +8,11 @@ export interface MarcaDeListoProps {
 }
 
 export function MarcaDeListo({ proyecto }: MarcaDeListoProps) {
+  const textos = useMensajes().proyecto;
   if (!estaListo(proyecto)) return null;
   return (
     <span className="inline-block rounded-pill border border-hogar bg-hogar-tint px-2 py-0.5 text-badge font-semibold whitespace-nowrap text-hogar">
-      Listo
+      {textos.listo}
     </span>
   );
 }

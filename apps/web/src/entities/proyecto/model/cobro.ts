@@ -10,6 +10,7 @@ import {
 } from '@maun/domain';
 
 import type { CambiosDeFormasDeCobro, ColumnaDeFormaDeCobro, FilaDe } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
@@ -20,15 +21,13 @@ export const COLUMNA_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, ColumnaDe
   saldo: 'cobro_saldo',
 };
 
-export const NOMBRE_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'La seña',
-  saldo: 'El saldo',
-};
+export const NOMBRE_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, string>> = textosDelIdioma(
+  () => mensajes().proyecto.cobro.instancias,
+);
 
-export const ETIQUETA_DE_LA_FORMA: Readonly<Record<FormaDeCobro, string>> = {
-  transferencia: 'Transferencia',
-  efectivo: 'Efectivo',
-};
+export const ETIQUETA_DE_LA_FORMA: Readonly<Record<FormaDeCobro, string>> = textosDelIdioma(
+  () => mensajes().proyecto.cobro.formas,
+);
 
 type FilaQuizasSinFormas = Partial<Pick<Proyecto, ColumnaDeFormaDeCobro>>;
 

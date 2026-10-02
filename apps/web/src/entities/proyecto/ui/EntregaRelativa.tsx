@@ -1,3 +1,4 @@
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -16,7 +17,8 @@ export interface EntregaRelativaProps {
 }
 
 function Comprometida() {
-  return <span className="text-meta font-medium text-text-2">comprometida</span>;
+  const textos = useMensajes().proyecto.entrega;
+  return <span className="text-meta font-medium text-text-2">{textos.comprometida}</span>;
 }
 
 export function EntregaRelativa({
@@ -25,14 +27,15 @@ export function EntregaRelativa({
   hoy,
   conFecha = false,
 }: EntregaRelativaProps) {
+  const textos = useMensajes().proyecto.entrega;
   const { fecha } = entrega;
   if (fecha === null) {
-    return <span className="text-meta text-text-3">Sin fecha</span>;
+    return <span className="text-meta text-text-3">{textos.sinFecha}</span>;
   }
 
   if (urgencia === undefined) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-text-2">
+      <span translate="no" className="inline-flex items-center gap-1.5 text-text-2">
         <Icono nombre="calendar-check" tamano={14} />
         {fechaLarga(fecha, hoy)}
       </span>
@@ -46,13 +49,16 @@ export function EntregaRelativa({
         {urgencia.texto}
         {entrega.comprometida && !conFecha && <Comprometida />}
       </span>
-      {conFecha && (
-        <span className="text-meta text-text-3">
-          {entrega.comprometida
-            ? `${fechaConSuFranja(fecha, entrega.franja, hoy)} · comprometida`
-            : fechaLarga(fecha, hoy)}
-        </span>
-      )}
+      {conFecha &&
+        (entrega.comprometida ? (
+          <span className="text-meta text-text-3">
+            {textos.conFranjaComprometida(fechaConSuFranja(fecha, entrega.franja, hoy))}
+          </span>
+        ) : (
+          <span translate="no" className="text-meta text-text-3">
+            {fechaLarga(fecha, hoy)}
+          </span>
+        ))}
     </span>
   );
 }

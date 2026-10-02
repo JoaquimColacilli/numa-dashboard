@@ -4,19 +4,21 @@ import { resumenDeProyecto, rutaDelProyecto } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { PantallaDeLaVista, useVistaDelTrabajo } from '@/entities/vista-cliente';
 import { BotonDelQr } from '@/features/compartir-con-el-cliente';
+import { useMensajes } from '@/shared/idioma';
 import { hoyLocal, Ir, useEstadoSync, useVolver } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 export function ProyectoVistaClientePage() {
   const replica = useReplicaDelTaller();
   const { id = '' } = useParams();
+  const textos = useMensajes().paginaProyectos.vistaCliente;
   const resumen = resumenDeProyecto(replica, id, hoyLocal());
   const resultado = useVistaDelTrabajo(id);
   const sync = useEstadoSync();
   const desactualizada = sync.tipo === 'sin-conexion' && resultado.estado === 'lista';
   const vuelta = useVolver(
     rutaDelProyecto(id),
-    `Volver ${resumen === undefined ? 'al trabajo' : `a «${resumen.proyecto.titulo}»`}`,
+    resumen === undefined ? textos.volverAlTrabajo : textos.volverA(resumen.proyecto.titulo),
     { fija: true },
   );
 
@@ -42,14 +44,14 @@ export function ProyectoVistaClientePage() {
             className="flex items-center gap-2 rounded-panel border border-hairline bg-paper px-4 py-2.5 text-label font-medium text-text-2"
           >
             <Icono nombre="cloud-off" tamano={16} />
-            Sin señal: esto es lo último que trajimos. Puede no estar al día.
+            {textos.sinSenal}
           </p>
         )}
       </div>
       <PantallaDeLaVista
         resultado={resultado}
-        tituloMuerto="Ese trabajo no está"
-        textoMuerto="Puede que lo hayas borrado, o que el enlace apunte a un trabajo de otro taller."
+        tituloMuerto={textos.noEsta}
+        textoMuerto={textos.noEstaTexto}
       />
     </>
   );

@@ -14,6 +14,7 @@ import {
   type PedidoDeReversion,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   anotarAviso,
   claveDeTodaReplica,
@@ -58,12 +59,9 @@ export interface ReversionDeProyecto {
 
 export type OperacionDeLiquidacion = 'cobro' | 'cierre' | 'reapertura' | 'reactivacion';
 
-const ETIQUETA: Readonly<Record<OperacionDeLiquidacion, string>> = {
-  cobro: 'Cobro',
-  cierre: 'Cierre como perdido',
-  reapertura: 'Reapertura del cobro',
-  reactivacion: 'Reactivación del presupuesto',
-};
+function etiquetaDe(operacion: OperacionDeLiquidacion): string {
+  return mensajes().proyecto.liquidacion.operaciones[operacion];
+}
 
 export function operacionDeLiquidacion(pedido: PedidoDeLiquidacion): OperacionDeLiquidacion {
   return pedido.destino === 'cobrado' ? 'cobro' : 'cierre';
@@ -98,7 +96,7 @@ function anotarElRechazo(
     id: uuidv7(),
     tipo: 'rechazo',
     cuando: new Date().toISOString(),
-    operacion: ETIQUETA[operacion],
+    operacion: etiquetaDe(operacion),
     sujeto: titulo,
     titulo: traducido.titulo,
     detalle: traducido.queHacer,
@@ -108,14 +106,18 @@ function anotarElRechazo(
   });
 }
 
-function porQueCambio(diferencia: DiferenciaDelReparto): string {
+function lineaDeLaDiferencia(diferencia: DiferenciaDelReparto): string {
+  const textos = mensajes().proyecto.liquidacion;
+  const esperado = formatearPesos(diferencia.esperado);
+  const quedo = formatearPesos(diferencia.quedo);
+  const previo = formatearPesos(diferencia.yaLlevabaElMes);
   if (diferencia.modo === 'saldo') {
-    return `, porque ya tenía ${formatearPesos(diferencia.yaLlevabaElMes)}`;
+    return textos.diferenciaPorLoQueTenia(diferencia.nombre, esperado, quedo, previo);
   }
   if (diferencia.modo === 'mes' && diferencia.yaLlevabaElMes > 0) {
-    return `, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación`;
+    return textos.diferenciaPorElMes(diferencia.nombre, esperado, quedo, previo);
   }
-  return '';
+  return textos.diferencia(diferencia.nombre, esperado, quedo);
 }
 
 function ajusteQueSePuedeLeer(
@@ -137,31 +139,39 @@ function detalleDelAjuste({
   repartos,
 }: LiquidacionDeProyecto): (fila: FilaDe<'proyectos'>) => string | undefined {
   return (fila) => {
+    const textos = mensajes().proyecto.liquidacion;
     if (pedido.porLaFila !== undefined && plan !== undefined) {
       const nombres = new Map(
         (repartos ?? []).map((reparto) => [reparto.tesoro_id, reparto.nombre]),
       );
       const ajuste = ajusteQueSePuedeLeer(fila, pedido, plan, nombres);
       if (!ajuste) return undefined;
-      const lineas = ajuste.diferencias
-        .map(
-          (diferencia) =>
-            `${diferencia.nombre}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}${porQueCambio(diferencia)}.`,
-        )
-        .join(' ');
+      const lineas = ajuste.diferencias.map(lineaDeLaDiferencia).join(' ');
       if (ajuste.superavit !== null) return lineas;
-      return `${lineas} La diferencia quedó en el taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`;
+      const enElTaller = textos.quedoEnElTaller(
+        formatearPesos(ajuste.remanenteQuedo),
+        formatearPesos(ajuste.remanenteEsperado),
+      );
+      return `${lineas} ${enElTaller}`;
     }
 
     const ajuste = ajusteDeLaLiquidacion(fila, pedido);
     if (!ajuste) return undefined;
     const lineas = ajuste.diferencias
-      .map(
-        (diferencia) =>
-          `${diferencia.etiqueta}: esperabas ${formatearPesos(diferencia.esperado)} y quedó en ${formatearPesos(diferencia.quedo)}, porque el mes ya llevaba ${formatearPesos(diferencia.yaLlevabaElMes)} de otra liquidación.`,
+      .map((diferencia) =>
+        textos.diferenciaPorElMes(
+          diferencia.etiqueta,
+          formatearPesos(diferencia.esperado),
+          formatearPesos(diferencia.quedo),
+          formatearPesos(diferencia.yaLlevabaElMes),
+        ),
       )
       .join(' ');
-    return `${lineas} La diferencia quedó en el remanente del taller: ${formatearPesos(ajuste.remanenteQuedo)} en vez de ${formatearPesos(ajuste.remanenteEsperado)}.`;
+    const enElRemanente = textos.quedoEnElRemanente(
+      formatearPesos(ajuste.remanenteQuedo),
+      formatearPesos(ajuste.remanenteEsperado),
+    );
+    return `${lineas} ${enElRemanente}`;
   };
 }
 
@@ -178,9 +188,9 @@ function anotarElAjuste(
     id: uuidv7(),
     tipo: 'ajuste',
     cuando: new Date().toISOString(),
-    operacion: ETIQUETA[operacionDeLiquidacion(pedido)],
+    operacion: etiquetaDe(operacionDeLiquidacion(pedido)),
     sujeto: titulo,
-    titulo: 'El reparto salió distinto del que viste.',
+    titulo: mensajes().proyecto.liquidacion.elRepartoSalioDistinto,
     detalle,
     codigo: '',
     proyectoId: pedido.proyectoId,

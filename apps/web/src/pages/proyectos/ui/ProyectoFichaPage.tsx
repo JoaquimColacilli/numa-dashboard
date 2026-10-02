@@ -15,7 +15,6 @@ import {
   despieceDelProyecto,
   DistribucionDespiece,
   esEtapaDeConsulta,
-  ESTADO,
   EstadoBadge,
   ETAPAS,
   fechaConSuFranja,
@@ -52,6 +51,7 @@ import {
 } from '@/features/editar-proyecto';
 import { BotonDeReversion } from '@/features/liquidar-proyecto';
 import { PedirLaOpinion } from '@/features/pedir-la-opinion';
+import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
@@ -80,12 +80,27 @@ import { FichaDeContacto } from './FichaDeContacto';
 import { FichaDeSeguimiento } from './FichaDeSeguimiento';
 import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
-function Dato({ clave, valor, extra }: { clave: string; valor: string; extra?: string }) {
+function Dato({
+  clave,
+  valor,
+  extra,
+  dato = false,
+}: {
+  clave: string;
+  valor: string;
+  extra?: string;
+  dato?: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 border-t border-hairline-soft py-3">
       <div className="min-w-0 flex-1">
         <span className="block text-meta text-text-2">{clave}</span>
-        <span className="mt-0.5 block text-body-lg leading-snug font-medium">{valor}</span>
+        <span
+          translate={dato ? 'no' : undefined}
+          className="mt-0.5 block text-body-lg leading-snug font-medium"
+        >
+          {valor}
+        </span>
         {extra !== undefined && (
           <span className="mt-0.5 block text-meta font-medium text-atencion">{extra}</span>
         )}
@@ -103,13 +118,14 @@ export function ProyectoFichaPage() {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { id = '' } = useParams();
+  const { comun, ficha: textos } = useMensajes().paginaProyectos;
 
   const hoy = hoyLocal();
   const resumen = resumenDeProyecto(replica, id, hoy);
   const avisos = useAvisosDelProyecto(id);
   const enVuelo = useLiquidacionEnVuelo(id);
   const padre = etapaDeLaFicha(resumen?.proyecto.estado);
-  const vuelta = useVolver(padre, 'Proyectos');
+  const vuelta = useVolver(padre, comun.proyectos);
 
   const recienLiquidado = useSenalDeUnaVez('recienLiquidado');
   const recienAprobado = useSenalDeUnaVez('recienAprobado');
@@ -123,13 +139,10 @@ export function ProyectoFichaPage() {
           dibujo={<Ilustracion nombre="anulado" />}
           lamina={ESCENA_EN_LA_LAMINA}
         >
-          <h1 className={TITULO_DE_LAMINA}>Ese proyecto no está</h1>
-          <p className="max-w-[44ch] text-body leading-relaxed text-text-2">
-            Puede que lo hayas borrado desde otro dispositivo, o que el enlace apunte a un proyecto
-            de otro taller.
-          </p>
+          <h1 className={TITULO_DE_LAMINA}>{comun.noEsta}</h1>
+          <p className="max-w-[44ch] text-body leading-relaxed text-text-2">{comun.noEstaTexto}</p>
           <div className="w-full pt-2">
-            <Button onClick={vuelta.volver}>Volver a Proyectos</Button>
+            <Button onClick={vuelta.volver}>{comun.volverAProyectos}</Button>
           </div>
         </TarjetaConLamina>
       </Pagina>
@@ -159,13 +172,22 @@ export function ProyectoFichaPage() {
     cliente.direccion.trim() !== '' &&
     proyecto.direccion_entrega.trim() !== cliente.direccion.trim();
 
-  const fechas: { clave: string; valor: string; tono?: string }[] = [];
+  const fechas: { clave: string; valor: string; tono?: string; dato: boolean }[] = [];
   if (proyecto.fecha_inicio !== null) {
-    fechas.push({ clave: 'Inicio', valor: fechaLarga(proyecto.fecha_inicio, hoy) });
+    fechas.push({
+      clave: textos.fechas.inicio,
+      valor: fechaLarga(proyecto.fecha_inicio, hoy),
+      dato: true,
+    });
   }
   const listo = listoDelTrabajo(proyecto);
   if (listo !== null) {
-    fechas.push({ clave: 'Listo', valor: fechaLarga(listo, hoy), tono: 'text-hogar' });
+    fechas.push({
+      clave: textos.fechas.listo,
+      valor: fechaLarga(listo, hoy),
+      tono: 'text-hogar',
+      dato: true,
+    });
   }
   const { entrega, urgencia } = resumen;
   const tonoDeLaUrgencia =
@@ -180,27 +202,34 @@ export function ProyectoFichaPage() {
     const estimada = fechaLarga(proyecto.entrega_estimada, hoy);
     const conUrgencia = !entrega.comprometida && urgencia !== undefined;
     fechas.push({
-      clave: 'Entrega estimada',
-      valor: conUrgencia ? `${estimada}, ${urgencia.texto}` : estimada,
+      clave: textos.fechas.entregaEstimada,
+      valor: conUrgencia ? comun.fechaYCuando(estimada, urgencia.texto) : estimada,
       tono: conUrgencia ? tonoDeLaUrgencia : undefined,
+      dato: !conUrgencia,
     });
   }
   if (entrega.comprometida && entrega.fecha !== null) {
     const dia = fechaConSuFranja(entrega.fecha, entrega.franja, hoy);
     fechas.push({
-      clave: 'Entrega comprometida',
-      valor: urgencia === undefined ? dia : `${dia}, ${urgencia.texto}`,
+      clave: textos.fechas.entregaComprometida,
+      valor: urgencia === undefined ? dia : comun.fechaYCuando(dia, urgencia.texto),
       tono: tonoDeLaUrgencia,
+      dato: urgencia === undefined && entrega.franja === null,
     });
   }
   if (proyecto.fecha_entrega !== null) {
-    fechas.push({ clave: 'Entregado', valor: fechaLarga(proyecto.fecha_entrega, hoy) });
+    fechas.push({
+      clave: textos.fechas.entregado,
+      valor: fechaLarga(proyecto.fecha_entrega, hoy),
+      dato: true,
+    });
   }
   if (proyecto.fecha_cobro !== null) {
     fechas.push({
-      clave: proyecto.estado === 'perdido' ? 'Cerrado' : 'Cobrado',
+      clave: proyecto.estado === 'perdido' ? textos.fechas.cerrado : textos.fechas.cobrado,
       valor: fechaLarga(proyecto.fecha_cobro, hoy),
       tono: 'text-hogar',
+      dato: true,
     });
   }
 
@@ -221,17 +250,17 @@ export function ProyectoFichaPage() {
             variant="herramienta"
             size="herramienta"
             className="sm:px-4"
-            aria-label="Mostrarle al cliente"
+            aria-label={comun.mostrarleAlCliente}
             onClick={() => {
               ir(rutaDeCompartir(proyecto.id));
             }}
           >
             <Icono nombre="eye" tamano={16} />
-            <span className="hidden sm:inline">Mostrarle al cliente</span>
+            <span className="hidden sm:inline">{comun.mostrarleAlCliente}</span>
           </Button>
           <BorradoDelProyecto
             proyecto={proyecto}
-            sustantivo="proyecto"
+            variante="proyecto"
             alBorrar={() => {
               ir(padre, { como: 'terminar' });
             }}
@@ -240,13 +269,13 @@ export function ProyectoFichaPage() {
             variant="herramienta"
             size="herramienta"
             className="sm:px-4"
-            aria-label="Editar"
+            aria-label={comun.editar}
             onClick={() => {
               ir(rutaDeEdicion(proyecto.id));
             }}
           >
             <Icono nombre="pencil" tamano={16} />
-            <span className="hidden sm:inline">Editar</span>
+            <span className="hidden sm:inline">{comun.editar}</span>
           </Button>
         </div>
       </div>
@@ -261,6 +290,7 @@ export function ProyectoFichaPage() {
           ) : (
             <Ir
               a={rutaDelCliente(cliente.id)}
+              translate="no"
               className="inline-flex items-center gap-1.5 self-start text-label font-medium text-text-2"
             >
               {cliente.nombre}
@@ -268,7 +298,10 @@ export function ProyectoFichaPage() {
             </Ir>
           )}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg">
+            <h1
+              translate="no"
+              className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg"
+            >
               {proyecto.titulo}
             </h1>
             <span className="flex flex-wrap items-center gap-2">
@@ -281,7 +314,7 @@ export function ProyectoFichaPage() {
         {recienAprobado && (
           <p className="flex items-center gap-1.5 text-label font-medium text-hogar">
             <Icono nombre="check" tamano={16} />
-            Pasó de Consultas a Activos, con lo que ya habías cobrado adentro.
+            {textos.recienAprobado}
           </p>
         )}
         {fechas.length > 0 && (
@@ -289,7 +322,12 @@ export function ProyectoFichaPage() {
             {fechas.map((fecha) => (
               <div key={fecha.clave} className="flex items-baseline gap-1.5">
                 <dt className="text-text-3">{fecha.clave}</dt>
-                <dd className={`font-medium ${fecha.tono ?? ''}`}>{fecha.valor}</dd>
+                <dd
+                  translate={fecha.dato ? 'no' : undefined}
+                  className={`font-medium ${fecha.tono ?? ''}`}
+                >
+                  {fecha.valor}
+                </dd>
               </div>
             ))}
           </dl>
@@ -301,20 +339,27 @@ export function ProyectoFichaPage() {
       <div className="@container">
         <dl className="grid grid-cols-1 rounded-panel border border-hairline bg-paper px-4 @lg:grid-cols-3 @lg:px-0 @lg:py-3.5">
           <div className="flex items-baseline justify-between gap-2 py-3 @lg:block @lg:px-4 @lg:py-0">
-            <dt className="text-meta text-text-2">Presupuesto</dt>
-            <dd className="text-money-lg font-semibold tabular-nums whitespace-nowrap">
+            <dt className="text-meta text-text-2">{comun.presupuesto}</dt>
+            <dd
+              translate="no"
+              className="text-money-lg font-semibold tabular-nums whitespace-nowrap"
+            >
               {proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto)}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-2 border-t border-hairline-soft py-3 @lg:block @lg:border-t-0 @lg:border-l @lg:px-4 @lg:py-0">
-            <dt className="text-meta text-text-2">Cobrado</dt>
-            <dd className="text-money-lg font-semibold text-hogar tabular-nums whitespace-nowrap">
+            <dt className="text-meta text-text-2">{comun.cobrado}</dt>
+            <dd
+              translate="no"
+              className="text-money-lg font-semibold text-hogar tabular-nums whitespace-nowrap"
+            >
               {formatearPesos(resumen.cobrado)}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-2 border-t border-hairline-soft py-3 @lg:block @lg:border-t-0 @lg:border-l @lg:px-4 @lg:py-0">
-            <dt className="text-meta text-text-2">Saldo</dt>
+            <dt className="text-meta text-text-2">{comun.saldo}</dt>
             <dd
+              translate={resumen.saldo !== null && resumen.saldo <= 0 ? undefined : 'no'}
               className={`text-money-lg font-semibold tabular-nums whitespace-nowrap ${
                 resumen.saldo === null
                   ? 'text-text-3'
@@ -327,7 +372,7 @@ export function ProyectoFichaPage() {
                 ? '—'
                 : resumen.saldo > 0
                   ? formatearPesos(resumen.saldo)
-                  : 'Sin saldo'}
+                  : comun.sinSaldo}
             </dd>
           </div>
         </dl>
@@ -364,8 +409,8 @@ export function ProyectoFichaPage() {
                   >
                     <Icono nombre="hand-coins" tamano={18} />
                     {resumen.saldo !== null && resumen.saldo > 0
-                      ? `Cobrar el saldo de ${formatearPesos(resumen.saldo)}`
-                      : 'Cobrar y repartir'}
+                      ? textos.cobrarElSaldo(formatearPesos(resumen.saldo))
+                      : textos.cobrarYRepartir}
                   </Button>
                 )}
 
@@ -378,7 +423,7 @@ export function ProyectoFichaPage() {
                     }}
                   >
                     <Icono nombre="x" tamano={16} />
-                    Dar por perdido
+                    {comun.darPorPerdido}
                   </Button>
                 )}
 
@@ -394,20 +439,18 @@ export function ProyectoFichaPage() {
           <TarjetaDelPresupuesto proyecto={proyecto} />
 
           <section
-            aria-label="Pagos recibidos"
+            aria-label={textos.pagosRecibidos}
             className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <h2 className="text-section font-semibold">Pagos recibidos</h2>
+              <h2 className="text-section font-semibold">{textos.pagosRecibidos}</h2>
               <span className="text-label text-text-2 tabular-nums">
-                {pagos.length === 0
-                  ? ''
-                  : `${String(pagos.length)} ${pagos.length === 1 ? 'pago' : 'pagos'}`}
+                {pagos.length === 0 ? '' : textos.cuantosPagos(pagos.length)}
               </span>
             </div>
             {pagos.length === 0 ? (
               <p className="border-t border-hairline-soft pt-3 text-label text-text-2">
-                Todavía no cobraste nada de este proyecto. La seña suele ir primero.
+                {textos.sinPagos}
               </p>
             ) : (
               <ol className="list-none">
@@ -427,14 +470,20 @@ export function ProyectoFichaPage() {
                       />
                     </span>
                     <span className="py-2.5">
-                      <span className="block text-body-lg font-medium">
-                        {pago.concepto.trim() === '' ? 'Pago' : pago.concepto}
+                      <span
+                        translate={pago.concepto.trim() === '' ? undefined : 'no'}
+                        className="block text-body-lg font-medium"
+                      >
+                        {pago.concepto.trim() === '' ? textos.pago : pago.concepto}
                       </span>
-                      <span className="mt-0.5 block text-meta text-text-3">
+                      <span translate="no" className="mt-0.5 block text-meta text-text-3">
                         {fechaLarga(pago.fecha, hoy)}
                       </span>
                     </span>
-                    <span className="py-2.5 text-body-lg font-semibold tabular-nums whitespace-nowrap">
+                    <span
+                      translate="no"
+                      className="py-2.5 text-body-lg font-semibold tabular-nums whitespace-nowrap"
+                    >
                       {formatearPesos(pago.monto_centavos)}
                     </span>
                   </li>
@@ -444,21 +493,18 @@ export function ProyectoFichaPage() {
           </section>
 
           <section
-            aria-label="Gastos e insumos"
+            aria-label={textos.gastosEInsumos}
             className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <h2 className="text-section font-semibold">Gastos e insumos</h2>
+              <h2 className="text-section font-semibold">{textos.gastosEInsumos}</h2>
               <span className="text-label text-text-2 tabular-nums">
-                {gastos.length === 0
-                  ? ''
-                  : `${String(gastos.length)} ${gastos.length === 1 ? 'ítem' : 'ítems'}`}
+                {gastos.length === 0 ? '' : textos.cuantosGastos(gastos.length)}
               </span>
             </div>
             {gastos.length === 0 ? (
               <p className="border-t border-hairline-soft pt-3 text-label text-text-2">
-                Sin gastos cargados. Todo lo que compres para este mueble va acá y se descuenta del
-                ingreso del trabajo.
+                {textos.sinGastos}
               </p>
             ) : (
               <>
@@ -468,21 +514,29 @@ export function ProyectoFichaPage() {
                       key={gasto.id}
                       className="flex min-h-12 items-center gap-2.5 border-t border-hairline-soft text-body"
                     >
-                      <span className="w-16 flex-none text-meta text-text-3 tabular-nums">
+                      <span
+                        translate="no"
+                        className="w-16 flex-none text-meta text-text-3 tabular-nums"
+                      >
                         {fechaLarga(gasto.fecha, hoy)}
                       </span>
-                      <span className="min-w-0 flex-1 truncate">
-                        {gasto.descripcion.trim() === '' ? 'Insumo' : gasto.descripcion}
+                      <span
+                        translate={gasto.descripcion.trim() === '' ? undefined : 'no'}
+                        className="min-w-0 flex-1 truncate"
+                      >
+                        {gasto.descripcion.trim() === '' ? textos.insumo : gasto.descripcion}
                       </span>
-                      <span className="flex-none font-medium tabular-nums">
+                      <span translate="no" className="flex-none font-medium tabular-nums">
                         {formatearPesos(gasto.monto_centavos)}
                       </span>
                     </li>
                   ))}
                 </ul>
                 <div className="flex min-h-11 items-center justify-between border-t border-ink text-body font-semibold">
-                  <span>Total de gastos</span>
-                  <span className="tabular-nums">{formatearPesos(resumen.gastos)}</span>
+                  <span>{textos.totalDeGastos}</span>
+                  <span translate="no" className="tabular-nums">
+                    {formatearPesos(resumen.gastos)}
+                  </span>
                 </div>
               </>
             )}
@@ -498,12 +552,13 @@ export function ProyectoFichaPage() {
               }}
             >
               <Icono nombre="plus" tamano={16} />
-              Cargar pagos y gastos
+              {textos.cargarPagosYGastos}
             </Button>
             {liquidado && (
               <p className="mt-1.5 px-1 text-meta leading-snug text-text-3">
-                Este proyecto está {ESTADO[proyecto.estado].etiqueta.toLowerCase()}: sus pagos y sus
-                gastos quedaron congelados con la distribución.
+                {proyecto.estado === 'perdido'
+                  ? textos.congelados.perdido
+                  : textos.congelados.cobrado}
               </p>
             )}
           </div>
@@ -519,18 +574,19 @@ export function ProyectoFichaPage() {
           <LoQueHaceFalta proyecto={proyecto} />
 
           <section
-            aria-label="Entrega y comprobante"
+            aria-label={textos.entregaYComprobante}
             className="flex flex-col rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
-            <h2 className="mb-1.5 text-section font-semibold">Entrega y comprobante</h2>
+            <h2 className="mb-1.5 text-section font-semibold">{textos.entregaYComprobante}</h2>
             <Dato
-              clave="Dirección de entrega"
+              clave={textos.direccionDeEntrega}
               valor={
                 proyecto.direccion_entrega.trim() === ''
-                  ? 'Sin dirección'
+                  ? textos.sinDireccion
                   : proyecto.direccion_entrega
               }
-              extra={direccionDistinta ? 'Distinta del domicilio del cliente' : undefined}
+              dato={proyecto.direccion_entrega.trim() !== ''}
+              extra={direccionDistinta ? textos.otraDireccion : undefined}
             />
             {proyecto.direccion_entrega.trim() !== '' && (
               <a
@@ -540,14 +596,16 @@ export function ProyectoFichaPage() {
                 className="mt-2 mb-3 flex min-h-tap items-center gap-2 self-start rounded-pill border border-border px-4 text-label font-medium hover:bg-surface"
               >
                 <Icono nombre="map-pin" tamano={16} />
-                Abrir en el mapa
+                {textos.abrirEnElMapa}
               </a>
             )}
-            <Dato clave="Comprobante a emitir" valor={COMPROBANTE[proyecto.comprobante]} />
+            <Dato clave={textos.comprobante} valor={COMPROBANTE[proyecto.comprobante]} />
             <Dato
-              clave="Forma de pago"
+              clave={textos.formaDePago}
               valor={
-                proyecto.forma_pago === null ? 'Sin definir' : FORMA_DE_PAGO[proyecto.forma_pago]
+                proyecto.forma_pago === null
+                  ? textos.sinDefinir
+                  : FORMA_DE_PAGO[proyecto.forma_pago]
               }
             />
           </section>
@@ -555,8 +613,8 @@ export function ProyectoFichaPage() {
           <NotasDelProyecto
             key={proyecto.id}
             proyecto={proyecto}
-            titulo="Notas de obra"
-            placeholder="Medidas, qué falta, qué hablar con el cliente…"
+            titulo={textos.notasDeObra}
+            placeholder={textos.notasDeObraEjemplo}
           />
 
           <ArchivosDelTrabajo proyectoId={proyecto.id} />

@@ -4,6 +4,7 @@ import { Controller, useWatch } from 'react-hook-form';
 
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { filaVacia, totalDeLasFilas, type FormularioDeProyecto } from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, hoyEnElTaller, uuidv7 } from '@/shared/lib';
 import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
@@ -11,12 +12,6 @@ type Lista = 'pagos' | 'gastos';
 
 export interface FilasDinamicasProps {
   lista: Lista;
-  titulo: string;
-  etiquetaDelDetalle: string;
-  placeholderDelDetalle: string;
-  textoDeAgregar: string;
-  ayuda: string;
-  vacio: string;
   control: Control<FormularioDeProyecto>;
   register: UseFormRegister<FormularioDeProyecto>;
   errores: FieldErrors<FormularioDeProyecto>;
@@ -28,17 +23,11 @@ export interface FilasDinamicasProps {
 interface Deshacer {
   indice: number;
   fila: FormularioDeProyecto['pagos'][number];
-  descripcion: string;
+  descripcion: string | null;
 }
 
 export function FilasDinamicas({
   lista,
-  titulo,
-  etiquetaDelDetalle,
-  placeholderDelDetalle,
-  textoDeAgregar,
-  ayuda,
-  vacio,
   control,
   register,
   errores,
@@ -46,6 +35,8 @@ export function FilasDinamicas({
   bloqueado,
   apertura = null,
 }: FilasDinamicasProps) {
+  const filasDelFormulario = useMensajes().editarProyecto.filas;
+  const textos = filasDelFormulario[lista];
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
@@ -83,7 +74,7 @@ export function FilasDinamicas({
         descripcion:
           fila.detalle.trim() === ''
             ? fila.monto === null
-              ? 'la fila'
+              ? null
               : formatearPesos(fila.monto)
             : fila.detalle.trim(),
       });
@@ -95,19 +86,19 @@ export function FilasDinamicas({
 
   return (
     <section
-      aria-label={titulo}
+      aria-label={textos.titulo}
       className="@container/filas flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 pb-4 md:px-5"
       ref={contenedor}
     >
       <div className="flex flex-col gap-2 bg-paper pt-4 md:sticky md:top-17 md:z-10 md:border-b md:border-hairline-soft md:pb-2.5">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-section font-semibold">{titulo}</h2>
-            <span role="status" className="text-label text-text-2 tabular-nums">
+            <h2 className="text-section font-semibold">{textos.titulo}</h2>
+            <span role="status" translate="no" className="text-label text-text-2 tabular-nums">
               {total > 0 ? formatearPesos(total) : ''}
             </span>
           </div>
-          <p className="text-meta leading-normal text-text-3">{ayuda}</p>
+          <p className="text-meta leading-normal text-text-3">{textos.ayuda}</p>
         </div>
         <Button
           type="button"
@@ -118,11 +109,11 @@ export function FilasDinamicas({
           className="w-full border-dashed md:w-auto md:self-start"
         >
           <Icono nombre="plus" tamano={16} />
-          {textoDeAgregar}
+          {textos.agregar}
         </Button>
       </div>
 
-      {campos.fields.length === 0 && <p className="text-label text-text-2">{vacio}</p>}
+      {campos.fields.length === 0 && <p className="text-label text-text-2">{textos.vacio}</p>}
 
       <ul className="flex list-none flex-col">
         {campos.fields.map((campo, indice) => {
@@ -135,8 +126,8 @@ export function FilasDinamicas({
             >
               <input
                 {...register(`${lista}.${indice}.detalle` as const)}
-                aria-label={`${etiquetaDelDetalle} ${String(indice + 1)}`}
-                placeholder={placeholderDelDetalle}
+                aria-label={textos.detalle(indice + 1)}
+                placeholder={textos.placeholder}
                 disabled={bloqueado}
                 className="col-span-2 h-11 min-w-0 rounded-field border border-border bg-paper px-3 text-body-lg text-ink @lg/filas:col-span-1"
               />
@@ -144,7 +135,7 @@ export function FilasDinamicas({
                 {...register(`${lista}.${indice}.fecha` as const)}
                 type="date"
                 max={lista === 'pagos' ? hoyEnElTaller() : undefined}
-                aria-label={`Fecha ${String(indice + 1)}`}
+                aria-label={filasDelFormulario.fecha(indice + 1)}
                 disabled={bloqueado}
                 className={`h-11 min-w-0 rounded-field border bg-paper px-2.5 text-body text-ink ${
                   errorDeFila?.fecha ? 'border-alerta' : 'border-border'
@@ -166,7 +157,7 @@ export function FilasDinamicas({
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      aria-label={`Monto ${String(indice + 1)}`}
+                      aria-label={filasDelFormulario.monto(indice + 1)}
                       placeholder="0"
                       disabled={bloqueado}
                       className="min-w-0 flex-1 bg-transparent text-right text-body font-semibold outline-none"
@@ -180,7 +171,7 @@ export function FilasDinamicas({
                   quitar(indice);
                 }}
                 disabled={bloqueado}
-                aria-label={`Quitar ${etiquetaDelDetalle.toLowerCase()} ${String(indice + 1)}`}
+                aria-label={textos.quitar(indice + 1)}
                 className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta @lg/filas:col-start-auto @lg/filas:row-start-auto"
               >
                 <Icono nombre="trash-2" tamano={18} />
@@ -219,7 +210,11 @@ export function FilasDinamicas({
           role="status"
           className="flex items-center justify-between gap-3 rounded-field bg-ink px-3 py-2 text-label text-paper"
         >
-          <span className="min-w-0 truncate">Quité {deshacer.descripcion}.</span>
+          <span className="min-w-0 truncate">
+            {deshacer.descripcion === null
+              ? filasDelFormulario.quiteLaFila
+              : filasDelFormulario.quite(deshacer.descripcion)}
+          </span>
           <button
             type="button"
             onClick={() => {
@@ -228,7 +223,7 @@ export function FilasDinamicas({
             }}
             className="min-h-tap flex-none px-2 font-semibold underline underline-offset-2"
           >
-            Deshacer
+            {filasDelFormulario.deshacer}
           </button>
         </div>
       )}

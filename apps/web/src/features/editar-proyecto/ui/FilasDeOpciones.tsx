@@ -8,6 +8,7 @@ import {
   type FilaDeOpcion,
   type FormularioDeProyecto,
 } from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, uuidv7 } from '@/shared/lib';
 import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
@@ -22,7 +23,7 @@ export interface FilasDeOpcionesProps {
 interface Deshacer {
   indice: number;
   fila: FilaDeOpcion;
-  descripcion: string;
+  descripcion: string | null;
 }
 
 export function FilasDeOpciones({
@@ -32,6 +33,7 @@ export function FilasDeOpciones({
   campos,
   bloqueado,
 }: FilasDeOpcionesProps) {
+  const textos = useMensajes().editarProyecto.opciones;
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
@@ -69,7 +71,7 @@ export function FilasDeOpciones({
         descripcion:
           fila.detalle.trim() === ''
             ? fila.monto === null
-              ? 'la opción'
+              ? null
               : formatearPesos(fila.monto)
             : fila.detalle.trim(),
       });
@@ -85,24 +87,21 @@ export function FilasDeOpciones({
 
   return (
     <section
-      aria-label="Opciones que le presentaste"
+      aria-label={textos.titulo}
       className="@container/opciones flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 pb-4 md:px-5"
       ref={contenedor}
     >
       <div className="flex flex-col gap-2 bg-paper pt-4 md:sticky md:top-17 md:z-10 md:border-b md:border-hairline-soft md:pb-2.5">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-section font-semibold">Opciones que le presentaste</h2>
+            <h2 className="text-section font-semibold">{textos.titulo}</h2>
             <span role="status" className="text-label text-text-2 tabular-nums">
               {aprobada === undefined || aprobada.monto === null
                 ? ''
-                : `Aprobada: ${formatearPesos(aprobada.monto)}`}
+                : textos.aprobada(formatearPesos(aprobada.monto))}
             </span>
           </div>
-          <p className="text-meta leading-normal text-text-3">
-            Los presupuestos que le presentaste. Tildá el que te aprobó y ese pasa a ser el
-            presupuesto del trabajo.
-          </p>
+          <p className="text-meta leading-normal text-text-3">{textos.ayuda}</p>
         </div>
         <Button
           type="button"
@@ -113,15 +112,11 @@ export function FilasDeOpciones({
           className="w-full border-dashed md:w-auto md:self-start"
         >
           <Icono nombre="plus" tamano={16} />
-          Agregar una opción
+          {textos.agregar}
         </Button>
       </div>
 
-      {campos.fields.length === 0 && (
-        <p className="text-label text-text-2">
-          Sin opciones. Si le pasás un solo precio, cargalo arriba en Presupuesto.
-        </p>
-      )}
+      {campos.fields.length === 0 && <p className="text-label text-text-2">{textos.sinOpciones}</p>}
 
       <ul className="flex list-none flex-col">
         {campos.fields.map((campo, indice) => {
@@ -137,8 +132,8 @@ export function FilasDeOpciones({
             >
               <input
                 {...register(`opciones.${indice}.detalle` as const)}
-                aria-label={`Qué incluye la opción ${String(indice + 1)}`}
-                placeholder="Solo el escritorio, los 2 escritorios…"
+                aria-label={textos.queIncluye(indice + 1)}
+                placeholder={textos.queIncluyeEjemplo}
                 disabled={bloqueado}
                 className="col-span-2 h-11 min-w-0 rounded-field border border-border bg-paper px-3 text-body-lg text-ink @lg/opciones:col-span-1"
               />
@@ -158,7 +153,7 @@ export function FilasDeOpciones({
                 />
                 <span className="flex min-w-0 items-center gap-1 truncate">
                   {estaAprobada && <Icono nombre="check" tamano={16} />}
-                  {estaAprobada ? 'Aprobada' : 'La aprobó'}
+                  {estaAprobada ? textos.estaAprobada : textos.laAprobo}
                 </span>
               </label>
               <div
@@ -177,7 +172,7 @@ export function FilasDeOpciones({
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      aria-label={`Importe de la opción ${String(indice + 1)}`}
+                      aria-label={textos.importe(indice + 1)}
                       placeholder="0"
                       disabled={bloqueado}
                       className="min-w-0 flex-1 bg-transparent text-right text-body font-semibold outline-none"
@@ -191,7 +186,7 @@ export function FilasDeOpciones({
                   quitar(indice);
                 }}
                 disabled={bloqueado}
-                aria-label={`Quitar la opción ${String(indice + 1)}`}
+                aria-label={textos.quitar(indice + 1)}
                 className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta @lg/opciones:col-start-auto @lg/opciones:row-start-auto"
               >
                 <Icono nombre="trash-2" tamano={18} />
@@ -214,7 +209,11 @@ export function FilasDeOpciones({
           role="status"
           className="flex items-center justify-between gap-3 rounded-field bg-ink px-3 py-2 text-label text-paper"
         >
-          <span className="min-w-0 truncate">Quité {deshacer.descripcion}.</span>
+          <span className="min-w-0 truncate">
+            {deshacer.descripcion === null
+              ? textos.quiteLaOpcion
+              : textos.quite(deshacer.descripcion)}
+          </span>
           <button
             type="button"
             onClick={() => {
@@ -223,7 +222,7 @@ export function FilasDeOpciones({
             }}
             className="min-h-tap flex-none px-2 font-semibold underline underline-offset-2"
           >
-            Deshacer
+            {textos.deshacer}
           </button>
         </div>
       )}

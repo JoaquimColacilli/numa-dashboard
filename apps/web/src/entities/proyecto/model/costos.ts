@@ -10,6 +10,7 @@ import {
 } from '@maun/domain';
 
 import { COLUMNAS_DE_COSTOS, type CambiosDeCostos, type ColumnaDeCosto } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
@@ -26,11 +27,21 @@ export const COLUMNA_DEL_COSTO: Readonly<Record<CategoriaDeCosto, ColumnaDeCosto
   ayudante: 'costo_ayudante_centavos',
 };
 
+function costo(categoria: CategoriaDeCosto, columna: ColumnaDeCosto): CostoDelTrabajo {
+  return {
+    categoria,
+    columna,
+    get etiqueta() {
+      return mensajes().proyecto.costos[categoria];
+    },
+  };
+}
+
 export const COSTOS_DEL_TRABAJO: readonly CostoDelTrabajo[] = [
-  { categoria: 'madera', columna: 'costo_madera_centavos', etiqueta: 'Madera' },
-  { categoria: 'herrajes', columna: 'costo_herrajes_centavos', etiqueta: 'Herrajes' },
-  { categoria: 'flete', columna: 'costo_flete_centavos', etiqueta: 'Flete' },
-  { categoria: 'ayudante', columna: 'costo_ayudante_centavos', etiqueta: 'Ayudante' },
+  costo('madera', 'costo_madera_centavos'),
+  costo('herrajes', 'costo_herrajes_centavos'),
+  costo('flete', 'costo_flete_centavos'),
+  costo('ayudante', 'costo_ayudante_centavos'),
 ];
 
 type FilaQuizasSinCostos = Partial<Pick<Proyecto, ColumnaDeCosto>>;

@@ -26,6 +26,7 @@ import {
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { mensajeDeSincronizacion, type NecesidadParaGuardar } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { avisarEnPantalla, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { BloquePlegable, Icono } from '@/shared/ui';
 
@@ -41,6 +42,7 @@ interface ListaProps {
 
 function Lista({ segmento, todas, bloqueado, alCambiar }: ListaProps) {
   const lista = listaDelTipo(segmento.tipo);
+  const textos = useMensajes().editarProyecto.loQueHaceFalta;
   const replica = useReplicaDelTaller();
   const [nombre, setNombre] = useState('');
   const [cantidad, setCantidad] = useState('');
@@ -69,12 +71,13 @@ function Lista({ segmento, todas, bloqueado, alCambiar }: ListaProps) {
 
   function quitar(necesidad: Necesidad): void {
     alCambiar(sinUnaNecesidad(todas, necesidad.id), () => {
+      const avisos = mensajes().editarProyecto.loQueHaceFalta;
       avisarEnPantalla({
         clave: `necesidad:${necesidad.id}`,
         tono: 'hecho',
-        texto: `Saqué ${nombreConCantidad(necesidad)} de la lista.`,
+        texto: avisos.saque(nombreConCantidad(necesidad)),
         accion: {
-          etiqueta: 'Deshacer',
+          etiqueta: avisos.deshacer,
           alTocar: () => {
             alCambiar(conUnaNecesidadDeVuelta(todas, necesidad));
           },
@@ -90,8 +93,8 @@ function Lista({ segmento, todas, bloqueado, alCambiar }: ListaProps) {
         {delTipo.length > 0 && (
           <span className="text-meta text-text-2 tabular-nums">
             {listas > 0
-              ? `${String(listas)} de ${String(delTipo.length)} ${lista.listos}`
-              : `${String(delTipo.length)} ${delTipo.length === 1 ? 'cosa' : 'cosas'}`}
+              ? lista.cuantosListos(listas, delTipo.length)
+              : textos.cosas(delTipo.length)}
           </span>
         )}
       </div>
@@ -189,6 +192,7 @@ export interface LoQueHaceFaltaProps {
 }
 
 export function LoQueHaceFalta({ proyecto, abiertoAlPrincipio }: LoQueHaceFaltaProps) {
+  const textos = useMensajes().editarProyecto.loQueHaceFalta;
   const replica = useReplicaDelTaller();
   const todas = necesidadesDelProyecto(replica, proyecto.id);
 
@@ -214,15 +218,15 @@ export function LoQueHaceFalta({ proyecto, abiertoAlPrincipio }: LoQueHaceFaltaP
 
   return (
     <BloquePlegable
-      titulo="Lo que hace falta"
+      titulo={textos.titulo}
       abiertoAlPrincipio={abiertoAlPrincipio ?? (enConsultas || proyecto.estado === 'en_curso')}
-      ayuda="Los materiales y los herrajes que hay que pedir, y las herramientas que hay que tener el día que lo hagas. Se te sugieren los que ya usaste."
+      ayuda={textos.ayuda}
       resumen={
         cuantas === 0
           ? undefined
           : listas === cuantas
-            ? 'todo listo'
-            : `${String(listas)} de ${String(cuantas)}`
+            ? textos.todoListo
+            : textos.listas(listas, cuantas)
       }
     >
       {segmentosDeLoQueHaceFalta(todas).map((segmento) => (
@@ -235,11 +239,7 @@ export function LoQueHaceFalta({ proyecto, abiertoAlPrincipio }: LoQueHaceFaltaP
         />
       ))}
 
-      {bloqueado && (
-        <p className="mt-2.5 text-meta leading-normal text-text-3">
-          Este trabajo está cerrado: la lista queda como quedó.
-        </p>
-      )}
+      {bloqueado && <p className="mt-2.5 text-meta leading-normal text-text-3">{textos.cerrado}</p>}
 
       {guardar.isError && (
         <p role="alert" className="mt-1.5 text-label font-medium text-alerta">

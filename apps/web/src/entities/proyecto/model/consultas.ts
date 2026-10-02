@@ -8,6 +8,7 @@ import {
 } from '@maun/domain';
 
 import { filasDe, visitaHecha, type Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { diasHasta, fechaLarga, hoyLocal, relativa } from '@/shared/lib';
 
 import type { Proyecto } from './catalogos';
@@ -107,28 +108,16 @@ export function ultimasActividades(replica: Replica): Map<string, string> {
   return ultimas;
 }
 
-function desde(dias: number, dia: string, hoy: string): string {
-  if (dias === 0) return 'desde hoy';
-  if (dias === 1) return 'desde ayer';
-  return `desde ${relativa(dia, hoy)}`;
-}
-
-function haceTanto(dias: number, dia: string, hoy: string): string {
-  return dias === 0 ? 'hoy' : relativa(dia, hoy);
-}
-
-function mandadoHace(que: string, dias: number, dia: string, hoy: string): string {
-  return dias === 0 ? `${que} hoy` : `${que} ${haceTanto(dias, dia, hoy)}, sin respuesta`;
-}
-
 export function situacionDelContacto(
   proyecto: Proyecto,
   ultimaActividad: string,
   hoy: string,
   cobrado: number,
 ): SituacionDelContacto {
+  const textos = mensajes().proyecto.consultas;
   const dia = diaDelUltimoContacto(proyecto, ultimaActividad);
   const dias = Math.max(0, -diasHasta(dia, hoy));
+  const cuando = relativa(dias === 0 ? hoy : dia, hoy);
   const conEspera = (
     sugerencia: SugerenciaDelContacto,
     proximoPaso: string,
@@ -151,31 +140,32 @@ export function situacionDelContacto(
     if (faltan > 0) {
       return {
         sugerencia: 'ir-a-relevar',
-        proximoPaso: `Ir a relevar el ${fechaLarga(visita, hoy)}`,
-        espera: `Visita ${relativa(visita, hoy)}`,
+        proximoPaso: textos.irARelevarEl(fechaLarga(visita, hoy)),
+        espera: textos.visitaDentroDe(relativa(visita, hoy)),
         dias,
         fria: false,
         vencido: false,
         agendada: true,
       };
     }
-    if (faltan === 0) return conEspera('ir-a-relevar', 'Ir a relevar hoy', 'La visita es hoy');
+    if (faltan === 0) {
+      return conEspera('ir-a-relevar', textos.irARelevarHoy, textos.laVisitaEsHoy);
+    }
     return undefined;
   };
 
   switch (proyecto.estado) {
     case 'presupuesto_estimativo': {
-      const espera = mandadoHace('Estimativo enviado', dias, dia, hoy);
+      const espera =
+        dias === 0 ? textos.estimativoEnviadoHoy : textos.estimativoSinRespuesta(cuando);
       if (visita === null) {
-        return conEspera('agendar-la-visita', 'Si avanza, falta agendar la visita', espera);
+        return conEspera('agendar-la-visita', textos.siAvanzaFaltaAgendar, espera);
       }
       return (
         hastaLaVisita() ??
         conEspera(
           'pasar-a-presupuestar',
-          cobrado > 0
-            ? 'Ya pagó la visita: falta presupuestar'
-            : 'Falta que apruebe el estimativo y pague la visita',
+          cobrado > 0 ? textos.yaPagoLaVisita : textos.faltaQueApruebeElEstimativo,
           espera,
         )
       );
@@ -184,42 +174,34 @@ export function situacionDelContacto(
       if (visita === null) {
         return conEspera(
           'poner-fecha-a-la-visita',
-          'Falta ponerle fecha a la visita',
-          `Relevamiento ${desde(dias, dia, hoy)}, sin fecha de visita`,
+          textos.faltaPonerleFecha,
+          textos.relevamientoSinFecha(cuando),
         );
       }
       return (
         hastaLaVisita() ??
         conEspera(
           'cargar-lo-relevado',
-          'Falta pasar lo relevado a presupuestar',
-          `La visita fue ${relativa(visita, hoy)}`,
+          textos.faltaPasarLoRelevado,
+          textos.laVisitaFue(relativa(visita, hoy)),
         )
       );
     }
     case 'a_presupuestar': {
-      const espera = `A presupuestar ${desde(dias, dia, hoy)}`;
+      const espera = textos.aPresupuestarDesde(cuando);
       const hechas = tareasHechas(proyecto);
       if (presupuestoArmado(proyecto)) {
-        return conEspera(
-          'mandar-el-presupuesto',
-          'Ya está armado: falta mandar el presupuesto',
-          espera,
-        );
+        return conEspera('mandar-el-presupuesto', textos.yaEstaArmado, espera);
       }
       if (hechas > 0) {
         return conEspera(
           'presupuestar',
-          `Falta presupuestar: ${String(hechas)} de ${String(TAREAS_DEL_PRESUPUESTO.length)} tareas hechas`,
+          textos.faltaPresupuestarConTareas(hechas, TAREAS_DEL_PRESUPUESTO.length),
           espera,
         );
       }
-      if (cobrado > 0) return conEspera('presupuestar', 'Falta presupuestar', espera);
-      return conEspera(
-        'mandar-el-estimativo',
-        'Falta el estimativo: la visita no está cobrada',
-        espera,
-      );
+      if (cobrado > 0) return conEspera('presupuestar', textos.faltaPresupuestar, espera);
+      return conEspera('mandar-el-estimativo', textos.faltaElEstimativo, espera);
     }
     case 'presupuesto_enviado': {
       const valeHasta = vigenciaDelPresupuesto(proyecto);
@@ -227,23 +209,23 @@ export function situacionDelContacto(
         return {
           ...conEspera(
             'llamar',
-            'Venció el presupuesto: actualizalo o cambiale la fecha',
-            `Valía hasta el ${fechaLarga(valeHasta, hoy)}`,
+            textos.vencioElPresupuesto,
+            textos.valiaHasta(fechaLarga(valeHasta, hoy)),
           ),
           vencido: true,
         };
       }
       return conEspera(
         'llamar',
-        'Falta llamar para saber',
-        mandadoHace('Presupuesto enviado', dias, dia, hoy),
+        textos.faltaLlamar,
+        dias === 0 ? textos.presupuestoEnviadoHoy : textos.presupuestoSinRespuesta(cuando),
       );
     }
     default:
       return conEspera(
         'agendar-la-visita',
-        'Falta agendar la visita',
-        `Contacto ${desde(dias, dia, hoy)}, sin visita agendada`,
+        textos.faltaAgendarLaVisita,
+        textos.contactoSinVisita(cuando),
       );
   }
 }
@@ -310,20 +292,24 @@ export interface PasoDelContacto {
   camino: CaminoDelPaso;
 }
 
-const APROBAR: PasoDelContacto = { hacia: 'en_curso', etiqueta: 'Ya lo aprobó', camino: 'pasaje' };
-
 function pasosDeLaSugerencia(
   etapa: EtapaDeConsulta,
   sugerencia: SugerenciaDelContacto,
 ): PasoDelContacto[] {
+  const textos = mensajes().proyecto.consultas.pasos;
+  const aprobar: PasoDelContacto = {
+    hacia: 'en_curso',
+    etiqueta: textos.yaLoAprobo,
+    camino: 'pasaje',
+  };
   const relevar: PasoDelContacto = {
     hacia: 'a_presupuestar',
-    etiqueta: 'Ya fui a relevar',
+    etiqueta: textos.yaFuiARelevar,
     camino: 'relevar',
   };
   const presupuesto: PasoDelContacto = {
     hacia: 'presupuesto_enviado',
-    etiqueta: 'Mandé el presupuesto',
+    etiqueta: textos.mandeElPresupuesto,
     camino: 'presupuesto',
   };
 
@@ -331,7 +317,7 @@ function pasosDeLaSugerencia(
     case 'agendar-la-visita': {
       const agendar: PasoDelContacto = {
         hacia: 'relevamiento',
-        etiqueta: 'Agendar la visita',
+        etiqueta: textos.agendarLaVisita,
         camino: 'agendar',
       };
       return etapa === 'contacto'
@@ -339,41 +325,41 @@ function pasosDeLaSugerencia(
             agendar,
             {
               hacia: 'presupuesto_estimativo',
-              etiqueta: 'Mandé un estimativo',
+              etiqueta: textos.mandeUnEstimativo,
               camino: 'guardar',
             } satisfies PasoDelContacto,
-            APROBAR,
+            aprobar,
           ]
-        : [agendar, APROBAR];
+        : [agendar, aprobar];
     }
     case 'poner-fecha-a-la-visita':
     case 'ir-a-relevar':
     case 'cargar-lo-relevado':
-      return [relevar, APROBAR];
+      return [relevar, aprobar];
     case 'mandar-el-estimativo':
       return [
         {
           hacia: 'presupuesto_estimativo',
-          etiqueta: 'Mandé el estimativo',
+          etiqueta: textos.mandeElEstimativo,
           camino: 'guardar',
         } satisfies PasoDelContacto,
         presupuesto,
-        APROBAR,
+        aprobar,
       ];
     case 'presupuestar':
     case 'mandar-el-presupuesto':
-      return [presupuesto, APROBAR];
+      return [presupuesto, aprobar];
     case 'pasar-a-presupuestar':
       return [
         {
           hacia: 'a_presupuestar',
-          etiqueta: 'Pasar a presupuestar',
+          etiqueta: textos.pasarAPresupuestar,
           camino: 'pasar-a-presupuestar',
         } satisfies PasoDelContacto,
-        APROBAR,
+        aprobar,
       ];
     case 'llamar':
-      return [{ ...APROBAR, etiqueta: 'Lo aprobó: pasar a Proyectos' }];
+      return [{ ...aprobar, etiqueta: textos.loAproboPasarAProyectos }];
   }
 }
 
@@ -386,9 +372,10 @@ export function pasosDelContacto(
     puedeCambiarEstado(etapa, paso.hacia),
   );
   if (etapa !== 'a_presupuestar' || presupuesto === 'mandado') return pasos;
+  const textos = mensajes().proyecto.consultas.pasos;
   const armar: PasoDelContacto = {
     hacia: 'presupuesto_enviado',
-    etiqueta: presupuesto === 'borrador' ? 'Seguir armándolo' : 'Armar el presupuesto',
+    etiqueta: presupuesto === 'borrador' ? textos.seguirArmandolo : textos.armarElPresupuesto,
     camino: 'armar',
   };
   return [armar, ...pasos];

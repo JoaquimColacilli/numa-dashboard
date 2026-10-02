@@ -14,6 +14,7 @@ import {
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { metaDeAvisos, useIr } from '@/shared/lib';
 import { Button, FilaDeAcciones, PanelDePaso } from '@/shared/ui';
 
@@ -29,13 +30,10 @@ interface Accion {
   hacer: () => void;
 }
 
-const YA_ESTA_LISTO = 'Ya está listo';
-
-const TODAVIA_NO_ESTA_LISTO = 'Todavía no está listo';
-
 export function AvanceDeLaObra({ resumen, hoy }: AvanceDeLaObraProps) {
   const { proyecto } = resumen;
   const ir = useIr();
+  const textos = useMensajes().editarProyecto.avance;
   const guardar = useMutation({
     ...MUTACION_DE_PROYECTO,
     meta: metaDeAvisos('proyectoAvanzado', { errorEnPantalla: true, sujeto: proyecto.titulo }),
@@ -97,7 +95,7 @@ export function AvanceDeLaObra({ resumen, hoy }: AvanceDeLaObraProps) {
   if (enCurso && listo === null) {
     acciones.push({
       clave: 'listo',
-      etiqueta: YA_ESTA_LISTO,
+      etiqueta: textos.yaEstaListo,
       principal: true,
       hacer: () => {
         marcarListo(hoy);
@@ -109,7 +107,7 @@ export function AvanceDeLaObra({ resumen, hoy }: AvanceDeLaObraProps) {
     if (enCurso) {
       acciones.push({
         clave: 'no-listo',
-        etiqueta: TODAVIA_NO_ESTA_LISTO,
+        etiqueta: textos.todaviaNoEstaListo,
         principal: false,
         hacer: () => {
           marcarListo(null);
@@ -122,7 +120,7 @@ export function AvanceDeLaObra({ resumen, hoy }: AvanceDeLaObraProps) {
   return (
     <div>
       <PanelDePaso
-        titulo="Qué falta"
+        titulo={textos.titulo}
         paso={situacion.proximoPaso}
         detalle={situacion.detalle}
         icono={situacion.icono}

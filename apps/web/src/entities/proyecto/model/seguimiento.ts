@@ -6,16 +6,14 @@ import {
 } from '@maun/domain';
 
 import { filasDe, type FilaDe, type Replica } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 import type { ResumenDeProyecto } from './resumen';
 
 export type ProximoContacto = FilaDe<'proximos_contactos'>;
 
-export const RESULTADO_DEL_CONTACTO: Readonly<Record<ResultadoDelContacto, string>> = {
-  reactivado: 'Volvió a las consultas',
-  perdido: 'Se dio por perdido',
-  otra_fecha: 'Siguió en seguimiento con otra fecha',
-};
+export const RESULTADO_DEL_CONTACTO: Readonly<Record<ResultadoDelContacto, string>> =
+  textosDelIdioma(() => mensajes().proyecto.resultadosDelContacto);
 
 export function textoDelResultado(resultado: string | null): string {
   const conocido = RESULTADOS_DEL_CONTACTO.find((uno) => uno === resultado);

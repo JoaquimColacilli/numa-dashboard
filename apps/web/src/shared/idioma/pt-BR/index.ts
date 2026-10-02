@@ -4,6 +4,7 @@ import { api } from './api';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
+import { editarProyecto } from './editarProyecto';
 import { editarTesoro } from './editarTesoro';
 import { enlace } from './enlace';
 import { fila } from './fila';
@@ -15,6 +16,8 @@ import { paginaAnalitico } from './paginaAnalitico';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
+import { paginaProyectos } from './paginaProyectos';
+import { proyecto } from './proyecto';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
 import { ui } from './ui';
@@ -24,6 +27,7 @@ export const ptBR = {
   avanzarLaConsulta,
   comun,
   coordinarLaEntrega,
+  editarProyecto,
   editarTesoro,
   enlace,
   fila,
@@ -35,6 +39,8 @@ export const ptBR = {
   paginaDiezmo,
   paginaFinanzas,
   paginaInicio,
+  paginaProyectos,
+  proyecto,
   registrarMovimiento,
   replica,
   ui,

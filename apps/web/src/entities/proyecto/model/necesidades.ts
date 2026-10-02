@@ -8,6 +8,7 @@ import {
 } from '@maun/domain';
 
 import { filasDe, type FilaDe, type NecesidadParaGuardar, type Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 export type Necesidad = FilaDe<'necesidades'>;
 
@@ -17,58 +18,48 @@ export interface TipoDeLaLista {
   agregar: string;
   campo: string;
   cuantos: string;
-  listo: string;
-  listos: string;
   placeholder: string;
   ejemploDeCantidad: string;
   ayuda: string;
+  casilla: (necesidad: string) => string;
+  cuantosListos: (listos: number, total: number) => string;
 }
 
-const TEXTOS_DE_CADA_LISTA: Record<TipoDeNecesidad, Omit<TipoDeLaLista, 'tipo'>> = {
-  material: {
-    titulo: 'Materiales necesarios',
-    agregar: 'Agregar el material',
-    campo: 'Qué material hace falta',
-    cuantos: 'Cuántos materiales',
-    listo: 'Listo',
-    listos: 'listos',
-    placeholder: 'Placas de melamina, tablón, laca…',
-    ejemploDeCantidad: '3',
-    ayuda:
-      'Lo que hay que comprar o encargar: cortes, tablones, pintura. La medida va en el nombre.',
-  },
-  herraje: {
-    titulo: 'Herrajes necesarios',
-    agregar: 'Agregar el herraje',
-    campo: 'Qué herraje hace falta',
-    cuantos: 'Cuántos herrajes',
-    listo: 'Listo',
-    listos: 'listos',
-    placeholder: 'Bisagras, pistones, tiradores…',
-    ejemploDeCantidad: '6',
-    ayuda: 'Lo que hay que pedir para este trabajo. La cantidad es opcional.',
-  },
-  herramienta: {
-    titulo: 'Herramientas necesarias',
-    agregar: 'Agregar la herramienta',
-    campo: 'Qué herramienta hace falta',
-    cuantos: 'Cuántas herramientas',
-    listo: 'Lista',
-    listos: 'listas',
-    placeholder: 'Sierra circular, lijadora de banda…',
-    ejemploDeCantidad: '1',
-    ayuda: 'Lo que hay que tener a mano el día que lo hagas. La cantidad es opcional.',
-  },
+const EJEMPLO_DE_CANTIDAD: Readonly<Record<TipoDeNecesidad, string>> = {
+  material: '3',
+  herraje: '6',
+  herramienta: '1',
 };
 
-export const LISTAS_DEL_TRABAJO: readonly TipoDeLaLista[] = TIPOS_DE_NECESIDAD.map((tipo) => ({
-  tipo,
-  ...TEXTOS_DE_CADA_LISTA[tipo],
-}));
-
 export function listaDelTipo(tipo: TipoDeNecesidad): TipoDeLaLista {
-  return { tipo, ...TEXTOS_DE_CADA_LISTA[tipo] };
+  const textos = () => mensajes().proyecto.necesidades[tipo];
+  return {
+    tipo,
+    ejemploDeCantidad: EJEMPLO_DE_CANTIDAD[tipo],
+    get titulo() {
+      return textos().titulo;
+    },
+    get agregar() {
+      return textos().agregar;
+    },
+    get campo() {
+      return textos().campo;
+    },
+    get cuantos() {
+      return textos().cuantos;
+    },
+    get placeholder() {
+      return textos().placeholder;
+    },
+    get ayuda() {
+      return textos().ayuda;
+    },
+    casilla: (necesidad) => textos().casilla(necesidad),
+    cuantosListos: (listos, total) => textos().cuantosListos(listos, total),
+  };
 }
+
+export const LISTAS_DEL_TRABAJO: readonly TipoDeLaLista[] = TIPOS_DE_NECESIDAD.map(listaDelTipo);
 
 export function nombreConCantidad(necesidad: Pick<Necesidad, 'nombre' | 'cantidad'>): string {
   return necesidad.cantidad === null

@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, metaDeAvisos, useAlgoEnCurso } from '@/shared/lib';
 import { BloquePlegable, EstadoDeGuardado, MoneyInput } from '@/shared/ui';
 
@@ -31,7 +32,10 @@ function Renglon({ clave, valor, tono = '' }: { clave: string; valor: string; to
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-hairline py-2">
       <span className="text-label text-text-2">{clave}</span>
-      <span className={`text-money font-semibold tabular-nums whitespace-nowrap ${tono}`}>
+      <span
+        translate="no"
+        className={`text-money font-semibold tabular-nums whitespace-nowrap ${tono}`}
+      >
         {valor}
       </span>
     </div>
@@ -39,15 +43,14 @@ function Renglon({ clave, valor, tono = '' }: { clave: string; valor: string; to
 }
 
 function Margen({ margen, sinAprobar }: { margen: MargenDelTrabajo; sinAprobar: boolean }) {
+  const textos = useMensajes().proyecto.costosDeCotizar;
   if (margen.situacion === 'sin-estimar') return null;
 
   if (margen.situacion === 'sin-presupuesto') {
     return (
       <>
-        <Renglon clave="Costo estimado" valor={formatearPesos(margen.estimado)} />
-        <p className="pt-1.5 text-meta leading-normal text-text-3">
-          Cuando el trabajo tenga presupuesto, acá va lo que te queda.
-        </p>
+        <Renglon clave={textos.costoEstimado} valor={formatearPesos(margen.estimado)} />
+        <p className="pt-1.5 text-meta leading-normal text-text-3">{textos.sinPresupuesto}</p>
       </>
     );
   }
@@ -55,17 +58,15 @@ function Margen({ margen, sinAprobar }: { margen: MargenDelTrabajo; sinAprobar: 
   const enContra = margen.margen < 0;
   return (
     <>
-      <Renglon clave="Costo estimado" valor={formatearPesos(margen.estimado)} />
-      <Renglon clave="Presupuesto" valor={formatearPesos(margen.presupuesto)} />
+      <Renglon clave={textos.costoEstimado} valor={formatearPesos(margen.estimado)} />
+      <Renglon clave={textos.presupuesto} valor={formatearPesos(margen.presupuesto)} />
       <Renglon
-        clave={sinAprobar ? 'Te queda, si te lo aprueban' : 'Te queda'}
+        clave={sinAprobar ? textos.teQuedaSiTeLoAprueban : textos.teQueda}
         valor={formatearPesos(margen.margen)}
         tono={enContra ? 'text-alerta' : 'text-hogar'}
       />
       {enContra && (
-        <p className="pt-1.5 text-meta leading-normal font-medium text-alerta">
-          Estás estimando más gasto que presupuesto.
-        </p>
+        <p className="pt-1.5 text-meta leading-normal font-medium text-alerta">{textos.enContra}</p>
       )}
     </>
   );
@@ -82,6 +83,7 @@ export function CostosDeCotizar({
   abiertoAlPrincipio = true,
   anidado = false,
 }: CostosDeCotizarProps) {
+  const textos = useMensajes().proyecto.costosDeCotizar;
   const guardar = useMutation({
     ...MUTACION_DE_COSTOS,
     meta: metaDeAvisos('costosEstimados', { silencioso: true, sujeto: proyecto.titulo }),
@@ -124,17 +126,13 @@ export function CostosDeCotizar({
 
   return (
     <BloquePlegable
-      titulo="Costos estimados"
+      titulo={textos.titulo}
       abiertoAlPrincipio={abiertoAlPrincipio}
       enTarjeta={!anidado}
-      ayuda="Lo que calculás que vas a gastar. No toca el presupuesto: ese lo ponés vos, con el ingreso que querés que te deje."
+      ayuda={textos.ayuda}
       resumen={
         <span className="flex items-center gap-2.5">
-          {cargadas > 0 && (
-            <span>
-              {String(cargadas)} de {String(COSTOS_DEL_TRABAJO.length)}
-            </span>
-          )}
+          {cargadas > 0 && <span>{textos.cargadas(cargadas, COSTOS_DEL_TRABAJO.length)}</span>}
           <EstadoDeGuardado
             sinGuardar={sinGuardar}
             enPausa={guardar.isPaused}
@@ -151,7 +149,7 @@ export function CostosDeCotizar({
             <MoneyInput
               key={costo.columna}
               etiqueta={costo.etiqueta}
-              placeholder="Sin estimar"
+              placeholder={textos.sinEstimar}
               value={visibles[costo.categoria]}
               onChange={(valor) => {
                 alEscribir(costo.categoria, valor);

@@ -22,6 +22,7 @@ import {
   type PagoParaGuardar,
   type ProyectoParaGuardar,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
   formatearPorcentaje,
@@ -43,24 +44,26 @@ import { tipoDelTrabajo } from './entrega';
 import { senaDelProyecto, type OpcionDePresupuesto } from './opciones';
 import { vigenciaDelPresupuesto } from './vigencia';
 
-const SIN_MONTO = 'Poné cuánto, en pesos.';
+function errores() {
+  return mensajes().proyecto.formulario;
+}
 
 function texto(maximo: number) {
   return z
     .string()
     .trim()
-    .max(maximo, { error: `No puede pasar de ${String(maximo)} caracteres.` });
+    .max(maximo, { error: () => errores().demasiadoLargo(maximo) });
 }
 
 const monto = z
   .number()
   .int()
   .nullable()
-  .refine((valor) => valor !== null && valor > 0, { error: SIN_MONTO });
+  .refine((valor) => valor !== null && valor > 0, { error: () => errores().sinMonto });
 
 const filaDinamica = z.object({
   id: z.string(),
-  fecha: z.string().min(1, { error: 'Poné la fecha.' }),
+  fecha: z.string().min(1, { error: () => errores().sinFecha }),
   detalle: texto(500),
   monto,
   enLaApertura: z.boolean(),
@@ -81,21 +84,21 @@ const filaDeOpcion = z.object({
 });
 
 export const esquemaDeProyecto = z.object({
-  cliente_id: z.string().min(1, { error: 'Elegí un cliente, o creá uno nuevo desde acá.' }),
-  titulo: texto(200).min(1, { error: 'Contá qué mueble es.' }),
+  cliente_id: z.string().min(1, { error: () => errores().sinCliente }),
+  titulo: texto(200).min(1, { error: () => errores().sinTitulo }),
   descripcion: texto(10_000),
   estado: z.enum(ESTADOS),
   moneda: z.enum(MONEDAS),
   presupuesto: z
     .number()
     .int()
-    .nonnegative({ error: 'Revisá el presupuesto: va en pesos.' })
+    .nonnegative({ error: () => errores().presupuestoNegativo })
     .nullable(),
   sena: z
     .string()
     .refine(
       (valor) => valor.trim() === '' || parsearPorcentaje(valor, SENA_MAXIMA_BP) !== undefined,
-      { error: 'La seña va entre 0 y 100.' },
+      { error: () => errores().senaFueraDeRango },
     ),
   forma_pago: z.enum(FORMAS_EN_ORDEN).nullable(),
   comprobante: z.enum(COMPROBANTES_EN_ORDEN),

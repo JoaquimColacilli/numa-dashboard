@@ -46,6 +46,7 @@ export function TarjetaDeProyecto({
       <Ir
         a={rutaDelProyecto(proyecto.id)}
         data-tarjeta
+        translate="no"
         className="text-body-lg leading-snug font-medium text-pretty after:absolute after:inset-0 after:rounded-panel after:content-[''] focus-visible:outline-none"
       >
         {proyecto.titulo}

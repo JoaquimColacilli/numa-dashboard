@@ -44,6 +44,7 @@ import {
   filasDe,
   mensajeDeSincronizacion,
 } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   formatearPesos,
   hoyLocal,
@@ -90,9 +91,10 @@ export function PantallaDeProyecto({
 }: PantallaDeProyectoProps) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
+  const textos = useMensajes().editarProyecto.pantalla;
   const cancelar = useVolver(
     proyectoId === undefined ? '/proyectos' : rutaDelProyecto(proyectoId),
-    'Cancelar',
+    textos.cancelar,
     { fija: true },
   );
   const ancho = useAnchoDePantalla();
@@ -269,7 +271,7 @@ export function PantallaDeProyecto({
   };
 
   const enCelular = ancho === 'movil';
-  const titulo = proyecto === undefined ? 'Proyecto nuevo' : 'Editar proyecto';
+  const titulo = proyecto === undefined ? textos.proyectoNuevo : textos.editarProyecto;
 
   return (
     <div
@@ -284,7 +286,7 @@ export function PantallaDeProyecto({
         <div className="mx-auto grid w-full max-w-content grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 md:h-17 md:px-(--page-pad-tablet) md:py-0 lg:px-(--page-pad-desktop)">
           <Button variant="terciario" className="justify-self-start" onClick={cancelar.volver}>
             <Icono nombre="x" tamano={20} />
-            Cancelar
+            {textos.cancelar}
           </Button>
           <span className="text-center text-body-lg font-semibold">{titulo}</span>
         </div>
@@ -323,20 +325,20 @@ export function PantallaDeProyecto({
 
                 <Campo
                   {...register('titulo')}
-                  etiqueta="Trabajo"
-                  placeholder="Placard 3 puertas, mesada de cocina…"
+                  etiqueta={textos.trabajo}
+                  placeholder={textos.trabajoEjemplo}
                   error={errors.titulo?.message}
                 />
               </CamposJuntos>
 
               <Campo
                 {...register('tipo_de_proyecto')}
-                etiqueta="Tipo de proyecto"
-                placeholder="Cocina, placard, vestidor…"
+                etiqueta={textos.tipo}
+                placeholder={textos.tipoEjemplo}
                 list={`${idCampos}-tipos`}
                 autoComplete="off"
                 maxLength={60}
-                ayuda="Con el tipo, el Analítico de entregas te muestra cuánto tardás en cada clase de mueble."
+                ayuda={textos.tipoAyuda}
                 error={errors.tipo_de_proyecto?.message}
               />
               <datalist id={`${idCampos}-tipos`}>
@@ -348,7 +350,7 @@ export function PantallaDeProyecto({
               <CamposJuntos separacion="gap-5" campoMinimo="14rem">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={`${idCampos}-presupuesto`} className="text-label text-text-2">
-                    Presupuesto
+                    {textos.presupuesto}
                   </label>
                   <div
                     className={`flex h-15 items-center gap-1.5 rounded-field border px-3.5 ${
@@ -359,10 +361,11 @@ export function PantallaDeProyecto({
                     {hayOpciones ? (
                       <output
                         id={`${idCampos}-presupuesto`}
+                        translate={presupuestoEfectivo === null ? undefined : 'no'}
                         className="min-w-0 flex-1 text-money-lg font-semibold text-text-2"
                       >
                         {presupuestoEfectivo === null
-                          ? 'Sin definir'
+                          ? textos.sinDefinir
                           : formatearPesos(presupuestoEfectivo)}
                       </output>
                     ) : (
@@ -390,26 +393,24 @@ export function PantallaDeProyecto({
                     </span>
                   ) : (
                     <span className="text-meta text-text-3">
-                      {hayOpciones
-                        ? 'Sale de la opción que tildes, abajo. Para escribirlo a mano, sacá las opciones.'
-                        : 'Dejalo vacío mientras no esté presupuestado.'}
+                      {hayOpciones ? textos.presupuestoDeLaOpcion : textos.presupuestoVacio}
                     </span>
                   )}
                 </div>
 
                 <Campo
                   {...register('sena')}
-                  etiqueta="Seña propia (%)"
+                  etiqueta={textos.senaPropia}
                   className="@min-[29rem]/campos:h-15"
                   inputMode="decimal"
-                  placeholder="La del taller"
-                  ayuda="Dejalo vacío para pedir la seña de siempre. Completalo solo si a este le pedís otra."
+                  placeholder={textos.senaDelTaller}
+                  ayuda={textos.senaAyuda}
                   error={errors.sena?.message}
                 />
               </CamposJuntos>
 
               <fieldset className="flex flex-col gap-1.5">
-                <legend className="mb-1.5 text-label text-text-2">Forma de pago</legend>
+                <legend className="mb-1.5 text-label text-text-2">{textos.formaDePago}</legend>
                 <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm/datos:grid-cols-4">
                   {FORMAS_EN_ORDEN.map((forma) => (
                     <BotonDeOpcion
@@ -430,7 +431,7 @@ export function PantallaDeProyecto({
               >
                 <Campo
                   {...register('fecha_inicio')}
-                  etiqueta="Fecha de inicio"
+                  etiqueta={textos.fechaDeInicio}
                   type="date"
                   error={errors.fecha_inicio?.message}
                   contenedor={FECHA_ALINEADA}
@@ -441,16 +442,16 @@ export function PantallaDeProyecto({
                       setEntregaAuto(false);
                     },
                   })}
-                  etiqueta="Entrega estimada"
+                  etiqueta={textos.entregaEstimada}
                   type="date"
-                  ayuda={entregaAuto ? 'Calculada a 21 días hábiles del inicio.' : undefined}
+                  ayuda={entregaAuto ? textos.entregaCalculada : undefined}
                   contenedor={FECHA_ALINEADA}
                 />
                 <Campo
                   {...register('entrega_hora')}
-                  etiqueta="Hora de la entrega"
+                  etiqueta={textos.horaDeLaEntrega}
                   type="time"
-                  ayuda="Opcional. Con hora, la entrega cae en su renglón del día en la agenda."
+                  ayuda={textos.horaAyuda}
                   contenedor={FECHA_ALINEADA}
                 />
               </div>
@@ -458,7 +459,7 @@ export function PantallaDeProyecto({
               <CamposJuntos columnas={3} separacion="gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={`${idCampos}-estado`} className="text-label text-text-2">
-                    Estado
+                    {textos.estado}
                   </label>
                   <select
                     {...register('estado')}
@@ -474,8 +475,9 @@ export function PantallaDeProyecto({
                   </select>
                   {liquidado && (
                     <span className="text-meta text-text-3">
-                      Un proyecto {ESTADO[proyecto.estado].etiqueta.toLowerCase()} tiene la
-                      distribución congelada: su estado se cambia reabriéndolo.
+                      {proyecto.estado === 'perdido'
+                        ? textos.estadoCongelado.perdido
+                        : textos.estadoCongelado.cobrado}
                     </span>
                   )}
                 </div>
@@ -485,7 +487,7 @@ export function PantallaDeProyecto({
                     htmlFor={`${idCampos}-direccion`}
                     className="flex items-center justify-between gap-2 text-label text-text-2"
                   >
-                    Dirección de entrega
+                    {textos.direccionDeEntrega}
                     {cliente !== undefined && direccion.trim() !== cliente.direccion.trim() && (
                       <button
                         type="button"
@@ -494,7 +496,7 @@ export function PantallaDeProyecto({
                         }}
                         className="min-h-tap px-1 underline underline-offset-3 @min-[50rem]/campos:-my-3"
                       >
-                        Usar la del cliente
+                        {textos.usarLaDelCliente}
                       </button>
                     )}
                   </label>
@@ -502,14 +504,14 @@ export function PantallaDeProyecto({
                     <input
                       {...register('direccion_entrega')}
                       id={`${idCampos}-direccion`}
-                      placeholder="Calle y número, localidad"
+                      placeholder={textos.direccionEjemplo}
                       className="h-field min-w-0 flex-1 rounded-field border border-border bg-paper px-3.5 text-body-lg text-ink"
                     />
                     <a
                       href={enlaceDeMapa(direccion, '') ?? '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label="Abrir la dirección en el mapa"
+                      aria-label={textos.abrirLaDireccion}
                       aria-disabled={direccion.trim() === '' ? true : undefined}
                       className={`flex size-field flex-none items-center justify-center rounded-pill border border-border ${
                         direccion.trim() === ''
@@ -527,10 +529,10 @@ export function PantallaDeProyecto({
                     htmlFor={`${idCampos}-comprobante`}
                     className="flex items-baseline justify-between gap-2 text-label text-text-2"
                   >
-                    Comprobante a emitir
+                    {textos.comprobante}
                     {comprobanteAuto && cliente !== undefined && (
                       <span className="text-meta text-text-3">
-                        Por {CONDICION[cliente.condicion_fiscal].etiqueta.toLowerCase()}
+                        {textos.porLaCondicion(CONDICION[cliente.condicion_fiscal].etiqueta)}
                       </span>
                     )}
                   </label>
@@ -554,13 +556,13 @@ export function PantallaDeProyecto({
 
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={`${idCampos}-notas`} className="text-label text-text-2">
-                  Notas de obra
+                  {textos.notasDeObra}
                 </label>
                 <textarea
                   {...register('notas')}
                   id={`${idCampos}-notas`}
                   rows={3}
-                  placeholder="Medidas, qué falta, qué hablar con el cliente…"
+                  placeholder={textos.notasEjemplo}
                   className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
                 />
               </div>
@@ -573,8 +575,9 @@ export function PantallaDeProyecto({
                   className="rounded-panel border border-hairline bg-paper px-4 py-4 text-label leading-snug text-text-2 md:px-5"
                 >
                   <p>
-                    Este proyecto está {ESTADO[proyecto.estado].etiqueta.toLowerCase()} y su reparto
-                    quedó cerrado: sus pagos y sus gastos no se tocan.
+                    {proyecto.estado === 'perdido'
+                      ? textos.repartoCerrado.perdido
+                      : textos.repartoCerrado.cobrado}
                   </p>
                   <Button
                     variant="secundario"
@@ -585,14 +588,12 @@ export function PantallaDeProyecto({
                     }}
                   >
                     <Icono nombre="arrow-left-right" tamano={16} />
-                    {proyecto.estado === 'perdido'
-                      ? 'Reactivarlo para poder cargarlo'
-                      : 'Reabrir el cobro para corregirlo'}
+                    {proyecto.estado === 'perdido' ? textos.reactivarlo : textos.reabrirElCobro}
                   </Button>
                   <p className="mt-1.5 text-meta text-text-3">
                     {proyecto.estado === 'perdido'
-                      ? 'Los campos se desbloquean acá mismo. Al guardar te llevo a cerrarlo de nuevo, con la seña repartida contando lo que cargaste.'
-                      : 'Los campos se desbloquean acá mismo. Al guardar te llevo a cobrarlo de nuevo, con el reparto rehecho.'}
+                      ? textos.alGuardarLoCierra
+                      : textos.alGuardarLoCobra}
                   </p>
                 </div>
               )}
@@ -605,12 +606,6 @@ export function PantallaDeProyecto({
               />
               <FilasDinamicas
                 lista="pagos"
-                titulo="Pagos recibidos"
-                etiquetaDelDetalle="Concepto"
-                placeholderDelDetalle="Seña, adelanto, saldo…"
-                textoDeAgregar="Agregar un pago"
-                ayuda="Lo que te pagó el cliente por este trabajo. Entra a la caja del taller."
-                vacio="Todavía no cobraste nada de este trabajo. La seña suele ir primero."
                 control={control}
                 register={register}
                 errores={errors}
@@ -620,12 +615,6 @@ export function PantallaDeProyecto({
               />
               <FilasDinamicas
                 lista="gastos"
-                titulo="Gastos e insumos"
-                etiquetaDelDetalle="Descripción"
-                placeholderDelDetalle="Melamina, herrajes, flete…"
-                textoDeAgregar="Agregar un gasto"
-                ayuda="Materiales y compras de este mueble. Se descuentan del ingreso del trabajo."
-                vacio="Todavía no cargaste gastos para este mueble."
                 control={control}
                 register={register}
                 errores={errors}
@@ -649,13 +638,20 @@ export function PantallaDeProyecto({
             )}
             <dl className="grid w-full grid-cols-2 gap-x-4 gap-y-1 tabular-nums @min-[21rem]/barra:flex @min-[21rem]/barra:w-auto @min-[21rem]/barra:min-w-[210px] @min-[21rem]/barra:flex-1 md:gap-6 lg:gap-8">
               <Total
-                etiqueta="Presupuesto"
+                etiqueta={textos.totales.presupuesto}
                 valor={presupuestoEfectivo === null ? '—' : formatearPesos(presupuestoEfectivo)}
               />
-              <Total etiqueta="Cobrado" valor={formatearPesos(totalCobrado)} tono="text-hogar" />
-              <Total etiqueta="Saldo" valor={saldo === null ? '—' : formatearPesos(saldo)} />
               <Total
-                etiqueta="Neta"
+                etiqueta={textos.totales.cobrado}
+                valor={formatearPesos(totalCobrado)}
+                tono="text-hogar"
+              />
+              <Total
+                etiqueta={textos.totales.saldo}
+                valor={saldo === null ? '—' : formatearPesos(saldo)}
+              />
+              <Total
+                etiqueta={textos.totales.neta}
                 valor={formatearPesos(neta)}
                 tono={neta < 0 ? 'text-alerta' : 'text-maun'}
               />
@@ -665,7 +661,7 @@ export function PantallaDeProyecto({
               cargando={guardar.isPending}
               className="min-w-[170px] flex-1 md:flex-none"
             >
-              {proyecto === undefined ? 'Guardar proyecto' : 'Guardar los cambios'}
+              {proyecto === undefined ? textos.guardarProyecto : textos.guardarLosCambios}
             </Button>
           </div>
         </footer>
@@ -679,6 +675,7 @@ function Total({ etiqueta, valor, tono = '' }: { etiqueta: string; valor: string
     <div className="min-w-0">
       <dt className="text-meta text-text-3 lg:text-label">{etiqueta}</dt>
       <dd
+        translate="no"
         className={`text-label font-semibold whitespace-nowrap md:text-body-lg lg:text-money-lg ${tono}`}
       >
         {valor}

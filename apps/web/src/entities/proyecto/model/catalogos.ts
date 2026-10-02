@@ -1,6 +1,7 @@
 import { ESTADOS, ESTADOS_DE_CONSULTA, type EstadoProyecto, type Fase } from '@maun/domain';
 
 import type { FilaDe } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 export type Proyecto = FilaDe<'proyectos'>;
 export type Pago = FilaDe<'pagos'>;
@@ -14,47 +15,34 @@ export interface DatosDelEstado {
   tono: string;
 }
 
+function estado(id: EstadoProyecto, tono: string): DatosDelEstado {
+  return {
+    id,
+    tono,
+    get etiqueta() {
+      return mensajes().proyecto.estados[id];
+    },
+  };
+}
+
 export const ESTADO: Readonly<Record<EstadoProyecto, DatosDelEstado>> = {
-  contacto: { id: 'contacto', etiqueta: 'Contacto', tono: 'border-border text-text-2' },
-  presupuesto_estimativo: {
-    id: 'presupuesto_estimativo',
-    etiqueta: 'Estimativo enviado',
-    tono: 'border-border text-text-2',
-  },
-  relevamiento: { id: 'relevamiento', etiqueta: 'Relevamiento', tono: 'border-border text-text-2' },
-  a_presupuestar: {
-    id: 'a_presupuestar',
-    etiqueta: 'A presupuestar',
-    tono: 'border-border text-text-2',
-  },
-  presupuesto_enviado: {
-    id: 'presupuesto_enviado',
-    etiqueta: 'Presupuesto enviado',
-    tono: 'border-border text-text-2',
-  },
-  en_seguimiento: {
-    id: 'en_seguimiento',
-    etiqueta: 'En seguimiento',
-    tono: 'border-border text-text-2',
-  },
-  perdido: { id: 'perdido', etiqueta: 'Perdido', tono: 'border-border text-text-3' },
-  en_curso: { id: 'en_curso', etiqueta: 'En curso', tono: 'border-ink bg-ink text-paper' },
-  entregado: {
-    id: 'entregado',
-    etiqueta: 'Entregado',
-    tono: 'border-atencion bg-atencion-tint text-atencion',
-  },
-  cobrado: { id: 'cobrado', etiqueta: 'Cobrado', tono: 'border-hogar bg-hogar-tint text-hogar' },
+  contacto: estado('contacto', 'border-border text-text-2'),
+  presupuesto_estimativo: estado('presupuesto_estimativo', 'border-border text-text-2'),
+  relevamiento: estado('relevamiento', 'border-border text-text-2'),
+  a_presupuestar: estado('a_presupuestar', 'border-border text-text-2'),
+  presupuesto_enviado: estado('presupuesto_enviado', 'border-border text-text-2'),
+  en_seguimiento: estado('en_seguimiento', 'border-border text-text-2'),
+  perdido: estado('perdido', 'border-border text-text-3'),
+  en_curso: estado('en_curso', 'border-ink bg-ink text-paper'),
+  entregado: estado('entregado', 'border-atencion bg-atencion-tint text-atencion'),
+  cobrado: estado('cobrado', 'border-hogar bg-hogar-tint text-hogar'),
 };
 
 export const ESTADOS_EN_ORDEN: readonly EstadoProyecto[] = ESTADOS;
 
-export const FORMA_DE_PAGO: Readonly<Record<FormaDePago, string>> = {
-  efectivo: 'Efectivo',
-  transferencia: 'Transferencia',
-  cuotas: 'En cuotas',
-  mixto: 'Mixto',
-};
+export const FORMA_DE_PAGO: Readonly<Record<FormaDePago, string>> = textosDelIdioma(
+  () => mensajes().proyecto.formasDePago,
+);
 
 export const FORMAS_EN_ORDEN = [
   'efectivo',
@@ -63,13 +51,9 @@ export const FORMAS_EN_ORDEN = [
   'mixto',
 ] as const satisfies readonly FormaDePago[];
 
-export const COMPROBANTE: Readonly<Record<Comprobante, string>> = {
-  factura_a: 'Factura A',
-  factura_b: 'Factura B',
-  factura_c: 'Factura C',
-  remito: 'Remito',
-  sin_comprobante: 'Sin comprobante',
-};
+export const COMPROBANTE: Readonly<Record<Comprobante, string>> = textosDelIdioma(
+  () => mensajes().proyecto.comprobantes,
+);
 
 export const COMPROBANTES_EN_ORDEN = [
   'factura_a',
@@ -96,11 +80,21 @@ export interface Etapa {
   ruta: string;
 }
 
+function etapa(id: Fase, ruta: string): Etapa {
+  return {
+    id,
+    ruta,
+    get etiqueta() {
+      return mensajes().proyecto.etapas[id];
+    },
+  };
+}
+
 export const ETAPAS: readonly Etapa[] = [
-  { id: 'consultas', etiqueta: 'Consultas', ruta: '/consultas' },
-  { id: 'seguimiento', etiqueta: 'Seguimiento', ruta: '/proyectos?etapa=seguimiento' },
-  { id: 'activos', etiqueta: 'Activos', ruta: '/proyectos' },
-  { id: 'historial', etiqueta: 'Historial', ruta: '/proyectos?etapa=historial' },
+  etapa('consultas', '/consultas'),
+  etapa('seguimiento', '/proyectos?etapa=seguimiento'),
+  etapa('activos', '/proyectos'),
+  etapa('historial', '/proyectos?etapa=historial'),
 ];
 
 export const FILTROS_POR_ETAPA: Readonly<Record<Fase, readonly EstadoProyecto[]>> = {

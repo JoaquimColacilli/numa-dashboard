@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 
 import { analisisDeLaReplica, type Replica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Ir, RUTA_DEL_ANALITICO } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 export function AccesoAlAnalitico({ replica }: { replica: Replica }) {
+  const textos = useMensajes().paginaProyectos;
   const analisis = useMemo(() => analisisDeLaReplica(replica), [replica]);
   if (analisis.trabajos.length === 0) return null;
   return (
@@ -19,7 +21,7 @@ export function AccesoAlAnalitico({ replica }: { replica: Replica }) {
         <Icono nombre="calendar-check" tamano={20} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-body font-semibold">Analítico de entregas</span>
+        <span className="block text-body font-semibold">{textos.analitico}</span>
         <span className="mt-0.5 block text-label leading-snug text-text-2">
           {analisis.precision.frase}
         </span>

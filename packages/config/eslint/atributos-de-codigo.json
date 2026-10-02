@@ -115,7 +115,8 @@
     "tarjetaMinima": "ancho mínimo CSS",
     "attributionPosition": "posición de React Flow",
     "position": "posición de React Flow",
-    "language": "etiqueta del idioma del PDF"
+    "language": "etiqueta del idioma del PDF",
+    "list": "id del datalist que sugiere valores"
   },
   "porElemento": {
     "Icono": {

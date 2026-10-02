@@ -7,6 +7,7 @@ import {
   type InsumosDelTrabajo,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { compararTextos, formatearPesos } from '@/shared/lib';
 
 export interface InsumosDeUnTrabajo extends InsumosDelTrabajo {
@@ -51,5 +52,5 @@ export function insumosDeLosTrabajos(replica: Replica): InsumosDeLosTrabajos {
 export function fraseDeLosInsumos(insumos: Pick<InsumosDeUnTrabajo, 'tallerPuso'>): string | null {
   return insumos.tallerPuso === null
     ? null
-    : `El taller puso ${formatearPesos(insumos.tallerPuso)}.`;
+    : mensajes().proyecto.insumos.tallerPuso(formatearPesos(insumos.tallerPuso));
 }

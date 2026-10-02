@@ -1,6 +1,7 @@
 import { centavos, faseDe, type Fase, type Money } from '@maun/domain';
 
 import { filasDe, totalesPorProyecto, type FilaDe, type Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { Gasto, Pago, Proyecto } from './catalogos';
 import {
@@ -23,8 +24,6 @@ export interface ResumenDeProyecto {
   urgencia: Urgencia | undefined;
 }
 
-const SIN_CLIENTE = 'Cliente borrado';
-
 function saldoDe(presupuesto: number | null, cobrado: number): Money | null {
   return presupuesto === null ? null : centavos(Math.max(0, presupuesto - cobrado));
 }
@@ -32,6 +31,7 @@ function saldoDe(presupuesto: number | null, cobrado: number): Money | null {
 export function resumenesDeProyectos(replica: Replica, hoy: string): ResumenDeProyecto[] {
   const totales = totalesPorProyecto(replica);
   const clientes = new Map(filasDe(replica, 'clientes').map((cliente) => [cliente.id, cliente]));
+  const sinCliente = mensajes().proyecto.clienteBorrado;
 
   return filasDe(replica, 'proyectos').map((proyecto) => {
     const cliente = clientes.get(proyecto.cliente_id);
@@ -44,7 +44,7 @@ export function resumenesDeProyectos(replica: Replica, hoy: string): ResumenDePr
     return {
       proyecto,
       cliente,
-      nombreDelCliente: cliente?.nombre ?? SIN_CLIENTE,
+      nombreDelCliente: cliente?.nombre ?? sinCliente,
       fase: faseDe(proyecto.estado),
       presupuesto: centavos(proyecto.presupuesto_centavos ?? 0),
       cobrado,
