@@ -32,7 +32,8 @@ test.beforeEach(async () => {
   previos = await leerAjustes(sesion);
 });
 
-test.afterEach(async () => {
+test.afterEach(async ({ isMobile }) => {
+  if (isMobile) return;
   await idiomaDeLaCuentaPorRest(sesion, null);
   await escribirAjustes(sesion, previos);
 });

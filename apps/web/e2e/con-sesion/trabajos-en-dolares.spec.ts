@@ -55,7 +55,8 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://dolarapi.com/v1/dolares/blue', (ruta) => ruta.fulfill({ json: BLUE }));
 });
 
-test.afterEach(async () => {
+test.afterEach(async ({ isMobile }) => {
+  if (isMobile) return;
   await escribirAjustes(sesion, previos);
 });
 
