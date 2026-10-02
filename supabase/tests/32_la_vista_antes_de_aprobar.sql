@@ -129,10 +129,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 50400000,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('transferencia', 'efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', 62400000
     )
   ),
@@ -164,7 +166,8 @@ insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos)
 select is(
   tests.la_vista() -> 'pago',
   jsonb_build_object(
-    'instancia', null, 'formas', jsonb_build_array(), 'monto_centavos', null, 'siguiente', null
+    'instancia', null, 'formas', jsonb_build_array(), 'formas_en_dolares', jsonb_build_array(),
+    'monto_centavos', null, 'siguiente', null
   ),
   'con la seña cubierta y sin aprobar, no se le pide el saldo'
 );
@@ -262,6 +265,7 @@ select is(
   jsonb_build_object(
     'instancia', 'saldo',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 62400000,
     'siguiente', null
   ),

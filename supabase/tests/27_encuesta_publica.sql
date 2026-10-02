@@ -130,7 +130,8 @@ select set_eq(
     'costo_madera_centavos', 'costo_herrajes_centavos', 'costo_flete_centavos',
     'costo_ayudante_centavos', 'presupuesto_vale_hasta',
     'listo_el', 'entrega_comprometida', 'entrega_comprometida_franja', 'tipo_de_proyecto',
-    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila'
+    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila',
+    'moneda', 'cobra_en', 'costos_cotizacion_centavos'
   ],
   'toda columna de proyectos está clasificada para la encuesta: viaja el título y nada más'
 );
@@ -177,7 +178,8 @@ select set_eq(
     'presupuesto_vale_dias', 'instagram_link', 'facebook_link', 'tiktok_link',
     'fila', 'fila_version', 'fila_guardada_at', 'relevamiento_centavos',
     'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
-    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version'
+    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version',
+    'cobro_dolares_cbu', 'cobro_dolares_alias', 'dolar_del_dia_centavos', 'dolar_del_dia_el'
   ],
   'toda columna de ajustes está clasificada para la encuesta'
 );
