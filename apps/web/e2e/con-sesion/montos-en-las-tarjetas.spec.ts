@@ -13,6 +13,7 @@ import {
 } from '../apoyo/taller';
 
 const CARGA = { timeout: 30_000 };
+const DOLAR_DEL_PAGO = 145_000;
 const TESOROS = ['hogar', 'maun', 'diezmo', 'cocos'] as const;
 const ANCHOS_DEL_CELULAR = [320, 360, 390] as const;
 const TEMAS = ['light', 'dark'] as const;
@@ -296,6 +297,7 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
 
   const dolares = await tesoroPorRest(sesion, { nombre: 'Dólares', moneda: 'USD' });
   const enDolaresId = crypto.randomUUID();
+  const precioEnDolares = Math.round((centavos * 100) / DOLAR_DEL_PAGO);
   await guardarProyectoPorRpc(sesion, {
     proyecto: {
       id: enDolaresId,
@@ -304,7 +306,7 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
       titulo: 'E2E Trabajo en dólares con montos largos',
       estado: 'entregado',
       moneda: 'USD',
-      presupuesto_centavos: centavos,
+      presupuesto_centavos: precioEnDolares,
       comprobante: 'sin_comprobante',
     },
     pagos: [
@@ -312,9 +314,9 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
         id: crypto.randomUUID(),
         fecha: hoy,
         concepto: 'Seña',
-        monto_centavos: Math.floor(centavos / 2),
+        monto_centavos: Math.floor(precioEnDolares / 2),
         moneda: 'USD',
-        cotizacion_centavos: 145_000,
+        cotizacion_centavos: DOLAR_DEL_PAGO,
         tesoro_id: dolares.id,
       },
     ],
