@@ -14,6 +14,8 @@ Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`ca
 - `Money` es un `number` entero de centavos con brand (ADR 0002). Nada de decimales ni de `BigInt` de JavaScript. Toda operación corta con `RangeError` si el resultado deja de ser un entero seguro.
 - Los porcentajes son `PuntosBasicos` enteros (1000 = 10%). `aplicarPorcentaje` redondea al centavo mitad hacia arriba: `floor((importe × bp + 5000) / 10000)`, la misma cuenta que SQL.
 - Dividir por 100 pasa una sola vez, al formatear, y el formateo no vive acá.
+- `Money<M>` es genérico en la moneda (pesos por defecto; otra con `centavosEn`), y donde conviven monedas va `Plata`: pesos más dólares no compila (ADR 0081). Un pago tiene dos cuentas, `valorEnPesos` y `loQueDescuenta`, con redondeo a la mitad hacia arriba y gemela en SQL (ADR 0083).
+- El dominio no escribe frases: devuelve datos y códigos, o recibe los textos inyectados (`Formatos`, `TextosDeLaVista`), así sirve en los tres idiomas (ADR 0082).
 
 ## La cascada
 
