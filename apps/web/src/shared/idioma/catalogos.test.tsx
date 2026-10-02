@@ -15,7 +15,50 @@ interface LlamadaCentinela {
   tieneQueDecir: readonly string[];
 }
 
-const LLAMADAS: Readonly<Record<string, LlamadaCentinela>> = {};
+const DOS_LADOS = ['«DESDE»', '«QUEDA DESDE»', '«HACIA»', '«QUEDA HACIA»'] as const;
+
+const LLAMADAS: Readonly<Record<string, LlamadaCentinela>> = {
+  'tesoros.equivalenteDeLaCompra': {
+    llamar: (m) => m.tesoros.equivalenteDeLaCompra('«PESOS»', '«DÓLAR»', '«FECHA»'),
+    tieneQueDecir: ['«PESOS»', '«DÓLAR»', '«FECHA»'],
+  },
+  'tesoros.equivalenteDeLaVenta': {
+    llamar: (m) => m.tesoros.equivalenteDeLaVenta('«PESOS»', '«DÓLAR»', '«FECHA»'),
+    tieneQueDecir: ['«PESOS»', '«DÓLAR»', '«FECHA»'],
+  },
+  'movimientos.cambio.teQuedoA': {
+    llamar: (m) => m.movimientos.cambio.teQuedoA('«DÓLAR»'),
+    tieneQueDecir: ['«DÓLAR»'],
+  },
+  'movimientos.cambio.teLoPagaronA': {
+    llamar: (m) => m.movimientos.cambio.teLoPagaronA('«DÓLAR»'),
+    tieneQueDecir: ['«DÓLAR»'],
+  },
+  'movimientos.ayuda.quedan': {
+    llamar: (m) => m.movimientos.ayuda.quedan(...DOS_LADOS),
+    tieneQueDecir: DOS_LADOS,
+  },
+  'movimientos.ayuda.quedanConElPrimeroEnNegativo': {
+    llamar: (m) => m.movimientos.ayuda.quedanConElPrimeroEnNegativo(...DOS_LADOS),
+    tieneQueDecir: DOS_LADOS,
+  },
+  'movimientos.ayuda.entraA': {
+    llamar: (m) => m.movimientos.ayuda.entraA('«TESORO»'),
+    tieneQueDecir: ['«TESORO»'],
+  },
+  'movimientos.ayuda.queda': {
+    llamar: (m) => m.movimientos.ayuda.queda('«TESORO»', '«SALDO»'),
+    tieneQueDecir: ['«TESORO»', '«SALDO»'],
+  },
+  'movimientos.ayuda.quedaEnNegativo': {
+    llamar: (m) => m.movimientos.ayuda.quedaEnNegativo('«TESORO»', '«SALDO»'),
+    tieneQueDecir: ['«TESORO»', '«SALDO»'],
+  },
+  'finanzas.cambio': {
+    llamar: (m) => m.finanzas.cambio('«SALE»', '«ENTRA»', '«DÓLAR»'),
+    tieneQueDecir: ['«SALE»', '«ENTRA»', '«DÓLAR»'],
+  },
+};
 
 function hojas(valor: unknown, camino = ''): Map<string, unknown> {
   const salida = new Map<string, unknown>();

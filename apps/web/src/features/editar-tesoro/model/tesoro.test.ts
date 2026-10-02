@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { centavos, enPesos, plata } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
@@ -28,11 +28,11 @@ function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>)
     descripcion: 'Para la sierra nueva',
     tinta: 'petroleo',
     icono: 'wrench',
-    meta: centavos(90_000_000),
+    meta: enPesos(centavos(90_000_000)),
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(0),
+    saldo: enPesos(centavos(0)),
     ...parcial,
   };
 }
@@ -108,6 +108,7 @@ describe('un tesoro nuevo', () => {
     const borrador: BorradorDelTesoro = {
       nombre: '  Vacaciones ',
       descripcion: ' El viaje de enero ',
+      moneda: 'ARS',
       tinta: 'petroleo',
       icono: 'plane',
       meta: 250_000_000,
@@ -126,6 +127,26 @@ describe('un tesoro nuevo', () => {
     });
     expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3).meta_centavos).toBeNull();
     expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3).meta_centavos).toBeNull();
+  });
+
+  it('nace en pesos, y en dólares si se elige, con la meta en su moneda', () => {
+    expect(borradorNuevo([]).moneda).toBe('ARS');
+    const enDolares = { ...borradorNuevo([]), nombre: 'Dólares', moneda: 'USD' as const };
+    expect(tesoroNuevo({ ...enDolares, meta: 100_000 }, 'id-2', 4)).toMatchObject({
+      moneda: 'USD',
+      meta_centavos: 100_000,
+    });
+  });
+
+  it('el borrador de uno en dólares lleva su moneda y su meta en centavos de dólar', () => {
+    const dolares = tesoro({
+      id: 'usd',
+      moneda: 'USD',
+      meta: plata('USD', 500_000),
+      saldo: plata('USD', 0),
+    });
+    expect(borradorDe(dolares)).toMatchObject({ moneda: 'USD', meta: 500_000 });
+    expect(datosQueSeEditan(dolares, undefined).meta_centavos).toBe(500_000);
   });
 });
 
@@ -152,7 +173,7 @@ describe('editar un tesoro', () => {
       nombre: 'Cocos',
       tinta: 'cocos',
       icono: 'piggy-bank',
-      meta: centavos(1_000_000_000),
+      meta: enPesos(centavos(1_000_000_000)),
       rindeAnualBp: 4000,
     });
     const diferencias = cambiosDelTesoro(datosQueSeEditan(cocos, undefined), 'cocos', {

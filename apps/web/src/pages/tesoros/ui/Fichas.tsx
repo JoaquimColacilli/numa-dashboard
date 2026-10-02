@@ -21,7 +21,7 @@ import {
 } from '@/entities/fila';
 import { CantoDelTesoro, ChipDelTesoro } from '@/entities/tesoro';
 import { LLEGO_A_LA_META, notaDelPasoEnLaPrueba, porciento } from '@/features/armar-la-fila';
-import { formatearPesos, TINTA } from '@/shared/lib';
+import { formatearLaPlata, formatearPesos, TINTA } from '@/shared/lib';
 import { Icono, type NombreDeIcono } from '@/shared/ui';
 
 import {
@@ -622,7 +622,7 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
           />
         )}
         {meta === null ? (
-          <LineaDePuntos izquierda="Tiene" derecha={formatearPesos(tesoro.saldo)} />
+          <LineaDePuntos izquierda="Tiene" derecha={formatearLaPlata(tesoro.saldo)} />
         ) : (
           <span className="flex h-4.5 items-center gap-2">
             <span
@@ -673,7 +673,7 @@ export function CuerpoDelEstante({
       <div className="mt-2 text-meta text-text-2">
         <LineaDePuntos
           izquierda={data.armando && conFlechas ? 'Uní una flecha acá' : 'Tiene'}
-          derecha={<span className="font-medium text-ink">{formatearPesos(tesoro.saldo)}</span>}
+          derecha={<span className="font-medium text-ink">{formatearLaPlata(tesoro.saldo)}</span>}
         />
       </div>
     </Ficha>

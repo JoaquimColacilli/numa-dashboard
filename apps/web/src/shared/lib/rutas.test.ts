@@ -132,6 +132,20 @@ describe('la hoja de un movimiento con lo que viene puesto', () => {
     expect(movimientoPropuesto(new URLSearchParams({ fecha: '2026-02-30' }))).toEqual({});
   });
 
+  it('una compra de dólares puede traer el tesoro adonde entran', () => {
+    const DOLARES = '01923456-7890-7abc-8def-0123456789ac';
+    const url = new URL(
+      rutaDeMovimientoNuevo({ clase: 'compra_de_dolares', hacia: DOLARES }),
+      'https://maun.test',
+    );
+    expect(url.search).toBe(`?clase=compra_de_dolares&hacia=${DOLARES}`);
+    expect(movimientoPropuesto(url.searchParams)).toEqual({
+      clase: 'compra_de_dolares',
+      hacia: DOLARES,
+    });
+    expect(movimientoPropuesto(new URLSearchParams({ hacia: 'dolares' }))).toEqual({});
+  });
+
   it('lleva el día del pago cuando se registra uno de un mes que ya pasó', () => {
     const url = new URL(
       rutaDeMovimientoNuevo({ clase: 'gasto_maun', fecha: '2026-08-10' }),

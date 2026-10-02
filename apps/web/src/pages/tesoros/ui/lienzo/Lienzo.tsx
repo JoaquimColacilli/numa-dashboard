@@ -438,6 +438,7 @@ function LienzoInterno({
       (tesoro) => tesoroDe(laVista, tesoro).nombre,
       union,
       hacia !== null,
+      hacia ?? undefined,
     );
   }, []);
 

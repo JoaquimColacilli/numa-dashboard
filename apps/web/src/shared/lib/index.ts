@@ -117,6 +117,7 @@ export { useAlgoEnCurso, useHayAlgoEnCurso } from './en-curso';
 export { useTirarParaActualizar, type FaseDelTiron, type Tiron } from './tirar-para-actualizar';
 export {
   adornosDelCampo,
+  formatearLaPlata,
   formatearPesos,
   formatearPlata,
   marcadorDelCampo,

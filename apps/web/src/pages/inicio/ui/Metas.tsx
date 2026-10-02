@@ -1,11 +1,11 @@
-import type { EstadoDelDiezmo, Money } from '@maun/domain';
+import type { EstadoDelDiezmo } from '@maun/domain';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
-import { formatearPesos, TINTA, type TintaDeTesoro } from '@/shared/lib';
+import { formatearLaPlata, formatearPesos, TINTA, type TintaDeTesoro } from '@/shared/lib';
 
 import { tesorosConMeta } from '../model/tesoros';
 
-function porcentaje(parte: Money, total: Money): number {
+function porcentaje(parte: number, total: number): number {
   return total <= 0 ? 0 : Math.round((parte / total) * 100);
 }
 
@@ -62,8 +62,8 @@ export function Metas({ tesoros, diezmo, tintaDelDiezmo }: MetasProps) {
         <Barra
           key={tesoro.id}
           etiqueta={tesoro.nombre}
-          texto={`${formatearPesos(tesoro.saldo)} de ${formatearPesos(meta)}`}
-          pct={porcentaje(tesoro.saldo, meta)}
+          texto={`${formatearLaPlata(tesoro.saldo)} de ${formatearLaPlata(meta)}`}
+          pct={porcentaje(tesoro.saldo.importe, meta.importe)}
           tinta={tesoro.tinta}
         />
       ))}

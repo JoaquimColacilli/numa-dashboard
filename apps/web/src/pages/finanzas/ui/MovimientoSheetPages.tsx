@@ -22,6 +22,7 @@ export function MovimientoNuevoPage() {
     <HojaDeMovimiento
       claseInicial={esClase(propuesto.clase) ? propuesto.clase : undefined}
       tesoroInicial={propuesto.tesoro}
+      haciaInicial={propuesto.hacia}
       montoInicial={propuesto.monto}
       categoriaInicial={propuesto.categoria}
       fechaInicial={propuesto.fecha}

@@ -1,4 +1,10 @@
-import { ETIQUETAS_DE_IDIOMA, MONEDA_DEL_TALLER, type Idioma, type Moneda } from '@maun/domain';
+import {
+  ETIQUETAS_DE_IDIOMA,
+  MONEDA_DEL_TALLER,
+  type Idioma,
+  type Moneda,
+  type Plata,
+} from '@maun/domain';
 
 import { idiomaActual } from './idioma';
 
@@ -55,6 +61,10 @@ export function formatearPlata(
 
 export function formatearPesos(centavos: number): string {
   return formatearPlata(centavos, MONEDA_DEL_TALLER);
+}
+
+export function formatearLaPlata(una: Plata, idioma: Idioma = idiomaActual()): string {
+  return formatearPlata(una.importe, una.moneda, idioma);
 }
 
 export function adornosDelCampo(moneda: Moneda, idioma: Idioma = idiomaActual()): AdornosDelCampo {

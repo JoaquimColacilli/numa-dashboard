@@ -201,3 +201,15 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 
 | Español | Inglés (EE. UU.) | Portugués (Brasil) | Dónde |
 | --- | --- | --- | --- |
+| Compra / Venta / Ingreso (las cortas del grupo Dólares) | Buy / Sell / Income | Compra / Venda / Receita | La hoja de cargar |
+| Salen de / Entran a (los lados de una compra o una venta) | From / To | Saem de / Entram em | La hoja de cargar |
+| Pagaste / Vendiste / Recibiste | You paid / You sold / You got | Você pagou / Você vendeu / Você recebeu | La hoja de cargar |
+| «Te quedó a … por dólar.» | “You paid … per dollar.” | “Saiu a … por dólar.” | La hoja de cargar |
+| «Te lo pagaron a … por dólar.» | “You got … per dollar.” | “Você recebeu … por dólar.” | La hoja de cargar |
+| Qué dólar | Which rate | Tipo de dólar | La hoja de cargar |
+| Ahorro previo (categoría del ingreso en dólares) | Earlier savings | Reserva anterior | La hoja de cargar |
+| Cobro suelto | One-off payment | Recebimento avulso | La hoja de cargar |
+| Regalo | Gift | Presente | La hoja de cargar |
+| en negativo (un saldo) | in the red | no vermelho | La ayuda de la hoja de cargar |
+| «La fila reparte pesos» | “The waterfall only splits pesos” | “A fila só divide pesos” | Tesoros: el estante y el alta |
+| tu última compra / tu última venta (de dólares) | your last dollar purchase / sale | sua última compra / venda de dólares | El equivalente en pesos |

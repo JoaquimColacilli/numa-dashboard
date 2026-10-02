@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import type { CambiosDeAjustes, CambiosDeTesoro, FilaDe, Tesoro, TesoroNuevo } from '@/shared/api';
@@ -57,6 +57,7 @@ export function iconosParaElegir(actual: NombreDeIcono): NombreDeIcono[] {
 export interface BorradorDelTesoro {
   nombre: string;
   descripcion: string;
+  moneda: Moneda;
   tinta: TintaDeTesoro;
   icono: NombreDeIcono;
   meta: number | null;
@@ -92,6 +93,7 @@ export function borradorNuevo(tesoros: readonly ConTinta[]): BorradorDelTesoro {
   return {
     nombre: '',
     descripcion: '',
+    moneda: MONEDA_DEL_TALLER,
     tinta: tintaSugerida(tesoros),
     icono: 'vault',
     meta: null,
@@ -103,9 +105,10 @@ export function borradorDe(tesoro: TesoroDelTaller): BorradorDelTesoro {
   return {
     nombre: tesoro.nombre,
     descripcion: tesoro.descripcion,
+    moneda: tesoro.moneda,
     tinta: tesoro.tinta,
     icono: tesoro.icono,
-    meta: tesoro.meta,
+    meta: tesoro.meta?.importe ?? null,
     rinde: formatearPorcentaje(tesoro.rindeAnualBp ?? 0),
   };
 }
@@ -155,7 +158,7 @@ export function tesoroNuevo(borrador: BorradorDelTesoro, id: string, orden: numb
     meta_centavos: metaParaGuardar(borrador.meta),
     rinde_anual_bp: null,
     orden,
-    moneda: MONEDA_DEL_TALLER,
+    moneda: borrador.moneda,
   };
 }
 
@@ -187,7 +190,7 @@ export function datosQueSeEditan(
     descripcion: tesoro.descripcion,
     tinta: tesoro.tinta,
     icono: tesoro.icono,
-    meta_centavos: tesoro.clave === null ? tesoro.meta : null,
+    meta_centavos: tesoro.clave === null ? (tesoro.meta?.importe ?? null) : null,
   };
 }
 

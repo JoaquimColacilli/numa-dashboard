@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import type { FraseDelDiezmo } from '@/entities/movimiento';
 import { CantoDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
 import {
-  formatearPesos,
+  formatearLaPlata,
   RUTA_DE_DIEZMO,
   rutaDeFinanzasDelTesoro,
   TINTA,
@@ -34,7 +34,7 @@ function Tarjeta({
   alElegir: () => void;
 }) {
   const esElDiezmo = tesoro.clave === 'diezmo';
-  const enNegativo = tesoro.saldo < 0 && !esElDiezmo;
+  const enNegativo = tesoro.saldo.importe < 0 && !esElDiezmo;
   const detalle = enNegativo
     ? 'gastó más de lo que entró'
     : detalleDeLaTarjeta(tesoro, diezmo, insumos);
@@ -77,7 +77,7 @@ function Tarjeta({
       <span className="@container flex min-w-0 flex-col justify-end gap-0.5">
         {!esElDiezmo ? (
           <MontoQueEntra caracteres={caracteres} className="font-semibold">
-            {formatearPesos(tesoro.saldo)}
+            {formatearLaPlata(tesoro.saldo)}
           </MontoQueEntra>
         ) : diezmo.importe === null ? (
           <span className="text-body-lg leading-tight font-semibold">{encabezado(diezmo)}</span>
@@ -124,7 +124,7 @@ export function TarjetasDeLosTesoros({
         ? diezmo.importe === null
           ? []
           : [diezmo.importe]
-        : [formatearPesos(tesoro.saldo)],
+        : [formatearLaPlata(tesoro.saldo)],
     ),
   );
 

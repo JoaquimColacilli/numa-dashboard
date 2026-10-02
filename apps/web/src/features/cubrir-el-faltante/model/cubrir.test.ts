@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { centavos, enPesos } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
@@ -29,7 +29,7 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(saldo),
+    saldo: enPesos(centavos(saldo)),
     ...parcial,
   };
 }
@@ -182,7 +182,7 @@ describe('los movimientos', () => {
     const hogar = tesoro('hogar', 'Hogar', 100, { clave: 'hogar' });
     const [movimiento] = movimientosParaCubrir({
       fuentes: [{ id: 'hogar', monto: 50 }],
-      candidatos: [hogar],
+      candidatos: candidatosParaCubrir([hogar], maun.id),
       paso: maun,
       mes: '2026-10',
       hoy: '2026-10-02',

@@ -1,3 +1,4 @@
+import { centavos, CERO, enPesos } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -66,10 +67,10 @@ describe('los tesoros del taller', () => {
     expect(
       tesorosDelTaller(replica).map((uno) => [uno.id, uno.nombre, uno.tinta, uno.saldo]),
     ).toEqual([
-      ['hogar', 'Hogar', 'hogar', 0],
-      ['maun', 'Maun', 'maun', 0],
-      ['diezmo', 'Diezmo', 'diezmo', 0],
-      ['cocos', 'Cocos', 'cocos', 0],
+      ['hogar', 'Hogar', 'hogar', enPesos(CERO)],
+      ['maun', 'Maun', 'maun', enPesos(CERO)],
+      ['diezmo', 'Diezmo', 'diezmo', enPesos(CERO)],
+      ['cocos', 'Cocos', 'cocos', enPesos(CERO)],
     ]);
   });
 
@@ -107,9 +108,9 @@ describe('los tesoros del taller', () => {
       nombre: 'Materiales',
       tinta: 'maun',
       icono: 'vault',
-      saldo: 15_000_000,
+      saldo: enPesos(centavos(15_000_000)),
     });
-    expect(tesoroDeLaClave(tesoros, 'maun')?.saldo).toBe(-15_000_000);
+    expect(tesoroDeLaClave(tesoros, 'maun')?.saldo).toEqual(enPesos(centavos(-15_000_000)));
     expect(tesoroDeLaClave(tesoros, 'hogar')?.icono).toBe('house');
     expect(tesoroDeLaClave(tesoros, 'cocos')).toBeUndefined();
     expect(tesorosVivos(tesoros).map((uno) => uno.id)).toEqual([

@@ -3,6 +3,7 @@ import {
   centavos,
   CERO,
   cambiosDeLaFila,
+  enPesos,
   filaDelMes,
   puntosBasicos,
   type DatosDelMes,
@@ -66,7 +67,7 @@ function tesoro(id: string, clave: TesoroDelTaller['clave'], nombre: string, tin
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: CERO,
+    saldo: enPesos(CERO),
   };
 }
 

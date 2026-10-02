@@ -1,8 +1,10 @@
+import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 import { useId, type ReactNode, type Ref } from 'react';
 
 import { ChipDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import { NOMBRE_DE_LA_TINTA, TINTA } from '@/shared/lib';
-import { Campo, Icono, MoneyInput } from '@/shared/ui';
+import { Campo, FondoDelElegido, Icono, MoneyInput } from '@/shared/ui';
 
 import {
   iconosParaElegir,
@@ -23,8 +25,61 @@ export interface CamposDelTesoroProps {
   excepto: string | null;
   conMeta: boolean;
   conRinde: boolean;
+  eligeLaMoneda?: boolean;
   campoDelNombre?: Ref<HTMLInputElement>;
   debajoDelNombre?: ReactNode;
+}
+
+const MONEDAS_PARA_ELEGIR: readonly Moneda[] = [MONEDA_DEL_TALLER, 'USD'];
+
+function LaMoneda({
+  moneda,
+  eligeLaMoneda,
+  alElegir,
+}: {
+  moneda: Moneda;
+  eligeLaMoneda: boolean;
+  alElegir: (moneda: Moneda) => void;
+}) {
+  const m = useMensajes();
+  const textos = m.tesoros.moneda;
+  if (!eligeLaMoneda) {
+    return (
+      <p data-moneda-del-tesoro className="text-label text-text-2">
+        {moneda === MONEDA_DEL_TALLER ? textos.enPesos : textos.enDolares}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-label text-text-2">{textos.pregunta}</span>
+      <div
+        role="radiogroup"
+        aria-label={textos.pregunta}
+        className="relative grid grid-cols-2 gap-0.5 rounded-pill bg-ink/6 p-1"
+      >
+        <FondoDelElegido elegido={moneda} />
+        {MONEDAS_PARA_ELEGIR.map((una) => (
+          <button
+            key={una}
+            type="button"
+            role="radio"
+            aria-checked={moneda === una}
+            data-opcion={una}
+            onClick={() => {
+              alElegir(una);
+            }}
+            className={`relative min-h-tap rounded-pill px-2 text-label ${
+              moneda === una ? 'font-semibold text-ink' : 'font-medium text-text-2'
+            }`}
+          >
+            {una === MONEDA_DEL_TALLER ? textos.pesos : textos.dolares}
+          </button>
+        ))}
+      </div>
+      <p className="text-meta leading-relaxed text-text-3">{textos.nota}</p>
+    </div>
+  );
 }
 
 export function CamposDelTesoro({
@@ -35,6 +90,7 @@ export function CamposDelTesoro({
   excepto,
   conMeta,
   conRinde,
+  eligeLaMoneda = false,
   campoDelNombre,
   debajoDelNombre,
 }: CamposDelTesoroProps) {
@@ -85,6 +141,14 @@ export function CamposDelTesoro({
         error={errores.descripcion}
         onChange={(evento) => {
           cambiar({ descripcion: evento.target.value });
+        }}
+      />
+
+      <LaMoneda
+        moneda={borrador.moneda}
+        eligeLaMoneda={eligeLaMoneda}
+        alElegir={(moneda) => {
+          cambiar({ moneda });
         }}
       />
 
@@ -172,6 +236,8 @@ export function CamposDelTesoro({
         <MoneyInput
           etiqueta="Meta"
           ayuda="Opcional. Si la ponés, Inicio te muestra cuánto falta."
+          moneda={borrador.moneda}
+          conMarcador={borrador.moneda !== MONEDA_DEL_TALLER}
           value={borrador.meta}
           onChange={(meta) => {
             cambiar({ meta });

@@ -1,5 +1,6 @@
 import {
   centavos,
+  enPesos,
   puntosBasicos,
   tipoDelPaso,
   type EstadoDelDiezmo,
@@ -35,7 +36,7 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(0),
+    saldo: enPesos(centavos(0)),
     ...extra,
   };
 }
@@ -45,15 +46,15 @@ const TESOROS = [
   tesoro('maun', 'maun', 'Maun', 'maun'),
   tesoro('diezmo', 'diezmo', 'Diezmo', 'diezmo'),
   tesoro('cocos', 'cocos', 'Cocos', 'cocos', {
-    saldo: centavos(341_500_000),
-    meta: centavos(10_000_000_000),
+    saldo: enPesos(centavos(341_500_000)),
+    meta: enPesos(centavos(10_000_000_000)),
   }),
   tesoro('iibb', null, 'Ingresos Brutos', 'petroleo'),
   tesoro('fijos', null, 'Gastos fijos', 'grana'),
   tesoro('materiales', null, 'Materiales', 'mostaza'),
   tesoro('inmuebles', null, 'Inmuebles', 'ciruela', {
-    saldo: centavos(102_000_000),
-    meta: centavos(2_000_000_000),
+    saldo: enPesos(centavos(102_000_000)),
+    meta: enPesos(centavos(2_000_000_000)),
   }),
 ];
 

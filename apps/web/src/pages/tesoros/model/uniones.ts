@@ -12,6 +12,7 @@ import {
 } from '@maun/domain';
 
 import {
+  entraEnLaFila,
   NOMBRE_DEL_TIPO,
   puedeIrAlReparto,
   puedeSerAhorroFijo,
@@ -20,7 +21,8 @@ import {
   TITULO_DEL_LUGAR,
   type LugarEnLaFila,
 } from '@/entities/fila';
-import type { TesoroDelTaller } from '@/entities/tesoro';
+import { metaEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
+import { mensajes } from '@/shared/idioma';
 import {
   FICHA_DEL_DIEZMO,
   FICHA_DEL_REPARTO,
@@ -77,7 +79,14 @@ export type Union =
   | { tipo: 'sumar'; lugar: LugarDeLaUnion; tesoro: string; despuesDe: string | null }
   | { tipo: 'mover'; lugar: 'obligacion' | TipoDelPaso; tesoro: string; despuesDe: string };
 
-type TesoroDeLaUnion = Pick<TesoroDelTaller, 'id' | 'clave' | 'meta'>;
+type TesoroDeLaUnion = Pick<TesoroDelTaller, 'id' | 'clave' | 'meta' | 'moneda'>;
+
+function esDeOtraMonedaEnElEstante(tesoros: readonly TesoroDeLaUnion[], ficha: string): boolean {
+  const queEs = queFichaEs(ficha);
+  if (queEs?.tipo !== 'estante') return false;
+  const tesoro = tesoros.find((candidato) => candidato.id === queEs.tesoro);
+  return tesoro !== undefined && !entraEnLaFila(tesoro);
+}
 
 interface Origen {
   lugar: LugarDeLaUnion;
@@ -141,6 +150,7 @@ export function unionDe(
 
   const ficha = queFichaEs(destino);
   if (ficha?.tipo === 'estante') {
+    if (esDeOtraMonedaEnElEstante(tesoros, destino)) return null;
     const clave = tesoros.find((candidato) => candidato.id === ficha.tesoro)?.clave ?? null;
     return puedeIr(fila, desde.lugar, ficha.tesoro, clave)
       ? { tipo: 'sumar', lugar: desde.lugar, tesoro: ficha.tesoro, despuesDe: desde.despuesDe }
@@ -191,7 +201,7 @@ export function aplicarLaUnion(
 ): UnionAplicada {
   const datos = tesoros.find((candidato) => candidato.id === union.tesoro);
   const clave = datos?.clave ?? null;
-  const meta = datos?.meta ?? null;
+  const meta = datos === undefined ? null : metaEnPesos(datos);
   const fichaDeLaObligacionDe = (tesoro: string) =>
     tesoro === diezmo ? FICHA_DEL_DIEZMO : fichaDeLaObligacion(tesoro);
   if (union.tipo === 'mover') {
@@ -249,9 +259,14 @@ export function fraseDeLaUnion(
   nombreDe: (tesoro: string) => string,
   union: Union | null,
   hayDestino: boolean,
+  destino?: string,
 ): string {
   if (!hayDestino) return 'Llevala hasta un tesoro';
-  if (union === null) return 'Ahí no se puede unir';
+  if (union === null) {
+    return destino !== undefined && esDeOtraMonedaEnElEstante(tesoros, destino)
+      ? mensajes().tesoros.laFilaRepartePesos
+      : 'Ahí no se puede unir';
+  }
   if (union.tipo === 'nuevo') return 'Soltá para crear un tesoro acá';
   const nombre = nombreDe(union.tesoro);
   if (union.lugar === 'reparto') return `Soltá: ${nombre} entra al reparto`;

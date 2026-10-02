@@ -1,6 +1,7 @@
 import {
   centavos,
   lugarLibreDelReparto,
+  MONEDA_DEL_TALLER,
   MONTO_MAXIMO_DE_LA_FILA,
   puntosBasicos,
   TOPE_DE_OBLIGACIONES,
@@ -8,11 +9,13 @@ import {
   TOPE_DE_PASOS,
   type BaseDeLaObligacion,
   type Fila,
+  type Moneda,
   type Money,
   type PuntosBasicos,
 } from '@maun/domain';
 
 import { lugaresParaSumar, type LugarEnLaFila } from '@/entities/fila';
+import { mensajes } from '@/shared/idioma';
 import { formatearPorcentaje, parsearPorcentaje } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
@@ -88,7 +91,21 @@ export function dondeEntra(
   return `Después de ${nombreDe(despuesDe)}`;
 }
 
-export function opcionesDeLugar(fila: Fila, nombreDelSuperavit = 'Maun'): OpcionDeLugar[] {
+export function opcionesDeLugar(
+  fila: Fila,
+  nombreDelSuperavit = 'Maun',
+  moneda: Moneda = MONEDA_DEL_TALLER,
+): OpcionDeLugar[] {
+  if (moneda !== MONEDA_DEL_TALLER) {
+    return [
+      {
+        id: 'estante',
+        titulo: 'Al estante',
+        detalle: mensajes().tesoros.laFilaRepartePesos,
+        sePuede: true,
+      },
+    ];
+  }
   return [
     {
       id: 'estante',

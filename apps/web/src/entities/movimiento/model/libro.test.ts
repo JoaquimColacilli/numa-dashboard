@@ -1,4 +1,4 @@
-import { centavos, type LineaDelLibro } from '@maun/domain';
+import { centavos, enPesos, type LineaDelLibro } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { Replica } from '@/shared/api';
@@ -25,6 +25,7 @@ const HERRAMIENTAS_ID = '0192aaaa-0000-7000-8000-000000000006';
 const HOGAR: TesoroDeLaLinea = {
   id: HOGAR_ID,
   clave: 'hogar',
+  moneda: 'ARS',
   nombre: 'Hogar',
   tinta: 'hogar',
   icono: 'house',
@@ -32,6 +33,7 @@ const HOGAR: TesoroDeLaLinea = {
 const MAUN: TesoroDeLaLinea = {
   id: MAUN_ID,
   clave: 'maun',
+  moneda: 'ARS',
   nombre: 'Maun',
   tinta: 'maun',
   icono: 'hammer',
@@ -39,12 +41,34 @@ const MAUN: TesoroDeLaLinea = {
 const TESOROS: readonly TesoroDeLaLinea[] = [
   HOGAR,
   MAUN,
-  { id: DIEZMO_ID, clave: 'diezmo', nombre: 'Diezmo', tinta: 'diezmo', icono: 'church' },
-  { id: COCOS_ID, clave: 'cocos', nombre: 'Cocos', tinta: 'cocos', icono: 'piggy-bank' },
-  { id: MATERIALES_ID, clave: null, nombre: 'Materiales', tinta: 'mostaza', icono: 'package' },
+  {
+    id: DIEZMO_ID,
+    clave: 'diezmo',
+    moneda: 'ARS',
+    nombre: 'Diezmo',
+    tinta: 'diezmo',
+    icono: 'church',
+  },
+  {
+    id: COCOS_ID,
+    clave: 'cocos',
+    moneda: 'ARS',
+    nombre: 'Cocos',
+    tinta: 'cocos',
+    icono: 'piggy-bank',
+  },
+  {
+    id: MATERIALES_ID,
+    clave: null,
+    moneda: 'ARS',
+    nombre: 'Materiales',
+    tinta: 'mostaza',
+    icono: 'package',
+  },
   {
     id: HERRAMIENTAS_ID,
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     tinta: 'grana',
     icono: 'wrench',
@@ -163,7 +187,7 @@ describe('efectoDeLaLinea', () => {
       [linea({ yaEnLaApertura: true }), linea({ clave: 'otra', monto: centavos(1_000) })],
       HOGAR_ID,
     );
-    expect(dia?.neto).toBe(1_000);
+    expect(dia?.netos).toEqual([enPesos(centavos(1_000))]);
   });
 });
 
@@ -261,7 +285,7 @@ describe('las líneas del taller con los tesoros del dueño', () => {
       filtrarLineas(lineas, { ...filtro, tesoro: MATERIALES_ID }),
       MATERIALES_ID,
     );
-    expect(dia?.neto).toBe(1_000_000);
+    expect(dia?.netos).toEqual([enPesos(centavos(1_000_000))]);
   });
 
   it('los tesoros con movimiento en el período son los de los dos lados de cada línea del mes', () => {

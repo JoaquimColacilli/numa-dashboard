@@ -1,5 +1,6 @@
 import {
   centavos,
+  enPesos,
   filaDelMes,
   filaDeSiempre,
   puntosBasicos,
@@ -34,12 +35,12 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado,
-    saldo: centavos(saldo),
+    saldo: enPesos(centavos(saldo)),
   };
 }
 
 function saldosDe(tesoros: readonly TesoroDelTaller[]): Map<string, Money> {
-  return new Map(tesoros.map((uno) => [uno.id, uno.saldo]));
+  return new Map(tesoros.map((uno) => [uno.id, centavos(uno.saldo.importe)]));
 }
 
 function gasto(
@@ -131,7 +132,7 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
     expect(
       cifrasDelPanorama(panorama, 'Maun').map((cifra) => [
         cifra.etiqueta,
-        cifra.monto,
+        cifra.monto.importe,
         cifra.detalle,
       ]),
     ).toEqual([

@@ -44,7 +44,7 @@ import {
   tesoroDe,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
-import { formatearPesos, nombreDelMes } from '@/shared/lib';
+import { formatearLaPlata, formatearPesos, nombreDelMes } from '@/shared/lib';
 
 export const ANCHO_DE_FICHA = 272;
 export const ANCHO_DE_PARTE = 216;
@@ -972,7 +972,7 @@ export function armarElPlano({
       data: { ...comun, tesoro: suelto },
       ...accesible(
         'tesoro en el estante',
-        `${suelto.nombre}, en el estante, tiene ${formatearPesos(suelto.saldo)}`,
+        `${suelto.nombre}, en el estante, tiene ${formatearLaPlata(suelto.saldo)}`,
       ),
     });
     yDelEstante += ALTO.estante + ENTRE_ESTANTES;

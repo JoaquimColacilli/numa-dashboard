@@ -1,17 +1,22 @@
+import { plata } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
-import { MUTACION_DE_MOVIMIENTO } from '@/entities/movimiento';
+import {
+  MUTACION_DE_MOVIMIENTO,
+  rutaParaComprarDolaresPara,
+  rutaParaVenderDolares,
+} from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
   ChipDelTesoro,
   MUTACION_DE_ARCHIVO_DE_TESORO,
   tesoroPorId,
   tesorosDelTaller,
-  type TesoroDelTaller,
 } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import {
-  formatearPesos,
+  formatearLaPlata,
   hoyEnElTaller,
   metaDeAvisos,
   useAnchoDePantalla,
@@ -20,6 +25,8 @@ import {
 import { Button, FilaDeAcciones, Hoja } from '@/shared/ui';
 
 import {
+  cambioParaArchivar,
+  comoQuedaElDestino,
   destinosDelArchivo,
   porQueEnPalabras,
   porQueNoSeArchiva,
@@ -31,16 +38,19 @@ export interface HojaDeArchivarProps {
   tesoroId: string;
   alCerrar: () => void;
   alVolver?: () => void;
+  alCambiarDolares?: (ruta: string) => void;
 }
 
 const PIE =
   'flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3';
 
-function queda(destino: TesoroDelTaller, archivado: TesoroDelTaller): number {
-  return destino.saldo + archivado.saldo;
-}
-
-export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarProps) {
+export function HojaDeArchivar({
+  tesoroId,
+  alCerrar,
+  alVolver,
+  alCambiarDolares,
+}: HojaDeArchivarProps) {
+  const m = useMensajes();
   const replica = useReplicaDelTaller();
   const tesoros = tesorosDelTaller(replica);
   const tesoro = tesoroPorId(tesoros, tesoroId);
@@ -62,12 +72,13 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
 
   const volver = alVolver ?? alCerrar;
   const bloqueo = porQueNoSeArchiva(replica, tesoro);
+  const cambio = bloqueo === null ? cambioParaArchivar(tesoro, destinos) : null;
   const destino = destinos.find((uno) => uno.id === destinoId) ?? destinos[0];
-  const conPlata = tesoro.saldo !== 0;
-  const monto = formatearPesos(Math.abs(tesoro.saldo));
+  const conPlata = tesoro.saldo.importe !== 0;
+  const monto = formatearLaPlata(plata(tesoro.saldo.moneda, Math.abs(tesoro.saldo.importe)));
 
   function confirmar() {
-    if (!tesoro || bloqueo !== null) return;
+    if (!tesoro || bloqueo !== null || cambio !== null) return;
     if (conPlata) {
       if (!destino) return;
       const movimiento = transferenciaDelArchivo({
@@ -76,22 +87,31 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
         destino,
         hoy: hoyEnElTaller(),
       });
-      if (movimiento) transferir.mutate(movimiento);
+      if (!movimiento) return;
+      transferir.mutate(movimiento);
     }
     archivar.mutate({ id: tesoro.id, archivadoEn: new Date().toISOString(), previo: null });
     alCerrar();
   }
 
+  function irAlCambio() {
+    if (!tesoro || cambio === null || alCambiarDolares === undefined) return;
+    alCambiarDolares(
+      cambio === 'vender' ? rutaParaVenderDolares(tesoro) : rutaParaComprarDolaresPara(tesoro),
+    );
+    alCerrar();
+  }
+
   const etiqueta = !conPlata
     ? `Archivar ${tesoro.nombre}`
-    : tesoro.saldo > 0
+    : tesoro.saldo.importe > 0
       ? `Pasar ${monto} a ${destino?.nombre ?? ''} y archivar`
       : `Pasar ${monto} desde ${destino?.nombre ?? ''} y archivar`;
 
   return (
     <Hoja
       titulo={`Archivar ${tesoro.nombre}`}
-      bajada={`Tiene ${formatearPesos(tesoro.saldo)}`}
+      bajada={`Tiene ${formatearLaPlata(tesoro.saldo)}`}
       antes={<ChipDelTesoro tesoro={tesoro} />}
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
@@ -103,12 +123,24 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
             <p>{porQueEnPalabras(tesoro.nombre, bloqueo)}</p>
             <p className="text-text-2">{QUE_HACER_PARA_ARCHIVAR}</p>
           </div>
+        ) : cambio !== null ? (
+          <div
+            data-archivo-sin-destino
+            className="flex flex-col gap-1.5 rounded-field border border-alerta px-3.5 py-3 text-label leading-relaxed"
+          >
+            <p className="font-semibold">Todavía no se puede archivar {tesoro.nombre}.</p>
+            <p>
+              {cambio === 'vender'
+                ? m.tesoros.archivar.conDolaresSinDestino
+                : m.tesoros.archivar.debeDolaresSinOrigen}
+            </p>
+          </div>
         ) : (
           <>
             <p className="text-body leading-relaxed text-text-2">
               {!conPlata
                 ? ''
-                : tesoro.saldo > 0
+                : tesoro.saldo.importe > 0
                   ? 'Antes de archivarlo, ¿a dónde pasamos lo que tiene? '
                   : `Antes de archivarlo hay que dejarlo en cero: le faltan ${monto}. ¿De qué tesoro sale? `}
               {tesoro.nombre} deja de recibir plata y sigue apareciendo con su nombre en los
@@ -117,10 +149,11 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
             {conPlata && (
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">
-                  {tesoro.saldo > 0 ? 'A dónde pasa la plata' : 'De dónde sale la plata'}
+                  {tesoro.saldo.importe > 0 ? 'A dónde pasa la plata' : 'De dónde sale la plata'}
                 </legend>
                 {destinos.map((candidato) => {
                   const elegido = candidato.id === destino?.id;
+                  const queda = comoQuedaElDestino(candidato, tesoro);
                   return (
                     <label
                       key={candidato.id}
@@ -144,9 +177,9 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
                           {candidato.nombre}
                         </span>
                         <span className="block text-meta text-text-3 tabular-nums">
-                          {elegido
-                            ? `queda en ${formatearPesos(queda(candidato, tesoro))}`
-                            : `tiene ${formatearPesos(candidato.saldo)}`}
+                          {elegido && queda !== null
+                            ? `queda en ${formatearLaPlata(queda)}`
+                            : `tiene ${formatearLaPlata(candidato.saldo)}`}
                         </span>
                       </span>
                     </label>
@@ -162,6 +195,17 @@ export function HojaDeArchivar({ tesoroId, alCerrar, alVolver }: HojaDeArchivarP
         {bloqueo !== null ? (
           <FilaDeAcciones>
             <Button onClick={volver}>Entendido</Button>
+          </FilaDeAcciones>
+        ) : cambio !== null ? (
+          <FilaDeAcciones>
+            <Button variant="secundario" onClick={volver}>
+              No archivar
+            </Button>
+            {alCambiarDolares !== undefined && (
+              <Button onClick={irAlCambio}>
+                {cambio === 'vender' ? m.tesoros.venderDolares : m.tesoros.comprarDolares}
+              </Button>
+            )}
           </FilaDeAcciones>
         ) : (
           <FilaDeAcciones>

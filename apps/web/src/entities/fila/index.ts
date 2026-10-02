@@ -9,6 +9,7 @@ export {
   type PruebaDeUnCobro,
 } from './model/fila';
 export {
+  entraEnLaFila,
   entraOtroPaso,
   LUGARES_EN_LA_FILA,
   lugaresParaSumar,

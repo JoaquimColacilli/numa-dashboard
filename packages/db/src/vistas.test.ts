@@ -1,4 +1,4 @@
-import { calcularPorLaFila, centavos, filaDelMes, type Fila } from '@maun/domain';
+import { calcularPorLaFila, centavos, filaDelMes, plata, type Fila } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -306,8 +306,8 @@ describe('los tesoros de la réplica', () => {
       'Gastos fijos',
       'Materiales',
     ]);
-    expect(tesoros[3]).toMatchObject({ meta: 1_000_000_000, rindeAnualBp: 4000 });
-    expect(tesoros[4]).toMatchObject({ meta: 5000, archivado: true });
+    expect(tesoros[3]).toMatchObject({ meta: plata('ARS', 1_000_000_000), rindeAnualBp: 4000 });
+    expect(tesoros[4]).toMatchObject({ meta: plata('ARS', 5000), archivado: true });
     expect(tesoros[0]).toMatchObject({ meta: null, rindeAnualBp: null });
     expect(idDeLaClave(replica, 'maun')).toBe(MAUN);
   });
@@ -315,10 +315,14 @@ describe('los tesoros de la réplica', () => {
   it('cada tesoro dice su moneda, y uno replicado antes de la columna está en pesos', () => {
     const tesoros = tesorosDeLaReplica(
       replicaCon({
-        tesoros: [...LOS_DE_SIEMPRE, tesoro(FIJOS, null, 'Dólares', { orden: 1, moneda: 'USD' })],
+        tesoros: [
+          ...LOS_DE_SIEMPRE,
+          tesoro(FIJOS, null, 'Dólares', { orden: 1, moneda: 'USD', meta_centavos: 250_000 }),
+        ],
       }),
     );
     expect(tesoros.map((uno) => uno.moneda)).toEqual(['ARS', 'ARS', 'ARS', 'ARS', 'USD']);
+    expect(tesoros[4]?.meta).toEqual(plata('USD', 250_000));
   });
 
   it('sin tesoros replicados, cada clave es su propio id', () => {
@@ -360,6 +364,17 @@ describe('los tesoros de la réplica', () => {
       tesoros: LOS_DE_SIEMPRE,
     });
     expect(metasDeLaReplica(sinMetaDeCocos).size).toBe(0);
+  });
+
+  it('la meta de un tesoro en dólares no entra en las metas de la fila, que son en pesos', () => {
+    const replica = replicaCon({
+      ajustes: [{ ...AJUSTES, meta_cocos_centavos: 0 }],
+      tesoros: [
+        ...LOS_DE_SIEMPRE,
+        tesoro(MATERIALES, null, 'Dólares', { meta_centavos: 500_000, moneda: 'USD' }),
+      ],
+    });
+    expect(metasDeLaReplica(replica).size).toBe(0);
   });
 });
 

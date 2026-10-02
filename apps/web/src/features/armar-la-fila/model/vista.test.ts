@@ -1,4 +1,4 @@
-import { centavos, CERO, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, CERO, enPesos, puntosBasicos, type Fila } from '@maun/domain';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
@@ -80,7 +80,7 @@ function tesoro(id: string, clave: TesoroDelTaller['clave'], nombre: string): Te
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: CERO,
+    saldo: enPesos(CERO),
   };
 }
 

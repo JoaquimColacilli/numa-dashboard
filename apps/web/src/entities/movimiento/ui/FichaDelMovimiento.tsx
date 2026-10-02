@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react';
 
-import { fechaLarga, formatearPesos, rutaDelProyecto, TINTA, Ir } from '@/shared/lib';
+import { fechaLarga, formatearLaPlata, rutaDelProyecto, TINTA, Ir } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
-import { MOTIVO_DEL_BLOQUEO, type LineaDelTaller, type TesoroDeLaLinea } from '../model/libro';
+import { categoriaEnPantalla } from '../model/clases';
+import {
+  MOTIVO_DEL_BLOQUEO,
+  montoDeLaLinea,
+  type LineaDelTaller,
+  type TesoroDeLaLinea,
+} from '../model/libro';
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
@@ -39,7 +45,7 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
         <div>
           <span className="block text-money-lg font-semibold tabular-nums">
-            {formatearPesos(linea.monto)}
+            {formatearLaPlata(montoDeLaLinea(linea))}
           </span>
           {linea.detalle !== '' && (
             <span className="mt-0.5 block text-body text-text-2">{linea.detalle}</span>
@@ -54,7 +60,9 @@ export function FichaDelMovimiento({ linea, hoy, alCerrar }: FichaDelMovimientoP
           <Dato etiqueta="Entra a">
             <Lado tesoro={linea.tesoroHacia} afuera="se va del taller" />
           </Dato>
-          {linea.categoria !== '' && <Dato etiqueta="Categoría">{linea.categoria}</Dato>}
+          {linea.categoria !== '' && (
+            <Dato etiqueta="Categoría">{categoriaEnPantalla(linea.categoria)}</Dato>
+          )}
         </dl>
 
         {linea.yaEnLaApertura && (

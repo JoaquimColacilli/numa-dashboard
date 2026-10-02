@@ -1,4 +1,12 @@
-import { centavos, filaDeSiempre, puntosBasicos, type Fila, type Money } from '@maun/domain';
+import {
+  centavos,
+  enPesos,
+  filaDeSiempre,
+  plata,
+  puntosBasicos,
+  type Fila,
+  type Money,
+} from '@maun/domain';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -30,7 +38,7 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(100_000),
+    saldo: enPesos(centavos(100_000)),
     ...extra,
   };
 }
@@ -39,18 +47,18 @@ const LOS_CUATRO = [
   tesoro('h', 'hogar', 'Hogar', { descripcion: 'La plata de la familia' }),
   tesoro('m', 'maun', 'Maun'),
   tesoro('d', 'diezmo', 'Diezmo'),
-  tesoro('c', 'cocos', 'Cocos', { saldo: centavos(341_500_000) }),
+  tesoro('c', 'cocos', 'Cocos', { saldo: enPesos(centavos(341_500_000)) }),
 ];
 
 const LOS_OCHO = [
   ...LOS_CUATRO,
   tesoro(FIJOS, null, 'Gastos fijos', { descripcion: 'Alquiler, luz y el ayudante' }),
   tesoro('mat', null, 'Materiales', { tinta: 'mostaza' }),
-  tesoro('inm', null, 'Inmuebles', { tinta: 'ciruela', meta: centavos(2_000_000_000) }),
+  tesoro('inm', null, 'Inmuebles', { tinta: 'ciruela', meta: enPesos(centavos(2_000_000_000)) }),
   tesoro(HERRAMIENTAS, null, 'Herramientas', {
     tinta: 'petroleo',
-    saldo: centavos(15_000_000),
-    meta: centavos(90_000_000),
+    saldo: enPesos(centavos(15_000_000)),
+    meta: enPesos(centavos(90_000_000)),
   }),
 ];
 
@@ -190,10 +198,24 @@ describe('las tarjetas de los tesoros en Inicio', () => {
     expect(conLaMetaDeCocos(LOS_CUATRO, centavos(0))).toEqual(LOS_CUATRO);
   });
 
+  it('la tarjeta de un tesoro en dólares va en dólares, con su meta en dólares', () => {
+    const tablero = montar([
+      ...LOS_CUATRO,
+      tesoro('usd', null, 'Dólares', {
+        moneda: 'USD',
+        saldo: plata('USD', 125_000),
+        meta: plata('USD', 500_000),
+      }),
+    ]);
+    const dolares = within(tablero).getByRole('button', { name: /^Dólares/ });
+    expect(dolares.textContent.replace(/\s+/g, ' ')).toContain('US$ 1.250');
+    expect(dolares).toHaveTextContent('25% de la meta');
+  });
+
   it('una tarjeta en negativo lo dice y no lleva canto', () => {
     const tablero = montar([
       ...LOS_CUATRO,
-      tesoro(FIJOS, null, 'Gastos fijos', { saldo: centavos(-5_000_000) }),
+      tesoro(FIJOS, null, 'Gastos fijos', { saldo: enPesos(centavos(-5_000_000)) }),
     ]);
     const fijos = within(tablero).getByRole('button', { name: /^Gastos fijos/ });
 
@@ -236,7 +258,7 @@ describe('las tarjetas de los tesoros en Inicio', () => {
 
   it('la de Maun dice cuánto de su saldo son insumos, si no le alcanza, o cuánto puso en los trabajos', () => {
     const conSaldo = LOS_CUATRO.map((uno) =>
-      uno.clave === 'maun' ? { ...uno, saldo: centavos(124_800_000) } : uno,
+      uno.clave === 'maun' ? { ...uno, saldo: enPesos(centavos(124_800_000)) } : uno,
     );
     const tablero = montar(conSaldo, undefined, centavos(60_000_000));
     const maun = within(tablero).getByRole('button', { name: /^Maun/ });

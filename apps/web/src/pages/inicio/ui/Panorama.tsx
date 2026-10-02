@@ -1,4 +1,4 @@
-import { formatearPesos } from '@/shared/lib';
+import { formatearLaPlata } from '@/shared/lib';
 import { Ayuda, caracteresDe, MontoQueEntra } from '@/shared/ui';
 
 import { AYUDA_DEL_PANORAMA, cifrasDelPanorama, type PanoramaDelTaller } from '../model/panorama';
@@ -10,7 +10,7 @@ export interface PanoramaProps {
 
 export function Panorama({ panorama, nombreDelSuperavit }: PanoramaProps) {
   const cifras = cifrasDelPanorama(panorama, nombreDelSuperavit);
-  const caracteres = caracteresDe(...cifras.map((cifra) => formatearPesos(cifra.monto)));
+  const caracteres = caracteresDe(...cifras.map((cifra) => formatearLaPlata(cifra.monto)));
 
   return (
     <section
@@ -32,12 +32,19 @@ export function Panorama({ panorama, nombreDelSuperavit }: PanoramaProps) {
             <dd className="flex min-w-0 flex-col">
               <MontoQueEntra
                 caracteres={caracteres}
-                className={`leading-tight font-semibold ${cifra.monto < 0 ? 'text-alerta' : ''}`}
+                className={`leading-tight font-semibold ${cifra.monto.importe < 0 ? 'text-alerta' : ''}`}
               >
-                {formatearPesos(cifra.monto)}
+                {formatearLaPlata(cifra.monto)}
               </MontoQueEntra>
             </dd>
-            <dd className="text-meta text-text-3">{cifra.detalle}</dd>
+            <dd className="text-meta text-text-3">
+              {cifra.detalle}
+              {cifra.equivalente !== null && (
+                <span data-equivalente-en-pesos className="block text-text-2">
+                  {cifra.equivalente}
+                </span>
+              )}
+            </dd>
           </div>
         ))}
       </dl>

@@ -92,6 +92,7 @@ export const RUTA_DE_MOVIMIENTO_NUEVO = '/finanzas/nuevo';
 export interface MovimientoPropuesto {
   clase?: string;
   tesoro?: string;
+  hacia?: string;
   monto?: number;
   categoria?: string;
   fecha?: string;
@@ -103,6 +104,7 @@ export function rutaDeMovimientoNuevo(opciones: MovimientoPropuesto = {}): strin
   const parametros = new URLSearchParams();
   if (opciones.clase !== undefined) parametros.set('clase', opciones.clase);
   if (opciones.tesoro !== undefined) parametros.set('tesoro', opciones.tesoro);
+  if (opciones.hacia !== undefined) parametros.set('hacia', opciones.hacia);
   if (opciones.monto !== undefined) parametros.set('monto', String(opciones.monto));
   if (opciones.categoria !== undefined) parametros.set('categoria', opciones.categoria);
   if (opciones.fecha !== undefined) parametros.set('fecha', opciones.fecha);
@@ -110,15 +112,21 @@ export function rutaDeMovimientoNuevo(opciones: MovimientoPropuesto = {}): strin
   return texto === '' ? RUTA_DE_MOVIMIENTO_NUEVO : `${RUTA_DE_MOVIMIENTO_NUEVO}?${texto}`;
 }
 
+function idDelParametro(valor: string | null): string | null {
+  return valor === null || !FORMA_DE_UN_ID.test(valor) ? null : valor;
+}
+
 export function movimientoPropuesto(parametros: URLSearchParams): MovimientoPropuesto {
   const clase = parametros.get('clase');
-  const tesoro = parametros.get('tesoro');
+  const tesoro = idDelParametro(parametros.get('tesoro'));
+  const hacia = idDelParametro(parametros.get('hacia'));
   const monto = Number(parametros.get('monto') ?? '');
   const categoria = parametros.get('categoria')?.trim() ?? '';
   const fecha = fechaDelEnlace(parametros.get('fecha'));
   return {
     ...(clase === null ? {} : { clase }),
-    ...(tesoro === null || !FORMA_DE_UN_ID.test(tesoro) ? {} : { tesoro }),
+    ...(tesoro === null ? {} : { tesoro }),
+    ...(hacia === null ? {} : { hacia }),
     ...(Number.isSafeInteger(monto) && monto > 0 ? { monto } : {}),
     ...(categoria === '' || categoria.length > LARGO_MAXIMO_DE_LA_CATEGORIA ? {} : { categoria }),
     ...(fecha === undefined ? {} : { fecha }),

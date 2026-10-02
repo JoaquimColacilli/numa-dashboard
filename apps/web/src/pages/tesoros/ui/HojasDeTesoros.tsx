@@ -33,6 +33,7 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
             tesoroId={pedido.tesoro}
             alCerrar={cerrar}
             alGuardarLoDeCocos={pantalla.alGuardarLoDeCocos}
+            alCambiarDolares={pantalla.cambiarDolares}
           />
         )}
       </ConSalida>
@@ -75,6 +76,8 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
               pantalla.abrir({ tipo: 'editar', tesoro });
             }}
             alRegistrarElPago={pantalla.registrarElPago}
+            alCambiarDolares={pantalla.cambiarDolares}
+            ultimoCambio={pantalla.ultimoCambio}
             insumos={pantalla.insumos}
             alCerrar={() => {
               pantalla.elegir(null);

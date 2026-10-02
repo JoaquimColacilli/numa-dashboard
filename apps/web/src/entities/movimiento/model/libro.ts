@@ -1,12 +1,19 @@
 import {
   CERO,
+  cotizacionDelCambio,
+  esDeLaMoneda,
   lineasDelLibro,
+  MONEDA_DEL_TALLER,
   negar,
+  plata,
   restar,
   sumar,
+  totalesPorMoneda,
+  type Cotizacion,
   type LineaDelLibro,
   type Moneda,
   type Money,
+  type Plata,
   type Tesoro,
 } from '@maun/domain';
 
@@ -32,6 +39,7 @@ export const MOTIVO_DEL_BLOQUEO: Readonly<Record<BloqueoDeLinea, string>> = {
 export interface TesoroDeLaLinea {
   id: string;
   clave: Tesoro | null;
+  moneda: Moneda;
   nombre: string;
   tinta: TintaDeTesoro;
   icono: NombreDeIcono;
@@ -59,17 +67,31 @@ const ETIQUETA_DERIVADA: Readonly<Record<string, string>> = {
   reparto: 'Parte del reparto',
 };
 
-const OTRO_TESORO = { nombre: 'Otro tesoro', tinta: 'maun', icono: 'vault' } as const;
+const OTRO_TESORO = {
+  moneda: MONEDA_DEL_TALLER,
+  nombre: 'Otro tesoro',
+  tinta: 'maun',
+  icono: 'vault',
+} as const;
 
 function sentidoDe(linea: LineaDelLibro): SentidoDeLinea {
   if (linea.desdeId !== null && linea.haciaId !== null) return 'mueve';
   return linea.haciaId === null ? 'sale' : 'entra';
 }
 
-function etiquetaDe(linea: LineaDelLibro): string {
+function etiquetaDe(
+  linea: LineaDelLibro,
+  desde: TesoroDeLaLinea | null,
+  hacia: TesoroDeLaLinea | null,
+): string {
   if (linea.origen !== 'manual') return ETIQUETA_DERIVADA[linea.concepto] ?? 'Del trabajo';
   if (linea.concepto === 'ajuste') return 'Ajuste de saldo';
-  return claseDe(linea.concepto, linea.desde, linea.hacia)?.etiqueta ?? 'Movimiento';
+  return (
+    claseDe(linea.concepto, linea.desde, linea.hacia, {
+      ...(desde === null ? {} : { desde: desde.moneda }),
+      ...(hacia === null ? {} : { hacia: hacia.moneda }),
+    })?.etiqueta ?? 'Movimiento'
+  );
 }
 
 function bloqueoDe(linea: LineaDelLibro): BloqueoDeLinea | null {
@@ -79,7 +101,14 @@ function bloqueoDe(linea: LineaDelLibro): BloqueoDeLinea | null {
 
 function deSiempre(clave: Tesoro): TesoroDeLaLinea {
   const datos = TESORO[clave];
-  return { id: clave, clave, nombre: datos.nombre, tinta: clave, icono: datos.icono };
+  return {
+    id: clave,
+    clave,
+    moneda: MONEDA_DEL_TALLER,
+    nombre: datos.nombre,
+    tinta: clave,
+    icono: datos.icono,
+  };
 }
 
 function nombrador(
@@ -119,7 +148,7 @@ export function lineasDelTaller(
       return {
         ...linea,
         clave: `${linea.origen}:${linea.asientoId}:${linea.concepto}`,
-        etiqueta: etiquetaDe(linea),
+        etiqueta: etiquetaDe(linea, tesoroDesde, tesoroHacia),
         detalle: linea.descripcion.trim(),
         proyectoTitulo,
         sentido,
@@ -142,6 +171,49 @@ export function efectoDeLaLinea(linea: LineaDelLibro, tesoro: string): Money<Mon
   if (linea.haciaId === tesoro) total = sumar(total, linea.montoHacia);
   if (linea.desdeId === tesoro) total = restar(total, linea.monto);
   return total;
+}
+
+type LadosDeLaLinea = Pick<LineaDelTaller, 'haciaId' | 'sentido' | 'tesoroDesde' | 'tesoroHacia'>;
+
+export function monedaDelEfecto(linea: LadosDeLaLinea, tesoro: string): Moneda {
+  const entra = tesoro === TODOS_LOS_TESOROS ? linea.sentido === 'entra' : linea.haciaId === tesoro;
+  return (entra ? linea.tesoroHacia : linea.tesoroDesde)?.moneda ?? MONEDA_DEL_TALLER;
+}
+
+export function efectoEnSuMoneda(linea: LineaDelLibro & LadosDeLaLinea, tesoro: string): Plata {
+  return plata(monedaDelEfecto(linea, tesoro), efectoDeLaLinea(linea, tesoro));
+}
+
+export function montoDeLaLinea(linea: LineaDelLibro & LadosDeLaLinea): Plata {
+  return linea.sentido === 'entra'
+    ? plata(linea.tesoroHacia?.moneda ?? MONEDA_DEL_TALLER, linea.montoHacia)
+    : plata(linea.tesoroDesde?.moneda ?? MONEDA_DEL_TALLER, linea.monto);
+}
+
+export function montoQueEntra(linea: LineaDelLibro & LadosDeLaLinea): Plata {
+  return plata(linea.tesoroHacia?.moneda ?? MONEDA_DEL_TALLER, linea.montoHacia);
+}
+
+export function esUnCambioDeMoneda(linea: LadosDeLaLinea): boolean {
+  return (
+    linea.sentido === 'mueve' &&
+    linea.tesoroDesde !== null &&
+    linea.tesoroHacia !== null &&
+    linea.tesoroDesde.moneda !== linea.tesoroHacia.moneda
+  );
+}
+
+export function cotizacionDeLaLinea(linea: LineaDelLibro & LadosDeLaLinea): Cotizacion | null {
+  if (!esUnCambioDeMoneda(linea)) return null;
+  const sale = montoDeLaLinea(linea);
+  const entra = montoQueEntra(linea);
+  if (esDeLaMoneda(sale, MONEDA_DEL_TALLER) && esDeLaMoneda(entra, 'USD')) {
+    return cotizacionDelCambio(sale.importe, entra.importe);
+  }
+  if (esDeLaMoneda(sale, 'USD') && esDeLaMoneda(entra, MONEDA_DEL_TALLER)) {
+    return cotizacionDelCambio(entra.importe, sale.importe);
+  }
+  return null;
 }
 
 export const TODOS_LOS_MESES = 'todos';
@@ -215,20 +287,26 @@ export function mesesConMovimiento(lineas: readonly LineaDelTaller[], mesActual:
 
 export interface DiaDelLibro {
   fecha: string;
-  neto: Money<Moneda>;
+  netos: Plata[];
   lineas: LineaDelTaller[];
 }
 
 export function agruparPorDia(lineas: readonly LineaDelTaller[], tesoro: string): DiaDelLibro[] {
-  const dias: DiaDelLibro[] = [];
+  const dias: { fecha: string; efectos: Plata[]; lineas: LineaDelTaller[] }[] = [];
   for (const linea of lineas) {
     let dia = dias.at(-1);
     if (!dia || dia.fecha !== linea.fecha) {
-      dia = { fecha: linea.fecha, neto: CERO, lineas: [] };
+      dia = { fecha: linea.fecha, efectos: [], lineas: [] };
       dias.push(dia);
     }
     dia.lineas.push(linea);
-    dia.neto = sumar(dia.neto, efectoDeLaLinea(linea, tesoro));
+    dia.efectos.push(efectoEnSuMoneda(linea, tesoro));
   }
-  return dias;
+  return dias.map(({ fecha, efectos, lineas: delDia }) => ({
+    fecha,
+    netos: totalesPorMoneda(efectos)
+      .map(({ total }) => total)
+      .filter((neto) => neto.importe !== 0),
+    lineas: delDia,
+  }));
 }

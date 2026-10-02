@@ -1,4 +1,4 @@
-import { centavos, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, cotizacion, puntosBasicos, type Fila } from '@maun/domain';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -69,11 +69,12 @@ const GUARDADA: Fila = {
   sueldoPorTrabajo: false,
 };
 
-function tesoro(id: string, clave: string | null, nombre: string, tinta: string) {
+function tesoro(id: string, clave: string | null, nombre: string, tinta: string, moneda = 'ARS') {
   return {
     id,
     household_id: 'h',
     clave,
+    moneda,
     nombre,
     descripcion: '',
     tinta,
@@ -147,6 +148,64 @@ function replicaDelTaller(saldos: { diezmo?: number } = {}): Replica {
 }
 
 const REPLICA = replicaDelTaller();
+
+const DOLARES = '01900000-0000-7000-8000-000000000009';
+
+function ingresoA(hacia: string, monto: number) {
+  return {
+    id: `i-${hacia}`,
+    household_id: 'h',
+    tipo: 'ingreso',
+    fecha: '2026-09-10',
+    tesoro_origen: null,
+    tesoro_destino: null,
+    desde_id: null,
+    hacia_id: hacia,
+    cubre_el_mes: null,
+    monto_centavos: monto,
+    monto_destino_centavos: null,
+    categoria: '',
+    descripcion: '',
+    proyecto_id: null,
+    created_at: '2026-09-10T10:00:00Z',
+    updated_at: '2026-09-10T10:00:00Z',
+    deleted_at: null,
+    version: 1,
+  };
+}
+
+function replicaConDolares(): Replica {
+  const base = replicaDelTaller();
+  const tablas = base.tablas as unknown as Record<TablaReplicada, Record<string, unknown>>;
+  return {
+    ...base,
+    tablas: {
+      ...tablas,
+      tesoros: { ...tablas.tesoros, [DOLARES]: tesoro(DOLARES, null, 'Dólares', 'ciruela', 'USD') },
+      movimientos: {
+        [`i-${MATERIALES}`]: ingresoA(MATERIALES, 1_300_000),
+        [`i-${DOLARES}`]: ingresoA(DOLARES, 50_000),
+      },
+    },
+  } as unknown as Replica;
+}
+
+function PanelDeLaFilaEntera({ replica }: { replica: Replica }) {
+  const borrador = useBorradorDeLaFila('a');
+  const vista = vistaDeLaFila(replica, borrador, HOY);
+  return (
+    <PanelDeDetalle
+      vista={vista}
+      elegido={null}
+      prueba={SIN_PRUEBA}
+      resultado={null}
+      alElegir={() => undefined}
+      alProbar={() => undefined}
+      alCubrir={() => undefined}
+      alEditarTesoro={() => undefined}
+    />
+  );
+}
 
 function Panel({
   inicial,
@@ -500,5 +559,87 @@ describe('la hoja de una ficha en el celular', () => {
     expect(
       screen.getByText('Ahora no recibe plata de los cobros. Elegí dónde va.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('la lista de tesoros con uno en dólares', () => {
+  it('por moneda: «Entre todos» va por moneda, los pesos primero', () => {
+    render(<PanelDeLaFilaEntera replica={replicaConDolares()} />);
+    const entreTodos = screen.getByText('Entre todos').nextElementSibling;
+    expect(entreTodos?.textContent.replace(/\s+/g, ' ')).toBe('$ 13.000 · US$ 500');
+  });
+});
+
+function PanelConDolares({
+  elegido,
+  replica = replicaConDolares(),
+  alCambiarDolares,
+}: {
+  elegido: string;
+  replica?: Replica;
+  alCambiarDolares: (ruta: string) => void;
+}) {
+  const borrador = useBorradorDeLaFila('a');
+  const vista = vistaDeLaFila(replica, borrador, HOY);
+  return (
+    <PanelDeDetalle
+      vista={vista}
+      elegido={fichaVigente(vista, elegido)}
+      prueba={SIN_PRUEBA}
+      resultado={null}
+      alElegir={() => undefined}
+      alProbar={() => undefined}
+      alCubrir={() => undefined}
+      alEditarTesoro={() => undefined}
+      alCambiarDolares={alCambiarDolares}
+      ultimoCambio={{ tipo: 'compra', fecha: '2026-09-28', cotizacion: cotizacion(145_000) }}
+    />
+  );
+}
+
+describe('el panel con tesoros en dólares', () => {
+  it('uno en dólares en el estante dice su saldo en dólares, el equivalente y que no va a la fila', () => {
+    const alCambiarDolares = vi.fn();
+    render(<PanelConDolares elegido={`estante-${DOLARES}`} alCambiarDolares={alCambiarDolares} />);
+    const tiene = screen.getByRole('region', { name: 'Tiene' });
+    expect(tiene.textContent.replace(/\s+/g, ' ')).toContain('US$ 500');
+    expect(
+      tiene.querySelector('[data-equivalente-en-pesos]')?.textContent.replace(/\s+/g, ' '),
+    ).toBe('≈ $ 725.000 a $ 1.450, tu última compra (28 sep)');
+    const sumarlo = screen.getByRole('region', { name: 'Sumarlo a la fila' });
+    expect(sumarlo).toHaveTextContent(
+      'La fila reparte pesos: un tesoro en dólares queda en el estante.',
+    );
+    expect(within(sumarlo).queryAllByRole('button')).toEqual([]);
+    expect(screen.queryByRole('button', { name: 'Comprar dólares' })).toBeNull();
+  });
+
+  it('uno en pesos ofrece «Comprar dólares», con él de origen y su saldo', () => {
+    const alCambiarDolares = vi.fn();
+    render(<PanelConDolares elegido={`paso-${MATERIALES}`} alCambiarDolares={alCambiarDolares} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Comprar dólares' }));
+    expect(alCambiarDolares).toHaveBeenCalledWith(
+      `/finanzas/nuevo?clase=compra_de_dolares&tesoro=${MATERIALES}&monto=1300000`,
+    );
+    cleanup();
+
+    render(
+      <PanelConDolares elegido={`estante-${HERRAMIENTAS}`} alCambiarDolares={alCambiarDolares} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Comprar dólares' }));
+    expect(alCambiarDolares).toHaveBeenLastCalledWith(
+      `/finanzas/nuevo?clase=compra_de_dolares&tesoro=${HERRAMIENTAS}`,
+    );
+  });
+
+  it('sin tesoros en dólares no ofrece comprar', () => {
+    render(
+      <PanelConDolares
+        elegido={`paso-${MATERIALES}`}
+        replica={REPLICA}
+        alCambiarDolares={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Comprar dólares' })).toBeNull();
   });
 });

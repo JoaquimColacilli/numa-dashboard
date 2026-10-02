@@ -23,12 +23,20 @@ const MAUN = '01900000-0000-7000-8000-000000000002';
 const DIEZMO = '01900000-0000-7000-8000-000000000003';
 const COCOS = '01900000-0000-7000-8000-000000000004';
 const FIJOS = '01900000-0000-7000-8000-000000000005';
+const DOLARES = '01900000-0000-7000-8000-000000000006';
 
-function filaDeTesoro(id: string, clave: string | null, nombre: string, tinta: string) {
+function filaDeTesoro(
+  id: string,
+  clave: string | null,
+  nombre: string,
+  tinta: string,
+  moneda = 'ARS',
+) {
   return {
     id,
     household_id: 'h',
     clave,
+    moneda,
     nombre,
     descripcion: '',
     tinta,
@@ -66,7 +74,7 @@ function ingreso(hacia: string, clave: string | null, monto: number) {
   };
 }
 
-function replicaDelTaller(fila: unknown = null): Replica {
+function replicaDelTaller(fila: unknown = null, conDolares = false): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.households = { h: { id: 'h', nombre: 'Taller MAUN' } };
@@ -79,6 +87,7 @@ function replicaDelTaller(fila: unknown = null): Replica {
     filaDeTesoro(DIEZMO, 'diezmo', 'Diezmo', 'diezmo'),
     filaDeTesoro(COCOS, 'cocos', 'Cocos', 'cocos'),
     filaDeTesoro(FIJOS, null, 'Gastos fijos', 'grana'),
+    ...(conDolares ? [filaDeTesoro(DOLARES, null, 'Dólares', 'petroleo', 'USD')] : []),
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((una) => [una.id, una]));
   const movimientos = [
@@ -87,17 +96,23 @@ function replicaDelTaller(fila: unknown = null): Replica {
     ingreso(DIEZMO, 'diezmo', 27_000_000),
     ingreso(COCOS, 'cocos', 341_500_000),
     ingreso(FIJOS, null, 13_000_000),
+    ...(conDolares ? [ingreso(DOLARES, null, 50_000)] : []),
   ];
   tablas.movimientos = Object.fromEntries(movimientos.map((uno) => [uno.id, uno]));
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
-function montar(tesoroDelPaso = FIJOS, faltante = 27_000_000, fila: unknown = null) {
+function montar(
+  tesoroDelPaso = FIJOS,
+  faltante = 27_000_000,
+  fila: unknown = null,
+  conDolares = false,
+) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
-      <ProveedorDeReplica replica={replicaDelTaller(fila)}>
+      <ProveedorDeReplica replica={replicaDelTaller(fila, conDolares)}>
         <HojaDeCubrir
           tesoroDelPaso={tesoroDelPaso}
           mes="2026-09"
@@ -256,6 +271,17 @@ describe('cubrir el faltante de los gastos fijos', () => {
     });
     expect([deMaun?.silencioso, deCocos?.silencioso]).toEqual([true, false]);
     expect(alCerrar).toHaveBeenCalledOnce();
+  });
+
+  it('por moneda: un tesoro en dólares no cubre los gastos fijos, que son en pesos', () => {
+    montar(FIJOS, 27_000_000, null, true);
+    const casillas = within(screen.getByRole('list', { name: 'De qué tesoro sale' })).getAllByRole(
+      'checkbox',
+    );
+    expect(
+      casillas.map((casilla) => casilla.closest('label')?.querySelector('.truncate')?.textContent),
+    ).toEqual(['Maun', 'Hogar', 'Cocos']);
+    expect(screen.queryByText(/Dólares/)).toBeNull();
   });
 
   it('si el paso es Maun, Maun no aparece y no viene nada elegido', () => {

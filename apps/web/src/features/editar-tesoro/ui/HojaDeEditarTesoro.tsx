@@ -37,12 +37,14 @@ export interface HojaDeEditarTesoroProps {
   tesoroId: string;
   alCerrar: () => void;
   alGuardarLoDeCocos: (edicion: EdicionDeLoDeCocos) => void;
+  alCambiarDolares?: (ruta: string) => void;
 }
 
 export function HojaDeEditarTesoro({
   tesoroId,
   alCerrar,
   alGuardarLoDeCocos,
+  alCambiarDolares,
 }: HojaDeEditarTesoroProps) {
   const replica = useReplicaDelTaller();
   const tesoro = tesoroPorId(tesorosDelTaller(replica), tesoroId);
@@ -60,6 +62,7 @@ export function HojaDeEditarTesoro({
         alVolver={() => {
           setArchivando(false);
         }}
+        {...(alCambiarDolares === undefined ? {} : { alCambiarDolares })}
       />
     );
   }

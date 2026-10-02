@@ -1,20 +1,35 @@
-import { CERO, restar, sumar, type Money, type SaldosPorTesoro } from '@maun/domain';
+import {
+  CERO,
+  centavos,
+  plata,
+  restar,
+  sumar,
+  type Money,
+  type Plata,
+  type SaldosPorTesoro,
+} from '@maun/domain';
 
-import { formatearPesos } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { formatearLaPlata, formatearPesos } from '@/shared/lib';
 
-import type { ClaseDeMovimiento } from './clases';
+import type { ClaseDeCambio, ClaseDeMovimiento } from './clases';
 
 export interface LadoDeLaAyuda {
   nombre: string;
-  saldo: Money;
+  saldo: Plata;
 }
 
 export interface ContextoDeAyuda {
   saldos: SaldosPorTesoro;
   metaCocos: Money;
-  monto: Money;
+  monto: number;
+  montoDestino?: number;
   lados?: { desde: LadoDeLaAyuda; hacia: LadoDeLaAyuda };
   tesoro?: LadoDeLaAyuda;
+}
+
+function movida(saldo: Plata, cuanto: number): Plata {
+  return plata(saldo.moneda, saldo.importe + cuanto);
 }
 
 function comoQueda(saldo: Money, nombre: string): string {
@@ -23,20 +38,52 @@ function comoQueda(saldo: Money, nombre: string): string {
     : `${nombre} queda en ${formatearPesos(saldo)}`;
 }
 
+function comoQuedaElLado(saldo: Plata, nombre: string): string {
+  return saldo.importe < 0
+    ? `${nombre} queda en ${formatearLaPlata(saldo)}, o sea en negativo`
+    : `${nombre} queda en ${formatearLaPlata(saldo)}`;
+}
+
 function despuesDelPago(saldo: Money): string {
   if (saldo > 0) return `Después de este pago te van a quedar ${formatearPesos(saldo)} por pagar`;
   if (saldo < 0) return `Con este pago te pasás ${formatearPesos(restar(CERO, saldo))}`;
   return 'Con este pago quedás al día';
 }
 
-function entreTesoros(monto: Money, lados: ContextoDeAyuda['lados']): string {
+function entreTesoros(monto: number, lados: ContextoDeAyuda['lados']): string {
   if (!lados) return 'Pasa de un tesoro a otro: la plata no se va, cambia de bolsillo.';
   const { desde, hacia } = lados;
-  return `Pasa de ${desde.nombre} a ${hacia.nombre}: la plata no se va, cambia de bolsillo. ${comoQueda(restar(desde.saldo, monto), desde.nombre)}, y ${hacia.nombre} en ${formatearPesos(sumar(hacia.saldo, monto))}.`;
+  return `Pasa de ${desde.nombre} a ${hacia.nombre}: la plata no se va, cambia de bolsillo. ${comoQuedaElLado(movida(desde.saldo, -monto), desde.nombre)}, y ${hacia.nombre} en ${formatearLaPlata(movida(hacia.saldo, monto))}.`;
+}
+
+function delCambio(clase: ClaseDeCambio, contexto: ContextoDeAyuda): string {
+  const { ayuda } = mensajes().movimientos;
+  const presentacion = clase === 'compra_de_dolares' ? ayuda.compra : ayuda.venta;
+  const { lados } = contexto;
+  if (!lados) return presentacion;
+  const quedaDesde = movida(lados.desde.saldo, -contexto.monto);
+  const quedaHacia = movida(lados.hacia.saldo, contexto.montoDestino ?? 0);
+  const decir = quedaDesde.importe < 0 ? ayuda.quedanConElPrimeroEnNegativo : ayuda.quedan;
+  return `${presentacion} ${decir(
+    lados.desde.nombre,
+    formatearLaPlata(quedaDesde),
+    lados.hacia.nombre,
+    formatearLaPlata(quedaHacia),
+  )}`;
+}
+
+function delIngresoEnDolares(contexto: ContextoDeAyuda): string {
+  const { ayuda } = mensajes().movimientos;
+  const { tesoro } = contexto;
+  if (tesoro === undefined) return ayuda.ingresoEnDolares;
+  const queda = movida(tesoro.saldo, contexto.monto);
+  const decir = queda.importe < 0 ? ayuda.quedaEnNegativo : ayuda.queda;
+  return `${ayuda.entraA(tesoro.nombre)} ${decir(tesoro.nombre, formatearLaPlata(queda))}`;
 }
 
 export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoDeAyuda): string {
-  const { saldos, monto, metaCocos } = contexto;
+  const { saldos, metaCocos } = contexto;
+  const monto = centavos(contexto.monto);
 
   switch (clase) {
     case 'ingreso_hogar':
@@ -58,8 +105,13 @@ export function ayudaDelMovimiento(clase: ClaseDeMovimiento, contexto: ContextoD
     case 'gasto_tesoro':
       return contexto.tesoro === undefined
         ? 'Sale del tesoro que elijas y se va.'
-        : `Sale de ${contexto.tesoro.nombre} y se va. ${comoQueda(restar(contexto.tesoro.saldo, monto), contexto.tesoro.nombre)}.`;
+        : `Sale de ${contexto.tesoro.nombre} y se va. ${comoQuedaElLado(movida(contexto.tesoro.saldo, -contexto.monto), contexto.tesoro.nombre)}.`;
     case 'entre_tesoros':
       return entreTesoros(monto, contexto.lados);
+    case 'compra_de_dolares':
+    case 'venta_de_dolares':
+      return delCambio(clase, contexto);
+    case 'ingreso_en_dolares':
+      return delIngresoEnDolares(contexto);
   }
 }

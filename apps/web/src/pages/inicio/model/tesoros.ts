@@ -1,14 +1,15 @@
-import { CERO, restar, type Fila, type Money } from '@maun/domain';
+import { CERO, enPesos, restar, type Fila, type Money, type Plata } from '@maun/domain';
 
 import { DESCRIPCION_DEL_TIPO, tiposDelTesoro } from '@/entities/fila';
 import type { FraseDelDiezmo } from '@/entities/movimiento';
-import type { TesoroDelTaller } from '@/entities/tesoro';
+import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import { formatearPesos } from '@/shared/lib';
 
 export const TESOROS_EN_UNA_FILA = 4;
 
-export function porcentajeDeLaMeta(saldo: Money, meta: Money): number {
-  return meta <= 0 ? 0 : Math.floor((saldo * 100) / meta);
+export function porcentajeDeLaMeta(saldo: Plata, meta: Plata): number {
+  if (saldo.moneda !== meta.moneda || meta.importe <= 0) return 0;
+  return Math.floor((saldo.importe * 100) / meta.importe);
 }
 
 export function conLaMetaDeCocos(
@@ -17,7 +18,7 @@ export function conLaMetaDeCocos(
 ): TesoroDelTaller[] {
   return tesoros.map((tesoro) =>
     tesoro.clave === 'cocos' && tesoro.meta === null && metaDeCocos > 0
-      ? { ...tesoro, meta: metaDeCocos }
+      ? { ...tesoro, meta: enPesos(metaDeCocos) }
       : tesoro,
   );
 }
@@ -57,11 +58,12 @@ export function detalleDeLaTarjeta(
   insumos: Money = CERO,
 ): string {
   if (tesoro.clave === 'diezmo') return diezmo.detalle;
-  if (tesoro.clave === 'maun') {
-    const deLosInsumos = fraseDeLosInsumosDeMaun(insumos, tesoro.saldo);
+  const saldoDeMaun = tesoro.clave === 'maun' ? saldoEnPesos(tesoro) : null;
+  if (saldoDeMaun !== null) {
+    const deLosInsumos = fraseDeLosInsumosDeMaun(insumos, saldoDeMaun);
     if (deLosInsumos !== null) return deLosInsumos;
   }
-  if (tesoro.meta !== null && tesoro.meta > 0) {
+  if (tesoro.meta !== null && tesoro.meta.importe > 0) {
     return `${String(porcentajeDeLaMeta(tesoro.saldo, tesoro.meta))}% de la meta`;
   }
   return tesoro.descripcion;
@@ -69,11 +71,11 @@ export function detalleDeLaTarjeta(
 
 export interface TesoroConMeta {
   tesoro: TesoroDelTaller;
-  meta: Money;
+  meta: Plata;
 }
 
 export function tesorosConMeta(tesoros: readonly TesoroDelTaller[]): TesoroConMeta[] {
   return tesoros.flatMap((tesoro) =>
-    tesoro.meta !== null && tesoro.meta > 0 ? [{ tesoro, meta: tesoro.meta }] : [],
+    tesoro.meta !== null && tesoro.meta.importe > 0 ? [{ tesoro, meta: tesoro.meta }] : [],
   );
 }

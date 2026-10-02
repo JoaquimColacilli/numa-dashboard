@@ -5,6 +5,7 @@ import {
   puntosBasicos,
   sumaDelReparto,
   tipoDelPaso,
+  totalesPorMoneda,
   ULTIMO_DIA_DE_PAGO,
   type BaseDeLaObligacion,
   type LiquidacionPorLaFila,
@@ -39,6 +40,7 @@ import {
   BASE_EN_PALABRAS,
   ETIQUETA_DE_LA_BASE,
   EscalaDelReparto,
+  entraEnLaFila,
   Globo,
   LineaDePuntos,
   lugaresParaSumar,
@@ -50,11 +52,25 @@ import {
   puedeSerSuperavit,
   tituloDelModo,
 } from '@/entities/fila';
-import type { PagoParaRegistrar } from '@/entities/movimiento';
-import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
-import { ChipDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
 import {
+  equivalenteEnPesos,
+  rutaParaComprarDolares,
+  type PagoParaRegistrar,
+  type UltimoCambio,
+} from '@/entities/movimiento';
+import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
+import {
+  ChipDelTesoro,
+  enOtraMoneda,
+  esDeLaMonedaDelTaller,
+  metaEnPesos,
+  type TesoroDelTaller,
+} from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
+import {
+  formatearLaPlata,
   formatearPesos,
+  formatearPlata,
   formatearPorcentaje,
   Ir,
   nombreDelMes,
@@ -122,6 +138,8 @@ export interface PanelDeDetalleProps {
   alCubrir: (paso: PasoDelMes) => void;
   alEditarTesoro: (tesoro: string) => void;
   alRegistrarElPago?: (pago: PagoParaRegistrar) => void;
+  alCambiarDolares?: (ruta: string) => void;
+  ultimoCambio?: UltimoCambio | null;
   insumos?: InsumosDeLosTrabajos;
   arriba?: ReactNode;
   enHoja?: boolean;
@@ -144,6 +162,52 @@ function textosDe(
       problema.problema,
       problema.tesoro === null ? undefined : tesoroDe(vista, problema.tesoro).nombre,
     ),
+  );
+}
+
+function ComprarDolares({
+  vista,
+  tesoro,
+  props,
+}: {
+  vista: VistaDeLaFila;
+  tesoro: TesoroDelTaller;
+  props: PanelDeDetalleProps;
+}) {
+  const m = useMensajes();
+  const { alCambiarDolares } = props;
+  if (alCambiarDolares === undefined || !vista.sincronizados) return null;
+  if (!esDeLaMonedaDelTaller(tesoro) || tesoro.clave === 'diezmo' || tesoro.archivado) return null;
+  if (enOtraMoneda(vista.tesoros).length === 0) return null;
+  return (
+    <div className="pb-5">
+      <Button
+        variant="secundario"
+        onClick={() => {
+          alCambiarDolares(rutaParaComprarDolares(tesoro));
+        }}
+      >
+        <Icono nombre="arrow-left-right" tamano={16} />
+        {m.tesoros.comprarDolares}
+      </Button>
+    </div>
+  );
+}
+
+function EquivalenteEnPesos({
+  tesoro,
+  ultimoCambio,
+}: {
+  tesoro: TesoroDelTaller;
+  ultimoCambio: UltimoCambio | null | undefined;
+}) {
+  if (tesoro.saldo.moneda !== 'USD') return null;
+  const equivalente = equivalenteEnPesos(tesoro.saldo.importe, ultimoCambio ?? null);
+  if (equivalente === null) return null;
+  return (
+    <p data-equivalente-en-pesos className="text-label text-text-2 tabular-nums">
+      {equivalente}
+    </p>
   );
 }
 
@@ -489,6 +553,7 @@ function PanelDeLaObligacion({
           )}
         </div>
       </Seccion>
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
       <SeccionDelLugar
         vista={vista}
         tesoro={tesoroId}
@@ -989,7 +1054,7 @@ function PanelDelPaso({
             elegido={tipo}
             alElegir={(uno) => {
               editarLaFila(vista, (fila) =>
-                conTipo(fila, paso.tesoro, uno, tesoro.clave, tesoro.meta),
+                conTipo(fila, paso.tesoro, uno, tesoro.clave, metaEnPesos(tesoro)),
               );
             }}
           />
@@ -1009,7 +1074,7 @@ function PanelDelPaso({
 
       <ComoSeLlena vista={vista} paso={paso} tesoro={tesoro} tipo={tipo} />
 
-      {tipo === 'ahorro-fijo' && tesoro.meta !== null && tesoro.meta > 0 && (
+      {tipo === 'ahorro-fijo' && metaEnPesos(tesoro) !== null && (
         <HastaLaMeta
           vista={vista}
           tesoro={tesoro}
@@ -1017,7 +1082,7 @@ function PanelDelPaso({
           meta={delMes?.meta ?? null}
         />
       )}
-      {tipo === 'ahorro-fijo' && (tesoro.meta === null || tesoro.meta <= 0) && (
+      {tipo === 'ahorro-fijo' && metaEnPesos(tesoro) === null && (
         <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['meta'])} />
       )}
 
@@ -1035,6 +1100,8 @@ function PanelDelPaso({
             props={props}
           />
         )}
+
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
 
       <SeccionDelLugar
         vista={vista}
@@ -1093,7 +1160,7 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
         <ul className="flex flex-col gap-2">
           {vista.fila.reparto.map((parte) => {
             const tesoro = tesoroDe(vista, parte.tesoro);
-            const conMeta = tesoro.meta !== null && tesoro.meta > 0;
+            const conMeta = metaEnPesos(tesoro) !== null;
             return (
               <li key={parte.tesoro} className="flex flex-col gap-1">
                 <div className="flex min-h-11 items-center gap-2">
@@ -1154,7 +1221,8 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                       </span>
                     )}
                     <span className="text-meta text-text-3 tabular-nums">
-                      {formatearPesos(tesoro.saldo)} de {formatearPesos(tesoro.meta ?? 0)}
+                      {formatearLaPlata(tesoro.saldo)} de{' '}
+                      {formatearPlata(tesoro.meta?.importe ?? 0, tesoro.moneda)}
                     </span>
                   </div>
                 )}
@@ -1198,7 +1266,7 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
     (tesoro) =>
       !tesoro.archivado &&
       (tesoro.id === vista.fila.superavit ||
-        puedeSerSuperavit(vista.fila, tesoro.id, tesoro.clave)),
+        (entraEnLaFila(tesoro) && puedeSerSuperavit(vista.fila, tesoro.id, tesoro.clave))),
   );
   return (
     <>
@@ -1235,7 +1303,7 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
                       editarLaFila(vista, (fila) =>
                         sumarEnElLugar(
                           fila,
-                          { id: tesoro.id, clave: tesoro.clave, meta: tesoro.meta },
+                          { id: tesoro.id, clave: tesoro.clave, meta: metaEnPesos(tesoro) },
                           'superavit',
                         ),
                       );
@@ -1273,9 +1341,10 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
         <LineaDePuntos
           className="text-label"
           izquierda="Tiene"
-          derecha={<span className="font-semibold">{formatearPesos(superavit.saldo)}</span>}
+          derecha={<span className="font-semibold">{formatearLaPlata(superavit.saldo)}</span>}
         />
       </Seccion>
+      <ComprarDolares vista={vista} tesoro={superavit} props={props} />
     </>
   );
 }
@@ -1289,8 +1358,9 @@ function PanelDelEstante({
   tesoro: TesoroDelTaller;
   props: PanelDeDetalleProps;
 }) {
+  const m = useMensajes();
   const puede = sePuedeEditar(vista);
-  const lugares = lugaresParaSumar(vista.fila, tesoro.id, tesoro.clave);
+  const lugares = lugaresParaSumar(vista.fila, tesoro.id, tesoro.clave, tesoro.moneda);
   return (
     <>
       {props.enHoja !== true && (
@@ -1305,44 +1375,54 @@ function PanelDelEstante({
         />
       )}
       <Seccion titulo="Tiene">
-        <p className="text-money-lg font-semibold tabular-nums">{formatearPesos(tesoro.saldo)}</p>
-        {tesoro.meta !== null && tesoro.meta > 0 && (
+        <p className="text-money-lg font-semibold tabular-nums">{formatearLaPlata(tesoro.saldo)}</p>
+        {tesoro.meta !== null && tesoro.meta.importe > 0 && (
           <p className="text-label text-text-2">
-            {Math.floor((tesoro.saldo / tesoro.meta) * 100)}% de la meta de{' '}
-            {formatearPesos(tesoro.meta)}
+            {Math.floor((tesoro.saldo.importe / tesoro.meta.importe) * 100)}% de la meta de{' '}
+            {formatearLaPlata(tesoro.meta)}
           </p>
         )}
+        <EquivalenteEnPesos tesoro={tesoro} ultimoCambio={props.ultimoCambio} />
       </Seccion>
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
       <Seccion titulo="Sumarlo a la fila">
-        <p className="text-label leading-relaxed text-text-2">
-          Ahora no recibe plata de los cobros.{' '}
-          {!vista.armando
-            ? 'Elegí dónde va: la fila pasa a editarse y nada viaja hasta que la guardes.'
-            : props.conFlechas === false
-              ? 'Elegí dónde va.'
-              : 'Uní una flecha hasta su ficha o elegí dónde va.'}
-        </p>
-        <div className="flex flex-col gap-2">
-          {lugares.map(({ lugar, titulo, sePuede }) => (
-            <Button
-              key={lugar}
-              variant="secundario"
-              disabled={!puede || !sePuede}
-              onClick={() => {
-                editarLaFila(vista, (fila) =>
-                  sumarEnElLugar(
-                    fila,
-                    { id: tesoro.id, clave: tesoro.clave, meta: tesoro.meta },
-                    lugar,
-                  ),
-                );
-                props.alElegir(fichaEnElLugar(lugar, tesoro.id, vista.sistema.diezmo));
-              }}
-            >
-              {titulo}
-            </Button>
-          ))}
-        </div>
+        {!entraEnLaFila(tesoro) ? (
+          <p data-la-fila-reparte-pesos className="text-label leading-relaxed text-text-2">
+            {m.tesoros.laFilaRepartePesos}
+          </p>
+        ) : (
+          <p className="text-label leading-relaxed text-text-2">
+            Ahora no recibe plata de los cobros.{' '}
+            {!vista.armando
+              ? 'Elegí dónde va: la fila pasa a editarse y nada viaja hasta que la guardes.'
+              : props.conFlechas === false
+                ? 'Elegí dónde va.'
+                : 'Uní una flecha hasta su ficha o elegí dónde va.'}
+          </p>
+        )}
+        {entraEnLaFila(tesoro) && (
+          <div className="flex flex-col gap-2">
+            {lugares.map(({ lugar, titulo, sePuede }) => (
+              <Button
+                key={lugar}
+                variant="secundario"
+                disabled={!puede || !sePuede}
+                onClick={() => {
+                  editarLaFila(vista, (fila) =>
+                    sumarEnElLugar(
+                      fila,
+                      { id: tesoro.id, clave: tesoro.clave, meta: metaEnPesos(tesoro) },
+                      lugar,
+                    ),
+                  );
+                  props.alElegir(fichaEnElLugar(lugar, tesoro.id, vista.sistema.diezmo));
+                }}
+              >
+                {titulo}
+              </Button>
+            ))}
+          </div>
+        )}
       </Seccion>
     </>
   );
@@ -1488,10 +1568,18 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
 }
 
 function saldoEnLaLista(tesoro: TesoroDelTaller): string {
-  if (tesoro.clave === 'diezmo' && tesoro.saldo < 0) {
-    return `${formatearPesos(Math.abs(tesoro.saldo))} de más`;
+  if (tesoro.clave === 'diezmo' && tesoro.saldo.importe < 0) {
+    return `${formatearPlata(Math.abs(tesoro.saldo.importe), tesoro.saldo.moneda)} de más`;
   }
-  return formatearPesos(tesoro.saldo);
+  return formatearLaPlata(tesoro.saldo);
+}
+
+function entreTodos(tesoros: readonly TesoroDelTaller[]): string {
+  const totales = totalesPorMoneda(
+    tesoros.filter((tesoro) => !tesoro.archivado).map((tesoro) => tesoro.saldo),
+  );
+  if (totales.length === 0) return formatearPesos(0);
+  return totales.map(({ total }) => formatearLaPlata(total)).join(' · ');
 }
 
 const TITULO_DEL_GRUPO_DE_LA_LISTA: Readonly<Record<GrupoDeLaLista, string>> = {
@@ -1504,9 +1592,6 @@ const TITULO_DEL_GRUPO_DE_LA_LISTA: Readonly<Record<GrupoDeLaLista, string>> = {
 
 function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDeDetalleProps }) {
   const grupos = renglonesDeLaLista(vista);
-  const total = vista.tesoros
-    .filter((tesoro) => !tesoro.archivado)
-    .reduce((suma, tesoro) => suma + tesoro.saldo, 0);
   return (
     <Seccion
       titulo="Lista de tesoros"
@@ -1573,7 +1658,7 @@ function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDe
         <span className="rotulo-del-plano text-badge font-semibold text-text-2 uppercase">
           Entre todos
         </span>
-        <span className="font-semibold tabular-nums">{formatearPesos(total)}</span>
+        <span className="font-semibold tabular-nums">{entreTodos(vista.tesoros)}</span>
       </div>
     </Seccion>
   );

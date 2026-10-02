@@ -1,4 +1,4 @@
-import type { BaseDeLaObligacion, Fila } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type BaseDeLaObligacion, type Fila } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useRef, useState, type SyntheticEvent } from 'react';
 
@@ -140,12 +140,14 @@ export function HojaDeTesoroNuevo({
   const tesoros = tesorosDelTaller(replica);
   const laFila = fila ?? filaDelTaller(replica).fila;
   const nombreDe = (id: string) => tesoroPorId(tesoros, id)?.nombre ?? 'el anterior';
-  const opciones = opcionesDeLugar(laFila, nombreDe(laFila.superavit));
   const libre = libreEnElReparto(laFila);
   const id = useId();
 
   const [inicial] = useState(() => {
-    const posible = opciones.find((opcion) => opcion.id === lugarInicial)?.sePuede ?? false;
+    const posible =
+      opcionesDeLugar(laFila, nombreDe(laFila.superavit)).find(
+        (opcion) => opcion.id === lugarInicial,
+      )?.sePuede ?? false;
     return {
       borrador: borradorNuevo(tesoros),
       lugar: posible ? lugarInicial : 'estante',
@@ -169,10 +171,15 @@ export function HojaDeTesoroNuevo({
 
   const crear = useMutation({ ...MUTACION_DE_TESORO_NUEVO, meta: metaDeAvisos('tesoroNuevo') });
   const despuesDelElegido = lugar === inicial.lugar ? despuesDe : undefined;
+  const opciones = opcionesDeLugar(laFila, nombreDe(laFila.superavit), borrador.moneda);
 
   function cambiar(cambios: Partial<BorradorDelTesoro>) {
     setBorrador((previo) => ({ ...previo, ...cambios }));
     if ('nombre' in cambios || 'descripcion' in cambios) setErrores({});
+    if (cambios.moneda !== undefined && cambios.moneda !== MONEDA_DEL_TALLER) {
+      setLugar('estante');
+      setErroresDelLugar({});
+    }
   }
 
   function sugerir(sugerencia: SugerenciaDeNombre) {
@@ -236,6 +243,7 @@ export function HojaDeTesoroNuevo({
             excepto={null}
             conMeta
             conRinde={false}
+            eligeLaMoneda
             campoDelNombre={campoDelNombre}
             debajoDelNombre={
               <Sugerencias

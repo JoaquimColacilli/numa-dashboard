@@ -1,9 +1,20 @@
-import { centavos, conDesde, type Fila, type Money, type PasoDelMes } from '@maun/domain';
+import {
+  centavos,
+  conDesde,
+  MONEDA_DEL_TALLER,
+  type Fila,
+  type Money,
+  type PasoDelMes,
+} from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
-import { rutaParaRegistrarElPago, type PagoParaRegistrar } from '@/entities/movimiento';
+import {
+  rutaParaRegistrarElPago,
+  ultimoCambioEntre,
+  type PagoParaRegistrar,
+} from '@/entities/movimiento';
 import { insumosDeLosTrabajos } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -35,7 +46,7 @@ import {
 } from '@/features/armar-la-fila';
 import { MUTACION_DE_AJUSTES } from '@/features/configurar-taller';
 import type { DondeVa, EdicionDeLoDeCocos, LugarDelTesoro } from '@/features/editar-tesoro';
-import { ajustesDe, type Replica, type TesoroNuevo } from '@/shared/api';
+import { ajustesDe, datosDelLibro, type Replica, type TesoroNuevo } from '@/shared/api';
 import {
   conFondo,
   hoyEnElTaller,
@@ -190,6 +201,10 @@ export function usePantallaDeTesoros() {
     () => ({ total: insumos.total, trabajos: insumos.trabajos.length }),
     [insumos],
   );
+  const ultimoCambio = useMemo(
+    () => ultimoCambioEntre(datosDelLibro(replica).movimientos, vista.tesoros),
+    [replica, vista.tesoros],
+  );
 
   useAlgoEnCurso(vista.armando && vista.cuantos > 0);
 
@@ -227,12 +242,22 @@ export function usePantallaDeTesoros() {
     [ir, location],
   );
 
+  const cambiarDolares = useCallback(
+    (ruta: string) => {
+      ir(ruta, { state: conFondo(location) });
+    },
+    [ir, location],
+  );
+
   const alCrear = useCallback(
     (tesoro: TesoroNuevo, dondeVa: DondeVa, despuesDe: string | null | undefined) => {
       const nuevo: ElNuevo = {
         id: tesoro.id,
         nombre: tesoro.nombre,
-        meta: tesoro.meta_centavos === null ? null : centavos(tesoro.meta_centavos),
+        meta:
+          tesoro.meta_centavos === null || tesoro.moneda !== MONEDA_DEL_TALLER
+            ? null
+            : centavos(tesoro.meta_centavos),
       };
       const diezmo = vista.sistema.diezmo;
       const ubicado = ubicarElNuevo(vista.fila, nuevo, dondeVa, despuesDe, diezmo);
@@ -283,6 +308,8 @@ export function usePantallaDeTesoros() {
     alCrear,
     alGuardarLoDeCocos,
     registrarElPago,
+    cambiarDolares,
+    ultimoCambio,
   };
 }
 

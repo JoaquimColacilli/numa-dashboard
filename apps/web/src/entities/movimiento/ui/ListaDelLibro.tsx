@@ -1,7 +1,13 @@
-import { fechaLarga, formatearPesos } from '@/shared/lib';
+import { plata, type Plata } from '@maun/domain';
+
+import { fechaLarga, formatearLaPlata } from '@/shared/lib';
 
 import type { DiaDelLibro, LineaDelTaller } from '../model/libro';
 import { FilaDelLibro } from './FilaDelLibro';
+
+function neto(uno: Plata): string {
+  return `${uno.importe > 0 ? '+' : '−'}${formatearLaPlata(plata(uno.moneda, Math.abs(uno.importe)))}`;
+}
 
 export interface ListaDelLibroProps {
   dias: readonly DiaDelLibro[];
@@ -23,9 +29,9 @@ export function ListaDelLibro({ dias, tesoro, hoy, sinConfirmar, alAbrir }: List
           <div className="flex items-baseline justify-between gap-3 px-1">
             <span className="text-label font-semibold">{fechaLarga(dia.fecha, hoy)}</span>
             <span className="text-meta text-text-2 tabular-nums">
-              {dia.neto === 0
+              {dia.netos.length === 0
                 ? 'sin efecto en los saldos'
-                : `${dia.neto > 0 ? '+' : '−'}${formatearPesos(Math.abs(dia.neto))}`}
+                : dia.netos.map((uno) => neto(uno)).join(' · ')}
             </span>
           </div>
           <ul className="list-none rounded-panel border border-hairline bg-paper px-4">

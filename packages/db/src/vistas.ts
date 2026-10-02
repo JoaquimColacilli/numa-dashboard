@@ -3,6 +3,7 @@ import {
   BASES_DE_OBLIGACION,
   centavosEn,
   cotizacionLeida,
+  esDeLaMoneda,
   estaLiquidado,
   fechaDeApertura,
   filaDeSiempre,
@@ -34,6 +35,7 @@ import {
   type ModoDePaso,
   type Moneda,
   type Money,
+  type Plata,
   type SaldosPorId,
   type SaldosPorTesoro,
   type Tesoro,
@@ -55,7 +57,7 @@ export interface TesoroDeLaReplica {
   descripcion: string;
   tinta: string;
   icono: string;
-  meta: Money | null;
+  meta: Plata | null;
   rindeAnualBp: number | null;
   orden: number;
   archivado: boolean;
@@ -80,21 +82,22 @@ export function tesorosDeLaReplica(replica: Replica): TesoroDeLaReplica[] {
     .map((fila) => {
       const deCocos = fila.clave === 'cocos';
       const metaDeCocos = ajustes?.meta_cocos_centavos ?? 0;
+      const moneda = monedaDelTesoro(fila);
       return {
         id: fila.id,
         clave: fila.clave,
-        moneda: monedaDelTesoro(fila),
+        moneda,
         nombre: fila.nombre,
         descripcion: fila.descripcion,
         tinta: fila.tinta,
         icono: fila.icono,
         meta: deCocos
           ? metaDeCocos > 0
-            ? dinero(metaDeCocos)
+            ? plata(MONEDA_DEL_TALLER, metaDeCocos)
             : null
           : fila.meta_centavos === null
             ? null
-            : dinero(fila.meta_centavos),
+            : plata(moneda, fila.meta_centavos),
         rindeAnualBp: deCocos ? (ajustes?.tasa_cocos_anual_bp ?? 0) : fila.rinde_anual_bp,
         orden: fila.orden,
         archivado: fila.archivado_at !== null,
@@ -114,8 +117,10 @@ export function sistemaDeLaReplica(replica: Replica): TesorosDelSistema {
 
 export function metasDeLaReplica(replica: Replica): Map<string, Money> {
   const metas = new Map<string, Money>();
-  for (const tesoro of tesorosDeLaReplica(replica)) {
-    if (tesoro.meta !== null && tesoro.meta > 0) metas.set(tesoro.id, tesoro.meta);
+  for (const { id, meta } of tesorosDeLaReplica(replica)) {
+    if (meta !== null && esDeLaMoneda(meta, MONEDA_DEL_TALLER) && meta.importe > 0) {
+      metas.set(id, meta.importe);
+    }
   }
   return metas;
 }

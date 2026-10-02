@@ -1,5 +1,6 @@
 import {
   centavos,
+  enPesos,
   puntosBasicos,
   tipoDelPaso,
   type FilaDelMes,
@@ -48,7 +49,7 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(0),
+    saldo: enPesos(centavos(0)),
   };
 }
 

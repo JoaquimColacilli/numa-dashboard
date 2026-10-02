@@ -1,7 +1,7 @@
-import { CERO, MONEDA_DEL_TALLER, type Money } from '@maun/domain';
+import { MONEDA_DEL_TALLER, plata, type Plata } from '@maun/domain';
 
 import {
-  saldosEnLaMonedaDelTaller,
+  saldosPorIdDeLaReplica,
   tesorosDeLaReplica,
   type Replica,
   type Tesoro,
@@ -19,7 +19,7 @@ import type { NombreDeIcono } from '@/shared/ui';
 export interface TesoroDelTaller extends Omit<TesoroDeLaReplica, 'tinta' | 'icono'> {
   tinta: TintaDeTesoro;
   icono: NombreDeIcono;
-  saldo: Money;
+  saldo: Plata;
 }
 
 function deSiempre(clave: Tesoro): TesoroDeLaReplica {
@@ -46,12 +46,12 @@ export function tesorosSincronizados(replica: Replica): boolean {
 export function tesorosDelTaller(replica: Replica): TesoroDelTaller[] {
   const replicados = tesorosDeLaReplica(replica);
   const tesoros = replicados.length > 0 ? replicados : TESOROS_EN_ORDEN.map(deSiempre);
-  const saldos = saldosEnLaMonedaDelTaller(replica);
+  const saldos = saldosPorIdDeLaReplica(replica);
   return tesoros.map((tesoro) => ({
     ...tesoro,
     tinta: tintaDelTesoro(tesoro.tinta),
     icono: iconoDelTesoro(tesoro.icono),
-    saldo: saldos.get(tesoro.id) ?? CERO,
+    saldo: plata(tesoro.moneda, saldos.get(tesoro.id) ?? 0),
   }));
 }
 

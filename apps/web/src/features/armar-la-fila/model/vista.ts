@@ -1,5 +1,6 @@
 import {
   CERO,
+  enPesos,
   lugarLibreDelReparto,
   MONEDA_DEL_TALLER,
   problemasDeLaFila,
@@ -20,6 +21,7 @@ import {
   type ParteDeLaEscala,
 } from '@/entities/fila';
 import {
+  metaEnPesos,
   tesoroDeLaClave,
   tesorosDelTaller,
   tesorosSincronizados,
@@ -99,7 +101,13 @@ export function vistaDeLaFila(
     problemas: armando
       ? problemasDeLaFila(
           fila,
-          tesoros.map(({ id, clave, archivado, meta }) => ({ id, clave, archivado, meta })),
+          tesoros.map((tesoro) => ({
+            id: tesoro.id,
+            clave: tesoro.clave,
+            archivado: tesoro.archivado,
+            meta: metaEnPesos(tesoro),
+            moneda: tesoro.moneda,
+          })),
         )
       : [],
     revision: (borrador?.version ?? delTaller.version) + 1,
@@ -162,7 +170,7 @@ export function tesoroDe(vista: Pick<VistaDeLaFila, 'tesoros'>, id: string): Tes
       rindeAnualBp: null,
       orden: 0,
       archivado: true,
-      saldo: CERO,
+      saldo: enPesos(CERO),
     }
   );
 }

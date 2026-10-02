@@ -153,6 +153,8 @@ function PanelDeAbajo({
           }}
           alEditarTesoro={editar}
           alRegistrarElPago={pantalla.registrarElPago}
+          alCambiarDolares={pantalla.cambiarDolares}
+          ultimoCambio={pantalla.ultimoCambio}
           insumos={pantalla.insumos}
           enHoja
         />
@@ -212,6 +214,8 @@ export function TesorosEnLaCompu({
         pantalla.abrir({ tipo: 'editar', tesoro });
       }}
       alRegistrarElPago={pantalla.registrarElPago}
+      alCambiarDolares={pantalla.cambiarDolares}
+      ultimoCambio={pantalla.ultimoCambio}
       insumos={pantalla.insumos}
       arriba={bienvenida(true)}
     />

@@ -1,9 +1,10 @@
-import type { Fila, Money } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type Fila, type Moneda, type Money, type Plata } from '@maun/domain';
 
 import type { Tesoro, TipoMovimiento } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { rutaDeMovimientoNuevo } from '@/shared/lib';
 
-export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos' | 'entre';
+export type GrupoDeMovimiento = 'ingreso' | 'gasto' | 'diezmo' | 'cocos' | 'entre' | 'dolares';
 
 export type ClaseDeMovimiento =
   | 'ingreso_hogar'
@@ -15,7 +16,12 @@ export type ClaseDeMovimiento =
   | 'aporte_cocos'
   | 'retiro_cocos'
   | 'gasto_cocos'
-  | 'entre_tesoros';
+  | 'entre_tesoros'
+  | 'compra_de_dolares'
+  | 'venta_de_dolares'
+  | 'ingreso_en_dolares';
+
+export type ClaseDeCambio = 'compra_de_dolares' | 'venta_de_dolares';
 
 export interface DatosDeClase {
   id: ClaseDeMovimiento;
@@ -28,6 +34,7 @@ export interface DatosDeClase {
   tesoro: Tesoro | null;
   eligeLosLados: boolean;
   eligeElTesoro: boolean;
+  entraAlTesoro?: true;
   categorias: readonly string[];
   ejemplo: string;
 }
@@ -38,7 +45,15 @@ export const GRUPOS: readonly { id: GrupoDeMovimiento; etiqueta: string }[] = [
   { id: 'diezmo', etiqueta: 'Diezmo' },
   { id: 'cocos', etiqueta: 'Cocos' },
   { id: 'entre', etiqueta: 'Entre tesoros' },
+  {
+    id: 'dolares',
+    get etiqueta() {
+      return mensajes().movimientos.dolares;
+    },
+  },
 ];
+
+export const QUE_DOLAR: readonly string[] = ['Oficial', 'MEP', 'Blue', 'Cripto', 'Otro'];
 
 export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
   ingreso_hogar: {
@@ -199,6 +214,67 @@ export const CLASE: Readonly<Record<ClaseDeMovimiento, DatosDeClase>> = {
     categorias: [],
     ejemplo: 'Para los materiales del mes',
   },
+  compra_de_dolares: {
+    id: 'compra_de_dolares',
+    grupo: 'dolares',
+    get etiqueta() {
+      return mensajes().movimientos.clases.compraDeDolares.etiqueta;
+    },
+    get corta() {
+      return mensajes().movimientos.clases.compraDeDolares.corta;
+    },
+    tipo: 'cambio',
+    desde: null,
+    hacia: null,
+    tesoro: null,
+    eligeLosLados: true,
+    eligeElTesoro: false,
+    categorias: QUE_DOLAR,
+    get ejemplo() {
+      return mensajes().movimientos.clases.compraDeDolares.ejemplo;
+    },
+  },
+  venta_de_dolares: {
+    id: 'venta_de_dolares',
+    grupo: 'dolares',
+    get etiqueta() {
+      return mensajes().movimientos.clases.ventaDeDolares.etiqueta;
+    },
+    get corta() {
+      return mensajes().movimientos.clases.ventaDeDolares.corta;
+    },
+    tipo: 'cambio',
+    desde: null,
+    hacia: null,
+    tesoro: null,
+    eligeLosLados: true,
+    eligeElTesoro: false,
+    categorias: QUE_DOLAR,
+    get ejemplo() {
+      return mensajes().movimientos.clases.ventaDeDolares.ejemplo;
+    },
+  },
+  ingreso_en_dolares: {
+    id: 'ingreso_en_dolares',
+    grupo: 'dolares',
+    get etiqueta() {
+      return mensajes().movimientos.clases.ingresoEnDolares.etiqueta;
+    },
+    get corta() {
+      return mensajes().movimientos.clases.ingresoEnDolares.corta;
+    },
+    tipo: 'ingreso',
+    desde: null,
+    hacia: null,
+    tesoro: null,
+    eligeLosLados: false,
+    eligeElTesoro: true,
+    entraAlTesoro: true,
+    categorias: ['Ahorro previo', 'Cobro suelto', 'Regalo', 'Otro'],
+    get ejemplo() {
+      return mensajes().movimientos.clases.ingresoEnDolares.ejemplo;
+    },
+  },
 };
 
 export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
@@ -212,18 +288,41 @@ export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
   'retiro_cocos',
   'gasto_cocos',
   'entre_tesoros',
+  'compra_de_dolares',
+  'venta_de_dolares',
+  'ingreso_en_dolares',
 ];
 
 export function clasesDelGrupo(grupo: GrupoDeMovimiento): DatosDeClase[] {
   return CLASES_EN_ORDEN.map((id) => CLASE[id]).filter((clase) => clase.grupo === grupo);
 }
 
+export function esUnCambio(clase: ClaseDeMovimiento): clase is ClaseDeCambio {
+  return clase === 'compra_de_dolares' || clase === 'venta_de_dolares';
+}
+
+export interface MonedasDeLosLados {
+  desde?: Moneda;
+  hacia?: Moneda;
+}
+
 export function claseDe(
   tipo: string,
   desde: Tesoro | null,
   hacia: Tesoro | null,
+  monedas: MonedasDeLosLados = {},
 ): DatosDeClase | undefined {
-  const clases = CLASES_EN_ORDEN.map((id) => CLASE[id]);
+  if (tipo === 'cambio') {
+    return CLASE[
+      (monedas.desde ?? MONEDA_DEL_TALLER) === MONEDA_DEL_TALLER
+        ? 'compra_de_dolares'
+        : 'venta_de_dolares'
+    ];
+  }
+  const entraEnOtraMoneda = (monedas.hacia ?? MONEDA_DEL_TALLER) !== MONEDA_DEL_TALLER;
+  const clases = CLASES_EN_ORDEN.map((id) => CLASE[id]).filter(
+    (clase) => clase.entraAlTesoro !== true || entraEnOtraMoneda,
+  );
   return (
     clases.find(
       (clase) =>
@@ -241,6 +340,90 @@ export function vaEntreTesoros(tesoro: { clave: Tesoro | null }): boolean {
 
 export function gastaDesdeElTesoro(tesoro: { clave: Tesoro | null; archivado: boolean }): boolean {
   return tesoro.clave === null && !tesoro.archivado;
+}
+
+interface TesoroDeLaClase {
+  id: string;
+  clave: Tesoro | null;
+  moneda: Moneda;
+  archivado: boolean;
+}
+
+function esDelTaller(tesoro: { moneda: Moneda }): boolean {
+  return tesoro.moneda === MONEDA_DEL_TALLER;
+}
+
+export function hayDolaresParaCargar(tesoros: readonly TesoroDeLaClase[]): boolean {
+  return tesoros.some((tesoro) => !tesoro.archivado && !esDelTaller(tesoro));
+}
+
+export function origenesDeLaClase<T extends TesoroDeLaClase>(
+  clase: ClaseDeMovimiento,
+  tesoros: readonly T[],
+): T[] {
+  const vivos = tesoros.filter((tesoro) => !tesoro.archivado && vaEntreTesoros(tesoro));
+  switch (clase) {
+    case 'compra_de_dolares':
+      return vivos.filter(esDelTaller);
+    case 'venta_de_dolares':
+      return vivos.filter((tesoro) => !esDelTaller(tesoro));
+    default:
+      return vivos;
+  }
+}
+
+export function destinosDeLaClase<T extends TesoroDeLaClase>(
+  clase: ClaseDeMovimiento,
+  tesoros: readonly T[],
+  origen: T | undefined,
+): T[] {
+  const vivos = tesoros.filter(
+    (tesoro) => !tesoro.archivado && vaEntreTesoros(tesoro) && tesoro.id !== origen?.id,
+  );
+  switch (clase) {
+    case 'compra_de_dolares':
+      return vivos.filter((tesoro) => !esDelTaller(tesoro));
+    case 'venta_de_dolares':
+      return vivos.filter(esDelTaller);
+    default:
+      return vivos.filter((tesoro) => tesoro.moneda === (origen?.moneda ?? MONEDA_DEL_TALLER));
+  }
+}
+
+export function tesorosParaElegir<T extends TesoroDeLaClase>(
+  clase: ClaseDeMovimiento,
+  tesoros: readonly T[],
+): T[] {
+  if (CLASE[clase].entraAlTesoro === true) {
+    return tesoros.filter((tesoro) => !tesoro.archivado && !esDelTaller(tesoro));
+  }
+  return tesoros.filter(gastaDesdeElTesoro);
+}
+
+export function categoriaEnPantalla(categoria: string): string {
+  const traducidas: Readonly<Record<string, string | undefined>> =
+    mensajes().movimientos.categorias;
+  return traducidas[categoria] ?? categoria;
+}
+
+export function rutaParaComprarDolares(desde: { id: string; saldo: Plata }): string {
+  return rutaDeMovimientoNuevo({
+    clase: 'compra_de_dolares',
+    tesoro: desde.id,
+    ...(desde.saldo.importe > 0 ? { monto: desde.saldo.importe } : {}),
+  });
+}
+
+export function rutaParaComprarDolaresPara(hacia: { id: string }): string {
+  return rutaDeMovimientoNuevo({ clase: 'compra_de_dolares', hacia: hacia.id });
+}
+
+export function rutaParaVenderDolares(desde: { id: string; saldo: Plata }): string {
+  return rutaDeMovimientoNuevo({
+    clase: 'venta_de_dolares',
+    tesoro: desde.id,
+    ...(desde.saldo.importe > 0 ? { monto: desde.saldo.importe } : {}),
+  });
 }
 
 export function renglonesPorTesoro(fila: Fila): Map<string, string[]> {

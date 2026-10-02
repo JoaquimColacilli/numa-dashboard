@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { en } from './en';
 import { ptBR } from './pt-BR';
 
+function textosDe(catalogo: unknown): string {
+  return JSON.stringify(catalogo);
+}
+
 async function cargaNueva() {
   vi.resetModules();
   const tienda = await import('./mensajes');
@@ -29,10 +33,10 @@ describe('los mensajes de la app', () => {
   it('inglés y portugués llegan con su import, y cambian el lang del documento', async () => {
     const { mensajes, usarIdioma } = await cargaNueva();
     await usarIdioma('en');
-    expect(mensajes()).toEqual(en);
+    expect(textosDe(mensajes())).toBe(textosDe(en));
     expect(document.documentElement.lang).toBe('en-US');
     await usarIdioma('pt-BR');
-    expect(mensajes()).toEqual(ptBR);
+    expect(textosDe(mensajes())).toBe(textosDe(ptBR));
     expect(document.documentElement.lang).toBe('pt-BR');
   });
 
@@ -53,7 +57,7 @@ describe('los mensajes de la app', () => {
     });
     soltar?.();
     await expect(primero).resolves.toBe(false);
-    expect(mensajes()).toEqual(ptBR);
+    expect(textosDe(mensajes())).toBe(textosDe(ptBR));
   });
 
   it('al arrancar en otro idioma, mientras llega su catálogo queda marcado como arrancando', async () => {

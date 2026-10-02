@@ -1,4 +1,6 @@
-import type { TesoroDelTaller } from '@/entities/tesoro';
+import type { Money } from '@maun/domain';
+
+import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import type { MovimientoNuevo } from '@/shared/api';
 import { nombreDelMes } from '@/shared/lib';
 
@@ -7,15 +9,21 @@ export interface Fuente {
   monto: number | null;
 }
 
+export interface CandidatoParaCubrir extends Omit<TesoroDelTaller, 'saldo'> {
+  saldo: Money;
+}
+
 export const CATEGORIA_DE_LA_COBERTURA = 'Cubrir el mes';
 
 export function candidatosParaCubrir(
   tesoros: readonly TesoroDelTaller[],
   pasoId: string,
-): TesoroDelTaller[] {
-  const posibles = tesoros.filter(
-    (tesoro) => !tesoro.archivado && tesoro.id !== pasoId && tesoro.clave !== 'diezmo',
-  );
+): CandidatoParaCubrir[] {
+  const posibles = tesoros.flatMap((tesoro) => {
+    if (tesoro.archivado || tesoro.id === pasoId || tesoro.clave === 'diezmo') return [];
+    const saldo = saldoEnPesos(tesoro);
+    return saldo === null ? [] : [{ ...tesoro, saldo }];
+  });
   return [
     ...posibles.filter((tesoro) => tesoro.clave === 'maun'),
     ...posibles.filter((tesoro) => tesoro.clave !== 'maun'),
@@ -29,7 +37,7 @@ export function notaDelCandidato(tesoro: Pick<TesoroDelTaller, 'clave'>): string
 }
 
 export function fuentesIniciales(
-  candidatos: readonly TesoroDelTaller[],
+  candidatos: readonly CandidatoParaCubrir[],
   faltante: number,
 ): Fuente[] {
   const maun = candidatos.find((tesoro) => tesoro.clave === 'maun');
@@ -48,7 +56,7 @@ export interface RevisionDeLaCobertura {
 
 export function revisarLaCobertura(
   fuentes: readonly Fuente[],
-  candidatos: readonly TesoroDelTaller[],
+  candidatos: readonly CandidatoParaCubrir[],
   faltante: number,
 ): RevisionDeLaCobertura {
   let cubierto = 0;
@@ -86,8 +94,8 @@ export function movimientosParaCubrir({
   nuevoId,
 }: {
   fuentes: readonly Fuente[];
-  candidatos: readonly TesoroDelTaller[];
-  paso: TesoroDelTaller;
+  candidatos: readonly CandidatoParaCubrir[];
+  paso: Pick<TesoroDelTaller, 'id' | 'clave' | 'nombre'>;
   mes: string;
   hoy: string;
   nuevoId: () => string;

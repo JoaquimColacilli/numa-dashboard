@@ -20,6 +20,13 @@ export {
   type EdicionDeTesoro,
 } from './api/mutacion';
 export {
+  enOtraMoneda,
+  esDeLaMonedaDelTaller,
+  metaEnPesos,
+  saldoEnPesos,
+  sumaEnLaMismaMoneda,
+} from './model/moneda';
+export {
   tesoroDeLaClave,
   tesoroPorId,
   tesorosDelTaller,
