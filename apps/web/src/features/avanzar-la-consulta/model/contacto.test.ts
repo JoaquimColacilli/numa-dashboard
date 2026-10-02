@@ -51,6 +51,9 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: null,
     visita_hora: null,
@@ -121,6 +124,9 @@ function pago(extra: Partial<FilaDe<'pagos'>> = {}): FilaDe<'pagos'> {
     concepto: CONCEPTO_DE_LA_SENA,
     monto_centavos: 15_000_000,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
     ...extra,
   };
 }

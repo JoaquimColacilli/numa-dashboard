@@ -1,3 +1,4 @@
+import { MONEDA_DEL_TALLER } from '@maun/domain';
 import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
@@ -251,6 +252,9 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
         costo_ayudante_centavos: null,
         cobro_sena: null,
         cobro_saldo: null,
+        moneda: MONEDA_DEL_TALLER,
+        cobra_en: null,
+        costos_cotizacion_centavos: null,
         fecha_cobro: null,
         dist_cobrado_centavos: null,
         dist_gastos_centavos: null,
@@ -297,6 +301,9 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
       concepto: pago.concepto,
       monto_centavos: pago.monto_centavos,
       ya_en_la_apertura: pago.ya_en_la_apertura ?? previo?.ya_en_la_apertura ?? false,
+      moneda: previo?.moneda ?? MONEDA_DEL_TALLER,
+      cotizacion_centavos: previo?.cotizacion_centavos ?? null,
+      tesoro_id: previo?.tesoro_id ?? null,
       created_at: previo?.created_at ?? ahora,
       updated_at: ahora,
       deleted_at: null,

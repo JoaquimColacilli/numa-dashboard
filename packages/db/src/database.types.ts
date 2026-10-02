@@ -13,11 +13,15 @@ export type Database = {
           cobro_alias: string;
           cobro_cbu: string;
           cobro_cuit: string;
+          cobro_dolares_alias: string;
+          cobro_dolares_cbu: string;
           cobro_link: string;
           cobro_titular: string;
           costos_fijos_centavos: number;
           created_at: string;
           deleted_at: string | null;
+          dolar_del_dia_centavos: number | null;
+          dolar_del_dia_el: string | null;
           facebook_link: string;
           fila: Json | null;
           fila_guardada_at: string | null;
@@ -52,11 +56,15 @@ export type Database = {
           cobro_alias?: string;
           cobro_cbu?: string;
           cobro_cuit?: string;
+          cobro_dolares_alias?: string;
+          cobro_dolares_cbu?: string;
           cobro_link?: string;
           cobro_titular?: string;
           costos_fijos_centavos?: number;
           created_at?: string;
           deleted_at?: string | null;
+          dolar_del_dia_centavos?: number | null;
+          dolar_del_dia_el?: string | null;
           facebook_link?: string;
           fila?: Json | null;
           fila_guardada_at?: string | null;
@@ -91,11 +99,15 @@ export type Database = {
           cobro_alias?: string;
           cobro_cbu?: string;
           cobro_cuit?: string;
+          cobro_dolares_alias?: string;
+          cobro_dolares_cbu?: string;
           cobro_link?: string;
           cobro_titular?: string;
           costos_fijos_centavos?: number;
           created_at?: string;
           deleted_at?: string | null;
+          dolar_del_dia_centavos?: number | null;
+          dolar_del_dia_el?: string | null;
           facebook_link?: string;
           fila?: Json | null;
           fila_guardada_at?: string | null;
@@ -967,39 +979,48 @@ export type Database = {
       pagos: {
         Row: {
           concepto: string;
+          cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           fecha: string;
           household_id: string;
           id: string;
+          moneda: string;
           monto_centavos: number;
           proyecto_id: string;
+          tesoro_id: string | null;
           updated_at: string;
           version: number;
           ya_en_la_apertura: boolean;
         };
         Insert: {
           concepto?: string;
+          cotizacion_centavos?: number | null;
           created_at?: string;
           deleted_at?: string | null;
           fecha: string;
           household_id?: string;
           id?: string;
+          moneda?: string;
           monto_centavos: number;
           proyecto_id: string;
+          tesoro_id?: string | null;
           updated_at?: string;
           version?: number;
           ya_en_la_apertura?: boolean;
         };
         Update: {
           concepto?: string;
+          cotizacion_centavos?: number | null;
           created_at?: string;
           deleted_at?: string | null;
           fecha?: string;
           household_id?: string;
           id?: string;
+          moneda?: string;
           monto_centavos?: number;
           proyecto_id?: string;
+          tesoro_id?: string | null;
           updated_at?: string;
           version?: number;
           ya_en_la_apertura?: boolean;
@@ -1017,6 +1038,13 @@ export type Database = {
             columns: ['household_id', 'proyecto_id'];
             isOneToOne: false;
             referencedRelation: 'proyectos';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'pagos_tesoro_fk';
+            columns: ['household_id', 'tesoro_id'];
+            isOneToOne: false;
+            referencedRelation: 'tesoros';
             referencedColumns: ['household_id', 'id'];
           },
         ];
@@ -1282,6 +1310,7 @@ export type Database = {
       proyectos: {
         Row: {
           cliente_id: string;
+          cobra_en: string[] | null;
           cobro_saldo: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante: Database['public']['Enums']['comprobante'];
@@ -1289,6 +1318,7 @@ export type Database = {
           costo_flete_centavos: number | null;
           costo_herrajes_centavos: number | null;
           costo_madera_centavos: number | null;
+          costos_cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -1325,6 +1355,7 @@ export type Database = {
           household_id: string;
           id: string;
           listo_el: string | null;
+          moneda: string;
           notas: string;
           presupuesto_centavos: number | null;
           presupuesto_cotizacion: boolean;
@@ -1352,6 +1383,7 @@ export type Database = {
         };
         Insert: {
           cliente_id: string;
+          cobra_en?: string[] | null;
           cobro_saldo?: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena?: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante?: Database['public']['Enums']['comprobante'];
@@ -1359,6 +1391,7 @@ export type Database = {
           costo_flete_centavos?: number | null;
           costo_herrajes_centavos?: number | null;
           costo_madera_centavos?: number | null;
+          costos_cotizacion_centavos?: number | null;
           created_at?: string;
           deleted_at?: string | null;
           descripcion?: string;
@@ -1395,6 +1428,7 @@ export type Database = {
           household_id?: string;
           id?: string;
           listo_el?: string | null;
+          moneda?: string;
           notas?: string;
           presupuesto_centavos?: number | null;
           presupuesto_cotizacion?: boolean;
@@ -1422,6 +1456,7 @@ export type Database = {
         };
         Update: {
           cliente_id?: string;
+          cobra_en?: string[] | null;
           cobro_saldo?: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena?: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante?: Database['public']['Enums']['comprobante'];
@@ -1429,6 +1464,7 @@ export type Database = {
           costo_flete_centavos?: number | null;
           costo_herrajes_centavos?: number | null;
           costo_madera_centavos?: number | null;
+          costos_cotizacion_centavos?: number | null;
           created_at?: string;
           deleted_at?: string | null;
           descripcion?: string;
@@ -1465,6 +1501,7 @@ export type Database = {
           household_id?: string;
           id?: string;
           listo_el?: string | null;
+          moneda?: string;
           notas?: string;
           presupuesto_centavos?: number | null;
           presupuesto_cotizacion?: boolean;
@@ -1985,6 +2022,7 @@ export type Database = {
         };
         Returns: {
           cliente_id: string;
+          cobra_en: string[] | null;
           cobro_saldo: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante: Database['public']['Enums']['comprobante'];
@@ -1992,6 +2030,7 @@ export type Database = {
           costo_flete_centavos: number | null;
           costo_herrajes_centavos: number | null;
           costo_madera_centavos: number | null;
+          costos_cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -2028,6 +2067,7 @@ export type Database = {
           household_id: string;
           id: string;
           listo_el: string | null;
+          moneda: string;
           notas: string;
           presupuesto_centavos: number | null;
           presupuesto_cotizacion: boolean;
@@ -2082,6 +2122,7 @@ export type Database = {
         };
         Returns: {
           cliente_id: string;
+          cobra_en: string[] | null;
           cobro_saldo: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante: Database['public']['Enums']['comprobante'];
@@ -2089,6 +2130,7 @@ export type Database = {
           costo_flete_centavos: number | null;
           costo_herrajes_centavos: number | null;
           costo_madera_centavos: number | null;
+          costos_cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -2125,6 +2167,7 @@ export type Database = {
           household_id: string;
           id: string;
           listo_el: string | null;
+          moneda: string;
           notas: string;
           presupuesto_centavos: number | null;
           presupuesto_cotizacion: boolean;
@@ -2201,11 +2244,15 @@ export type Database = {
           cobro_alias: string;
           cobro_cbu: string;
           cobro_cuit: string;
+          cobro_dolares_alias: string;
+          cobro_dolares_cbu: string;
           cobro_link: string;
           cobro_titular: string;
           costos_fijos_centavos: number;
           created_at: string;
           deleted_at: string | null;
+          dolar_del_dia_centavos: number | null;
+          dolar_del_dia_el: string | null;
           facebook_link: string;
           fila: Json | null;
           fila_guardada_at: string | null;
@@ -2249,11 +2296,15 @@ export type Database = {
           cobro_alias: string;
           cobro_cbu: string;
           cobro_cuit: string;
+          cobro_dolares_alias: string;
+          cobro_dolares_cbu: string;
           cobro_link: string;
           cobro_titular: string;
           costos_fijos_centavos: number;
           created_at: string;
           deleted_at: string | null;
+          dolar_del_dia_centavos: number | null;
+          dolar_del_dia_el: string | null;
           facebook_link: string;
           fila: Json | null;
           fila_guardada_at: string | null;
@@ -2327,6 +2378,7 @@ export type Database = {
         Args: { p_proyecto_id: string; p_version: number };
         Returns: {
           cliente_id: string;
+          cobra_en: string[] | null;
           cobro_saldo: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante: Database['public']['Enums']['comprobante'];
@@ -2334,6 +2386,7 @@ export type Database = {
           costo_flete_centavos: number | null;
           costo_herrajes_centavos: number | null;
           costo_madera_centavos: number | null;
+          costos_cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -2370,6 +2423,7 @@ export type Database = {
           household_id: string;
           id: string;
           listo_el: string | null;
+          moneda: string;
           notas: string;
           presupuesto_centavos: number | null;
           presupuesto_cotizacion: boolean;
@@ -2410,6 +2464,7 @@ export type Database = {
         };
         Returns: {
           cliente_id: string;
+          cobra_en: string[] | null;
           cobro_saldo: Database['public']['Enums']['forma_de_cobro'][] | null;
           cobro_sena: Database['public']['Enums']['forma_de_cobro'][] | null;
           comprobante: Database['public']['Enums']['comprobante'];
@@ -2417,6 +2472,7 @@ export type Database = {
           costo_flete_centavos: number | null;
           costo_herrajes_centavos: number | null;
           costo_madera_centavos: number | null;
+          costos_cotizacion_centavos: number | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -2453,6 +2509,7 @@ export type Database = {
           household_id: string;
           id: string;
           listo_el: string | null;
+          moneda: string;
           notas: string;
           presupuesto_centavos: number | null;
           presupuesto_cotizacion: boolean;

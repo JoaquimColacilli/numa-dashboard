@@ -134,6 +134,9 @@ function taller({ conTesoros = true }: { conTesoros?: boolean } = {}): Replica {
     concepto: 'Todo junto',
     monto_centavos: 1_000_000,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
   });
 }
 

@@ -154,6 +154,9 @@ function taller({
     concepto: 'Saldo',
     monto_centavos: 1_000_000,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
   });
   replica = aplicarFilaLocal(
     replica,
