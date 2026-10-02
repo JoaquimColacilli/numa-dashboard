@@ -198,6 +198,13 @@ export const configurarTaller = {
         dondeVa: 'Va después de los valores, con el plazo y la validez.',
         comoSeUsa: 'En cada presupuesto elegís una y la podés retocar. La primera va elegida.',
       },
+      moneda: {
+        titulo: 'Cuando hay dólares',
+        dondeVa:
+          'Va debajo de la forma de pago, en los trabajos con precio en dólares o que te pagan en dólares.',
+        comoSeUsa:
+          'Cada trabajo lleva la de su combinación y en cada presupuesto la podés retocar. Si tomás otro dólar, como el MEP o el blue, cambialo acá para que lo diga.',
+      },
       garantia: {
         titulo: 'Garantía',
         bajada:
@@ -380,6 +387,16 @@ export const configurarTaller = {
       cambiarElTexto: 'Cambiar el texto de la garantía:',
       texto: 'Texto de la garantía',
     },
+    moneda: {
+      combinaciones: {
+        dolaresEnPesos: 'Precio en dólares, te paga en pesos',
+        dolaresEnDolares: 'Precio en dólares, te paga en dólares',
+        dolaresEnPesosODolares: 'Precio en dólares, te paga en pesos o dólares',
+        pesosEnDolares: 'Precio en pesos, te paga en dólares',
+        pesosEnPesosODolares: 'Precio en pesos, te paga en pesos o dólares',
+      },
+      texto: 'Lo que lee tu cliente',
+    },
     datos: {
       asiSale: 'Así sale arriba de cada presupuesto',
       vacio: 'Acá van tu nombre o razón social, tu CUIT, tu condición fiscal y tu domicilio.',
@@ -453,6 +470,8 @@ export const configurarTaller = {
       garantiaLarga: (caracteres: number) =>
         `La garantía entra en ${String(caracteres)} caracteres.`,
       elTextoDeLaGarantia: 'el texto de la garantía',
+      clausulaVacia: 'Escribí cómo se toma el dólar en esta combinación.',
+      unaClausulaDeLaMoneda: 'una cláusula de los dólares',
       textos: 'Hay un texto que no se puede guardar así.',
       losTextos: 'los textos',
     },
@@ -496,6 +515,8 @@ export const configurarTaller = {
       vuelvenLasModificaciones: (cuantas: number, valor: string) =>
         `Vuelven a entrar ${String(cuantas)} modificaciones, y cada una de más vale ${valor}.`,
       laGarantiaVuelve: (meses: number) => `La garantía vuelve a ${String(meses)} meses.`,
+      lasClausulasDeLaMonedaVuelven:
+        'Las cláusulas de los dólares vuelven a sus textos de siempre.',
     },
     textosDeSiempre: {
       sinCambios:

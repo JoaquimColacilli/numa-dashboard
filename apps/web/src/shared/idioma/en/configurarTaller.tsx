@@ -199,6 +199,13 @@ export const configurarTaller = {
         dondeVa: 'It goes after the prices, with the lead time and the validity.',
         comoSeUsa: 'In each quote you pick one and can tweak it. The first one comes selected.',
       },
+      moneda: {
+        titulo: 'When dollars are involved',
+        dondeVa:
+          'It goes below the payment terms, on jobs priced in dollars or that your client pays in dollars.',
+        comoSeUsa:
+          'Each job uses the one for its combination, and you can tweak it in each quote. If you use another dollar rate, like MEP or blue, change it here so it says so.',
+      },
       garantia: {
         titulo: 'Warranty',
         bajada:
@@ -396,6 +403,16 @@ export const configurarTaller = {
       cambiarElTexto: 'Edit the warranty text:',
       texto: 'Warranty text',
     },
+    moneda: {
+      combinaciones: {
+        dolaresEnPesos: 'Price in dollars, client pays in pesos',
+        dolaresEnDolares: 'Price in dollars, client pays in dollars',
+        dolaresEnPesosODolares: 'Price in dollars, client pays in pesos or dollars',
+        pesosEnDolares: 'Price in pesos, client pays in dollars',
+        pesosEnPesosODolares: 'Price in pesos, client pays in pesos or dollars',
+      },
+      texto: 'What your client reads',
+    },
     datos: {
       asiSale: 'This is how it shows at the top of every quote',
       vacio: 'Your name or company name, your CUIT, your tax status and your address go here.',
@@ -487,6 +504,8 @@ export const configurarTaller = {
           other: 'The warranty can be up to # characters.',
         }),
       elTextoDeLaGarantia: 'the warranty text',
+      clausulaVacia: 'Write how the dollar is converted for this combination.',
+      unaClausulaDeLaMoneda: 'a dollar clause',
       textos: "There's a text that can't be saved like this.",
       losTextos: 'the texts',
     },
@@ -538,6 +557,7 @@ export const configurarTaller = {
           one: 'The warranty goes back to # month.',
           other: 'The warranty goes back to # months.',
         }),
+      lasClausulasDeLaMonedaVuelven: 'The dollar clauses go back to their default texts.',
     },
     textosDeSiempre: {
       sinCambios:

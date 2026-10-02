@@ -1,7 +1,10 @@
 import {
   centavos,
+  centavosEn,
+  CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
   PLANTILLA_DE_SIEMPRE,
   plantillaDeSiempre,
+  problemaDeLaPlantilla,
   type PlantillaDelPresupuesto,
 } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
@@ -375,6 +378,98 @@ describe('volver a los textos de siempre', () => {
     expect(cosas[1]?.texto).toBe(
       'Se va el aviso que agregaste: «La fecha de producción se reserva con la seña.»',
     );
+  });
+});
+
+describe('las cláusulas de los dólares y la moneda de una modificación', () => {
+  it('arrancan en las de siempre, una por combinación, y la modificación en pesos', () => {
+    expect(DE_SIEMPRE.clausulasDeLaMoneda).toEqual(CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE);
+    expect(DE_SIEMPRE.monedaDelValor).toBe('ARS');
+    const enPortugues = borradorDeLosAjustes(ajustes({ idioma_de_los_clientes: 'pt-BR' }), 'x');
+    expect(enPortugues.clausulasDeLaMoneda).toEqual(
+      plantillaDeSiempre('pt-BR').clausulasDeLaMoneda,
+    );
+  });
+
+  it('lo guardado es lo que se escribió, sin los blancos de las puntas, y la moneda del valor', () => {
+    const propia = plantillaDelBorrador({
+      ...DE_SIEMPRE,
+      monedaDelValor: 'USD',
+      numeros: { ...DE_SIEMPRE.numeros, valor: 4_000 },
+      clausulasDeLaMoneda: {
+        ...DE_SIEMPRE.clausulasDeLaMoneda,
+        dolaresEnPesos: '  Se paga en pesos al dólar MEP del día anterior.  ',
+      },
+    });
+    expect(propia.clausulasDeLaMoneda.dolaresEnPesos).toBe(
+      'Se paga en pesos al dólar MEP del día anterior.',
+    );
+    expect(propia).toMatchObject({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 });
+    expect(problemaDeLaPlantilla(propia)).toBeNull();
+    expect(
+      plantillaDeLosAjustes(ajustes({ plantilla_del_presupuesto: propia as unknown as Json })),
+    ).toMatchObject({
+      monedaDeLaModificacion: 'USD',
+      clausulasDeLaMoneda: propia.clausulasDeLaMoneda,
+    });
+  });
+
+  it('una cláusula cambiada cuenta como un texto cambiado, y la moneda del valor como los números', () => {
+    const conOtraClausula: BorradorDeLaPantalla = {
+      ...DE_SIEMPRE,
+      clausulasDeLaMoneda: { ...DE_SIEMPRE.clausulasDeLaMoneda, pesosEnDolares: 'Otra.' },
+    };
+    expect(cambiosDeLaPantalla(conOtraClausula, DE_SIEMPRE)).toMatchObject({
+      cambiadas: 1,
+      numeros: false,
+      hay: true,
+    });
+    expect(cambiosDeLaPantalla({ ...DE_SIEMPRE, monedaDelValor: 'USD' }, DE_SIEMPRE)).toMatchObject(
+      { numeros: true, cambiadas: 0, hay: true },
+    );
+  });
+
+  it('una cláusula vacía o demasiado larga frena el guardado y dice cuál', () => {
+    const problemas = problemasDeLaPantalla({
+      ...DE_SIEMPRE,
+      clausulasDeLaMoneda: {
+        ...DE_SIEMPRE.clausulasDeLaMoneda,
+        dolaresEnDolares: '  ',
+        pesosEnPesosODolares: 'x'.repeat(2001),
+      },
+    });
+    expect(problemas).toEqual([
+      {
+        campo: 'clausula:dolaresEnDolares',
+        mensaje: 'Escribí cómo se toma el dólar en esta combinación.',
+        queRevisar: 'una cláusula de los dólares',
+      },
+      {
+        campo: 'clausula:pesosEnPesosODolares',
+        mensaje: 'Un texto entra en 2000 caracteres.',
+        queRevisar: 'una cláusula de los dólares',
+      },
+    ]);
+  });
+
+  it('el ejemplo del valor de una modificación va en su moneda', () => {
+    const valores = valoresDeMuestra(DE_SIEMPRE.numeros, DE_SIEMPRE.numeros, AJUSTES, 'USD');
+    expect(valores.valor_modificacion.replace(/\s/g, ' ')).toBe('US$ 50.000');
+  });
+
+  it('volver a los de siempre dice que vuelven las cláusulas y la modificación en pesos', () => {
+    const valores = valoresDeMuestra(DE_SIEMPRE.numeros, DE_SIEMPRE.numeros, AJUSTES);
+    const propia: PlantillaDelPresupuesto = {
+      ...PLANTILLA_DE_SIEMPRE,
+      valorDeUnaModificacion: centavosEn('USD', 5_000_000),
+      monedaDeLaModificacion: 'USD',
+      clausulasDeLaMoneda: { ...CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE, dolaresEnPesos: 'Otra.' },
+    };
+    const cosas = loQueSeDeshace(propia, valores, PLANTILLA_DE_SIEMPRE);
+    expect(cosas.map(({ texto }) => texto.replace(/\s/g, ' '))).toEqual([
+      'Las cláusulas de los dólares vuelven a sus textos de siempre.',
+      'Vuelven a entrar 2 modificaciones, y cada una de más vale $ 50.000.',
+    ]);
   });
 });
 

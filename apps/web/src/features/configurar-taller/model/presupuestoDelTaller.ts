@@ -1,5 +1,7 @@
 import {
   centavos,
+  centavosEn,
+  COMBINACIONES_DE_LA_MONEDA,
   CONDICIONES_FISCALES,
   formatearCuit,
   HUECOS,
@@ -18,10 +20,13 @@ import {
   TOPES_DEL_PRESUPUESTO,
   usaElHueco,
   type Clausula,
+  type ClausulasDeLaMoneda,
+  type CombinacionDeLaMoneda,
   type CondicionFiscal,
   type DatosDelTaller,
   type Hueco,
   type Idioma,
+  type Moneda,
   type PlantillaDelPresupuesto,
 } from '@maun/domain';
 
@@ -29,7 +34,7 @@ import { senaDelTaller } from '@/entities/proyecto';
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
 import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
-import { etiquetaActual, formatearPesos } from '@/shared/lib';
+import { etiquetaActual, formatearPlata } from '@/shared/lib';
 
 import { diferencias, type DiferenciasDeAjustes } from './cambios';
 import { VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE, valorDelRelevamiento } from './relevamiento';
@@ -168,8 +173,10 @@ export interface BorradorDeLaPantalla {
   idioma: Idioma;
   datos: DatosEditables;
   numeros: NumerosEditables;
+  monedaDelValor: Moneda;
   listas: Readonly<Record<GrupoDeClausulas, readonly FilaEditable[]>>;
   formas: readonly FormaEditable[];
+  clausulasDeLaMoneda: ClausulasDeLaMoneda;
   garantia: string;
 }
 
@@ -212,6 +219,7 @@ export function borradorDeLaPantalla(
     idioma,
     datos: datosEditables(datos),
     numeros: numerosEditables(plantilla),
+    monedaDelValor: plantilla.monedaDeLaModificacion,
     listas: {
       aTenerEnCuenta: plantilla.aTenerEnCuenta.map(filaEditable),
       incluye: plantilla.incluye.map(filaEditable),
@@ -219,6 +227,7 @@ export function borradorDeLaPantalla(
       condiciones: plantilla.condiciones.map(filaEditable),
     },
     formas: plantilla.formasDePago.map((forma) => ({ ...forma, quitada: false })),
+    clausulasDeLaMoneda: plantilla.clausulasDeLaMoneda,
     garantia: plantilla.garantia,
   };
 }
@@ -257,6 +266,7 @@ export function valoresDeMuestra(
   numeros: NumerosEditables,
   guardados: NumerosEditables,
   ajustes: Ajustes,
+  monedaDelValor: Moneda = MONEDA_DEL_TALLER,
 ): Valores {
   const idioma = idiomaDeLosClientesDeLosAjustes(ajustes);
   const siempre = plantillaDeSiempre(idioma);
@@ -272,8 +282,8 @@ export function valoresDeMuestra(
       plazoDeFabricacion: plazo,
       plantilla: {
         modificacionesIncluidas: modificaciones,
-        valorDeUnaModificacion: centavos(valor),
-        monedaDeLaModificacion: MONEDA_DEL_TALLER,
+        valorDeUnaModificacion: centavosEn(monedaDelValor, valor),
+        monedaDeLaModificacion: monedaDelValor,
         garantiaMeses: meses,
       },
       modificacion: null,
@@ -358,11 +368,24 @@ function mismosNumeros(uno: NumerosEditables, otro: NumerosEditables): boolean {
   );
 }
 
+export function clausulasCambiadas(
+  actuales: ClausulasDeLaMoneda,
+  guardadas: ClausulasDeLaMoneda,
+): CombinacionDeLaMoneda[] {
+  return COMBINACIONES_DE_LA_MONEDA.filter(
+    (combinacion) => actuales[combinacion] !== guardadas[combinacion],
+  );
+}
+
 export function cambiosDeLaPantalla(
   actual: BorradorDeLaPantalla,
   guardado: BorradorDeLaPantalla,
 ): CambiosDeLaPantalla {
   const cuenta: Cuenta = { nuevas: 0, cambiadas: 0, quitadas: 0, orden: false, tildes: false };
+  cuenta.cambiadas += clausulasCambiadas(
+    actual.clausulasDeLaMoneda,
+    guardado.clausulasDeLaMoneda,
+  ).length;
   for (const grupo of GRUPOS_EN_ORDEN) {
     contarLista(actual.listas[grupo], guardado.listas[grupo], cuenta);
   }
@@ -385,7 +408,9 @@ export function cambiosDeLaPantalla(
   if (actual.garantia !== guardado.garantia) cuenta.cambiadas += 1;
 
   const datos = !mismosDatos(actual.datos, guardado.datos);
-  const numeros = !mismosNumeros(actual.numeros, guardado.numeros);
+  const numeros =
+    !mismosNumeros(actual.numeros, guardado.numeros) ||
+    actual.monedaDelValor !== guardado.monedaDelValor;
   return {
     datos,
     numeros,
@@ -449,7 +474,8 @@ export type CampoConProblema =
   | 'texto-de-la-garantia'
   | 'textos'
   | `texto:${string}`
-  | `nombre:${string}`;
+  | `nombre:${string}`
+  | `clausula:${CombinacionDeLaMoneda}`;
 
 export interface ProblemaDeLaPantalla {
   campo: CampoConProblema;
@@ -568,6 +594,28 @@ function problemaDelTextoDeLaFila(id: string, texto: string): ProblemaDeLaPantal
   return null;
 }
 
+function problemaDeLaClausula(
+  combinacion: CombinacionDeLaMoneda,
+  texto: string,
+): ProblemaDeLaPantalla | null {
+  const textos = mensajes().configurarTaller.presupuesto.problemas;
+  if (!tieneTexto(texto)) {
+    return {
+      campo: `clausula:${combinacion}`,
+      mensaje: textos.clausulaVacia,
+      queRevisar: textos.unaClausulaDeLaMoneda,
+    };
+  }
+  if (largoDelTexto(texto.trim()) > LARGOS_DEL_PRESUPUESTO.textoDeClausula) {
+    return {
+      campo: `clausula:${combinacion}`,
+      mensaje: textos.textoLargo(LARGOS_DEL_PRESUPUESTO.textoDeClausula),
+      queRevisar: textos.unaClausulaDeLaMoneda,
+    };
+  }
+  return null;
+}
+
 export function problemasDeLaPantalla(borrador: BorradorDeLaPantalla): ProblemaDeLaPantalla[] {
   const textos = mensajes().configurarTaller.presupuesto.problemas;
   const problemas = [
@@ -603,6 +651,10 @@ export function problemasDeLaPantalla(borrador: BorradorDeLaPantalla): ProblemaD
         queRevisar: textos.unaFormaVacia,
       });
     }
+  }
+  for (const combinacion of COMBINACIONES_DE_LA_MONEDA) {
+    const problema = problemaDeLaClausula(combinacion, borrador.clausulasDeLaMoneda[combinacion]);
+    if (problema !== null) problemas.push(problema);
   }
   if (!tieneTexto(borrador.garantia)) {
     problemas.push({
@@ -757,6 +809,9 @@ export function loQueSeDeshace(
   ) {
     sumar('wallet', vuelve.lasFormasVuelven);
   }
+  if (clausulasCambiadas(guardada.clausulasDeLaMoneda, siempre.clausulasDeLaMoneda).length > 0) {
+    sumar('wallet', vuelve.lasClausulasDeLaMonedaVuelven);
+  }
   if (guardada.garantia !== siempre.garantia) {
     sumar('shield', vuelve.laGarantiaVuelveASuTexto);
   }
@@ -765,13 +820,14 @@ export function loQueSeDeshace(
   }
   if (
     guardada.modificacionesIncluidas !== siempre.modificacionesIncluidas ||
-    guardada.valorDeUnaModificacion !== siempre.valorDeUnaModificacion
+    guardada.valorDeUnaModificacion !== siempre.valorDeUnaModificacion ||
+    guardada.monedaDeLaModificacion !== siempre.monedaDeLaModificacion
   ) {
     sumar(
       'pencil-ruler',
       vuelve.vuelvenLasModificaciones(
         siempre.modificacionesIncluidas,
-        formatearPesos(siempre.valorDeUnaModificacion),
+        formatearPlata(siempre.valorDeUnaModificacion, siempre.monedaDeLaModificacion),
       ),
     );
   }
@@ -790,14 +846,24 @@ export function plantillaDelBorrador(borrador: BorradorDeLaPantalla): PlantillaD
       tildadaPorDefecto,
     }));
   const siempre = plantillaDeSiempre(borrador.idioma);
+  const { clausulasDeLaMoneda } = borrador;
   return {
     forma: 1,
     plazoDeFabricacion: plazoValido(borrador.numeros) ?? siempre.plazoDeFabricacion,
     modificacionesIncluidas:
       modificacionesValidas(borrador.numeros) ?? siempre.modificacionesIncluidas,
-    valorDeUnaModificacion: centavos(borrador.numeros.valor ?? siempre.valorDeUnaModificacion),
-    monedaDeLaModificacion: siempre.monedaDeLaModificacion,
-    clausulasDeLaMoneda: siempre.clausulasDeLaMoneda,
+    valorDeUnaModificacion: centavosEn(
+      borrador.monedaDelValor,
+      borrador.numeros.valor ?? siempre.valorDeUnaModificacion,
+    ),
+    monedaDeLaModificacion: borrador.monedaDelValor,
+    clausulasDeLaMoneda: {
+      dolaresEnPesos: clausulasDeLaMoneda.dolaresEnPesos.trim(),
+      dolaresEnDolares: clausulasDeLaMoneda.dolaresEnDolares.trim(),
+      dolaresEnPesosODolares: clausulasDeLaMoneda.dolaresEnPesosODolares.trim(),
+      pesosEnDolares: clausulasDeLaMoneda.pesosEnDolares.trim(),
+      pesosEnPesosODolares: clausulasDeLaMoneda.pesosEnPesosODolares.trim(),
+    },
     garantiaMeses: garantiaValida(borrador.numeros) ?? siempre.garantiaMeses,
     incluye: clausulas(borrador.listas.incluye),
     aTenerEnCuenta: clausulas(borrador.listas.aTenerEnCuenta),

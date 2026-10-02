@@ -204,6 +204,13 @@ export const configurarTaller = {
         comoSeUsa:
           'Em cada orçamento você escolhe uma e pode ajustar. A primeira já vem escolhida.',
       },
+      moneda: {
+        titulo: 'Quando há dólares',
+        dondeVa:
+          'Vai abaixo da forma de pagamento, nos projetos com preço em dólares ou que o cliente paga em dólares.',
+        comoSeUsa:
+          'Cada projeto usa a da sua combinação, e em cada orçamento você pode ajustar. Se você usa outro dólar, como o MEP ou o blue, mude aqui para que o texto diga isso.',
+      },
       garantia: {
         titulo: 'Garantia',
         bajada:
@@ -405,6 +412,16 @@ export const configurarTaller = {
       cambiarElTexto: 'Editar o texto da garantia:',
       texto: 'Texto da garantia',
     },
+    moneda: {
+      combinaciones: {
+        dolaresEnPesos: 'Preço em dólares, o cliente paga em pesos',
+        dolaresEnDolares: 'Preço em dólares, o cliente paga em dólares',
+        dolaresEnPesosODolares: 'Preço em dólares, o cliente paga em pesos ou dólares',
+        pesosEnDolares: 'Preço em pesos, o cliente paga em dólares',
+        pesosEnPesosODolares: 'Preço em pesos, o cliente paga em pesos ou dólares',
+      },
+      texto: 'O que o cliente lê',
+    },
     datos: {
       asiSale: 'Assim aparece no topo de cada orçamento',
       vacio: 'Aqui vão seu nome ou razão social, seu CUIT, sua condição fiscal e seu endereço.',
@@ -495,6 +512,8 @@ export const configurarTaller = {
           other: 'A garantia pode ter até # caracteres.',
         }),
       elTextoDeLaGarantia: 'o texto da garantia',
+      clausulaVacia: 'Escreva como o dólar é convertido nesta combinação.',
+      unaClausulaDeLaMoneda: 'uma cláusula dos dólares',
       textos: 'Há um texto que não pode ser salvo assim.',
       losTextos: 'os textos',
     },
@@ -546,6 +565,7 @@ export const configurarTaller = {
           one: 'A garantia volta para # mês.',
           other: 'A garantia volta para # meses.',
         }),
+      lasClausulasDeLaMonedaVuelven: 'As cláusulas dos dólares voltam aos textos padrão.',
     },
     textosDeSiempre: {
       sinCambios:

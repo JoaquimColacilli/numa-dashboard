@@ -200,6 +200,73 @@ describe('tu presupuesto en Ajustes', () => {
     expect(screen.getByLabelText('Modificaciones incluidas')).toHaveValue('3');
   });
 
+  it('las cláusulas de los dólares, una por combinación, se cambian en el lugar y se guardan', () => {
+    const { textos } = montar();
+    const dolares = seccion('Cuando hay dólares');
+    const filas = within(dolares).getAllByRole('button', { name: /^Cambiar:/ });
+    expect(filas).toHaveLength(5);
+    for (const combinacion of [
+      'Precio en dólares, te paga en pesos',
+      'Precio en dólares, te paga en dólares',
+      'Precio en dólares, te paga en pesos o dólares',
+      'Precio en pesos, te paga en dólares',
+      'Precio en pesos, te paga en pesos o dólares',
+    ]) {
+      expect(within(dolares).getByText(combinacion)).toBeInTheDocument();
+    }
+
+    const [primera] = filas;
+    if (primera === undefined) throw new Error('faltan las cláusulas');
+    fireEvent.click(primera);
+    const editor = within(dolares).getByRole('textbox');
+    editor.textContent = 'Se paga en pesos al dólar MEP del día hábil anterior.';
+    fireEvent.input(editor);
+    const guardar = botonDeGuardar();
+    if (guardar === null) throw new Error('falta la barra');
+    fireEvent.click(guardar);
+
+    expect(textos()[0]?.plantilla?.clausulasDeLaMoneda).toEqual({
+      ...PLANTILLA_DE_SIEMPRE.clausulasDeLaMoneda,
+      dolaresEnPesos: 'Se paga en pesos al dólar MEP del día hábil anterior.',
+    });
+  });
+
+  it('una cláusula de los dólares vacía no se guarda y dice qué revisar', () => {
+    const { textos } = montar();
+    const dolares = seccion('Cuando hay dólares');
+    const [, segunda] = within(dolares).getAllByRole('button', { name: /^Cambiar:/ });
+    if (segunda === undefined) throw new Error('faltan las cláusulas');
+    fireEvent.click(segunda);
+    const editor = within(dolares).getByRole('textbox');
+    editor.textContent = ' ';
+    fireEvent.input(editor);
+    const guardar = botonDeGuardar();
+    if (guardar === null) throw new Error('falta la barra');
+    fireEvent.click(guardar);
+
+    expect(textos()).toEqual([]);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No se guardó: revisá una cláusula de los dólares.',
+    );
+    expect(within(dolares).getByRole('alert')).toHaveTextContent(
+      'Escribí cómo se toma el dólar en esta combinación.',
+    );
+  });
+
+  it('el valor de una modificación de más lleva su moneda al lado', () => {
+    const { textos } = montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Pasar a dólares' }));
+    const guardar = botonDeGuardar();
+    if (guardar === null) throw new Error('falta la barra');
+    fireEvent.click(guardar);
+
+    expect(textos()[0]?.plantilla).toMatchObject({
+      monedaDeLaModificacion: 'USD',
+      valorDeUnaModificacion: PLANTILLA_DE_SIEMPRE.valorDeUnaModificacion,
+    });
+    expect(screen.getByRole('button', { name: 'Pasar a pesos' })).toBeInTheDocument();
+  });
+
   it('sin datos propios, ofrece usar el titular y el CUIT de «Cómo te pagan»', () => {
     montar({
       ...AJUSTES,

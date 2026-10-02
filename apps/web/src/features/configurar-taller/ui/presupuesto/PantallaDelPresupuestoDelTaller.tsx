@@ -51,6 +51,7 @@ import {
   type ProblemaDeLaPantalla,
 } from '../../model/presupuestoDelTaller';
 import { BarraDeGuardado } from './BarraDeGuardado';
+import { ClausulasDeLaMoneda } from './ClausulasDeLaMoneda';
 import { DatosDelPresupuesto } from './DatosDelPresupuesto';
 import { FormasDePago } from './FormasDePago';
 import { GarantiaDelPresupuesto } from './GarantiaDelPresupuesto';
@@ -146,7 +147,12 @@ export function PantallaDelPresupuestoDelTaller({
     };
   }, [cambios.hay]);
 
-  const valores = valoresDeMuestra(borrador.numeros, guardado.borrador.numeros, ajustes);
+  const valores = valoresDeMuestra(
+    borrador.numeros,
+    guardado.borrador.numeros,
+    ajustes,
+    borrador.monedaDelValor,
+  );
   const porCampo: Readonly<Record<string, string>> = Object.fromEntries(
     problemas.map(({ campo, mensaje }) => [campo, mensaje]),
   );
@@ -202,6 +208,7 @@ export function PantallaDelPresupuestoDelTaller({
   function irAlPrimerProblema(primero: ProblemaDeLaPantalla): void {
     const [tipo, id] = primero.campo.split(':');
     if ((tipo === 'texto' || tipo === 'nombre') && id !== undefined) setAbierta(id);
+    if (tipo === 'clausula') setAbierta(primero.campo);
     if (primero.campo === 'texto-de-la-garantia') setAbierta(GARANTIA);
     requestAnimationFrame(() => {
       const invalido = document.querySelector<HTMLElement>(
@@ -391,12 +398,16 @@ export function PantallaDelPresupuestoDelTaller({
         >
           <NumerosDelPresupuesto
             numeros={borrador.numeros}
+            monedaDelValor={borrador.monedaDelValor}
             problemas={porCampo}
             alCambiar={(cambiosDeLosNumeros: Partial<NumerosEditables>) => {
               cambiar((previo) => ({
                 ...previo,
                 numeros: { ...previo.numeros, ...cambiosDeLosNumeros },
               }));
+            }}
+            alCambiarLaMoneda={(monedaDelValor) => {
+              cambiar((previo) => ({ ...previo, monedaDelValor }));
             }}
           />
         </SeccionEnFila>
@@ -426,6 +437,32 @@ export function PantallaDelPresupuestoDelTaller({
               cambiar((previo) => ({ ...previo, formas }));
             }}
             alAgregar={agregarForma}
+          />
+        </SeccionEnFila>
+
+        <SeccionEnFila
+          id="titulo-moneda"
+          titulo={m.secciones.moneda.titulo}
+          bajada={
+            <Bajada lugar="formasDePago">
+              <p>{m.secciones.moneda.dondeVa}</p>
+              <p>{m.secciones.moneda.comoSeUsa}</p>
+            </Bajada>
+          }
+        >
+          <ClausulasDeLaMoneda
+            clausulas={borrador.clausulasDeLaMoneda}
+            guardadas={guardado.borrador.clausulasDeLaMoneda}
+            valores={valores}
+            abierta={abierta}
+            problemas={porCampo}
+            alAbrir={abrir}
+            alCambiar={(combinacion, texto) => {
+              cambiar((previo) => ({
+                ...previo,
+                clausulasDeLaMoneda: { ...previo.clausulasDeLaMoneda, [combinacion]: texto },
+              }));
+            }}
           />
         </SeccionEnFila>
 
