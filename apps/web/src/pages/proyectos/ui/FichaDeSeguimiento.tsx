@@ -119,12 +119,21 @@ function FichaDelSeguimiento({
         : atrasado
           ? textos.leTocaba(fechaLarga(pendiente.fecha, hoy))
           : textos.leVolvesAEscribir(fechaLarga(pendiente.fecha, hoy));
+  const nota = pendiente?.nota.trim() ?? '';
   const detalle =
-    pendiente === undefined
-      ? ''
-      : [relativa(pendiente.fecha, hoy), pendiente.nota.trim()]
-          .filter((parte) => parte !== '')
-          .join(' · ');
+    pendiente === undefined ? (
+      ''
+    ) : (
+      <span>
+        {relativa(pendiente.fecha, hoy)}
+        {nota !== '' && (
+          <>
+            {' · '}
+            <span translate="no">{nota}</span>
+          </>
+        )}
+      </span>
+    );
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -165,7 +174,9 @@ function FichaDelSeguimiento({
         className="flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
       >
         {cliente === undefined ? (
-          <span className="text-label text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-label text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <Ir
             a={rutaDelCliente(cliente.id)}

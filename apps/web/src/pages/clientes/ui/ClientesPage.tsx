@@ -45,7 +45,10 @@ function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
         }}
         className="grid min-h-[64px] w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-surface lg:grid-cols-[40px_minmax(0,2fr)_minmax(0,1.4fr)_140px_120px]"
       >
-        <span className="flex size-10 items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+        <span
+          translate="no"
+          className="flex size-10 items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+        >
           {iniciales(cliente.nombre)}
         </span>
         <span className="min-w-0">

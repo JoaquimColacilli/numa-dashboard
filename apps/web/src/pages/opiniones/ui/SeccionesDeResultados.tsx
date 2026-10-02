@@ -411,6 +411,7 @@ function ContenidoDeLaFila({ fila, hoy }: { fila: FilaDeTrabajo; hoy: string }) 
     <>
       <span
         aria-hidden
+        translate="no"
         className={`flex size-8.5 flex-none items-center justify-center rounded-pill text-label font-semibold ${
           contesto ? 'bg-surface text-ink' : 'text-text-3'
         }`}

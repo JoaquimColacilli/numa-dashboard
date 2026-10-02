@@ -194,7 +194,9 @@ function FichaDelContacto({
         className="flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
       >
         {cliente === undefined ? (
-          <span className="text-label text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-label text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <Ir
             a={rutaDelCliente(cliente.id)}

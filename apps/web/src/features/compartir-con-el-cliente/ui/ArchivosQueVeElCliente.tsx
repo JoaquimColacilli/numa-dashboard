@@ -72,7 +72,7 @@ export function ArchivosQueVeElCliente({ archivos }: ArchivosQueVeElClienteProps
                 >
                   {archivo.nombre}
                 </span>
-                <span className="block text-label text-text-3">
+                <span translate="no" className="block text-label text-text-3">
                   {pesoLegible(archivo.bytes)} · {fechaLarga(archivo.created_at.slice(0, 10), hoy)}
                 </span>
               </span>

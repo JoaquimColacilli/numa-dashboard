@@ -31,7 +31,7 @@ function Dibujo({
 }) {
   const nombre = decorativa
     ? { 'aria-hidden': true as const }
-    : { role: 'img', 'aria-label': NOMBRE_DE_LA_APP };
+    : { role: 'img', 'aria-label': NOMBRE_DE_LA_APP, translate: 'no' };
   return (
     <svg
       {...nombre}

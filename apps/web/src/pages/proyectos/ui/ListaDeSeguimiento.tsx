@@ -37,7 +37,9 @@ function TarjetaDeSeguimiento({ fila, hoy }: { fila: EnSeguimiento; hoy: string 
       atencion={atrasado}
       cliente={
         cliente === undefined ? (
-          <span className="text-meta text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-meta text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <EnlaceACliente
             id={cliente.id}

@@ -70,6 +70,7 @@ export const paginaTesoros = {
   },
   plano: {
     eraEl: (numero: number) => `era el ${String(numero)}`,
+    flecha: 'Flecha de la fila',
     etiquetaDeLaObligacion: (
       numero: number,
       cuantos: number,

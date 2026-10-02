@@ -140,6 +140,7 @@ export function GrillaDelMes({
                     type="button"
                     data-evento={evento.id}
                     title={nombreDelEvento(evento)}
+                    translate={evento.clase === 'propia' ? 'no' : undefined}
                     aria-describedby={propiasDelArrastre === undefined ? undefined : idDeLaAyuda}
                     {...(evento.clase === 'derivada' ? {} : abreLaCapa)}
                     {...propiasDelArrastre}

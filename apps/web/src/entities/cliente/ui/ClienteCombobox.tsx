@@ -97,7 +97,10 @@ export function ClienteCombobox({
       <div className="flex flex-col gap-1.5">
         <span className="text-label text-text-2">{rotulo}</span>
         <div className="flex min-h-tap items-center gap-3 rounded-field border border-border bg-paper px-3 py-2 @min-[33rem]/campos:h-field @min-[33rem]/campos:py-0">
-          <span className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+          <span
+            translate="no"
+            className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+          >
             {iniciales(elegido.nombre)}
           </span>
           <span className="min-w-0 flex-1">
@@ -172,7 +175,10 @@ export function ClienteCombobox({
                   </>
                 ) : (
                   <>
-                    <span className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+                    <span
+                      translate="no"
+                      className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+                    >
                       {iniciales(opcion.nombre)}
                     </span>
                     <span className="min-w-0" translate="no">

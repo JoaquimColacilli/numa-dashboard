@@ -90,7 +90,9 @@ function Tarjeta({ resumen, hoy }: { resumen: ResumenDeProyecto; hoy: string }) 
       resumen={resumen}
       cliente={
         resumen.cliente === undefined ? (
-          <span className="text-meta text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-meta text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <EnlaceACliente
             id={resumen.cliente.id}
@@ -205,7 +207,9 @@ function Tabla({
             >
               <td className="px-2.5 whitespace-nowrap">
                 {resumen.cliente === undefined ? (
-                  <span className="text-text-3">{resumen.nombreDelCliente}</span>
+                  <span translate="no" className="text-text-3">
+                    {resumen.nombreDelCliente}
+                  </span>
                 ) : (
                   <EnlaceACliente id={resumen.cliente.id} nombre={resumen.cliente.nombre} />
                 )}

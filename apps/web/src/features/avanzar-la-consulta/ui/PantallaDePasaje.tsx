@@ -367,7 +367,7 @@ export function PantallaDePasaje({
         </p>
         <p className="text-label text-text-2">
           {cliente === undefined ? (
-            resumen.nombreDelCliente
+            <span translate="no">{resumen.nombreDelCliente}</span>
           ) : (
             <EnlaceACliente id={cliente.id} nombre={cliente.nombre} />
           )}

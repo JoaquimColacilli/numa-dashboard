@@ -35,6 +35,7 @@ function Barra({
       <div
         role="progressbar"
         aria-label={etiqueta}
+        translate={etiquetaTalCual ? 'no' : undefined}
         aria-valuenow={lleno}
         aria-valuetext={texto}
         aria-valuemin={0}

@@ -1008,7 +1008,14 @@ export function armarElPlano({
     });
   }
 
-  return { nodos: nodos.map(conMedidas), aristas };
+  return {
+    nodos: nodos.map(conMedidas),
+    aristas: aristas.map((arista) => ({
+      ...arista,
+      ariaLabel: textos.flecha,
+      domAttributes: { 'aria-hidden': true },
+    })),
+  };
 }
 
 export interface CentroDeLaFicha {

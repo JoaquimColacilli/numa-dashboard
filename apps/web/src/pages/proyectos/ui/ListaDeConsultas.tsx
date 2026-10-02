@@ -49,7 +49,9 @@ function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: 
       atencion={atencion}
       cliente={
         cliente === undefined ? (
-          <span className="text-meta text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-meta text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <EnlaceACliente
             id={cliente.id}

@@ -313,7 +313,10 @@ export function ClienteFichaPage() {
       </div>
 
       <header className="flex items-center gap-3.5">
-        <span className="flex size-14 flex-none items-center justify-center rounded-pill bg-ink text-body-lg font-semibold text-paper">
+        <span
+          translate="no"
+          className="flex size-14 flex-none items-center justify-center rounded-pill bg-ink text-body-lg font-semibold text-paper"
+        >
           {iniciales(cliente.nombre)}
         </span>
         <div className="min-w-0 flex-1">

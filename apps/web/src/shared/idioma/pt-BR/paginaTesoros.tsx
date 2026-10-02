@@ -53,6 +53,7 @@ export const paginaTesoros = {
   },
   plano: {
     eraEl: (numero) => `era o ${String(numero)}`,
+    flecha: 'Seta da fila',
     etiquetaDeLaObligacion: (numero, cuantos, nombre, porcentaje, base, aPagar) =>
       `Obrigação ${String(numero)} de ${String(cuantos)}: ${nombre}, ${porcentaje} ${fila.base[base]}; a pagar ${aPagar}`,
     etiquetaDelDiezmo: (numero, cuantos, nombre, porcentaje, base, aPagar) =>

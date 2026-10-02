@@ -308,7 +308,9 @@ export function ProyectoFichaPage() {
       >
         <div className="flex flex-col gap-2">
           {cliente === undefined ? (
-            <span className="text-label text-text-3">{resumen.nombreDelCliente}</span>
+            <span translate="no" className="text-label text-text-3">
+              {resumen.nombreDelCliente}
+            </span>
           ) : (
             <Ir
               a={rutaDelCliente(cliente.id)}

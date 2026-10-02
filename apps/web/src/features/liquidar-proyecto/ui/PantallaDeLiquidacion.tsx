@@ -338,7 +338,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       <header>
         <p className="text-label text-text-2">
           {resumen.cliente === undefined ? (
-            resumen.nombreDelCliente
+            <span translate="no">{resumen.nombreDelCliente}</span>
           ) : (
             <EnlaceACliente id={resumen.cliente.id} nombre={resumen.cliente.nombre} />
           )}
