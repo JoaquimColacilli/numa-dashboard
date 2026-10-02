@@ -127,6 +127,7 @@ export {
   type SeparadoresDelCampo,
 } from './plata';
 export { crearPlural, type FormasDelPlural } from './plural';
+export { fijarLosTextosDeLib, textosDeLib, type TextosDeLib } from './textos';
 export { type Ensanchar, type Envoltorio } from './catalogo';
 export { ABRE_EL_SEUDOIDIOMA, CIERRA_EL_SEUDOIDIOMA, seudoCatalogo, seudoTexto } from './seudo';
 export {

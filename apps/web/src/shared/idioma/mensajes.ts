@@ -1,7 +1,7 @@
 import { IDIOMA_BASE, type Idioma } from '@maun/domain';
 import { useSyncExternalStore } from 'react';
 
-import { fijarElIdiomaEnUso, seudoCatalogo } from '@/shared/lib';
+import { fijarElIdiomaEnUso, fijarLosTextosDeLib, seudoCatalogo } from '@/shared/lib';
 
 import { es, type Mensajes } from './es';
 
@@ -95,6 +95,8 @@ function leer(): EstadoDeLosMensajes {
 export function mensajes(): Mensajes {
   return estado.m;
 }
+
+fijarLosTextosDeLib(() => estado.m.lib);
 
 export function estadoDeLosMensajes(): EstadoDeLosMensajes {
   return estado;
