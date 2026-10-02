@@ -119,6 +119,11 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: 'repeating-linear-gradient(transparent 0 27px, var(--paper-notas-line) 27px 28px)',
     motivo: 'Es CSS: los renglones del cuaderno detrás del texto de la anotación.',
   },
+  {
+    archivo: 'src/entities/sesion/model/contexto.ts',
+    texto: 'useSesionActiva solo se usa adentro de una ruta con sesión.',
+    motivo: 'Es un error de programación: salta si el hook se usa fuera de una ruta con sesión.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

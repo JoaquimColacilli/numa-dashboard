@@ -6,7 +6,6 @@
     "src/app/router/",
     "src/entities/fila/",
     "src/entities/opinion/",
-    "src/entities/sesion/",
     "src/entities/tesoro/",
     "src/entities/vista-cliente/",
     "src/features/activar-huella/",
