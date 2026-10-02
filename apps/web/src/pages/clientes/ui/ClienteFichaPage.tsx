@@ -329,7 +329,7 @@ export function ClienteFichaPage() {
               title={condicion.etiqueta}
               className="inline-flex items-center gap-1.5 rounded-pill border border-ink px-2 text-badge font-semibold text-ink"
             >
-              {condicion.corto}
+              <span translate="no">{condicion.corto}</span>
               <span className="font-medium text-text-2">{condicion.comprobante}</span>
             </span>
             <span>{textos.clienteDesde(fechaLarga(cliente.created_at.slice(0, 10), hoy))}</span>

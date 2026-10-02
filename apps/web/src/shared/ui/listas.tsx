@@ -51,6 +51,7 @@ export function TextoQueCrece({
     <div className="grid min-w-0">
       <span
         aria-hidden
+        translate="no"
         style={alto}
         className={`invisible col-start-1 row-start-1 min-h-11 border-transparent break-words whitespace-pre-wrap ${caja}`}
       >
