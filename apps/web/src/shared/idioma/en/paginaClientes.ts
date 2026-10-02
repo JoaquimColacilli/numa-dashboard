@@ -1,0 +1,78 @@
+import type { Mensajes } from '../es';
+import { plural } from './plural';
+
+const proyectos = (cantidad: number): string => plural(cantidad, { one: '# job', other: '# jobs' });
+
+export const paginaClientes = {
+  titulo: 'Clients',
+  nuevoCliente: 'New client',
+  vacioTitulo: "Your shop's client list, still empty",
+  vacioDetalle:
+    "Add each client just once: address, phone and how to bill them. Next time they call, it's all there.",
+  cargaTuPrimerCliente: 'Add your first client',
+  buscarPlaceholder: 'Name, phone or address',
+  buscarCliente: 'Search clients',
+  deDondeVienen: 'Where jobs come from',
+  clientes: (cantidad) => plural(cantidad, { one: '# client', other: '# clients' }),
+  sinOrigen: (cantidad) => plural(cantidad, { other: '# with no source noted' }),
+  deTantos: (filas, total) => `${String(filas)} of ${String(total)}`,
+  ordenarPor: 'Sort by',
+  nadieCoincide: (consulta) => `No one matches “${consulta}”.`,
+  crearComoNuevo: (nombre) => `Create “${nombre}” as a new client`,
+  ultimoTrabajo: (titulo, cuando) => `${titulo}, ${cuando}`,
+  sinTrabajosTodavia: 'No jobs yet',
+  sinTrabajos: 'No jobs',
+  debe: (monto) => `owes ${monto}`,
+  ficha: {
+    llamar: 'Call',
+    whatsapp: 'WhatsApp',
+    email: 'Email',
+    mapa: 'Map',
+    borrar: 'Delete',
+    editar: 'Edit',
+    clienteDesde: (fecha) => `client since ${fecha}`,
+    contacto: 'Contact',
+    telefono: 'Phone',
+    sinTelefono: 'No phone',
+    sinEmail: 'No email',
+    direccion: 'Address',
+    sinDireccion: 'No address',
+    comoLlego: 'How they found you',
+    sinAnotar: 'Not noted',
+    todaviaNoAnotaste: "You haven't noted where they came from yet.",
+    facturacion: 'Billing',
+    condicion: 'VAT status',
+    comprobante: 'Document',
+    cuit: 'CUIT',
+    cuitOCuil: 'CUIT / CUIL',
+    razonSocial: 'Legal name',
+    domicilioFiscal: 'Tax address',
+    historial: 'History',
+    proyectos,
+    proyectosYConsultas: (cantidad, consultas) =>
+      `${proyectos(cantidad)}, ${plural(consultas, { one: '# inquiry', other: '# inquiries' })}`,
+    totalFacturado: 'Total billed',
+    saldoPendiente: 'Balance due',
+    sinSaldo: 'No balance',
+    sinTrabajosCon: (nombre) =>
+      `No jobs with ${nombre} yet. When you start one, it shows up here with its status.`,
+    fases: {
+      consultas: 'Inquiry',
+      seguimiento: 'Follow-up',
+      obra: 'Job',
+    },
+    faseConCuando: (fase, cuando) => `${fase}, ${cuando}`,
+    sinPresupuesto: 'No quote',
+    noEsta: "That client isn't here",
+    noEstaDetalle:
+      "You may have deleted them from another device, or the link may point to another shop's client.",
+    volverAClientes: 'Back to Clients',
+    arrancarUnProyecto: (nombre) => `Start a job with ${nombre}`,
+    borrarA: (nombre) => `Delete ${nombre}?`,
+    sinTrabajosCargados: 'They have no jobs, so no history is lost.',
+    conProyectosVivos:
+      "If they still have active jobs, it won't go through: delete them or move them to another client first.",
+    cancelar: 'Cancel',
+    borrarElCliente: 'Delete client',
+  },
+} satisfies Mensajes['paginaClientes'];

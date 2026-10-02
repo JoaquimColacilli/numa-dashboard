@@ -20,6 +20,7 @@ import { llevarLaAgenda } from './llevarLaAgenda';
 import { movimiento } from './movimiento';
 import { paginaAgenda } from './paginaAgenda';
 import { paginaAnalitico } from './paginaAnalitico';
+import { paginaClientes } from './paginaClientes';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
@@ -50,6 +51,7 @@ export const es = {
   movimiento,
   paginaAgenda,
   paginaAnalitico,
+  paginaClientes,
   paginaDiezmo,
   paginaFinanzas,
   paginaInicio,

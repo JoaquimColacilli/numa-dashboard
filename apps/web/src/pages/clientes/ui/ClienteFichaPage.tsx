@@ -21,6 +21,7 @@ import { EstadoBadge, RUTA_DE_PROYECTO_NUEVO, rutaDelProyecto } from '@/entities
 import { useReplicaDelTaller } from '@/entities/replica';
 import { HojaDeCliente } from '@/features/editar-cliente';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
   formatearPesos,
@@ -72,7 +73,8 @@ function Accion({
   return (
     <a
       href={href}
-      {...(externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      target={externo ? '_blank' : undefined}
+      rel={externo ? 'noopener noreferrer' : undefined}
       className={`${clases} text-ink hover:bg-surface`}
     >
       <Icono nombre={icono} tamano={20} />
@@ -81,29 +83,44 @@ function Accion({
   );
 }
 
-function Dato({ clave, valor }: { clave: string; valor: string }) {
+function Dato({
+  clave,
+  valor,
+  sinTraducir = false,
+}: {
+  clave: string;
+  valor: string;
+  sinTraducir?: boolean;
+}) {
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 border-t border-hairline-soft py-2.5 text-body first:border-t-0">
       <dt className="text-text-3">{clave}</dt>
-      <dd className="leading-snug font-medium wrap-anywhere">{valor}</dd>
+      <dd
+        translate={sinTraducir ? 'no' : undefined}
+        className="leading-snug font-medium wrap-anywhere"
+      >
+        {valor}
+      </dd>
     </div>
   );
 }
 
 function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
+  const textos = useMensajes().paginaClientes.ficha;
   const { cliente, proyectos } = resumen;
 
   return (
     <section
-      aria-label="Historial"
+      aria-label={textos.historial}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <h2 className="text-body-lg font-semibold">Historial</h2>
+        <h2 className="text-body-lg font-semibold">{textos.historial}</h2>
         {proyectos.length > 0 && (
           <span className="text-meta text-text-2 tabular-nums">
-            {resumen.facturados} {resumen.facturados === 1 ? 'proyecto' : 'proyectos'}
-            {resumen.enConsultas > 0 && `, ${String(resumen.enConsultas)} en consultas`}
+            {resumen.enConsultas > 0
+              ? textos.proyectosYConsultas(resumen.facturados, resumen.enConsultas)
+              : textos.proyectos(resumen.facturados)}
           </span>
         )}
       </div>
@@ -111,19 +128,20 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
       <div className="@container">
         <dl className="grid grid-cols-1 border-b border-hairline-soft @min-[22.5rem]:grid-cols-2">
           <div className="py-2.5 @min-[22.5rem]:pr-3">
-            <dt className="text-meta text-text-2">Total facturado</dt>
-            <dd className="text-money-lg font-semibold tabular-nums">
+            <dt className="text-meta text-text-2">{textos.totalFacturado}</dt>
+            <dd translate="no" className="text-money-lg font-semibold tabular-nums">
               {formatearPesos(resumen.facturado)}
             </dd>
           </div>
           <div className="border-t border-hairline-soft py-2.5 @min-[22.5rem]:border-t-0 @min-[22.5rem]:border-l @min-[22.5rem]:pl-3">
-            <dt className="text-meta text-text-2">Saldo pendiente</dt>
+            <dt className="text-meta text-text-2">{textos.saldoPendiente}</dt>
             <dd
+              translate={resumen.saldo > 0 ? 'no' : undefined}
               className={`text-money-lg font-semibold tabular-nums ${
                 resumen.saldo > 0 ? 'text-atencion' : 'text-hogar'
               }`}
             >
-              {resumen.saldo > 0 ? formatearPesos(resumen.saldo) : 'Sin saldo'}
+              {resumen.saldo > 0 ? formatearPesos(resumen.saldo) : textos.sinSaldo}
             </dd>
           </div>
         </dl>
@@ -131,14 +149,19 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
 
       {proyectos.length === 0 ? (
         <p className="pt-3 text-body leading-relaxed text-text-2">
-          Todavía no hay trabajos con {nombreCorto(cliente.nombre)}. Cuando arranques uno, aparece
-          acá con su estado.
+          {textos.sinTrabajosCon(nombreCorto(cliente.nombre))}
         </p>
       ) : (
         <ol className="list-none">
           {proyectos.map((proyecto) => {
             const fecha = fechaDelProyecto(proyecto);
             const fase = faseDe(proyecto.estado);
+            const etapa =
+              fase === 'consultas'
+                ? textos.fases.consultas
+                : fase === 'seguimiento'
+                  ? textos.fases.seguimiento
+                  : textos.fases.obra;
             return (
               <li
                 key={proyecto.id}
@@ -148,23 +171,24 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
                   <Ir
                     a={rutaDelProyecto(proyecto.id)}
                     data-tarjeta
+                    translate="no"
                     className="block truncate text-body-lg font-medium after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
                   >
                     {proyecto.titulo}
                   </Ir>
                   <span className="mt-0.5 block text-meta text-text-3">
-                    {fase === 'consultas'
-                      ? 'Consulta'
-                      : fase === 'seguimiento'
-                        ? 'Seguimiento'
-                        : 'Obra'}
-                    {fecha === undefined ? '' : `, ${relativa(fecha, hoy)}`}
+                    {fecha === undefined
+                      ? etapa
+                      : textos.faseConCuando(etapa, relativa(fecha, hoy))}
                   </span>
                 </span>
                 <span className="flex-none text-right">
-                  <span className="block text-body font-semibold tabular-nums">
+                  <span
+                    translate={proyecto.presupuesto_centavos === null ? undefined : 'no'}
+                    className="block text-body font-semibold tabular-nums"
+                  >
                     {proyecto.presupuesto_centavos === null
-                      ? 'Sin presupuesto'
+                      ? textos.sinPresupuesto
                       : formatearPesos(proyecto.presupuesto_centavos)}
                   </span>
                   <span className="mt-1 block">
@@ -181,9 +205,11 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
 }
 
 export function ClienteFichaPage() {
+  const m = useMensajes();
+  const textos = m.paginaClientes.ficha;
   const replica = useReplicaDelTaller();
   const ir = useIr();
-  const vuelta = useVolver('/clientes', 'Clientes');
+  const vuelta = useVolver('/clientes', m.paginaClientes.titulo);
   const { id = '' } = useParams();
   const [editando, setEditando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -206,13 +232,12 @@ export function ClienteFichaPage() {
           dibujo={<Ilustracion nombre="anulado" />}
           lamina={ESCENA_EN_LA_LAMINA}
         >
-          <h1 className={TITULO_DE_LAMINA}>Ese cliente no está</h1>
+          <h1 className={TITULO_DE_LAMINA}>{textos.noEsta}</h1>
           <p className="max-w-[44ch] text-body leading-relaxed text-text-2">
-            Puede que lo hayas borrado desde otro dispositivo, o que el enlace apunte a un cliente
-            de otro taller.
+            {textos.noEstaDetalle}
           </p>
           <div className="w-full pt-2">
-            <Button onClick={vuelta.volver}>Volver a Clientes</Button>
+            <Button onClick={vuelta.volver}>{textos.volverAClientes}</Button>
           </div>
         </TarjetaConLamina>
       </Pagina>
@@ -223,21 +248,30 @@ export function ClienteFichaPage() {
   const condicion = CONDICION[cliente.condicion_fiscal];
   const origen = cliente.origen_contacto === null ? undefined : ORIGEN[cliente.origen_contacto];
 
-  const facturacion: { clave: string; valor: string }[] = [
-    { clave: 'Condición', valor: condicion.etiqueta },
-    { clave: 'Comprobante', valor: condicion.comprobante },
+  const facturacion: { clave: string; valor: string; sinTraducir: boolean }[] = [
+    { clave: textos.condicion, valor: condicion.etiqueta, sinTraducir: false },
+    { clave: textos.comprobante, valor: condicion.comprobante, sinTraducir: false },
   ];
   if (cliente.cuit !== '') {
     facturacion.push({
-      clave: cliente.condicion_fiscal === 'monotributo' ? 'CUIT / CUIL' : 'CUIT',
+      clave: cliente.condicion_fiscal === 'monotributo' ? textos.cuitOCuil : textos.cuit,
       valor: cliente.cuit,
+      sinTraducir: true,
     });
   }
   if (cliente.razon_social !== '') {
-    facturacion.push({ clave: 'Razón social', valor: cliente.razon_social });
+    facturacion.push({
+      clave: textos.razonSocial,
+      valor: cliente.razon_social,
+      sinTraducir: true,
+    });
   }
   if (cliente.domicilio_fiscal !== '' && cliente.domicilio_fiscal !== cliente.direccion) {
-    facturacion.push({ clave: 'Dom. fiscal', valor: cliente.domicilio_fiscal });
+    facturacion.push({
+      clave: textos.domicilioFiscal,
+      valor: cliente.domicilio_fiscal,
+      sinTraducir: true,
+    });
   }
 
   return (
@@ -261,7 +295,7 @@ export function ClienteFichaPage() {
             }}
           >
             <Icono nombre="trash-2" tamano={16} />
-            Borrar
+            {textos.borrar}
           </Button>
           <Button
             variant="herramienta"
@@ -272,7 +306,7 @@ export function ClienteFichaPage() {
             }}
           >
             <Icono nombre="pencil" tamano={16} />
-            Editar
+            {textos.editar}
           </Button>
         </div>
       </div>
@@ -282,9 +316,11 @@ export function ClienteFichaPage() {
           {iniciales(cliente.nombre)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{cliente.nombre}</h1>
+          <h1 translate="no" className="font-display text-h1 leading-tight lg:text-h1-lg">
+            {cliente.nombre}
+          </h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-meta text-text-2">
-            {cliente.zona !== '' && <span>{cliente.zona}</span>}
+            {cliente.zona !== '' && <span translate="no">{cliente.zona}</span>}
             <span
               title={condicion.etiqueta}
               className="inline-flex items-center gap-1.5 rounded-pill border border-ink px-2 text-badge font-semibold text-ink"
@@ -292,23 +328,23 @@ export function ClienteFichaPage() {
               {condicion.corto}
               <span className="font-medium text-text-2">{condicion.comprobante}</span>
             </span>
-            <span>cliente desde {fechaLarga(cliente.created_at.slice(0, 10), hoy)}</span>
+            <span>{textos.clienteDesde(fechaLarga(cliente.created_at.slice(0, 10), hoy))}</span>
           </div>
         </div>
       </header>
 
       <div className="grid grid-cols-4 gap-2">
-        <Accion icono="phone" etiqueta="Llamar" href={enlaceDeLlamada(cliente.telefono)} />
+        <Accion icono="phone" etiqueta={textos.llamar} href={enlaceDeLlamada(cliente.telefono)} />
         <Accion
           icono="message-circle"
-          etiqueta="WhatsApp"
+          etiqueta={textos.whatsapp}
           href={enlaceDeWhatsapp(cliente.telefono)}
           externo
         />
-        <Accion icono="mail" etiqueta="Email" href={enlaceDeEmail(cliente.email)} />
+        <Accion icono="mail" etiqueta={textos.email} href={enlaceDeEmail(cliente.email)} />
         <Accion
           icono="map-pin"
-          etiqueta="Mapa"
+          etiqueta={textos.mapa}
           href={enlaceDeMapa(cliente.direccion, cliente.zona)}
           externo
         />
@@ -320,46 +356,60 @@ export function ClienteFichaPage() {
         apoyo={
           <div className="flex flex-col gap-3 md:gap-4">
             <section
-              aria-label="Contacto"
+              aria-label={textos.contacto}
               className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
             >
-              <h2 className="mb-1 text-body-lg font-semibold">Contacto</h2>
+              <h2 className="mb-1 text-body-lg font-semibold">{textos.contacto}</h2>
               <dl>
                 <Dato
-                  clave="Teléfono"
-                  valor={cliente.telefono === '' ? 'Sin teléfono' : cliente.telefono}
+                  clave={textos.telefono}
+                  valor={cliente.telefono === '' ? textos.sinTelefono : cliente.telefono}
+                  sinTraducir={cliente.telefono !== ''}
                 />
-                <Dato clave="Email" valor={cliente.email === '' ? 'Sin email' : cliente.email} />
                 <Dato
-                  clave="Dirección"
-                  valor={cliente.direccion === '' ? 'Sin dirección' : cliente.direccion}
+                  clave={textos.email}
+                  valor={cliente.email === '' ? textos.sinEmail : cliente.email}
+                  sinTraducir={cliente.email !== ''}
+                />
+                <Dato
+                  clave={textos.direccion}
+                  valor={cliente.direccion === '' ? textos.sinDireccion : cliente.direccion}
+                  sinTraducir={cliente.direccion !== ''}
                 />
               </dl>
             </section>
 
             <section
-              aria-label="Cómo llegó"
+              aria-label={textos.comoLlego}
               className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
             >
-              <h2 className="mb-1 text-body-lg font-semibold">Cómo llegó</h2>
+              <h2 className="mb-1 text-body-lg font-semibold">{textos.comoLlego}</h2>
               <p className="pt-1 text-body leading-snug">
-                <span className="font-medium">{origen?.etiqueta ?? 'Sin anotar'}.</span>{' '}
-                <span className="text-text-2">
+                <span className="font-medium">{origen?.etiqueta ?? textos.sinAnotar}.</span>{' '}
+                <span
+                  translate={cliente.origen_detalle === '' ? undefined : 'no'}
+                  className="text-text-2"
+                >
                   {cliente.origen_detalle === ''
-                    ? (origen?.detalle ?? 'Todavía no anotaste de dónde vino.')
+                    ? (origen?.detalle ?? textos.todaviaNoAnotaste)
                     : cliente.origen_detalle}
                 </span>
               </p>
             </section>
 
             <section
-              aria-label="Facturación"
+              aria-label={textos.facturacion}
               className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
             >
-              <h2 className="mb-1 text-body-lg font-semibold">Facturación</h2>
+              <h2 className="mb-1 text-body-lg font-semibold">{textos.facturacion}</h2>
               <dl>
                 {facturacion.map((fila) => (
-                  <Dato key={fila.clave} clave={fila.clave} valor={fila.valor} />
+                  <Dato
+                    key={fila.clave}
+                    clave={fila.clave}
+                    valor={fila.valor}
+                    sinTraducir={fila.sinTraducir}
+                  />
                 ))}
               </dl>
             </section>
@@ -368,7 +418,10 @@ export function ClienteFichaPage() {
       >
         <div className="flex flex-col gap-3 md:gap-4">
           {cliente.notas !== '' && (
-            <p className="rounded-panel border border-hairline bg-paper px-4 py-4 text-label leading-snug text-text-2 md:px-5">
+            <p
+              translate="no"
+              className="rounded-panel border border-hairline bg-paper px-4 py-4 text-label leading-snug text-text-2 md:px-5"
+            >
               {cliente.notas}
             </p>
           )}
@@ -381,7 +434,7 @@ export function ClienteFichaPage() {
             }}
           >
             <Icono nombre="folder-plus" tamano={18} />
-            Arrancar un proyecto con {nombreCorto(cliente.nombre)}
+            {textos.arrancarUnProyecto(nombreCorto(cliente.nombre))}
           </Button>
         </div>
       </PrincipalYApoyo>
@@ -400,7 +453,7 @@ export function ClienteFichaPage() {
       <ConSalida valor={confirmando}>
         {() => (
           <Hoja
-            titulo={`¿Borrás a ${cliente.nombre}?`}
+            titulo={textos.borrarA(cliente.nombre)}
             rol="alertdialog"
             ancho="angosto"
             alCerrar={() => {
@@ -410,8 +463,8 @@ export function ClienteFichaPage() {
             <div className="flex flex-col gap-3.5 px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
               <p className="text-label leading-relaxed text-text-2">
                 {resumen.proyectos.length === 0
-                  ? 'No tiene trabajos cargados, así que no se pierde historia.'
-                  : 'Si todavía tiene proyectos vivos, la base lo va a rechazar: primero hay que borrarlos o reasignarlos.'}
+                  ? textos.sinTrabajosCargados
+                  : textos.conProyectosVivos}
               </p>
               {borrar.isError && (
                 <p role="alert" className="text-label font-medium text-alerta">
@@ -425,7 +478,7 @@ export function ClienteFichaPage() {
                     setConfirmando(false);
                   }}
                 >
-                  Cancelar
+                  {textos.cancelar}
                 </Button>
                 <Button
                   variant="peligro"
@@ -440,7 +493,7 @@ export function ClienteFichaPage() {
                     ir('/clientes', { como: 'terminar' });
                   }}
                 >
-                  Borrar el cliente
+                  {textos.borrarElCliente}
                 </Button>
               </FilaDeAcciones>
             </div>

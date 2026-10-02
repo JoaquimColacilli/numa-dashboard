@@ -137,6 +137,9 @@
     },
     "MarcaSinGuardar": {
       "marca": "nueva o cambiada: el estado de la fila sin guardar"
+    },
+    "Ir": {
+      "a": "ruta de la app"
     }
   }
 }
