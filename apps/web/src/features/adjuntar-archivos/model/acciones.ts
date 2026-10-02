@@ -15,6 +15,7 @@ import {
   type ArchivoNuevo,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { avisarEnPantalla, claveDeTodaReplica, metaDeAvisos, type NuevoAviso } from '@/shared/lib';
 
 export type Mandar = <TVariables>(
@@ -82,12 +83,13 @@ export function borrarArchivo(
     void opciones.quitarDelBucket(rutasEnElBucket(archivo)).catch(() => undefined);
   }, ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS);
 
+  const textos = mensajes().adjuntarArchivos;
   opciones.avisar({
     clave: `archivo-borrado-${archivo.id}`,
     tono: 'hecho',
-    texto: `Borraste «${archivo.nombre}».`,
+    texto: textos.borraste(archivo.nombre),
     accion: {
-      etiqueta: 'Deshacer',
+      etiqueta: textos.deshacer,
       alTocar: () => {
         deshecho = true;
         opciones.cancelar(reloj);

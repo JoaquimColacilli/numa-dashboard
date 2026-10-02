@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ImagenDecodificada } from '@/shared/lib';
 
-import { LOS_VIDEOS_NO_ENTRAN } from './eleccion';
+import { losVideosNoEntran } from './eleccion';
 import type { ImagenPreparada } from './preparacion';
 import {
   ArchivoRechazado,
@@ -126,7 +126,7 @@ describe('subirUnArchivo', () => {
     const { base, subidas } = dependencias();
     await expect(
       subirUnArchivo(archivo('visita.mp4', 'video/mp4', 1000), DESTINO, base),
-    ).rejects.toEqual(new ArchivoRechazado(LOS_VIDEOS_NO_ENTRAN));
+    ).rejects.toEqual(new ArchivoRechazado(losVideosNoEntran()));
     expect(subidas).toEqual([]);
   });
 

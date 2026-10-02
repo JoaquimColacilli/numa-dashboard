@@ -1,17 +1,14 @@
+import { TOPE_DE_LA_VIDRIERA } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { FotoEnLaVidriera, OrdenEnLaVidriera } from '../api/mutacion';
-import {
-  FotosDeLaVidriera,
-  LA_VIDRIERA_ESTA_LLENA,
-  SIN_FOTOS_EN_LA_VIDRIERA,
-  SIN_NADA_EN_LA_VIDRIERA,
-} from './FotosDeLaVidriera';
+import { FotosDeLaVidriera } from './FotosDeLaVidriera';
 
 vi.mock('@/shared/api', async (importar) => ({
   ...(await importar<typeof import('@/shared/api')>()),
@@ -151,17 +148,19 @@ describe('las fotos de la vidriera en Ajustes', () => {
 
     montar(Array.from({ length: 12 }, (_, indice) => foto(`f${String(indice)}`, indice)));
     expect(screen.getByRole('button', { name: 'Sumar fotos' })).toBeDisabled();
-    expect(screen.getByText(LA_VIDRIERA_ESTA_LLENA)).toBeInTheDocument();
+    expect(
+      screen.getByText(mensajes().armarLaVidriera.fotos.llena(TOPE_DE_LA_VIDRIERA)),
+    ).toBeInTheDocument();
     expect(screen.getByText('12 de 12')).toBeInTheDocument();
   });
 
   it('sin fotos dice qué ve el cliente, con redes o sin nada', () => {
     montar([], true);
-    expect(screen.getByText(SIN_FOTOS_EN_LA_VIDRIERA)).toBeInTheDocument();
+    expect(screen.getByText(mensajes().armarLaVidriera.fotos.sinFotos)).toBeInTheDocument();
     expect(screen.getByText('0 de 12')).toBeInTheDocument();
     cleanup();
 
     montar([]);
-    expect(screen.getByText(SIN_NADA_EN_LA_VIDRIERA)).toBeInTheDocument();
+    expect(screen.getByText(mensajes().armarLaVidriera.fotos.sinNada)).toBeInTheDocument();
   });
 });

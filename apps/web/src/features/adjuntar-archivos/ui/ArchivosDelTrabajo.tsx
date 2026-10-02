@@ -11,7 +11,7 @@ import {
   prepararImagen,
   rutaDeLaMiniatura,
   rutaDelArchivo,
-  SIN_SENAL_PARA_ARCHIVOS,
+  sinSenalParaArchivos,
   subirUnArchivo,
   TIPOS_QUE_SE_ELIGEN,
   type Archivo,
@@ -25,6 +25,7 @@ import {
   subirAlBucketDeArchivos,
   urlDelArchivo,
 } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   avisarEnPantalla,
   decodificarImagen,
@@ -53,10 +54,11 @@ interface RecienSubido {
 type Subida = { fase: 'quieta' } | { fase: 'subiendo'; actual: number; total: number };
 
 function motivoDelFallo(nombre: string, fallo: unknown): string {
+  const textos = mensajes().archivo;
   if (fallo instanceof ArchivoRechazado) return fallo.message;
-  if (fallo instanceof ImagenIlegible) return `«${nombre}»: ${fallo.message}`;
-  if (esFalloDeRed(fallo)) return SIN_SENAL_PARA_ARCHIVOS;
-  return `«${nombre}» no se pudo subir. ${mensajeDeAcceso(fallo)}`;
+  if (fallo instanceof ImagenIlegible) return textos.conElNombre(nombre, fallo.message);
+  if (esFalloDeRed(fallo)) return sinSenalParaArchivos();
+  return textos.noSeSubio(nombre, mensajeDeAcceso(fallo));
 }
 
 export interface ArchivosDelTrabajoProps {
@@ -64,6 +66,7 @@ export interface ArchivosDelTrabajoProps {
 }
 
 export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
+  const textos = useMensajes().adjuntarArchivos;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const idTitulo = useId();
@@ -91,7 +94,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
 
   function elegir(): void {
     if (!onlineManager.isOnline()) {
-      setProblemas([SIN_SENAL_PARA_ARCHIVOS]);
+      setProblemas([sinSenalParaArchivos()]);
       return;
     }
     setProblemas([]);
@@ -103,7 +106,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
     evento.target.value = '';
     if (elegidos.length === 0 || household === undefined) return;
     if (!onlineManager.isOnline()) {
-      setProblemas([SIN_SENAL_PARA_ARCHIVOS]);
+      setProblemas([sinSenalParaArchivos()]);
       return;
     }
 
@@ -148,10 +151,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
       avisarEnPantalla({
         clave: `archivos-subidos-${proyectoId}`,
         tono: 'hecho',
-        texto:
-          subidos.length === 1
-            ? 'Archivo subido.'
-            : `Se subieron ${String(subidos.length)} archivos.`,
+        texto: mensajes().adjuntarArchivos.subidos(subidos.length),
       });
     }
   }
@@ -163,49 +163,48 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
     >
       <div className="mb-1 flex items-baseline justify-between gap-3">
         <h2 id={idTitulo} className="text-section font-semibold">
-          Archivos
+          {textos.titulo}
         </h2>
         {vistos.total > 0 && (
           <span className="text-label text-text-2 tabular-nums">
-            {vistos.total === 1 ? '1 archivo' : `${String(vistos.total)} archivos`} · el cliente ve{' '}
-            {vistos.todos ? 'todos' : String(vistos.compartidos)}
+            {vistos.todos
+              ? textos.queVeElClienteTodos(vistos.total)
+              : textos.queVeElCliente(vistos.total, vistos.compartidos)}
           </span>
         )}
       </div>
-      <p className="text-meta leading-relaxed text-text-3">
-        Fotos, capturas y PDF. Las fotos se achican antes de subirse. Los videos no entran.
-      </p>
+      <p className="text-meta leading-relaxed text-text-3">{textos.queSeSube}</p>
 
       {vistos.ninguno && (
         <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-hairline-soft py-3 text-label leading-relaxed text-text-2">
           <Icono nombre="eye-off" tamano={15} className="flex-none translate-y-0.5 text-text-3" />
-          <span>El cliente no ve ninguno: un archivo sube privado y se comparte de a uno.</span>
+          <span>{textos.noVeNinguno}</span>
           <Ir
             a={rutaDeCompartir(proyectoId)}
             className="font-medium text-ink underline decoration-hairline underline-offset-3 hover:decoration-ink"
           >
-            Elegir cuáles ve
+            {textos.elegirCualesVe}
           </Ir>
         </p>
       )}
 
       {archivos.length === 0 && (
         <p className="mt-2 border-t border-hairline-soft py-3 text-label text-text-2">
-          Todavía no hay archivos de este trabajo.
+          {textos.sinArchivos}
         </p>
       )}
 
       {imagenes.length > 0 && (
         <div className="@container mt-2.5">
           <ul
-            aria-label="Fotos e imágenes"
+            aria-label={textos.fotosEImagenes}
             className="grid grid-cols-3 gap-2 @md:grid-cols-4 @xl:grid-cols-5"
           >
             {imagenes.map((imagen) => (
               <li key={imagen.id}>
                 <button
                   type="button"
-                  aria-label={`Ver ${imagen.nombre}`}
+                  aria-label={textos.ver(imagen.nombre)}
                   onClick={() => {
                     setEnElVisor(imagen.id);
                   }}
@@ -226,7 +225,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
       )}
 
       {documentos.length > 0 && (
-        <ul aria-label="Documentos" className="mt-2.5">
+        <ul aria-label={textos.documentos} className="mt-2.5">
           {documentos.map((documento) => (
             <li
               key={documento.id}
@@ -237,16 +236,17 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
                 href={urlDelArchivo(rutaDelArchivo(documento))}
                 target="_blank"
                 rel="noopener noreferrer"
+                translate="no"
                 className="min-w-0 flex-1 truncate text-body font-medium underline decoration-hairline underline-offset-3 hover:decoration-ink"
               >
                 {documento.nombre}
               </a>
-              <span className="flex-none text-meta text-text-3 tabular-nums">
+              <span translate="no" className="flex-none text-meta text-text-3 tabular-nums">
                 {pesoLegible(documento.bytes)}
               </span>
               <button
                 type="button"
-                aria-label={`Borrar «${documento.nombre}»`}
+                aria-label={textos.borrarUno(documento.nombre)}
                 onClick={() => {
                   borrar(documento);
                 }}
@@ -261,7 +261,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
 
       <Button variant="secundario" className="mt-3 w-full" cargando={subiendo} onClick={elegir}>
         <Icono nombre="plus" tamano={16} />
-        Subir fotos o PDF
+        {textos.subir}
       </Button>
       <input
         ref={selector}
@@ -278,16 +278,19 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
 
       {subida.fase === 'subiendo' && (
         <p role="status" className="mt-2 text-label text-text-2">
-          Subiendo {String(subida.actual)} de {String(subida.total)}…
+          {textos.subiendo(subida.actual, subida.total)}
         </p>
       )}
 
       {recienSubidos.length > 0 && (
-        <ul aria-label="Recién subidos" className="mt-2 text-meta leading-relaxed text-text-3">
+        <ul
+          aria-label={textos.recienSubidos}
+          className="mt-2 text-meta leading-relaxed text-text-3"
+        >
           {recienSubidos.map((subido) => (
             <li key={`${subido.nombre}-${String(subido.subido)}`}>
-              {subido.nombre}:{' '}
-              <span className="whitespace-nowrap">
+              <span translate="no">{subido.nombre}</span>:{' '}
+              <span translate="no" className="whitespace-nowrap">
                 {subido.original === subido.subido
                   ? pesoLegible(subido.subido)
                   : `${pesoLegible(subido.original)} → ${pesoLegible(subido.subido)}`}
@@ -326,7 +329,7 @@ export function ArchivosDelTrabajo({ proyectoId }: ArchivosDelTrabajoProps) {
                 }}
               >
                 <Icono nombre="trash-2" tamano={15} />
-                Borrar
+                {textos.borrar}
               </Button>
             )}
           />

@@ -5,6 +5,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { rutaEnLaVidriera } from '@/entities/archivo';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { urlDelArchivo } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Button, ConSalida, Icono, type NombreDeIcono } from '@/shared/ui';
 
 import type { FotoEnLaVidriera } from '../api/mutacion';
@@ -12,19 +13,7 @@ import { mandarALaCola, moverLaFoto, opcionesDeLaBaja, sacarLaFoto } from '../mo
 import { fotosDeLaVidriera, origenDeLaFoto } from '../model/vidriera';
 import { HojaDeSumarFotos } from './HojaDeSumarFotos';
 
-export const SIN_NADA_EN_LA_VIDRIERA =
-  'Todavía no hay nada en tu vidriera. Tus clientes la ven cuando sumes una foto o cargues una red.';
-
-export const SIN_FOTOS_EN_LA_VIDRIERA =
-  'Todavía no sumaste fotos: tus clientes ven solo tus redes.';
-
 type Accion = HaciaDondeSeMueve | 'sacar';
-
-const ETIQUETA: Readonly<Record<Accion, string>> = {
-  antes: 'Mover antes',
-  despues: 'Mover después',
-  sacar: 'Sacar',
-};
 
 const ICONO: Readonly<Record<Accion, NombreDeIcono>> = {
   antes: 'arrow-up',
@@ -40,11 +29,12 @@ interface BotonDeLaFotoProps {
 }
 
 function BotonDeLaFoto({ accion, apagado = false, describe, alTocar }: BotonDeLaFotoProps) {
+  const etiquetas = useMensajes().armarLaVidriera.fotos.acciones;
   return (
     <button
       type="button"
       data-accion={accion}
-      aria-label={ETIQUETA[accion]}
+      aria-label={etiquetas[accion]}
       aria-describedby={describe}
       aria-disabled={apagado || undefined}
       onClick={() => {
@@ -57,13 +47,12 @@ function BotonDeLaFoto({ accion, apagado = false, describe, alTocar }: BotonDeLa
   );
 }
 
-export const LA_VIDRIERA_ESTA_LLENA = `Tu vidriera ya tiene sus ${String(TOPE_DE_LA_VIDRIERA)} fotos. Sacá una para sumar otra.`;
-
 export interface FotosDeLaVidrieraProps {
   hayRedes: boolean;
 }
 
 export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
+  const textos = useMensajes().armarLaVidriera.fotos;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const base = useId();
@@ -96,22 +85,18 @@ export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-body font-semibold">Fotos</h3>
+        <h3 className="text-body font-semibold">{textos.titulo}</h3>
         <span className="text-label text-text-2 tabular-nums">
-          {fotos.length} de {TOPE_DE_LA_VIDRIERA}
+          {textos.deTantas(fotos.length, TOPE_DE_LA_VIDRIERA)}
         </span>
       </div>
 
       {fotos.length === 0 ? (
         <p className="border-t border-hairline-soft py-3 text-body leading-relaxed text-text-2">
-          {hayRedes ? SIN_FOTOS_EN_LA_VIDRIERA : SIN_NADA_EN_LA_VIDRIERA}
+          {hayRedes ? textos.sinFotos : textos.sinNada}
         </p>
       ) : (
-        <ol
-          ref={lista}
-          aria-label="Las fotos de tu vidriera, en el orden en que las ve tu cliente"
-          className="flex flex-col"
-        >
+        <ol ref={lista} aria-label={textos.enOrden} className="flex flex-col">
           {fotos.map((foto, indice) => {
             const describe = `${base}-${foto.id}`;
             return (
@@ -131,7 +116,7 @@ export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
                 />
                 <p id={describe} className="min-w-0 flex-1 leading-normal">
                   <span className="block text-body font-medium tabular-nums">
-                    Foto {indice + 1} de {fotos.length}
+                    {textos.fotoDe(indice + 1, fotos.length)}
                   </span>
                   <span className="block text-label break-words text-text-2">
                     {origenDeLaFoto(replica, foto)}
@@ -175,10 +160,12 @@ export function FotosDeLaVidriera({ hayRedes }: FotosDeLaVidrieraProps) {
           }}
         >
           <Icono nombre="plus" tamano={16} />
-          Sumar fotos
+          {textos.sumar}
         </Button>
         {llena && (
-          <p className="text-label leading-relaxed text-text-2">{LA_VIDRIERA_ESTA_LLENA}</p>
+          <p className="text-label leading-relaxed text-text-2">
+            {textos.llena(TOPE_DE_LA_VIDRIERA)}
+          </p>
         )}
       </div>
 

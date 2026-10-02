@@ -1,8 +1,11 @@
 import type { Mensajes } from '../es';
 
+import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
 import { api } from './api';
+import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
+import { armarLaVidriera } from './armarLaVidriera';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { cliente } from './cliente';
 import { comun } from './comun';
@@ -34,9 +37,12 @@ import { replica } from './replica';
 import { ui } from './ui';
 
 export const en = {
+  adjuntarArchivos,
   agenda,
   api,
+  archivo,
   armarElPresupuesto,
+  armarLaVidriera,
   avanzarLaConsulta,
   cliente,
   comun,

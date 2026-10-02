@@ -1,3 +1,5 @@
+import { mensajes } from '@/shared/idioma';
+
 import { pesoLegible } from './archivos';
 
 export const TIPOS_QUE_SE_ELIGEN = 'image/*,application/pdf,video/*';
@@ -10,11 +12,13 @@ export const LADO_DE_LA_MINIATURA = 480;
 
 const LARGO_DEL_NOMBRE = 200;
 
-export const SIN_SENAL_PARA_ARCHIVOS =
-  'Sin señal no se pueden subir archivos: se suben en el momento y no quedan anotados para después. Probá cuando vuelva la señal.';
+export function sinSenalParaArchivos(): string {
+  return mensajes().archivo.sinSenal;
+}
 
-export const LOS_VIDEOS_NO_ENTRAN =
-  'Los videos no se pueden subir: uno del celular pesa entre 50 y 200 MB, y el espacio para los archivos de todo el taller es de 1 GB. Subí fotos o capturas del video, y los planos y presupuestos en PDF.';
+export function losVideosNoEntran(): string {
+  return mensajes().archivo.losVideosNoEntran;
+}
 
 export interface ArchivoElegido {
   name: string;
@@ -35,8 +39,12 @@ export interface LoQueSeSube {
 export const LO_QUE_SE_SUBE_A_UN_TRABAJO: LoQueSeSube = {
   acepta: TIPOS_QUE_SE_ELIGEN,
   conPdf: true,
-  videos: LOS_VIDEOS_NO_ENTRAN,
-  queSeSube: 'fotos, capturas y PDF',
+  get videos() {
+    return losVideosNoEntran();
+  },
+  get queSeSube() {
+    return mensajes().archivo.queSeSubeAUnTrabajo;
+  },
 };
 
 const EXTENSIONES_DE_VIDEO = /\.(mp4|mov|m4v|avi|mkv|3gp|webm|wmv)$/i;
@@ -46,11 +54,12 @@ export function eleccionDelArchivo(
   archivo: ArchivoElegido,
   loQueSeSube: LoQueSeSube = LO_QUE_SE_SUBE_A_UN_TRABAJO,
 ): EleccionDelArchivo {
+  const textos = mensajes().archivo;
   const tipo = archivo.type.toLowerCase();
   const nombre = archivo.name.trim();
   const noEntra: EleccionDelArchivo = {
     clase: 'rechazado',
-    motivo: `«${nombre}» no se puede subir: se pueden subir ${loQueSeSube.queSeSube}.`,
+    motivo: textos.noSePuedeSubir(nombre, loQueSeSube.queSeSube),
   };
 
   if (tipo.startsWith('video/') || EXTENSIONES_DE_VIDEO.test(nombre)) {
@@ -61,7 +70,7 @@ export function eleccionDelArchivo(
     if (archivo.size > TOPE_DE_UN_PDF_BYTES) {
       return {
         clase: 'rechazado',
-        motivo: `«${nombre}» pesa ${pesoLegible(archivo.size)}, y un PDF puede pesar hasta 10 MB. Si es un escaneo, guardalo con menos calidad y probá de nuevo.`,
+        motivo: textos.pdfMuyPesado(nombre, pesoLegible(archivo.size)),
       };
     }
     return { clase: 'pdf' };
@@ -85,6 +94,6 @@ export function medidasAchicadas(ancho: number, alto: number, ladoMaximo: number
 
 export function nombreParaGuardar(nombre: string): string {
   const limpio = nombre.trim();
-  if (limpio === '') return 'Archivo';
+  if (limpio === '') return mensajes().archivo.sinNombre;
   return limpio.length > LARGO_DEL_NOMBRE ? limpio.slice(0, LARGO_DEL_NOMBRE) : limpio;
 }

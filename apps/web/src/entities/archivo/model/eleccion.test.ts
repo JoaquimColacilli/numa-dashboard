@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   eleccionDelArchivo,
   LO_QUE_SE_SUBE_A_UN_TRABAJO,
-  LOS_VIDEOS_NO_ENTRAN,
+  losVideosNoEntran,
   medidasAchicadas,
   nombreParaGuardar,
   TIPOS_QUE_SE_ELIGEN,
@@ -15,14 +15,14 @@ describe('qué se puede subir', () => {
     expect(eleccionDelArchivo({ name: 'visita.mp4', type: 'video/mp4', size: 90_000_000 })).toEqual(
       {
         clase: 'rechazado',
-        motivo: LOS_VIDEOS_NO_ENTRAN,
+        motivo: losVideosNoEntran(),
       },
     );
     expect(eleccionDelArchivo({ name: 'VID_2026.MOV', type: '', size: 10 })).toMatchObject({
       clase: 'rechazado',
-      motivo: LOS_VIDEOS_NO_ENTRAN,
+      motivo: losVideosNoEntran(),
     });
-    expect(LOS_VIDEOS_NO_ENTRAN).toMatch(/fotos o capturas/);
+    expect(losVideosNoEntran()).toMatch(/fotos o capturas/);
   });
 
   it('una foto, una captura o un render son imágenes, aunque el navegador no diga el tipo', () => {
@@ -71,7 +71,7 @@ describe('qué se puede subir', () => {
     expect(LO_QUE_SE_SUBE_A_UN_TRABAJO).toEqual({
       acepta: TIPOS_QUE_SE_ELIGEN,
       conPdf: true,
-      videos: LOS_VIDEOS_NO_ENTRAN,
+      videos: losVideosNoEntran(),
       queSeSube: 'fotos, capturas y PDF',
     });
   });

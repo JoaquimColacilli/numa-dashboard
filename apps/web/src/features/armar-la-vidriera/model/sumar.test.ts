@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   ArchivoRechazado,
-  SIN_SENAL_PARA_ARCHIVOS,
+  sinSenalParaArchivos,
   type Archivo,
   type DependenciasDeLaSubida,
 } from '@/entities/archivo';
@@ -21,7 +21,7 @@ import {
   destinoDeLaVidriera,
   disponibilidadDeLaFoto,
   fotosDeLosTrabajos,
-  LOS_VIDEOS_NO_VAN_A_LA_VIDRIERA,
+  losVideosNoVanALaVidriera,
   subirALaVidriera,
   sumarDeLosTrabajos,
   textoDelBotonDeSumar,
@@ -329,7 +329,7 @@ describe('subir fotos nuevas a la vidriera', () => {
       avisoDelExceso(3, 2),
       new ArchivoRechazado('«despiece.pdf» no se puede subir: se pueden subir fotos y capturas.')
         .message,
-      LOS_VIDEOS_NO_VAN_A_LA_VIDRIERA,
+      losVideosNoVanALaVidriera(),
     ]);
   });
 
@@ -349,6 +349,6 @@ describe('subir fotos nuevas a la vidriera', () => {
 
   it('el destino de la vidriera arma la ruta de la vidriera', () => {
     expect(destinoDeLaVidriera('h').ruta('f', 'image/jpeg', true)).toBe('h/vidriera/f.mini.jpg');
-    expect(SIN_SENAL_PARA_ARCHIVOS).toMatch(/^Sin señal/);
+    expect(sinSenalParaArchivos()).toMatch(/^Sin señal/);
   });
 });
