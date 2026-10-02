@@ -40,6 +40,7 @@ import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
 import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
+import { paginaRecuperar } from './paginaRecuperar';
 import { proyecto } from './proyecto';
 import { recibirAvisos } from './recibirAvisos';
 import { recuperarAcceso } from './recuperarAcceso';
@@ -88,6 +89,7 @@ export const es = {
   paginaInicio,
   paginaOpiniones,
   paginaProyectos,
+  paginaRecuperar,
   proyecto,
   recibirAvisos,
   recuperarAcceso,

@@ -19,7 +19,6 @@
     "src/pages/ajustes/",
     "src/pages/encuesta-publica/",
     "src/pages/nueva-contrasena/",
-    "src/pages/recuperar/",
     "src/pages/tesoros/",
     "src/pages/vista-cliente/",
     "src/shared/lib/telefono.ts",
