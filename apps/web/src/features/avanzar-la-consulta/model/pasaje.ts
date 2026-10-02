@@ -1,6 +1,7 @@
 import {
   calcularSena,
   centavosEn,
+  CONCEPTOS_DE_SIEMPRE,
   MONEDA_DEL_TALLER,
   unaSolaForma,
   type FormaDeCobro,
@@ -134,7 +135,7 @@ function pagoDeLaSena(
     {
       id,
       fecha: valores.diaDeLaSena,
-      concepto: mensajes().avanzarLaConsulta.conceptos.senaAlAprobar,
+      concepto: CONCEPTOS_DE_SIEMPRE.senaAlAprobar,
       monto_centavos: valores.sena,
       ya_en_la_apertura: valores.senaEnLaApertura,
       ...clavesDelPago(

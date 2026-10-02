@@ -384,4 +384,9 @@ export const vista = {
     paraCompartir: 'Para compartir, este enlace',
     copiarElEnlace: 'Copiar el enlace',
   },
+  conceptosDeSiempre: {
+    senaDeLaVisita: 'Seña de la visita',
+    senaAlAprobar: 'Seña',
+    saldoFinal: 'Saldo final en la entrega',
+  },
 } as const;

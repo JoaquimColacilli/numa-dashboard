@@ -371,6 +371,11 @@ export const proyecto = {
     faltaElDolar: 'Informe o dólar para os custos e aqui aparece o que sobra, em dólares.',
     aproximado: (monto) => `≈ ${monto}`,
   },
+  conceptosDeSiempre: {
+    senaDeLaVisita: 'Sinal da visita',
+    senaAlAprobar: 'Sinal',
+    saldoFinal: 'Saldo final na entrega',
+  },
   liquidacionesSinConfirmar: {
     unProyecto: 'Um projeto',
     cuentan: (liquidaciones) =>

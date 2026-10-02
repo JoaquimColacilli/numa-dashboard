@@ -31,7 +31,6 @@ export const liquidarProyecto = {
       sinSaldo: 'No balance',
     },
     pagoFinal: 'Final payment',
-    conceptoDelPagoFinal: 'Final balance on delivery',
     registrarElPagoFinalDe: (monto) => `Log the final payment of ${monto}`,
     ayudaDelPagoFinal:
       "It's added as one more payment on the job and goes into the math below. If the client still owes you, uncheck it and collect what came in.",

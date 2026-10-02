@@ -29,7 +29,6 @@ export const liquidarProyecto = {
       sinSaldo: 'Sin saldo',
     },
     pagoFinal: 'Pago final',
-    conceptoDelPagoFinal: 'Saldo final en la entrega',
     registrarElPagoFinalDe: (monto: string) => `Registrar el pago final de ${monto}`,
     ayudaDelPagoFinal:
       'Queda cargado como un pago más del proyecto, y entra en la cuenta de abajo. Si el cliente te quedó debiendo, destildalo y cobrá lo que entró.',

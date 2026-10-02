@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FilaDe } from '@/shared/api';
+import { usarIdioma } from '@/shared/idioma';
 
 import { datosActualesDelProyecto } from './liquidacion';
 import {
@@ -166,6 +167,31 @@ describe('los pagos en dos monedas en el formulario grande', () => {
       ...extra,
     };
   }
+
+  it('los conceptos de siempre se ven en el idioma de quien mira y se guardan en castellano', async () => {
+    try {
+      await usarIdioma('en');
+      const filas = [
+        pago({ id: 'a', concepto: 'Seña de la visita' }),
+        pago({ id: 'b', concepto: 'Anticipo del herraje' }),
+      ];
+      const valores = valoresDelFormulario(proyecto(), filas, [], [], { hoy: HOY });
+      expect(valores.pagos.map((fila) => fila.detalle)).toEqual([
+        'Site visit deposit',
+        'Anticipo del herraje',
+      ]);
+      const pedido = pedidoDeGuardado('p', 1, valores, {
+        pagos: ['a', 'b'],
+        gastos: [],
+        opciones: [],
+      });
+      expect(
+        pedido.pagos.map((guardado) => ('concepto' in guardado ? guardado.concepto : '')),
+      ).toEqual(['Seña de la visita', 'Anticipo del herraje']);
+    } finally {
+      await usarIdioma('es');
+    }
+  });
 
   it('cada pago trae su moneda, su dólar y su tesoro, y uno de antes de las columnas se lee en pesos', () => {
     const [enDolares] = valoresDelFormulario(proyecto(), [pago()], [], [], { hoy: HOY }).pagos;

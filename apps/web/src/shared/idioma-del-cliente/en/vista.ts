@@ -385,4 +385,9 @@ export const vista = {
     paraCompartir: 'To share, use this link',
     copiarElEnlace: 'Copy link',
   },
+  conceptosDeSiempre: {
+    senaDeLaVisita: 'Site visit deposit',
+    senaAlAprobar: 'Deposit',
+    saldoFinal: 'Final balance on delivery',
+  },
 } satisfies MensajesDelCliente['vista'];

@@ -293,6 +293,15 @@ export {
 } from './pagos.ts';
 
 export {
+  CLAVES_DE_LOS_CONCEPTOS,
+  conceptoDeSiempre,
+  conceptoEnPantalla,
+  conceptoParaGuardar,
+  CONCEPTOS_DE_SIEMPRE,
+  type ConceptoDeSiempre,
+} from './conceptos.ts';
+
+export {
   comoPagar,
   estaAprobada,
   hayComoPagar,

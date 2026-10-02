@@ -372,6 +372,11 @@ export const proyecto = {
     faltaElDolar: 'Enter the dollar rate for costs and what you keep shows up here, in dollars.',
     aproximado: (monto) => `≈ ${monto}`,
   },
+  conceptosDeSiempre: {
+    senaDeLaVisita: 'Site visit deposit',
+    senaAlAprobar: 'Deposit',
+    saldoFinal: 'Final balance on delivery',
+  },
   liquidacionesSinConfirmar: {
     unProyecto: 'A job',
     cuentan: (liquidaciones) =>

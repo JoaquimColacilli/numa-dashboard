@@ -1,4 +1,5 @@
 import {
+  CONCEPTOS_DE_SIEMPRE,
   esAnteriorALaApertura,
   MONEDA_DEL_TALLER,
   vencimientoDelPresupuesto,
@@ -41,7 +42,7 @@ import {
 } from './pagoDeLaConsulta';
 
 export function conceptoDeLaSena(): string {
-  return mensajes().avanzarLaConsulta.conceptos.senaDeLaVisita;
+  return CONCEPTOS_DE_SIEMPRE.senaDeLaVisita;
 }
 
 export interface ValoresDelContacto {

@@ -1,4 +1,6 @@
 import {
+  conceptoDeSiempre,
+  conceptoEnPantalla,
   estaLiquidado,
   faseDe,
   puedeCerrarPerdido,
@@ -136,7 +138,9 @@ export function ProyectoFichaPage() {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { id = '' } = useParams();
-  const { comun, ficha: textos } = useMensajes().paginaProyectos;
+  const m = useMensajes();
+  const { comun, ficha: textos } = m.paginaProyectos;
+  const conceptos = m.proyecto.conceptosDeSiempre;
 
   const hoy = hoyLocal();
   const resumen = resumenDeProyecto(replica, id, hoy);
@@ -492,10 +496,16 @@ export function ProyectoFichaPage() {
                     </span>
                     <span className="py-2.5">
                       <span
-                        translate={pago.concepto.trim() === '' ? undefined : 'no'}
+                        translate={
+                          pago.concepto.trim() === '' || conceptoDeSiempre(pago.concepto) !== null
+                            ? undefined
+                            : 'no'
+                        }
                         className="block text-body-lg font-medium"
                       >
-                        {pago.concepto.trim() === '' ? textos.pago : pago.concepto}
+                        {pago.concepto.trim() === ''
+                          ? textos.pago
+                          : conceptoEnPantalla(pago.concepto, conceptos)}
                       </span>
                       <span translate="no" className="mt-0.5 block text-meta text-text-3">
                         {fechaLarga(pago.fecha, hoy)}

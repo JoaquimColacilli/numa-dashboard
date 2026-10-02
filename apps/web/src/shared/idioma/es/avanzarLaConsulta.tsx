@@ -1,10 +1,6 @@
 import type { Envoltorio } from '@/shared/lib';
 
 export const avanzarLaConsulta = {
-  conceptos: {
-    senaDeLaVisita: 'Seña de la visita',
-    senaAlAprobar: 'Seña',
-  },
   avance: {
     queFalta: 'Qué falta',
     etapa: 'Etapa',

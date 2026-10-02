@@ -1,5 +1,6 @@
 import {
   centavos,
+  conceptoParaGuardar,
   esAnteriorALaApertura,
   MONEDA_DEL_TALLER,
   planDeLaLiquidacion,
@@ -154,7 +155,9 @@ export interface PantallaDeLiquidacionProps {
 }
 
 export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacionProps) {
-  const { pantalla } = useMensajes().liquidarProyecto;
+  const m = useMensajes();
+  const { pantalla } = m.liquidarProyecto;
+  const conceptos = m.proyecto.conceptosDeSiempre;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { proyecto } = resumen;
@@ -185,7 +188,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
     );
   });
   const [fechaDelPago, setFechaDelPago] = useState(hoy);
-  const [concepto, setConcepto] = useState(pantalla.conceptoDelPagoFinal);
+  const [concepto, setConcepto] = useState<string>(conceptos.saldoFinal);
   const [fechaElegida, setFechaElegida] = useState<string | null>(null);
   const [aperturaElegida, setAperturaElegida] = useState<boolean | null>(null);
 
@@ -254,7 +257,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           {
             id: uuidv7(),
             fecha: fechaDelPago,
-            concepto: concepto.trim(),
+            concepto: conceptoParaGuardar(concepto, conceptos),
             monto_centavos: importeDelPagoFinal.monto,
             ya_en_la_apertura: pagoEnLaApertura,
             moneda: pagoFinal.moneda,

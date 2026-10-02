@@ -1,4 +1,6 @@
 import {
+  conceptoEnPantalla,
+  conceptoParaGuardar,
   esAnteriorALaApertura,
   ESTADOS,
   MONEDA_DEL_TALLER,
@@ -302,7 +304,7 @@ export function valoresDelFormulario(
     pagos: pagos.map((pago) => ({
       id: pago.id,
       fecha: pago.fecha,
-      detalle: pago.concepto,
+      detalle: conceptoEnPantalla(pago.concepto, mensajes().proyecto.conceptosDeSiempre),
       monto: pago.monto_centavos,
       enLaApertura: (pago as Partial<Pago>).ya_en_la_apertura === true,
       moneda: monedaLeida((pago as Partial<Pago>).moneda),
@@ -382,7 +384,7 @@ export function pedidoDeGuardado(
   const pagos: PagoParaGuardar[] = valores.pagos.map((fila) => ({
     id: fila.id,
     fecha: fila.fecha,
-    concepto: fila.detalle.trim(),
+    concepto: conceptoParaGuardar(fila.detalle, mensajes().proyecto.conceptosDeSiempre),
     monto_centavos: monto(fila.monto),
     ya_en_la_apertura: fila.enLaApertura && esAnteriorALaApertura(fila.fecha, apertura),
     moneda: fila.moneda,

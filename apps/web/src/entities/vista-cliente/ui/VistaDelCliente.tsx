@@ -1,4 +1,6 @@
 import {
+  conceptoDeSiempre,
+  conceptoEnPantalla,
   estaAprobada,
   hayComoPagar,
   loQueSePagoEnOtraMoneda,
@@ -633,6 +635,10 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                       <span className="min-w-0 flex-1">
                         {pago.concepto.trim() === '' ? (
                           <span className="block text-body font-medium">{t.pagina.pago}</span>
+                        ) : conceptoDeSiempre(pago.concepto) !== null ? (
+                          <span className="block text-body font-medium">
+                            {conceptoEnPantalla(pago.concepto, t.conceptosDeSiempre)}
+                          </span>
                         ) : (
                           <span translate="no" className="block text-body font-medium">
                             {pago.concepto}

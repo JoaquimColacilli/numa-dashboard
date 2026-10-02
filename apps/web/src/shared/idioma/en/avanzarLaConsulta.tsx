@@ -3,10 +3,6 @@ import type { Mensajes } from '../es';
 import { plural } from './plural';
 
 export const avanzarLaConsulta = {
-  conceptos: {
-    senaDeLaVisita: 'Site visit deposit',
-    senaAlAprobar: 'Deposit',
-  },
   avance: {
     queFalta: 'To do',
     etapa: 'Stage',

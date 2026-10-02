@@ -383,6 +383,11 @@ export const proyecto = {
     faltaElDolar: 'Cargá el dólar para los costos y acá va lo que te queda, en dólares.',
     aproximado: (monto: string) => `≈ ${monto}`,
   },
+  conceptosDeSiempre: {
+    senaDeLaVisita: 'Seña de la visita',
+    senaAlAprobar: 'Seña',
+    saldoFinal: 'Saldo final en la entrega',
+  },
   liquidacionesSinConfirmar: {
     unProyecto: 'Un proyecto',
     cuentan: (liquidaciones: number) =>
