@@ -98,6 +98,12 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo:
       'Las categorías que se ofrecen se guardan en castellano en cada movimiento: son claves de movimiento.categorias, que las muestra en el idioma de quien mira con categoriaEnPantalla.',
   },
+  {
+    archivo: 'src/entities/replica/model/contexto.ts',
+    texto: 'Falta ProveedorDeReplica: las pantallas del taller se montan adentro suyo.',
+    motivo:
+      'Corta la app si una pantalla del taller se monta sin su proveedor: solo lo ve quien la arma.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

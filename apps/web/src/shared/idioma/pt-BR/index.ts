@@ -14,6 +14,7 @@ import { paginaAnalitico } from './paginaAnalitico';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaInicio } from './paginaInicio';
 import { registrarMovimiento } from './registrarMovimiento';
+import { replica } from './replica';
 import { ui } from './ui';
 
 export const ptBR = {
@@ -31,5 +32,6 @@ export const ptBR = {
   paginaDiezmo,
   paginaInicio,
   registrarMovimiento,
+  replica,
   ui,
 } satisfies Mensajes;

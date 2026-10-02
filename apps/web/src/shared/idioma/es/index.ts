@@ -14,6 +14,7 @@ import { paginaAnalitico } from './paginaAnalitico';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaInicio } from './paginaInicio';
 import { registrarMovimiento } from './registrarMovimiento';
+import { replica } from './replica';
 import { ui } from './ui';
 
 export const es = {
@@ -31,6 +32,7 @@ export const es = {
   paginaDiezmo,
   paginaInicio,
   registrarMovimiento,
+  replica,
   ui,
 } as const;
 

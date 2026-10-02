@@ -12,7 +12,6 @@
     "src/entities/opinion/",
     "src/entities/presupuesto/",
     "src/entities/proyecto/",
-    "src/entities/replica/",
     "src/entities/sesion/",
     "src/entities/tesoro/",
     "src/entities/vista-cliente/",
