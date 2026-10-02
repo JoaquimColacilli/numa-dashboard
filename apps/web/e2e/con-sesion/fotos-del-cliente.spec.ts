@@ -396,13 +396,13 @@ test('ajustes tiene dónde cargar los datos para transferir', async ({
 
   const seccion = page.getByRole('region', { name: 'Cómo te pagan' });
   await expect(seccion).toBeVisible(CARGA);
-  await seccion.getByLabel('Alias').fill('plata_del_taller');
+  await seccion.getByLabel('Alias', { exact: true }).fill('plata_del_taller');
   await seccion.getByRole('button', { name: 'Guardar los datos' }).click();
   await expect(seccion).toContainText('ni guion bajo');
   await seccion.scrollIntoViewIfNeeded();
   await seccion.screenshot({ path: testInfo.outputPath('ajustes-cobro-alias-invalido.png') });
 
-  await seccion.getByLabel('Alias').fill('maun.muebles');
+  await seccion.getByLabel('Alias', { exact: true }).fill('maun.muebles');
   await seccion.getByLabel('CBU o CVU').fill('0110001412345678901233');
   await seccion.getByRole('button', { name: 'Guardar los datos' }).click();
   await expect(seccion).toContainText('los primeros ocho');
