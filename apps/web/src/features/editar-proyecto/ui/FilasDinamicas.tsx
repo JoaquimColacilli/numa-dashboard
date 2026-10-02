@@ -14,10 +14,12 @@ import {
   BotonDeLaMoneda,
   conOtraMoneda,
   DetalleDelPago,
+  dolarDelDiaParaUnPago,
   filaVacia,
   pagoVacio,
   totalDeLasFilas,
   totalesDeLosPagos,
+  type DolarDelDiaDelTaller,
   type FilaDePago,
   type FilaDinamica,
   type FormularioDeProyecto,
@@ -29,11 +31,6 @@ import { formatearPesos, formatearPlata, hoyEnElTaller, uuidv7 } from '@/shared/
 import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
 type Lista = 'pagos' | 'gastos';
-
-export interface DolarDelDiaDelTaller {
-  valor: number;
-  fecha: string;
-}
 
 export interface LoDeLosPagos {
   monedaDelTrabajo: Moneda;
@@ -69,10 +66,7 @@ function dolarDelDiaParaElPago(
   pago: Pick<FilaDePago, 'moneda' | 'fecha'>,
   delPago: LoDeLosPagos,
 ): number | null {
-  const { dolarDelDia, monedaDelTrabajo } = delPago;
-  if (dolarDelDia === null || pago.moneda !== MONEDA_DEL_TALLER) return null;
-  if (monedaDelTrabajo === MONEDA_DEL_TALLER || dolarDelDia.fecha !== pago.fecha) return null;
-  return dolarDelDia.valor;
+  return dolarDelDiaParaUnPago(pago, delPago.monedaDelTrabajo, delPago.dolarDelDia);
 }
 
 export function FilasDinamicas({

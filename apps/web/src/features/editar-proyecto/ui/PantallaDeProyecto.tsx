@@ -5,7 +5,6 @@ import {
   faseDe,
   MONEDA_DEL_TALLER,
   MONEDAS,
-  monedaLeida,
   type EstadoProyecto,
   type Moneda,
 } from '@maun/domain';
@@ -21,6 +20,7 @@ import {
   comprobanteDeLaCondicion,
   conLaVigenciaAlMandar,
   diasQueValeElPresupuesto,
+  dolarDelDiaDelTaller,
   esquemaDeProyecto,
   ESTADO,
   ESTADOS_EN_ORDEN,
@@ -29,6 +29,7 @@ import {
   FORMAS_EN_ORDEN,
   gastosDelProyecto,
   hijosDelProyecto,
+  monedaDeUnPagoNuevo,
   MUTACION_DE_PROYECTO,
   opcionesDelProyecto,
   opcionVacia,
@@ -41,12 +42,12 @@ import {
   rutaDeCierre,
   rutaDeCobro,
   rutaDelProyecto,
+  tesorosQueRecibenDolares,
   tiposParaSugerir,
   totalDeLasFilas,
   totalesDeLosPagos,
   valoresDelFormulario,
   type FormularioDeProyecto,
-  type TesoroQueRecibeDolares,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import {
@@ -55,7 +56,6 @@ import {
   filaPorId,
   filasDe,
   mensajeDeSincronizacion,
-  tesorosDeLaReplica,
 } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
@@ -81,7 +81,7 @@ import {
 
 import { conLaOtraMoneda, monedaDeLoMandado, type CambioDeMoneda } from '../model/moneda';
 import { FilasDeOpciones } from './FilasDeOpciones';
-import { FilasDinamicas, type DolarDelDiaDelTaller } from './FilasDinamicas';
+import { FilasDinamicas } from './FilasDinamicas';
 import { HojaDeCambiarLaMoneda } from './HojaDeCambiarLaMoneda';
 
 const FECHA_ALINEADA = '@sm/datos:row-span-3 @sm/datos:grid @sm/datos:grid-rows-subgrid';
@@ -106,25 +106,6 @@ function sePuedeCambiarLaMoneda(estado: EstadoProyecto | undefined): boolean {
     estado === 'en_seguimiento' ||
     (ESTADOS_DE_CONSULTA as readonly EstadoProyecto[]).includes(estado)
   );
-}
-
-function tesorosQueRecibenDolares(
-  replica: Parameters<typeof tesorosDeLaReplica>[0],
-): TesoroQueRecibeDolares[] {
-  return tesorosDeLaReplica(replica)
-    .filter((tesoro) => tesoro.moneda === 'USD' && !tesoro.archivado)
-    .map((tesoro) => ({ id: tesoro.id, nombre: tesoro.nombre }));
-}
-
-function dolarDelDiaDelTaller(ajustes: ReturnType<typeof ajustesDe>): DolarDelDiaDelTaller | null {
-  const valor = ajustes?.dolar_del_dia_centavos ?? null;
-  const fecha = ajustes?.dolar_del_dia_el ?? null;
-  return valor === null || fecha === null ? null : { valor, fecha };
-}
-
-function monedaDeLosPagosNuevos(cobraEn: readonly string[] | null | undefined, delTrabajo: Moneda) {
-  const unica = cobraEn?.length === 1 ? cobraEn[0] : undefined;
-  return unica === undefined ? delTrabajo : monedaLeida(unica);
 }
 
 export function PantallaDeProyecto({
@@ -258,7 +239,7 @@ export function PantallaDeProyecto({
   const [cambiandoA, setCambiandoA] = useState<Moneda | null>(null);
   const monedaEditable = sePuedeCambiarLaMoneda(proyecto?.estado);
   const tesorosEnDolares = tesorosQueRecibenDolares(replica);
-  const dolarDelDia = dolarDelDiaDelTaller(ajustesDe(replica));
+  const dolarDelDia = dolarDelDiaDelTaller(replica);
 
   const hayOpciones = filasDeOpciones.length > 0;
   const presupuestoEfectivo = hayOpciones ? presupuestoDeLasOpciones(filasDeOpciones) : presupuesto;
@@ -716,10 +697,7 @@ export function PantallaDeProyecto({
                 apertura={aperturaDeLaReplica(replica)}
                 delPago={{
                   monedaDelTrabajo: moneda,
-                  monedaNueva: monedaDeLosPagosNuevos(
-                    (proyecto as { cobra_en?: string[] | null } | undefined)?.cobra_en,
-                    moneda,
-                  ),
+                  monedaNueva: monedaDeUnPagoNuevo(proyecto, moneda),
                   tesorosEnDolares,
                   dolarDelDia,
                   alCrearUnTesoroEnDolares,

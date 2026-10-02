@@ -38,6 +38,10 @@ export const liquidarProyecto = {
     concepto: 'Description',
     monto: 'Amount',
     fechaDelPago: 'Payment date',
+    maunEnNegativo: (maun, saldo, tesoros) =>
+      `After this, ${maun} will be at ${saldo}: part of what you collected is in ${tesoros}.`,
+    entreComillas: (nombre) => `“${nombre}”`,
+    venderDolares: 'Sell dollars',
     montoATesoro: (monto, tesoro) => `${tesoro} gets ${monto}`,
     vanACadaTesoro: (lista) => `${lista}.`,
     seReparteElIngreso: (monto) =>

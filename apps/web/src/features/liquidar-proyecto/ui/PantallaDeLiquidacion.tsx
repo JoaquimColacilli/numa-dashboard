@@ -1,6 +1,7 @@
 import {
   centavos,
   esAnteriorALaApertura,
+  MONEDA_DEL_TALLER,
   planDeLaLiquidacion,
   plata,
   type EstadoLiquidado,
@@ -9,16 +10,23 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { EnlaceACliente } from '@/entities/cliente';
-import { CasillaDeLaApertura } from '@/entities/movimiento';
+import { CasillaDeLaApertura, rutaParaVenderDolaresA } from '@/entities/movimiento';
 import {
   ajustesDeLaReplica,
+  CamposDelPago,
   cobroPorLaFila,
+  conOtraMoneda,
   cuantosRepartos,
   datosActualesDelProyecto,
   despieceDelCobro,
   DistribucionDespiece,
+  dolarDelDiaDelTaller,
+  dolarDelDiaParaUnPago,
+  erroresDelValorDelPago,
   fechaDelCobroPropuesta,
+  importeDelValor,
   loQueRecibeCadaTesoro,
+  monedaDeUnPagoNuevo,
   MUTACION_DE_LIQUIDACION,
   MUTACION_DE_PROYECTO,
   pedidoPorLaFila,
@@ -26,14 +34,18 @@ import {
   repartoEnLaAperturaPropuesto,
   repartosLiquidados,
   rutaDelProyecto,
+  tesorosQueRecibenDolares,
   type MontoDelTesoro,
   type ResumenDeProyecto,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosSincronizados } from '@/entities/tesoro';
 import {
   aperturaDeLaReplica,
   mensajeDeSincronizacion,
+  tesorosDeLaReplica,
+  valorEnPesosDelPago,
   type ProyectoParaGuardar,
 } from '@/shared/api';
 import { mensajes, useMensajes } from '@/shared/idioma';
@@ -50,7 +62,9 @@ import {
   useIr,
   useVolver,
 } from '@/shared/lib';
-import { Button, Campo, Icono, MoneyInput, Pagina } from '@/shared/ui';
+import { Button, Campo, Icono, Pagina } from '@/shared/ui';
+
+import { dolaresDelTrabajo, maunDespuesDelCobro } from '../model/maun';
 
 function enLista(partes: readonly string[]): string {
   return new Intl.ListFormat(etiquetaActual(), { style: 'long', type: 'conjunction' }).format(
@@ -154,15 +168,34 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const apertura = aperturaDeLaReplica(replica);
 
   const faltaCobrar = destino === 'cobrado' && resumen.saldo !== null && resumen.saldo.importe > 0;
+  const tesorosEnDolares = tesorosQueRecibenDolares(replica);
+  const dolarDelDia = dolarDelDiaDelTaller(replica);
   const [conPagoFinal, setConPagoFinal] = useState(faltaCobrar);
-  const [monto, setMonto] = useState<number | null>(resumen.saldo?.importe ?? null);
+  const [pagoFinal, setPagoFinal] = useState<ValorDelPago>(() => {
+    const moneda = monedaDeUnPagoNuevo(proyecto, resumen.moneda);
+    return conOtraMoneda(
+      {
+        moneda,
+        monto: moneda === resumen.moneda ? (resumen.saldo?.importe ?? null) : null,
+        cotizacion: dolarDelDiaParaUnPago({ moneda, fecha: hoy }, resumen.moneda, dolarDelDia),
+        tesoroId: null,
+      },
+      moneda,
+      tesorosEnDolares,
+    );
+  });
   const [fechaDelPago, setFechaDelPago] = useState(hoy);
   const [concepto, setConcepto] = useState(pantalla.conceptoDelPagoFinal);
   const [fechaElegida, setFechaElegida] = useState<string | null>(null);
   const [aperturaElegida, setAperturaElegida] = useState<boolean | null>(null);
 
   const hayPagoFinal = conPagoFinal && faltaCobrar;
-  const pagoExtra = centavos(hayPagoFinal ? (monto ?? 0) : 0);
+  const importeDelPagoFinal = hayPagoFinal ? importeDelValor(pagoFinal) : null;
+  const pagoExtra =
+    importeDelPagoFinal === null ? centavos(0) : valorEnPesosDelPago(importeDelPagoFinal);
+  const erroresDelPagoFinal = hayPagoFinal
+    ? erroresDelValorDelPago(pagoFinal, resumen.moneda, tesorosEnDolares)
+    : {};
   const errorDelPago = hayPagoFinal ? errorDeLaFechaDeLaPlata(fechaDelPago, hoy) : undefined;
 
   const fecha =
@@ -190,12 +223,29 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const conTesoros = tesorosSincronizados(replica);
 
   const enCurso = liquidar.isPending && !liquidar.isPaused;
-  const listo = errorDelPago === undefined && errorDelDia === undefined && conTesoros;
+  const listo =
+    errorDelPago === undefined &&
+    errorDelDia === undefined &&
+    erroresDelPagoFinal.cotizacion === undefined &&
+    erroresDelPagoFinal.tesoro === undefined &&
+    conTesoros;
+
+  const entraAMaun =
+    hayPagoFinal && !pagoEnLaApertura && pagoFinal.moneda === MONEDA_DEL_TALLER
+      ? (pagoFinal.monto ?? 0)
+      : 0;
+  const maunDespues = maunDespuesDelCobro(replica, despiece, entraAMaun);
+  const dolares = dolaresDelTrabajo(resumen.enDolares, hayPagoFinal ? pagoFinal : null);
+  const nombresDeLosTesoros = new Map(tesorosEnDolares.map((tesoro) => [tesoro.id, tesoro.nombre]));
+  const nombreDeMaun =
+    tesorosDeLaReplica(replica).find((tesoro) => tesoro.id === maunDespues.maun)?.nombre ?? '';
+  const maunEnNegativo =
+    destino === 'cobrado' && !repartoEnLaApertura && maunDespues.saldo < 0 && dolares.length > 0;
 
   function confirmar(): void {
     if (!listo) return;
 
-    if (pagoExtra > 0) {
+    if (pagoExtra > 0 && importeDelPagoFinal !== null) {
       const pedidoDelPago: ProyectoParaGuardar = {
         id: proyecto.id,
         version: proyecto.version,
@@ -205,8 +255,11 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
             id: uuidv7(),
             fecha: fechaDelPago,
             concepto: concepto.trim(),
-            monto_centavos: pagoExtra,
+            monto_centavos: importeDelPagoFinal.monto,
             ya_en_la_apertura: pagoEnLaApertura,
+            moneda: pagoFinal.moneda,
+            cotizacion_centavos: pagoFinal.cotizacion,
+            tesoro_id: pagoFinal.moneda === MONEDA_DEL_TALLER ? null : pagoFinal.tesoroId,
           },
         ],
         gastos: [],
@@ -313,7 +366,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
             </p>
 
             {conPagoFinal && (
-              <div className="mt-3 grid gap-3 @xl:grid-cols-[minmax(0,1fr)_9rem_11.5rem]">
+              <div className="mt-3 grid gap-3 @xl:grid-cols-[minmax(0,1fr)_11.5rem]">
                 <Campo
                   etiqueta={pantalla.concepto}
                   value={concepto}
@@ -321,7 +374,6 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                     setConcepto(evento.target.value);
                   }}
                 />
-                <MoneyInput etiqueta={pantalla.monto} value={monto} onChange={setMonto} />
                 <Campo
                   etiqueta={pantalla.fechaDelPago}
                   type="date"
@@ -332,6 +384,21 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                     setFechaDelPago(evento.target.value);
                   }}
                 />
+                <div className="@xl:col-span-2">
+                  <CamposDelPago
+                    etiqueta={pantalla.monto}
+                    valor={pagoFinal}
+                    alCambiar={setPagoFinal}
+                    monedaDelTrabajo={resumen.moneda}
+                    tesorosEnDolares={tesorosEnDolares}
+                    dolarDelDia={dolarDelDiaParaUnPago(
+                      { moneda: pagoFinal.moneda, fecha: fechaDelPago },
+                      resumen.moneda,
+                      dolarDelDia,
+                    )}
+                    errores={erroresDelPagoFinal}
+                  />
+                </div>
               </div>
             )}
           </section>
@@ -370,6 +437,31 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           </p>
           <p className="mt-1.5 max-w-[48rem]">{sena.sePuedeDeshacer}</p>
         </section>
+      )}
+
+      {maunEnNegativo && (
+        <div className="flex flex-col items-start gap-2 rounded-panel bg-atencion-tint px-4 py-3.5 text-label leading-relaxed text-atencion">
+          <p className="max-w-[48rem]">
+            {pantalla.maunEnNegativo(
+              nombreDeMaun,
+              formatearPesos(maunDespues.saldo),
+              enLista(
+                dolares.map((uno) =>
+                  pantalla.entreComillas(nombresDeLosTesoros.get(uno.tesoroId) ?? ''),
+                ),
+              ),
+            )}
+          </p>
+          {dolares[0] !== undefined && (
+            <Ir
+              a={rutaParaVenderDolaresA(dolares[0].tesoroId, maunDespues.maun, dolares[0].monto)}
+              className="flex min-h-tap items-center gap-1.5 rounded-pill border border-atencion px-3.5 font-semibold"
+            >
+              <Icono nombre="arrow-left-right" tamano={16} />
+              {pantalla.venderDolares}
+            </Ir>
+          )}
+        </div>
       )}
 
       <DistribucionDespiece despiece={despiece} />

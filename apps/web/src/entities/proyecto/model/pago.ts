@@ -3,6 +3,7 @@ import {
   cotizacionLeida,
   loQueDescuenta,
   MONEDA_DEL_TALLER,
+  monedaLeida,
   necesitaCotizacion,
   plata,
   valorEnPesos,
@@ -13,12 +14,18 @@ import {
   type Plata,
 } from '@maun/domain';
 
-import { importeDelPago } from '@/shared/api';
+import {
+  ajustesDe,
+  importeDelPago,
+  tesorosDeLaReplica,
+  type FilaDe,
+  type Replica,
+} from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
 import { formatearLaPlata, formatearPesos } from '@/shared/lib';
 import { errorDelDolar } from '@/shared/ui';
 
-import type { Pago } from './catalogos';
+import type { Pago, Proyecto } from './catalogos';
 
 export type EfectoDelPago =
   | { tipo: 'descuenta'; monto: Plata; cotizacion: Cotizacion }
@@ -101,6 +108,41 @@ export function ayudaDelDolarDelPago(moneda: Moneda, monedaDelTrabajo: Moneda): 
   return monedaDelTrabajo === MONEDA_DEL_TALLER
     ? ayudaDelDolar.dolaresDeUnTrabajoEnPesos
     : ayudaDelDolar.dolaresDeUnTrabajoEnDolares;
+}
+
+export interface DolarDelDiaDelTaller {
+  valor: number;
+  fecha: string;
+}
+
+export function tesorosQueRecibenDolares(replica: Replica): TesoroQueRecibeDolares[] {
+  return tesorosDeLaReplica(replica)
+    .filter((tesoro) => tesoro.moneda === 'USD' && !tesoro.archivado)
+    .map((tesoro) => ({ id: tesoro.id, nombre: tesoro.nombre }));
+}
+
+export function dolarDelDiaDelTaller(replica: Replica): DolarDelDiaDelTaller | null {
+  const ajustes = ajustesDe(replica) as
+    Partial<Pick<FilaDe<'ajustes'>, 'dolar_del_dia_centavos' | 'dolar_del_dia_el'>> | undefined;
+  const valor = ajustes?.dolar_del_dia_centavos ?? null;
+  const fecha = ajustes?.dolar_del_dia_el ?? null;
+  return valor === null || fecha === null ? null : { valor, fecha };
+}
+
+export function monedaDeUnPagoNuevo(proyecto: Proyecto | undefined, delTrabajo: Moneda): Moneda {
+  const cobraEn = (proyecto as { cobra_en?: readonly string[] | null } | undefined)?.cobra_en;
+  const unica = cobraEn?.length === 1 ? cobraEn[0] : undefined;
+  return unica === undefined ? delTrabajo : monedaLeida(unica);
+}
+
+export function dolarDelDiaParaUnPago(
+  pago: { moneda: Moneda; fecha: string },
+  monedaDelTrabajo: Moneda,
+  dolarDelDia: DolarDelDiaDelTaller | null,
+): number | null {
+  if (dolarDelDia === null || pago.moneda !== MONEDA_DEL_TALLER) return null;
+  if (monedaDelTrabajo === MONEDA_DEL_TALLER || dolarDelDia.fecha !== pago.fecha) return null;
+  return dolarDelDia.valor;
 }
 
 export function erroresDelValorDelPago(

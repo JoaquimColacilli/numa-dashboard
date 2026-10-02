@@ -35,6 +35,14 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.liquidarProyecto.pantalla.registrarElPagoFinalDe('«MONTO»'),
     tieneQueDecir: ['«MONTO»'],
   },
+  'liquidarProyecto.pantalla.maunEnNegativo': {
+    llamar: (m) => m.liquidarProyecto.pantalla.maunEnNegativo('«MAUN»', '«SALDO»', '«TESOROS»'),
+    tieneQueDecir: ['«MAUN»', '«SALDO»', '«TESOROS»'],
+  },
+  'liquidarProyecto.pantalla.entreComillas': {
+    llamar: (m) => m.liquidarProyecto.pantalla.entreComillas('«NOMBRE»'),
+    tieneQueDecir: ['«NOMBRE»'],
+  },
   'liquidarProyecto.pantalla.montoATesoro': {
     llamar: (m) => m.liquidarProyecto.pantalla.montoATesoro('«MONTO»', '«TESORO»'),
     tieneQueDecir: ['«MONTO»', '«TESORO»'],

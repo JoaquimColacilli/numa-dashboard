@@ -36,6 +36,10 @@ export const liquidarProyecto = {
     concepto: 'Concepto',
     monto: 'Monto',
     fechaDelPago: 'Fecha del pago',
+    maunEnNegativo: (maun: string, saldo: string, tesoros: string) =>
+      `Después de cobrar, ${maun} queda en ${saldo}: parte de lo cobrado está en ${tesoros}.`,
+    entreComillas: (nombre: string) => `«${nombre}»`,
+    venderDolares: 'Vender dólares',
     montoATesoro: (monto: string, tesoro: string) => `${monto} a ${tesoro}`,
     vanACadaTesoro: (lista: string, cantidad: number) =>
       cantidad === 1 ? `Va ${lista}.` : `Van ${lista}.`,

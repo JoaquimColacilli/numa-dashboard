@@ -19,6 +19,7 @@ export {
   rutaParaComprarDolaresPara,
   rutaParaRegistrarElPago,
   rutaParaVenderDolares,
+  rutaParaVenderDolaresA,
   tesorosParaElegir,
   vaEntreTesoros,
   type ClaseDeCambio,

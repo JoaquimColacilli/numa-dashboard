@@ -418,6 +418,15 @@ export function rutaParaComprarDolaresPara(hacia: { id: string }): string {
   return rutaDeMovimientoNuevo({ clase: 'compra_de_dolares', hacia: hacia.id });
 }
 
+export function rutaParaVenderDolaresA(desde: string, hacia: string, dolares: number): string {
+  return rutaDeMovimientoNuevo({
+    clase: 'venta_de_dolares',
+    tesoro: desde,
+    hacia,
+    ...(dolares > 0 ? { monto: dolares } : {}),
+  });
+}
+
 export function rutaParaVenderDolares(desde: { id: string; saldo: Plata }): string {
   return rutaDeMovimientoNuevo({
     clase: 'venta_de_dolares',

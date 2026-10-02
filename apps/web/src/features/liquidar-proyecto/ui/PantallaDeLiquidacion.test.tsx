@@ -1,4 +1,4 @@
-import { centavos, plata, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, centavosEn, plata, puntosBasicos, type Fila } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -10,6 +10,7 @@ import {
   aplicarFilaLocal,
   TABLAS_REPLICADAS,
   type FilaDe,
+  type ProyectoParaGuardar,
   type Replica,
   type TablaReplicada,
 } from '@/shared/api';
@@ -170,13 +171,15 @@ function montar(replica: Replica, resumen = RESUMEN) {
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  const variables = (clave: string) =>
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .filter((mutacion) => mutacion.options.mutationKey?.[1] === clave)
+      .map((mutacion) => mutacion.state.variables);
   return {
-    liquidaciones: () =>
-      queryClient
-        .getMutationCache()
-        .getAll()
-        .filter((mutacion) => mutacion.options.mutationKey?.[1] === 'liquidar')
-        .map((mutacion) => mutacion.state.variables as LiquidacionDeProyecto),
+    liquidaciones: () => variables('liquidar') as LiquidacionDeProyecto[],
+    guardados: () => variables('guardar') as { pedido: ProyectoParaGuardar }[],
   };
 }
 
@@ -365,5 +368,107 @@ describe('cobrar por la fila', () => {
     expect(botonDeCobrar()).toHaveAttribute('aria-describedby', aviso.id);
     fireEvent.click(botonDeCobrar());
     expect(liquidaciones()).toEqual([]);
+  });
+});
+
+describe('cobrar con plata en dólares', () => {
+  const DOLARES = '00000000-0000-7000-8000-000000000020';
+
+  function conDolares(replica: Replica): Replica {
+    return aplicarFilaLocal(replica, 'tesoros', {
+      ...tesoro(DOLARES, null, 'Dólares', 'grana'),
+      moneda: 'USD',
+    });
+  }
+
+  function conPago(replica: Replica, pago: Partial<FilaDe<'pagos'>>): Replica {
+    return aplicarFilaLocal(replica, 'pagos', {
+      ...METADATOS,
+      id: 'pago',
+      proyecto_id: 'p',
+      fecha: DIA_DEL_PAGO,
+      concepto: 'Todo junto',
+      monto_centavos: 1_000_000,
+      ya_en_la_apertura: false,
+      moneda: 'ARS',
+      cotizacion_centavos: null,
+      tesoro_id: null,
+      ...pago,
+    });
+  }
+
+  function aviso(): string | undefined {
+    return screen.queryByText(/^Después de cobrar/)?.textContent.replace(/\s+/g, ' ');
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+  });
+
+  it('si Maun queda en negativo lo dice antes de cobrar, ofrece vender esos dólares y deja cobrar', () => {
+    const replica = conPago(conDolares(taller()), {
+      monto_centavos: 1_000,
+      moneda: 'USD',
+      cotizacion_centavos: 100_000,
+      tesoro_id: DOLARES,
+    });
+    const { liquidaciones } = montar(replica, {
+      ...RESUMEN,
+      enMaun: centavos(0),
+      enDolares: [{ tesoroId: DOLARES, monto: centavosEn('USD', 1_000) }],
+    });
+
+    expect(aviso()).toBe(
+      'Después de cobrar, Maun queda en -$ 8.000: parte de lo cobrado está en «Dólares».',
+    );
+    expect(screen.getByRole('link', { name: 'Vender dólares' })).toHaveAttribute(
+      'href',
+      `/finanzas/nuevo?clase=venta_de_dolares&tesoro=${DOLARES}&hacia=${MAUN}&monto=1000`,
+    );
+    expect(botonDeCobrar()).toBeEnabled();
+    fireEvent.click(botonDeCobrar());
+    expect(liquidaciones()[0]?.pedido).toMatchObject({ cobradoCentavos: 1_000_000 });
+  });
+
+  it('con todo cobrado en pesos no dice nada de Maun', () => {
+    montar(conDolares(taller()));
+
+    expect(aviso()).toBeUndefined();
+    expect(screen.queryByRole('link', { name: 'Vender dólares' })).toBeNull();
+  });
+
+  it('el pago final en dólares viaja con su dólar y su tesoro, y reparte su valor en pesos', () => {
+    const replica = conPago(conDolares(taller()), { monto_centavos: 500_000 });
+    const { guardados, liquidaciones } = montar(replica, {
+      ...RESUMEN,
+      cobradoEnSuMoneda: plata('ARS', 500_000),
+      cobradoEnPesos: centavos(500_000),
+      enMaun: centavos(500_000),
+      saldo: plata('ARS', 500_000),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pasar a dólares' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Monto' }), { target: { value: '5' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Dólar' }), {
+      target: { value: '1.000' },
+    });
+    expect(screen.getByText('Entra a «Dólares».')).toBeInTheDocument();
+    expect(aviso()).toBe(
+      'Después de cobrar, Maun queda en -$ 3.000: parte de lo cobrado está en «Dólares».',
+    );
+    fireEvent.click(botonDeCobrar());
+
+    expect(guardados()[0]?.pedido.pagos).toEqual([
+      expect.objectContaining({
+        monto_centavos: 500,
+        moneda: 'USD',
+        cotizacion_centavos: 100_000,
+        tesoro_id: DOLARES,
+      }),
+    ]);
+    expect(liquidaciones()[0]?.pedido).toMatchObject({ cobradoCentavos: 1_000_000 });
   });
 });
