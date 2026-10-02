@@ -1,10 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
 
+import { useMensajes } from '@/shared/idioma';
 import { descartarAviso, useAvisos, useIr } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
 export function AvisoDeRechazo() {
+  const m = useMensajes();
   const avisos = useAvisos();
   const queryClient = useQueryClient();
   const ir = useIr();
@@ -25,7 +27,7 @@ export function AvisoDeRechazo() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-label font-semibold text-alerta">
-            {rechazo.operacion} rechazado: {rechazo.sujeto}
+            {m.appLayout.rechazado({ operacion: rechazo.operacion, sujeto: rechazo.sujeto })}
           </p>
           <p className="mt-0.5 text-meta leading-relaxed text-text-2">{rechazo.titulo}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -37,7 +39,7 @@ export function AvisoDeRechazo() {
                   ir(rechazo.ruta ?? '/proyectos');
                 }}
               >
-                Ver el proyecto
+                {m.appLayout.verElProyecto}
               </button>
             )}
             <button
@@ -47,7 +49,7 @@ export function AvisoDeRechazo() {
                 void descartarAviso(queryClient, rechazo.id);
               }}
             >
-              Descartar
+              {m.appLayout.descartar}
             </button>
           </div>
         </div>

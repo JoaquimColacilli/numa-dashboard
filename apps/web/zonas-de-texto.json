@@ -1,6 +1,5 @@
 {
   "faltan": [
-    "src/app/layout/",
     "src/entities/fila/",
     "src/entities/opinion/",
     "src/entities/tesoro/",

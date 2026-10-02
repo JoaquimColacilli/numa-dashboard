@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import {
   descartarDePantalla,
   useAvisosEnPantalla,
@@ -73,6 +74,7 @@ function Tarjeta({
   saliendo: boolean;
   alTerminarDeSalir: () => void;
 }) {
+  const m = useMensajes();
   const aspecto = ASPECTO[aviso.tono];
   const { accion } = aviso;
   const tarjeta = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ function Tarjeta({
       )}
       <button
         type="button"
-        aria-label="Cerrar el aviso"
+        aria-label={m.appLayout.cerrarElAviso}
         onClick={() => {
           descartarDePantalla(aviso.id);
         }}

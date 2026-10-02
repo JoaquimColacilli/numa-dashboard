@@ -1,41 +1,40 @@
 import { BotonSalir } from '@/features/cerrar-sesion';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Aviso, Button, FilaDeAcciones } from '@/shared/ui';
 
 export function CargaQueTarda({ reintentar }: { reintentar: () => void }) {
+  const m = useMensajes();
   return (
     <div className="flex flex-col items-start gap-3 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
       <p role="status" className="text-body leading-relaxed text-text-2">
-        Está tardando más de lo normal. Sigue intentando solo; si no avanza, reintentá o cerrá
-        sesión.
+        {m.appLayout.tardaMasDeLoNormal}
       </p>
       <FilaDeAcciones className="w-full max-w-[520px]">
-        <Button onClick={reintentar}>Reintentar</Button>
+        <Button onClick={reintentar}>{m.appLayout.reintentar}</Button>
         <BotonSalir size="normal" className="w-full" />
       </FilaDeAcciones>
     </div>
   );
 }
 
-const SIN_NADA_GUARDADO =
-  'En este dispositivo todavía no hay nada guardado para mostrarte mientras tanto.';
-
 export function ErrorDeCarga({
   error,
   reintentar,
-  detalle = SIN_NADA_GUARDADO,
+  detalle,
 }: {
   error: unknown;
   reintentar: () => void;
   detalle?: string;
 }) {
+  const m = useMensajes();
   return (
     <Aviso
-      titulo="No pudimos leer tus datos"
+      titulo={m.appLayout.noPudimosLeerTusDatos}
       mensaje={mensajeDeSincronizacion(error)}
-      detalle={detalle}
+      detalle={detalle ?? m.appLayout.sinNadaGuardado}
     >
-      <Button onClick={reintentar}>Reintentar</Button>
+      <Button onClick={reintentar}>{m.appLayout.reintentar}</Button>
       <BotonSalir size="normal" className="w-full" />
     </Aviso>
   );

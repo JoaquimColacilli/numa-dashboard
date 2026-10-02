@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useLocation } from 'react-router';
 
 import { VersionDeLaApp } from '@/features/ver-novedades';
+import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
   esRutaDeHoja,
@@ -69,10 +70,11 @@ function LogoAInicio({
   className: string;
   children: ReactNode;
 }) {
+  const m = useMensajes();
   return (
     <Ir
       a={DESTINOS.inicio.ruta}
-      aria-label="NUMA, ir a Inicio"
+      aria-label={m.appLayout.irAInicio}
       className={className}
       alTocar={() => {
         irA(DESTINOS.inicio.ruta);
@@ -179,6 +181,7 @@ interface MenuDeAccionesProps {
 }
 
 function Menu({ cerrar, cerrarEnElActo, irA, className }: MenuDeAccionesProps) {
+  const m = useMensajes();
   const salida = useSalida();
   const saliendo = salida?.saliendo ?? false;
   const alTerminar = salida?.alTerminar;
@@ -208,7 +211,7 @@ function Menu({ cerrar, cerrarEnElActo, irA, className }: MenuDeAccionesProps) {
     <>
       <button
         type="button"
-        aria-label="Cerrar el menú"
+        aria-label={m.appLayout.cerrarElMenu}
         inert={saliendo}
         data-saliendo={saliendo ? '' : undefined}
         className={`fondo-del-menu fixed inset-0 z-20 bg-velo-suave ${
@@ -219,7 +222,7 @@ function Menu({ cerrar, cerrarEnElActo, irA, className }: MenuDeAccionesProps) {
       <div
         ref={menu}
         role="menu"
-        aria-label="Cargar algo nuevo"
+        aria-label={m.appLayout.cargarAlgoNuevo}
         inert={saliendo}
         data-saliendo={saliendo ? '' : undefined}
         className={`menu-del-mas z-30 flex min-w-[250px] flex-col gap-0.5 rounded-panel bg-ink p-1.5 text-paper shadow-menu ${
@@ -228,7 +231,7 @@ function Menu({ cerrar, cerrarEnElActo, irA, className }: MenuDeAccionesProps) {
       >
         {ACCIONES_RAPIDAS.map((accion, indice) => (
           <button
-            key={accion.etiqueta}
+            key={accion.id}
             type="button"
             role="menuitem"
             style={{ '--indice': indice } as CSSProperties}
@@ -240,7 +243,7 @@ function Menu({ cerrar, cerrarEnElActo, irA, className }: MenuDeAccionesProps) {
             }}
           >
             <Icono nombre={accion.icono} tamano={18} />
-            {accion.etiqueta}
+            {m.appLayout.accionesRapidas[accion.id]}
           </button>
         ))}
       </div>
@@ -264,6 +267,7 @@ function BarraInferior({
   activo: IdDeSeccion | undefined;
   irA: (r: string) => void;
 }) {
+  const m = useMensajes();
   const { abierto, enElActo, alternar, cerrar, cerrarEnElActo } = useMenuDeAcciones();
   const editando = useEditando();
   const irALaSeccion = useIrALaSeccion(irA);
@@ -280,7 +284,7 @@ function BarraInferior({
         irA={irA}
         className="pointer-events-auto fixed bottom-(--holgura-inferior) left-1/2 origin-bottom -translate-x-1/2"
       />
-      <nav aria-label="Principal" className="grid w-full grid-cols-1">
+      <nav aria-label={m.appLayout.principal} className="grid w-full grid-cols-1">
         <div
           aria-hidden
           className="pointer-events-auto col-start-1 row-start-1 mt-3.75 h-bottom-nav rounded-pill border border-ink/8 bg-paper/80 shadow-float backdrop-blur-nav"
@@ -302,14 +306,14 @@ function BarraInferior({
                 }}
               >
                 <Icono nombre={destino.icono} tamano={22} grosor={esActivo ? 2.25 : 1.75} />
-                {destino.etiqueta}
+                {m.appLayout.destinos[id]}
               </button>
             );
           })}
         </div>
         <button
           type="button"
-          aria-label="Cargar algo nuevo"
+          aria-label={m.appLayout.cargarAlgoNuevo}
           aria-expanded={abierto}
           className={`apretable pointer-events-auto relative col-start-1 row-start-1 flex size-fab items-center justify-center self-start justify-self-center rounded-pill bg-ink text-paper shadow-fab ${
             enElActo
@@ -327,11 +331,12 @@ function BarraInferior({
 }
 
 function Riel({ activo, irA }: { activo: IdDeSeccion | undefined; irA: (r: string) => void }) {
+  const m = useMensajes();
   const { abierto, alternar, cerrar, cerrarEnElActo } = useMenuDeAcciones();
 
   return (
     <nav
-      aria-label="Principal"
+      aria-label={m.appLayout.principal}
       className="relative flex w-[76px] flex-none flex-col items-center gap-1.5 py-4.5"
     >
       <LogoAInicio
@@ -342,7 +347,7 @@ function Riel({ activo, irA }: { activo: IdDeSeccion | undefined; irA: (r: strin
       </LogoAInicio>
       <button
         type="button"
-        aria-label="Cargar algo nuevo"
+        aria-label={m.appLayout.cargarAlgoNuevo}
         aria-expanded={abierto}
         className="apretable mb-4.5 flex size-tap items-center justify-center rounded-pill bg-ink text-paper shadow-fab"
         onClick={alternar}
@@ -363,8 +368,8 @@ function Riel({ activo, irA }: { activo: IdDeSeccion | undefined; irA: (r: strin
           <button
             key={id}
             type="button"
-            title={destino.etiqueta}
-            aria-label={destino.etiqueta}
+            title={m.appLayout.destinos[id]}
+            aria-label={m.appLayout.destinos[id]}
             aria-current={esActivo ? 'page' : undefined}
             className={`flex h-12 w-13 items-center justify-center rounded-pill border ${
               esActivo
@@ -382,8 +387,8 @@ function Riel({ activo, irA }: { activo: IdDeSeccion | undefined; irA: (r: strin
       <div className="flex-1" />
       <button
         type="button"
-        title="Ajustes"
-        aria-label="Ajustes"
+        title={m.appLayout.destinos.ajustes}
+        aria-label={m.appLayout.destinos.ajustes}
         aria-current={activo === 'ajustes' ? 'page' : undefined}
         className={`flex h-12 w-13 items-center justify-center rounded-pill border ${
           activo === 'ajustes'
@@ -415,11 +420,12 @@ function Sidebar({
   foto: string;
   sincronizacion: string;
 }) {
+  const m = useMensajes();
   const { abierto, alternar, cerrar, cerrarEnElActo } = useMenuDeAcciones();
 
   return (
     <nav
-      aria-label="Principal"
+      aria-label={m.appLayout.principal}
       className="relative flex w-[232px] flex-none flex-col gap-0.5 px-3.5 pt-5.5 pb-4.5"
     >
       <div className="flex items-baseline justify-between pb-4.5">
@@ -429,7 +435,7 @@ function Sidebar({
         >
           <Logotipo decorativa className="h-[27px] w-auto" />
         </LogoAInicio>
-        <span className="text-meta text-text-3">Taller</span>
+        <span className="text-meta text-text-3">{m.appLayout.taller}</span>
       </div>
       <button
         type="button"
@@ -438,7 +444,7 @@ function Sidebar({
         onClick={alternar}
       >
         <Icono nombre="plus" tamano={18} grosor={2} />
-        Cargar algo nuevo
+        {m.appLayout.cargarAlgoNuevo}
       </button>
       <MenuDeAcciones
         abierto={abierto}
@@ -465,7 +471,7 @@ function Sidebar({
             }}
           >
             <Icono nombre={destino.icono} tamano={20} grosor={esActivo ? 2.25 : 1.75} />
-            {destino.etiqueta}
+            {m.appLayout.destinos[id]}
           </button>
         );
       })}
@@ -474,9 +480,14 @@ function Sidebar({
         <Avatar nombre={nombre === '' ? email : nombre} foto={foto} className="mt-0.5" />
         <div className="flex min-w-0 flex-col gap-0.5 text-meta text-text-3">
           {nombre !== '' && (
-            <span className="truncate text-label font-medium text-ink">{nombre}</span>
+            <span translate="no" className="truncate text-label font-medium text-ink">
+              {nombre}
+            </span>
           )}
-          <span className={nombre === '' ? 'truncate text-label font-medium text-ink' : 'truncate'}>
+          <span
+            translate="no"
+            className={nombre === '' ? 'truncate text-label font-medium text-ink' : 'truncate'}
+          >
             {email}
           </span>
           <span>{sincronizacion}</span>

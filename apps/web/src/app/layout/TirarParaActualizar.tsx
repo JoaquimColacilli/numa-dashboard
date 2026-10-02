@@ -5,6 +5,7 @@ import {
   useSincronizarAhora,
   type DesenlaceDeLaSincronizacion,
 } from '@/entities/replica';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   describirEstadoSync,
   useEstadoSync,
@@ -36,6 +37,7 @@ function queMostrar(
   avance: number,
   desenlace: DesenlaceDeLaSincronizacion | null,
   estadoSync: EstadoSync,
+  textos: Mensajes['appLayout'],
 ): LoQueSeMuestra {
   if (desenlace !== null && (fase === 'desenlace' || fase === 'volviendo')) {
     const { icono, texto } = describirDesenlace(desenlace);
@@ -59,7 +61,7 @@ function queMostrar(
   if (fase === 'sincronizando') {
     return {
       estado: 'sincronizando',
-      texto: 'Sincronizando…',
+      texto: textos.sincronizando,
       icono: (
         <Icono
           nombre="refresh-cw"
@@ -75,7 +77,7 @@ function queMostrar(
   const listo = avance >= 1;
   return {
     estado: listo ? 'listo-para-soltar' : 'tirando',
-    texto: listo ? 'Soltá para actualizar' : 'Tirá para actualizar',
+    texto: listo ? textos.soltaParaActualizar : textos.tiraParaActualizar,
     icono: (
       <>
         <span
@@ -125,6 +127,7 @@ export function TirarParaActualizar({
   usuarioId,
   deshabilitado,
 }: TirarParaActualizarProps) {
+  const m = useMensajes();
   const sincronizarAhora = useSincronizarAhora(usuarioId);
   const puerta = usePuerta();
   const { distancia, avance, fase, desenlace } = useTirarParaActualizar(
@@ -139,7 +142,13 @@ export function TirarParaActualizar({
 
   if (fase === 'quieto') return null;
 
-  const { estado, texto, icono, lleno, anillo } = queMostrar(fase, avance, desenlace, estadoSync);
+  const { estado, texto, icono, lleno, anillo } = queMostrar(
+    fase,
+    avance,
+    desenlace,
+    estadoSync,
+    m.appLayout,
+  );
 
   return (
     <div

@@ -4,6 +4,7 @@ import { activarHuella } from './activarHuella';
 import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
 import { api } from './api';
+import { appLayout } from './appLayout';
 import { appNavegacion } from './appNavegacion';
 import { appProviders } from './appProviders';
 import { appRouter } from './appRouter';
@@ -58,6 +59,7 @@ export const es = {
   adjuntarArchivos,
   agenda,
   api,
+  appLayout,
   appNavegacion,
   appProviders,
   appRouter,
