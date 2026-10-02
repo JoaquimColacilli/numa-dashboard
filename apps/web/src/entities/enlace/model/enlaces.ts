@@ -1,4 +1,5 @@
 import { filasDe, type FilaDe, type Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 export type Enlace = FilaDe<'enlaces_publicos'>;
 
@@ -19,7 +20,5 @@ export function estadoDelEnlace(replica: Replica, proyectoId: string): EstadoDel
 }
 
 export function vecesQueLoAbrio(enlace: Enlace): string {
-  if (enlace.visitas === 0) return 'Todavía no lo abrió';
-  if (enlace.visitas === 1) return 'Lo abrió una vez';
-  return `Lo abrió ${String(enlace.visitas)} veces`;
+  return mensajes().enlace.vecesQueLoAbrio(enlace.visitas);
 }

@@ -7,7 +7,6 @@
     "src/entities/agenda/",
     "src/entities/archivo/",
     "src/entities/cliente/",
-    "src/entities/enlace/",
     "src/entities/fila/",
     "src/entities/opinion/",
     "src/entities/presupuesto/",

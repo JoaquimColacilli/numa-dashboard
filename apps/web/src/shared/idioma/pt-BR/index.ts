@@ -5,6 +5,7 @@ import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { comun } from './comun';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
 import { editarTesoro } from './editarTesoro';
+import { enlace } from './enlace';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
 import { lib } from './lib';
@@ -23,6 +24,7 @@ export const ptBR = {
   comun,
   coordinarLaEntrega,
   editarTesoro,
+  enlace,
   fila,
   hacerElSeguimiento,
   lib,
