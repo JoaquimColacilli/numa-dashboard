@@ -2,10 +2,10 @@ import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { EdicionDeAjustes } from '@/entities/replica';
 import type { FilaDe } from '@/shared/api';
 import { hoyEnElTaller } from '@/shared/lib';
 
-import type { EdicionDeAjustes } from '../api/mutacion';
 import { FormularioDeCobro } from './FormularioDeCobro';
 
 const CBU = '0110001312345678901233';

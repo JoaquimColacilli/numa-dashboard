@@ -2,12 +2,11 @@ import { normalizarLinkDeResena, revisarLinkDeResena } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { useEstadoSync } from '@/shared/lib';
 import { Button, Campo } from '@/shared/ui';
-
-import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 
 export function FormularioDeResena({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
   const { configurarTaller } = useMensajes();

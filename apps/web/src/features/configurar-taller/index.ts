@@ -1,9 +1,4 @@
-export {
-  CLAVE_DE_AJUSTES,
-  CLAVE_DEL_NOMBRE,
-  MUTACION_DE_AJUSTES,
-  MUTACION_DEL_NOMBRE,
-} from './api/mutacion';
+export { CLAVE_DEL_NOMBRE, MUTACION_DEL_NOMBRE } from './api/mutacion';
 export {
   CLAVE_DE_LA_PLANTILLA,
   MUTACION_DE_LA_PLANTILLA,

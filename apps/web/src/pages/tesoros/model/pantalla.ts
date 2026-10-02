@@ -16,7 +16,7 @@ import {
   type PagoParaRegistrar,
 } from '@/entities/movimiento';
 import { insumosDeLosTrabajos } from '@/entities/proyecto';
-import { useReplicaDelTaller } from '@/entities/replica';
+import { MUTACION_DE_AJUSTES, useReplicaDelTaller } from '@/entities/replica';
 import {
   editarLaFila,
   empezarAEditar,
@@ -44,7 +44,6 @@ import {
   type PruebaEnPantalla,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
-import { MUTACION_DE_AJUSTES } from '@/features/configurar-taller';
 import type { DondeVa, EdicionDeLoDeCocos, LugarDelTesoro } from '@/features/editar-tesoro';
 import { ajustesDe, datosDelLibro, type Replica, type TesoroNuevo } from '@/shared/api';
 import {

@@ -1,4 +1,5 @@
 export { claveDeReplica, claveDeTodaReplica, RAIZ_DE_REPLICA } from '@/shared/lib';
+export { CLAVE_DE_AJUSTES, MUTACION_DE_AJUSTES, type EdicionDeAjustes } from './api/ajustes';
 export {
   sincronizarAhora,
   useSincronizarAhora,

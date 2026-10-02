@@ -4,9 +4,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CLAVE_DE_AJUSTES, type EdicionDeAjustes } from '@/entities/replica';
 import type { FilaDe, Json } from '@/shared/api';
 
-import { CLAVE_DE_AJUSTES, type EdicionDeAjustes } from '../../api/mutacion';
 import { CLAVE_DE_LA_PLANTILLA, type GuardadoDeLaPlantilla } from '../../api/plantilla';
 import { PantallaDelPresupuestoDelTaller } from './PantallaDelPresupuestoDelTaller';
 

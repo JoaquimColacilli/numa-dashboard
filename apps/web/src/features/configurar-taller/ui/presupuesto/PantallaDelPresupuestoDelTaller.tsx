@@ -2,6 +2,7 @@ import { plantillaDeSiempre } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import type { FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
@@ -24,7 +25,6 @@ import {
   SeccionesEnFilas,
 } from '@/shared/ui';
 
-import { MUTACION_DE_AJUSTES } from '../../api/mutacion';
 import { MUTACION_DE_LA_PLANTILLA } from '../../api/plantilla';
 import {
   borradorDeLaPantalla,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { FilaDe } from '@/shared/api';
 
-import { cambiaElReparto } from './mutacion';
+import { cambiaElReparto } from './ajustes';
 
 const AJUSTES = {
   sueldo_mensual_centavos: 180_000_000,

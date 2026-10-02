@@ -2,12 +2,12 @@ import { REDES_DEL_TALLER, type RedDelTaller } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { useEstadoSync } from '@/shared/lib';
 import { Button, Campo, CamposJuntos } from '@/shared/ui';
 
-import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 import {
   cambiosDeLasRedes,
   comoSeEscriben,

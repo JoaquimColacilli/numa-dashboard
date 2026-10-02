@@ -3,12 +3,12 @@ import { useState, type SyntheticEvent } from 'react';
 
 import { formatearCbu, formatearCuit } from '@maun/domain';
 
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { diaYMes, hoyEnElTaller, useEstadoSync } from '@/shared/lib';
 import { Button, Campo, CampoDelDolar, CamposJuntos } from '@/shared/ui';
 
-import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 import { diferencias } from '../model/cambios';
 import {
   avisoDelAlias,

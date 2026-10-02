@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 
 import { diasQueValeElPresupuesto } from '@/entities/proyecto';
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import { mensajeDeSincronizacion, type CambiosDeAjustes, type FilaDe } from '@/shared/api';
 import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
@@ -12,7 +13,7 @@ import {
 } from '@/shared/lib';
 import { Button, Campo, CamposJuntos, MoneyInput } from '@/shared/ui';
 
-import { MUTACION_DE_AJUSTES, MUTACION_DEL_NOMBRE } from '../api/mutacion';
+import { MUTACION_DEL_NOMBRE } from '../api/mutacion';
 import { diferencias } from '../model/cambios';
 import { cambioDelRelevamiento, valorDelRelevamiento } from '../model/relevamiento';
 import { DIAS_MAXIMOS_DE_UN_PRESUPUESTO, parsearDias } from '../model/vigencia';

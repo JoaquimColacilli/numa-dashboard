@@ -2,9 +2,9 @@ import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import type { EdicionDeAjustes } from '@/entities/replica';
 import type { FilaDe } from '@/shared/api';
 
-import type { EdicionDeAjustes } from '../api/mutacion';
 import { FormularioDeResena } from './FormularioDeResena';
 
 const AJUSTES = {
