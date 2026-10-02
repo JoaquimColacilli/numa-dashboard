@@ -4,6 +4,7 @@ import { activarHuella } from './activarHuella';
 import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
 import { api } from './api';
+import { appRouter } from './appRouter';
 import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { armarLaVidriera } from './armarLaVidriera';
@@ -55,6 +56,7 @@ export const ptBR = {
   adjuntarArchivos,
   agenda,
   api,
+  appRouter,
   archivo,
   armarElPresupuesto,
   armarLaVidriera,

@@ -3,7 +3,6 @@
     "src/app/layout/",
     "src/app/navegacion/",
     "src/app/providers/",
-    "src/app/router/",
     "src/entities/fila/",
     "src/entities/opinion/",
     "src/entities/tesoro/",

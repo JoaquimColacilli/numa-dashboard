@@ -6,6 +6,7 @@ import { ProveedorDeSesion, useSesion, useSesionActiva } from '@/entities/sesion
 import { EntrarConOtraCuenta } from '@/features/cerrar-sesion';
 import { BloqueoAlVolver, PantallaDeBloqueo } from '@/features/desbloquear-la-app';
 import { householdDe, tieneAcceso } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { esCelular, useAppBloqueada, useVueltaPorUnAviso, vigilarElBloqueo } from '@/shared/lib';
 
 import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
@@ -79,9 +80,8 @@ export function RutaConSesion() {
   );
 }
 
-const SIN_TALLER = new Error('Tu cuenta no quedó asociada a ningún taller.');
-
 export function RutaConAcceso() {
+  const m = useMensajes();
   const { usuarioId } = useSesionActiva();
   const replica = useReplica(usuarioId);
   const tarda = useTardaMasDe(TOPE_DE_LA_PRIMERA_CARGA_MS);
@@ -101,8 +101,8 @@ export function RutaConAcceso() {
     }
     return (
       <ErrorDeCarga
-        error={SIN_TALLER}
-        detalle="El taller se crea solo al confirmar la cuenta, así que esto no debería pasar. Probá de nuevo; si sigue igual, cerrá sesión y volvé a entrar."
+        error={new Error(m.appRouter.sinTaller)}
+        detalle={m.appRouter.elTallerSeCreaSolo}
         reintentar={reintentar}
       />
     );
