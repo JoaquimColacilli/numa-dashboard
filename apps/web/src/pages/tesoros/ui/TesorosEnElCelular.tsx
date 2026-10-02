@@ -21,14 +21,14 @@ function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
       aria-label={textos.insumos}
       className="flex flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <span
           aria-hidden
           className="flex size-9 flex-none items-center justify-center rounded-field bg-surface-2 text-ink"
         >
           <Icono nombre="hand-coins" tamano={18} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="flex-1">
           <h2 className="flex items-center gap-1.5 text-body-lg leading-snug font-semibold">
             {textos.insumos}
             <AyudaDeLosInsumos />
@@ -37,7 +37,7 @@ function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
             {cuantos === 0 ? textos.sinTrabajos : textos.loQueQuedaDeLaSena(cuantos)}
           </p>
         </div>
-        <span translate="no" className="flex-none text-body-lg font-semibold tabular-nums">
+        <span translate="no" className="ml-auto flex-none text-body-lg font-semibold tabular-nums">
           {formatearPesos(insumos.total)}
         </span>
       </div>
