@@ -5,6 +5,7 @@ import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
 import { api } from './api';
 import { appNavegacion } from './appNavegacion';
+import { appProviders } from './appProviders';
 import { appRouter } from './appRouter';
 import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
@@ -58,6 +59,7 @@ export const ptBR = {
   agenda,
   api,
   appNavegacion,
+  appProviders,
   appRouter,
   archivo,
   armarElPresupuesto,

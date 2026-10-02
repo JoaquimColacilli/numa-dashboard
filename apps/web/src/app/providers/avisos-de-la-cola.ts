@@ -1,6 +1,7 @@
 import { onlineManager, type QueryClient } from '@tanstack/react-query';
 
 import { mensajeDeSincronizacion, type OperacionRechazada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   avisarEnPantalla,
   avisoEnPantalla,
@@ -69,11 +70,11 @@ const OPERACION: Readonly<Record<QueSeGuarda, OperacionRechazada>> = {
 const CLAVE_DE_LO_ANOTADO = 'anotado-sin-senal';
 
 function lasQueEstabanSinSenal(veces: number): string {
-  return `Se guardaron las ${String(veces)} cosas que estaban anotadas sin señal.`;
+  return mensajes().appProviders.seGuardaronLasAnotadas({ veces });
 }
 
 function lasAnotadasSinSenal(veces: number): string {
-  return `${String(veces)} cosas anotadas sin señal: se guardan solas cuando vuelva.`;
+  return mensajes().appProviders.anotadasSinSenal({ veces });
 }
 
 interface AvisoDeLoAnotado {
@@ -120,7 +121,7 @@ export function avisarDesdeLaCola(queryClient: QueryClient): () => void {
     avisarEnPantalla({
       clave: CLAVE_DE_LO_ANOTADO,
       tono: 'hecho',
-      texto: `${avisos.hecho} Estaba anotado sin señal.`,
+      texto: mensajes().appProviders.estabaAnotadoSinSenal({ hecho: avisos.hecho }),
       textoParaVarios: lasQueEstabanSinSenal,
     });
   }
