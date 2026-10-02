@@ -21,6 +21,8 @@ import {
   nombreDelMes,
   relativa,
 } from './fechas';
+import { fijarElIdiomaEnUso } from './idioma';
+import { seudoTexto } from './seudo';
 
 describe('las fechas del presupuesto', () => {
   it('la del rótulo, en casillas: día, mes y los dos últimos del año', () => {
@@ -43,6 +45,23 @@ describe('las fechas del presupuesto', () => {
   it('la del PDF, con el año siempre', () => {
     expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
     expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');
+  });
+});
+
+describe('las fechas con el seudoidioma', () => {
+  it('salen marcadas como los textos del catálogo, una sola vez', () => {
+    try {
+      fijarElIdiomaEnUso('es', true);
+      expect(fechaLarga('2026-10-02', '2026-10-02')).toBe(seudoTexto('vie 2 oct'));
+      expect(relativa('2026-10-05', '2026-10-02')).toBe(seudoTexto('en 3 días'));
+      expect(haceCuanto('2026-08-20', '2026-09-21')).toBe(seudoTexto('hace 1 mes'));
+      expect(nombreDelMes('2026-10')).toBe(seudoTexto('Octubre'));
+      expect(mesEnUnaFrase('2026-10')).toBe(seudoTexto('Octubre').toLocaleLowerCase('es-AR'));
+      expect(fechaConAnio('2026-09-17')).toBe(seudoTexto('17 de septiembre de 2026'));
+    } finally {
+      fijarElIdiomaEnUso('es');
+    }
+    expect(fechaLarga('2026-10-02', '2026-10-02')).toBe('vie 2 oct');
   });
 });
 

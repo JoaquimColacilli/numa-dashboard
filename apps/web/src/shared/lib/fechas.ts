@@ -1,6 +1,7 @@
 import { ETIQUETAS_DE_IDIOMA, type Idioma } from '@maun/domain';
 
-import { idiomaActual } from './idioma';
+import { idiomaActual, idiomaEnUso } from './idioma';
+import { seudoTexto } from './seudo';
 import { textosDeLib } from './textos';
 
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -35,6 +36,10 @@ const MESES = [
 
 const MS_POR_DIA = 86_400_000;
 
+function marcada(texto: string): string {
+  return texto !== '' && idiomaEnUso().seudo ? seudoTexto(texto) : texto;
+}
+
 export const ZONA_DEL_TALLER = 'America/Argentina/Buenos_Aires';
 
 const DIA_EN_EL_TALLER = new Intl.DateTimeFormat('en-CA', {
@@ -65,7 +70,7 @@ export function horaEnElTaller(momento: string, idioma: Idioma = idiomaActual())
     });
     HORAS_EN_EL_TALLER.set(idioma, formato);
   }
-  return formato.format(new Date(momento));
+  return marcada(formato.format(new Date(momento)));
 }
 
 const FORMA_DEL_DIA = /^\d{4}-\d{2}-\d{2}$/;
@@ -135,11 +140,15 @@ export function mesDeLaFecha(fecha: string): string {
   return fecha.slice(0, 7);
 }
 
-export function nombreDelMes(mes: string, idioma: Idioma = idiomaActual()): string {
+function escribirElMes(mes: string, idioma: Idioma): string {
   if (idioma !== 'es')
     return conMayuscula(conIntl(`${mes.slice(0, 7)}-01`, idioma, { month: 'long' }));
   const indice = Number(mes.slice(5, 7)) - 1;
   return MESES[indice] ?? '';
+}
+
+export function nombreDelMes(mes: string, idioma: Idioma = idiomaActual()): string {
+  return marcada(escribirElMes(mes, idioma));
 }
 
 export function mesEnUnaFrase(mes: string, idioma: Idioma = idiomaActual()): string {
@@ -170,17 +179,21 @@ export function fechaLarga(
   idioma: Idioma = idiomaActual(),
 ): string {
   if (idioma !== 'es') {
-    return conIntl(fecha, idioma, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
-    });
+    return marcada(
+      conIntl(fecha, idioma, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+      }),
+    );
   }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const sufijo = anio === comoUtc(hoy).getUTCFullYear() ? '' : ` ${String(anio)}`;
-  return `${DIAS[dia.getUTCDay()] ?? ''} ${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}${sufijo}`;
+  return marcada(
+    `${DIAS[dia.getUTCDay()] ?? ''} ${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}${sufijo}`,
+  );
 }
 
 export function fechaEnUnaFrase(
@@ -189,18 +202,20 @@ export function fechaEnUnaFrase(
   idioma: Idioma = idiomaActual(),
 ): string {
   if (idioma !== 'es') {
-    return conIntl(fecha, idioma, {
-      weekday: 'short',
-      month: 'long',
-      day: 'numeric',
-      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
-    });
+    return marcada(
+      conIntl(fecha, idioma, {
+        weekday: 'short',
+        month: 'long',
+        day: 'numeric',
+        ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+      }),
+    );
   }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
   const sufijo = anio === comoUtc(hoy).getUTCFullYear() ? '' : ` de ${String(anio)}`;
-  return `${DIAS[dia.getUTCDay()] ?? ''} ${String(dia.getUTCDate())} de ${mes}${sufijo}`;
+  return marcada(`${DIAS[dia.getUTCDay()] ?? ''} ${String(dia.getUTCDate())} de ${mes}${sufijo}`);
 }
 
 export function diaLocal(momento: string): string {
@@ -213,20 +228,26 @@ export function diaYMes(
   idioma: Idioma = idiomaActual(),
 ): string {
   if (idioma !== 'es') {
-    return conIntl(fecha, idioma, {
-      month: 'long',
-      day: 'numeric',
-      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
-    });
+    return marcada(
+      conIntl(fecha, idioma, {
+        month: 'long',
+        day: 'numeric',
+        ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+      }),
+    );
   }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
   const sufijo = anio === comoUtc(hoy).getUTCFullYear() ? '' : ` de ${String(anio)}`;
-  return `${String(dia.getUTCDate())} de ${mes}${sufijo}`;
+  return marcada(`${String(dia.getUTCDate())} de ${mes}${sufijo}`);
 }
 
 export function fechaDelRotulo(fecha: string, idioma: Idioma = idiomaActual()): string {
+  return marcada(escribirElRotulo(fecha, idioma));
+}
+
+function escribirElRotulo(fecha: string, idioma: Idioma): string {
   if (idioma === 'en') return conIntl(fecha, idioma, { dateStyle: 'medium' });
   if (idioma !== 'es') {
     const partes = new Intl.DateTimeFormat(ETIQUETAS_DE_IDIOMA[idioma], {
@@ -244,16 +265,16 @@ export function fechaDelRotulo(fecha: string, idioma: Idioma = idiomaActual()): 
 }
 
 export function fechaConAnio(fecha: string, idioma: Idioma = idiomaActual()): string {
-  if (idioma !== 'es') return conIntl(fecha, idioma, { dateStyle: 'long' });
+  if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { dateStyle: 'long' }));
   const dia = comoUtc(fecha);
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
-  return `${String(dia.getUTCDate())} de ${mes} de ${String(dia.getUTCFullYear())}`;
+  return marcada(`${String(dia.getUTCDate())} de ${mes} de ${String(dia.getUTCFullYear())}`);
 }
 
 export function diaYMesCorto(fecha: string, idioma: Idioma = idiomaActual()): string {
-  if (idioma !== 'es') return conIntl(fecha, idioma, { month: 'short', day: 'numeric' });
+  if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { month: 'short', day: 'numeric' }));
   const dia = comoUtc(fecha);
-  return `${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}`;
+  return marcada(`${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}`);
 }
 
 export function haceCuanto(
@@ -261,6 +282,10 @@ export function haceCuanto(
   hoy: string = hoyLocal(),
   idioma: Idioma = idiomaActual(),
 ): string {
+  return marcada(escribirHaceCuanto(fecha, hoy, idioma));
+}
+
+function escribirHaceCuanto(fecha: string, hoy: string, idioma: Idioma): string {
   const dias = -diasHasta(fecha, hoy);
   if (idioma !== 'es') {
     if (dias <= 0) return relativoConIntl(0, 'day', idioma);
@@ -287,6 +312,10 @@ export function relativa(
   desde: string = hoyLocal(),
   idioma: Idioma = idiomaActual(),
 ): string {
+  return marcada(escribirLaRelativa(fecha, desde, idioma));
+}
+
+function escribirLaRelativa(fecha: string, desde: string, idioma: Idioma): string {
   const dias = diasHasta(fecha, desde);
   if (idioma !== 'es') {
     if (Math.abs(dias) < 30) return relativoConIntl(dias, 'day', idioma);

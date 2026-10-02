@@ -15,10 +15,13 @@ import {
   fechaLarga,
   formatearPlata,
   formatearPorcentaje,
+  idiomaEnUso,
   nombreDelMes,
+  seudoTexto,
 } from '@/shared/lib';
 
 import { textosDelDocumento } from './documento';
+import { conElSeudoidioma } from './mensajes';
 
 export interface FormatosDelCliente {
   idioma: Idioma;
@@ -35,6 +38,10 @@ export interface FormatosDelCliente {
   nombreDelMes: (mes: string) => string;
 }
 
+function enLaPagina(texto: string): string {
+  return conElSeudoidioma() && !idiomaEnUso().seudo ? seudoTexto(texto) : texto;
+}
+
 export function formatosDelCliente(idioma: Idioma): FormatosDelCliente {
   return {
     idioma,
@@ -42,13 +49,13 @@ export function formatosDelCliente(idioma: Idioma): FormatosDelCliente {
     pesos: (centavos) => formatearPlata(centavos, MONEDA_DEL_TALLER, idioma),
     pesosParaElBanco: (centavos) => formatearPlata(centavos, MONEDA_DEL_TALLER, IDIOMA_BASE),
     porcentaje: (puntos) => formatearPorcentaje(puntos, idioma),
-    fechaLarga: (fecha, hoy) => fechaLarga(fecha, hoy, idioma),
-    fechaEnUnaFrase: (fecha, hoy) => fechaEnUnaFrase(fecha, hoy, idioma),
-    diaYMes: (fecha, hoy) => diaYMes(fecha, hoy, idioma),
-    diaYMesCorto: (fecha) => diaYMesCorto(fecha, idioma),
-    fechaConAnio: (fecha) => fechaConAnio(fecha, idioma),
-    fechaDelRotulo: (fecha) => fechaDelRotulo(fecha, idioma),
-    nombreDelMes: (mes) => nombreDelMes(mes, idioma),
+    fechaLarga: (fecha, hoy) => enLaPagina(fechaLarga(fecha, hoy, idioma)),
+    fechaEnUnaFrase: (fecha, hoy) => enLaPagina(fechaEnUnaFrase(fecha, hoy, idioma)),
+    diaYMes: (fecha, hoy) => enLaPagina(diaYMes(fecha, hoy, idioma)),
+    diaYMesCorto: (fecha) => enLaPagina(diaYMesCorto(fecha, idioma)),
+    fechaConAnio: (fecha) => enLaPagina(fechaConAnio(fecha, idioma)),
+    fechaDelRotulo: (fecha) => enLaPagina(fechaDelRotulo(fecha, idioma)),
+    nombreDelMes: (mes) => enLaPagina(nombreDelMes(mes, idioma)),
   };
 }
 
