@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   adornosDelCampo,
+  formatearCadaMoneda,
   formatearPesos,
   formatearPlata,
-  formatearPorMoneda,
   marcadorDelCampo,
   porMoneda,
   separadoresDelCampo,
@@ -92,13 +92,13 @@ describe('la plata de varias monedas', () => {
     ).toEqual([{ importe: 150_000, moneda: 'USD' }]);
   });
 
-  it('se escribe una al lado de la otra, y sin nada es cero pesos', () => {
+  it('escribe cada moneda por su lado, pesos primero, y sin nada es cero pesos', () => {
     expect(
-      conEspaciosComunes(
-        formatearPorMoneda([plata('USD', 120_000), plata('ARS', 320_000_000)], 'es'),
+      formatearCadaMoneda([plata('USD', 120_000), plata('ARS', 320_000_000)], 'es').map(
+        conEspaciosComunes,
       ),
-    ).toBe('$ 3.200.000 · US$ 1.200');
-    expect(conEspaciosComunes(formatearPorMoneda([], 'es'))).toBe('$ 0');
+    ).toEqual(['$ 3.200.000', 'US$ 1.200']);
+    expect(formatearCadaMoneda([], 'es').map(conEspaciosComunes)).toEqual(['$ 0']);
   });
 });
 

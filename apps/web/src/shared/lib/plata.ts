@@ -74,13 +74,13 @@ export function porMoneda(platas: Iterable<Plata>): Plata[] {
     .filter((total) => total.importe !== 0);
 }
 
-export function formatearPorMoneda(
+export function formatearCadaMoneda(
   platas: Iterable<Plata>,
   idioma: Idioma = idiomaActual(),
-): string {
+): string[] {
   const totales = porMoneda(platas);
-  if (totales.length === 0) return formatearPlata(0, MONEDA_DEL_TALLER, idioma);
-  return totales.map((total) => formatearLaPlata(total, idioma)).join(' · ');
+  if (totales.length === 0) return [formatearPlata(0, MONEDA_DEL_TALLER, idioma)];
+  return totales.map((total) => formatearLaPlata(total, idioma));
 }
 
 export function adornosDelCampo(moneda: Moneda, idioma: Idioma = idiomaActual()): AdornosDelCampo {

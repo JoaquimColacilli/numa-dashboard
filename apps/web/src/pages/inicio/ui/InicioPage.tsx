@@ -55,8 +55,8 @@ import {
   diaDelMes,
   diasDelMes,
   fechaLarga,
+  formatearCadaMoneda,
   formatearPesos,
-  formatearPorMoneda,
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
@@ -171,7 +171,7 @@ function Acceso({
   icono: NombreDeIcono;
   etiqueta: string;
   titulo: string;
-  valor: string;
+  valor: string | readonly string[];
   tono?: string;
   fondo?: string;
   tituloTalCual?: boolean;
@@ -200,9 +200,15 @@ function Acceso({
       </span>
       <span
         translate={valorTalCual ? 'no' : undefined}
-        className={`flex-none text-body font-semibold tabular-nums ${tono ?? ''}`}
+        className={`flex-none text-right text-body font-semibold tabular-nums ${tono ?? ''}`}
       >
-        {valor}
+        {typeof valor === 'string'
+          ? valor
+          : valor.map((uno) => (
+              <span key={uno} className="block">
+                {uno}
+              </span>
+            ))}
       </span>
     </button>
   );
@@ -433,7 +439,7 @@ export function InicioPage() {
                   icono="hand-coins"
                   etiqueta={textos.pendienteDeCobro}
                   titulo={textos.proyectosEnCurso(pendientes.length)}
-                  valor={formatearPorMoneda(saldoPendiente(replica, pendientes))}
+                  valor={formatearCadaMoneda(saldoPendiente(replica, pendientes))}
                   valorTalCual
                   alElegir={irA('/proyectos')}
                 />

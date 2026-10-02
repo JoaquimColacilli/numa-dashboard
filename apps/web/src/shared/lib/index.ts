@@ -121,10 +121,10 @@ export { useAlgoEnCurso, useHayAlgoEnCurso } from './en-curso';
 export { useTirarParaActualizar, type FaseDelTiron, type Tiron } from './tirar-para-actualizar';
 export {
   adornosDelCampo,
+  formatearCadaMoneda,
   formatearLaPlata,
   formatearPesos,
   formatearPlata,
-  formatearPorMoneda,
   marcadorDelCampo,
   porMoneda,
   separadoresDelCampo,

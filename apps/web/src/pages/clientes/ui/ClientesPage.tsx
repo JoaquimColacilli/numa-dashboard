@@ -14,7 +14,7 @@ import {
 import { useReplicaDelTaller } from '@/entities/replica';
 import { HojaDeCliente } from '@/features/editar-cliente';
 import { useMensajes, type Mensajes } from '@/shared/idioma';
-import { formatearPorMoneda, relativa, useIr } from '@/shared/lib';
+import { formatearCadaMoneda, relativa, useIr } from '@/shared/lib';
 import { Button, ConSalida, EstadoVacio, FondoDelElegido, Icono, Pagina } from '@/shared/ui';
 
 function detalleDe(m: Mensajes, resumen: ResumenDeCliente, hoy: string): string {
@@ -66,13 +66,23 @@ function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
           translate="no"
           className="hidden text-right text-body font-medium tabular-nums lg:block"
         >
-          {resumen.facturado.length > 0 ? formatearPorMoneda(resumen.facturado) : '—'}
+          {resumen.facturado.length > 0
+            ? formatearCadaMoneda(resumen.facturado).map((monto) => (
+                <span key={monto} className="block">
+                  {monto}
+                </span>
+              ))
+            : '—'}
         </span>
         <span className="text-right whitespace-nowrap">
           {resumen.saldo.length > 0 ? (
-            <span className="inline-block rounded-pill bg-atencion-tint px-2 py-0.5 text-badge font-semibold text-atencion tabular-nums">
-              {textos.debe(formatearPorMoneda(resumen.saldo))}
-            </span>
+            formatearCadaMoneda(resumen.saldo).map((monto) => (
+              <span key={monto} className="block">
+                <span className="inline-block rounded-pill bg-atencion-tint px-2 py-0.5 text-badge font-semibold text-atencion tabular-nums">
+                  {textos.debe(monto)}
+                </span>
+              </span>
+            ))
           ) : (
             <Icono nombre="chevron-right" tamano={18} className="inline text-text-3" />
           )}

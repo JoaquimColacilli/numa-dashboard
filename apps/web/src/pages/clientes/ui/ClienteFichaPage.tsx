@@ -24,8 +24,8 @@ import { mensajeDeSincronizacion, monedaDelTrabajo } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
+  formatearCadaMoneda,
   formatearPlata,
-  formatearPorMoneda,
   hoyLocal,
   Ir,
   metaDeAvisos,
@@ -131,7 +131,11 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
           <div className="py-2.5 @min-[22.5rem]:pr-3">
             <dt className="text-meta text-text-2">{textos.totalFacturado}</dt>
             <dd translate="no" className="text-money-lg font-semibold tabular-nums">
-              {formatearPorMoneda(resumen.facturado)}
+              {formatearCadaMoneda(resumen.facturado).map((monto) => (
+                <span key={monto} className="block">
+                  {monto}
+                </span>
+              ))}
             </dd>
           </div>
           <div className="border-t border-hairline-soft py-2.5 @min-[22.5rem]:border-t-0 @min-[22.5rem]:border-l @min-[22.5rem]:pl-3">
@@ -142,7 +146,13 @@ function Historial({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string })
                 resumen.saldo.length > 0 ? 'text-atencion' : 'text-hogar'
               }`}
             >
-              {resumen.saldo.length > 0 ? formatearPorMoneda(resumen.saldo) : textos.sinSaldo}
+              {resumen.saldo.length > 0
+                ? formatearCadaMoneda(resumen.saldo).map((monto) => (
+                    <span key={monto} className="block">
+                      {monto}
+                    </span>
+                  ))
+                : textos.sinSaldo}
             </dd>
           </div>
         </dl>

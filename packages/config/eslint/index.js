@@ -196,7 +196,7 @@ const FORMATEADORES_DEL_DUENO = {
     'formatearPesos',
     'formatearPlata',
     'formatearLaPlata',
-    'formatearPorMoneda',
+    'formatearCadaMoneda',
     'formatearPorcentaje',
     'fechaLarga',
     'fechaEnUnaFrase',
