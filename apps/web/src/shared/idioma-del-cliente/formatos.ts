@@ -60,7 +60,7 @@ export function formatosDelDocumento(idioma: Idioma): Formatos {
   const f = formatosDelCliente(idioma);
   const textos = textosDelDocumento(idioma);
   return {
-    plata: (centavos) => f.pesos(centavos),
+    plata: (centavos, moneda) => f.plata(centavos, moneda),
     porcentaje: f.porcentaje,
     modificaciones: textos.modificaciones,
     meses: textos.meses,

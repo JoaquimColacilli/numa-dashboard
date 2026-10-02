@@ -1,5 +1,5 @@
 import {
-  acordadoAlAprobar,
+  acordadoConElDocumento,
   ESTADOS_DE_CONSULTA,
   EN_SEGUIMIENTO,
   hayCambiosSinMandar,
@@ -34,7 +34,7 @@ import {
   documentoDeHoy,
   entradaDeHoy,
   formatosDeLaReplica,
-  totalDeHoy,
+  precioDeHoy,
 } from './documento';
 
 export interface RevisionLeida {
@@ -140,6 +140,6 @@ export function estadoDeLaTarjeta(
     aceptadoEl: presupuesto.aceptado_el,
     opcion,
     documento,
-    acordado: acordadoAlAprobar<Moneda>(documento.valores, totalDeHoy(proyecto)),
+    acordado: acordadoConElDocumento(documento, precioDeHoy(proyecto)),
   };
 }

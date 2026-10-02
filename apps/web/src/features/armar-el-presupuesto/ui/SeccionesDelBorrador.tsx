@@ -1,10 +1,13 @@
 import {
-  centavos,
+  centavosEn,
+  clausulaDeLaMonedaDelTrabajo,
   completarHuecos,
   cuentasDelPresupuesto,
   LARGOS_DEL_DOCUMENTO,
   LARGOS_DEL_PRESUPUESTO,
   letraDeLaOpcion,
+  MONEDA_DEL_TALLER,
+  modificacionDelPresupuesto,
   sumarDias,
   textoDeLaForma,
   usaElHueco,
@@ -13,16 +16,18 @@ import {
   type Clausula,
   type FormaElegida,
   type Hueco,
+  type Moneda,
   type Money,
   type PlantillaDelPresupuesto,
   type PuntosBasicos,
 } from '@maun/domain';
 import { useId, useState, type ReactNode } from 'react';
 
+import { BotonDeLaMoneda } from '@/entities/proyecto';
 import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
-  formatearPesos,
+  formatearPlata,
   formatearPorcentaje,
   Ir,
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
@@ -692,7 +697,7 @@ export function HerrajesDelBorrador({
 
 export interface HuecosDelEditor {
   valores: Readonly<Record<Hueco, string>>;
-  abonado: Money;
+  abonado: Money<Moneda>;
 }
 
 function CasillaDeLaPlantilla({
@@ -741,11 +746,13 @@ export function CasillasDelBorrador({
   grupo,
   clausulas,
   huecos,
+  antes = null,
 }: ConElBorrador & {
   numero: number;
   grupo: GrupoDeCasillas;
   clausulas: readonly Clausula[];
   huecos: HuecosDelEditor;
+  antes?: ReactNode;
 }) {
   const m = useMensajes().armarElPresupuesto.casillas;
   const textos = m[grupo];
@@ -767,6 +774,7 @@ export function CasillasDelBorrador({
       bajada={textos.bajada}
       cuenta={m.van(van, total)}
     >
+      {antes}
       <ul className="list-none">
         {clausulas.map((clausula) => (
           <CasillaDeLaPlantilla
@@ -823,28 +831,31 @@ function CuentaDeLaSena({
   senaBp,
   senaPropia,
   abonado,
+  moneda,
 }: {
   valores: ValoresDelEditor;
   senaBp: PuntosBasicos;
   senaPropia: boolean;
-  abonado: Money;
+  abonado: Money<Moneda>;
+  moneda: Moneda;
 }) {
   const textos = useMensajes().armarElPresupuesto;
   const m = textos.sena;
+  const plata = (importe: number) => formatearPlata(importe, moneda);
   const conImporte = opcionesDelEditor(valores).filter((opcion) => opcion.monto > 0);
-  const documentables = valoresDelTrabajo(totalDelEditor(valores), conImporte);
+  const documentables = valoresDelTrabajo<Moneda>(totalDelEditor(valores), conImporte);
   const deQuien = senaPropia ? 'trabajo' : 'taller';
   const porcentaje = `${formatearPorcentaje(senaBp)}%`;
   if (documentables === null || (valores.opciones.length > 0 && conImporte.length === 0)) {
     return (
       <p className="max-w-[30rem] rounded-field bg-surface px-3.5 py-3 text-label leading-relaxed text-text-2">
         {abonado > 0
-          ? m.conElTotalYLoPagado[deQuien](porcentaje, formatearPesos(abonado))
+          ? m.conElTotalYLoPagado[deQuien](porcentaje, plata(abonado))
           : m.conElTotal[deQuien](porcentaje)}
       </p>
     );
   }
-  const cuentas = cuentasDelPresupuesto(documentables, senaBp, abonado);
+  const cuentas = cuentasDelPresupuesto<Moneda>(documentables, senaBp, abonado);
   if (documentables.tipo === 'total') {
     const [cuenta] = cuentas;
     if (cuenta === undefined) return null;
@@ -855,7 +866,7 @@ function CuentaDeLaSena({
           izquierda={m.senaDel[deQuien](porcentaje)}
           derecha={
             <span translate="no" className="font-semibold">
-              {formatearPesos(cuenta.sena)}
+              {plata(cuenta.sena)}
             </span>
           }
         />
@@ -865,7 +876,7 @@ function CuentaDeLaSena({
               izquierda={m.yaPago}
               derecha={
                 <span translate="no" className="font-semibold text-hogar">
-                  {formatearPesos(abonado)}
+                  {plata(abonado)}
                 </span>
               }
             />
@@ -873,7 +884,7 @@ function CuentaDeLaSena({
               <LineaDePuntos
                 className="font-semibold"
                 izquierda={m.leFaltaParaLaSena}
-                derecha={<span translate="no">{formatearPesos(cuenta.faltaParaLaSena)}</span>}
+                derecha={<span translate="no">{plata(cuenta.faltaParaLaSena)}</span>}
               />
             </div>
           </>
@@ -890,16 +901,115 @@ function CuentaDeLaSena({
           izquierda={textos.opcion(cuenta.letra ?? '')}
           derecha={
             <span translate="no" className="font-semibold">
-              {formatearPesos(cuenta.sena)}
+              {plata(cuenta.sena)}
             </span>
           }
         />
       ))}
       {abonado > 0 && (
         <p className="border-t border-hairline pt-2 text-label leading-relaxed text-text-2">
-          {m.yaPagoSeDescuenta(MontoPagado, formatearPesos(abonado))}
+          {m.yaPagoSeDescuenta(MontoPagado, plata(abonado))}
         </p>
       )}
+    </div>
+  );
+}
+
+export function MonedaDeLoAbonado({
+  borrador,
+  alCambiar,
+  enDolares,
+  enPesos,
+}: ConElBorrador & { enDolares: string; enPesos: string }) {
+  const m = useMensajes().armarElPresupuesto.abonado;
+  const id = useId();
+  const elegida: Moneda = borrador.monedaDeLoAbonado ?? 'USD';
+  const opciones: readonly { valor: Moneda; etiqueta: string }[] = [
+    { valor: 'USD', etiqueta: m.enDolares(enDolares) },
+    { valor: MONEDA_DEL_TALLER, etiqueta: m.enPesos(enPesos) },
+  ];
+  return (
+    <div className="flex max-w-[30rem] flex-col gap-1.5 @container">
+      <span id={`${id}-titulo`} className="text-label text-text-2">
+        {m.titulo}
+      </span>
+      <div
+        role="radiogroup"
+        aria-labelledby={`${id}-titulo`}
+        className="grid grid-cols-1 gap-1 rounded-panel bg-ink/6 p-1 @min-[24rem]:grid-cols-2"
+      >
+        {opciones.map((opcion) => (
+          <button
+            key={opcion.valor}
+            type="button"
+            role="radio"
+            aria-checked={elegida === opcion.valor}
+            onClick={() => {
+              alCambiar({
+                ...borrador,
+                monedaDeLoAbonado: opcion.valor === MONEDA_DEL_TALLER ? MONEDA_DEL_TALLER : null,
+              });
+            }}
+            className={`min-h-tap rounded-[16px] px-2 text-label leading-tight ${
+              elegida === opcion.valor
+                ? 'bg-elevado font-semibold text-ink shadow-float'
+                : 'font-medium text-text-2'
+            }`}
+          >
+            {opcion.etiqueta}
+          </button>
+        ))}
+      </div>
+      <span className="text-meta text-text-3">
+        {elegida === MONEDA_DEL_TALLER ? m.ayudaEnPesos : m.ayudaEnDolares}
+      </span>
+    </div>
+  );
+}
+
+export function ModificacionDelBorrador({
+  borrador,
+  alCambiar,
+  plantilla,
+}: ConElBorrador & { plantilla: PlantillaDelPresupuesto }) {
+  const m = useMensajes().armarElPresupuesto.modificacion;
+  const id = useId();
+  const actual = modificacionDelPresupuesto(plantilla, borrador);
+  const deLaPlantilla = modificacionDelPresupuesto(plantilla, null);
+  function cambiar(importe: number, moneda: Moneda): void {
+    const igual = importe === deLaPlantilla.importe && moneda === deLaPlantilla.moneda;
+    alCambiar({
+      ...borrador,
+      modificacion: igual ? null : { importe: centavosEn(moneda, importe), moneda },
+    });
+  }
+  return (
+    <div className="flex max-w-(--campo-medio) flex-col gap-1.5 pb-1">
+      <label htmlFor={`${id}-valor`} className="text-label text-text-2">
+        {m.etiqueta}
+      </label>
+      <span className="flex h-11 items-center gap-1.5 rounded-field border border-border bg-paper px-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
+        <BotonDeLaMoneda
+          moneda={actual.moneda}
+          alCambiar={(moneda) => {
+            cambiar(actual.importe, moneda);
+          }}
+        />
+        <MoneyInput
+          id={`${id}-valor`}
+          moneda={actual.moneda}
+          value={actual.importe}
+          placeholder="0"
+          aria-describedby={`${id}-ayuda`}
+          onChange={(importe) => {
+            cambiar(importe ?? 0, actual.moneda);
+          }}
+          className="min-w-0 flex-1 bg-transparent text-body-lg font-semibold outline-none"
+        />
+      </span>
+      <span id={`${id}-ayuda`} className="text-meta text-text-3">
+        {m.ayuda}
+      </span>
     </div>
   );
 }
@@ -910,12 +1020,16 @@ export function ValoresDelBorrador({
   senaBp,
   senaPropia,
   abonado,
+  moneda,
+  extra = null,
 }: {
   valores: ValoresDelEditor;
   alCambiar: (valores: ValoresDelEditor) => void;
   senaBp: PuntosBasicos;
   senaPropia: boolean;
-  abonado: Money;
+  abonado: Money<Moneda>;
+  moneda: Moneda;
+  extra?: ReactNode;
 }) {
   const m = useMensajes().armarElPresupuesto.valores;
   const id = useId();
@@ -972,9 +1086,10 @@ export function ValoresDelBorrador({
                   </span>
                   <span className="ml-auto flex flex-none items-center gap-1">
                     <span className="flex h-11 w-40 items-center gap-1 rounded-field border border-border bg-paper px-2.5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
-                      <AdornoDePlata className="text-text-3" />
+                      <AdornoDePlata moneda={moneda} className="text-text-3" />
                       <MoneyInput
                         data-campo={indice === 0 ? 'valores' : undefined}
+                        moneda={moneda}
                         value={opcion.monto}
                         aria-label={m.importe(letra)}
                         placeholder="0"
@@ -983,7 +1098,10 @@ export function ValoresDelBorrador({
                             ...valores,
                             opciones: valores.opciones.map((otra) =>
                               otra.id === opcion.id
-                                ? { ...otra, monto: monto === null ? null : centavos(monto) }
+                                ? {
+                                    ...otra,
+                                    monto: monto === null ? null : centavosEn(moneda, monto),
+                                  }
                                 : otra,
                             ),
                           });
@@ -1032,14 +1150,18 @@ export function ValoresDelBorrador({
               {m.total}
             </label>
             <span className="flex h-15 max-w-(--campo-medio) items-center gap-1.5 rounded-field border border-border bg-paper px-3.5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
-              <AdornoDePlata className="text-money-lg text-text-3" />
+              <AdornoDePlata moneda={moneda} className="text-money-lg text-text-3" />
               <MoneyInput
                 id={`${id}-total`}
                 data-campo="valores"
+                moneda={moneda}
                 value={valores.total}
                 placeholder="0"
                 onChange={(total) => {
-                  alCambiar({ ...valores, total: total === null ? null : centavos(total) });
+                  alCambiar({
+                    ...valores,
+                    total: total === null ? null : centavosEn(moneda, total),
+                  });
                 }}
                 className="min-w-0 flex-1 bg-transparent text-money-lg font-semibold text-ink outline-none"
               />
@@ -1058,8 +1180,75 @@ export function ValoresDelBorrador({
           </Button>
         </div>
       )}
-      <CuentaDeLaSena valores={valores} senaBp={senaBp} senaPropia={senaPropia} abonado={abonado} />
+      <CuentaDeLaSena
+        valores={valores}
+        senaBp={senaBp}
+        senaPropia={senaPropia}
+        abonado={abonado}
+        moneda={moneda}
+      />
+      {extra}
     </Seccion>
+  );
+}
+
+function ClausulaDeLaMoneda({
+  borrador,
+  alCambiar,
+  plantilla,
+  huecos,
+  moneda,
+  cobraEn,
+}: ConElBorrador & {
+  plantilla: PlantillaDelPresupuesto;
+  huecos: HuecosDelEditor;
+  moneda: Moneda;
+  cobraEn: readonly Moneda[] | null;
+}) {
+  const m = useMensajes().armarElPresupuesto.moneda;
+  const id = useId();
+  const deLaPlantilla = clausulaDeLaMonedaDelTrabajo(
+    plantilla,
+    { clausulaDeLaMoneda: null },
+    moneda,
+    cobraEn,
+  );
+  if (deLaPlantilla === null) return null;
+  const completa = (texto: string) => completarHuecos(texto, huecos.valores);
+  const retocada = borrador.clausulaDeLaMoneda !== null;
+  const texto = completa(borrador.clausulaDeLaMoneda ?? deLaPlantilla);
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-hairline-soft pt-3.5">
+      <span className="flex items-baseline justify-between gap-3">
+        <label htmlFor={`${id}-moneda`} className="text-label text-text-2">
+          {m.loQueDice}
+        </label>
+        {retocada && (
+          <button
+            type="button"
+            onClick={() => {
+              alCambiar({ ...borrador, clausulaDeLaMoneda: null });
+            }}
+            className="-my-3 min-h-tap px-1 text-label font-medium underline underline-offset-3"
+          >
+            {m.volverALaDeSiempre}
+          </button>
+        )}
+      </span>
+      <TextoQueCrece
+        id={`${id}-moneda`}
+        valor={texto}
+        filasMinimas={2}
+        maxLength={LARGOS_DEL_PRESUPUESTO.textoDeClausula}
+        alCambiar={(nuevo) => {
+          alCambiar({
+            ...borrador,
+            clausulaDeLaMoneda: nuevo === completa(deLaPlantilla) ? null : nuevo,
+          });
+        }}
+      />
+      <span className="text-meta text-text-3">{retocada ? m.retocada : m.deDondeSale}</span>
+    </div>
   );
 }
 
@@ -1068,7 +1257,14 @@ export function FormaDePagoDelBorrador({
   alCambiar,
   plantilla,
   huecos,
-}: ConElBorrador & { plantilla: PlantillaDelPresupuesto; huecos: HuecosDelEditor }) {
+  moneda = MONEDA_DEL_TALLER,
+  cobraEn = null,
+}: ConElBorrador & {
+  plantilla: PlantillaDelPresupuesto;
+  huecos: HuecosDelEditor;
+  moneda?: Moneda;
+  cobraEn?: readonly Moneda[] | null;
+}) {
   const m = useMensajes().armarElPresupuesto.formaDePago;
   const id = useId();
   const elegida = borrador.formaDePago;
@@ -1173,6 +1369,14 @@ export function FormaDePagoDelBorrador({
           </span>
         </div>
       )}
+      <ClausulaDeLaMoneda
+        borrador={borrador}
+        alCambiar={alCambiar}
+        plantilla={plantilla}
+        huecos={huecos}
+        moneda={moneda}
+        cobraEn={cobraEn}
+      />
     </Seccion>
   );
 }

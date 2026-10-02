@@ -192,6 +192,26 @@ export const armarElPresupuesto = {
     total: 'Total do orçamento',
     masDeUnaOpcion: 'Oferecer mais de uma opção',
   },
+  abonado: {
+    titulo: 'O que o cliente já pagou, no aviso da visita técnica',
+    enDolares: (monto) => `Em dólares: ${monto}`,
+    enPesos: (monto) => `Em pesos: ${monto}`,
+    ayudaEnDolares: 'É o que abateu do preço. O PDF desconta do sinal.',
+    ayudaEnPesos:
+      'É o que o cliente pagou, pelo valor em pesos. O PDF não desconta do sinal em dólares: o aviso informa.',
+  },
+  modificacion: {
+    etiqueta: 'Valor de cada modificação extra',
+    ayuda:
+      'Aparece no aviso das modificações. Começa com o de Configurações, e você pode colocar em pesos ou em dólares.',
+  },
+  moneda: {
+    loQueDice: 'O que diz sobre a moeda, para este projeto',
+    deDondeSale:
+      'Vai abaixo da forma de pagamento. Vem de “Seu orçamento” em Configurações, conforme a moeda do preço e a moeda em que o cliente paga.',
+    retocada: 'Ajustada para este projeto. A padrão continua igual em Configurações.',
+    volverALaDeSiempre: 'Voltar à padrão',
+  },
   formaDePago: {
     titulo: 'Forma de pagamento',
     bajada:
@@ -238,6 +258,15 @@ export const armarElPresupuesto = {
     seTilda: '“Preparar o orçamento” fica marcado em O que falta.',
     quedaGuardada: (revision) =>
       `A revisão ${String(revision)} fica salva na ficha do projeto, com o PDF.`,
+    conLaReferencia: (dolar) =>
+      `Cada total em dólares mostra os pesos com o dólar a ${dolar} de hoje, e não é recalculado.`,
+    conElDolarDeHoy:
+      'Cada total em dólares mostra os pesos com o dólar de hoje, e não é recalculado.',
+    dolar: {
+      pregunta: 'Quanto está o dólar hoje para este orçamento?',
+      ayuda:
+        'É preciso para enviar: cada total em dólares mostra os pesos com esta cotação. Fica como o dólar do dia e não muda mais neste orçamento.',
+    },
     queCambio: 'O que mudou',
     contador: (usados, maximo) => `${String(usados)} de ${String(maximo)}`,
     ejemploDeQueCambio: 'Mudamos o armário aéreo para Cinza Grafite e adicionamos…',

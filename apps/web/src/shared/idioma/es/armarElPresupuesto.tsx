@@ -185,6 +185,26 @@ export const armarElPresupuesto = {
     total: 'Total del presupuesto',
     masDeUnaOpcion: 'Ofrecerle más de una opción',
   },
+  abonado: {
+    titulo: 'Lo que ya pagó, en el aviso del relevamiento',
+    enDolares: (monto: string) => `En dólares: ${monto}`,
+    enPesos: (monto: string) => `En pesos: ${monto}`,
+    ayudaEnDolares: 'Es lo que descontó del precio. El PDF lo resta de la seña.',
+    ayudaEnPesos:
+      'Es lo que pagó, por su valor en pesos. El PDF no lo resta de la seña en dólares: lo dice el aviso.',
+  },
+  modificacion: {
+    etiqueta: 'Valor de una modificación de más',
+    ayuda:
+      'Lo dice el aviso de las modificaciones. Arranca en el de Ajustes y lo podés poner en pesos o en dólares.',
+  },
+  moneda: {
+    loQueDice: 'Lo que dice de la moneda, para este trabajo',
+    deDondeSale:
+      'Va debajo de la forma de pago. Sale de «Tu presupuesto» en Ajustes, según en qué moneda es el precio y en cuál te paga.',
+    retocada: 'Retocada para este trabajo. La de siempre sigue igual en Ajustes.',
+    volverALaDeSiempre: 'Volver a la de siempre',
+  },
   formaDePago: {
     titulo: 'Forma de pago',
     bajada:
@@ -231,6 +251,15 @@ export const armarElPresupuesto = {
     seTilda: 'Se tilda «Armar el presupuesto» en Qué falta.',
     quedaGuardada: (revision: number) =>
       `La revisión ${String(revision)} queda guardada en la ficha, con su PDF.`,
+    conLaReferencia: (dolar: string) =>
+      `Cada total en dólares lleva sus pesos con el dólar a ${dolar} de hoy, y no se recalcula más.`,
+    conElDolarDeHoy:
+      'Cada total en dólares lleva sus pesos con el dólar de hoy, y no se recalcula más.',
+    dolar: {
+      pregunta: '¿A cuánto está hoy el dólar del presupuesto?',
+      ayuda:
+        'Hace falta para mandarlo: cada total en dólares lleva al lado sus pesos con este dólar. Queda como el dólar del día, y en este presupuesto no cambia más.',
+    },
     queCambio: 'Qué cambió',
     contador: (usados: number, maximo: number) => `${String(usados)} de ${String(maximo)}`,
     ejemploDeQueCambio: 'Pasamos la alacena a Gris Grafito y sumamos…',

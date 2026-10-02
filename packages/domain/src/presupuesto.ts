@@ -24,6 +24,7 @@ import {
   type Money,
   type PuntosBasicos,
 } from './money.ts';
+import type { Plata } from './plata.ts';
 import { SENA_HABITUAL } from './sena.ts';
 import { DIAS_QUE_VALE_UN_PRESUPUESTO } from './vigencia.ts';
 
@@ -716,7 +717,7 @@ export interface DocumentoEnDolares extends ComunDelDocumento {
   moneda: 'USD';
   valores: ValoresDelPresupuesto<'USD'> | null;
   monedaDeLoAbonado: Moneda;
-  referencia: ReferenciaEnPesos;
+  referencia: ReferenciaEnPesos | null;
 }
 
 export type DocumentoDelPresupuesto = DocumentoEnPesos | DocumentoEnDolares;
@@ -920,7 +921,7 @@ export type EntradaDelDocumento =
   | (ComunDeLaEntrada & {
       moneda: 'USD';
       valores: ValoresDelPresupuesto<'USD'> | null;
-      referencia: ReferenciaEnPesos;
+      referencia: ReferenciaEnPesos | null;
     });
 
 export interface EntradaDeLosHuecos {
@@ -1132,6 +1133,14 @@ export function acordadoAlAprobar<M extends Moneda = MonedaDelTaller>(
   return totalPropuesto(valores) === precio ? null : precio;
 }
 
+export function acordadoConElDocumento(
+  documento: DocumentoDelPresupuesto,
+  precio: Plata | null,
+): Money<Moneda> | null {
+  if (precio === null || precio.moneda !== monedaDelDocumento(documento)) return null;
+  return acordadoAlAprobar<Moneda>(documento.valores, precio.importe);
+}
+
 export function plazoDelPresupuesto(
   documento: Pick<DocumentoDelPresupuesto, 'plazoDeFabricacion'> | null,
 ): number {
@@ -1270,16 +1279,26 @@ function igualesEnProfundidad(una: unknown, otra: unknown): boolean {
   return claves.every((clave) => igualesEnProfundidad(deUna[clave], deOtra[clave]));
 }
 
+function conLoDeLaUltima(
+  entrada: EntradaDelDocumento,
+  ultima: DocumentoDelPresupuesto,
+): EntradaDelDocumento {
+  const deLaUltima = { abonado: ultima.abonado, taller: ultima.taller };
+  if (entrada.moneda === MONEDA_DEL_TALLER) return { ...entrada, ...deLaUltima };
+  return {
+    ...entrada,
+    ...deLaUltima,
+    referencia: ultima.forma === 2 ? ultima.referencia : entrada.referencia,
+  };
+}
+
 export function hayCambiosSinMandar(
   entrada: EntradaDelDocumento,
   ultima: DocumentoDelPresupuesto | null,
   formatos: Formatos,
 ): boolean {
   if (ultima === null) return true;
-  const hoy = documentoDelPresupuesto(
-    { ...entrada, abonado: ultima.abonado, taller: ultima.taller },
-    formatos,
-  );
+  const hoy = documentoDelPresupuesto(conLoDeLaUltima(entrada, ultima), formatos);
   return !igualesEnProfundidad(hoy, ultima);
 }
 
@@ -2050,7 +2069,7 @@ export function problemaDelDocumento(valor: unknown): ProblemaDelDocumento | nul
   const rangos = RANGOS_DEL_PRESUPUESTO;
   if (documento.senaBp < 0 || documento.senaBp > BASE_PUNTOS_BASICOS) return 'sena-fuera-de-rango';
   if (importeFuera(documento.abonado)) return 'abonado-fuera-de-rango';
-  if (documento.forma === 2 && !esCotizacion(documento.referencia.cotizacion)) {
+  if (documento.forma === 2 && !esCotizacion((valor.referencia as ReferenciaEnPesos).cotizacion)) {
     return 'cotizacion-fuera-de-rango';
   }
   if (!enRango(documento.plazoDeFabricacion, rangos.plazoDeFabricacion)) {

@@ -182,6 +182,18 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.armarElPresupuesto.valores.quitar('«LETRA»'),
     tieneQueDecir: ['«LETRA»'],
   },
+  'armarElPresupuesto.abonado.enDolares': {
+    llamar: (m) => m.armarElPresupuesto.abonado.enDolares('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'armarElPresupuesto.abonado.enPesos': {
+    llamar: (m) => m.armarElPresupuesto.abonado.enPesos('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'armarElPresupuesto.mandar.conLaReferencia': {
+    llamar: (m) => m.armarElPresupuesto.mandar.conLaReferencia('«DOLAR»'),
+    tieneQueDecir: ['«DOLAR»'],
+  },
   'armarElPresupuesto.formaDePago.laSenaDeEsteTrabajo': {
     llamar: (m) => m.armarElPresupuesto.formaDePago.laSenaDeEsteTrabajo('«SENA»'),
     tieneQueDecir: ['«SENA»'],

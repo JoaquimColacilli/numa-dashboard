@@ -1,22 +1,25 @@
 import {
+  cotizacionLeida,
   idiomaLeido,
   LARGOS_DEL_PRESUPUESTO,
   problemasParaMandar,
   type CampoQueFalta,
   type DocumentoDelPresupuesto,
   type Idioma,
+  type ReferenciaEnPesos,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState, type MouseEvent, type ReactNode } from 'react';
 
 import { MUTACION_DEL_ENVIO, type EnvioDelPresupuesto } from '@/entities/presupuesto';
 import { EstadoBadge } from '@/entities/proyecto';
-import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
-import { mensajeDeSincronizacion, traducirRechazo } from '@/shared/api';
+import { idiomaDeLosClientes, MUTACION_DE_AJUSTES, useReplicaDelTaller } from '@/entities/replica';
+import { ajustesDe, mensajeDeSincronizacion, traducirRechazo, type FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { useMensajesDelClienteEn } from '@/shared/idioma-del-cliente';
 import {
   fechaLarga,
+  formatearPesos,
   mensajeParaElCliente,
   metaDeAvisos,
   useAnchoDePantalla,
@@ -26,6 +29,8 @@ import {
 import { usePdfDelPresupuesto, useTextosDelPdf } from '@/shared/pdf';
 import {
   Button,
+  CampoDelDolar,
+  errorDelDolar,
   FilaDeAcciones,
   Hoja,
   Icono,
@@ -34,6 +39,8 @@ import {
   TextoQueCrece,
   type NombreDeIcono,
 } from '@/shared/ui';
+
+import { dolarDeHoy } from '../model/documento';
 
 function Renglon({ icono, children }: { icono: NombreDeIcono; children: ReactNode }) {
   return (
@@ -71,9 +78,21 @@ export interface HojaDeMandarProps {
   trabajo: string;
   telefono: string;
   enlace: EnlaceParaMandar;
-  armarElEnvio: (queCambio: string) => EnvioDelPresupuesto | null;
+  armarElEnvio: (
+    queCambio: string,
+    referencia: ReferenciaEnPesos | null,
+  ) => EnvioDelPresupuesto | null;
   alIrAlCampo: (campo: CampoQueFalta) => void;
   alCerrar: () => void;
+}
+
+type DolarDelTaller = Pick<FilaDe<'ajustes'>, 'dolar_del_dia_centavos' | 'dolar_del_dia_el'>;
+
+function dolarGuardado(ajustes: Partial<DolarDelTaller>): DolarDelTaller {
+  return {
+    dolar_del_dia_centavos: ajustes.dolar_del_dia_centavos ?? null,
+    dolar_del_dia_el: ajustes.dolar_del_dia_el ?? null,
+  };
 }
 
 function primerNombre(cliente: string): string {
@@ -280,13 +299,36 @@ export function HojaDeMandar({
   const id = useId();
   const enCelular = useAnchoDePantalla() === 'movil';
   const [queCambio, setQueCambio] = useState('');
+  const [dolarEscrito, setDolarEscrito] = useState<number | null>(null);
   const mandar = useMutation({
     ...MUTACION_DEL_ENVIO,
     meta: metaDeAvisos('presupuestoMandado', { errorEnPantalla: true, sujeto: trabajo }),
   });
+  const guardarElDolar = useMutation(MUTACION_DE_AJUSTES);
   const problemas = problemasParaMandar(documento, revision, queCambio);
   const faltaAlgoDelBorrador = problemas.some(({ campo }) => campo !== 'queCambio');
   const esLaPrimera = revision <= 1;
+  const enDolares = documento.forma === 2;
+  const delDia = enDolares ? dolarDeHoy(replica, hoy) : null;
+  const pideElDolar = enDolares && delDia === null;
+  const dolar = delDia ?? cotizacionLeida(dolarEscrito);
+  const referencia: ReferenciaEnPesos | null =
+    !enDolares || dolar === null ? null : { cotizacion: dolar, fecha: hoy };
+  const faltaElDolar = enDolares && referencia === null;
+
+  function mandarlo(): void {
+    const envio = armarElEnvio(queCambio, referencia);
+    if (envio === null) return;
+    const ajustes = ajustesDe(replica);
+    if (pideElDolar && referencia !== null && ajustes !== undefined) {
+      guardarElDolar.mutate({
+        id: ajustes.id,
+        cambios: { dolar_del_dia_centavos: referencia.cotizacion, dolar_del_dia_el: hoy },
+        previos: dolarGuardado(ajustes),
+      });
+    }
+    mandar.mutate(envio);
+  }
 
   if (mandar.isSuccess) {
     return (
@@ -295,7 +337,7 @@ export function HojaDeMandar({
         revision={mandar.data.revision.revision}
         hoy={mandar.data.revision.mandado_el}
         valeHasta={mandar.data.revision.vale_hasta}
-        documento={documento}
+        documento={mandar.variables.pedido.documento}
         idioma={idiomaLeido(mandar.data.revision.idioma)}
         cliente={cliente}
         trabajo={trabajo}
@@ -389,6 +431,16 @@ export function HojaDeMandar({
               </p>
             )}
 
+            {pideElDolar && (
+              <CampoDelDolar
+                etiqueta={m.dolar.pregunta}
+                value={dolarEscrito}
+                onChange={setDolarEscrito}
+                error={dolarEscrito === null ? undefined : errorDelDolar(dolarEscrito, false)}
+                ayuda={m.dolar.ayuda}
+              />
+            )}
+
             <section aria-labelledby={`${id}-que-pasa`} className="flex flex-col gap-2.5">
               <h3 id={`${id}-que-pasa`} className="text-label font-medium text-text-2">
                 {m.quePasa}
@@ -409,6 +461,13 @@ export function HojaDeMandar({
                 )}
                 {tildaLaTarea && <Renglon icono="list-checks">{m.seTilda}</Renglon>}
                 {!esLaPrimera && <Renglon icono="history">{m.quedaGuardada(revision - 1)}</Renglon>}
+                {enDolares && (
+                  <Renglon icono="coins">
+                    {referencia === null
+                      ? m.conElDolarDeHoy
+                      : m.conLaReferencia(formatearPesos(referencia.cotizacion))}
+                  </Renglon>
+                )}
               </ul>
             </section>
 
@@ -445,11 +504,8 @@ export function HojaDeMandar({
                 {m.cancelar}
               </Button>
               <Button
-                disabled={problemas.length > 0 || !todoGuardado || mandar.isPending}
-                onClick={() => {
-                  const envio = armarElEnvio(queCambio);
-                  if (envio !== null) mandar.mutate(envio);
-                }}
+                disabled={problemas.length > 0 || faltaElDolar || !todoGuardado || mandar.isPending}
+                onClick={mandarlo}
               >
                 <Icono nombre="send" tamano={16} />
                 {mandar.isPending ? m.mandando : todoGuardado ? m.mandar : m.guardando}

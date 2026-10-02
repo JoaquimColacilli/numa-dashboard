@@ -1,27 +1,39 @@
 import {
   borradorNuevo,
-  centavos,
+  centavosEn,
+  cobraEnLeido,
+  combinacionDeLaMoneda,
   CONDICIONES_FISCALES,
+  cotizacionLeida,
   documentoDelPresupuesto,
   leerBorrador,
+  MONEDA_DEL_TALLER,
+  monedaDeLoAbonado,
   plantillaDelTaller,
-  sumarTodos,
+  plata,
   valoresDelTrabajo,
   type BorradorDelPresupuesto,
+  type CombinacionDeLaMoneda,
   type CondicionFiscal,
+  type Cotizacion,
   type DatosDelTaller,
   type DocumentoDelPresupuesto,
   type EntradaDelDocumento,
   type Formatos,
+  type Moneda,
   type Money,
   type OpcionDelTrabajo,
+  type Plata,
   type PlantillaDelPresupuesto,
   type PuntosBasicos,
+  type ReferenciaEnPesos,
+  type ValoresDelPresupuesto,
 } from '@maun/domain';
 
 import type { FilaDelPresupuesto } from '@/entities/presupuesto';
 import {
   diasQueValeElPresupuesto,
+  dolarDelDiaDelTaller,
   opcionesDelProyecto,
   pagosDelProyecto,
   senaDelProyecto,
@@ -29,7 +41,16 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { idiomaDeLosClientes } from '@/entities/replica';
-import { ajustesDe, filaPorId, householdDe, type Replica } from '@/shared/api';
+import {
+  ajustesDe,
+  filaPorId,
+  householdDe,
+  importeDelPago,
+  loQueDescuentaElPago,
+  monedaDelTrabajo,
+  valorEnPesosDelPago,
+  type Replica,
+} from '@/shared/api';
 import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
 import { nombreDelTaller, uuidv7 } from '@/shared/lib';
 
@@ -70,22 +91,70 @@ export function senaEsPropia(proyecto: Proyecto): boolean {
   return senaDelProyecto(proyecto) !== null;
 }
 
-export function abonadoDeHoy(replica: Replica, proyectoId: string): Money {
-  return sumarTodos(
-    pagosDelProyecto(replica, proyectoId).map((pago) => centavos(pago.monto_centavos)),
-  );
+export function cobraEnDelTrabajo(proyecto: Proyecto): readonly Moneda[] | null {
+  return cobraEnLeido((proyecto as Partial<Proyecto>).cobra_en ?? null);
 }
 
-export function opcionesDeHoy(replica: Replica, proyectoId: string): OpcionDelTrabajo[] {
+export function combinacionDelTrabajo(proyecto: Proyecto): CombinacionDeLaMoneda | null {
+  return combinacionDeLaMoneda(monedaDelTrabajo(proyecto), cobraEnDelTrabajo(proyecto));
+}
+
+function monedaDelTrabajoDeLaReplica(replica: Replica, proyectoId: string): Moneda {
+  const fila = filaPorId(replica, 'proyectos', proyectoId);
+  return fila === undefined ? MONEDA_DEL_TALLER : monedaDelTrabajo(fila);
+}
+
+export function abonadoDeHoy(replica: Replica, proyectoId: string, en?: Moneda): Money<Moneda> {
+  const delTrabajo = monedaDelTrabajoDeLaReplica(replica, proyectoId);
+  const moneda = en ?? delTrabajo;
+  let total = 0;
+  for (const pago of pagosDelProyecto(replica, proyectoId)) {
+    const importe = importeDelPago(pago);
+    total +=
+      moneda === delTrabajo
+        ? loQueDescuentaElPago(importe, delTrabajo)
+        : valorEnPesosDelPago(importe);
+  }
+  return centavosEn(moneda, total);
+}
+
+export function monedaDeLoAbonadoDeHoy(
+  proyecto: Proyecto,
+  borrador: Pick<BorradorDelPresupuesto, 'monedaDeLoAbonado'>,
+): Moneda {
+  return monedaDeLoAbonado(borrador, monedaDelTrabajo(proyecto));
+}
+
+export function opcionesDeHoy(replica: Replica, proyectoId: string): OpcionDelTrabajo<Moneda>[] {
+  const moneda = monedaDelTrabajoDeLaReplica(replica, proyectoId);
   return opcionesDelProyecto(replica, proyectoId).map((opcion) => ({
     id: opcion.id,
     descripcion: opcion.descripcion,
-    monto: centavos(opcion.monto_centavos),
+    monto: centavosEn(moneda, opcion.monto_centavos),
   }));
 }
 
-export function totalDeHoy(proyecto: Proyecto): Money | null {
-  return proyecto.presupuesto_centavos === null ? null : centavos(proyecto.presupuesto_centavos);
+export function totalDeHoy(proyecto: Proyecto): Money<Moneda> | null {
+  return proyecto.presupuesto_centavos === null
+    ? null
+    : centavosEn(monedaDelTrabajo(proyecto), proyecto.presupuesto_centavos);
+}
+
+export function precioDeHoy(proyecto: Proyecto): Plata | null {
+  return proyecto.presupuesto_centavos === null
+    ? null
+    : plata(monedaDelTrabajo(proyecto), proyecto.presupuesto_centavos);
+}
+
+export function referenciaDelTaller(replica: Replica): ReferenciaEnPesos | null {
+  const delDia = dolarDelDiaDelTaller(replica);
+  const cotizacion = cotizacionLeida(delDia?.valor ?? null);
+  return delDia === null || cotizacion === null ? null : { cotizacion, fecha: delDia.fecha };
+}
+
+export function dolarDeHoy(replica: Replica, hoy: string): Cotizacion | null {
+  const referencia = referenciaDelTaller(replica);
+  return referencia !== null && referencia.fecha === hoy ? referencia.cotizacion : null;
 }
 
 export function nombreDelCliente(replica: Replica, proyecto: Proyecto): string {
@@ -114,13 +183,25 @@ export function borradorGuardado(
   );
 }
 
+function valoresEn<M extends Moneda>(
+  moneda: M,
+  total: number | null,
+  opciones: readonly OpcionDelTrabajo<Moneda>[],
+): ValoresDelPresupuesto<M> | null {
+  return valoresDelTrabajo<M>(
+    total === null ? null : centavosEn(moneda, total),
+    opciones.map((opcion) => ({ ...opcion, monto: centavosEn(moneda, opcion.monto) })),
+  );
+}
+
 export interface EntradaDeHoy {
   replica: Replica;
   proyecto: Proyecto;
   borrador: BorradorDelPresupuesto;
-  total?: Money | null;
-  opciones?: readonly OpcionDelTrabajo[];
-  abonado?: Money;
+  total?: Money<Moneda> | null;
+  opciones?: readonly OpcionDelTrabajo<Moneda>[];
+  abonado?: Money<Moneda>;
+  referencia?: ReferenciaEnPesos | null;
 }
 
 export function entradaDeHoy({
@@ -129,19 +210,26 @@ export function entradaDeHoy({
   borrador,
   total = totalDeHoy(proyecto),
   opciones = opcionesDeHoy(replica, proyecto.id),
-  abonado = abonadoDeHoy(replica, proyecto.id),
+  abonado = abonadoDeHoy(replica, proyecto.id, monedaDeLoAbonadoDeHoy(proyecto, borrador)),
+  referencia = referenciaDelTaller(replica),
 }: EntradaDeHoy): EntradaDelDocumento {
-  return {
+  const comun = {
     borrador,
     plantilla: plantillaDeLaReplica(replica),
     taller: datosDelTaller(replica),
     cliente: nombreDelCliente(replica, proyecto),
-    moneda: 'ARS',
-    cobraEn: null,
-    valores: valoresDelTrabajo(total, opciones),
+    cobraEn: cobraEnDelTrabajo(proyecto),
     senaBp: senaDeHoy(replica, proyecto),
     abonado,
   };
+  if (monedaDelTrabajo(proyecto) === MONEDA_DEL_TALLER) {
+    return {
+      ...comun,
+      moneda: MONEDA_DEL_TALLER,
+      valores: valoresEn(MONEDA_DEL_TALLER, total, opciones),
+    };
+  }
+  return { ...comun, moneda: 'USD', valores: valoresEn('USD', total, opciones), referencia };
 }
 
 export function documentoDeHoy(entrada: EntradaDeHoy): DocumentoDelPresupuesto {

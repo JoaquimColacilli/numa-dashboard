@@ -1,4 +1,9 @@
-import type { DocumentoDelPresupuesto, Moneda, Money } from '@maun/domain';
+import {
+  monedaDelDocumento,
+  type DocumentoDelPresupuesto,
+  type Moneda,
+  type Money,
+} from '@maun/domain';
 import { useId, type ReactNode } from 'react';
 
 import type { Proyecto } from '@/entities/proyecto';
@@ -6,7 +11,7 @@ import { useReplicaDelTaller } from '@/entities/replica';
 import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
-  formatearPesos,
+  formatearPlata,
   hoyEnElTaller,
   Ir,
   relativa,
@@ -47,6 +52,8 @@ function Valores({
   const textos = useMensajes().armarElPresupuesto;
   const m = textos.tarjeta;
   const valores = documento.valores;
+  const moneda = monedaDelDocumento(documento);
+  const plata = (importe: number) => formatearPlata(importe, moneda);
   if (valores === null) return <p className="text-label text-text-2">{m.todaviaSinTotal}</p>;
   if (valores.tipo === 'total') {
     return (
@@ -56,14 +63,12 @@ function Valores({
           izquierda={m.total}
           derecha={
             <span translate="no" className="font-semibold">
-              {formatearPesos(valores.total)}
+              {plata(valores.total)}
             </span>
           }
         />
         {acordado !== null && (
-          <p className="text-label font-semibold">
-            {m.acordadoAlAprobar(formatearPesos(acordado))}
-          </p>
+          <p className="text-label font-semibold">{m.acordadoAlAprobar(plata(acordado))}</p>
         )}
       </div>
     );
@@ -77,13 +82,13 @@ function Valores({
           izquierda={textos.opcion(opcion.letra)}
           derecha={
             <span translate="no" className="font-semibold">
-              {formatearPesos(opcion.total)}
+              {plata(opcion.total)}
             </span>
           }
         />
       ))}
       {acordado !== null && (
-        <p className="text-label font-semibold">{m.acordadoAlAprobar(formatearPesos(acordado))}</p>
+        <p className="text-label font-semibold">{m.acordadoAlAprobar(plata(acordado))}</p>
       )}
     </div>
   );

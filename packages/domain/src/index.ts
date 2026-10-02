@@ -461,6 +461,7 @@ export {
 export {
   abonadoEn,
   acordadoAlAprobar,
+  acordadoConElDocumento,
   borradorNuevo,
   CAMPOS_QUE_FALTAN,
   CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,

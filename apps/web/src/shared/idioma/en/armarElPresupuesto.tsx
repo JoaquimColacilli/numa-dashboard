@@ -196,6 +196,26 @@ export const armarElPresupuesto = {
     total: 'Quote total',
     masDeUnaOpcion: 'Offer more than one option',
   },
+  abonado: {
+    titulo: "What they've already paid, in the site measure notice",
+    enDolares: (monto) => `In dollars: ${monto}`,
+    enPesos: (monto) => `In pesos: ${monto}`,
+    ayudaEnDolares: "It's what came off the price. The PDF takes it off the deposit.",
+    ayudaEnPesos:
+      "It's what they paid, at its value in pesos. The PDF doesn't take it off the deposit in dollars: the notice mentions it.",
+  },
+  modificacion: {
+    etiqueta: 'Price of each extra modification',
+    ayuda:
+      'The modifications notice shows it. It starts with the one in Settings, and you can set it in pesos or in dollars.',
+  },
+  moneda: {
+    loQueDice: 'What it says about the currency, for this job',
+    deDondeSale:
+      'It goes below the payment terms. It comes from “Your quote” in Settings, depending on the currency of the price and the one your client pays in.',
+    retocada: 'Tweaked for this job. The default stays the same in Settings.',
+    volverALaDeSiempre: 'Back to the default',
+  },
   formaDePago: {
     titulo: 'Payment terms',
     bajada:
@@ -242,6 +262,15 @@ export const armarElPresupuesto = {
     seTilda: '“Build the quote” gets checked off in To do.',
     quedaGuardada: (revision) =>
       `Revision ${String(revision)} stays saved on the job page, with its PDF.`,
+    conLaReferencia: (dolar) =>
+      `Each total in dollars shows its pesos at today's rate of ${dolar} per dollar, and it's never recalculated.`,
+    conElDolarDeHoy:
+      "Each total in dollars shows its pesos at today's dollar rate, and it's never recalculated.",
+    dolar: {
+      pregunta: "What's today's dollar rate for this quote?",
+      ayuda:
+        "You need it to send it: each total in dollars shows its pesos at this rate. It's saved as today's dollar rate and won't change on this quote.",
+    },
     queCambio: 'What changed',
     contador: (usados, maximo) => `${String(usados)} of ${String(maximo)}`,
     ejemploDeQueCambio: 'We switched the wall cabinet to Graphite Gray and added…',

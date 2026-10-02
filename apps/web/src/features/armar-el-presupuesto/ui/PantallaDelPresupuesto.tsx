@@ -1,10 +1,12 @@
 import {
   huecosDelPresupuesto,
   leerBorrador,
+  MONEDA_DEL_TALLER,
   puedeCambiarEstado,
   textoDeLaGarantia,
   type BorradorDelPresupuesto,
   type CampoQueFalta,
+  type ReferenciaEnPesos,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -27,11 +29,12 @@ import {
 } from '@/entities/proyecto';
 import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { ElPresupuesto } from '@/entities/vista-cliente';
-import { ajustesDe, filaPorId, mensajeDeSincronizacion } from '@/shared/api';
+import { ajustesDe, filaPorId, mensajeDeSincronizacion, monedaDelTrabajo } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   enlaceDelCliente,
   fechaLarga,
+  formatearPlata,
   hashDelToken,
   hoyEnElTaller,
   metaDeAvisos,
@@ -60,8 +63,11 @@ import {
 import {
   abonadoDeHoy,
   borradorGuardado,
+  cobraEnDelTrabajo,
+  combinacionDelTrabajo,
   documentoDeHoy,
   formatosDeLaReplica,
+  monedaDeLoAbonadoDeHoy,
   nombreDelCliente,
   plantillaDeLaReplica,
   senaDeHoy,
@@ -87,6 +93,8 @@ import {
   FormaDePagoDelBorrador,
   GarantiaDelBorrador,
   HerrajesDelBorrador,
+  ModificacionDelBorrador,
+  MonedaDeLoAbonado,
   ValoresDelBorrador,
 } from './SeccionesDelBorrador';
 
@@ -217,7 +225,10 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
   const revisiones = guardado === null ? [] : revisionesDelPresupuesto(replica, guardado.id);
   const revision = revisionQueSeManda(revisiones);
   const numero = guardado?.numero ?? null;
-  const abonado = abonadoDeHoy(replica, proyecto.id);
+  const moneda = monedaDelTrabajo(proyecto);
+  const cobraEn = cobraEnDelTrabajo(proyecto);
+  const conDolares = combinacionDelTrabajo(proyecto) !== null;
+  const pagado = abonadoDeHoy(replica, proyecto.id);
   const senaBp = senaDeHoy(replica, proyecto);
   const diasDeAjustes = diasQueValeElPresupuesto(ajustesDe(replica));
   const herrajesDelTrabajo = necesidadesDelProyecto(replica, proyecto.id)
@@ -338,6 +349,8 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     guardarAhora.current();
   }, [mandarAlAbrir]);
 
+  const deLoAbonado = monedaDeLoAbonadoDeHoy(proyecto, borrador);
+  const abonado = abonadoDeHoy(replica, proyecto.id, deLoAbonado);
   const huecos = {
     valores: huecosDelPresupuesto(
       {
@@ -345,7 +358,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
         plantilla,
         modificacion: borrador.modificacion,
         abonado,
-        monedaDeLoAbonado: 'ARS',
+        monedaDeLoAbonado: deLoAbonado,
         senaBp,
       },
       formatos,
@@ -353,14 +366,19 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     abonado,
   };
 
-  const documento = documentoDeHoy({
-    replica,
-    proyecto,
-    borrador,
-    total: totalDelEditor(valores),
-    opciones: opcionesDelEditor(valores),
-    abonado,
-  });
+  function documentoCon(referencia?: ReferenciaEnPesos | null) {
+    return documentoDeHoy({
+      replica,
+      proyecto,
+      borrador,
+      total: totalDelEditor(valores),
+      opciones: opcionesDelEditor(valores),
+      abonado,
+      referencia,
+    });
+  }
+
+  const documento = documentoCon();
 
   const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision, idioma), {
     alAbrir: true,
@@ -375,17 +393,21 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     JSON.stringify(borradorEnLaReplica) === JSON.stringify(leerBorrador(borrador, plantilla)) &&
     mismosValores(valoresDelProyecto(proyecto, opcionesDelProyecto(replica, proyecto.id)), valores);
 
-  function armarElEnvio(queCambio: string): EnvioDelPresupuesto | null {
+  function armarElEnvio(
+    queCambio: string,
+    referencia: ReferenciaEnPesos | null,
+  ): EnvioDelPresupuesto | null {
     const { replica: deAhora } = ultimo.current;
     const presupuesto = presupuestoDelTrabajo(deAhora, proyecto.id);
     const fila = filaPorId(deAhora, 'proyectos', proyecto.id);
     if (presupuesto === null || fila === undefined) return null;
+    if (moneda !== MONEDA_DEL_TALLER && referencia === null) return null;
     return envioDelPresupuesto({
       proyecto: fila,
       proximos: hijosDelProyecto(deAhora, proyecto.id).proximos,
       presupuesto,
       revisiones: revisionesDelPresupuesto(deAhora, presupuesto.id),
-      documento,
+      documento: moneda === MONEDA_DEL_TALLER ? documento : documentoCon(referencia),
       idioma,
       queCambio,
       hoy,
@@ -472,7 +494,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
           >
             <p className="px-1 text-label leading-relaxed text-text-2">{textos.asiLoVeria}</p>
             <ElPresupuesto
-              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, abonado, idioma)}
+              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, pagado, idioma)}
               hoy={hoy}
               hayComoPagar={false}
               borrador
@@ -517,13 +539,29 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 alCambiar={cambiarLosValores}
                 senaBp={senaBp}
                 senaPropia={senaEsPropia(proyecto)}
-                abonado={abonado}
+                abonado={pagado}
+                moneda={moneda}
+                extra={
+                  moneda !== MONEDA_DEL_TALLER && pagado > 0 ? (
+                    <MonedaDeLoAbonado
+                      borrador={borrador}
+                      alCambiar={cambiar}
+                      enDolares={formatearPlata(pagado, moneda)}
+                      enPesos={formatearPlata(
+                        abonadoDeHoy(replica, proyecto.id, MONEDA_DEL_TALLER),
+                        MONEDA_DEL_TALLER,
+                      )}
+                    />
+                  ) : null
+                }
               />
               <FormaDePagoDelBorrador
                 borrador={borrador}
                 alCambiar={cambiar}
                 plantilla={plantilla}
                 huecos={huecos}
+                moneda={moneda}
+                cobraEn={cobraEn}
               />
               <CasillasDelBorrador
                 borrador={borrador}
@@ -532,6 +570,15 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 grupo="avisos"
                 clausulas={plantilla.avisos}
                 huecos={huecos}
+                antes={
+                  conDolares ? (
+                    <ModificacionDelBorrador
+                      borrador={borrador}
+                      alCambiar={cambiar}
+                      plantilla={plantilla}
+                    />
+                  ) : null
+                }
               />
               <CasillasDelBorrador
                 borrador={borrador}

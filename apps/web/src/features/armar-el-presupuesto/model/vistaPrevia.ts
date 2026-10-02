@@ -3,6 +3,7 @@ import {
   sumarDias,
   type DocumentoDelPresupuesto,
   type Idioma,
+  type Moneda,
   type Money,
   type PresupuestoMandado,
 } from '@maun/domain';
@@ -12,13 +13,13 @@ export function comoLoVeElCliente(
   numero: string | null,
   revision: number,
   hoy: string,
-  abonado: Money,
+  pagado: Money<Moneda>,
   idioma: Idioma,
 ): PresupuestoMandado {
   const cuentas =
     documento.valores === null
       ? []
-      : cuentasDelPresupuesto(documento.valores, documento.senaBp, abonado);
+      : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado);
   const [unica] = cuentas;
   return {
     etapa: 'mandado',

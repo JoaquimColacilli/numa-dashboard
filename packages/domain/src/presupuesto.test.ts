@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { DIAS_HABILES_DE_ENTREGA } from './fechas.ts';
 import { cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import { centavos, centavosEn, puntosBasicos, type Money } from './money.ts';
+import { plata } from './plata.ts';
 import {
   abonadoEn,
   acordadoAlAprobar,
+  acordadoConElDocumento,
   borradorNuevo,
   CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
   clausulaDeLaMonedaDelTrabajo,
@@ -974,6 +976,13 @@ describe('documentoDelPresupuesto', () => {
     expect(hecho.avisos[3]?.texto).toContain('($120000)');
   });
 
+  it('en dólares sin un dólar para la referencia, es un borrador que todavía no se puede mandar', () => {
+    const hecho = documentoDelPresupuesto(entradaEnDolares({ referencia: null }), FORMATOS);
+    expect(hecho).toMatchObject({ forma: 2, moneda: 'USD', referencia: null });
+    expect(problemaDelDocumento(hecho)).toBe('forma-invalida');
+    expect(leerDocumento(copia(hecho))).toBeNull();
+  });
+
   it('en pesos, lo abonado va siempre en pesos aunque el borrador diga otra cosa', () => {
     expect(monedaDeLoAbonado({ monedaDeLoAbonado: 'USD' }, 'ARS')).toBe('ARS');
     expect(monedaDeLoAbonado({ monedaDeLoAbonado: null }, 'USD')).toBe('USD');
@@ -1083,6 +1092,19 @@ describe('la opción aceptada y lo acordado al aprobar', () => {
     expect(acordadoAlAprobar(aceptada, centavos(200_000_000))).toBe(200_000_000);
     expect(acordadoAlAprobar(null, centavos(200_000_000))).toBe(200_000_000);
     expect(acordadoAlAprobar(aceptada, null)).toBeNull();
+  });
+
+  it('lo acordado se compara solo con un documento de la misma moneda', () => {
+    const enPesos = documento();
+    expect(acordadoConElDocumento(enPesos, null)).toBeNull();
+    expect(acordadoConElDocumento(enPesos, plata('ARS', TOTAL))).toBeNull();
+    expect(acordadoConElDocumento(enPesos, plata('ARS', 200_000_000))).toBe(200_000_000);
+    expect(acordadoConElDocumento(enPesos, plata('USD', 200_000_000))).toBeNull();
+
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(acordadoConElDocumento(enDolares, plata('USD', 240_000))).toBeNull();
+    expect(acordadoConElDocumento(enDolares, plata('USD', 250_000))).toBe(250_000);
+    expect(acordadoConElDocumento(enDolares, plata('ARS', 250_000))).toBeNull();
   });
 });
 
@@ -1285,6 +1307,27 @@ describe('hayCambiosSinMandar', () => {
     expect(hayCambiosSinMandar(entrada(), conObjeto, FORMATOS)).toBe(true);
     const conOtraClave = { ...mandado, extra: 1 } as unknown as DocumentoDelPresupuesto;
     expect(hayCambiosSinMandar(entrada(), conOtraClave, FORMATOS)).toBe(true);
+  });
+
+  it('en dólares, un dólar del día nuevo no es un cambio: vale la referencia que se mandó', () => {
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    const otroDolar = { cotizacion: cotizacion(160_000), fecha: '2026-10-02' };
+    expect(
+      hayCambiosSinMandar(entradaEnDolares({ referencia: otroDolar }), enDolares, FORMATOS),
+    ).toBe(false);
+    expect(hayCambiosSinMandar(entradaEnDolares({ referencia: null }), enDolares, FORMATOS)).toBe(
+      false,
+    );
+  });
+
+  it('cambiar la moneda o en qué te paga sí es un cambio sin mandar', () => {
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(hayCambiosSinMandar(entrada(), enDolares, FORMATOS)).toBe(true);
+    expect(hayCambiosSinMandar(entradaEnDolares(), mandado, FORMATOS)).toBe(true);
+    expect(hayCambiosSinMandar(entradaEnDolares({ cobraEn: ['USD'] }), enDolares, FORMATOS)).toBe(
+      true,
+    );
+    expect(hayCambiosSinMandar(entrada({ cobraEn: ['ARS', 'USD'] }), mandado, FORMATOS)).toBe(true);
   });
 });
 
