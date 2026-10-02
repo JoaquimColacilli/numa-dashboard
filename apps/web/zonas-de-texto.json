@@ -24,7 +24,6 @@
     "src/features/armar-el-presupuesto/",
     "src/features/armar-la-fila/",
     "src/features/armar-la-vidriera/",
-    "src/features/avanzar-la-consulta/",
     "src/features/cerrar-sesion/",
     "src/features/compartir-con-el-cliente/",
     "src/features/configurar-taller/",

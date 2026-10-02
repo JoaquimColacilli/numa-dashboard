@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import type { Proyecto } from '@/entities/proyecto';
 import type { CambiosDeProyecto, PagoParaGuardar } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { errorDeLaFechaDeLaPlata, hoyEnElTaller, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, MoneyInput } from '@/shared/ui';
 
@@ -30,6 +31,7 @@ export function FormularioDelRelevamiento({
   alListo,
   alCancelar,
 }: FormularioDelRelevamientoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   const hoy = hoyEnElTaller();
   const [valores, setValores] = useState(() => valoresDelRelevamiento(proyecto, hoy));
   const [error, setError] = useState<string | undefined>(undefined);
@@ -53,7 +55,7 @@ export function FormularioDelRelevamiento({
     <form noValidate onSubmit={enviar} className="mt-3 flex flex-col gap-3">
       <Campo
         ref={campoDelDia}
-        etiqueta="Qué día fuiste"
+        etiqueta={textos.queDiaFuiste}
         type="date"
         max={hoy}
         value={valores.dia}
@@ -65,24 +67,24 @@ export function FormularioDelRelevamiento({
         error={error}
       />
       <Campo
-        etiqueta="Entregar el presupuesto antes del"
+        etiqueta={textos.entregarElPresupuestoAntesDel}
         type="date"
         value={valores.vencimiento}
         onChange={(evento) => {
           const vencimiento = evento.target.value;
           setValores((previos) => conOtroVencimiento(previos, vencimiento));
         }}
-        ayuda="Una semana de trabajo desde la visita. Cambiala si lo prometiste para otro día."
+        ayuda={textos.ayudaDelVencimiento}
       />
       {conPago && (
         <MoneyInput
-          etiqueta="Cuánto te pagó la visita"
-          placeholder="Opcional"
+          etiqueta={textos.cuantoTePagoLaVisita}
+          placeholder={textos.opcional}
           value={valores.pago}
           onChange={(pago) => {
             setValores((previos) => ({ ...previos, pago }));
           }}
-          ayuda="Si no te la pagó, lo que sigue es un estimativo. Igual podés presupuestar."
+          ayuda={textos.ayudaDelPagoDeLaVisita}
         />
       )}
       {conPago && (valores.pago ?? 0) > 0 && (
@@ -96,9 +98,9 @@ export function FormularioDelRelevamiento({
         />
       )}
       <FilaDeAcciones>
-        <Button type="submit">Anotar el relevamiento</Button>
+        <Button type="submit">{textos.anotarElRelevamiento}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>
@@ -117,6 +119,7 @@ function FormularioDeUnMonto({
   alListo,
   alCancelar,
 }: FormularioDeUnMontoProps & { etiqueta: string; ayuda: string; enviar: string }) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   const [monto, setMonto] = useState<number | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
@@ -136,7 +139,7 @@ function FormularioDeUnMonto({
       <MoneyInput
         ref={campo}
         etiqueta={etiqueta}
-        placeholder="Opcional"
+        placeholder={textos.opcional}
         value={monto}
         onChange={setMonto}
         ayuda={ayuda}
@@ -144,7 +147,7 @@ function FormularioDeUnMonto({
       <FilaDeAcciones>
         <Button type="submit">{enviar}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>
@@ -152,12 +155,13 @@ function FormularioDeUnMonto({
 }
 
 export function FormularioDelPresupuesto(props: FormularioDeUnMontoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   return (
     <FormularioDeUnMonto
       {...props}
-      etiqueta="Cuánto presupuestaste"
-      ayuda="Si lo dejás vacío, lo cargás cuando lo apruebe."
-      enviar="Marcar como enviado"
+      etiqueta={textos.cuantoPresupuestaste}
+      ayuda={textos.ayudaDelPresupuesto}
+      enviar={textos.marcarComoEnviado}
     />
   );
 }
@@ -169,6 +173,7 @@ export interface FormularioDelPagoProps {
 }
 
 export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioDelPagoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   const hoy = hoyEnElTaller();
   const [monto, setMonto] = useState<number | null>(null);
   const [dia, setDia] = useState(hoy);
@@ -195,16 +200,16 @@ export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioD
     >
       <MoneyInput
         ref={campo}
-        etiqueta="Cuánto te pagó"
-        placeholder="Opcional"
+        etiqueta={textos.cuantoTePago}
+        placeholder={textos.opcional}
         value={monto}
         onChange={setMonto}
-        ayuda="Si todavía no te pagó y vas a presupuestar igual, dejalo vacío."
+        ayuda={textos.ayudaDelPago}
       />
       {hayPago && (
         <>
           <Campo
-            etiqueta="Qué día te pagó"
+            etiqueta={textos.queDiaTePago}
             type="date"
             max={hoy}
             value={dia}
@@ -223,9 +228,9 @@ export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioD
         </>
       )}
       <FilaDeAcciones>
-        <Button type="submit">Pasar a presupuestar</Button>
+        <Button type="submit">{textos.pasarAPresupuestar}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>

@@ -25,6 +25,7 @@ import {
   type CambiosDeProyecto,
   type PagoParaGuardar,
 } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   hoyLocal,
   metaDeAvisos,
@@ -79,6 +80,7 @@ export function AvanceDelContacto({
   conOpciones,
   alAgendar,
 }: AvanceDelContactoProps) {
+  const m = useMensajes();
   const ir = useIr();
   const replica = useReplicaDelTaller();
   const apertura = aperturaDeLaReplica(replica);
@@ -149,7 +151,7 @@ export function AvanceDelContacto({
 
   return (
     <PanelDePaso
-      titulo="Qué falta"
+      titulo={m.avanzarLaConsulta.avance.queFalta}
       paso={situacion.proximoPaso}
       detalle={situacion.espera}
       icono={situacion.agendada ? 'calendar' : 'clock'}
@@ -207,10 +209,10 @@ export function AvanceDelContacto({
       {etapa === 'a_presupuestar' && <TareasDelPresupuesto proyecto={proyecto} />}
 
       <div className="mt-4">
-        <span className="text-meta text-text-2">Etapa</span>
+        <span className="text-meta text-text-2">{m.avanzarLaConsulta.avance.etapa}</span>
         <div
           role="radiogroup"
-          aria-label="Etapa"
+          aria-label={m.avanzarLaConsulta.avance.etapa}
           className="mt-1 grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @md:grid-cols-3"
         >
           {etapas.map((estado) => (

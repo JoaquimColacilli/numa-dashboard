@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FilaDe } from '@/shared/api';
 
 import {
-  CONCEPTO_DE_LA_SENA,
+  conceptoDeLaSena,
   erroresDelContacto,
   hayQueGuardar,
   muestraLaVigencia,
@@ -121,7 +121,7 @@ function pago(extra: Partial<FilaDe<'pagos'>> = {}): FilaDe<'pagos'> {
     id: 'sena',
     proyecto_id: 'p',
     fecha: '2026-09-08',
-    concepto: CONCEPTO_DE_LA_SENA,
+    concepto: conceptoDeLaSena(),
     monto_centavos: 15_000_000,
     ya_en_la_apertura: false,
     moneda: 'ARS',
@@ -172,7 +172,7 @@ describe('pedidoDelContacto', () => {
       {
         id: 'nueva',
         fecha: '2026-09-10',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 15_000_000,
         ya_en_la_apertura: false,
       },
@@ -221,7 +221,7 @@ describe('pedidoDelContacto', () => {
       {
         id: 'sena',
         fecha: '2026-09-05',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 15_000_000,
         ya_en_la_apertura: false,
       },
@@ -284,7 +284,7 @@ describe('pedidoDelContacto', () => {
       {
         id: 'sena',
         fecha: '2026-09-08',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 18_000_000,
         ya_en_la_apertura: false,
       },

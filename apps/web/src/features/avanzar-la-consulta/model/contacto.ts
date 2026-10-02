@@ -23,9 +23,12 @@ import {
   type PagoParaGuardar,
   type ProyectoParaGuardar,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { errorDeLaFechaDeLaPlata, fechaDelEnlace, hayCambios } from '@/shared/lib';
 
-export const CONCEPTO_DE_LA_SENA = 'Seña de la visita';
+export function conceptoDeLaSena(): string {
+  return mensajes().avanzarLaConsulta.conceptos.senaDeLaVisita;
+}
 
 export interface ValoresDelContacto {
   clienteId: string;
@@ -103,9 +106,8 @@ export function muestraLaVigencia(proyecto: Proyecto | undefined): boolean {
 }
 
 export function etiquetaDeLaVisita(proyecto: Proyecto | undefined, hoy: string): string {
-  return proyecto !== undefined && yaSeRelevo(proyecto, hoy)
-    ? 'Día que fuiste a relevar'
-    : 'Visita';
+  const { visita } = mensajes().avanzarLaConsulta.contacto;
+  return proyecto !== undefined && yaSeRelevo(proyecto, hoy) ? visita.relevada : visita.agendada;
 }
 
 export function ofreceMarcarLaVisita(
@@ -191,15 +193,14 @@ export function erroresDelContacto(
   hoy: string,
 ): ErroresDelContacto {
   const errores: ErroresDelContacto = {};
+  const textos = mensajes().avanzarLaConsulta.contacto.errores;
   const titulo = valores.titulo.trim();
 
-  if (valores.clienteId === '') {
-    errores.cliente = 'Elegí un cliente, o escribí su nombre para crearlo.';
-  }
-  if (titulo === '') errores.titulo = 'Contá qué pide, aunque sea en dos palabras.';
-  else if (titulo.length > 200) errores.titulo = 'No puede pasar de 200 caracteres.';
-  if (telefono.trim().length > 200) errores.telefono = 'No puede pasar de 200 caracteres.';
-  if (valores.notas.trim().length > 10_000) errores.notas = 'Las notas son demasiado largas.';
+  if (valores.clienteId === '') errores.cliente = textos.cliente;
+  if (titulo === '') errores.titulo = textos.titulo;
+  else if (titulo.length > 200) errores.titulo = textos.largo(200);
+  if (telefono.trim().length > 200) errores.telefono = textos.largo(200);
+  if (valores.notas.trim().length > 10_000) errores.notas = textos.notas;
   if ((valores.sena ?? 0) > 0) {
     const delDia = errorDeLaFechaDeLaPlata(diaDeLaSena(valores, hoy), hoy);
     if (delDia !== undefined) errores.diaDeLaSena = delDia;
@@ -266,7 +267,7 @@ function pagosDeLaSena(
     {
       id: idDeSenaNueva,
       fecha,
-      concepto: CONCEPTO_DE_LA_SENA,
+      concepto: conceptoDeLaSena(),
       monto_centavos: monto,
       ya_en_la_apertura: enLaApertura,
     },

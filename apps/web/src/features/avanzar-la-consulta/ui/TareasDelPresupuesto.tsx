@@ -11,6 +11,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { metaDeAvisos } from '@/shared/lib';
 
 export interface TareasDelPresupuestoProps {
@@ -18,6 +19,7 @@ export interface TareasDelPresupuestoProps {
 }
 
 export function TareasDelPresupuesto({ proyecto }: TareasDelPresupuestoProps) {
+  const textos = useMensajes().avanzarLaConsulta.tareas;
   const id = useId();
   const marcar = useMutation({
     ...MUTACION_DE_TAREAS,
@@ -32,9 +34,9 @@ export function TareasDelPresupuesto({ proyecto }: TareasDelPresupuestoProps) {
       className="mt-4 border-t border-hairline pt-3"
     >
       <p id={`${id}-titulo`} className="flex items-baseline justify-between gap-3 text-meta">
-        <span className="font-medium text-text-2">Para el presupuesto</span>
+        <span className="font-medium text-text-2">{textos.paraElPresupuesto}</span>
         <span className="text-text-3 tabular-nums">
-          {String(hechas)} de {String(TAREAS_DEL_PRESUPUESTO.length)}
+          {textos.hechasDe(String(hechas), String(TAREAS_DEL_PRESUPUESTO.length))}
         </span>
       </p>
       <ul className="mt-1">

@@ -11,6 +11,7 @@ import {
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { aperturaDeLaReplica, filasDe, mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, Hoja, MoneyInput } from '@/shared/ui';
 
@@ -48,6 +49,7 @@ export function HojaDeContacto({
   alCerrar,
   alGuardar,
 }: HojaDeContactoProps) {
+  const textos = useMensajes().avanzarLaConsulta.contacto;
   const replica = useReplicaDelTaller();
   const idCampos = useId();
   const cuerpo = useRef<HTMLDivElement>(null);
@@ -161,7 +163,7 @@ export function HojaDeContacto({
 
   return (
     <Hoja
-      titulo={proyecto ? 'Editar el contacto' : 'Cargar contacto'}
+      titulo={proyecto ? textos.titulo.editar : textos.titulo.nuevo}
       alCerrar={alCerrar}
       conCambios={hayCambiosEnElContacto(iniciales, valores, cliente?.telefono ?? '', telefono)}
     >
@@ -183,7 +185,7 @@ export function HojaDeContacto({
 
             {valores.clienteId !== '' && (
               <Campo
-                etiqueta="Teléfono"
+                etiqueta={textos.telefono}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -193,17 +195,13 @@ export function HojaDeContacto({
                   setTelefono(evento.target.value);
                 }}
                 error={errores.telefono}
-                ayuda={
-                  errores.telefono === undefined
-                    ? 'Queda en el cliente: es el que usan Llamar y WhatsApp.'
-                    : undefined
-                }
+                ayuda={errores.telefono === undefined ? textos.ayudaDelTelefono : undefined}
               />
             )}
 
             <Campo
-              etiqueta="Qué pide"
-              placeholder="Placard, cocina, biblioteca…"
+              etiqueta={textos.quePide}
+              placeholder={textos.ejemploDeQuePide}
               maxLength={200}
               value={valores.titulo}
               onChange={(evento) => {
@@ -222,50 +220,47 @@ export function HojaDeContacto({
                   const visita = evento.target.value;
                   setValores((previos) => valoresConOtraVisita(proyecto, previos, visita, hoy));
                 }}
-                ayuda={
-                  esContactoSinEtapa
-                    ? 'Si ya fuiste, queda a presupuestar; si es más adelante, queda agendada.'
-                    : undefined
-                }
+                ayuda={esContactoSinEtapa ? textos.ayudaDeLaVisita : undefined}
               />
 
               <Campo
-                etiqueta="Hora de la visita"
+                etiqueta={textos.horaDeLaVisita}
                 name="visita_hora"
                 type="time"
                 value={valores.visitaHora}
                 onChange={(evento) => {
                   cambiar('visitaHora', evento.target.value);
                 }}
-                ayuda="Opcional. Con hora, la visita cae en su renglón del día en la agenda."
+                ayuda={textos.ayudaDeLaHora}
               />
 
               {pagos.length > 1 ? (
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-label text-text-2">Seña cobrada</span>
-                  <span className="flex h-field items-center text-body-lg font-semibold tabular-nums">
+                  <span className="text-label text-text-2">{textos.senaCobrada}</span>
+                  <span
+                    translate="no"
+                    className="flex h-field items-center text-body-lg font-semibold tabular-nums"
+                  >
                     {formatearPesos(cobrado)}
                   </span>
-                  <span className="text-meta text-text-3">
-                    Son {String(pagos.length)} pagos: se corrigen desde el detalle del trabajo.
-                  </span>
+                  <span className="text-meta text-text-3">{textos.variosPagos(pagos.length)}</span>
                 </div>
               ) : (
                 <MoneyInput
-                  etiqueta="Seña cobrada"
+                  etiqueta={textos.senaCobrada}
                   conMarcador
                   value={valores.sena}
                   onChange={(centavos) => {
                     cambiar('sena', centavos);
                   }}
-                  ayuda="Lo que te dejó en la visita. Entra a la caja del taller."
+                  ayuda={textos.ayudaDeLaSena}
                 />
               )}
 
               {pagos.length <= 1 && (valores.sena ?? 0) > 0 && (
                 <div className="flex flex-col gap-1">
                   <Campo
-                    etiqueta="Día de la seña"
+                    etiqueta={textos.diaDeLaSena}
                     type="date"
                     max={hoy}
                     value={diaDeLaSena(valores, hoy)}
@@ -275,7 +270,7 @@ export function HojaDeContacto({
                     error={errores.diaDeLaSena}
                     ayuda={
                       errores.diaDeLaSena === undefined && valores.diaDeLaSena === null
-                        ? 'El de la visita si ya fue, y si no, hoy. Cambialo si te la dio otro día.'
+                        ? textos.ayudaDelDiaDeLaSena
                         : undefined
                     }
                   />
@@ -302,18 +297,15 @@ export function HojaDeContacto({
                   className="mt-0.5 size-5 flex-none accent-ink"
                 />
                 <span className="flex min-w-0 flex-col">
-                  <span className="text-body font-medium text-ink">Ya fui a relevar</span>
-                  <span className="text-meta text-text-3">
-                    En la agenda la visita queda tachada. Si no fuiste, destildala y vuelve a quedar
-                    pendiente.
-                  </span>
+                  <span className="text-body font-medium text-ink">{textos.yaFuiARelevar}</span>
+                  <span className="text-meta text-text-3">{textos.ayudaDeYaFui}</span>
                 </span>
               </label>
             )}
 
             {muestraElVencimiento(proyecto) && (
               <Campo
-                etiqueta="Entregar el presupuesto antes del"
+                etiqueta={textos.entregarElPresupuestoAntesDel}
                 type="date"
                 value={valores.vencimiento}
                 onChange={(evento) => {
@@ -321,28 +313,28 @@ export function HojaDeContacto({
                 }}
                 ayuda={
                   proyecto?.estado === 'a_presupuestar'
-                    ? 'Sale en la agenda hasta que lo mandes. Si cambiás el día del relevamiento se corre sola, salvo que la hayas puesto a mano.'
-                    : 'Sale en la agenda hasta que marques que lo mandaste.'
+                    ? textos.ayudaDelVencimientoAPresupuestar
+                    : textos.ayudaDelVencimiento
                 }
               />
             )}
 
             {muestraLaVigencia(proyecto) && (
               <Campo
-                etiqueta="El presupuesto vale hasta"
+                etiqueta={textos.valeHasta}
                 name="vale_hasta"
                 type="date"
                 value={valores.valeHasta}
                 onChange={(evento) => {
                   cambiar('valeHasta', evento.target.value);
                 }}
-                ayuda="Tu cliente lo ve en su página: si deja la seña antes de ese día, le dice para cuándo podría estar listo. Pasado el día, le dice que venció. Sin fecha, no le promete ninguna."
+                ayuda={textos.ayudaDeValeHasta}
               />
             )}
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${idCampos}-notas`} className="text-label text-text-2">
-                Notas
+                {textos.notas}
               </label>
               <textarea
                 id={`${idCampos}-notas`}
@@ -351,7 +343,7 @@ export function HojaDeContacto({
                 onChange={(evento) => {
                   cambiar('notas', evento.target.value);
                 }}
-                placeholder="Lo que te dijo por teléfono, medidas, cómo llegar…"
+                placeholder={textos.ejemploDeNotas}
                 className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
               />
               {errores.notas !== undefined && (
@@ -371,10 +363,10 @@ export function HojaDeContacto({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={guardar.isPending && !guardar.isPaused}>
-                {proyecto ? 'Guardar los cambios' : 'Guardar contacto'}
+                {proyecto ? textos.guardar.editar : textos.guardar.nuevo}
               </Button>
             </FilaDeAcciones>
           </footer>

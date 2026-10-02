@@ -1,6 +1,14 @@
 import { esAnteriorALaApertura, porcentajeDeLaSena } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 
 import { CONDICION, EnlaceACliente } from '@/entities/cliente';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
@@ -24,6 +32,7 @@ import {
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ajustesDe, aperturaDeLaReplica, mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
   formatearPesos,
@@ -62,11 +71,23 @@ export interface PantallaDePasajeProps {
 const CIFRA = 'contents @min-[44rem]:flex @min-[44rem]:flex-col @min-[44rem]:gap-0.5';
 
 export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
+  const textos = useMensajes().avanzarLaConsulta.pasaje;
   const ir = useIr();
   const idCampos = useId();
   const replica = useReplicaDelTaller();
   const { proyecto, cliente } = resumen;
-  const vuelta = useVolver(rutaDelProyecto(proyecto.id), 'Volver sin aprobar', { fija: true });
+  const vuelta = useVolver(rutaDelProyecto(proyecto.id), textos.volverSinAprobar, { fija: true });
+  const CorregirLaOpcion = useCallback(
+    ({ children }: { children: ReactNode }) => (
+      <Ir
+        a={rutaDeEdicion(proyecto.id)}
+        className="font-medium text-text-2 underline underline-offset-3"
+      >
+        {children}
+      </Ir>
+    ),
+    [proyecto.id],
+  );
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
 
@@ -195,9 +216,9 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         htmlFor={`${idCampos}-sena`}
         className="flex items-baseline justify-between gap-2 text-label text-text-2"
       >
-        Seña que cobrás ahora
+        {textos.senaQueCobrasAhora}
         <span className="text-meta text-text-3">
-          {formatearPorcentaje(porcentaje)}% del presupuesto
+          {textos.porcentajeDelPresupuesto(formatearPorcentaje(porcentaje))}
         </span>
       </label>
       <div className="flex h-15 items-center gap-1.5 rounded-field border border-border px-3.5">
@@ -215,15 +236,13 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         />
       </div>
       <p id={`${idCampos}-sena-ayuda`} className="text-meta leading-normal text-text-3">
-        {esperada.situacion === 'cubierta'
-          ? `Con lo que ya cobraste la seña está cubierta. Dejalo en blanco si hoy no cobrás nada más.`
-          : `Entra como un pago del trabajo, con el día en que te la dieron y la forma de pago de acá. Si todavía no cobraste, dejalo en blanco.`}
+        {esperada.situacion === 'cubierta' ? textos.senaCubierta : textos.senaComoPago}
       </p>
       {haySenaAhora(sena) && (
         <>
           <Campo
             ref={campoDelDia}
-            etiqueta="Día en que entró la seña"
+            etiqueta={textos.diaEnQueEntroLaSena}
             type="date"
             contenedor="mt-2"
             max={hoy}
@@ -258,10 +277,12 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
       <header>
         <p aria-hidden className="mb-2 flex items-center gap-1.5 text-meta text-text-2">
-          <span className="rounded-pill border border-hairline bg-paper px-2">Consultas</span>
+          <span className="rounded-pill border border-hairline bg-paper px-2">
+            {textos.consultas}
+          </span>
           <Icono nombre="chevron-right" tamano={14} />
           <span className="rounded-pill border border-ink bg-paper px-2 font-semibold text-ink">
-            Activos
+            {textos.activos}
           </span>
         </p>
         <p className="text-label text-text-2">
@@ -272,11 +293,10 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
           )}
         </p>
         <h1 className="mt-0.5 font-display text-h1 leading-tight lg:text-h1-lg">
-          Pasar «{proyecto.titulo}» a Proyectos
+          {textos.titulo(proyecto.titulo)}
         </h1>
         <p className="mt-1.5 max-w-[560px] text-body leading-relaxed text-text-2">
-          Lo aprobó: ahora sí van los datos de la obra. Lo que ya cobraste no se vuelve a cargar,
-          sigue siendo el mismo pago.
+          {textos.bajada}
         </p>
       </header>
 
@@ -291,7 +311,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
               }
               className="flex flex-col gap-1.5"
             >
-              <legend className="mb-1.5 text-label text-text-2">Qué opción aprobó</legend>
+              <legend className="mb-1.5 text-label text-text-2">{textos.queOpcionAprobo}</legend>
               <div className="flex flex-col gap-2">
                 {opciones.map((una, indice) => (
                   <label
@@ -311,24 +331,29 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                       }}
                       className="size-5 flex-none accent-ink"
                     />
-                    <span className="min-w-0 flex-1 text-body-lg leading-snug font-medium">
-                      {una.descripcion.trim() === '' ? 'Opción sin detalle' : una.descripcion}
-                    </span>
-                    <span className="flex-none text-money font-semibold tabular-nums">
+                    {una.descripcion.trim() === '' ? (
+                      <span className="min-w-0 flex-1 text-body-lg leading-snug font-medium">
+                        {textos.opcionSinDetalle}
+                      </span>
+                    ) : (
+                      <span
+                        translate="no"
+                        className="min-w-0 flex-1 text-body-lg leading-snug font-medium"
+                      >
+                        {una.descripcion}
+                      </span>
+                    )}
+                    <span
+                      translate="no"
+                      className="flex-none text-money font-semibold tabular-nums"
+                    >
                       {formatearPesos(una.monto_centavos)}
                     </span>
                   </label>
                 ))}
               </div>
               <p id={`${idCampos}-opciones-ayuda`} className="text-meta leading-normal text-text-3">
-                El presupuesto del trabajo es el importe de la que elijas. Si aprobó otro importe,{' '}
-                <Ir
-                  a={rutaDeEdicion(proyecto.id)}
-                  className="font-medium text-text-2 underline underline-offset-3"
-                >
-                  corregí la opción
-                </Ir>{' '}
-                antes de pasarlo.
+                {textos.corregirLaOpcion(CorregirLaOpcion)}
               </p>
               {falta !== undefined && (
                 <span
@@ -344,7 +369,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
             <CamposJuntos separacion="gap-5">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={`${idCampos}-presupuesto`} className="text-label text-text-2">
-                  Presupuesto aprobado
+                  {textos.presupuestoAprobado}
                 </label>
                 <div
                   className={`flex h-15 items-center gap-1.5 rounded-field border px-3.5 ${
@@ -398,40 +423,49 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 rounded-field bg-surface px-3.5 py-3 text-body tabular-nums @min-[44rem]:auto-cols-fr @min-[44rem]:grid-flow-col @min-[44rem]:grid-cols-none @min-[44rem]:gap-x-6">
             {hayOpciones && (
               <div className={CIFRA}>
-                <dt className="text-text-2">Presupuesto aprobado</dt>
-                <dd className="text-right font-semibold @min-[44rem]:text-left">
+                <dt className="text-text-2">{textos.presupuestoAprobado}</dt>
+                <dd translate="no" className="text-right font-semibold @min-[44rem]:text-left">
                   {aprobado === null ? '—' : formatearPesos(aprobado)}
                 </dd>
               </div>
             )}
             <div className={CIFRA}>
-              <dt className="text-text-2">Ya cobrado antes</dt>
-              <dd className="text-right font-medium text-hogar @min-[44rem]:text-left">
+              <dt className="text-text-2">{textos.yaCobradoAntes}</dt>
+              <dd
+                translate="no"
+                className="text-right font-medium text-hogar @min-[44rem]:text-left"
+              >
                 {formatearPesos(cuenta.antes)}
               </dd>
             </div>
             <div className={CIFRA}>
-              <dt className="text-text-2">Seña que cobrás ahora</dt>
-              <dd className="text-right font-medium text-hogar @min-[44rem]:text-left">
+              <dt className="text-text-2">{textos.senaQueCobrasAhora}</dt>
+              <dd
+                translate="no"
+                className="text-right font-medium text-hogar @min-[44rem]:text-left"
+              >
                 {formatearPesos(cuenta.ahora)}
               </dd>
             </div>
             <div className={CIFRA}>
-              <dt className="text-text-2">Cobrado en total</dt>
-              <dd className="text-right font-semibold text-hogar @min-[44rem]:text-left">
+              <dt className="text-text-2">{textos.cobradoEnTotal}</dt>
+              <dd
+                translate="no"
+                className="text-right font-semibold text-hogar @min-[44rem]:text-left"
+              >
                 {formatearPesos(cuenta.cobrado)}
               </dd>
             </div>
             <div className={CIFRA}>
-              <dt className="text-text-2">Saldo a cobrar</dt>
-              <dd className="text-right font-semibold @min-[44rem]:text-left">
+              <dt className="text-text-2">{textos.saldoACobrar}</dt>
+              <dd translate="no" className="text-right font-semibold @min-[44rem]:text-left">
                 {cuenta.saldo === null ? '—' : formatearPesos(cuenta.saldo)}
               </dd>
             </div>
             {resumen.gastos > 0 && (
               <div className={CIFRA}>
-                <dt className="text-text-2">Gastos ya cargados</dt>
-                <dd className="text-right font-medium @min-[44rem]:text-left">
+                <dt className="text-text-2">{textos.gastosYaCargados}</dt>
+                <dd translate="no" className="text-right font-medium @min-[44rem]:text-left">
                   {formatearPesos(resumen.gastos)}
                 </dd>
               </div>
@@ -448,7 +482,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
           )}
 
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-label text-text-2">Forma de pago</legend>
+            <legend className="mb-1.5 text-label text-text-2">{textos.formaDePago}</legend>
             <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm:grid-cols-4">
               {FORMAS_EN_ORDEN.map((opcion) => (
                 <button
@@ -473,7 +507,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
           <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2 @sm:gap-x-4 @sm:gap-y-1.5">
             <Campo
-              etiqueta="Fecha de inicio"
+              etiqueta={textos.fechaDeInicio}
               type="date"
               contenedor="@sm:row-span-3 @sm:grid @sm:grid-rows-subgrid"
               value={inicio}
@@ -485,7 +519,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
               }}
             />
             <Campo
-              etiqueta="Entrega estimada"
+              etiqueta={textos.entregaEstimada}
               type="date"
               contenedor="@sm:row-span-3 @sm:grid @sm:grid-rows-subgrid"
               value={entrega}
@@ -499,8 +533,8 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
 
           <CamposJuntos separacion="gap-5">
             <Campo
-              etiqueta="Dirección de entrega"
-              placeholder="Calle y número, localidad"
+              etiqueta={textos.direccionDeEntrega}
+              placeholder={textos.ejemploDeDireccion}
               maxLength={500}
               value={direccion}
               onChange={(evento) => {
@@ -513,7 +547,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                 htmlFor={`${idCampos}-comprobante`}
                 className="flex items-baseline justify-between gap-2 text-label text-text-2"
               >
-                Comprobante a emitir
+                {textos.comprobanteAEmitir}
                 {cliente !== undefined && (
                   <span className="text-meta text-text-3">
                     {CONDICION[cliente.condicion_fiscal].etiqueta}
@@ -546,7 +580,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
             aria-describedby={acordado === null ? undefined : `${idCampos}-acordado`}
           >
             <Icono nombre="hammer" tamano={18} />
-            Pasar a Proyectos
+            {textos.pasarAProyectos}
           </Button>
           {rechazo !== null && (
             <p role="alert" className="mt-2 text-label font-medium text-alerta">

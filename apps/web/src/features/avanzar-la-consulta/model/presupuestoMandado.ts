@@ -12,6 +12,7 @@ import {
 
 import { NUMERO_PENDIENTE, presupuestoDelTrabajo, ultimaRevision } from '@/entities/presupuesto';
 import type { Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 
 export interface LoMandadoAlCliente {
@@ -43,9 +44,23 @@ export function entregaDelPasaje(inicio: string, plazo: number): string {
 }
 
 export function ayudaDeLaEntrega(plazo: number, delPresupuesto: boolean): string {
+  const { pasaje } = mensajes().avanzarLaConsulta;
   return delPresupuesto
-    ? `Calculada a ${String(plazo)} días hábiles del inicio, el plazo del presupuesto.`
-    : `Calculada a ${String(plazo)} días hábiles del inicio.`;
+    ? pasaje.ayudaDeLaEntregaDelPresupuesto(plazo)
+    : pasaje.ayudaDeLaEntrega(plazo);
+}
+
+function loQueDice(mandado: LoMandadoAlCliente, enElPresupuesto: number | null): string {
+  const { acordado } = mensajes().avanzarLaConsulta.pasaje;
+  if (mandado.numero === NUMERO_PENDIENTE) {
+    return enElPresupuesto === null
+      ? acordado.noEstaEnElQueLeMandaste
+      : acordado.elQueLeMandasteDice(formatearPesos(enElPresupuesto));
+  }
+  const numero = numeroVisible(mandado.numero, mandado.revision);
+  return enElPresupuesto === null
+    ? acordado.noEstaEn(numero)
+    : acordado.dice(numero, formatearPesos(enElPresupuesto));
 }
 
 export function avisoDelAcordado(
@@ -57,14 +72,9 @@ export function avisoDelAcordado(
   const valores = soloLaAceptada(mandado.documento, opcionId).valores;
   const acordado = acordadoAlAprobar(valores, aprobado === null ? null : centavos(aprobado));
   if (acordado === null) return null;
-  const cual =
-    mandado.numero === NUMERO_PENDIENTE
-      ? 'el presupuesto que le mandaste'
-      : `el presupuesto ${numeroVisible(mandado.numero, mandado.revision)}`;
-  const enElPresupuesto = totalPropuesto(valores);
-  const queDice =
-    enElPresupuesto === null
-      ? `Ese importe no está en ${cual}.`
-      : `En ${cual} dice ${formatearPesos(enElPresupuesto)}.`;
-  return `${queDice} Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: ${formatearPesos(acordado)}».`;
+  const queDice = loQueDice(mandado, totalPropuesto(valores));
+  const siLoApruebasAsi = mensajes().avanzarLaConsulta.pasaje.acordado.siLoApruebasAsi(
+    formatearPesos(acordado),
+  );
+  return `${queDice} ${siLoApruebasAsi}`;
 }

@@ -2,9 +2,10 @@ import { esAnteriorALaApertura, vencimientoDelPresupuesto } from '@maun/domain';
 
 import type { Proyecto } from '@/entities/proyecto';
 import type { CambiosDeProyecto, PagoParaGuardar } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { fechaDelEnlace } from '@/shared/lib';
 
-import { CONCEPTO_DE_LA_SENA } from './contacto';
+import { conceptoDeLaSena } from './contacto';
 
 export interface ValoresDelRelevamiento {
   dia: string;
@@ -45,10 +46,9 @@ export function conOtroVencimiento(
 
 export function errorDelDia(valores: ValoresDelRelevamiento, hoy: string): string | undefined {
   const fecha = fechaDelEnlace(valores.dia);
-  if (fecha === undefined) return 'Poné el día que fuiste a relevar.';
-  if (fecha > hoy) {
-    return 'Ese día todavía no llegó. Si la visita es más adelante, cambiá la fecha con Editar.';
-  }
+  const { errores } = mensajes().avanzarLaConsulta.paso;
+  if (fecha === undefined) return errores.sinDia;
+  if (fecha > hoy) return errores.diaQueNoLlego;
   return undefined;
 }
 
@@ -63,7 +63,7 @@ function pagoDeLaVisita(
     {
       id,
       fecha,
-      concepto: CONCEPTO_DE_LA_SENA,
+      concepto: conceptoDeLaSena(),
       monto_centavos: monto,
       ya_en_la_apertura: yaEnLaApertura,
     },

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Proyecto } from '@/entities/proyecto';
 
-import { CONCEPTO_DE_LA_SENA } from './contacto';
+import { conceptoDeLaSena } from './contacto';
 import {
   cambiosAlPasarAPresupuestar,
   conOtroDia,
@@ -76,7 +76,7 @@ describe('el formulario de «Ya fui a relevar»', () => {
       {
         id: 'pago',
         fecha: '2026-09-10',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 3_000_000,
         ya_en_la_apertura: false,
       },
@@ -116,7 +116,7 @@ describe('el formulario de «Ya fui a relevar»', () => {
       {
         id: 'p',
         fecha: '2026-09-12',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 2_000_000,
         ya_en_la_apertura: false,
       },

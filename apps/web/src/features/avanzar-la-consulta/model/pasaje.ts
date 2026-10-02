@@ -19,8 +19,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import type { DatosDeProyecto, PagoParaGuardar } from '@/shared/api';
-
-export const CONCEPTO_DE_LA_SENA_AL_APROBAR = 'Seña';
+import { mensajes } from '@/shared/idioma';
 
 export interface ValoresDelPasaje {
   presupuesto: number | null;
@@ -56,12 +55,11 @@ export function errorDelPasaje(
   opciones: readonly OpcionDePresupuesto[],
   valores: LoQueDecideElPresupuesto,
 ): string | undefined {
+  const { errores } = mensajes().avanzarLaConsulta.pasaje;
   if (opciones.length > 0) {
-    return opcionElegida(opciones, valores.opcion) === undefined
-      ? 'Elegí la opción que aprobó.'
-      : undefined;
+    return opcionElegida(opciones, valores.opcion) === undefined ? errores.opcion : undefined;
   }
-  return valores.presupuesto === null ? 'Poné el presupuesto que aprobó, en pesos.' : undefined;
+  return valores.presupuesto === null ? errores.presupuesto : undefined;
 }
 
 export function senaDelPasaje(
@@ -122,7 +120,7 @@ function pagoDeLaSena(valores: ValoresDelPasaje, id: string): PagoParaGuardar[] 
     {
       id,
       fecha: valores.diaDeLaSena,
-      concepto: CONCEPTO_DE_LA_SENA_AL_APROBAR,
+      concepto: mensajes().avanzarLaConsulta.conceptos.senaAlAprobar,
       monto_centavos: valores.sena,
       ya_en_la_apertura: valores.senaEnLaApertura,
     },
