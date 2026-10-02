@@ -24,6 +24,7 @@ export {
   fechaEnUnaFrase,
   fechaLarga,
   haceCuanto,
+  horaEnElTaller,
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,

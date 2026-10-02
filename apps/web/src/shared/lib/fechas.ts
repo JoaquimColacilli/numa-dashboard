@@ -48,6 +48,26 @@ export function hoyEnElTaller(ahora: Date = new Date()): string {
   return DIA_EN_EL_TALLER.format(ahora);
 }
 
+const OPCIONES_DE_LA_HORA: Readonly<Record<Idioma, Intl.DateTimeFormatOptions>> = {
+  es: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  en: { hour: 'numeric', minute: '2-digit', hourCycle: 'h12' },
+  'pt-BR': { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+};
+
+const HORAS_EN_EL_TALLER = new Map<Idioma, Intl.DateTimeFormat>();
+
+export function horaEnElTaller(momento: string, idioma: Idioma = idiomaActual()): string {
+  let formato = HORAS_EN_EL_TALLER.get(idioma);
+  if (formato === undefined) {
+    formato = new Intl.DateTimeFormat(ETIQUETAS_DE_IDIOMA[idioma], {
+      ...OPCIONES_DE_LA_HORA[idioma],
+      timeZone: ZONA_DEL_TALLER,
+    });
+    HORAS_EN_EL_TALLER.set(idioma, formato);
+  }
+  return formato.format(new Date(momento));
+}
+
 const FORMA_DEL_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 export function errorDeLaFechaDeLaPlata(fecha: string, hoy: string): string | undefined {

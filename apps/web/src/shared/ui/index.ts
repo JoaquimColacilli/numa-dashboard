@@ -4,6 +4,12 @@ export { Aviso } from './Aviso';
 export { Ayuda, DEMORA_DE_LA_AYUDA_MS, RESPIRO_DE_LA_AYUDA_MS, type AyudaProps } from './Ayuda';
 export { BloquePlegable, type BloquePlegableProps } from './BloquePlegable';
 export { CampoDeContrasena, type CampoDeContrasenaProps } from './CampoDeContrasena';
+export {
+  CampoDelDolar,
+  type CampoDelDolarProps,
+  type DolarDelDiaParaSugerir,
+} from './CampoDelDolar';
+export { errorDelDolar, useSugerenciaDelDolar } from './dolar';
 export { DatoCopiable, type DatoCopiableProps } from './DatoCopiable';
 export {
   ComparacionMensual,

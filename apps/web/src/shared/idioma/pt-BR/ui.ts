@@ -65,4 +65,16 @@ export const ui = {
   contrasena: {
     mostrar: 'Mostrar a senha',
   },
+  dolar: {
+    etiqueta: 'Dólar',
+    delDia: 'Do dia',
+    mep: 'MEP',
+    blue: 'Blue',
+    usarElDelDia: (monto) => `Usar o dólar do dia: ${monto}`,
+    usarLaCompra: (casa, monto) => `Usar o ${casa} de compra: ${monto}`,
+    usarLaVenta: (casa, monto) => `Usar o ${casa} de venda: ${monto}`,
+    sugerencias: 'Cotações para escolher',
+    fueraDeRango: (desde, hasta) => `O dólar vai de ${desde} a ${hasta}.`,
+    falta: 'A que cotação foi?',
+  },
 } satisfies Mensajes['ui'];

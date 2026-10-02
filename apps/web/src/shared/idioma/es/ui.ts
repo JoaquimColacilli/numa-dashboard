@@ -63,4 +63,16 @@ export const ui = {
   contrasena: {
     mostrar: 'Mostrar la contraseña',
   },
+  dolar: {
+    etiqueta: 'Dólar',
+    delDia: 'Del día',
+    mep: 'MEP',
+    blue: 'Blue',
+    usarElDelDia: (monto: string) => `Usar el dólar del día: ${monto}`,
+    usarLaCompra: (casa: string, monto: string) => `Usar el ${casa} de compra: ${monto}`,
+    usarLaVenta: (casa: string, monto: string) => `Usar el ${casa} de venta: ${monto}`,
+    sugerencias: 'Dólares para elegir',
+    fueraDeRango: (desde: string, hasta: string) => `El dólar va de ${desde} a ${hasta}.`,
+    falta: '¿A cuánto se tomó?',
+  },
 } as const;

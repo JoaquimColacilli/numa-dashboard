@@ -15,6 +15,15 @@ export {
 } from './archivos';
 export { escucharLosCambiosDelTaller, type OyentesDeLosCambios } from './cambios';
 export {
+  leerElDolar,
+  olvidarLaSugerenciaDelDolar,
+  pedirLaSugerenciaDelDolar,
+  RUTAS_DEL_DOLAR,
+  sugerenciaDelDolarGuardada,
+  type DolarDeLaApi,
+  type SugerenciaDelDolar,
+} from './dolar';
+export {
   contestarLaEntrega,
   guardarLaEntregaDelTrabajo,
   marcarLaRespuestaDeEntregaLeida,

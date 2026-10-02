@@ -65,4 +65,16 @@ export const ui = {
   contrasena: {
     mostrar: 'Show password',
   },
+  dolar: {
+    etiqueta: 'Dollar rate',
+    delDia: 'Today',
+    mep: 'MEP',
+    blue: 'Blue',
+    usarElDelDia: (monto) => `Use today's dollar rate: ${monto}`,
+    usarLaCompra: (casa, monto) => `Use the ${casa} buy rate: ${monto}`,
+    usarLaVenta: (casa, monto) => `Use the ${casa} sell rate: ${monto}`,
+    sugerencias: 'Rates to choose from',
+    fueraDeRango: (desde, hasta) => `The rate goes from ${desde} to ${hasta}.`,
+    falta: 'What rate was it taken at?',
+  },
 } satisfies Mensajes['ui'];
