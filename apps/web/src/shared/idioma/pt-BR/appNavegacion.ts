@@ -18,7 +18,7 @@ export const appNavegacion = {
     cobrar: 'Receber',
     darPorPerdido: 'Marcar como perdido',
     clientes: 'Clientes',
-    finanzas: 'Financeiro',
+    finanzas: 'Finanças',
     tesoros: 'Caixinhas',
     opiniones: 'Opiniões',
     diezmo: 'Dízimo',

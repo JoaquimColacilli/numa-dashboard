@@ -19,7 +19,7 @@ El castellano es la fuente y no se cambia para que la traducción quede más có
 | Activos | Active | Ativos |
 | Historial | History | Histórico |
 | Tesoros | Buckets | Caixinhas |
-| Finanzas | Finances | Financeiro |
+| Finanzas | Finances | Finanças |
 | Agenda | Calendar | Agenda |
 | Clientes | Clients | Clientes |
 | Opiniones | Feedback | Opiniões |

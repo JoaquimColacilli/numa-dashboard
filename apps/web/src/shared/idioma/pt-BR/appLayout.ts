@@ -24,7 +24,7 @@ export const appLayout = {
     consultas: 'Consultas',
     proyectos: 'Projetos',
     clientes: 'Clientes',
-    finanzas: 'Financeiro',
+    finanzas: 'Finanças',
     tesoros: 'Caixinhas',
     opiniones: 'Opiniões',
     diezmo: 'Dízimo',

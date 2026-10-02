@@ -1,7 +1,7 @@
 import type { Mensajes } from '../es';
 
 export const paginaFinanzas = {
-  titulo: 'Financeiro',
+  titulo: 'Finanças',
   cargarMovimiento: 'Registrar movimentação',
   contra: (actual, previo) => `${actual} vs. ${previo}`,
   todos: 'Todas',

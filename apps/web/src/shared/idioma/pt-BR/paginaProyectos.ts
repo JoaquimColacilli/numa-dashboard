@@ -88,7 +88,7 @@ export const paginaProyectos = {
     sinFechaLimite: 'Sem prazo',
     gastosCargados: 'Despesas registradas',
     yaEntroALaCaja:
-      'O sinal já entrou no caixa da marcenaria e as despesas já saíram: aparecem no Financeiro desde o dia em que você registrou.',
+      'O sinal já entrou no caixa da marcenaria e as despesas já saíram: aparecem em Finanças desde o dia em que você registrou.',
     cargarOtroPago: 'Registrar outro pagamento ou uma despesa',
     siNoSaleConSena: (sena) =>
       `Se o cliente disse “por enquanto não”, passe para Retornos com o dia em que você vai voltar a escrever: sai das suas consultas e a agenda te avisa. Se não for, o sinal de ${sena} vira receita da marcenaria, e o contato passa para o histórico. Dá para reativar.`,
