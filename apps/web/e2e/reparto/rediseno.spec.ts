@@ -79,6 +79,7 @@ const EN_CERO: Partial<AjustesDePrueba> = {
 
 const SIN_TALLER: TallerSembrado = {
   obra: '',
+  enDolares: '',
   entregado: '',
   contacto: '',
   enviado: '',

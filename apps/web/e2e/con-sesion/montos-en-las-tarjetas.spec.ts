@@ -39,6 +39,7 @@ interface Taller {
   proyectoId: string;
   clienteId: string;
   contactoId: string;
+  enDolaresId: string;
 }
 
 interface Pantalla {
@@ -75,6 +76,15 @@ const PANTALLAS: readonly Pantalla[] = [
     listo: async (page) => {
       await expect(
         page.getByRole('heading', { level: 1, name: 'E2E Trabajo con montos largos' }),
+      ).toBeVisible(CARGA);
+    },
+  },
+  {
+    nombre: 'Ficha del trabajo en dólares',
+    ruta: ({ enDolaresId }) => `/proyectos/${enDolaresId}`,
+    listo: async (page) => {
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'E2E Trabajo en dólares con montos largos' }),
       ).toBeVisible(CARGA);
     },
   },
@@ -284,7 +294,34 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
   });
   expect(costos.ok).toBe(true);
 
-  return { proyectoId, clienteId, contactoId };
+  const dolares = await tesoroPorRest(sesion, { nombre: 'Dólares', moneda: 'USD' });
+  const enDolaresId = crypto.randomUUID();
+  await guardarProyectoPorRpc(sesion, {
+    proyecto: {
+      id: enDolaresId,
+      version: null,
+      cliente_id: clienteId,
+      titulo: 'E2E Trabajo en dólares con montos largos',
+      estado: 'entregado',
+      moneda: 'USD',
+      presupuesto_centavos: centavos,
+      comprobante: 'sin_comprobante',
+    },
+    pagos: [
+      {
+        id: crypto.randomUUID(),
+        fecha: hoy,
+        concepto: 'Seña',
+        monto_centavos: Math.floor(centavos / 2),
+        moneda: 'USD',
+        cotizacion_centavos: 145_000,
+        tesoro_id: dolares.id,
+      },
+    ],
+    gastos: [],
+  });
+
+  return { proyectoId, clienteId, contactoId, enDolaresId };
 }
 
 interface Medida {

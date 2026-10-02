@@ -6,6 +6,7 @@ import { devices, expect, test, type Browser, type Page, type TestInfo } from '@
 import { entrarConLaSesion } from '../apoyo/sesion';
 import {
   escribirAjustes,
+  idiomaDeLaCuentaPorRest,
   iniciarSesionDePrueba,
   leerAjustes,
   type SesionDePrueba,
@@ -46,9 +47,27 @@ async function asentar(page: Page): Promise<void> {
   });
 }
 
-async function abrir(page: Page, pantalla: Pantalla, taller: TallerSembrado): Promise<void> {
+type Listo = (page: Page, pantalla: Pantalla) => Promise<void>;
+
+const CON_SU_LISTO: Listo = (page, pantalla) => pantalla.listo(page);
+
+const EN_CUALQUIER_IDIOMA: Listo = async (page) => {
+  await page.waitForLoadState('networkidle');
+  await expect(
+    page
+      .locator('main#contenido h1, main#contenido form, dialog[open], [data-fin-de-la-vista], h1')
+      .first(),
+  ).toBeVisible({ timeout: 30_000 });
+};
+
+async function abrir(
+  page: Page,
+  pantalla: Pantalla,
+  taller: TallerSembrado,
+  listo: Listo = CON_SU_LISTO,
+): Promise<void> {
   await page.goto(pantalla.ruta(taller));
-  await pantalla.listo(page);
+  await listo(page, pantalla);
   await asentar(page);
 }
 
@@ -127,6 +146,7 @@ async function recorrer(
   taller: TallerSembrado,
   datos: string,
   testInfo: TestInfo,
+  listo: Listo = CON_SU_LISTO,
 ): Promise<string[]> {
   const fallas: string[] = [];
   const medidas: Record<string, Record<string, Medicion>> = {};
@@ -136,7 +156,7 @@ async function recorrer(
   for (const [indice, pantalla] of PANTALLAS.entries()) {
     const pagina = pantalla.sinSesion ? await anonimo.newPage() : page;
     await pagina.setViewportSize({ width: 1440, height: 900 });
-    await abrir(pagina, pantalla, taller);
+    await abrir(pagina, pantalla, taller, listo);
     const porAncho: Record<string, Medicion> = {};
     for (const { ancho, alto } of ANCHOS) {
       await pagina.setViewportSize({ width: ancho, height: alto });
@@ -224,3 +244,35 @@ for (const { nombre, sembrar } of DATOS) {
     }
   });
 }
+
+test('en portugués, con pocos datos, ninguna pantalla de la tablet o la compu deja un hueco, se sale del molde común ni cambia el orden del DOM', async ({
+  browser,
+}, testInfo) => {
+  test.setTimeout(900_000);
+  const previos = await leerAjustes(sesion);
+  const taller = await sembrarPocos(sesion);
+  await idiomaDeLaCuentaPorRest(sesion, 'pt-BR');
+  try {
+    const enPortugues = await iniciarSesionDePrueba();
+    const context = await browser.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      storageState: { cookies: [], origins: [] },
+      viewport: { width: 1440, height: 900 },
+    });
+    await entrarConLaSesion(context, enPortugues);
+    const page = await context.newPage();
+    const fallas = await recorrer(
+      browser,
+      page,
+      taller,
+      'portugues',
+      testInfo,
+      EN_CUALQUIER_IDIOMA,
+    );
+    await context.close();
+    expect(fallas, fallas.join('\n')).toEqual([]);
+  } finally {
+    await idiomaDeLaCuentaPorRest(sesion, null);
+    await escribirAjustes(sesion, previos);
+  }
+});

@@ -101,8 +101,8 @@ export function medirElReparto(excepciones: readonly Excepcion[]): Medicion {
       tintas.set(elemento, null);
       return null;
     }
-    if (caja.width < 2 || caja.height < 2) {
-      if (estilo.overflow !== 'visible' || estilo.display === 'contents') {
+    if ((caja.width < 2 || caja.height < 2) && estilo.display !== 'contents') {
+      if (estilo.overflow !== 'visible') {
         tintas.set(elemento, null);
         return null;
       }
