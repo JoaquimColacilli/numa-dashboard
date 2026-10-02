@@ -15,6 +15,7 @@ import { editarTesoro } from './editarTesoro';
 import { enlace } from './enlace';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
+import { leerLasOpiniones } from './leerLasOpiniones';
 import { lib } from './lib';
 import { liquidarProyecto } from './liquidarProyecto';
 import { llevarLaAgenda } from './llevarLaAgenda';
@@ -47,6 +48,7 @@ export const ptBR = {
   enlace,
   fila,
   hacerElSeguimiento,
+  leerLasOpiniones,
   lib,
   liquidarProyecto,
   llevarLaAgenda,

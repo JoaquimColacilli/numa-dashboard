@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { enlaceDeWhatsapp } from '@/entities/cliente';
 import { fichaDeLaRespuesta, LineasDeLaRespuesta } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
 import { diaYMes, hoyLocal, rutaDelProyecto, Ir } from '@/shared/lib';
 import { FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
@@ -18,6 +19,7 @@ export interface FichaDeLaRespuestaProps {
 }
 
 export function FichaDeLaRespuesta({ respuestaId, alCerrar }: FichaDeLaRespuestaProps) {
+  const textos = useMensajes().leerLasOpiniones;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const ficha = useMemo(() => fichaDeLaRespuesta(replica, respuestaId), [replica, respuestaId]);
@@ -31,10 +33,9 @@ export function FichaDeLaRespuesta({ respuestaId, alCerrar }: FichaDeLaRespuesta
 
   if (ficha === null) {
     return (
-      <Hoja titulo="Esta respuesta ya no está" alCerrar={alCerrar} alCostado>
+      <Hoja titulo={textos.yaNoEsta} alCerrar={alCerrar} alCostado>
         <p className="px-5 py-4 text-body leading-relaxed text-text-2 md:px-6">
-          Puede que hayan borrado el trabajo desde otro lado. Lo que contestaron los demás sigue en
-          Resultados.
+          {textos.yaNoEstaDetalle}
         </p>
       </Hoja>
     );
@@ -45,15 +46,17 @@ export function FichaDeLaRespuesta({ respuestaId, alCerrar }: FichaDeLaRespuesta
 
   return (
     <Hoja
-      titulo={trabajo.cliente === '' ? 'Un cliente' : trabajo.cliente}
+      titulo={trabajo.cliente === '' ? textos.unCliente : trabajo.cliente}
       tituloGrande
       alCostado
       alCerrar={alCerrar}
       bajada={
         <>
-          <span className="text-label leading-snug text-text-2">{trabajo.trabajo}</span>
+          <span translate="no" className="text-label leading-snug text-text-2">
+            {trabajo.trabajo}
+          </span>
           <span className="text-label text-text-3">
-            Contestó el {diaYMes(ficha.contestadaEl, hoyLocal())}
+            {textos.contestoEl(diaYMes(ficha.contestadaEl, hoyLocal()))}
           </span>
         </>
       }
@@ -65,12 +68,12 @@ export function FichaDeLaRespuesta({ respuestaId, alCerrar }: FichaDeLaRespuesta
         <FilaDeAcciones>
           <Ir a={rutaDelProyecto(trabajo.proyectoId)} className={BOTON}>
             <Icono nombre="folder-kanban" tamano={16} />
-            Abrir el trabajo
+            {textos.abrirElTrabajo}
           </Ir>
           {whatsapp !== null && (
             <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={BOTON}>
               <Icono nombre="message-circle" tamano={16} />
-              Escribirle
+              {textos.escribirle}
             </a>
           )}
         </FilaDeAcciones>
