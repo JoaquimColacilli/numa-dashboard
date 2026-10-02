@@ -202,6 +202,15 @@ export const ESTILOS = StyleSheet.create({
   },
   totalMonto: { fontSize: 22, lineHeight: 1.1, fontWeight: 600 },
   acordado: { fontSize: CUERPO, lineHeight: INTERLINEADO, fontWeight: 600, textAlign: 'right' },
+  referencia: {
+    fontSize: 9,
+    lineHeight: 1.4,
+    color: COLOR.text2,
+    textAlign: 'right',
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  referenciaDeLaFila: { fontSize: 9, lineHeight: 1.4, color: COLOR.text2, paddingBottom: 8 },
   desglose: { marginTop: 9, paddingTop: 5, borderTopWidth: HILO, borderTopColor: COLOR.border },
   lineaDePuntos: { flexDirection: 'row', alignItems: 'flex-end', paddingVertical: 2 },
   puntos: {

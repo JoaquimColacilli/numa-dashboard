@@ -5,6 +5,7 @@ import {
   type DocumentoDelPresupuesto,
   type Moneda,
   type Money,
+  type ReferenciaEnPesos,
   type TextoConTitulo,
 } from '@maun/domain';
 import { Document, Page, Path, Svg, Text, View } from '@react-pdf/renderer';
@@ -15,9 +16,14 @@ import {
   conQueCambio,
   deQuienEs,
   fechaDeCreacion,
+  lineaDeLaReferencia,
+  lineaDeLaReferenciaConLaSena,
   lineaDelAceptado,
   lineasDelTaller,
+  pagadoDelDocumento,
   pieDelTaller,
+  plataDelDocumento,
+  referenciaDelDocumento,
   textoDeLaPagina,
   textoDeLaValidez,
   textoDelPlazo,
@@ -300,20 +306,36 @@ function DatosDelTrabajo({
   );
 }
 
+function Referencia({
+  importe,
+  referencia,
+  l,
+}: {
+  importe: number;
+  referencia: ReferenciaEnPesos | null;
+  l: LenguaDelPdf;
+}) {
+  const linea = referencia === null ? null : lineaDeLaReferencia(importe, referencia, l);
+  return linea === null ? null : <Text style={s.referencia}>{linea}</Text>;
+}
+
 function CajaDelTotal({
   cuenta,
   senaBp,
   acordado,
+  plata,
+  referencia,
   l,
 }: {
   cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
   acordado: Money<Moneda> | null;
+  plata: (importe: number) => string;
+  referencia: ReferenciaEnPesos | null;
   l: LenguaDelPdf;
 }) {
   const { valores } = l.m.presupuesto;
   const delPdf = l.m.pdf.valores;
-  const plata = l.f.pesos;
   const conAbonado = cuenta.pagado > 0;
   return (
     <View style={s.valores}>
@@ -327,12 +349,14 @@ function CajaDelTotal({
         <Text style={s.totalEtiqueta}>{valores.total}</Text>
         <Text style={s.totalMonto}>{plata(cuenta.total)}</Text>
       </View>
+      <Referencia importe={cuenta.total} referencia={referencia} l={l} />
       {acordado !== null && <Text style={s.acordado}>{valores.acordado(plata(acordado))}</Text>}
       <View style={s.desglose}>
         <LineaDePuntos
           izquierda={valores.sena(l.f.porcentaje(senaBp))}
           derecha={plata(cuenta.sena)}
         />
+        <Referencia importe={cuenta.sena} referencia={referencia} l={l} />
         {conAbonado && (
           <LineaDePuntos
             izquierda={delPdf.relevamientoAbonado}
@@ -368,17 +392,20 @@ function TablaDeOpciones({
   cuentas,
   senaBp,
   abonado,
+  plata,
+  referencia,
   l,
 }: {
   cuentas: CuentaDeUnValor<Moneda>[];
   senaBp: number;
   abonado: number;
+  plata: (importe: number) => string;
+  referencia: ReferenciaEnPesos | null;
   l: LenguaDelPdf;
 }) {
   const { valores } = l.m.presupuesto;
   const delPdf = l.m.pdf.valores;
   const { rotulo } = l.m.ui;
-  const plata = l.f.pesos;
   const conAbonado = abonado > 0;
   const aAbonar = (cuenta: CuentaDeUnValor<Moneda>) =>
     cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta;
@@ -416,29 +443,48 @@ function TablaDeOpciones({
             </View>
           )}
         </View>
-        {cuentas.map((cuenta) => (
-          <View
-            key={cuenta.id ?? cuenta.letra}
-            style={[s.tablaFila, s.tablaFilaConFilete]}
-            wrap={false}
-          >
-            <View style={s.colOpcion}>
-              <Text style={s.marcoTitulo}>{valores.opcion(cuenta.letra ?? '')}</Text>
-              {cuenta.descripcion !== '' && <Text style={s.renglon}>{cuenta.descripcion}</Text>}
-            </View>
-            <View style={[s.colMonto, anchoTotal]}>
-              <Text style={s.montoTotal}>{plata(cuenta.total)}</Text>
-            </View>
-            <View style={[s.colMonto, anchoSena]}>
-              <Text style={s.renglon}>{plata(cuenta.sena)}</Text>
-            </View>
-            {conAbonado && (
-              <View style={[s.colMonto, anchoAAbonar]}>
-                <Text style={[s.renglon, s.fuerte]}>{aAbonar(cuenta)}</Text>
+        {cuentas.map((cuenta) => {
+          const celdas = (
+            <>
+              <View style={s.colOpcion}>
+                <Text style={s.marcoTitulo}>{valores.opcion(cuenta.letra ?? '')}</Text>
+                {cuenta.descripcion !== '' && <Text style={s.renglon}>{cuenta.descripcion}</Text>}
               </View>
-            )}
-          </View>
-        ))}
+              <View style={[s.colMonto, anchoTotal]}>
+                <Text style={s.montoTotal}>{plata(cuenta.total)}</Text>
+              </View>
+              <View style={[s.colMonto, anchoSena]}>
+                <Text style={s.renglon}>{plata(cuenta.sena)}</Text>
+              </View>
+              {conAbonado && (
+                <View style={[s.colMonto, anchoAAbonar]}>
+                  <Text style={[s.renglon, s.fuerte]}>{aAbonar(cuenta)}</Text>
+                </View>
+              )}
+            </>
+          );
+          const linea =
+            referencia === null
+              ? null
+              : lineaDeLaReferenciaConLaSena(cuenta.total, cuenta.sena, referencia, l);
+          if (linea === null) {
+            return (
+              <View
+                key={cuenta.id ?? cuenta.letra}
+                style={[s.tablaFila, s.tablaFilaConFilete]}
+                wrap={false}
+              >
+                {celdas}
+              </View>
+            );
+          }
+          return (
+            <View key={cuenta.id ?? cuenta.letra} style={s.tablaFilaConFilete} wrap={false}>
+              <View style={s.tablaFila}>{celdas}</View>
+              <Text style={s.referenciaDeLaFila}>{linea}</Text>
+            </View>
+          );
+        })}
       </View>
       <Text style={s.notaAlPie}>
         {conAbonado ? delPdf.elegiConLoAbonado(plata(abonado)) : valores.elegiLaOpcion}
@@ -456,14 +502,22 @@ function Valores({
   acordado: Money<Moneda> | null;
   l: LenguaDelPdf;
 }) {
-  const { valores, senaBp, abonado } = documento;
+  const { valores, senaBp } = documento;
   if (valores === null) return null;
+  const abonado = pagadoDelDocumento(documento);
+  const plata = plataDelDocumento(documento, l);
+  const referencia = referenciaDelDocumento(documento);
+  const deLaReferencia = referencia === null ? 0 : 2;
   const cuentas = cuentasDelPresupuesto<Moneda>(valores, senaBp, abonado);
   const unica = cuentas.length === 1 ? cuentas[0] : undefined;
   const alto =
     unica === undefined
-      ? 3 + cuentas.reduce((suma, cuenta) => suma + 2 + renglones(cuenta.descripcion, 38), 0)
-      : 9 + (unica.letra === null ? 0 : 1 + renglones(unica.descripcion, 80));
+      ? 3 +
+        cuentas.reduce(
+          (suma, cuenta) => suma + 2 + deLaReferencia + renglones(cuenta.descripcion, 38),
+          0,
+        )
+      : 9 + 2 * deLaReferencia + (unica.letra === null ? 0 : 1 + renglones(unica.descripcion, 80));
   return (
     <Seccion
       titulo={l.m.presupuesto.secciones.valores}
@@ -476,10 +530,20 @@ function Valores({
             cuentas={cuentas}
             senaBp={senaBp}
             abonado={abonado}
+            plata={plata}
+            referencia={referencia}
             l={l}
           />
         ) : (
-          <CajaDelTotal key="total" cuenta={unica} senaBp={senaBp} acordado={acordado} l={l} />
+          <CajaDelTotal
+            key="total"
+            cuenta={unica}
+            senaBp={senaBp}
+            acordado={acordado}
+            plata={plata}
+            referencia={referencia}
+            l={l}
+          />
         ),
       ]}
     />
@@ -491,6 +555,7 @@ function FormaPlazoYValidez({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) 
   const { definiciones } = l.m.presupuesto;
   const filas = [
     { termino: definiciones.formaDePago, valor: documento.formaDePago },
+    { termino: definiciones.moneda, valor: documento.clausulaDeLaMoneda },
     { termino: definiciones.plazo, valor: textoDelPlazo(documento.plazoDeFabricacion, l) },
     { termino: definiciones.validez, valor: textoDeLaValidez(p, l) },
   ].filter((fila): fila is { termino: string; valor: string } => fila.valor !== null);

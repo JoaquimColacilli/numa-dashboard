@@ -1,7 +1,14 @@
 import {
+  centavosEn,
+  monedaDeLoAbonadoDelDocumento,
+  monedaDelDocumento,
   NOMBRE_DE_LA_CONDICION,
+  pesosDeDolares,
   type DatosDelTaller,
   type DocumentoDelPresupuesto,
+  type Moneda,
+  type Money,
+  type ReferenciaEnPesos,
 } from '@maun/domain';
 
 import type { LenguaDelPdf } from './lengua';
@@ -138,4 +145,67 @@ export function lineaDelAceptado(
 
 export function conQueCambio(p: PresupuestoEnPdf): boolean {
   return !p.borrador && p.aceptado === null && p.revision > 1 && (p.queCambio ?? '').trim() !== '';
+}
+
+export function plataDelDocumento(
+  documento: DocumentoDelPresupuesto,
+  { f }: Pick<LenguaDelPdf, 'f'>,
+): (importe: number) => string {
+  const moneda = monedaDelDocumento(documento);
+  return (importe) => f.plata(importe, moneda);
+}
+
+export function pagadoDelDocumento(documento: DocumentoDelPresupuesto): Money<Moneda> {
+  const moneda = monedaDelDocumento(documento);
+  return monedaDeLoAbonadoDelDocumento(documento) === moneda
+    ? documento.abonado
+    : centavosEn(moneda, 0);
+}
+
+export function referenciaDelDocumento(
+  documento: DocumentoDelPresupuesto,
+): ReferenciaEnPesos | null {
+  return documento.forma === 2 ? documento.referencia : null;
+}
+
+function enPesos(
+  importe: number,
+  referencia: ReferenciaEnPesos,
+  { f }: Pick<LenguaDelPdf, 'f'>,
+): string | null {
+  if (importe < 0 || !Number.isSafeInteger(importe * referencia.cotizacion + 50)) return null;
+  return f.pesos(pesosDeDolares(centavosEn('USD', importe), referencia.cotizacion));
+}
+
+export function lineaDeLaReferencia(
+  importe: number,
+  referencia: ReferenciaEnPesos,
+  lengua: Pick<LenguaDelPdf, 'm' | 'f'>,
+): string | null {
+  const { m, f } = lengua;
+  const pesos = enPesos(importe, referencia, lengua);
+  if (pesos === null) return null;
+  return m.presupuesto.valores.referencia(
+    pesos,
+    f.pesos(referencia.cotizacion),
+    f.fechaConAnio(referencia.fecha),
+  );
+}
+
+export function lineaDeLaReferenciaConLaSena(
+  total: number,
+  sena: number,
+  referencia: ReferenciaEnPesos,
+  lengua: Pick<LenguaDelPdf, 'm' | 'f'>,
+): string | null {
+  const { m, f } = lengua;
+  const pesos = enPesos(total, referencia, lengua);
+  const deLaSena = enPesos(sena, referencia, lengua);
+  if (pesos === null || deLaSena === null) return null;
+  return m.presupuesto.valores.referenciaConLaSena(
+    pesos,
+    deLaSena,
+    f.pesos(referencia.cotizacion),
+    f.fechaConAnio(referencia.fecha),
+  );
 }

@@ -31,9 +31,14 @@ export const presupuesto = {
     laSenaEstaCubierta: 'The deposit is covered',
     despuesElSaldo: 'Then, the balance',
     elegiLaOpcion: 'Choose the option you prefer and let the shop know.',
+    referencia: (pesos, dolar, fecha) =>
+      `That's ${pesos} at ${dolar} per dollar, the rate for payments made on ${fecha}.`,
+    referenciaConLaSena: (pesos, sena, dolar, fecha) =>
+      `That's ${pesos}, and the deposit ${sena}, at ${dolar} per dollar, the rate for payments made on ${fecha}.`,
   },
   definiciones: {
     formaDePago: 'Payment terms',
+    moneda: 'Currency',
     plazo: 'Lead time',
     validez: 'Validity',
   },

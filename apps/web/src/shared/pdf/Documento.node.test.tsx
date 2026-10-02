@@ -4,6 +4,8 @@ import { inflateSync } from 'node:zlib';
 import {
   borradorNuevo,
   centavos,
+  centavosEn,
+  cotizacion,
   documentoDelPresupuesto,
   plantillaDeSiempre,
   puntosBasicos,
@@ -13,6 +15,7 @@ import {
   type DatosDelTaller,
   type DocumentoDelPresupuesto,
   type Idioma,
+  type Moneda,
   type OpcionDelTrabajo,
 } from '@maun/domain';
 import { Font, renderToBuffer } from '@react-pdf/renderer';
@@ -107,6 +110,33 @@ function documento(
       valores: valoresDelTrabajo(centavos(218_100_000), opciones),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(12_000_000),
+    },
+    formatosDelDocumento(idioma),
+  );
+}
+
+function documentoEnDolares(
+  opciones: readonly OpcionDelTrabajo<'USD'>[] = [],
+  idioma: Idioma = 'es',
+  monedaDeLoAbonado: Moneda = 'USD',
+): DocumentoDelPresupuesto {
+  return documentoDelPresupuesto(
+    {
+      borrador: {
+        ...borrador(2, idioma),
+        modificacion: { importe: centavosEn('USD', 4_000), moneda: 'USD' },
+        monedaDeLoAbonado,
+      },
+      plantilla: plantillaDeSiempre(idioma),
+      taller: TALLER,
+      cliente: 'Florencia Sosa',
+      moneda: 'USD',
+      cobraEn: null,
+      valores: valoresDelTrabajo(centavosEn('USD', 240_000), opciones),
+      senaBp: puntosBasicos(5_000),
+      abonado:
+        monedaDeLoAbonado === 'USD' ? centavosEn('USD', 8_276) : centavosEn('ARS', 12_000_000),
+      referencia: { cotizacion: cotizacion(154_000), fecha: '2026-10-01' },
     },
     formatosDelDocumento(idioma),
   );
@@ -548,6 +578,123 @@ describe('el presupuesto en PDF, en inglés y en portugués', () => {
     const deNuevo = await generar(VARIANTES.largo as PresupuestoEnPdf);
     expect(despues.equals(deNuevo)).toBe(true);
     expect(enIngles.equals(despues)).toBe(false);
+  });
+});
+
+describe('el presupuesto en dólares, en PDF', () => {
+  const EN_DOLARES: PresupuestoEnPdf = { ...MANDADO, documento: documentoEnDolares() };
+
+  const OPCIONES_EN_DOLARES: readonly OpcionDelTrabajo<'USD'>[] = [
+    {
+      id: 'opcion-a',
+      descripcion: 'Frentes en melamina Blanco.',
+      monto: centavosEn('USD', 240_000),
+    },
+    { id: 'opcion-b', descripcion: 'Frentes laqueados.', monto: centavosEn('USD', 300_000) },
+  ];
+
+  function pesosSueltos(texto: string): string[] {
+    return texto.match(/(?<!US)\$ [\d.,]+\d/g) ?? [];
+  }
+
+  it('cada importe va en dólares, y el total y la seña llevan debajo sus pesos con el dólar y su día', async () => {
+    const texto = enUnRenglon(textoDelPdf(await generar(EN_DOLARES)));
+    for (const dicho of [
+      'US$ 2.400',
+      'Son $ 3.696.000 con el dólar a $ 1.540, el que vale para pagos del 1 de octubre de 2026.',
+      'Seña (50%)',
+      'US$ 1.200',
+      'Son $ 1.848.000 con el dólar a $ 1.540, el que vale para pagos del 1 de octubre de 2026.',
+      '− US$ 82,76',
+      'US$ 1.117,24',
+      '(US$ 82,76)',
+      'US$ 40 c/u',
+    ]) {
+      expect(texto).toContain(dicho);
+    }
+    expect(pesosSueltos(texto)).toEqual(['$ 3.696.000', '$ 1.540', '$ 1.848.000', '$ 1.540']);
+  });
+
+  it('la cláusula de la moneda va debajo de la forma de pago', async () => {
+    const texto = enUnRenglon(textoDelPdf(await generar(EN_DOLARES)));
+    const forma = texto.indexOf('FORMA DE PAGO');
+    const moneda = texto.indexOf('MONEDA');
+    const plazo = texto.indexOf('PLAZO DE FABRICACIÓN');
+    expect(forma).toBeGreaterThan(-1);
+    expect(moneda).toBeGreaterThan(forma);
+    expect(plazo).toBeGreaterThan(moneda);
+    expect(texto).toContain(
+      'Se paga en pesos. Cada pago se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina',
+    );
+  });
+
+  it('con lo abonado en pesos, el aviso lo dice en pesos y la caja no lo resta de la seña en dólares', async () => {
+    const texto = enUnRenglon(
+      textoDelPdf(await generar({ ...MANDADO, documento: documentoEnDolares([], 'es', 'ARS') })),
+    );
+    expect(texto).toContain('($ 120.000)');
+    expect(texto).not.toContain('Relevamiento técnico y diseño 3D ya abonado');
+    expect(texto).not.toContain('Seña a abonar');
+  });
+
+  it('con opciones, cada una lleva sus pesos y los de su seña', async () => {
+    const texto = enUnRenglon(
+      textoDelPdf(
+        await generar({
+          ...MANDADO,
+          revision: 1,
+          queCambio: null,
+          documento: documentoEnDolares(OPCIONES_EN_DOLARES),
+        }),
+      ),
+    );
+    expect(texto).toContain(
+      'Son $ 3.696.000, y la seña $ 1.848.000, con el dólar a $ 1.540, el que vale para pagos del 1 de octubre de 2026.',
+    );
+    expect(texto).toContain(
+      'Son $ 4.620.000, y la seña $ 2.310.000, con el dólar a $ 1.540, el que vale para pagos del 1 de octubre de 2026.',
+    );
+    expect(texto).toContain('US$ 3.000');
+  });
+
+  it.each([
+    [
+      'en',
+      [
+        'US$2,400',
+        "That's ARS 3,696,000 at ARS 1,540 per dollar, the rate for payments made on October 1, 2026.",
+        'CURRENCY',
+        'Payment is made in pesos.',
+      ],
+    ],
+    [
+      'pt-BR',
+      [
+        'US$ 2.400',
+        'São ARS 3.696.000 com o dólar a ARS 1.540, a cotação válida para pagamentos feitos em 1º de outubro de 2026.',
+        'MOEDA',
+        'O pagamento é feito em pesos.',
+      ],
+    ],
+  ] as const)(
+    'en %s, la referencia y la moneda en su idioma, sin «$» suelto',
+    async (idioma, dice) => {
+      const texto = enUnRenglon(
+        textoDelPdf(
+          await generar({ ...MANDADO, idioma, documento: documentoEnDolares([], idioma) }),
+        ),
+      );
+      for (const dicho of dice) expect(texto).toContain(dicho);
+      expect(texto.match(/(?<!US)\$/g)).toBeNull();
+      expect(texto).not.toContain('�');
+    },
+  );
+
+  it('un presupuesto en pesos no lleva referencia ni moneda', async () => {
+    const texto = enUnRenglon(textoDelPdf(await generar(MANDADO)));
+    expect(texto).not.toContain('con el dólar a');
+    expect(texto).not.toContain('MONEDA');
+    expect(texto).not.toContain('US$');
   });
 });
 

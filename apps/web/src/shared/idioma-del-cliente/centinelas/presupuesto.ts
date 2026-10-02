@@ -21,6 +21,15 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.presupuesto.valores.acordado('«MONTO»'),
     tieneQueDecir: ['«MONTO»'],
   },
+  'presupuesto.valores.referencia': {
+    llamar: (m) => m.presupuesto.valores.referencia('«PESOS»', '«DOLAR»', '«FECHA»'),
+    tieneQueDecir: ['«PESOS»', '«DOLAR»', '«FECHA»'],
+  },
+  'presupuesto.valores.referenciaConLaSena': {
+    llamar: (m) =>
+      m.presupuesto.valores.referenciaConLaSena('«PESOS»', '«SENA»', '«DOLAR»', '«FECHA»'),
+    tieneQueDecir: ['«PESOS»', '«SENA»', '«DOLAR»', '«FECHA»'],
+  },
   'presupuesto.diasHabiles': {
     llamar: (m) => m.presupuesto.diasHabiles(30),
     tieneQueDecir: ['30'],

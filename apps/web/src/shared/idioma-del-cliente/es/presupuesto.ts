@@ -28,9 +28,14 @@ export const presupuesto = {
     laSenaEstaCubierta: 'La seña está cubierta',
     despuesElSaldo: 'Después, el saldo',
     elegiLaOpcion: 'Elegí la opción que prefieras y avisale al taller.',
+    referencia: (pesos: string, dolar: string, fecha: string) =>
+      `Son ${pesos} con el dólar a ${dolar}, el que vale para pagos del ${fecha}.`,
+    referenciaConLaSena: (pesos: string, sena: string, dolar: string, fecha: string) =>
+      `Son ${pesos}, y la seña ${sena}, con el dólar a ${dolar}, el que vale para pagos del ${fecha}.`,
   },
   definiciones: {
     formaDePago: 'Forma de pago',
+    moneda: 'Moneda',
     plazo: 'Plazo de fabricación',
     validez: 'Validez',
   },

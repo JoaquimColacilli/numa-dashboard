@@ -1,9 +1,11 @@
 import {
+  monedaDelDocumento,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
   type Moneda,
   type PresupuestoAceptado,
   type PresupuestoMandado,
+  type ReferenciaEnPesos,
   type TextoConTitulo,
 } from '@maun/domain';
 import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
@@ -15,6 +17,8 @@ import {
 } from '@/shared/idioma-del-cliente';
 import {
   IDIOMA_DE_LA_LEYENDA,
+  lineaDeLaReferencia,
+  referenciaDelDocumento,
   sePuedenCompartirArchivos,
   usePdfDelPresupuesto,
   type PdfDelPresupuesto,
@@ -182,16 +186,34 @@ function Monto({ children }: { children: string }) {
   return <span translate="no">{children}</span>;
 }
 
+function Referencia({
+  importe,
+  referencia,
+}: {
+  importe: number;
+  referencia: ReferenciaEnPesos | null;
+}) {
+  const m = useMensajesDelCliente();
+  const f = useFormatosDelCliente();
+  const linea = referencia === null ? null : lineaDeLaReferencia(importe, referencia, { m, f });
+  if (linea === null) return null;
+  return (
+    <p className="pb-1 text-right text-label leading-normal text-pretty text-text-2">{linea}</p>
+  );
+}
+
 function CuentasDeUnValor({
   cuenta,
   senaBp,
   como,
   plata,
+  referencia,
 }: {
   cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
   como: LoQueSeMuestraDeLosValores;
   plata: (importe: number) => string;
+  referencia: ReferenciaEnPesos | null;
 }) {
   const m = useMensajesDelCliente().presupuesto.valores;
   const f = useFormatosDelCliente();
@@ -207,6 +229,7 @@ function CuentasDeUnValor({
           </span>
         }
       />
+      <Referencia importe={cuenta.total} referencia={referencia} />
       {como.acordado !== null && (
         <p className="pb-1 text-label leading-normal font-semibold">
           {m.acordado(plata(como.acordado))}
@@ -217,6 +240,7 @@ function CuentasDeUnValor({
         izquierda={m.sena(f.porcentaje(senaBp))}
         derecha={<Monto>{plata(cuenta.sena)}</Monto>}
       />
+      <Referencia importe={cuenta.sena} referencia={referencia} />
       {pago && (
         <>
           <LineaDePuntos
@@ -263,7 +287,10 @@ function Valores({
   como: LoQueSeMuestraDeLosValores;
 }) {
   const m = useMensajesDelCliente().presupuesto;
-  const plata = useFormatosDelCliente().pesos;
+  const f = useFormatosDelCliente();
+  const moneda = monedaDelDocumento(documento);
+  const plata = (importe: number) => f.plata(importe, moneda);
+  const referencia = referenciaDelDocumento(documento);
   const [unica] = cuentas;
   if (unica === undefined) return null;
   if (documento.valores?.tipo !== 'opciones') {
@@ -271,7 +298,13 @@ function Valores({
       <div className={BLOQUE}>
         <TituloDeBloque>{m.secciones.valores}</TituloDeBloque>
         <div className="mt-3">
-          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} plata={plata} />
+          <CuentasDeUnValor
+            cuenta={unica}
+            senaBp={documento.senaBp}
+            como={como}
+            plata={plata}
+            referencia={referencia}
+          />
         </div>
       </div>
     );
@@ -292,7 +325,13 @@ function Valores({
           </p>
         )}
         <div className="mt-3">
-          <CuentasDeUnValor cuenta={unica} senaBp={documento.senaBp} como={como} plata={plata} />
+          <CuentasDeUnValor
+            cuenta={unica}
+            senaBp={documento.senaBp}
+            como={como}
+            plata={plata}
+            referencia={referencia}
+          />
         </div>
       </div>
     );
@@ -323,6 +362,7 @@ function Valores({
                 senaBp={documento.senaBp}
                 como={como}
                 plata={plata}
+                referencia={referencia}
               />
             </div>
           </li>
@@ -364,6 +404,11 @@ function FormaPlazoYValidez({
       {documento.formaDePago !== null && (
         <Definicion clave={m.definiciones.formaDePago}>
           <span translate="no">{documento.formaDePago}</span>
+        </Definicion>
+      )}
+      {documento.clausulaDeLaMoneda !== null && (
+        <Definicion clave={m.definiciones.moneda}>
+          <span translate="no">{documento.clausulaDeLaMoneda}</span>
         </Definicion>
       )}
       <Definicion clave={m.definiciones.plazo}>

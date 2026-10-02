@@ -31,9 +31,14 @@ export const presupuesto = {
     laSenaEstaCubierta: 'O sinal está coberto',
     despuesElSaldo: 'Depois, o saldo',
     elegiLaOpcion: 'Escolha a opção que preferir e avise a marcenaria.',
+    referencia: (pesos, dolar, fecha) =>
+      `São ${pesos} com o dólar a ${dolar}, a cotação válida para pagamentos feitos em ${fecha}.`,
+    referenciaConLaSena: (pesos, sena, dolar, fecha) =>
+      `São ${pesos}, e o sinal ${sena}, com o dólar a ${dolar}, a cotação válida para pagamentos feitos em ${fecha}.`,
   },
   definiciones: {
     formaDePago: 'Forma de pagamento',
+    moneda: 'Moeda',
     plazo: 'Prazo de fabricação',
     validez: 'Validade',
   },
