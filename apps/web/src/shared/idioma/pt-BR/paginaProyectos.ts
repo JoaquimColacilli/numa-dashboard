@@ -19,7 +19,7 @@ export const paginaProyectos = {
     presupuesto: 'Orçamento',
     todaviaSinPresupuesto: 'Ainda sem orçamento',
     senaCobrada: 'Sinal recebido',
-    sinSena: 'Sem sinal',
+    sinSena: 'Nenhum',
     telefono: 'Telefone',
     sinTelefono: 'Sem telefone',
     estabaEn: 'Estava em',
