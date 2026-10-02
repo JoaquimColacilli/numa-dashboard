@@ -2,14 +2,10 @@ import { PREFERENCIAS_INICIALES } from '@maun/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { EstadoDeLosAvisos } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import {
   apagarEnEsteDispositivo,
-  SIN_PERMISO_DEL_NAVEGADOR,
-  SIN_RESPUESTA,
-  SIN_SENAL_PARA_ACTIVAR,
-  SIN_SENAL_PARA_APAGAR,
-  SIN_SUSCRIPCION,
   terminarDeActivar,
   type PasosDeLaActivacion,
   type PasosDelApagado,
@@ -77,7 +73,7 @@ describe('terminarDeActivar', () => {
     const pasos = pasosDeActivacion();
     expect(await terminarDeActivar(Promise.resolve('default'), 'BClave', 'UTC', pasos)).toEqual({
       tipo: 'no-se-pudo',
-      mensaje: SIN_RESPUESTA,
+      mensaje: mensajes().recibirAvisos.noElegisteNada,
     });
     expect(pasos.suscribir).not.toHaveBeenCalled();
   });
@@ -90,14 +86,14 @@ describe('terminarDeActivar', () => {
         'UTC',
         pasosDeActivacion(),
       ),
-    ).toEqual({ tipo: 'no-se-pudo', mensaje: SIN_PERMISO_DEL_NAVEGADOR });
+    ).toEqual({ tipo: 'no-se-pudo', mensaje: mensajes().recibirAvisos.elNavegadorNoDejoPedir });
   });
 
   it('si el navegador no se puede suscribir, no registra nada', async () => {
     const pasos = pasosDeActivacion({ suscribir: () => Promise.reject(new Error('AbortError')) });
     expect(await terminarDeActivar(Promise.resolve('granted'), 'BClave', 'UTC', pasos)).toEqual({
       tipo: 'no-se-pudo',
-      mensaje: SIN_SUSCRIPCION,
+      mensaje: mensajes().recibirAvisos.elNavegadorNoPudoAnotarse,
     });
     expect(pasos.registrar).not.toHaveBeenCalled();
   });
@@ -106,7 +102,7 @@ describe('terminarDeActivar', () => {
     const pasos = pasosDeActivacion({ registrar: () => Promise.reject(SIN_SENAL) });
     expect(await terminarDeActivar(Promise.resolve('granted'), 'BClave', 'UTC', pasos)).toEqual({
       tipo: 'no-se-pudo',
-      mensaje: SIN_SENAL_PARA_ACTIVAR,
+      mensaje: mensajes().recibirAvisos.sinSenalParaActivar,
     });
   });
 
@@ -116,7 +112,10 @@ describe('terminarDeActivar', () => {
     });
     const desenlace = await terminarDeActivar(Promise.resolve('granted'), 'BClave', 'Nada', pasos);
     expect(desenlace.tipo).toBe('no-se-pudo');
-    expect(desenlace).not.toEqual({ tipo: 'no-se-pudo', mensaje: SIN_SENAL_PARA_ACTIVAR });
+    expect(desenlace).not.toEqual({
+      tipo: 'no-se-pudo',
+      mensaje: mensajes().recibirAvisos.sinSenalParaActivar,
+    });
   });
 });
 
@@ -146,7 +145,7 @@ describe('apagarEnEsteDispositivo', () => {
     });
     expect(await apagarEnEsteDispositivo(ENDPOINT, pasos)).toEqual({
       tipo: 'no-se-pudo',
-      mensaje: SIN_SENAL_PARA_APAGAR,
+      mensaje: mensajes().recibirAvisos.sinSenalParaApagar,
     });
     expect(unsubscribe).not.toHaveBeenCalled();
   });

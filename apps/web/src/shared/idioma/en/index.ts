@@ -39,6 +39,7 @@ import { paginaInicio } from './paginaInicio';
 import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { proyecto } from './proyecto';
+import { recibirAvisos } from './recibirAvisos';
 import { recuperarAcceso } from './recuperarAcceso';
 import { registrarMovimiento } from './registrarMovimiento';
 import { replica } from './replica';
@@ -84,6 +85,7 @@ export const en = {
   paginaOpiniones,
   paginaProyectos,
   proyecto,
+  recibirAvisos,
   recuperarAcceso,
   registrarMovimiento,
   replica,

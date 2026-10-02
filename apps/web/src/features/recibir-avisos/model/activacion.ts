@@ -5,6 +5,7 @@ import {
   mensajeDeSincronizacion,
   type EstadoDeLosAvisos,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   datosDeLaSuscripcion,
   suscribirElDispositivo,
@@ -18,16 +19,6 @@ export type DesenlaceDeLaActivacion =
   | { tipo: 'no-se-pudo'; mensaje: string };
 
 export type DesenlaceDelApagado = { tipo: 'apagados' } | { tipo: 'no-se-pudo'; mensaje: string };
-
-export const SIN_RESPUESTA =
-  'No elegiste nada en el aviso del sistema. Cuando quieras, tocá de nuevo.';
-export const SIN_PERMISO_DEL_NAVEGADOR = 'El navegador no dejó pedir el permiso. Probá de nuevo.';
-export const SIN_SUSCRIPCION =
-  'El navegador no pudo anotarse en su servicio de avisos. Si estás sin señal, probá cuando vuelva.';
-export const SIN_SENAL_PARA_ACTIVAR =
-  'Sin señal no se pueden activar los avisos. Probá cuando vuelva.';
-export const SIN_SENAL_PARA_APAGAR =
-  'Sin señal no se pueden apagar los avisos: este dispositivo los sigue recibiendo. Probá cuando vuelva.';
 
 interface SuscripcionDelNavegador {
   endpoint: string;
@@ -68,16 +59,18 @@ export async function terminarDeActivar(
   try {
     respuesta = await permiso;
   } catch {
-    return { tipo: 'no-se-pudo', mensaje: SIN_PERMISO_DEL_NAVEGADOR };
+    return { tipo: 'no-se-pudo', mensaje: mensajes().recibirAvisos.elNavegadorNoDejoPedir };
   }
   if (respuesta === 'denied') return { tipo: 'denegado' };
-  if (respuesta !== 'granted') return { tipo: 'no-se-pudo', mensaje: SIN_RESPUESTA };
+  if (respuesta !== 'granted') {
+    return { tipo: 'no-se-pudo', mensaje: mensajes().recibirAvisos.noElegisteNada };
+  }
 
   let suscripcion: DatosDeLaSuscripcion;
   try {
     suscripcion = datosDeLaSuscripcion(await pasos.suscribir(clavePublica));
   } catch {
-    return { tipo: 'no-se-pudo', mensaje: SIN_SUSCRIPCION };
+    return { tipo: 'no-se-pudo', mensaje: mensajes().recibirAvisos.elNavegadorNoPudoAnotarse };
   }
 
   try {
@@ -86,7 +79,9 @@ export async function terminarDeActivar(
   } catch (error) {
     return {
       tipo: 'no-se-pudo',
-      mensaje: esFalloDeRed(error) ? SIN_SENAL_PARA_ACTIVAR : mensajeDeSincronizacion(error),
+      mensaje: esFalloDeRed(error)
+        ? mensajes().recibirAvisos.sinSenalParaActivar
+        : mensajeDeSincronizacion(error),
     };
   }
 }
@@ -109,7 +104,9 @@ export async function apagarEnEsteDispositivo(
   } catch (error) {
     return {
       tipo: 'no-se-pudo',
-      mensaje: esFalloDeRed(error) ? SIN_SENAL_PARA_APAGAR : mensajeDeSincronizacion(error),
+      mensaje: esFalloDeRed(error)
+        ? mensajes().recibirAvisos.sinSenalParaApagar
+        : mensajeDeSincronizacion(error),
     };
   }
   await olvidarLaSuscripcionLocal(pasos);
