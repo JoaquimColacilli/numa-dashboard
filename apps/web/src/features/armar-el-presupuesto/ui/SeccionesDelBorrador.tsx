@@ -28,6 +28,7 @@ import {
   uuidv7,
 } from '@/shared/lib';
 import {
+  AdornoDePlata,
   BarraDeDeshacer,
   BotonDeLaFila,
   Button,
@@ -958,9 +959,7 @@ export function ValoresDelBorrador({
                   </span>
                   <span className="ml-auto flex flex-none items-center gap-1">
                     <span className="flex h-11 w-40 items-center gap-1 rounded-field border border-border bg-paper px-2.5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
-                      <span aria-hidden className="text-text-3">
-                        $
-                      </span>
+                      <AdornoDePlata className="text-text-3" />
                       <MoneyInput
                         data-campo={indice === 0 ? 'valores' : undefined}
                         value={opcion.monto}
@@ -1020,9 +1019,7 @@ export function ValoresDelBorrador({
               Total del presupuesto
             </label>
             <span className="flex h-15 max-w-(--campo-medio) items-center gap-1.5 rounded-field border border-border bg-paper px-3.5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink">
-              <span aria-hidden className="text-money-lg text-text-3">
-                $
-              </span>
+              <AdornoDePlata className="text-money-lg text-text-3" />
               <MoneyInput
                 id={`${id}-total`}
                 data-campo="valores"

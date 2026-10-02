@@ -51,7 +51,7 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
     <MoneyInput
       etiqueta="Se cobró"
       ayuda="Todo lo que entró del trabajo, para lo que se calcula sobre lo que cobrás."
-      placeholder="$ 0"
+      conMarcador
       value={prueba.cobrado}
       onChange={cambiarCobrado}
     />
@@ -63,14 +63,14 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
         {conCobrado && (
           <MoneyInput
             etiqueta="Se cobró"
-            placeholder="$ 0"
+            conMarcador
             value={prueba.cobrado}
             onChange={cambiarCobrado}
           />
         )}
         <MoneyInput
           etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
-          placeholder="$ 0"
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
         />
@@ -85,7 +85,7 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
       {forma === 'celular' && !conCobrado ? (
         <MoneyInput
           aria-label="Lo que deja el trabajo"
-          placeholder="$ 0"
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
           className="h-field w-full rounded-field border border-border bg-paper px-3.5 text-body-lg"
@@ -93,7 +93,7 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
       ) : (
         <MoneyInput
           etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
-          placeholder="$ 0"
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
         />

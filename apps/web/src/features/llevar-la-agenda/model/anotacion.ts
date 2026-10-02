@@ -1,7 +1,7 @@
 import { estaLiquidado, type CategoriaPropia } from '@maun/domain';
 
 import type { AnotacionNueva, FilaDe } from '@/shared/api';
-import { fechaDelEnlace, hayCambios } from '@/shared/lib';
+import { compararTextos, fechaDelEnlace, hayCambios } from '@/shared/lib';
 
 export const LARGO_MAXIMO_DEL_TEXTO = 500;
 
@@ -96,5 +96,5 @@ export function trabajosParaAnotar(
         etiqueta: cliente === undefined ? proyecto.titulo : `${proyecto.titulo} — ${cliente}`,
       };
     })
-    .sort((uno, otro) => uno.etiqueta.localeCompare(otro.etiqueta, 'es'));
+    .sort((uno, otro) => compararTextos(uno.etiqueta, otro.etiqueta));
 }

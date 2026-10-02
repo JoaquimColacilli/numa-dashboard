@@ -710,7 +710,7 @@ function MontoDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeLaFil
       {vista.armando ? (
         <MoneyInput
           aria-label={`Monto de ${tesoroDe(vista, paso.tesoro).nombre}`}
-          placeholder="$ 0"
+          conMarcador
           value={paso.tope}
           onChange={(monto) => {
             editarLaFila(

@@ -21,6 +21,54 @@
           meta.setAttribute('content', mesaForzada);
         });
       }
+      var idiomaDelArranque = (function () {
+        function esIdioma(valor) {
+          return valor === 'es' || valor === 'en' || valor === 'pt-BR';
+        }
+        function delNavegador() {
+          var preferidos =
+            navigator.languages && navigator.languages.length
+              ? navigator.languages
+              : [navigator.language];
+          for (var i = 0; i < preferidos.length; i++) {
+            var lengua = String(preferidos[i] || '')
+              .trim()
+              .toLowerCase()
+              .replace(/[-_].*$/, '');
+            if (lengua === 'es') return 'es';
+            if (lengua === 'en') return 'en';
+            if (lengua === 'pt') return 'pt-BR';
+          }
+          return 'es';
+        }
+        if (location.pathname.indexOf('/v/') === 0 || location.pathname.indexOf('/o/') === 0) {
+          if (document.documentElement.hasAttribute('data-idioma-del-taller')) return null;
+          return delNavegador();
+        }
+        var usuario;
+        var delPerfil;
+        try {
+          var sesion = JSON.parse(localStorage.getItem('maun.sesion'));
+          usuario = sesion && sesion.user && sesion.user.id;
+          delPerfil =
+            sesion && sesion.user && sesion.user.user_metadata && sesion.user.user_metadata.idioma;
+        } catch (error) {
+          usuario = undefined;
+        }
+        if (typeof usuario !== 'string') return delNavegador();
+        try {
+          var copia = JSON.parse(localStorage.getItem('maun:idioma'));
+          if (copia && copia.usuarioId === usuario && esIdioma(copia.idioma)) return copia.idioma;
+        } catch (error) {
+          copia = null;
+        }
+        return esIdioma(delPerfil) ? delPerfil : 'es';
+      })();
+      if (idiomaDelArranque) {
+        document.documentElement.lang = { es: 'es-AR', en: 'en-US', 'pt-BR': 'pt-BR' }[
+          idiomaDelArranque
+        ];
+      }
       if (location.pathname.indexOf('/v/') === 0 || location.pathname.indexOf('/o/') === 0) {
         document.documentElement.dataset.vista = 'publica';
         document.addEventListener('DOMContentLoaded', function () {

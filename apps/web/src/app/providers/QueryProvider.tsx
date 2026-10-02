@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { claveDeTodaReplica } from '@/entities/replica';
 import { escucharSesion } from '@/shared/api';
+import { ConElIdiomaEnUso, useEstadoDeLosMensajes } from '@/shared/idioma';
 import {
   crearPersisterIndexedDb,
   guardarCacheAhora,
@@ -13,7 +14,7 @@ import {
 } from '@/shared/lib';
 
 import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
-import { ABRIENDO_LA_APP } from '../arranque/esqueleto';
+import { useTextosDelArranque } from '../arranque/textos';
 import { avisarDesdeLaCola } from './avisos-de-la-cola';
 import { OPCIONES_DE_DESHIDRATACION } from './lo-que-se-guarda';
 import { crearQueryClient, DURACION_CACHE_MS, VERSION_CACHE } from './query-client';
@@ -45,8 +46,12 @@ function useLimpiezaDeSesion(queryClient: QueryClient): void {
   );
 }
 
-function EsperandoElCache({ children }: { children: ReactNode }) {
-  return useIsRestoring() ? <EsqueletoDeArranque que={ABRIENDO_LA_APP} /> : children;
+function EsperandoElCacheYElIdioma({ children }: { children: ReactNode }) {
+  const restaurando = useIsRestoring();
+  const { arrancando } = useEstadoDeLosMensajes();
+  const textos = useTextosDelArranque();
+  if (restaurando || arrancando !== null) return <EsqueletoDeArranque que={textos.abriendoLaApp} />;
+  return <ConElIdiomaEnUso>{children}</ConElIdiomaEnUso>;
 }
 
 function useGuardadoInmediato(queryClient: QueryClient, persister: Persister): void {
@@ -91,7 +96,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         void reanudarCola(queryClient);
       }}
     >
-      <EsperandoElCache>{children}</EsperandoElCache>
+      <EsperandoElCacheYElIdioma>{children}</EsperandoElCacheYElIdioma>
     </PersistQueryClientProvider>
   );
 }

@@ -6,9 +6,11 @@ import { createRoot } from 'react-dom/client';
 
 import { empezarLaSesion } from '@/entities/sesion';
 import { EnvInvalidoError, leerEnv } from '@/shared/config';
+import { empezarConElIdioma } from '@/shared/idioma';
 import { esUnaPaginaPublica, vigilarLaVersionNueva } from '@/shared/lib';
 
 import { App } from './App';
+import { idiomaAlArrancar, seudoidiomaAlArrancar } from './arranque/idioma';
 import { ponerLaCamaraLenta } from './navegacion/camara-lenta';
 import { crearCompuerta } from './navegacion/compuerta';
 import { crearCoordinador } from './navegacion/coordinador';
@@ -33,7 +35,9 @@ export function arrancar(raiz: HTMLElement): void {
     throw error;
   }
 
-  if (!esUnaPaginaPublica(globalThis.location.pathname)) {
+  const ruta = globalThis.location.pathname;
+  if (!esUnaPaginaPublica(ruta)) {
+    void empezarConElIdioma(idiomaAlArrancar(ruta), seudoidiomaAlArrancar(ruta)).catch(() => false);
     vigilarLaVersionNueva();
     empezarLaSesion();
   }

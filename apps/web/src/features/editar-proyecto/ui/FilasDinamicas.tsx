@@ -5,7 +5,7 @@ import { Controller, useWatch } from 'react-hook-form';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { filaVacia, totalDeLasFilas, type FormularioDeProyecto } from '@/entities/proyecto';
 import { formatearPesos, hoyEnElTaller, uuidv7 } from '@/shared/lib';
-import { Button, Icono, MoneyInput } from '@/shared/ui';
+import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
 type Lista = 'pagos' | 'gastos';
 
@@ -155,9 +155,7 @@ export function FilasDinamicas({
                   errorDeFila?.monto ? 'border-alerta' : 'border-border'
                 }`}
               >
-                <span aria-hidden className="text-text-3">
-                  $
-                </span>
+                <AdornoDePlata className="text-text-3" />
                 <Controller
                   control={control}
                   name={`${lista}.${indice}.monto` as const}

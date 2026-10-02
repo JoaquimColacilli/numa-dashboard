@@ -34,7 +34,7 @@ import {
   useIr,
   useVolver,
 } from '@/shared/lib';
-import { Button, Campo, CamposJuntos, Icono, MoneyInput, Pagina } from '@/shared/ui';
+import { AdornoDePlata, Button, Campo, CamposJuntos, Icono, MoneyInput, Pagina } from '@/shared/ui';
 
 import {
   errorDelPasaje,
@@ -201,9 +201,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
         </span>
       </label>
       <div className="flex h-15 items-center gap-1.5 rounded-field border border-border px-3.5">
-        <span aria-hidden className="text-money-lg text-text-3">
-          $
-        </span>
+        <AdornoDePlata className="text-money-lg text-text-3" />
         <MoneyInput
           id={`${idCampos}-sena`}
           placeholder="0"
@@ -353,9 +351,7 @@ export function PantallaDePasaje({ resumen, opciones }: PantallaDePasajeProps) {
                     falta === undefined ? 'border-ink' : 'border-alerta'
                   }`}
                 >
-                  <span aria-hidden className="text-money-lg text-text-3">
-                    $
-                  </span>
+                  <AdornoDePlata className="text-money-lg text-text-3" />
                   <MoneyInput
                     ref={campoDelPresupuesto}
                     id={`${idCampos}-presupuesto`}

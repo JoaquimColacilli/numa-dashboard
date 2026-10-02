@@ -1,3 +1,5 @@
 import { web } from '@maun/config/eslint';
 
-export default web(import.meta.dirname);
+import zonas from './zonas-de-texto.json' with { type: 'json' };
+
+export default web(import.meta.dirname, { zonasQueFaltan: zonas.faltan });

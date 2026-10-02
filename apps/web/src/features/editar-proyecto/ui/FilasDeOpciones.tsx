@@ -9,7 +9,7 @@ import {
   type FormularioDeProyecto,
 } from '@/entities/proyecto';
 import { formatearPesos, uuidv7 } from '@/shared/lib';
-import { Button, Icono, MoneyInput } from '@/shared/ui';
+import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
 export interface FilasDeOpcionesProps {
   control: Control<FormularioDeProyecto>;
@@ -166,9 +166,7 @@ export function FilasDeOpciones({
                   errorDeFila?.monto ? 'border-alerta' : 'border-border'
                 }`}
               >
-                <span aria-hidden className="text-text-3">
-                  $
-                </span>
+                <AdornoDePlata className="text-text-3" />
                 <Controller
                   control={control}
                   name={`opciones.${indice}.monto` as const}

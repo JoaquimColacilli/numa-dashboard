@@ -7,7 +7,7 @@ import {
   type InsumosDelTrabajo,
   type Replica,
 } from '@/shared/api';
-import { formatearPesos } from '@/shared/lib';
+import { compararTextos, formatearPesos } from '@/shared/lib';
 
 export interface InsumosDeUnTrabajo extends InsumosDelTrabajo {
   titulo: string;
@@ -44,7 +44,7 @@ export function insumosDeLosTrabajos(replica: Replica): InsumosDeLosTrabajos {
     total,
     trabajos: trabajos
       .map((insumos) => conTitulo(insumos, titulos.get(insumos.proyectoId) ?? ''))
-      .sort((uno, otro) => uno.titulo.localeCompare(otro.titulo, 'es')),
+      .sort((uno, otro) => compararTextos(uno.titulo, otro.titulo)),
   };
 }
 

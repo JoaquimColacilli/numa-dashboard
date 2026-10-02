@@ -23,7 +23,11 @@ export type { InterruptorProps } from './components/Interruptor.tsx';
 export { MoneyInput } from './components/MoneyInput.tsx';
 export { caracteresDe, MontoQueEntra } from './components/MontoQueEntra.tsx';
 export type { MontoQueEntraProps, TamanoDelMonto } from './components/MontoQueEntra.tsx';
-export type { MoneyInputProps } from './components/MoneyInput.tsx';
+export {
+  SEPARADORES_DE_SIEMPRE,
+  type MoneyInputProps,
+  type SeparadoresDelImporte,
+} from './components/MoneyInput.tsx';
 export { Pagina } from './components/Pagina.tsx';
 export type { PaginaProps } from './components/Pagina.tsx';
 export { entraALaVista, PrincipalYApoyo } from './components/PrincipalYApoyo.tsx';

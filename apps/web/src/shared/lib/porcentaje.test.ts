@@ -9,6 +9,12 @@ describe('formatearPorcentaje', () => {
     expect(formatearPorcentaje(4050)).toBe('40,5');
     expect(formatearPorcentaje(4005)).toBe('40,05');
   });
+
+  it('en inglés el decimal va con punto, y en portugués con coma', () => {
+    expect(formatearPorcentaje(4050, 'en')).toBe('40.5');
+    expect(formatearPorcentaje(123450, 'en')).toBe('1,234.5');
+    expect(formatearPorcentaje(4050, 'pt-BR')).toBe('40,5');
+  });
 });
 
 describe('parsearPorcentaje', () => {

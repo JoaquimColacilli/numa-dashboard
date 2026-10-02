@@ -22,6 +22,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${String(PUERTO)}`,
+    locale: 'es-AR',
     trace: 'off',
   },
   projects: [

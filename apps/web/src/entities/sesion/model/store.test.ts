@@ -20,8 +20,20 @@ vi.mock('@/shared/api', () => ({
   vinoPorRecuperacion: () => false,
 }));
 
-const ANA: Claims = { usuarioId: 'ana', email: 'ana@taller.com.ar', nombre: 'Ana', foto: '' };
-const BETO: Claims = { usuarioId: 'beto', email: 'beto@taller.com.ar', nombre: 'Beto', foto: '' };
+const ANA: Claims = {
+  usuarioId: 'ana',
+  email: 'ana@taller.com.ar',
+  nombre: 'Ana',
+  foto: '',
+  idioma: null,
+};
+const BETO: Claims = {
+  usuarioId: 'beto',
+  email: 'beto@taller.com.ar',
+  nombre: 'Beto',
+  foto: '',
+  idioma: null,
+};
 
 function nunca<T>(): Promise<T> {
   return new Promise(() => undefined);

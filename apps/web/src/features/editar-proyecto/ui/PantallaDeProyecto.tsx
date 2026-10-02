@@ -54,7 +54,15 @@ import {
   useIr,
   useVolver,
 } from '@/shared/lib';
-import { Button, Campo, CamposJuntos, Icono, MoneyInput, SeccionesEnFilas } from '@/shared/ui';
+import {
+  AdornoDePlata,
+  Button,
+  Campo,
+  CamposJuntos,
+  Icono,
+  MoneyInput,
+  SeccionesEnFilas,
+} from '@/shared/ui';
 
 import { FilasDeOpciones } from './FilasDeOpciones';
 import { FilasDinamicas } from './FilasDinamicas';
@@ -347,9 +355,7 @@ export function PantallaDeProyecto({
                       errors.presupuesto ? 'border-alerta' : 'border-border'
                     } ${hayOpciones ? 'bg-surface' : ''}`}
                   >
-                    <span aria-hidden className="text-money-lg text-text-3">
-                      $
-                    </span>
+                    <AdornoDePlata className="text-money-lg text-text-3" />
                     {hayOpciones ? (
                       <output
                         id={`${idCampos}-presupuesto`}

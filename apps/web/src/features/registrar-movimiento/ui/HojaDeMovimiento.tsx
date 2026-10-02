@@ -39,7 +39,7 @@ import {
   useEstadoSync,
   uuidv7,
 } from '@/shared/lib';
-import { Button, Campo, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared/ui';
+import { AdornoDePlata, Button, Campo, FilaDeAcciones, Hoja, Icono, MoneyInput } from '@/shared/ui';
 
 const UN_DIA_MS = 86_400_000;
 
@@ -552,9 +552,7 @@ export function HojaDeMovimiento({
                 error === undefined ? 'border-ink' : 'border-alerta'
               }`}
             >
-              <span aria-hidden className="text-h1 text-text-3">
-                $
-              </span>
+              <AdornoDePlata className="text-h1 text-text-3" />
               <MoneyInput
                 ref={campoDeMonto}
                 value={monto}

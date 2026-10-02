@@ -11,7 +11,13 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { sinTextoSuelto } from './sin-texto-suelto.js';
+
 const CONDICIONES = ['@maun/source', 'types', 'import', 'default'];
+
+const TEXTOS = { rules: { 'sin-texto-suelto': sinTextoSuelto } };
+
+const CATALOGOS_DE_LA_APP = 'src/shared/idioma/{es,en,pt-BR}/**';
 
 const PROHIBIDO_EN_TODO_EL_REPO = [
   { regex: '^@maun/web(/|$)', message: '@maun/web es la app: ningún paquete importa de ella.' },
@@ -192,7 +198,7 @@ const LA_PUERTA_Y_EL_COORDINADOR = [
   'src/app/navegacion/**/*.{ts,tsx}',
 ];
 
-export function web(dir) {
+export function web(dir, { zonasQueFaltan = [] } = {}) {
   return defineConfig(
     base(dir, [
       'tsconfig.app.json',
@@ -318,6 +324,16 @@ export function web(dir) {
     {
       files: ['src/shared/api/**/*.test.{ts,tsx}'],
       rules: prohibirImportsYNombres([SISTEMA_DE_DISENO], [TRANSICIONES_DEL_ROUTER]),
+    },
+    {
+      files: ['src/**/*.tsx'],
+      ignores: [
+        'src/**/*.test.tsx',
+        CATALOGOS_DE_LA_APP,
+        ...zonasQueFaltan.map((zona) => (zona.endsWith('/') ? `${zona}**` : zona)),
+      ],
+      plugins: { maun: TEXTOS },
+      rules: { 'maun/sin-texto-suelto': 'error' },
     },
   );
 }

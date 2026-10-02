@@ -1,3 +1,7 @@
+import { ETIQUETAS_DE_IDIOMA, type Idioma } from '@maun/domain';
+
+import { idiomaActual } from './idioma';
+
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES_CORTOS = [
   'ene',
@@ -63,11 +67,51 @@ function comoUtc(fecha: string): Date {
   return new Date(Date.UTC(anio ?? 0, (mes ?? 1) - 1, dia ?? 1));
 }
 
+const FORMATOS_DE_FECHA = new Map<string, Intl.DateTimeFormat>();
+
+function conIntl(fecha: string, idioma: Idioma, opciones: Intl.DateTimeFormatOptions): string {
+  const clave = `${idioma}|${JSON.stringify(opciones)}`;
+  let formato = FORMATOS_DE_FECHA.get(clave);
+  if (formato === undefined) {
+    formato = new Intl.DateTimeFormat(ETIQUETAS_DE_IDIOMA[idioma], {
+      ...opciones,
+      timeZone: 'UTC',
+    });
+    FORMATOS_DE_FECHA.set(clave, formato);
+  }
+  return formato.format(comoUtc(fecha));
+}
+
+const RELATIVOS = new Map<Idioma, Intl.RelativeTimeFormat>();
+
+function relativoConIntl(
+  cantidad: number,
+  unidad: Intl.RelativeTimeFormatUnit,
+  idioma: Idioma,
+): string {
+  let formato = RELATIVOS.get(idioma);
+  if (formato === undefined) {
+    formato = new Intl.RelativeTimeFormat(ETIQUETAS_DE_IDIOMA[idioma], { numeric: 'auto' });
+    RELATIVOS.set(idioma, formato);
+  }
+  return formato.format(cantidad, unidad);
+}
+
+function conMayuscula(texto: string): string {
+  return texto.charAt(0).toLocaleUpperCase() + texto.slice(1);
+}
+
+function otroAnio(fecha: string, hoy: string): boolean {
+  return comoUtc(fecha).getUTCFullYear() !== comoUtc(hoy).getUTCFullYear();
+}
+
 export function mesDeLaFecha(fecha: string): string {
   return fecha.slice(0, 7);
 }
 
-export function nombreDelMes(mes: string): string {
+export function nombreDelMes(mes: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es')
+    return conMayuscula(conIntl(`${mes.slice(0, 7)}-01`, idioma, { month: 'long' }));
   const indice = Number(mes.slice(5, 7)) - 1;
   return MESES[indice] ?? '';
 }
@@ -89,14 +133,38 @@ export function diaDelMes(fecha: string): number {
   return comoUtc(fecha).getUTCDate();
 }
 
-export function fechaLarga(fecha: string, hoy: string = hoyLocal()): string {
+export function fechaLarga(
+  fecha: string,
+  hoy: string = hoyLocal(),
+  idioma: Idioma = idiomaActual(),
+): string {
+  if (idioma !== 'es') {
+    return conIntl(fecha, idioma, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+    });
+  }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const sufijo = anio === comoUtc(hoy).getUTCFullYear() ? '' : ` ${String(anio)}`;
   return `${DIAS[dia.getUTCDay()] ?? ''} ${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}${sufijo}`;
 }
 
-export function fechaEnUnaFrase(fecha: string, hoy: string = hoyLocal()): string {
+export function fechaEnUnaFrase(
+  fecha: string,
+  hoy: string = hoyLocal(),
+  idioma: Idioma = idiomaActual(),
+): string {
+  if (idioma !== 'es') {
+    return conIntl(fecha, idioma, {
+      weekday: 'short',
+      month: 'long',
+      day: 'numeric',
+      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+    });
+  }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
@@ -108,7 +176,18 @@ export function diaLocal(momento: string): string {
   return hoyLocal(new Date(momento));
 }
 
-export function diaYMes(fecha: string, hoy: string = hoyLocal()): string {
+export function diaYMes(
+  fecha: string,
+  hoy: string = hoyLocal(),
+  idioma: Idioma = idiomaActual(),
+): string {
+  if (idioma !== 'es') {
+    return conIntl(fecha, idioma, {
+      month: 'long',
+      day: 'numeric',
+      ...(otroAnio(fecha, hoy) ? { year: 'numeric' } : {}),
+    });
+  }
   const dia = comoUtc(fecha);
   const anio = dia.getUTCFullYear();
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
@@ -121,19 +200,32 @@ export function fechaDelRotulo(fecha: string): string {
   return `${dia}/${mes}/${anio.slice(-2)}`;
 }
 
-export function fechaConAnio(fecha: string): string {
+export function fechaConAnio(fecha: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es') return conIntl(fecha, idioma, { dateStyle: 'long' });
   const dia = comoUtc(fecha);
   const mes = (MESES[dia.getUTCMonth()] ?? '').toLowerCase();
   return `${String(dia.getUTCDate())} de ${mes} de ${String(dia.getUTCFullYear())}`;
 }
 
-export function diaYMesCorto(fecha: string): string {
+export function diaYMesCorto(fecha: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es') return conIntl(fecha, idioma, { month: 'short', day: 'numeric' });
   const dia = comoUtc(fecha);
   return `${String(dia.getUTCDate())} ${MESES_CORTOS[dia.getUTCMonth()] ?? ''}`;
 }
 
-export function haceCuanto(fecha: string, hoy: string = hoyLocal()): string {
+export function haceCuanto(
+  fecha: string,
+  hoy: string = hoyLocal(),
+  idioma: Idioma = idiomaActual(),
+): string {
   const dias = -diasHasta(fecha, hoy);
+  if (idioma !== 'es') {
+    if (dias <= 0) return relativoConIntl(0, 'day', idioma);
+    if (dias < 30) return relativoConIntl(-dias, 'day', idioma);
+    const meses = Math.round(dias / 30);
+    if (meses < 12) return relativoConIntl(-meses, 'month', idioma);
+    return relativoConIntl(-Math.round(meses / 12), 'year', idioma);
+  }
   if (dias <= 0) return 'hoy';
   if (dias === 1) return 'ayer';
   if (dias < 30) return `hace ${String(dias)} días`;
@@ -147,8 +239,16 @@ export function diasHasta(fecha: string, desde: string = hoyLocal()): number {
   return Math.round((comoUtc(fecha).getTime() - comoUtc(desde).getTime()) / MS_POR_DIA);
 }
 
-export function relativa(fecha: string, desde: string = hoyLocal()): string {
+export function relativa(
+  fecha: string,
+  desde: string = hoyLocal(),
+  idioma: Idioma = idiomaActual(),
+): string {
   const dias = diasHasta(fecha, desde);
+  if (idioma !== 'es') {
+    if (Math.abs(dias) < 30) return relativoConIntl(dias, 'day', idioma);
+    return relativoConIntl(Math.round(dias / 30), 'month', idioma);
+  }
   if (dias === 0) return 'hoy';
   if (dias === 1) return 'mañana';
   if (dias === -1) return 'ayer';

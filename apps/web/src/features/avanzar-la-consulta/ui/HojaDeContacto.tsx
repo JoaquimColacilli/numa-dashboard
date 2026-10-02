@@ -253,7 +253,7 @@ export function HojaDeContacto({
               ) : (
                 <MoneyInput
                   etiqueta="Seña cobrada"
-                  placeholder="$ 0"
+                  conMarcador
                   value={valores.sena}
                   onChange={(centavos) => {
                     cambiar('sena', centavos);

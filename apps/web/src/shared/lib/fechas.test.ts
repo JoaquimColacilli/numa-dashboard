@@ -154,3 +154,41 @@ describe('distancias', () => {
     expect(relativa('2026-12-31', '2026-09-11')).toBe('en 4 meses');
   });
 });
+
+describe('las fechas en inglés y en portugués', () => {
+  const HOY = '2026-10-01';
+
+  it('usan lo que da Intl con la etiqueta del idioma, con el año solo si no es el de hoy', () => {
+    expect(fechaLarga('2026-10-01', HOY, 'en')).toBe('Thu, Oct 1');
+    expect(fechaLarga('2025-12-03', HOY, 'en')).toBe('Wed, Dec 3, 2025');
+    expect(fechaLarga('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1 de out.');
+    expect(fechaEnUnaFrase('2026-10-01', HOY, 'en')).toBe('Thu, October 1');
+    expect(fechaEnUnaFrase('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1 de outubro');
+    expect(diaYMes('2025-12-03', HOY, 'en')).toBe('December 3, 2025');
+    expect(diaYMes('2026-10-01', HOY, 'pt-BR')).toBe('1 de outubro');
+    expect(fechaConAnio('2026-10-01', 'en')).toBe('October 1, 2026');
+    expect(fechaConAnio('2026-10-01', 'pt-BR')).toBe('1 de outubro de 2026');
+    expect(diaYMesCorto('2026-10-01', 'en')).toBe('Oct 1');
+    expect(diaYMesCorto('2026-10-01', 'pt-BR')).toBe('1 de out.');
+  });
+
+  it('el nombre del mes va con mayúscula, porque se muestra solo', () => {
+    expect(nombreDelMes('2026-10', 'en')).toBe('October');
+    expect(nombreDelMes('2026-10', 'pt-BR')).toBe('Outubro');
+    expect(nombreDelMes('2026-10', 'es')).toBe('Octubre');
+  });
+
+  it('las distancias las dice Intl, con hoy, mañana y ayer en palabras', () => {
+    expect(relativa('2026-10-01', HOY, 'en')).toBe('today');
+    expect(relativa('2026-10-02', HOY, 'en')).toBe('tomorrow');
+    expect(relativa('2026-09-28', HOY, 'en')).toBe('3 days ago');
+    expect(relativa('2026-12-01', HOY, 'pt-BR')).toBe('em 2 meses');
+    expect(haceCuanto('2026-09-30', HOY, 'pt-BR')).toBe('ontem');
+    expect(haceCuanto('2026-08-01', HOY, 'en')).toBe('2 months ago');
+    expect(haceCuanto('2026-10-01', HOY, 'en')).toBe('today');
+  });
+
+  it('nunca se corren de día por la zona horaria', () => {
+    expect(fechaLarga('2026-01-01', '2026-01-01', 'en')).toBe('Thu, Jan 1');
+  });
+});

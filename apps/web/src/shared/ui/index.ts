@@ -1,4 +1,5 @@
 export * from '@maun/ui';
+export { AdornoDePlata, MoneyInput, type AdornoDePlataProps, type MoneyInputProps } from './Plata';
 export { Aviso } from './Aviso';
 export { Ayuda, DEMORA_DE_LA_AYUDA_MS, RESPIRO_DE_LA_AYUDA_MS, type AyudaProps } from './Ayuda';
 export { BloquePlegable, type BloquePlegableProps } from './BloquePlegable';

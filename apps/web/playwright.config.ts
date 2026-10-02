@@ -22,6 +22,7 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: `http://localhost:${PUERTO}`,
+    locale: 'es-AR',
     trace: 'on-first-retry',
   },
   projects: [

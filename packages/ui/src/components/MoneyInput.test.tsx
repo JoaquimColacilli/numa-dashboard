@@ -2,20 +2,30 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { leerImporte, MoneyInput, textoDelImporte } from './MoneyInput.tsx';
+import {
+  leerImporte,
+  MoneyInput,
+  textoDelImporte,
+  type SeparadoresDelImporte,
+} from './MoneyInput.tsx';
+
+const DEL_INGLES: SeparadoresDelImporte = { miles: ',', decimal: '.', abrenLosDecimales: ['.'] };
 
 function Prueba({
   inicial = null,
   alCambiar,
+  separadores,
 }: {
   inicial?: number | null;
   alCambiar?: (centavos: number | null) => void;
+  separadores?: SeparadoresDelImporte;
 }) {
   const [valor, setValor] = useState<number | null>(inicial);
   return (
     <>
       <MoneyInput
         etiqueta="Cuánta plata"
+        separadores={separadores}
         value={valor}
         onChange={(centavos) => {
           alCambiar?.(centavos);
@@ -145,6 +155,54 @@ describe('leerImporte', () => {
     expect(comoSeVe('007')).toBe('7');
     expect(comoSeVe('')).toBe('');
     expect(comoSeVe('1,234.56')).toBeNull();
+    expect(comoSeVe('-100')).toBeNull();
+    expect(comoSeVe('12345678901234')).toBeNull();
+  });
+});
+
+describe('MoneyInput con los separadores del inglés', () => {
+  it('la coma no abre los decimales: «1,500» son mil quinientos', () => {
+    render(<Prueba separadores={DEL_INGLES} />);
+    const campo = screen.getByLabelText('Cuánta plata');
+
+    for (const caracter of '1,500') tipear(campo, caracter);
+
+    expect(campo).toHaveValue('1,500');
+    expect(screen.getByTestId('centavos')).toHaveTextContent('150000');
+  });
+
+  it('el punto abre los decimales y los miles van con coma', () => {
+    render(<Prueba separadores={DEL_INGLES} />);
+    const campo = screen.getByLabelText('Cuánta plata');
+
+    for (const caracter of '1500.5') tipear(campo, caracter);
+
+    expect(campo).toHaveValue('1,500.5');
+    expect(screen.getByTestId('centavos')).toHaveTextContent('150050');
+  });
+
+  it('pegar lee el formato del inglés', () => {
+    render(<Prueba separadores={DEL_INGLES} />);
+    const campo = screen.getByLabelText('Cuánta plata');
+
+    fireEvent.paste(campo, { clipboardData: { getData: () => '$1,234.56' } });
+
+    expect(campo).toHaveValue('1,234.56');
+    expect(screen.getByTestId('centavos')).toHaveTextContent('123456');
+  });
+});
+
+describe('leerImporte con los separadores del inglés', () => {
+  it('es la misma lógica con los separadores dados vuelta', () => {
+    const comoSeVe = (escrito: string) => {
+      const importe = leerImporte(escrito, DEL_INGLES);
+      return importe === null ? null : textoDelImporte(importe, DEL_INGLES);
+    };
+    expect(comoSeVe('1,500')).toBe('1,500');
+    expect(comoSeVe('1500')).toBe('1,500');
+    expect(comoSeVe('12.5')).toBe('12.5');
+    expect(comoSeVe('1234,56')).toBe('1,234.56');
+    expect(comoSeVe('1.234,56')).toBeNull();
     expect(comoSeVe('-100')).toBeNull();
     expect(comoSeVe('12345678901234')).toBeNull();
   });

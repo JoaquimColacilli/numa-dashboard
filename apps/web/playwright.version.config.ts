@@ -24,6 +24,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: ORIGEN_DEL_ARNES,
+    locale: 'es-AR',
     serviceWorkers: 'allow',
     trace: 'retain-on-failure',
   },

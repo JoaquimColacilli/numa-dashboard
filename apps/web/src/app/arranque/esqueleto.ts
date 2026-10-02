@@ -10,9 +10,37 @@ export interface Ranura {
 
 export type Nodo = Elemento | Ranura | string;
 
-export const ABRIENDO_LA_APP = 'Abriendo la app';
-export const TRAYENDO_LOS_DATOS = 'Trayendo los datos del taller';
-export const ABRIENDO_LA_PANTALLA = 'Abriendo la pantalla';
+export type QueDiceElArranque = 'abriendoLaApp' | 'trayendoLosDatos' | 'abriendoLaPantalla';
+
+export const TEXTOS_DEL_ARRANQUE = {
+  es: {
+    abriendoLaApp: 'Abriendo la app',
+    trayendoLosDatos: 'Trayendo los datos del taller',
+    abriendoLaPantalla: 'Abriendo la pantalla',
+  },
+  en: {
+    abriendoLaApp: 'Opening the app',
+    trayendoLosDatos: "Loading your shop's data",
+    abriendoLaPantalla: 'Opening the screen',
+  },
+  'pt-BR': {
+    abriendoLaApp: 'Abrindo o app',
+    trayendoLosDatos: 'Carregando os dados da marcenaria',
+    abriendoLaPantalla: 'Abrindo a tela',
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<QueDiceElArranque, string>>>>;
+
+export type IdiomaDelArranque = keyof typeof TEXTOS_DEL_ARRANQUE;
+
+export const ETIQUETAS_DEL_ARRANQUE = {
+  es: 'es-AR',
+  en: 'en-US',
+  'pt-BR': 'pt-BR',
+} as const satisfies Readonly<Record<IdiomaDelArranque, string>>;
+
+export const ABRIENDO_LA_APP = TEXTOS_DEL_ARRANQUE.es.abriendoLaApp;
+export const TRAYENDO_LOS_DATOS = TEXTOS_DEL_ARRANQUE.es.trayendoLosDatos;
+export const ABRIENDO_LA_PANTALLA = TEXTOS_DEL_ARRANQUE.es.abriendoLaPantalla;
 
 export const RAIZ_VACIA = '<div id="root"></div>';
 
@@ -599,9 +627,30 @@ export function htmlDelEsqueleto(): string {
   return aHtml(esqueletoDeArranque({ que: ABRIENDO_LA_APP, visible: false }));
 }
 
+export function scriptDelEstadoDelArranque(): string {
+  const textos = Object.fromEntries(
+    (Object.keys(TEXTOS_DEL_ARRANQUE) as IdiomaDelArranque[])
+      .filter((idioma) => idioma !== 'es')
+      .map((idioma) => [ETIQUETAS_DEL_ARRANQUE[idioma], TEXTOS_DEL_ARRANQUE[idioma].abriendoLaApp]),
+  );
+  return [
+    '<script>',
+    '(function () {',
+    `  var texto = ${JSON.stringify(textos)}[document.documentElement.lang];`,
+    '  if (!texto) return;',
+    `  var estado = document.querySelector('[data-esqueleto-de-arranque] [role="status"]');`,
+    '  if (estado) estado.textContent = texto;',
+    '})();',
+    '</script>',
+  ].join('');
+}
+
 export function conElEsqueleto(html: string): string {
   if (!html.includes(RAIZ_VACIA)) {
     throw new Error(`El index.html no tiene ${RAIZ_VACIA}: no hay dónde poner el esqueleto.`);
   }
-  return html.replace(RAIZ_VACIA, `<div id="root">${htmlDelEsqueleto()}</div>`);
+  return html.replace(
+    RAIZ_VACIA,
+    `<div id="root">${htmlDelEsqueleto()}</div>${scriptDelEstadoDelArranque()}`,
+  );
 }
