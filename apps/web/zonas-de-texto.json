@@ -16,7 +16,6 @@
     "src/features/editar-tesoro/",
     "src/features/pedir-la-opinion/",
     "src/features/ver-novedades/",
-    "src/pages/ajustes/",
     "src/pages/encuesta-publica/",
     "src/pages/tesoros/",
     "src/pages/vista-cliente/",

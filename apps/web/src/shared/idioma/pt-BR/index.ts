@@ -32,6 +32,7 @@ import { llevarLaAgenda } from './llevarLaAgenda';
 import { movimiento } from './movimiento';
 import { paginaAcceso } from './paginaAcceso';
 import { paginaAgenda } from './paginaAgenda';
+import { paginaAjustes } from './paginaAjustes';
 import { paginaAnalitico } from './paginaAnalitico';
 import { paginaClientes } from './paginaClientes';
 import { paginaCrearCuenta } from './paginaCrearCuenta';
@@ -82,6 +83,7 @@ export const ptBR = {
   movimiento,
   paginaAcceso,
   paginaAgenda,
+  paginaAjustes,
   paginaAnalitico,
   paginaClientes,
   paginaCrearCuenta,
