@@ -1,6 +1,5 @@
 import {
   PUNTOS_DE_LA_TASA,
-  porcentaje,
   type Conteo,
   type Paso,
   type PuntoDeLaEvolucion,
@@ -8,7 +7,10 @@ import {
 } from '@maun/domain';
 
 import { Carita, FONDO_DEL_POLO } from '@/entities/opinion';
+import { useMensajes } from '@/shared/idioma';
 import { diaYMesCorto } from '@/shared/lib';
+
+import { porcentajeConLaCuenta } from '../model/numeros';
 
 const COLUMNAS: Readonly<Record<TipoDePregunta, string>> = {
   escala5: 'grid-cols-2 @lg:grid-cols-5',
@@ -165,7 +167,7 @@ export function TablaDeNumeros({ conteos, total }: { conteos: readonly Conteo[];
               {paso.etiqueta}
             </th>
             <td className="border-t border-hairline-soft py-1.5 text-right font-medium tabular-nums">
-              {porcentaje(n, total)}
+              {porcentajeConLaCuenta(n, total)}
             </td>
           </tr>
         ))}
@@ -206,13 +208,14 @@ export function TiraEnElTiempo({
   puntos: readonly PuntoDeLaEvolucion[];
   conEvolucion: boolean;
 }) {
+  const textos = useMensajes().paginaOpiniones.enElTiempo;
   const alto = conEvolucion ? ALTO_CON_EVOLUCION : ALTO_SIN_EVOLUCION;
   const primero = puntos[0];
   const ultimo = puntos[puntos.length - 1];
   const descripcion =
     primero && ultimo
-      ? `${String(puntos.length)} ${puntos.length === 1 ? 'respuesta' : 'respuestas'}, del ${diaYMesCorto(primero.dia)} al ${diaYMesCorto(ultimo.dia)}`
-      : 'Sin respuestas';
+      ? textos.tira(puntos.length, diaYMesCorto(primero.dia), diaYMesCorto(ultimo.dia))
+      : textos.sinRespuestas;
 
   return (
     <>
@@ -239,8 +242,8 @@ export function TiraEnElTiempo({
       </div>
       {primero && ultimo && (
         <div className="mt-1.75 flex justify-between text-meta text-text-3">
-          <span>{diaYMesCorto(primero.dia)}</span>
-          <span>{diaYMesCorto(ultimo.dia)}</span>
+          <span translate="no">{diaYMesCorto(primero.dia)}</span>
+          <span translate="no">{diaYMesCorto(ultimo.dia)}</span>
         </div>
       )}
     </>

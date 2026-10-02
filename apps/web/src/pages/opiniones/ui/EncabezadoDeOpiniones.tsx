@@ -1,27 +1,28 @@
 import type { ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Ir, RUTA_DE_OPINIONES, RUTA_DE_PREGUNTAS } from '@/shared/lib';
 import { Pagina } from '@/shared/ui';
 
 type Seccion = 'resultados' | 'preguntas';
 
-const SECCIONES: readonly { id: Seccion; etiqueta: string; ruta: string }[] = [
-  { id: 'resultados', etiqueta: 'Resultados', ruta: RUTA_DE_OPINIONES },
-  { id: 'preguntas', etiqueta: 'Preguntas', ruta: RUTA_DE_PREGUNTAS },
+const SECCIONES: readonly { id: Seccion; ruta: string }[] = [
+  { id: 'resultados', ruta: RUTA_DE_OPINIONES },
+  { id: 'preguntas', ruta: RUTA_DE_PREGUNTAS },
 ];
 
 export function EncabezadoDeOpiniones({ seccion }: { seccion: Seccion }) {
-  const actual = SECCIONES.find((opcion) => opcion.id === seccion);
+  const textos = useMensajes().paginaOpiniones;
 
   return (
     <header className="flex flex-col items-start gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
-        <span className="text-label text-text-2">Opiniones</span>
+        <span className="text-label text-text-2">{textos.opiniones}</span>
         <h1 className="mt-0.5 font-display text-h1 leading-tight lg:text-h1-lg">
-          {actual?.etiqueta}
+          {textos.secciones[seccion]}
         </h1>
       </div>
-      <nav aria-label="Opiniones" className="flex gap-0.5 rounded-pill bg-ink/6 p-1">
+      <nav aria-label={textos.opiniones} className="flex gap-0.5 rounded-pill bg-ink/6 p-1">
         {SECCIONES.map((opcion) => {
           const activa = opcion.id === seccion;
           return (
@@ -41,7 +42,7 @@ export function EncabezadoDeOpiniones({ seccion }: { seccion: Seccion }) {
                 />
               )}
               <span data-etiqueta-de-la-pestana className="relative">
-                {opcion.etiqueta}
+                {textos.secciones[opcion.id]}
               </span>
             </Ir>
           );

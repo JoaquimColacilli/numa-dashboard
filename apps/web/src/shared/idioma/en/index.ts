@@ -26,6 +26,7 @@ import { paginaClientes } from './paginaClientes';
 import { paginaDiezmo } from './paginaDiezmo';
 import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
+import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { proyecto } from './proyecto';
 import { registrarMovimiento } from './registrarMovimiento';
@@ -59,6 +60,7 @@ export const en = {
   paginaDiezmo,
   paginaFinanzas,
   paginaInicio,
+  paginaOpiniones,
   paginaProyectos,
   proyecto,
   registrarMovimiento,
