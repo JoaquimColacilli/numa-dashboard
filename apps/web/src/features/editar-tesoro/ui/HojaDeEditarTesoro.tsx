@@ -9,6 +9,7 @@ import {
   type TesoroDelTaller,
 } from '@/entities/tesoro';
 import { ajustesDe, filaPorId, type CambiosDeAjustes, type Replica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { hayCambios, metaDeAvisos } from '@/shared/lib';
 import { Button, FilaDeAcciones, Hoja } from '@/shared/ui';
 
@@ -104,6 +105,7 @@ function FormularioDelTesoro({
   alGuardarLoDeCocos,
   replica,
 }: FormularioDelTesoroProps) {
+  const textos = useMensajes().editarTesoro.editar;
   const tesoros = tesorosDelTaller(replica);
   const esCocos = tesoro.clave === 'cocos';
   const conMeta = tesoro.clave === null || esCocos;
@@ -170,10 +172,10 @@ function FormularioDelTesoro({
           <FilaDeAcciones>
             {tesoro.clave === null && !tesoro.archivado && (
               <Button type="button" variant="secundario" onClick={alArchivar}>
-                Archivar
+                {textos.archivar}
               </Button>
             )}
-            <Button type="submit">Guardar</Button>
+            <Button type="submit">{textos.guardar}</Button>
           </FilaDeAcciones>
         </footer>
       </form>

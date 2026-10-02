@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useMensajes } from '@/shared/idioma';
 import { useAlgoEnCurso } from '@/shared/lib';
 import { Ayuda, Icono } from '@/shared/ui';
 
@@ -19,6 +20,7 @@ export function PlanoCompleto({
   pantalla: PantallaDeTesoros;
   alCerrar: () => void;
 }) {
+  const textos = useMensajes().paginaTesoros.planoCompleto;
   const { vista } = pantalla;
   const titulo = useId();
   const dialogo = useRef<HTMLDialogElement>(null);
@@ -52,20 +54,17 @@ export function PlanoCompleto({
             id={titulo}
             className="flex items-center gap-1.5 text-body-lg leading-snug font-semibold"
           >
-            El plano de la fila
-            <Ayuda que="Cómo se mira el plano">
-              Arrastrá con un dedo para moverte y juntá dos dedos para acercar, o usá los botones de
-              abajo. Para cambiar la fila, cerrá el plano y tocá Editar.
-            </Ayuda>
+            {textos.titulo}
+            <Ayuda que={textos.comoSeMira}>{textos.ayuda}</Ayuda>
           </h2>
           <p className="rotulo-del-plano text-badge text-text-2 uppercase">
-            Rev. {vista.delTaller.version} · Rige {rige} · Solo para mirar
+            {textos.rotulo(vista.delTaller.version, rige)}
           </p>
         </div>
         <button
           ref={cerrar}
           type="button"
-          aria-label="Cerrar el plano"
+          aria-label={textos.cerrar}
           onClick={alCerrar}
           className="flex size-11 flex-none items-center justify-center rounded-field text-text-2 hover:bg-surface"
         >

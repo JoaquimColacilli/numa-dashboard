@@ -9,6 +9,8 @@ import {
   type TesoroDeLaFila,
 } from '@maun/domain';
 
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
+
 export const LUGARES_EN_LA_FILA = [
   'obligacion',
   'compromiso',
@@ -19,13 +21,9 @@ export const LUGARES_EN_LA_FILA = [
 
 export type LugarEnLaFila = (typeof LUGARES_EN_LA_FILA)[number];
 
-export const TITULO_DEL_LUGAR: Readonly<Record<LugarEnLaFila, string>> = {
-  obligacion: 'Como obligación',
-  compromiso: 'Como compromiso',
-  'ahorro-fijo': 'Como ahorro fijo',
-  reparto: 'En el reparto',
-  superavit: 'Que reciba lo que sobra',
-};
+export const TITULO_DEL_LUGAR: Readonly<Record<LugarEnLaFila, string>> = textosDelIdioma(
+  () => mensajes().fila.lugares,
+);
 
 type Clave = TesoroDeLaFila['clave'];
 

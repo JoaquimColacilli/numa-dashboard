@@ -30,7 +30,6 @@ import {
   destinosDelArchivo,
   porQueEnPalabras,
   porQueNoSeArchiva,
-  QUE_HACER_PARA_ARCHIVAR,
   transferenciaDelArchivo,
 } from '../model/archivo';
 
@@ -102,16 +101,17 @@ export function HojaDeArchivar({
     alCerrar();
   }
 
+  const textos = m.editarTesoro.archivar;
   const etiqueta = !conPlata
-    ? `Archivar ${tesoro.nombre}`
+    ? textos.archivar(tesoro.nombre)
     : tesoro.saldo.importe > 0
-      ? `Pasar ${monto} a ${destino?.nombre ?? ''} y archivar`
-      : `Pasar ${monto} desde ${destino?.nombre ?? ''} y archivar`;
+      ? textos.pasarA(monto, destino?.nombre ?? '')
+      : textos.pasarDesde(monto, destino?.nombre ?? '');
 
   return (
     <Hoja
-      titulo={`Archivar ${tesoro.nombre}`}
-      bajada={`Tiene ${formatearLaPlata(tesoro.saldo)}`}
+      titulo={textos.titulo(tesoro.nombre)}
+      bajada={textos.tiene(formatearLaPlata(tesoro.saldo))}
       antes={<ChipDelTesoro tesoro={tesoro} />}
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
@@ -119,37 +119,31 @@ export function HojaDeArchivar({
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
         {bloqueo !== null ? (
           <div className="flex flex-col gap-1.5 rounded-field border border-alerta px-3.5 py-3 text-label leading-relaxed">
-            <p className="font-semibold">Todavía no se puede archivar {tesoro.nombre}.</p>
+            <p className="font-semibold">{textos.todaviaNo(tesoro.nombre)}</p>
             <p>{porQueEnPalabras(tesoro.nombre, bloqueo)}</p>
-            <p className="text-text-2">{QUE_HACER_PARA_ARCHIVAR}</p>
+            <p className="text-text-2">{textos.queHacer}</p>
           </div>
         ) : cambio !== null ? (
           <div
             data-archivo-sin-destino
             className="flex flex-col gap-1.5 rounded-field border border-alerta px-3.5 py-3 text-label leading-relaxed"
           >
-            <p className="font-semibold">Todavía no se puede archivar {tesoro.nombre}.</p>
-            <p>
-              {cambio === 'vender'
-                ? m.editarTesoro.archivar.conDolaresSinDestino
-                : m.editarTesoro.archivar.debeDolaresSinOrigen}
-            </p>
+            <p className="font-semibold">{textos.todaviaNo(tesoro.nombre)}</p>
+            <p>{cambio === 'vender' ? textos.conDolaresSinDestino : textos.debeDolaresSinOrigen}</p>
           </div>
         ) : (
           <>
             <p className="text-body leading-relaxed text-text-2">
               {!conPlata
-                ? ''
+                ? textos.sinPlata(tesoro.nombre)
                 : tesoro.saldo.importe > 0
-                  ? 'Antes de archivarlo, ¿a dónde pasamos lo que tiene? '
-                  : `Antes de archivarlo hay que dejarlo en cero: le faltan ${monto}. ¿De qué tesoro sale? `}
-              {tesoro.nombre} deja de recibir plata y sigue apareciendo con su nombre en los
-              repartos que ya hiciste.
+                  ? textos.conPlata(tesoro.nombre)
+                  : textos.debe(monto, tesoro.nombre)}
             </p>
             {conPlata && (
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">
-                  {tesoro.saldo.importe > 0 ? 'A dónde pasa la plata' : 'De dónde sale la plata'}
+                  {tesoro.saldo.importe > 0 ? textos.aDondePasa : textos.deDondeSale}
                 </legend>
                 {destinos.map((candidato) => {
                   const elegido = candidato.id === destino?.id;
@@ -173,13 +167,13 @@ export function HojaDeArchivar({
                       />
                       <ChipDelTesoro tesoro={candidato} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-body font-medium">
+                        <span translate="no" className="block truncate text-body font-medium">
                           {candidato.nombre}
                         </span>
                         <span className="block text-meta text-text-3 tabular-nums">
                           {elegido && queda !== null
-                            ? `queda en ${formatearLaPlata(queda)}`
-                            : `tiene ${formatearLaPlata(candidato.saldo)}`}
+                            ? textos.quedaEn(formatearLaPlata(queda))
+                            : textos.tieneEnLaLista(formatearLaPlata(candidato.saldo))}
                         </span>
                       </span>
                     </label>
@@ -194,12 +188,12 @@ export function HojaDeArchivar({
       <footer className={PIE}>
         {bloqueo !== null ? (
           <FilaDeAcciones>
-            <Button onClick={volver}>Entendido</Button>
+            <Button onClick={volver}>{textos.entendido}</Button>
           </FilaDeAcciones>
         ) : cambio !== null ? (
           <FilaDeAcciones>
             <Button variant="secundario" onClick={volver}>
-              No archivar
+              {textos.noArchivar}
             </Button>
             {alCambiarDolares !== undefined && (
               <Button onClick={irAlCambio}>
@@ -210,7 +204,7 @@ export function HojaDeArchivar({
         ) : (
           <FilaDeAcciones>
             <Button variant="secundario" onClick={volver}>
-              No archivar
+              {textos.noArchivar}
             </Button>
             <Button onClick={confirmar} disabled={conPlata && destino === undefined}>
               {etiqueta}

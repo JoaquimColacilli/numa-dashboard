@@ -94,6 +94,7 @@ export function CamposDelTesoro({
   campoDelNombre,
   debajoDelNombre,
 }: CamposDelTesoroProps) {
+  const textos = useMensajes().editarTesoro.campos;
   const id = useId();
   const tinta = TINTA[borrador.tinta];
   const otro = quienUsaLaTinta(tesoros, borrador.tinta, excepto);
@@ -109,20 +110,25 @@ export function CamposDelTesoro({
         <ChipDelTesoro tesoro={borrador} tamano="grande" />
         <div className="min-w-0 flex-1">
           <p
+            translate={nombre === '' ? undefined : 'no'}
             className={`truncate text-body-lg leading-snug font-semibold ${
               nombre === '' ? 'text-text-3' : tinta.texto
             }`}
           >
-            {nombre === '' ? 'Sin nombre' : nombre}
+            {nombre === '' ? textos.sinNombre : nombre}
           </p>
-          {descripcion !== '' && <p className="truncate text-label text-text-2">{descripcion}</p>}
+          {descripcion !== '' && (
+            <p translate="no" className="truncate text-label text-text-2">
+              {descripcion}
+            </p>
+          )}
         </div>
-        <span className="flex-none text-meta text-text-3">Así se ve</span>
+        <span className="flex-none text-meta text-text-3">{textos.asiSeVe}</span>
       </div>
 
       <Campo
         ref={campoDelNombre}
-        etiqueta="Nombre"
+        etiqueta={textos.nombre}
         value={borrador.nombre}
         maxLength={LARGO_MAXIMO_DEL_NOMBRE}
         autoComplete="off"
@@ -133,11 +139,11 @@ export function CamposDelTesoro({
       />
       {debajoDelNombre}
       <Campo
-        etiqueta="Para qué es"
+        etiqueta={textos.paraQueEs}
         value={borrador.descripcion}
         maxLength={LARGO_MAXIMO_DE_LA_DESCRIPCION}
         autoComplete="off"
-        ayuda="Opcional"
+        ayuda={textos.opcional}
         error={errores.descripcion}
         onChange={(evento) => {
           cambiar({ descripcion: evento.target.value });
@@ -153,7 +159,7 @@ export function CamposDelTesoro({
       />
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-label text-text-2">Color</legend>
+        <legend className="mb-1.5 text-label text-text-2">{textos.color}</legend>
         <div className="grid grid-cols-8 @md:grid-cols-4 @md:gap-2">
           {TINTAS_EN_LA_HOJA.map((opcion) => {
             const elegida = borrador.tinta === opcion;
@@ -195,13 +201,12 @@ export function CamposDelTesoro({
         </div>
         <p className="text-meta leading-relaxed text-text-3">
           <span className="font-medium text-text-2">{NOMBRE_DE_LA_TINTA[borrador.tinta]}.</span>
-          {otro !== undefined &&
-            ` También la usa ${otro.nombre}: se distinguen por el nombre y el ícono.`}
+          {otro !== undefined && <> {textos.tambienLaUsa(otro.nombre)}</>}
         </p>
       </fieldset>
 
       <fieldset className="flex flex-col">
-        <legend className="mb-1.5 text-label text-text-2">Ícono</legend>
+        <legend className="mb-1.5 text-label text-text-2">{textos.icono}</legend>
         <div className="grid grid-cols-4 gap-1.5 @[20rem]:grid-cols-8 @[20rem]:gap-1 @md:gap-1.5">
           {iconosParaElegir(borrador.icono).map((opcion) => {
             const elegido = borrador.icono === opcion;
@@ -234,8 +239,8 @@ export function CamposDelTesoro({
 
       {conMeta && (
         <MoneyInput
-          etiqueta="Meta"
-          ayuda="Opcional. Si la ponés, Inicio te muestra cuánto falta."
+          etiqueta={textos.meta}
+          ayuda={textos.ayudaDeLaMeta}
           moneda={borrador.moneda}
           conMarcador={borrador.moneda !== MONEDA_DEL_TALLER}
           value={borrador.meta}
@@ -247,9 +252,9 @@ export function CamposDelTesoro({
 
       {conRinde && (
         <Campo
-          etiqueta="Rinde por año (%)"
+          etiqueta={textos.rinde}
           inputMode="decimal"
-          ayuda="Solo sirve para proyectar. Si no lo sabés, dejalo en 0."
+          ayuda={textos.ayudaDelRinde}
           value={borrador.rinde}
           error={errores.rinde}
           onChange={(evento) => {

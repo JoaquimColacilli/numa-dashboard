@@ -119,7 +119,7 @@ function Menu({
     <>
       <button
         type="button"
-        aria-label="Cerrar el menú"
+        aria-label={m.paginaTesoros.menu.cerrar}
         inert={saliendo}
         className={`fixed inset-0 z-40 cursor-default ${saliendo ? 'pointer-events-none' : ''}`}
         onClick={alCerrar}
@@ -127,7 +127,7 @@ function Menu({
       <div
         ref={menu}
         role="menu"
-        aria-label={`Sumar un tesoro: ${encabezado}`}
+        aria-label={m.paginaTesoros.menu.sumarUnTesoro(encabezado)}
         inert={saliendo}
         data-saliendo={saliendo ? '' : undefined}
         style={{
@@ -142,7 +142,11 @@ function Menu({
         <p className="px-3 pt-2 pb-1.5 text-meta text-paper/65">{encabezado}</p>
         {lugares.length > 1 && (
           <>
-            <div role="group" aria-label="Cómo entra" className="flex flex-col gap-0.5">
+            <div
+              role="group"
+              aria-label={m.paginaTesoros.menu.comoEntra}
+              className="flex flex-col gap-0.5"
+            >
               {lugares.map((uno, posicion) => (
                 <button
                   key={uno}
@@ -188,9 +192,11 @@ function Menu({
           >
             <ChipDelTesoro tesoro={suelto} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-medium">{suelto.nombre}</span>
+              <span translate="no" className="block truncate text-body font-medium">
+                {suelto.nombre}
+              </span>
               <span className="block text-meta text-paper/65">
-                tiene {formatearLaPlata(suelto.saldo)}
+                {m.paginaTesoros.menu.tiene(formatearLaPlata(suelto.saldo))}
               </span>
             </span>
           </button>
@@ -213,7 +219,7 @@ function Menu({
           >
             <Icono nombre="plus" tamano={16} />
           </span>
-          Un tesoro nuevo
+          {m.paginaTesoros.menu.unTesoroNuevo}
         </button>
         {hayDeOtraMoneda && (
           <p data-la-fila-reparte-pesos className="px-3 pt-1 pb-2 text-meta text-paper/65">

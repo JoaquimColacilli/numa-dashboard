@@ -2,7 +2,8 @@ import type { Money } from '@maun/domain';
 
 import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import type { MovimientoNuevo } from '@/shared/api';
-import { nombreDelMes } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { mesEnUnaFrase } from '@/shared/lib';
 
 export interface Fuente {
   id: string;
@@ -31,8 +32,9 @@ export function candidatosParaCubrir(
 }
 
 export function notaDelCandidato(tesoro: Pick<TesoroDelTaller, 'clave'>): string | null {
-  if (tesoro.clave === 'cocos') return 'Es el ahorro invertido: si lo usás, la meta se atrasa.';
-  if (tesoro.clave === 'hogar') return 'Es la plata de la familia.';
+  const textos = mensajes().cubrirElFaltante;
+  if (tesoro.clave === 'cocos') return textos.notaDeCocos;
+  if (tesoro.clave === 'hogar') return textos.notaDelHogar;
   return null;
 }
 
@@ -81,10 +83,6 @@ function idParaLaBase(tesoro: Pick<TesoroDelTaller, 'id' | 'clave'>): string | n
   return tesoro.id === tesoro.clave ? null : tesoro.id;
 }
 
-export function mesEnPalabras(mes: string): string {
-  return nombreDelMes(mes).toLowerCase();
-}
-
 export function movimientosParaCubrir({
   fuentes,
   candidatos,
@@ -116,7 +114,7 @@ export function movimientosParaCubrir({
       cubre_el_mes: `${mes}-01`,
       monto_centavos: monto,
       categoria: CATEGORIA_DE_LA_COBERTURA,
-      descripcion: `Para cubrir ${paso.nombre} de ${mesEnPalabras(mes)}`,
+      descripcion: mensajes().cubrirElFaltante.paraCubrir(paso.nombre, mesEnUnaFrase(mes)),
     });
   }
   return movimientos;

@@ -1,4 +1,5 @@
 import type { TesoroDelTaller } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import { Icono } from '@/shared/ui';
 
 export interface BotonEditarTesoroProps {
@@ -8,11 +9,12 @@ export interface BotonEditarTesoroProps {
 }
 
 export function BotonEditarTesoro({ tesoro, alEditar, className = '' }: BotonEditarTesoroProps) {
+  const etiqueta = useMensajes().armarLaFila.editar(tesoro.nombre);
   return (
     <button
       type="button"
-      aria-label={`Editar ${tesoro.nombre}`}
-      title={`Editar ${tesoro.nombre}`}
+      aria-label={etiqueta}
+      title={etiqueta}
       onClick={() => {
         alEditar(tesoro.id);
       }}

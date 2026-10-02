@@ -95,6 +95,7 @@ export const movimiento = {
     Materiales: 'Materials',
     Herramientas: 'Tools',
     'Costos fijos': 'Fixed costs',
+    'Gasto fijo': 'Fixed cost',
     Flete: 'Freight',
     'Servicios del taller': 'Shop utilities',
     Publicidad: 'Advertising',

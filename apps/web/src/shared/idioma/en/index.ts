@@ -3,6 +3,7 @@ import type { Mensajes } from '../es';
 import { activarHuella } from './activarHuella';
 import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
+import { ajustarCocos } from './ajustarCocos';
 import { api } from './api';
 import { appLayout } from './appLayout';
 import { appNavegacion } from './appNavegacion';
@@ -10,6 +11,7 @@ import { appProviders } from './appProviders';
 import { appRouter } from './appRouter';
 import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
+import { armarLaFila } from './armarLaFila';
 import { armarLaVidriera } from './armarLaVidriera';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { cerrarSesion } from './cerrarSesion';
@@ -18,6 +20,7 @@ import { comun } from './comun';
 import { configurarTaller } from './configurarTaller';
 import { coordinarLaEntrega } from './coordinarLaEntrega';
 import { crearCuenta } from './crearCuenta';
+import { cubrirElFaltante } from './cubrirElFaltante';
 import { desbloquearLaApp } from './desbloquearLaApp';
 import { editarCliente } from './editarCliente';
 import { editarLaEncuesta } from './editarLaEncuesta';
@@ -47,6 +50,7 @@ import { paginaNuevaContrasena } from './paginaNuevaContrasena';
 import { paginaOpiniones } from './paginaOpiniones';
 import { paginaProyectos } from './paginaProyectos';
 import { paginaRecuperar } from './paginaRecuperar';
+import { paginaTesoros } from './paginaTesoros';
 import { proyecto } from './proyecto';
 import { recibirAvisos } from './recibirAvisos';
 import { recuperarAcceso } from './recuperarAcceso';
@@ -58,6 +62,7 @@ export const en = {
   activarHuella,
   adjuntarArchivos,
   agenda,
+  ajustarCocos,
   api,
   appLayout,
   appNavegacion,
@@ -65,6 +70,7 @@ export const en = {
   appRouter,
   archivo,
   armarElPresupuesto,
+  armarLaFila,
   armarLaVidriera,
   avanzarLaConsulta,
   cerrarSesion,
@@ -73,6 +79,7 @@ export const en = {
   configurarTaller,
   coordinarLaEntrega,
   crearCuenta,
+  cubrirElFaltante,
   desbloquearLaApp,
   editarCliente,
   editarLaEncuesta,
@@ -102,6 +109,7 @@ export const en = {
   paginaOpiniones,
   paginaProyectos,
   paginaRecuperar,
+  paginaTesoros,
   proyecto,
   recibirAvisos,
   recuperarAcceso,

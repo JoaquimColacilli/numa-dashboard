@@ -11,6 +11,7 @@ import {
   puedeMoverseLaObligacion,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -53,6 +54,7 @@ function Conector({
   arista: AristaDelPlano | undefined;
   alSumar?: (boton: HTMLElement) => void;
 }) {
+  const textos = useMensajes().paginaTesoros.planoVertical;
   const datos = arista?.data;
   const monto = datos?.monto ?? null;
   const probando = monto !== null;
@@ -78,6 +80,7 @@ function Conector({
       )}
       {flujo !== null && monto !== null && (
         <span
+          translate="no"
           className={`absolute top-1/2 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
             alSumar === undefined ? 'right-1/2 mr-3' : 'right-0'
           } ${vacia ? 'border-hairline text-text-3' : 'border-ink/30 font-semibold text-ink'}`}
@@ -92,6 +95,7 @@ function Conector({
         alSumar === undefined && (
           <span
             aria-hidden
+            translate="no"
             className={`absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
               vacia ? 'border-hairline text-text-3' : 'border-ink/30 font-semibold text-ink'
             }`}
@@ -108,7 +112,7 @@ function Conector({
           className="absolute top-1/2 left-1/2 flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-pill border border-ink bg-paper px-2.5 text-meta font-medium whitespace-nowrap text-ink before:absolute before:-inset-y-2 before:inset-x-0"
         >
           <Icono nombre="plus" tamano={14} grosor={2} />
-          Sumar acá
+          {textos.sumarAca}
         </button>
       )}
     </div>
@@ -130,25 +134,26 @@ function Controles({
   alBajar: () => void;
   alEditar: () => void;
 }) {
+  const textos = useMensajes().paginaTesoros.planoVertical;
   const boton =
     'flex min-h-11 flex-1 items-center justify-center gap-1.5 text-label font-medium text-ink disabled:text-text-3';
   return (
     <div
       role="group"
-      aria-label={`Lugar de ${nombre}`}
+      aria-label={textos.lugarDe(nombre)}
       className="mt-2 flex divide-x divide-hairline overflow-hidden rounded-field border border-border bg-paper"
     >
       <button type="button" className={boton} disabled={!arriba} onClick={alSubir}>
         <Icono nombre="arrow-up" tamano={16} />
-        Subir
+        {textos.subir}
       </button>
       <button type="button" className={boton} disabled={!abajo} onClick={alBajar}>
         <Icono nombre="arrow-down" tamano={16} />
-        Bajar
+        {textos.bajar}
       </button>
       <button type="button" className={boton} onClick={alEditar}>
         <Icono nombre="pencil" tamano={15} />
-        Editar
+        {textos.editar}
       </button>
     </div>
   );
@@ -212,6 +217,7 @@ export function PlanoVertical({
   alSumar,
   alNuevo,
 }: PlanoVerticalProps) {
+  const textos = useMensajes().paginaTesoros.planoVertical;
   const { nodos, aristas } = armarElPlano({ vista, prueba: resultado, elegido, insumos });
   const armando = vista.armando;
   const hacia = (id: string) => aristas.find((arista) => arista.target === id);
@@ -240,7 +246,7 @@ export function PlanoVertical({
   return (
     <div className="flex flex-col gap-4">
       <section
-        aria-label="La fila"
+        aria-label={textos.laFila}
         className="cuadricula rounded-panel border border-hairline px-4 pt-5 pb-5"
       >
         {ingreso !== undefined && (
@@ -342,7 +348,7 @@ export function PlanoVertical({
         </ul>
       </section>
 
-      <section aria-label="Estante" className="flex flex-col gap-2.5">
+      <section aria-label={textos.estante} className="flex flex-col gap-2.5">
         {titulo !== undefined && (
           <div className="h-5 px-1">
             <TituloDelEstante data={titulo.data} />

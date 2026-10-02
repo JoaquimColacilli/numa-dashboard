@@ -19,8 +19,10 @@ import {
   NOMBRE_DEL_TIPO,
   RotuloDelPlano,
 } from '@/entities/fila';
+import { categoriaEnPantalla } from '@/entities/movimiento';
 import { CantoDelTesoro, ChipDelTesoro } from '@/entities/tesoro';
-import { LLEGO_A_LA_META, notaDelPasoEnLaPrueba, porciento } from '@/features/armar-la-fila';
+import { llegoALaMeta, notaDelPasoEnLaPrueba, porciento } from '@/features/armar-la-fila';
+import { useMensajes } from '@/shared/idioma';
 import { formatearLaPlata, formatearPesos, TINTA } from '@/shared/lib';
 import { Icono, type NombreDeIcono } from '@/shared/ui';
 
@@ -83,6 +85,7 @@ export function Ficha({
 function Encabezado({
   chip,
   nombre,
+  nombreTraducible = false,
   claseDelNombre,
   cifra,
   rotulo,
@@ -92,6 +95,7 @@ function Encabezado({
 }: {
   chip: ReactNode;
   nombre: string;
+  nombreTraducible?: boolean;
   claseDelNombre: string;
   cifra: ReactNode;
   rotulo: ReactNode;
@@ -104,10 +108,16 @@ function Encabezado({
       {chip}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className={`truncate text-body leading-snug font-semibold ${claseDelNombre}`}>
+          <span
+            translate={nombreTraducible ? undefined : 'no'}
+            className={`truncate text-body leading-snug font-semibold ${claseDelNombre}`}
+          >
             {nombre}
           </span>
-          <span className="flex-none text-body leading-snug font-semibold tabular-nums">
+          <span
+            translate="no"
+            className="flex-none text-body leading-snug font-semibold tabular-nums"
+          >
             {cifra}
           </span>
         </div>
@@ -131,13 +141,18 @@ function Encabezado({
   );
 }
 
-function Antes({ revision }: { revision: Revision | null }) {
-  if (revision?.antes === null || revision?.antes === undefined) return null;
+function Tachado({ children }: { children: ReactNode }) {
   return (
-    <span>
-      antes <span className="line-through">{revision.antes}</span>
+    <span translate="no" className="line-through">
+      {children}
     </span>
   );
+}
+
+function Antes({ revision }: { revision: Revision | null }) {
+  const textos = useMensajes().paginaTesoros.fichas;
+  if (revision?.antes === null || revision?.antes === undefined) return null;
+  return <span>{textos.antes(Tachado, revision.antes)}</span>;
 }
 
 function SimboloDeEntrada() {
@@ -151,23 +166,25 @@ function SimboloDeEntrada() {
 }
 
 export function CuerpoDeLaSena() {
+  const textos = useMensajes().paginaTesoros.plano;
   return (
     <div className="relative flex h-full w-full items-center gap-3 rounded-pill border-[1.5px] border-ink bg-paper pr-5 pl-3 text-left text-ink">
       <SimboloDeEntrada />
       <span className="min-w-0 flex-1 text-body-sm leading-tight font-semibold">
-        Seña de los trabajos en curso
+        {textos.senaDeLosTrabajos}
       </span>
     </div>
   );
 }
 
 export function CuerpoDelIngreso({ data }: { data: DatosDelIngreso }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
     <div className="relative flex h-full w-full items-center gap-3 rounded-pill border-[1.5px] border-ink bg-paper pr-4 pl-3 text-left text-ink">
       <SimboloDeEntrada />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center justify-between gap-2">
-          <span className="text-body leading-snug font-semibold">Ingreso</span>
+          <span className="text-body leading-snug font-semibold">{textos.ingreso}</span>
           <AyudaDelMapa className={EN_EL_LIENZO} />
         </span>
         <span className="text-meta leading-snug text-text-2">
@@ -196,19 +213,26 @@ export function CuerpoDeLosInsumos({
   data: DatosDeLosInsumos;
   elegida: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
     <Ficha elegida={elegida} punteada className="px-3 pt-3 pb-3">
       <div className="flex items-start gap-2.5">
         <ChipNeutro icono="hand-coins" />
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-body leading-snug font-semibold">Insumos</span>
+          <span className="block truncate text-body leading-snug font-semibold">
+            {textos.insumos}
+          </span>
           <span className="block truncate text-meta text-text-2">{textoDeLosInsumos(data)}</span>
         </div>
       </div>
       <div className="mt-2 text-meta text-text-2">
         <LineaDePuntos
-          izquierda="Queda"
-          derecha={<span className="font-medium text-ink">{formatearPesos(data.total)}</span>}
+          izquierda={textos.queda}
+          derecha={
+            <span translate="no" className="font-medium text-ink">
+              {formatearPesos(data.total)}
+            </span>
+          }
         />
       </div>
     </Ficha>
@@ -216,8 +240,9 @@ export function CuerpoDeLosInsumos({
 }
 
 export function Candado() {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
-    <span title="El diezmo no se puede sacar de la fila" className="inline-flex">
+    <span title={textos.candado} className="inline-flex">
       <Icono nombre="lock" tamano={10} grosor={2.25} />
     </span>
   );
@@ -232,6 +257,7 @@ export function CuerpoDeLaObligacion({
   elegida: boolean;
   enLienzo: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const { tesoro, obligacion, prueba } = data;
   const vacia = prueba !== null && prueba <= 0;
   const conAntes = data.revision !== null && data.revision.antes !== null;
@@ -264,14 +290,21 @@ export function CuerpoDeLaObligacion({
         <span className="truncate first-letter:uppercase">{BASE_EN_PALABRAS[obligacion.base]}</span>
         {prueba === null ? (
           <LineaDePuntos
-            izquierda="A pagar"
-            derecha={<span className="font-medium text-ink">{formatearPesos(data.aPagar)}</span>}
+            izquierda={textos.aPagar}
+            derecha={
+              <span translate="no" className="font-medium text-ink">
+                {formatearPesos(data.aPagar)}
+              </span>
+            }
           />
         ) : (
           <LineaDePuntos
-            izquierda="De este cobro"
+            izquierda={textos.deEsteCobro}
             derecha={
-              <span className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}>
+              <span
+                translate="no"
+                className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}
+              >
                 + {formatearPesos(prueba)}
               </span>
             }
@@ -294,14 +327,17 @@ function GloboDeLaFicha({ numero, enLienzo }: { numero: number; enLienzo: boolea
 }
 
 function EstadoDelPaso({ falta, tope }: { falta: number; tope: number }) {
-  if (tope <= 0) return <span className="text-text-3">sin monto todavía</span>;
+  const textos = useMensajes().paginaTesoros.fichas;
+  if (tope <= 0) return <span className="text-text-3">{textos.sinMontoTodavia}</span>;
   return falta <= 0 ? (
     <span className="flex items-center gap-1 font-semibold text-ink">
       <Icono nombre="check" tamano={13} grosor={2.25} />
-      Completo
+      {textos.completo}
     </span>
   ) : (
-    <span className="font-semibold text-ink tabular-nums">faltan {formatearPesos(falta)}</span>
+    <span className="font-semibold text-ink tabular-nums">
+      {textos.faltan(formatearPesos(falta))}
+    </span>
   );
 }
 
@@ -316,14 +352,21 @@ function RenglonDelPaso({
   dia: number | null;
   pagado: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
     <LineaDePuntos
       izquierda={
         <span className="inline-flex max-w-full min-w-0 items-baseline gap-1">
-          <span className="truncate">{nombre === '' ? 'Sin nombre' : nombre}</span>
+          {nombre === '' ? (
+            <span className="truncate">{textos.sinNombre}</span>
+          ) : (
+            <span translate="no" className="truncate">
+              {categoriaEnPantalla(nombre)}
+            </span>
+          )}
           {dia !== null && (
             <span className="flex-none text-text-3">
-              · vence el {dia}
+              {textos.venceEl(dia)}
               {pagado && (
                 <>
                   <Icono
@@ -332,14 +375,14 @@ function RenglonDelPaso({
                     grosor={2.5}
                     className="ml-0.5 inline align-[-1px] text-ink"
                   />
-                  <span className="sr-only"> pagado</span>
+                  <span className="sr-only"> {textos.pagado}</span>
                 </>
               )}
             </span>
           )}
         </span>
       }
-      derecha={formatearPesos(monto)}
+      derecha={<span translate="no">{formatearPesos(monto)}</span>}
     />
   );
 }
@@ -355,16 +398,18 @@ function MetaDelAhorro({
   hastaLaMeta: boolean;
   nombre: string;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const avance = meta.meta <= 0 ? 0 : Math.min(100, Math.floor((meta.saldo / meta.meta) * 100));
+  const deLaMeta = textos.avanceDeLaMeta(String(avance), formatearPesos(meta.meta));
   return (
     <div className="flex h-4.5 items-center gap-2 text-meta text-text-2">
       <span
         role="meter"
-        aria-label={`${nombre}, su meta`}
+        aria-label={textos.suMeta(nombre)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={avance}
-        aria-valuetext={`${String(avance)}% de ${formatearPesos(meta.meta)}`}
+        aria-valuetext={deLaMeta}
         className="relative h-1 w-12 flex-none overflow-hidden rounded-[2px] bg-surface-2"
       >
         <span
@@ -372,15 +417,16 @@ function MetaDelAhorro({
           style={{ width: `${String(avance)}%` }}
         />
       </span>
-      <span className="min-w-0 flex-1 truncate tabular-nums">
-        {avance}% de {formatearPesos(meta.meta)}
+      <span translate="no" className="min-w-0 flex-1 truncate tabular-nums">
+        {deLaMeta}
       </span>
-      {hastaLaMeta && <span className="flex-none">hasta la meta</span>}
+      {hastaLaMeta && <span className="flex-none">{textos.hastaLaMeta}</span>}
     </div>
   );
 }
 
 function PieDelPaso({ data }: { data: DatosDelPaso }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const { tesoro, paso, delMes, prueba, conDeuda } = data;
   const vacioEnLaPrueba = prueba !== null && prueba.monto <= 0;
   const lleva = delMes.lleva;
@@ -389,16 +435,21 @@ function PieDelPaso({ data }: { data: DatosDelPaso }) {
       <div className="flex flex-col gap-0.5 text-meta text-text-2">
         {prueba === null ? (
           <LineaDePuntos
-            izquierda={`En ${data.mes}`}
+            izquierda={textos.enElMes(data.mes)}
             derecha={
-              <span className="font-medium text-ink">{formatearPesos(delMes.recibido)}</span>
+              <span translate="no" className="font-medium text-ink">
+                {formatearPesos(delMes.recibido)}
+              </span>
             }
           />
         ) : (
           <LineaDePuntos
-            izquierda="De este cobro"
+            izquierda={textos.deEsteCobro}
             derecha={
-              <span className={`font-semibold ${vacioEnLaPrueba ? 'text-text-3' : 'text-ink'}`}>
+              <span
+                translate="no"
+                className={`font-semibold ${vacioEnLaPrueba ? 'text-text-3' : 'text-ink'}`}
+              >
                 + {formatearPesos(prueba.monto)}
               </span>
             }
@@ -406,16 +457,18 @@ function PieDelPaso({ data }: { data: DatosDelPaso }) {
         )}
         <span className="truncate">
           {prueba !== null && prueba.llegaALaMeta
-            ? LLEGO_A_LA_META
-            : `Recibe ${formatearPesos(paso.tope)} en cada cobro`}
+            ? llegoALaMeta()
+            : textos.recibeEnCadaCobro(formatearPesos(paso.tope))}
         </span>
       </div>
     );
   }
   const enSaldo = paso.modo === 'saldo';
   const deLaIzquierda = enSaldo
-    ? `${conDeuda ? 'a pagar' : 'tiene'} ${formatearPesos(lleva)}`
-    : `lleva ${formatearPesos(lleva)}`;
+    ? conDeuda
+      ? textos.aPagarMonto(formatearPesos(lleva))
+      : textos.tieneMonto(formatearPesos(lleva))
+    : textos.llevaMonto(formatearPesos(lleva));
   return (
     <div>
       <NivelDelMes
@@ -423,11 +476,15 @@ function PieDelPaso({ data }: { data: DatosDelPaso }) {
         lleva={lleva}
         prueba={prueba?.monto ?? 0}
         tope={paso.tope}
-        etiqueta={enSaldo ? `${tesoro.nombre}, lo que tiene` : `${tesoro.nombre} en ${data.mes}`}
+        etiqueta={
+          enSaldo
+            ? textos.nivelDelSaldo(tesoro.nombre)
+            : textos.nivelDelMes(tesoro.nombre, data.mes)
+        }
         texto={
           paso.tope <= 0
-            ? 'Sin monto todavía'
-            : `${formatearPesos(lleva)} de ${formatearPesos(paso.tope)}`
+            ? textos.sinMontoTodaviaDelNivel
+            : textos.deTotal(formatearPesos(lleva), formatearPesos(paso.tope))
         }
       />
       <div className="mt-1 flex items-baseline justify-between gap-2 text-meta">
@@ -438,18 +495,20 @@ function PieDelPaso({ data }: { data: DatosDelPaso }) {
           </>
         ) : vacioEnLaPrueba ? (
           <>
-            <span className="text-text-2">+ {formatearPesos(prueba.monto)}</span>
+            <span translate="no" className="text-text-2">
+              + {formatearPesos(prueba.monto)}
+            </span>
             <span className="text-text-2">
               {prueba.llegaALaMeta
-                ? LLEGO_A_LA_META
+                ? llegoALaMeta()
                 : prueba.quedaba <= 0
-                  ? 'ya estaba completo'
-                  : 'no le llega nada'}
+                  ? textos.yaEstabaCompleto
+                  : textos.noLeLlegaNada}
             </span>
           </>
         ) : (
           <>
-            <span className="font-semibold text-ink tabular-nums">
+            <span translate="no" className="font-semibold text-ink tabular-nums">
               + {formatearPesos(prueba.monto)}
             </span>
             <span className="text-text-2 tabular-nums">
@@ -465,8 +524,12 @@ function PieDelPaso({ data }: { data: DatosDelPaso }) {
       {conDeuda && !enSaldo && delMes.aPagar !== null && (
         <div className="mt-0.5 text-meta text-text-2">
           <LineaDePuntos
-            izquierda="A pagar"
-            derecha={<span className="font-medium text-ink">{formatearPesos(delMes.aPagar)}</span>}
+            izquierda={textos.aPagar}
+            derecha={
+              <span translate="no" className="font-medium text-ink">
+                {formatearPesos(delMes.aPagar)}
+              </span>
+            }
           />
         </div>
       )}
@@ -483,17 +546,23 @@ export function CuerpoDelPaso({
   elegida: boolean;
   enLienzo: boolean;
 }) {
+  const m = useMensajes();
+  const textos = m.paginaTesoros.fichas;
   const { tesoro, paso, delMes, prueba, tipo } = data;
   const vacioEnLaPrueba = prueba !== null && prueba.monto <= 0;
   const renglones = renglonesALaVista(paso.renglones);
   const mas = paso.renglones.length - renglones.length;
   const conAntes = data.revision !== null && data.revision.antes !== null;
-  const modo = data.porTrabajo ? 'por trabajo' : modoEnPalabras(paso.modo, tipo);
+  const modo = data.porTrabajo ? m.fila.modo[tipo].trabajo : modoEnPalabras(paso.modo, tipo);
   const pagados = new Map(
     delMes.vencimientos.map((vencimiento) => [vencimiento.indice, vencimiento]),
   );
   const despues =
-    paso.clase === 'sueldo' ? 'Sueldo' : paso.clase === 'fijos' ? 'Renglón por renglón' : null;
+    paso.clase === 'sueldo'
+      ? textos.sueldo
+      : paso.clase === 'fijos'
+        ? textos.renglonPorRenglon
+        : null;
 
   return (
     <Ficha
@@ -524,7 +593,7 @@ export function CuerpoDelPaso({
               />
             </li>
           ))}
-          {mas > 0 && <li className="h-4.5">y {mas} más</li>}
+          {mas > 0 && <li className="h-4.5">{textos.yMas(mas)}</li>}
         </ul>
       )}
       <div className="mt-2.5">
@@ -557,19 +626,25 @@ function MontoQueSobra({ monto }: { monto: Money }) {
 }
 
 export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; elegida: boolean }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
     <Ficha elegida={elegida} className="px-3.5 pt-3 pb-3">
       <Encabezado
         chip={<ChipNeutro icono="split" />}
-        nombre="Lo que sobra"
+        nombre={textos.loQueSobra}
+        nombreTraducible
         claseDelNombre="text-ink"
         cifra={
           data.prueba === null ? porciento(data.aTesoros) : <MontoQueSobra monto={data.prueba} />
         }
         rotulo={
-          data.prueba === null ? 'Se reparte' : data.prueba > 0 ? 'Se reparte así' : 'No sobra nada'
+          data.prueba === null
+            ? textos.seReparte
+            : data.prueba > 0
+              ? textos.seReparteAsi
+              : textos.noSobraNada
         }
-        unidad={data.prueba === null ? 'a ahorros' : 'de este cobro'}
+        unidad={data.prueba === null ? textos.aAhorros : textos.deEsteCobroUnidad}
       />
       <div className="mt-2.5">
         <EscalaDelReparto partes={data.escala} />
@@ -579,6 +654,7 @@ export function CuerpoDelReparto({ data, elegida }: { data: DatosDelReparto; ele
 }
 
 export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegida: boolean }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const { tesoro, meta } = data;
   const vacia = data.prueba !== null && data.prueba <= 0;
   const conAntes = data.revision !== null && data.revision.antes !== null;
@@ -599,30 +675,40 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
           conAntes ? (
             <Antes revision={data.revision} />
           ) : data.superavit ? (
-            'El resto'
+            textos.elResto
           ) : data.hastaLaMeta && meta !== null ? (
-            'Hasta la meta'
+            textos.hastaLaMetaUnidad
           ) : undefined
         }
       />
       <div className="mt-2 flex flex-col gap-0.5 text-meta text-text-2">
         {data.prueba === null ? (
           <LineaDePuntos
-            izquierda={`En ${data.mes}`}
-            derecha={<span className="font-medium text-ink">{formatearPesos(data.delMes)}</span>}
+            izquierda={textos.enElMes(data.mes)}
+            derecha={
+              <span translate="no" className="font-medium text-ink">
+                {formatearPesos(data.delMes)}
+              </span>
+            }
           />
         ) : (
           <LineaDePuntos
-            izquierda={data.llegaALaMeta ? LLEGO_A_LA_META : 'De este cobro'}
+            izquierda={data.llegaALaMeta ? llegoALaMeta() : textos.deEsteCobro}
             derecha={
-              <span className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}>
+              <span
+                translate="no"
+                className={`font-semibold ${vacia ? 'text-text-3' : 'text-ink'}`}
+              >
                 + {formatearPesos(data.prueba)}
               </span>
             }
           />
         )}
         {meta === null ? (
-          <LineaDePuntos izquierda="Tiene" derecha={formatearLaPlata(tesoro.saldo)} />
+          <LineaDePuntos
+            izquierda={textos.tiene}
+            derecha={<span translate="no">{formatearLaPlata(tesoro.saldo)}</span>}
+          />
         ) : (
           <span className="flex h-4.5 items-center gap-2">
             <span
@@ -634,8 +720,8 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
                 style={{ width: `${String(avance)}%` }}
               />
             </span>
-            <span className="min-w-0 flex-1 truncate tabular-nums">
-              {avance}% de {formatearPesos(meta.meta)}
+            <span translate="no" className="min-w-0 flex-1 truncate tabular-nums">
+              {textos.avanceDeLaMeta(String(avance), formatearPesos(meta.meta))}
             </span>
           </span>
         )}
@@ -654,6 +740,7 @@ export function CuerpoDelEstante({
   elegida: boolean;
   conFlechas: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const { tesoro } = data;
   return (
     <Ficha elegida={elegida} punteada className="px-3 pt-3 pb-3">
@@ -661,19 +748,28 @@ export function CuerpoDelEstante({
         <ChipDelTesoro tesoro={tesoro} />
         <div className="min-w-0 flex-1">
           <span
+            translate="no"
             className={`block truncate text-body leading-snug font-semibold ${TINTA[tesoro.tinta].texto}`}
           >
             {tesoro.nombre}
           </span>
-          <span className="block truncate text-meta text-text-2">
-            {tesoro.descripcion === '' ? 'Sin descripción' : tesoro.descripcion}
-          </span>
+          {tesoro.descripcion === '' ? (
+            <span className="block truncate text-meta text-text-2">{textos.sinDescripcion}</span>
+          ) : (
+            <span translate="no" className="block truncate text-meta text-text-2">
+              {tesoro.descripcion}
+            </span>
+          )}
         </div>
       </div>
       <div className="mt-2 text-meta text-text-2">
         <LineaDePuntos
-          izquierda={data.armando && conFlechas ? 'Uní una flecha acá' : 'Tiene'}
-          derecha={<span className="font-medium text-ink">{formatearLaPlata(tesoro.saldo)}</span>}
+          izquierda={data.armando && conFlechas ? textos.uniUnaFlecha : textos.tiene}
+          derecha={
+            <span translate="no" className="font-medium text-ink">
+              {formatearLaPlata(tesoro.saldo)}
+            </span>
+          }
         />
       </div>
     </Ficha>
@@ -691,6 +787,7 @@ export function CuerpoNuevoTesoro({
   deshabilitado?: boolean;
   enLienzo?: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   return (
     <button
       type="button"
@@ -704,7 +801,7 @@ export function CuerpoNuevoTesoro({
       }`}
     >
       <Icono nombre="plus" tamano={16} grosor={2} />
-      Nuevo tesoro
+      {textos.nuevoTesoro}
     </button>
   );
 }
@@ -744,8 +841,13 @@ export function RotuloDelFlujo({
   monto: Money | null;
   enLienzo?: boolean;
 }) {
+  const textos = useMensajes().paginaTesoros.fichas;
   const nombre =
-    flujo === 'cobro' ? 'Se cobra el trabajo' : flujo === 'libre' ? 'Ingreso libre' : 'Ganancia';
+    flujo === 'cobro'
+      ? textos.seCobraElTrabajo
+      : flujo === 'libre'
+        ? textos.ingresoLibre
+        : textos.ganancia;
   const clases = enLienzo ? EN_EL_LIENZO : '';
   return (
     <span
@@ -755,7 +857,7 @@ export function RotuloDelFlujo({
     >
       <RotuloDelPlano className="font-semibold">{nombre}</RotuloDelPlano>
       {flujo !== 'cobro' && monto !== null && (
-        <span className="text-badge font-semibold text-ink tabular-nums">
+        <span translate="no" className="text-badge font-semibold text-ink tabular-nums">
           {formatearPesos(monto)}
         </span>
       )}

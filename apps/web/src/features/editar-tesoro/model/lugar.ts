@@ -15,7 +15,8 @@ import {
 } from '@maun/domain';
 
 import { lugaresParaSumar, type LugarEnLaFila } from '@/entities/fila';
-import { mensajes } from '@/shared/idioma';
+import { TESORO } from '@/entities/tesoro';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import { formatearPorcentaje, parsearPorcentaje } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
@@ -43,6 +44,10 @@ export interface OpcionDeLugar {
 
 const PORCENTAJE_SUGERIDO = 1000;
 
+const PORCENTAJE_MINIMO = 1;
+
+const PORCENTAJE_MAXIMO = 10_000;
+
 const UN_TESORO_NUEVO = '00000000-0000-0000-0000-000000000000';
 
 export function libreEnElReparto(fila: Pick<Fila, 'reparto'>): PuntosBasicos {
@@ -55,28 +60,19 @@ function detalleDelLugar(
   sePuede: boolean,
   nombreDelSuperavit: string,
 ): string {
+  const textos = mensajes().editarTesoro.lugar;
   switch (lugar) {
     case 'obligacion':
-      return sePuede
-        ? 'Un porcentaje de cada cobro, como Ingresos Brutos'
-        : `Entran hasta ${String(TOPE_DE_OBLIGACIONES)} obligaciones.`;
+      return sePuede ? textos.obligacion : textos.obligacionesLlenas(TOPE_DE_OBLIGACIONES);
     case 'compromiso':
-      return sePuede
-        ? 'Junta lo que tenés que pagar, como el alquiler'
-        : `Entran hasta ${String(TOPE_DE_PASOS)} compromisos y ahorros fijos.`;
+      return sePuede ? textos.compromiso : textos.pasosLlenos(TOPE_DE_PASOS);
     case 'ahorro-fijo':
-      return sePuede
-        ? 'Un monto fijo que apartás de la ganancia'
-        : `Entran hasta ${String(TOPE_DE_PASOS)} compromisos y ahorros fijos.`;
+      return sePuede ? textos.ahorroFijo : textos.pasosLlenos(TOPE_DE_PASOS);
     case 'reparto':
-      if (fila.reparto.length >= TOPE_DE_PARTES) {
-        return `El reparto admite hasta ${String(TOPE_DE_PARTES)} tesoros.`;
-      }
-      return libreEnElReparto(fila) <= 0
-        ? 'El reparto ya suma 100%.'
-        : 'Un porcentaje de lo que sobra';
+      if (fila.reparto.length >= TOPE_DE_PARTES) return textos.repartoLleno(TOPE_DE_PARTES);
+      return libreEnElReparto(fila) <= 0 ? textos.repartoEnCien : textos.reparto;
     case 'superavit':
-      return `Recibe lo que sobra, en lugar de ${nombreDelSuperavit}`;
+      return textos.superavit(nombreDelSuperavit);
   }
 }
 
@@ -85,23 +81,25 @@ export function dondeEntra(
   despuesDe: string | null | undefined,
   nombreDe: (tesoro: string) => string,
 ): string | null {
+  const textos = mensajes().editarTesoro.lugar;
   if (lugar === 'estante' || lugar === 'reparto' || lugar === 'superavit') return null;
-  if (despuesDe === undefined) return 'Al final de su tipo';
-  if (despuesDe === null) return 'Al principio de su tipo';
-  return `Después de ${nombreDe(despuesDe)}`;
+  if (despuesDe === undefined) return textos.alFinal;
+  if (despuesDe === null) return textos.alPrincipio;
+  return textos.despuesDe(nombreDe(despuesDe));
 }
 
 export function opcionesDeLugar(
   fila: Fila,
-  nombreDelSuperavit = 'Maun',
+  nombreDelSuperavit: string = TESORO.maun.nombre,
   moneda: Moneda = MONEDA_DEL_TALLER,
 ): OpcionDeLugar[] {
+  const m = mensajes();
   if (moneda !== MONEDA_DEL_TALLER) {
     return [
       {
         id: 'estante',
-        titulo: 'Al estante',
-        detalle: mensajes().fila.laFilaRepartePesos,
+        titulo: m.editarTesoro.lugar.alEstante,
+        detalle: m.fila.laFilaRepartePesos,
         sePuede: true,
       },
     ];
@@ -109,8 +107,8 @@ export function opcionesDeLugar(
   return [
     {
       id: 'estante',
-      titulo: 'Al estante',
-      detalle: 'No recibe de los cobros: lo sumás a la fila después',
+      titulo: m.editarTesoro.lugar.alEstante,
+      detalle: m.editarTesoro.lugar.estante,
       sePuede: true,
     },
     ...lugaresParaSumar(fila, UN_TESORO_NUEVO, null).map(({ lugar, titulo, sePuede }) => ({
@@ -126,15 +124,23 @@ export function porcentajeSugerido(libre: number): string {
   return formatearPorcentaje(Math.min(PORCENTAJE_SUGERIDO, Math.max(0, libre)));
 }
 
-export function fraseDelLibre(libre: number, texto: string, nombreDelSuperavit = 'Maun'): string {
-  const inicio = `Queda libre el ${formatearPorcentaje(libre)}% del reparto`;
+export function fraseDelLibre(
+  libre: number,
+  texto: string,
+  nombreDelSuperavit: string = TESORO.maun.nombre,
+): string {
+  const textos = mensajes().editarTesoro.lugar;
+  const queda = formatearPorcentaje(libre);
   const porcentaje = parsearPorcentaje(texto, libre);
-  if (porcentaje === undefined || porcentaje <= 0) return `${inicio}.`;
+  if (porcentaje === undefined || porcentaje <= 0) return textos.libre(queda);
   const resto = libre - porcentaje;
-  if (resto <= 0) {
-    return `${inicio}: con ${formatearPorcentaje(porcentaje)}%, el reparto llega al 100%.`;
-  }
-  return `${inicio}: con ${formatearPorcentaje(porcentaje)}%, ${nombreDelSuperavit} se queda con el otro ${formatearPorcentaje(resto)}%.`;
+  if (resto <= 0) return textos.libreHastaCien(queda, formatearPorcentaje(porcentaje));
+  return textos.libreConResto(
+    queda,
+    formatearPorcentaje(porcentaje),
+    nombreDelSuperavit,
+    formatearPorcentaje(resto),
+  );
 }
 
 export interface SugerenciaDeNombre {
@@ -144,30 +150,34 @@ export interface SugerenciaDeNombre {
   antesDelDiezmo?: boolean;
 }
 
-const DE_AHORRO: readonly SugerenciaDeNombre[] = [
-  { nombre: 'Stock del taller', icono: 'package' },
-  { nombre: 'Maquinaria', icono: 'wrench' },
-  { nombre: 'Vehículo', icono: 'car' },
-  { nombre: 'Inmueble', icono: 'building-2' },
-];
+function sugerenciasDelLugar(): Readonly<Record<LugarDelTesoro, readonly SugerenciaDeNombre[]>> {
+  const nombres = mensajes().editarTesoro.sugerencias;
+  const deAhorro: readonly SugerenciaDeNombre[] = [
+    { nombre: nombres.stockDelTaller, icono: 'package' },
+    { nombre: nombres.maquinaria, icono: 'wrench' },
+    { nombre: nombres.vehiculo, icono: 'car' },
+    { nombre: nombres.inmueble, icono: 'building-2' },
+  ];
+  return {
+    estante: [],
+    obligacion: [
+      { nombre: nombres.ingresosBrutos, icono: 'landmark', base: 'cobrado', antesDelDiezmo: true },
+    ],
+    compromiso: [
+      { nombre: nombres.gastosFijos, icono: 'receipt' },
+      { nombre: nombres.sueldos, icono: 'coins' },
+      { nombre: nombres.alquiler, icono: 'building-2' },
+      { nombre: nombres.cuotas, icono: 'landmark' },
+    ],
+    'ahorro-fijo': deAhorro,
+    reparto: deAhorro,
+    superavit: [{ nombre: nombres.superavit, icono: 'piggy-bank' }],
+  };
+}
 
 export const SUGERENCIAS_DEL_LUGAR: Readonly<
   Record<LugarDelTesoro, readonly SugerenciaDeNombre[]>
-> = {
-  estante: [],
-  obligacion: [
-    { nombre: 'Ingresos Brutos', icono: 'landmark', base: 'cobrado', antesDelDiezmo: true },
-  ],
-  compromiso: [
-    { nombre: 'Gastos fijos', icono: 'receipt' },
-    { nombre: 'Sueldos', icono: 'coins' },
-    { nombre: 'Alquiler', icono: 'building-2' },
-    { nombre: 'Cuotas', icono: 'landmark' },
-  ],
-  'ahorro-fijo': DE_AHORRO,
-  reparto: DE_AHORRO,
-  superavit: [{ nombre: 'Superávit', icono: 'piggy-bank' }],
-};
+> = textosDelIdioma(sugerenciasDelLugar);
 
 export interface ErroresDelLugar {
   monto?: string;
@@ -185,8 +195,9 @@ export type LugarRevisado =
   { dondeVa: DondeVa; errores?: undefined } | { dondeVa?: undefined; errores: ErroresDelLugar };
 
 function montoRevisado(monto: number | null): Money | string {
-  if (monto === null || monto <= 0) return 'Poné hasta cuánto recibe.';
-  if (monto > MONTO_MAXIMO_DE_LA_FILA) return 'El monto no puede ser tan grande.';
+  const errores = mensajes().editarTesoro.errores;
+  if (monto === null || monto <= 0) return errores.monto;
+  if (monto > MONTO_MAXIMO_DE_LA_FILA) return errores.montoGrande;
   return centavos(monto);
 }
 
@@ -208,9 +219,16 @@ export function revisarElLugar(
         : { dondeVa: { lugar, monto: revisado } };
     }
     case 'obligacion': {
-      const bp = parsearPorcentaje(porcentaje, 10_000);
+      const bp = parsearPorcentaje(porcentaje, PORCENTAJE_MAXIMO);
       if (bp === undefined || bp <= 0) {
-        return { errores: { porcentaje: 'Poné un porcentaje de 0,01 a 100.' } };
+        return {
+          errores: {
+            porcentaje: mensajes().editarTesoro.errores.porcentajeDeLaObligacion(
+              formatearPorcentaje(PORCENTAJE_MINIMO),
+              formatearPorcentaje(PORCENTAJE_MAXIMO),
+            ),
+          },
+        };
       }
       return {
         dondeVa: { lugar, porcentaje: puntosBasicos(bp), base, antesDelDiezmo },
@@ -222,7 +240,10 @@ export function revisarElLugar(
       if (bp === undefined || bp <= 0) {
         return {
           errores: {
-            porcentaje: `Poné un porcentaje de 0,01 a ${formatearPorcentaje(libre)}, lo que queda libre.`,
+            porcentaje: mensajes().editarTesoro.errores.porcentajeDelReparto(
+              formatearPorcentaje(PORCENTAJE_MINIMO),
+              formatearPorcentaje(libre),
+            ),
           },
         };
       }

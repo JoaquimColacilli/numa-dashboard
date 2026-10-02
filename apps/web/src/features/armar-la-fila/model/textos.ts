@@ -3,58 +3,34 @@ import {
   type CambioDeLaFila,
   type ClaseDePaso,
   type Fila,
-  type ModoDePaso,
   type ProblemaDeLaFila,
   type ProblemaEnLaFila,
 } from '@maun/domain';
+import type { ReactNode } from 'react';
 
-import { BASE_EN_PALABRAS, modoEnPalabras, NOMBRE_DEL_TIPO } from '@/entities/fila';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { formatearPesos, formatearPorcentaje, type Envoltorio } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
-const TEXTO_DEL_PROBLEMA: Readonly<Record<ProblemaDeLaFila, string>> = {
-  'forma-invalida': 'La fila no se pudo leer.',
-  'demasiadas-obligaciones': 'Entran hasta 6 obligaciones.',
-  'demasiados-pasos': 'Entran hasta 12 pasos.',
-  'demasiadas-partes': 'El reparto admite hasta 8 tesoros.',
-  'tesoro-desconocido': 'Uno de los tesoros ya no existe.',
-  'tesoro-archivado': '{nombre} está archivado: sacalo de la fila.',
-  'tesoro-en-otra-moneda': 'La fila reparte pesos: un tesoro en dólares queda en el estante.',
-  'tesoro-repetido': '{nombre} está dos veces: cada tesoro va una sola vez.',
-  'obligacion-en-hogar-o-maun': 'Hogar y Maun no pueden ser obligación.',
-  'obligacion-invalida':
-    'Cada obligación necesita un porcentaje de 0,01% a 100% y sobre qué se calcula.',
-  'sin-diezmo': 'Falta el diezmo entre las obligaciones.',
-  'diezmo-en-la-fila': 'El diezmo va entre las obligaciones.',
-  'hogar-no-es-sueldo': 'Hogar solo recibe el sueldo.',
-  'sueldo-no-es-hogar': 'El sueldo va siempre a Hogar.',
-  'maun-no-es-fijos': 'Maun solo puede ser un paso de gastos fijos.',
-  'tope-fuera-de-rango': 'El tope no puede ser negativo ni tan grande.',
-  'renglones-en-otra-clase': 'Solo los gastos fijos tienen renglones.',
-  'fijos-sin-renglones': 'Los gastos fijos necesitan al menos un renglón.',
-  'demasiados-renglones': 'Entran hasta 12 renglones.',
-  'renglon-sin-nombre': 'Cada renglón necesita un nombre.',
-  'renglon-largo': 'El nombre del renglón es muy largo: hasta 40 letras.',
-  'renglon-fuera-de-rango': 'Cada renglón necesita un monto mayor que cero.',
-  'dia-invalido': 'El día de pago va del 1 al 31.',
-  'tope-no-es-la-suma': 'El tope tiene que ser la suma de los renglones.',
-  'desde-invalido': 'La fecha del tope no se pudo leer.',
-  'modo-invalido': '{nombre} no puede llenarse de esa forma.',
-  'meta-fuera-de-ahorro': 'Solo los ahorros van hasta la meta.',
-  'meta-sin-monto': '{nombre} no tiene meta: ponele una o sacá «hasta la meta».',
-  'ahorro-antes-de-compromiso': 'Los ahorros van después de los compromisos.',
-  'maun-en-el-reparto':
-    'Maun no va en el reparto: para que reciba lo que sobra, elegilo como superávit.',
-  'hogar-en-el-reparto': 'Hogar no va en el reparto: recibe el sueldo.',
-  'porcentaje-invalido': 'Cada porcentaje va de 0,01% a 100%.',
-  'reparto-pasa-de-cien': 'Los porcentajes suman más de 100%.',
-  'superavit-invalido': 'Lo que sobra no puede ir a {nombre}.',
-  'superavit-en-la-fila': '{nombre} recibe lo que sobra: no puede estar también en la fila.',
-  'sueldo-por-trabajo': 'La fila cuenta el sueldo por mes.',
-};
+const PROBLEMAS_CON_NOMBRE = [
+  'tesoro-archivado',
+  'tesoro-repetido',
+  'modo-invalido',
+  'meta-sin-monto',
+  'superavit-invalido',
+  'superavit-en-la-fila',
+] as const satisfies readonly ProblemaDeLaFila[];
 
-export function textoDelProblema(problema: ProblemaDeLaFila, nombre = 'Ese tesoro'): string {
-  return TEXTO_DEL_PROBLEMA[problema].replace('{nombre}', nombre);
+type ProblemaConNombre = (typeof PROBLEMAS_CON_NOMBRE)[number];
+
+function esConNombre(problema: ProblemaDeLaFila): problema is ProblemaConNombre {
+  return (PROBLEMAS_CON_NOMBRE as readonly ProblemaDeLaFila[]).includes(problema);
+}
+
+export function textoDelProblema(problema: ProblemaDeLaFila, nombre?: string): string {
+  const textos = mensajes().armarLaFila;
+  if (esConNombre(problema)) return textos.problemasConNombre[problema](nombre ?? null);
+  return textos.problemas[problema];
 }
 
 export type LugarDelProblema =
@@ -129,7 +105,7 @@ export function porciento(bp: number): string {
 
 export interface RenglonDelCambio {
   icono: NombreDeIcono;
-  despuesDelNombre: string;
+  frase: (Nombre: Envoltorio) => ReactNode;
 }
 
 export interface ContextoDelCambio {
@@ -149,127 +125,158 @@ function claseEn(contexto: ContextoDelCambio, tesoro: string): ClaseDePaso {
   return paso?.clase ?? 'fijos';
 }
 
-function montoConSuModo(tope: number, modo: ModoDePaso, clase: ClaseDePaso): string {
-  const pesos = formatearPesos(tope);
-  return modo === 'saldo'
-    ? `${pesos}, ${modoEnPalabras(modo, tipoDelPaso(clase))}`
-    : `${pesos} ${modoEnPalabras(modo, tipoDelPaso(clase))}`;
-}
-
-function comoSeLlena(modo: ModoDePaso, clase: ClaseDePaso): string {
-  const tipo = tipoDelPaso(clase);
-  if (modo === 'saldo') return modoEnPalabras(modo, tipo);
-  const verbo = tipo === 'compromiso' ? 'se llena' : 'se aparta';
-  return `${verbo} ${modoEnPalabras(modo, tipo)}`;
-}
-
-function nombreDelTipoDelPaso(clase: ClaseDePaso): string {
-  return NOMBRE_DEL_TIPO[tipoDelPaso(clase)].toLowerCase();
-}
-
 export function renglonDelCambio(
   cambio: CambioDeLaFila,
   contexto: ContextoDelCambio,
 ): RenglonDelCambio {
+  const textos = mensajes().armarLaFila.cambios;
+  const nombre = contexto.nombreDe(cambio.tesoro);
   switch (cambio.tipo) {
     case 'entra-a-las-obligaciones':
       return {
         icono: 'plus',
-        despuesDelNombre: ` entra como obligación ${String(cambio.posicion + 1)}, con el ${porciento(cambio.porcentaje)} ${BASE_EN_PALABRAS[cambio.base]}.`,
+        frase: (Nombre) =>
+          textos.entraALasObligaciones(
+            Nombre,
+            nombre,
+            cambio.posicion + 1,
+            porciento(cambio.porcentaje),
+            cambio.base,
+          ),
       };
     case 'sale-de-las-obligaciones':
-      return { icono: 'minus', despuesDelNombre: ' sale de las obligaciones y vuelve al estante.' };
+      return { icono: 'minus', frase: (Nombre) => textos.saleDeLasObligaciones(Nombre, nombre) };
     case 'cambia-de-lugar-la-obligacion':
       return {
         icono: 'arrow-up-down',
-        despuesDelNombre: ` pasa del ${String(cambio.antes + 1)} al ${String(cambio.despues + 1)} en la fila.`,
+        frase: (Nombre) =>
+          textos.cambiaDeLugar(Nombre, nombre, cambio.antes + 1, cambio.despues + 1),
       };
     case 'cambia-el-porcentaje-de-la-obligacion':
       return {
         icono: 'percent',
-        despuesDelNombre: `: de ${porciento(cambio.antes)} a ${porciento(cambio.despues)}.`,
+        frase: (Nombre) =>
+          textos.cambiaElPorcentajeDeLaObligacion(
+            Nombre,
+            nombre,
+            porciento(cambio.antes),
+            porciento(cambio.despues),
+          ),
       };
     case 'cambia-la-base':
       return {
         icono: 'receipt',
-        despuesDelNombre: ` pasa a calcularse ${BASE_EN_PALABRAS[cambio.despues]}.`,
+        frase: (Nombre) => textos.cambiaLaBase(Nombre, nombre, cambio.despues),
       };
-    case 'entra-a-la-fila':
+    case 'entra-a-la-fila': {
+      const tipo = tipoDelPaso(cambio.clase);
+      const numero = numeroDelPaso(contexto.despues, cambio.posicion);
+      const monto = formatearPesos(cambio.tope);
       return {
         icono: 'plus',
-        despuesDelNombre: ` entra como ${nombreDelTipoDelPaso(cambio.clase)} ${String(numeroDelPaso(contexto.despues, cambio.posicion))}, con ${montoConSuModo(cambio.tope, cambio.modo, cambio.clase)}${cambio.hastaLaMeta ? ', hasta la meta' : ''}.`,
+        frase: (Nombre) =>
+          cambio.hastaLaMeta
+            ? textos.entraALaFilaHastaLaMeta(Nombre, nombre, tipo, numero, monto, cambio.modo)
+            : textos.entraALaFila(Nombre, nombre, tipo, numero, monto, cambio.modo),
       };
+    }
     case 'sale-de-la-fila':
-      return { icono: 'minus', despuesDelNombre: ' vuelve al estante con lo que tiene.' };
+      return { icono: 'minus', frase: (Nombre) => textos.saleDeLaFila(Nombre, nombre) };
     case 'cambia-de-lugar':
       return {
         icono: 'arrow-up-down',
-        despuesDelNombre: ` pasa del ${String(numeroDelPaso(contexto.antes, cambio.antes))} al ${String(numeroDelPaso(contexto.despues, cambio.despues))} en la fila.`,
+        frase: (Nombre) =>
+          textos.cambiaDeLugar(
+            Nombre,
+            nombre,
+            numeroDelPaso(contexto.antes, cambio.antes),
+            numeroDelPaso(contexto.despues, cambio.despues),
+          ),
       };
     case 'cambia-la-clase':
       return {
         icono: 'pencil-line',
-        despuesDelNombre: ` pasa a ser ${nombreDelTipoDelPaso(cambio.despues)}.`,
+        frase: (Nombre) => textos.cambiaLaClase(Nombre, nombre, tipoDelPaso(cambio.despues)),
       };
     case 'cambia-el-tope': {
       const paso = contexto.despues.pasos.find((candidato) => candidato.tesoro === cambio.tesoro);
-      const unidad =
-        paso === undefined || paso.modo === 'saldo'
-          ? ''
-          : ` ${modoEnPalabras(paso.modo, tipoDelPaso(paso.clase))}`;
+      const antes = formatearPesos(cambio.antes);
+      const despues = formatearPesos(cambio.despues);
       return {
         icono: 'ruler',
-        despuesDelNombre: `: de ${formatearPesos(cambio.antes)} a ${formatearPesos(cambio.despues)}${unidad}.`,
+        frase: (Nombre) =>
+          paso === undefined || paso.modo === 'saldo'
+            ? textos.cambiaElTope(Nombre, nombre, antes, despues)
+            : textos.cambiaElTopeConSuModo(
+                Nombre,
+                nombre,
+                antes,
+                despues,
+                tipoDelPaso(paso.clase),
+                paso.modo,
+              ),
       };
     }
     case 'cambian-los-renglones':
       return {
         icono: 'list-checks',
-        despuesDelNombre: ' cambia sus renglones y el tope sigue igual.',
+        frase: (Nombre) => textos.cambianLosRenglones(Nombre, nombre),
       };
     case 'cambian-los-dias':
-      return { icono: 'calendar', despuesDelNombre: ' cambia los días de pago.' };
+      return { icono: 'calendar', frase: (Nombre) => textos.cambianLosDias(Nombre, nombre) };
     case 'cambia-el-modo':
       return {
         icono: 'refresh-cw',
-        despuesDelNombre: ` ahora ${comoSeLlena(cambio.despues, claseEn(contexto, cambio.tesoro))}.`,
+        frase: (Nombre) =>
+          textos.cambiaElModo(
+            Nombre,
+            nombre,
+            tipoDelPaso(claseEn(contexto, cambio.tesoro)),
+            cambio.despues,
+          ),
       };
     case 'cambia-la-meta':
       return {
         icono: 'trending-up',
-        despuesDelNombre: cambio.hastaLaMeta
-          ? ' junta hasta llegar a su meta.'
-          : ' junta sin fin, aunque llegue a su meta.',
+        frase: (Nombre) =>
+          cambio.hastaLaMeta
+            ? textos.juntaHastaLaMeta(Nombre, nombre)
+            : textos.juntaSinFin(Nombre, nombre),
       };
     case 'entra-al-reparto':
       return {
         icono: 'plus',
-        despuesDelNombre: ` entra al reparto con el ${porciento(cambio.porcentaje)} de lo que sobra${cambio.hastaLaMeta ? ', hasta la meta' : ''}.`,
+        frase: (Nombre) =>
+          cambio.hastaLaMeta
+            ? textos.entraAlRepartoHastaLaMeta(Nombre, nombre, porciento(cambio.porcentaje))
+            : textos.entraAlReparto(Nombre, nombre, porciento(cambio.porcentaje)),
       };
     case 'sale-del-reparto':
-      return { icono: 'minus', despuesDelNombre: ' sale del reparto y vuelve al estante.' };
+      return { icono: 'minus', frase: (Nombre) => textos.saleDelReparto(Nombre, nombre) };
     case 'cambia-el-porcentaje':
       return {
         icono: 'percent',
-        despuesDelNombre: `: de ${porciento(cambio.antes)} a ${porciento(cambio.despues)} de lo que sobra.`,
+        frase: (Nombre) =>
+          textos.cambiaElPorcentaje(
+            Nombre,
+            nombre,
+            porciento(cambio.antes),
+            porciento(cambio.despues),
+          ),
       };
     case 'cambia-el-superavit':
       return {
         icono: 'coins',
-        despuesDelNombre: ` recibe lo que sobra, en lugar de ${contexto.nombreDe(cambio.antes)}.`,
+        frase: (Nombre) =>
+          textos.cambiaElSuperavit(Nombre, nombre, contexto.nombreDe(cambio.antes)),
       };
   }
 }
 
 export function describirCambios(cuantos: number): string {
-  if (cuantos === 0) return 'Sin cambios todavía';
-  return cuantos === 1 ? '1 cambio sin guardar' : `${String(cuantos)} cambios sin guardar`;
+  return mensajes().armarLaFila.cuantosCambios(cuantos);
 }
 
 export function cuantasCosas(cuantas: number): string {
-  return cuantas === 1 ? 'Cambia una cosa' : `Cambian ${String(cuantas)} cosas`;
-}
-
-export function mesYAnio(mes: string, nombre: string): string {
-  return `${nombre.toLowerCase()} de ${mes.slice(0, 4)}`;
+  return mensajes().armarLaFila.cuantasCosas(cuantas);
 }

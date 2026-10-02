@@ -1,5 +1,4 @@
 export {
-  conArticulo,
   DIAS_QUE_MIRA_EL_FALTANTE,
   faltantesDeLosCompromisos,
   fraseDelFaltante,

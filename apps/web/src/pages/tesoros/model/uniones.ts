@@ -13,7 +13,6 @@ import {
 
 import {
   entraEnLaFila,
-  NOMBRE_DEL_TIPO,
   puedeIrAlReparto,
   puedeSerAhorroFijo,
   puedeSerCompromiso,
@@ -65,11 +64,12 @@ export function encabezadoDelMenu(
   lugar: LugarEnLaFila,
   tramo: LugarDelTramo,
 ): string {
+  const textos = mensajes().paginaTesoros.menu;
   const despuesDe = despuesDePara(lugar, tramo);
   const titulo = TITULO_DEL_LUGAR[lugar];
   if (despuesDe === undefined) return titulo;
-  if (despuesDe === null) return `${titulo}, al principio`;
-  return `${titulo}, después de ${tesoroDe(vista, despuesDe).nombre}`;
+  if (despuesDe === null) return textos.alPrincipio(titulo);
+  return textos.despuesDe(titulo, tesoroDe(vista, despuesDe).nombre);
 }
 
 export type LugarDeLaUnion = 'obligacion' | TipoDelPaso | 'reparto';
@@ -246,12 +246,6 @@ export function aplicarLaUnion(
   }
 }
 
-const CON_ARTICULO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
-  obligacion: 'la obligación',
-  compromiso: 'el compromiso',
-  'ahorro-fijo': 'el ahorro fijo',
-};
-
 export function fraseDeLaUnion(
   fila: Fila,
   tesoros: readonly TesoroDeLaUnion[],
@@ -261,35 +255,22 @@ export function fraseDeLaUnion(
   hayDestino: boolean,
   destino?: string,
 ): string {
-  if (!hayDestino) return 'Llevala hasta un tesoro';
+  const m = mensajes();
+  const textos = m.paginaTesoros.union;
+  if (!hayDestino) return textos.llevala;
   if (union === null) {
     return destino !== undefined && esDeOtraMonedaEnElEstante(tesoros, destino)
-      ? mensajes().fila.laFilaRepartePesos
-      : 'Ahí no se puede unir';
+      ? m.fila.laFilaRepartePesos
+      : textos.ahiNo;
   }
-  if (union.tipo === 'nuevo') return 'Soltá para crear un tesoro acá';
+  if (union.tipo === 'nuevo') return textos.soltaParaCrear;
   const nombre = nombreDe(union.tesoro);
-  if (union.lugar === 'reparto') return `Soltá: ${nombre} entra al reparto`;
+  if (union.lugar === 'reparto') return textos.soltaAlReparto(nombre);
   const despues = aplicarLaUnion(fila, tesoros, diezmo, union).fila;
-  const numero = String(numeroEnLaFila(despues, union.tesoro));
-  if (union.tipo === 'mover')
-    return `Soltá: ${nombre} pasa a ser ${CON_ARTICULO[union.lugar]} ${numero}`;
-  const tipo =
-    union.lugar === 'obligacion' ? 'obligación' : NOMBRE_DEL_TIPO[union.lugar].toLowerCase();
-  return `Soltá: ${nombre} entra como ${tipo} ${numero}`;
+  const numero = numeroEnLaFila(despues, union.tesoro);
+  if (union.tipo === 'mover') return textos.soltaYPasaASer(nombre, union.lugar, numero);
+  return textos.soltaYEntraComo(nombre, union.lugar, numero);
 }
-
-const PRIMERO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
-  obligacion: 'la primera obligación',
-  compromiso: 'el primer compromiso',
-  'ahorro-fijo': 'el primer ahorro fijo',
-};
-
-const ULTIMO: Readonly<Record<'obligacion' | TipoDelPaso, string>> = {
-  obligacion: 'la última obligación',
-  compromiso: 'el último compromiso',
-  'ahorro-fijo': 'el último ahorro fijo',
-};
 
 export function anuncioDelMovimiento(
   fila: Fila,
@@ -297,14 +278,13 @@ export function anuncioDelMovimiento(
   nombre: string,
   hacia: -1 | 1,
 ): string {
+  const textos = mensajes().paginaTesoros.union;
   const lugarDeLaObligacion = fila.obligaciones.findIndex(
     (obligacion) => obligacion.tesoro === tesoro,
   );
   const lugarDelPaso = fila.pasos.findIndex((paso) => paso.tesoro === tesoro);
   const paso = fila.pasos[lugarDelPaso];
-  if (lugarDeLaObligacion === -1 && paso === undefined) {
-    return 'Solo las obligaciones y los pasos de la fila cambian de lugar.';
-  }
+  if (lugarDeLaObligacion === -1 && paso === undefined) return textos.soloCambianDeLugar;
   const grupo = paso === undefined ? 'obligacion' : tipoDelPaso(paso.clase);
   const delGrupo =
     paso === undefined
@@ -314,9 +294,9 @@ export function anuncioDelMovimiento(
           .map((candidato) => candidato.tesoro);
   const lugar = delGrupo.indexOf(tesoro);
   const destino = lugar + hacia;
-  if (destino < 0) return `${nombre} ya es ${PRIMERO[grupo]}.`;
-  if (destino >= delGrupo.length) return `${nombre} ya es ${ULTIMO[grupo]}.`;
+  if (destino < 0) return textos.yaEsElPrimero(nombre, grupo);
+  if (destino >= delGrupo.length) return textos.yaEsElUltimo(nombre, grupo);
   const cuantos = fila.obligaciones.length + fila.pasos.length;
   const numero = numeroEnLaFila(fila, tesoro) + hacia;
-  return `${nombre} pasa a ser ${CON_ARTICULO[grupo]} ${String(numero)} de ${String(cuantos)}.`;
+  return textos.pasaASer(nombre, grupo, numero, cuantos);
 }

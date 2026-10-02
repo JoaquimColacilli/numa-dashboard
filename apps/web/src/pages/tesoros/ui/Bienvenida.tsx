@@ -1,3 +1,4 @@
+import { useMensajes } from '@/shared/idioma';
 import {
   Button,
   FilaDeAcciones,
@@ -14,27 +15,24 @@ export interface BienvenidaProps {
 }
 
 export function Bienvenida({ alEditar, alEntender, puedeEditar, apilada = true }: BienvenidaProps) {
+  const textos = useMensajes().paginaTesoros.bienvenida;
   return (
     <TarjetaConLamina
-      aria-label="La fila, la primera vez"
+      aria-label={textos.etiqueta}
       apilada={apilada}
       dibujo={<Ilustracion nombre="la-fila" />}
       lamina="[&>svg]:w-56"
       className={apilada ? '' : 'shadow-float'}
     >
-      <h2 className={TITULO_DE_LAMINA}>Cada cobro baja por la fila</h2>
-      <p className="text-body leading-relaxed text-text-2">
-        La armamos con lo que tenías en Ajustes: primero el diezmo, después tu sueldo y los costos
-        fijos, y lo que sobra queda en Maun. Ahora podés sumar tesoros, ordenar los topes y repartir
-        lo que sobra.
-      </p>
+      <h2 className={TITULO_DE_LAMINA}>{textos.titulo}</h2>
+      <p className="text-body leading-relaxed text-text-2">{textos.texto}</p>
       <div className="w-full pt-1">
         <FilaDeAcciones>
           <Button disabled={!puedeEditar} onClick={alEditar}>
-            Editar la fila
+            {textos.editarLaFila}
           </Button>
           <Button variant="secundario" onClick={alEntender}>
-            Entendido
+            {textos.entendido}
           </Button>
         </FilaDeAcciones>
       </div>

@@ -141,6 +141,12 @@
     },
     "Ir": {
       "a": "ruta de la app"
+    },
+    "Segmentado": {
+      "elegido": "id de la opción elegida"
+    },
+    "LienzoPerezoso": {
+      "alineado": "cómo se alinea el plano en el lienzo"
     }
   }
 }

@@ -134,6 +134,47 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: 'translate( px, px)',
     motivo: 'Es el valor del transform del estilo, no un texto.',
   },
+  {
+    archivo: 'src/features/armar-la-fila/model/edicion.ts',
+    texto: /^(Gasto fijo|Costos fijos)$/u,
+    motivo:
+      'Nombre del renglón que la app guarda en la fila, en castellano como la fila de siempre; se traduce al mostrarlo, con categoriaEnPantalla.',
+  },
+  {
+    archivo: 'src/features/editar-tesoro/model/archivo.ts',
+    texto: 'Archivo de un tesoro',
+    motivo: 'Categoría que se guarda en el libro, en castellano; se traduce al mostrarla.',
+  },
+  {
+    archivo: 'src/features/cubrir-el-faltante/model/cubrir.ts',
+    texto: 'Cubrir el mes',
+    motivo: 'Categoría que se guarda en el libro, en castellano; se traduce al mostrarla.',
+  },
+  {
+    archivo: 'src/features/ajustar-cocos/ui/AjusteDeCocos.tsx',
+    texto: 'Ajuste',
+    motivo: 'Categoría que se guarda en el libro, en castellano; se traduce al mostrarla.',
+  },
+  {
+    archivo: 'src/entities/fila/ui/EscalaDelReparto.tsx',
+    texto: /^repeating-linear-gradient\(/u,
+    motivo: 'Es CSS: el rayado de la parte del reparto que va al superávit.',
+  },
+  {
+    archivo: 'src/entities/fila/ui/piezas.tsx',
+    texto: /^(repeating-linear-gradient\(.*|inset 0 0 0 1px)$/u,
+    motivo: 'Es CSS: el rayado y el borde de lo que suma la prueba en el nivel del mes.',
+  },
+  {
+    archivo: 'src/pages/tesoros/ui/Fichas.tsx',
+    texto: 'pointer-events-auto nodrag nopan',
+    motivo: 'Son clases: las de React Flow que dejan tocar adentro de una ficha del lienzo.',
+  },
+  {
+    archivo: 'src/pages/tesoros/ui/lienzo/Aristas.tsx',
+    texto: /^(-50%, calc\(-100% - \d+px\)|translate\(.*)$/u,
+    motivo: 'Es CSS: dónde se dibuja el rótulo y el botón de cada flecha.',
+  },
 ];
 
 function zonasQueFaltan(): readonly string[] {

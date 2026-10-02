@@ -15,24 +15,19 @@ import {
   type TipoDeTesoro,
 } from '@maun/domain';
 
-export const NOMBRE_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = {
-  obligacion: 'Obligación',
-  compromiso: 'Compromiso',
-  'ahorro-fijo': 'Ahorro fijo',
-  'ahorro-por-porcentaje': 'Ahorro',
-  superavit: 'Superávit',
-};
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
+
+export const NOMBRE_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = textosDelIdioma(
+  () => mensajes().fila.tipos,
+);
 
 export const GRUPOS_DE_LA_FILA = ['obligaciones', 'compromisos', 'ahorros', 'superavit'] as const;
 
 export type GrupoDeLaFila = (typeof GRUPOS_DE_LA_FILA)[number];
 
-export const NOMBRE_DEL_GRUPO: Readonly<Record<GrupoDeLaFila, string>> = {
-  obligaciones: 'Obligaciones',
-  compromisos: 'Compromisos',
-  ahorros: 'Ahorros',
-  superavit: 'Superávit',
-};
+export const NOMBRE_DEL_GRUPO: Readonly<Record<GrupoDeLaFila, string>> = textosDelIdioma(
+  () => mensajes().fila.grupos,
+);
 
 const GRUPO_DEL_TIPO: Readonly<Record<TipoDeTesoro, GrupoDeLaFila>> = {
   obligacion: 'obligaciones',
@@ -46,15 +41,9 @@ export function grupoDelTipo(tipo: TipoDeTesoro): GrupoDeLaFila {
   return GRUPO_DEL_TIPO[tipo];
 }
 
-export const DESCRIPCION_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = {
-  obligacion: 'obligación',
-  compromiso: 'compromiso',
-  'ahorro-fijo': 'ahorro',
-  'ahorro-por-porcentaje': 'ahorro',
-  superavit: 'superávit',
-};
-
-export const DESCRIPCION_DE_LOS_INSUMOS = 'insumos';
+export const DESCRIPCION_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = textosDelIdioma(
+  () => mensajes().fila.descripcionDelTipo,
+);
 
 export function tiposDelTesoro(fila: Fila, tesoro: string): TipoDeTesoro[] {
   const tipos: TipoDeTesoro[] = [];
@@ -74,13 +63,11 @@ export function nombreDelTipoDe(fila: Fila, tesoro: string): string | null {
 }
 
 export function tituloDelModo(tipo: TipoDelPaso): string {
-  return tipo === 'compromiso' ? 'Cómo se llena' : 'Cómo se aparta';
+  return mensajes().fila.tituloDelModo[tipo];
 }
 
 export function modoEnPalabras(modo: ModoDePaso, tipo: TipoDelPaso): string {
-  if (modo === 'saldo')
-    return tipo === 'compromiso' ? 'se renueva al pagar' : 'se repone al usarlo';
-  return modo === 'trabajo' ? 'por trabajo' : 'por mes';
+  return mensajes().fila.modo[tipo][modo];
 }
 
 export interface OpcionDelModo {
@@ -90,21 +77,17 @@ export interface OpcionDelModo {
 
 export function modosDelPaso(clase: ClaseDePaso, clave: TesoroDeLaFila['clave']): OpcionDelModo[] {
   const tipo = tipoDelPaso(clase);
-  return modosPosibles(clase, clave).map((modo) => {
-    const texto = modoEnPalabras(modo, tipo);
-    return { id: modo, etiqueta: `${texto.charAt(0).toUpperCase()}${texto.slice(1)}` };
-  });
+  const opciones = mensajes().fila.opcionDelModo[tipo];
+  return modosPosibles(clase, clave).map((modo) => ({ id: modo, etiqueta: opciones[modo] }));
 }
 
-export const BASE_EN_PALABRAS: Readonly<Record<BaseDeLaObligacion, string>> = {
-  cobrado: 'sobre lo que cobrás',
-  ingreso: 'sobre el ingreso',
-};
+export const BASE_EN_PALABRAS: Readonly<Record<BaseDeLaObligacion, string>> = textosDelIdioma(
+  () => mensajes().fila.base,
+);
 
-export const ETIQUETA_DE_LA_BASE: Readonly<Record<BaseDeLaObligacion, string>> = {
-  cobrado: 'Lo que cobrás',
-  ingreso: 'El ingreso',
-};
+export const ETIQUETA_DE_LA_BASE: Readonly<Record<BaseDeLaObligacion, string>> = textosDelIdioma(
+  () => mensajes().fila.etiquetaDeLaBase,
+);
 
 export type TipoQueSePaga = Extract<TipoDeTesoro, 'obligacion' | 'compromiso'>;
 

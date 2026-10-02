@@ -95,6 +95,7 @@ export const movimiento = {
     Materiales: 'Materiais',
     Herramientas: 'Ferramentas',
     'Costos fijos': 'Custos fixos',
+    'Gasto fijo': 'Custo fixo',
     Flete: 'Frete',
     'Servicios del taller': 'Serviços da marcenaria',
     Publicidad: 'Publicidade',

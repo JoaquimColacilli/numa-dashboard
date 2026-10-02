@@ -2,6 +2,7 @@ import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import type { CambiosDeAjustes, CambiosDeTesoro, FilaDe, Tesoro, TesoroNuevo } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   formatearPorcentaje,
   ICONOS_DE_TESORO,
@@ -24,30 +25,9 @@ export const TINTAS_EN_LA_HOJA: readonly TintaDeTesoro[] = [
   'diezmo',
 ];
 
-const NOMBRE_DEL_ICONO: Readonly<Record<string, string>> = {
-  receipt: 'Recibo',
-  package: 'Paquete',
-  'building-2': 'Edificio',
-  wrench: 'Llave',
-  vault: 'Caja fuerte',
-  landmark: 'Banco',
-  coins: 'Monedas',
-  'trending-up': 'Flecha que sube',
-  'piggy-bank': 'Chanchito',
-  car: 'Auto',
-  truck: 'Camión',
-  plane: 'Avión',
-  'graduation-cap': 'Birrete',
-  gift: 'Regalo',
-  shield: 'Escudo',
-  sprout: 'Brote',
-  house: 'Casa',
-  hammer: 'Martillo',
-  church: 'Iglesia',
-};
-
 export function nombreDelIcono(icono: NombreDeIcono): string {
-  return NOMBRE_DEL_ICONO[icono] ?? icono;
+  const nombres: Readonly<Record<string, string | undefined>> = mensajes().editarTesoro.iconos;
+  return nombres[icono] ?? icono;
 }
 
 export function iconosParaElegir(actual: NombreDeIcono): NombreDeIcono[] {
@@ -121,16 +101,17 @@ export function revisarElTesoro(
   borrador: BorradorDelTesoro,
   { conRinde }: { conRinde: boolean },
 ): ErroresDelTesoro {
+  const textos = mensajes().editarTesoro.errores;
   const errores: ErroresDelTesoro = {};
   const nombre = borrador.nombre.trim();
   if (nombre === '' || largo(nombre) > LARGO_MAXIMO_DEL_NOMBRE) {
-    errores.nombre = `Ponele un nombre, de hasta ${String(LARGO_MAXIMO_DEL_NOMBRE)} letras.`;
+    errores.nombre = textos.nombre(LARGO_MAXIMO_DEL_NOMBRE);
   }
   if (largo(borrador.descripcion.trim()) > LARGO_MAXIMO_DE_LA_DESCRIPCION) {
-    errores.descripcion = `Hasta ${String(LARGO_MAXIMO_DE_LA_DESCRIPCION)} letras.`;
+    errores.descripcion = textos.descripcion(LARGO_MAXIMO_DE_LA_DESCRIPCION);
   }
   if (conRinde && parsearPorcentaje(borrador.rinde) === undefined) {
-    errores.rinde = 'Escribí el rinde como un porcentaje, por ejemplo 40. Podés dejarlo en 0.';
+    errores.rinde = textos.rinde;
   }
   return errores;
 }
@@ -248,7 +229,8 @@ export function hayDiferencias<T extends object>({ cambios }: Diferencias<T>): b
 }
 
 export function bajadaDeLaEdicion(clave: Tesoro | null): string {
-  if (clave === 'cocos') return 'Nombre, color, ícono, meta y rinde';
-  if (clave === null) return 'Nombre, color, ícono y meta';
-  return 'Nombre, color e ícono';
+  const { bajada } = mensajes().editarTesoro;
+  if (clave === 'cocos') return bajada.conRinde;
+  if (clave === null) return bajada.conMeta;
+  return bajada.deSiempre;
 }

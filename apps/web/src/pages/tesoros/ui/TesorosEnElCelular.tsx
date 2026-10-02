@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AyudaDeLaPrueba, AyudaDeLosInsumos } from '@/entities/fila';
 import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
 import { BarraDeEdicionCelular, Probador, sePuedeEditar } from '@/features/armar-la-fila';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, Ir, rutaDelProyecto } from '@/shared/lib';
 import { Icono, Pagina } from '@/shared/ui';
 
@@ -13,10 +14,11 @@ import { PlanoCompleto } from './PlanoCompleto';
 import { PlanoVertical } from './PlanoVertical';
 
 function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
+  const textos = useMensajes().paginaTesoros.celular;
   const cuantos = insumos.trabajos.length;
   return (
     <section
-      aria-label="Insumos"
+      aria-label={textos.insumos}
       className="flex flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4"
     >
       <div className="flex items-start gap-3">
@@ -28,16 +30,14 @@ function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-1.5 text-body-lg leading-snug font-semibold">
-            Insumos
+            {textos.insumos}
             <AyudaDeLosInsumos />
           </h2>
           <p className="text-label text-text-2">
-            {cuantos === 0
-              ? 'Sin trabajos en curso'
-              : `Lo que queda de la seña de ${String(cuantos)} ${cuantos === 1 ? 'trabajo en curso' : 'trabajos en curso'}`}
+            {cuantos === 0 ? textos.sinTrabajos : textos.loQueQuedaDeLaSena(cuantos)}
           </p>
         </div>
-        <span className="flex-none text-body-lg font-semibold tabular-nums">
+        <span translate="no" className="flex-none text-body-lg font-semibold tabular-nums">
           {formatearPesos(insumos.total)}
         </span>
       </div>
@@ -49,11 +49,17 @@ function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
                 a={rutaDelProyecto(trabajo.proyectoId)}
                 className="flex min-h-tap items-center justify-between gap-3 rounded-field px-2 py-1"
               >
-                <span className="min-w-0 truncate text-body">
-                  {trabajo.titulo === '' ? 'Un trabajo' : trabajo.titulo}
-                </span>
+                {trabajo.titulo === '' ? (
+                  <span className="min-w-0 truncate text-body">{textos.unTrabajo}</span>
+                ) : (
+                  <span translate="no" className="min-w-0 truncate text-body">
+                    {trabajo.titulo}
+                  </span>
+                )}
                 <span className="flex-none text-label font-semibold tabular-nums">
-                  {fraseDeLosInsumos(trabajo) ?? formatearPesos(trabajo.queda)}
+                  {fraseDeLosInsumos(trabajo) ?? (
+                    <span translate="no">{formatearPesos(trabajo.queda)}</span>
+                  )}
                 </span>
               </Ir>
             </li>
@@ -65,6 +71,7 @@ function TarjetaDeLosInsumos({ insumos }: { insumos: InsumosDeLosTrabajos }) {
 }
 
 export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }) {
+  const textos = useMensajes().paginaTesoros.celular;
   const { vista } = pantalla;
   const [pedido, setPedido] = useState<PedidoDeSumar | null>(null);
   const [completo, setCompleto] = useState(false);
@@ -96,14 +103,14 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
       ) : (
         <header className="flex items-end justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-label text-text-2">Cómo se reparte cada cobro</span>
-            <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Tesoros</h1>
+            <span className="text-label text-text-2">{textos.comoSeReparte}</span>
+            <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.tesoros}</h1>
           </div>
           <div className="flex flex-none items-center gap-2 pb-0.5">
             <button
               ref={botonDelPlano}
               type="button"
-              aria-label="Ver el plano completo"
+              aria-label={textos.verElPlanoCompleto}
               onClick={() => {
                 setCompleto(true);
               }}
@@ -118,7 +125,7 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
               className="apretable flex min-h-tap items-center gap-2 rounded-pill bg-ink px-4 text-body font-medium text-paper disabled:bg-hairline disabled:text-text-3"
             >
               <Icono nombre="pencil" tamano={17} />
-              Editar
+              {textos.editar}
             </button>
           </div>
         </header>
@@ -136,11 +143,11 @@ export function TesorosEnElCelular({ pantalla }: { pantalla: PantallaDeTesoros }
 
       {!vista.armando && (
         <section
-          aria-label="Probar un cobro"
+          aria-label={textos.probarUnCobro}
           className="flex flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4"
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-body-lg font-semibold">Probá un cobro</h2>
+            <h2 className="text-body-lg font-semibold">{textos.probaUnCobro}</h2>
             <AyudaDeLaPrueba />
           </div>
           <Probador
