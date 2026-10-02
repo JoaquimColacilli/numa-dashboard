@@ -1,16 +1,23 @@
 import {
   centavos,
+  centavosEn,
+  cotizacion,
   VIDRIERA_VACIA,
   vistaDelCliente,
   type CobroDelTaller,
+  type CuentaParaTransferir,
   type FormaDeCobro,
   type InstanciaDePago,
+  type Moneda,
+  type PagoDelCliente,
+  type PagoPendiente,
   type TrabajoDelCliente,
 } from '@maun/domain';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  cargarMensajesDelCliente,
   ConElIdiomaDelCliente,
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
 } from '@/shared/idioma-del-cliente';
@@ -480,4 +487,227 @@ describe('el logo de Mercado Pago', () => {
     expect(logo).toHaveClass('bg-paper-fijo');
     expect(logo?.innerHTML).not.toMatch(/invert|filter|dark:/);
   });
+});
+
+describe('un trabajo en dólares, o que se paga en dólares', () => {
+  const { comoPagar: TEXTOS } = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista;
+
+  const CON_LINK: CobroDelTaller = { ...CON_TODO, link: 'https://mpago.la/2vXyZ1' };
+
+  const CUENTA_EN_DOLARES: CuentaParaTransferir = {
+    alias: 'maun.dolares',
+    cbu: '0110001322345678901234',
+    titular: 'Ana Gutiérrez',
+    cuit: '27-30123456-4',
+  };
+
+  const LA_VISITA_EN_PESOS: PagoDelCliente = {
+    id: 'visita',
+    fecha: '2026-09-10',
+    concepto: 'Relevamiento',
+    monto: centavosEn('USD', 8_276),
+    pagado: { moneda: 'ARS', monto: centavos(12_000_000), cotizacion: cotizacion(145_000) },
+  };
+
+  function formasPara(
+    recibe: readonly Moneda[],
+    formas: readonly FormaDeCobro[],
+  ): Pick<PagoPendiente, 'formas' | 'formasEnDolares'> {
+    return {
+      formas: recibe.includes('ARS') ? formas : [],
+      formasEnDolares: recibe.includes('USD') ? formas : [],
+    };
+  }
+
+  function enDolares(
+    recibe: readonly Moneda[],
+    cambios: Partial<TrabajoDelCliente> = {},
+  ): TrabajoDelCliente {
+    return trabajo({
+      estado: 'presupuesto_enviado',
+      moneda: 'USD',
+      cobraEn: recibe,
+      precio: centavosEn('USD', 200_000),
+      sena: centavosEn('USD', 100_000),
+      dolarDelDia: { cotizacion: cotizacion(145_000), fecha: HOY },
+      fechas: {
+        estimativo: null,
+        presupuesto: '2026-09-14',
+        aprobado: null,
+        inicio: null,
+        entregaPautada: null,
+        listo: null,
+        entregado: null,
+        cobro: null,
+        valeHasta: null,
+      },
+      cobro: CON_LINK,
+      cobroEnDolares: CUENTA_EN_DOLARES,
+      pagos: [LA_VISITA_EN_PESOS],
+      pago: {
+        instancia: 'sena',
+        ...formasPara(recibe, ['transferencia', 'efectivo']),
+        monto: centavosEn('USD', 91_724),
+        siguiente: {
+          instancia: 'saldo',
+          ...formasPara(recibe, ['efectivo']),
+          monto: centavosEn('USD', 100_000),
+        },
+      },
+      ...cambios,
+    });
+  }
+
+  function enPesos(recibe: readonly Moneda[]): TrabajoDelCliente {
+    return trabajo({
+      moneda: 'ARS',
+      cobraEn: recibe,
+      cobro: CON_LINK,
+      cobroEnDolares: CUENTA_EN_DOLARES,
+      pago: {
+        instancia: 'sena',
+        ...formasPara(recibe, ['transferencia', 'efectivo']),
+        monto: centavos(22_000_000),
+        siguiente: null,
+      },
+    });
+  }
+
+  function logosEn(elemento: HTMLElement) {
+    return elemento.querySelectorAll('[data-logo="mercado-pago"]');
+  }
+
+  it('dólares en pesos, con el dólar del día de hoy: la seña en dólares y los pesos de hoy, listos para pegar', () => {
+    dibujar(enDolares(['ARS']));
+
+    const bloque = elBloqueSeguro();
+    expect(bloque).toHaveTextContent('Ahora, la señaUS$ 917,24');
+    expect(bloque).toHaveTextContent('Hoy son $ 1.329.998, con el dólar a $ 1.450 de hoy.');
+    expect(bloque).toHaveTextContent('Hoy, en pesos$ 1.329.998');
+    expect(within(bloque).queryByRole('button', { name: 'Copiar el monto' })).toBeNull();
+
+    const copiar = vi.spyOn(navigator.clipboard, 'writeText');
+    fireEvent.click(within(bloque).getByRole('button', { name: 'Copiar el monto en pesos' }));
+    expect(copiar).toHaveBeenCalledWith('1329998');
+
+    expect(bloque).toHaveTextContent('maun.muebles');
+    expect(bloque).toHaveTextContent(TEXTOS.oPorMercadoPagoEnPesos);
+    expect(within(bloque).getByRole('link', { name: PAGAR_CON_MERCADO_PAGO })).toBeInTheDocument();
+    expect(logosEn(bloque)).toHaveLength(1);
+    expect(within(bloque).queryByRole('group')).toBeNull();
+    expect(bloque).toHaveTextContent('Después, el saldo: US$ 1.000, en efectivo.');
+  });
+
+  it('dólares en pesos, con el dólar del día de ayer: el importe en dólares, y los pesos te los pasa el taller', () => {
+    dibujar(
+      enDolares(['ARS'], { dolarDelDia: { cotizacion: cotizacion(144_000), fecha: '2026-09-17' } }),
+    );
+
+    const bloque = elBloqueSeguro();
+    expect(bloque).toHaveTextContent('Ahora, la señaUS$ 917,24');
+    expect(bloque).toHaveTextContent(TEXTOS.teLoPasaElTaller);
+    expect(bloque).not.toHaveTextContent('Hoy son');
+    expect(within(bloque).queryByRole('button', { name: /Copiar el monto/ })).toBeNull();
+    expect(bloque).toHaveTextContent(TEXTOS.oPorMercadoPagoSinElMonto);
+    expect(bloque).not.toHaveTextContent(TEXTOS.oPorMercadoPago);
+  });
+
+  it('dólares en dólares: el importe en dólares se copia como en Argentina, a la cuenta en dólares y sin Mercado Pago', () => {
+    dibujar(enDolares(['USD']));
+
+    const bloque = elBloqueSeguro();
+    expect(bloque).toHaveTextContent('Ahora, la señaUS$ 917,24');
+    const copiar = vi.spyOn(navigator.clipboard, 'writeText');
+    fireEvent.click(within(bloque).getByRole('button', { name: 'Copiar el monto' }));
+    expect(copiar).toHaveBeenCalledWith('917,24');
+
+    expect(bloque).toHaveTextContent('maun.dolares');
+    expect(bloque).not.toHaveTextContent('maun.muebles');
+    expect(within(bloque).queryByRole('link', { name: PAGAR_CON_MERCADO_PAGO })).toBeNull();
+    expect(logosEn(bloque)).toHaveLength(0);
+    expect(within(bloque).queryByRole('group')).toBeNull();
+    expect(bloque).toHaveTextContent(PASOS_PARA_TRANSFERIR);
+  });
+
+  it('dólares en pesos o dólares: un grupo por moneda, el de dólares primero y el logo con los pesos', () => {
+    dibujar(enDolares(['ARS', 'USD']));
+
+    const bloque = elBloqueSeguro();
+    const dolares = within(bloque).getByRole('group', { name: 'En dólares' });
+    const pesos = within(bloque).getByRole('group', { name: 'En pesos' });
+    expect(dolares.compareDocumentPosition(pesos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    expect(within(bloque).getAllByRole('button', { name: 'Copiar el monto' })).toHaveLength(1);
+    expect(dolares).toHaveTextContent('maun.dolares');
+    expect(pesos).toHaveTextContent('Hoy son $ 1.329.998, con el dólar a $ 1.450 de hoy.');
+    expect(
+      within(pesos).getByRole('button', { name: 'Copiar el monto en pesos' }),
+    ).toBeInTheDocument();
+    expect(pesos).toHaveTextContent('maun.muebles');
+    expect(logosEn(pesos)).toHaveLength(1);
+    expect(logosEn(bloque)).toHaveLength(1);
+  });
+
+  it('pesos en dólares: ningún importe en dólares, se acuerda con el taller', () => {
+    dibujar(enPesos(['USD']));
+
+    const bloque = elBloqueSeguro();
+    expect(bloque).toHaveTextContent('Ahora, la seña$ 220.000');
+    expect(bloque).toHaveTextContent(TEXTOS.loAcordasConElTaller);
+    expect(within(bloque).queryByRole('button', { name: /Copiar el monto/ })).toBeNull();
+    expect(bloque).toHaveTextContent('maun.dolares');
+    expect(bloque).not.toHaveTextContent('US$');
+    expect(logosEn(bloque)).toHaveLength(0);
+  });
+
+  it('pesos en pesos o dólares: el grupo de pesos de siempre primero, y el de dólares sin importe', () => {
+    dibujar(enPesos(['ARS', 'USD']));
+
+    const bloque = elBloqueSeguro();
+    const pesos = within(bloque).getByRole('group', { name: 'En pesos' });
+    const dolares = within(bloque).getByRole('group', { name: 'En dólares' });
+    expect(pesos.compareDocumentPosition(dolares) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const copiar = vi.spyOn(navigator.clipboard, 'writeText');
+    fireEvent.click(within(bloque).getByRole('button', { name: 'Copiar el monto' }));
+    expect(copiar).toHaveBeenCalledWith('220000');
+    expect(pesos).toHaveTextContent('maun.muebles');
+    expect(pesos).toHaveTextContent(TEXTOS.oPorMercadoPago);
+    expect(logosEn(pesos)).toHaveLength(1);
+    expect(dolares).toHaveTextContent(TEXTOS.loAcordasConElTaller);
+    expect(dolares).toHaveTextContent('maun.dolares');
+    expect(logosEn(dolares)).toHaveLength(0);
+  });
+
+  it('sin cuenta en dólares cargada, para transferir en dólares pide los datos', () => {
+    const { cobroEnDolares: _cuenta, ...sinCuenta } = enDolares(['USD']);
+    dibujar(sinCuenta);
+
+    const bloque = elBloqueSeguro();
+    expect(bloque).toHaveTextContent(PEDILE_LOS_DATOS);
+    expect(within(bloque).queryByRole('button', { name: 'Copiar el alias' })).toBeNull();
+  });
+
+  it('en inglés, cada moneda en inglés, y los importes para pegar como en Argentina', async () => {
+    const m = await cargarMensajesDelCliente('en');
+    render(
+      <ConElIdiomaDelCliente idioma="en">
+        <VistaDelCliente
+          vista={vistaDelCliente(enDolares(['ARS', 'USD']), HOY, m.vista.delDominio)}
+          hoy={HOY}
+        />
+      </ConElIdiomaDelCliente>,
+    );
+
+    const bloque = screen.getByRole('region', { name: 'How to pay' });
+    expect(bloque).toHaveTextContent('Now, the depositUS$ 917,24');
+    expect(within(bloque).getByRole('group', { name: 'In dollars' })).toBeInTheDocument();
+    const pesos = within(bloque).getByRole('group', { name: 'In pesos' });
+    expect(pesos).toHaveTextContent(
+      "That's ARS 1,329,998 today, at today's dollar rate of ARS 1,450.",
+    );
+    expect(pesos).toHaveTextContent('Today, in pesos$ 1.329.998');
+    expect(within(pesos).getByRole('button', { name: 'Copy amount in pesos' })).toBeInTheDocument();
+    expect(bloque).toHaveTextContent('Then the balance: US$1,000, in cash.');
+  }, 60_000);
 });

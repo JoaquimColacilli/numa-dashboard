@@ -3,6 +3,9 @@ import {
   type DiaElegido,
   type EntregaDelTrabajo,
   type FranjaDeEntrega,
+  type LoQueSePagoEnOtraMoneda,
+  type Moneda,
+  type PrecioEnPesos,
   type PropuestaDeEntrega,
   type RespuestaDeEntregaParaMandar,
   type SenaDeLaVista,
@@ -71,10 +74,15 @@ export function pieDeLosPagos(
   return `${pagos.elPagoSeCoordina} ${pagos.losAnotaElTaller}`;
 }
 
-export function lineaDeLaSena(sena: SenaDeLaVista, pagado: number, { t, f }: Escritura): string {
+export function lineaDeLaSena(
+  sena: SenaDeLaVista,
+  pagado: number,
+  moneda: Moneda,
+  { t, f }: Escritura,
+): string {
   switch (sena.situacion) {
     case 'falta':
-      return sena.aCuenta > 0 ? t.pagina.teQuedanParaLaSena(f.pesos(sena.falta)) : '';
+      return sena.aCuenta > 0 ? t.pagina.teQuedanParaLaSena(f.plata(sena.falta, moneda)) : '';
     case 'cubierta':
       return t.pagina.laSenaYaEstaCubierta;
     case 'sin-presupuesto':
@@ -82,13 +90,17 @@ export function lineaDeLaSena(sena: SenaDeLaVista, pagado: number, { t, f }: Esc
   }
 }
 
-export function textoDeLaSenaAcordada(sena: SenaDeLaVista, { t, f }: Escritura): string {
+export function textoDeLaSenaAcordada(
+  sena: SenaDeLaVista,
+  moneda: Moneda,
+  { t, f }: Escritura,
+): string {
   const { datos } = t.pagina;
   switch (sena.situacion) {
     case 'cubierta':
-      return datos.senaPagada(f.pesos(sena.sena));
+      return datos.senaPagada(f.plata(sena.sena, moneda));
     case 'falta':
-      return datos.senaQueFalta(f.pesos(sena.sena), f.pesos(sena.falta));
+      return datos.senaQueFalta(f.plata(sena.sena, moneda), f.plata(sena.falta, moneda));
     case 'sin-presupuesto':
       return datos.aConfirmar;
   }
@@ -96,7 +108,27 @@ export function textoDeLaSenaAcordada(sena: SenaDeLaVista, { t, f }: Escritura):
 
 export function textoDelTotalPagado(vista: VistaAprobada, { t, f }: Escritura): string | null {
   if (!vista.saldado || vista.precio === null) return null;
-  return t.pagina.datos.totalPagado(f.pesos(vista.precio));
+  return t.pagina.datos.totalPagado(f.plata(vista.precio, vista.moneda));
+}
+
+export function textoDelPrecioEnPesos(
+  precio: PrecioEnPesos | null,
+  { t, f, hoy }: Escritura,
+): string | null {
+  if (precio === null) return null;
+  const pesos = f.pesos(precio.pesos);
+  const dolar = f.pesos(precio.cotizacion);
+  return precio.deHoy
+    ? t.pagina.precioEnPesos.deHoy(pesos, dolar)
+    : t.pagina.precioEnPesos.delDia(pesos, dolar, f.diaYMes(precio.fecha, hoy));
+}
+
+export function textoDeLoQueSePago(
+  enOtraMoneda: LoQueSePagoEnOtraMoneda,
+  { t, f }: Escritura,
+): string {
+  const { pagado, cotizacion } = enOtraMoneda;
+  return t.pagina.pagasteConElDolar(f.plata(pagado.importe, pagado.moneda), f.pesos(cotizacion));
 }
 
 export function claveDeLaEntrega(entrega: EntregaDelTrabajo, { t }: Escritura): string {
@@ -155,6 +187,8 @@ export interface SaldoDeLaVista {
 export function saldoDeLaVista(vista: VistaAprobada, { t, f }: Escritura): SaldoDeLaVista {
   const { saldo } = t.pagina;
   if (vista.saldo === null) return { etiqueta: saldo.faltaElPresupuesto, texto: '—', tono: '' };
-  if (vista.saldado) return { etiqueta: saldo.estaSaldado, texto: f.pesos(0), tono: 'text-hogar' };
-  return { etiqueta: saldo.teFaltaPagar, texto: f.pesos(vista.saldo), tono: '' };
+  if (vista.saldado) {
+    return { etiqueta: saldo.estaSaldado, texto: f.plata(0, vista.moneda), tono: 'text-hogar' };
+  }
+  return { etiqueta: saldo.teFaltaPagar, texto: f.plata(vista.saldo, vista.moneda), tono: '' };
 }

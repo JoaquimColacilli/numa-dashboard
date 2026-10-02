@@ -37,6 +37,22 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.vista.comoPagar.vencio('«FECHA»'),
     tieneQueDecir: ['«FECHA»'],
   },
+  'vista.comoPagar.hoySon': {
+    llamar: (m) => m.vista.comoPagar.hoySon('«PESOS»', '«DÓLAR»'),
+    tieneQueDecir: ['«PESOS»', '«DÓLAR»'],
+  },
+  'vista.pagina.pagasteConElDolar': {
+    llamar: (m) => m.vista.pagina.pagasteConElDolar('«PAGADO»', '«DÓLAR»'),
+    tieneQueDecir: ['«PAGADO»', '«DÓLAR»'],
+  },
+  'vista.pagina.precioEnPesos.deHoy': {
+    llamar: (m) => m.vista.pagina.precioEnPesos.deHoy('«PESOS»', '«DÓLAR»'),
+    tieneQueDecir: ['«PESOS»', '«DÓLAR»'],
+  },
+  'vista.pagina.precioEnPesos.delDia': {
+    llamar: (m) => m.vista.pagina.precioEnPesos.delDia('«PESOS»', '«DÓLAR»', '«FECHA»'),
+    tieneQueDecir: ['«PESOS»', '«DÓLAR»', '«FECHA»'],
+  },
   'vista.pagina.archivos': {
     llamar: (m) => m.vista.pagina.archivos(7),
     tieneQueDecir: ['7'],

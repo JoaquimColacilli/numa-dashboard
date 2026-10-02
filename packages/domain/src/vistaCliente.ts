@@ -1,15 +1,28 @@
+import { pesosDeDolares, type Cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
 import { idiomaLeido, type Idioma } from './idioma.ts';
-import { restar, sumarTodos, type Moneda, type Money } from './money.ts';
+import {
+  centavosEn,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  restar,
+  sumar,
+  type Moneda,
+  type Money,
+} from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
+import { plata, type Plata } from './plata.ts';
 import {
   acordadoAlAprobar,
+  cobraEnLeido,
   cuentasDelPresupuesto,
+  monedaDelDocumento,
   plazoDelPresupuesto,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
+  type ReferenciaEnPesos,
 } from './presupuesto.ts';
 import { vencioElPresupuesto } from './vigencia.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
@@ -25,7 +38,8 @@ export interface PagoDelCliente {
   id: string;
   fecha: string;
   concepto: string;
-  monto: Money;
+  monto: Money<Moneda>;
+  pagado?: ImporteDeUnPago;
 }
 
 export interface ArchivoDelCliente {
@@ -91,13 +105,15 @@ export interface CobroDelTaller {
 export interface PagoOfrecido {
   instancia: InstanciaDePago;
   formas: readonly FormaDeCobro[];
-  monto: Money | null;
+  formasEnDolares?: readonly FormaDeCobro[];
+  monto: Money<Moneda> | null;
 }
 
 export interface PagoPendiente {
   instancia: InstanciaDePago | null;
   formas: readonly FormaDeCobro[];
-  monto: Money | null;
+  formasEnDolares?: readonly FormaDeCobro[];
+  monto: Money<Moneda> | null;
   siguiente: PagoOfrecido | null;
 }
 
@@ -124,13 +140,17 @@ export interface TrabajoDelCliente {
   idioma: Idioma;
   direccion: string;
   estado: EstadoProyecto;
-  precio: Money | null;
-  sena: Money | null;
+  moneda?: Moneda;
+  cobraEn?: readonly Moneda[] | null;
+  precio: Money<Moneda> | null;
+  sena: Money<Moneda> | null;
+  dolarDelDia?: ReferenciaEnPesos | null;
   fechas: FechasDelTrabajo;
   visita: VisitaDelTrabajo;
   entrega: EntregaQueSeCoordina;
   pago: PagoPendiente;
   cobro: CobroDelTaller;
+  cobroEnDolares?: CuentaParaTransferir;
   pagos: readonly PagoDelCliente[];
   archivos: readonly ArchivoDelCliente[];
   vidriera: VidrieraDelTaller;
@@ -144,7 +164,7 @@ export function hayComoTransferir(cobro: CobroDelTaller): boolean {
 
 export interface PagoQueSigue {
   instancia: InstanciaDePago;
-  monto: Money | null;
+  monto: Money<Moneda> | null;
   nombre: string;
   comoSePaga: string;
 }
@@ -156,22 +176,36 @@ export interface CuentaParaTransferir {
   cuit: string | null;
 }
 
-export interface ComoPagar {
-  instancia: InstanciaDePago;
-  monto: Money | null;
-  montoParaPegar: string | null;
+export interface FormasEnUnaMoneda {
+  moneda: Moneda;
   transferencia: boolean;
   cuenta: CuentaParaTransferir;
   link: string | null;
   mercadoPago: boolean;
   efectivo: boolean;
   faltanLosDatos: boolean;
+  enEfectivo: string;
+}
+
+export type ImporteEnLaOtraMoneda =
+  | { situacion: 'convertido'; monto: Money; montoParaPegar: string; cotizacion: Cotizacion }
+  | { situacion: 'te-lo-pasa-el-taller' }
+  | { situacion: 'lo-acordas-con-el-taller' };
+
+export interface PagoEnLaOtraMoneda extends FormasEnUnaMoneda {
+  importe: ImporteEnLaOtraMoneda;
+}
+
+export interface ComoPagar extends FormasEnUnaMoneda {
+  instancia: InstanciaDePago;
+  monto: Money<Moneda> | null;
+  montoParaPegar: string | null;
   titulo: string;
   etiquetaDelImporte: string;
   pasos: string;
-  enEfectivo: string;
   siguiente: PagoQueSigue | null;
   vencio: string | null;
+  enLaOtraMoneda: PagoEnLaOtraMoneda | null;
 }
 
 export interface TextosDeComoPagar {
@@ -194,13 +228,19 @@ function comoSePaga(formas: readonly FormaDeCobro[], textos: TextosDeComoPagar):
   return textos.enEfectivo;
 }
 
+function formasDeLasDosMonedas(
+  pago: Pick<PagoOfrecido, 'formas' | 'formasEnDolares'>,
+): readonly FormaDeCobro[] {
+  return [...pago.formas, ...(pago.formasEnDolares ?? [])];
+}
+
 function elQueSigue(pago: PagoOfrecido | null, textos: TextosDeComoPagar): PagoQueSigue | null {
   if (pago === null) return null;
   return {
     instancia: pago.instancia,
     monto: pago.monto,
     nombre: textos.nombre[pago.instancia],
-    comoSePaga: comoSePaga(pago.formas, textos),
+    comoSePaga: comoSePaga(formasDeLasDosMonedas(pago), textos),
   };
 }
 
@@ -212,6 +252,109 @@ function vencioLaSena(trabajo: TrabajoDelCliente, hoy: string): string | null {
   return vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
 }
 
+function monedaDelTrabajo(trabajo: TrabajoDelCliente): Moneda {
+  return monedaLeida(trabajo.moneda);
+}
+
+function monedasQueRecibe(trabajo: TrabajoDelCliente): readonly Moneda[] {
+  return cobraEnLeido(trabajo.cobraEn) ?? [MONEDA_DEL_TALLER];
+}
+
+function laOtraMoneda(moneda: Moneda): Moneda {
+  return moneda === MONEDA_DEL_TALLER ? 'USD' : MONEDA_DEL_TALLER;
+}
+
+function dolarDelDiaDe(trabajo: TrabajoDelCliente): ReferenciaEnPesos | null {
+  return trabajo.dolarDelDia ?? null;
+}
+
+function dolarDeHoy(trabajo: TrabajoDelCliente, hoy: string): Cotizacion | null {
+  const delDia = dolarDelDiaDe(trabajo);
+  return delDia !== null && delDia.fecha === hoy ? delDia.cotizacion : null;
+}
+
+function sinFormas(moneda: Moneda): FormasEnUnaMoneda {
+  return {
+    moneda,
+    transferencia: false,
+    cuenta: SIN_CUENTA,
+    link: null,
+    mercadoPago: false,
+    efectivo: false,
+    faltanLosDatos: false,
+    enEfectivo: '',
+  };
+}
+
+interface LoQueHayEnUnaMoneda {
+  formas: readonly FormaDeCobro[];
+  cuenta: CuentaParaTransferir;
+  link: string | null;
+}
+
+function loQueHayEn(
+  moneda: Moneda,
+  trabajo: TrabajoDelCliente,
+  pago: PagoPendiente,
+  cobro: CobroDelTaller,
+): LoQueHayEnUnaMoneda {
+  if (moneda === MONEDA_DEL_TALLER) return { formas: pago.formas, cuenta: cobro, link: cobro.link };
+  return {
+    formas: pago.formasEnDolares ?? [],
+    cuenta: trabajo.cobroEnDolares ?? SIN_CUENTA,
+    link: null,
+  };
+}
+
+function formasEnUnaMoneda(
+  moneda: Moneda,
+  { formas, cuenta, link }: LoQueHayEnUnaMoneda,
+  instancia: InstanciaDePago,
+  textos: TextosDeComoPagar,
+): FormasEnUnaMoneda {
+  const { alias, cbu, titular, cuit } = cuenta;
+  const pideTransferencia = ofrece(formas, 'transferencia');
+  const transferencia = pideTransferencia && (alias !== null || cbu !== null || link !== null);
+  return {
+    moneda,
+    transferencia,
+    cuenta: transferencia ? { alias, cbu, titular, cuit } : SIN_CUENTA,
+    link: transferencia ? link : null,
+    mercadoPago: transferencia && moneda === MONEDA_DEL_TALLER,
+    efectivo: ofrece(formas, 'efectivo'),
+    faltanLosDatos: pideTransferencia && !transferencia,
+    enEfectivo: transferencia ? textos.tambienEfectivo[instancia] : textos.soloEfectivo[instancia],
+  };
+}
+
+function importeEnLaOtraMoneda(
+  moneda: Moneda,
+  monto: Money<Moneda> | null,
+  dolar: Cotizacion | null,
+): ImporteEnLaOtraMoneda {
+  if (moneda === MONEDA_DEL_TALLER) return { situacion: 'lo-acordas-con-el-taller' };
+  if (monto === null || dolar === null) return { situacion: 'te-lo-pasa-el-taller' };
+  const pesos = pesosDeDolares(centavosEn('USD', monto), dolar);
+  return {
+    situacion: 'convertido',
+    monto: pesos,
+    montoParaPegar: montoParaPegar(pesos),
+    cotizacion: dolar,
+  };
+}
+
+export function seOfrece(formas: FormasEnUnaMoneda): boolean {
+  return formas.transferencia || formas.efectivo || formas.faltanLosDatos;
+}
+
+export function hayComoPagar(como: ComoPagar | null): boolean {
+  if (como === null) return false;
+  const otra = como.enLaOtraMoneda;
+  return (
+    como.transferencia || como.efectivo || (otra !== null && (otra.transferencia || otra.efectivo))
+  );
+}
+
 export function comoPagar(
   trabajo: TrabajoDelCliente,
   hoy: string,
@@ -221,54 +364,105 @@ export function comoPagar(
   const cobro = trabajo.cobro as CobroDelTaller | undefined;
   if (pago === undefined || cobro === undefined) return null;
 
-  const { instancia, formas, monto } = pago;
+  const { instancia, monto } = pago;
   if (instancia === null) return null;
+
+  const moneda = monedaDelTrabajo(trabajo);
+  const comun = {
+    instancia,
+    titulo: textos.titulo,
+    etiquetaDelImporte: textos.etiquetaDelImporte[instancia],
+    pasos: textos.pasosParaTransferir,
+  };
 
   const vencio = instancia === 'sena' ? vencioLaSena(trabajo, hoy) : null;
   if (vencio !== null) {
     return {
-      instancia,
+      ...sinFormas(moneda),
+      ...comun,
       monto: null,
       montoParaPegar: null,
-      transferencia: false,
-      cuenta: SIN_CUENTA,
-      link: null,
-      mercadoPago: false,
-      efectivo: false,
-      faltanLosDatos: false,
-      titulo: textos.titulo,
-      etiquetaDelImporte: textos.etiquetaDelImporte[instancia],
-      pasos: textos.pasosParaTransferir,
-      enEfectivo: '',
       siguiente: null,
       vencio,
+      enLaOtraMoneda: null,
     };
   }
 
-  const pideTransferencia = ofrece(formas, 'transferencia');
-  const transferencia = pideTransferencia && hayComoTransferir(cobro);
-  const efectivo = ofrece(formas, 'efectivo');
-  const link = transferencia ? cobro.link : null;
+  const recibe = monedasQueRecibe(trabajo);
+  const enSuMoneda = recibe.includes(moneda);
+  const otra = laOtraMoneda(moneda);
+  const enUna = (en: Moneda): FormasEnUnaMoneda =>
+    formasEnUnaMoneda(en, loQueHayEn(en, trabajo, pago, cobro), instancia, textos);
 
   return {
-    instancia,
+    ...(enSuMoneda ? enUna(moneda) : sinFormas(moneda)),
+    ...comun,
     monto,
-    montoParaPegar: monto === null ? null : montoParaPegar(monto),
-    transferencia,
-    cuenta: transferencia
-      ? { alias: cobro.alias, cbu: cobro.cbu, titular: cobro.titular, cuit: cobro.cuit }
-      : SIN_CUENTA,
-    link,
-    mercadoPago: transferencia,
-    efectivo,
-    faltanLosDatos: pideTransferencia && !transferencia,
-    titulo: textos.titulo,
-    etiquetaDelImporte: textos.etiquetaDelImporte[instancia],
-    pasos: textos.pasosParaTransferir,
-    enEfectivo: transferencia ? textos.tambienEfectivo[instancia] : textos.soloEfectivo[instancia],
+    montoParaPegar: enSuMoneda && monto !== null ? montoParaPegar(monto) : null,
     siguiente: elQueSigue(pago.siguiente, textos),
     vencio: null,
+    enLaOtraMoneda: recibe.includes(otra)
+      ? {
+          ...enUna(otra),
+          importe: importeEnLaOtraMoneda(moneda, monto, dolarDeHoy(trabajo, hoy)),
+        }
+      : null,
   };
+}
+
+export interface LoQueSePagoEnOtraMoneda {
+  pagado: Plata;
+  cotizacion: Cotizacion;
+}
+
+export function loQueSePagoEnOtraMoneda(
+  pago: PagoDelCliente,
+  moneda: Moneda,
+): LoQueSePagoEnOtraMoneda | null {
+  const { pagado } = pago;
+  if (pagado === undefined || pagado.moneda === moneda || pagado.cotizacion === null) return null;
+  return { pagado: plata(pagado.moneda, pagado.monto), cotizacion: pagado.cotizacion };
+}
+
+export interface PrecioEnPesos {
+  pesos: Money;
+  cotizacion: Cotizacion;
+  fecha: string;
+  deHoy: boolean;
+}
+
+function referenciaDelPrecio(trabajo: TrabajoDelCliente, hoy: string): ReferenciaEnPesos | null {
+  const delDia = dolarDelDiaDe(trabajo);
+  if (delDia !== null && delDia.fecha === hoy) return delDia;
+  const documento = presupuestoDe(trabajo)?.documento ?? null;
+  return documento?.forma === 2 ? documento.referencia : delDia;
+}
+
+function precioEnPesos(
+  trabajo: TrabajoDelCliente,
+  moneda: Moneda,
+  hoy: string,
+): PrecioEnPesos | null {
+  const { precio } = trabajo;
+  if (moneda === MONEDA_DEL_TALLER || precio === null) return null;
+  const referencia = referenciaDelPrecio(trabajo, hoy);
+  if (referencia === null) return null;
+  return {
+    pesos: pesosDeDolares(centavosEn('USD', precio), referencia.cotizacion),
+    cotizacion: referencia.cotizacion,
+    fecha: referencia.fecha,
+    deHoy: referencia.fecha === hoy,
+  };
+}
+
+function sumarEnLaMoneda<M extends Moneda>(
+  moneda: M,
+  importes: readonly Money<Moneda>[],
+): Money<M> {
+  return importes.reduce<Money<M>>(
+    (total, importe) => sumar(total, centavosEn(moneda, importe)),
+    centavosEn(moneda, 0),
+  );
 }
 
 export interface HitoDeLaVista {
@@ -284,7 +478,7 @@ export interface EventoDelCliente {
   fecha: string;
   texto: string;
   hito: HitoDelTrabajo;
-  monto: Money | null;
+  monto: Money<Moneda> | null;
 }
 
 export type EstadoDelRelevamiento = 'pendiente' | 'hecho';
@@ -311,8 +505,8 @@ export interface FormatosDeFecha {
 
 export type SenaDeLaVista =
   | { situacion: 'sin-presupuesto' }
-  | { situacion: 'falta'; sena: Money; aCuenta: Money; falta: Money }
-  | { situacion: 'cubierta'; sena: Money; aCuenta: Money };
+  | { situacion: 'falta'; sena: Money<Moneda>; aCuenta: Money<Moneda>; falta: Money<Moneda> }
+  | { situacion: 'cubierta'; sena: Money<Moneda>; aCuenta: Money<Moneda> };
 
 export type ProyeccionDeLaEntrega =
   | { situacion: 'sin-fecha' }
@@ -354,8 +548,9 @@ interface LoComunDeLaVista {
   relevamiento: RelevamientoDeLaVista | null;
   eventos: readonly EventoDelCliente[];
   sigue: string;
+  moneda: Moneda;
   pagos: readonly PagoDelCliente[];
-  pagado: Money;
+  pagado: Money<Moneda>;
   archivos: readonly ArchivoDelCliente[];
   comoPagar: ComoPagar | null;
   vidriera: VidrieraDelTaller;
@@ -400,7 +595,8 @@ export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
 
 export interface VistaEsperandoLaSena extends LoComunDeLaVista {
   etapa: 'esperando-la-sena';
-  presupuesto: Money | null;
+  presupuesto: Money<Moneda> | null;
+  precioEnPesos: PrecioEnPesos | null;
   opciones: number;
   sena: SenaDeLaVista;
   proyeccion: ProyeccionDeLaEntrega;
@@ -411,8 +607,9 @@ export type EtapaAprobada = 'aprobado' | 'fabricacion' | 'listo' | 'entregado' |
 
 export interface VistaAprobada extends LoComunDeLaVista {
   etapa: EtapaAprobada;
-  precio: Money | null;
-  saldo: Money | null;
+  precio: Money<Moneda> | null;
+  precioEnPesos: PrecioEnPesos | null;
+  saldo: Money<Moneda> | null;
   saldado: boolean;
   foco: FocoDeLaVista;
   datos: DatosDelTrabajo;
@@ -654,11 +851,19 @@ function presupuestoDe({
   return presupuesto ?? null;
 }
 
+function esDeLaMonedaDelTrabajo(documento: DocumentoDelPresupuesto, moneda: Moneda): boolean {
+  return monedaDelDocumento(documento) === moneda;
+}
+
 function loComunDelPresupuesto(
   presupuesto: PresupuestoDelTrabajo,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
 ): LoComunDelPresupuesto {
   const { numero, revision, mandadoEl, documento } = presupuesto;
+  const pagadoEnSuMoneda = esDeLaMonedaDelTrabajo(documento, moneda)
+    ? pagado
+    : centavosEn(monedaDelDocumento(documento), 0);
   return {
     numero,
     revision,
@@ -668,18 +873,19 @@ function loComunDelPresupuesto(
     cuentas:
       documento.valores === null
         ? []
-        : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado),
+        : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagadoEnSuMoneda),
   };
 }
 
 function presupuestoMandado(
   trabajo: TrabajoDelCliente,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
   hoy: string,
 ): PresupuestoMandado | null {
   const presupuesto = presupuestoDe(trabajo);
   if (presupuesto === null) return null;
-  const comun = loComunDelPresupuesto(presupuesto, pagado);
+  const comun = loComunDelPresupuesto(presupuesto, moneda, pagado);
   const valeHasta = fechasDe(trabajo).valeHasta ?? null;
   const vencio = vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
   const [unica] = comun.cuentas;
@@ -699,16 +905,20 @@ function presupuestoMandado(
 
 function presupuestoAceptado(
   trabajo: TrabajoDelCliente,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
 ): PresupuestoAceptado | null {
   const presupuesto = presupuestoDe(trabajo);
   if (presupuesto === null) return null;
+  const { documento } = presupuesto;
   return {
-    ...loComunDelPresupuesto(presupuesto, pagado),
+    ...loComunDelPresupuesto(presupuesto, moneda, pagado),
     etapa: 'aceptado',
     aceptadoEl: presupuesto.aceptadoEl,
     letra: presupuesto.letra,
-    acordado: acordadoAlAprobar<Moneda>(presupuesto.documento.valores, trabajo.precio),
+    acordado: esDeLaMonedaDelTrabajo(documento, moneda)
+      ? acordadoAlAprobar<Moneda>(documento.valores, trabajo.precio)
+      : null,
   };
 }
 
@@ -717,8 +927,8 @@ function opcionesMandadas(trabajo: TrabajoDelCliente): number {
   return valores?.tipo === 'opciones' ? valores.opciones.length : 0;
 }
 
-function senaDelTrabajo(trabajo: TrabajoDelCliente, pagado: Money): SenaDeLaVista {
-  const sena = (trabajo.sena as Money | null | undefined) ?? null;
+function senaDelTrabajo(trabajo: TrabajoDelCliente, pagado: Money<Moneda>): SenaDeLaVista {
+  const sena = (trabajo.sena as Money<Moneda> | null | undefined) ?? null;
   const pago = trabajo.pago as PagoPendiente | undefined;
   if (sena === null || pago === undefined) return { situacion: 'sin-presupuesto' };
   if (pago.instancia !== 'sena') return { situacion: 'cubierta', sena, aCuenta: pagado };
@@ -1040,8 +1250,12 @@ export function vistaDelCliente(
   hoy: string,
   textos: TextosDeLaVista,
 ): VistaDelCliente {
+  const moneda = monedaDelTrabajo(trabajo);
   const aprobado = APROBADOS.includes(trabajo.estado);
-  const pagado = sumarTodos(trabajo.pagos.map((pago) => pago.monto));
+  const pagado = sumarEnLaMoneda(
+    moneda,
+    trabajo.pagos.map((pago) => pago.monto),
+  );
   const saldo = aprobado && trabajo.precio !== null ? restar(trabajo.precio, pagado) : null;
   const saldado = saldo !== null && saldo <= 0;
   const sena = senaDelTrabajo(trabajo, pagado);
@@ -1133,6 +1347,7 @@ export function vistaDelCliente(
     relevamiento,
     eventos: eventosDelTrabajo(contexto, etapa, saldado, hoy),
     sigue: loQueSigueEnLaVista(),
+    moneda,
     pagos: trabajo.pagos,
     pagado,
     archivos: trabajo.archivos,
@@ -1162,6 +1377,7 @@ export function vistaDelCliente(
       ...comun,
       etapa,
       presupuesto: trabajo.precio,
+      precioEnPesos: precioEnPesos(trabajo, moneda, hoy),
       opciones: opcionesMandadas(trabajo),
       sena,
       proyeccion: proyeccionDeLaEntrega(
@@ -1169,7 +1385,7 @@ export function vistaDelCliente(
         hoy,
         plazoDelPresupuesto(presupuestoDe(trabajo)?.documento ?? null),
       ),
-      elPresupuesto: presupuestoMandado(trabajo, pagado, hoy),
+      elPresupuesto: presupuestoMandado(trabajo, moneda, pagado, hoy),
     };
   }
 
@@ -1177,12 +1393,13 @@ export function vistaDelCliente(
     ...comun,
     etapa,
     precio: trabajo.precio,
+    precioEnPesos: precioEnPesos(trabajo, moneda, hoy),
     saldo,
     saldado,
     foco: yaSeEntrego(etapa) && saldo !== null && saldo > 0 ? 'saldo' : 'estado',
     datos: datosDelTrabajo(trabajo, etapa, sena, hoy),
     coordinacion,
-    elPresupuesto: presupuestoAceptado(trabajo, pagado),
+    elPresupuesto: presupuestoAceptado(trabajo, moneda, pagado),
   };
 }
 

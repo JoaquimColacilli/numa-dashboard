@@ -1,8 +1,11 @@
 import {
   estaAprobada,
+  hayComoPagar,
+  loQueSePagoEnOtraMoneda,
   notaDelRelevamiento,
   textoDeLaProyeccion,
   type ArchivoDelCliente,
+  type Moneda,
   type ProyeccionDeLaEntrega,
   type RelevamientoPorHacer,
   type SenaDeLaVista,
@@ -38,6 +41,8 @@ import {
   saldoDeLaVista,
   sinPagosTodavia,
   textoDeLaSenaAcordada,
+  textoDeLoQueSePago,
+  textoDelPrecioEnPesos,
   textoDelTitular,
   textoDelTotalPagado,
   valorDeLaEntrega,
@@ -78,12 +83,14 @@ function Cifra({
   grande = false,
   tono = '',
   importe = true,
+  enPesos = null,
 }: {
   clave: string;
   valor: string;
   grande?: boolean;
   tono?: string;
   importe?: boolean;
+  enPesos?: string | null;
 }) {
   return (
     <span className="flex flex-col gap-px">
@@ -94,6 +101,9 @@ function Cifra({
       >
         {valor}
       </span>
+      {enPesos !== null && (
+        <span className="text-label leading-normal text-pretty text-text-2">{enPesos}</span>
+      )}
     </span>
   );
 }
@@ -152,7 +162,7 @@ function RelevamientoTecnico({ relevamiento }: { relevamiento: RelevamientoPorHa
   );
 }
 
-function CifrasDeLaSena({ sena }: { sena: SenaDeLaVista }) {
+function CifrasDeLaSena({ sena, moneda }: { sena: SenaDeLaVista; moneda: Moneda }) {
   const m = useMensajesDelCliente();
   const f = useFormatosDelCliente();
   switch (sena.situacion) {
@@ -160,7 +170,9 @@ function CifrasDeLaSena({ sena }: { sena: SenaDeLaVista }) {
       return null;
     case 'falta':
     case 'cubierta':
-      return <Cifra clave={m.vista.pagina.cifras.senaParaArrancar} valor={f.pesos(sena.sena)} />;
+      return (
+        <Cifra clave={m.vista.pagina.cifras.senaParaArrancar} valor={f.plata(sena.sena, moneda)} />
+      );
   }
 }
 
@@ -181,7 +193,10 @@ function EntradaAntesDelPresupuesto({
       {vista.pagado > 0 && (
         <>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
-            <Cifra clave={m.vista.pagina.cifras.pagaste} valor={f.pesos(vista.pagado)} />
+            <Cifra
+              clave={m.vista.pagina.cifras.pagaste}
+              valor={f.plata(vista.pagado, vista.moneda)}
+            />
           </div>
           <p className="mt-2.5 text-body leading-relaxed text-text-2">
             {m.vista.pagina.quedaACuenta}
@@ -198,12 +213,12 @@ function lineaDeLaEntrada(vista: VistaEsperandoLaSena, escritura: Escritura): st
     return t.pagina.presupuestoVencido(f.fechaLarga(vista.proyeccion.vencio, hoy));
   }
   if (vista.opciones > 0) return t.pagina.miraLasOpciones(vista.opciones);
-  return lineaDeLaSena(vista.sena, vista.pagado, escritura);
+  return lineaDeLaSena(vista.sena, vista.pagado, vista.moneda, escritura);
 }
 
 function cifraDelPresupuesto(vista: VistaEsperandoLaSena, { t, f }: Escritura): string {
   if (vista.opciones > 0) return t.pagina.opciones(vista.opciones);
-  return vista.presupuesto === null ? '—' : f.pesos(vista.presupuesto);
+  return vista.presupuesto === null ? '—' : f.plata(vista.presupuesto, vista.moneda);
 }
 
 function EntradaEsperandoLaSena({
@@ -229,9 +244,12 @@ function EntradaEsperandoLaSena({
           valor={cifraDelPresupuesto(vista, escritura)}
           grande
           importe={vista.opciones === 0}
+          enPesos={
+            vista.opciones === 0 ? textoDelPrecioEnPesos(vista.precioEnPesos, escritura) : null
+          }
         />
-        <CifrasDeLaSena sena={vista.sena} />
-        <Cifra clave={t.pagina.cifras.pagaste} valor={f.pesos(vista.pagado)} />
+        <CifrasDeLaSena sena={vista.sena} moneda={vista.moneda} />
+        <Cifra clave={t.pagina.cifras.pagaste} valor={f.plata(vista.pagado, vista.moneda)} />
       </div>
       {linea !== '' && <p className="mt-2.5 text-body leading-relaxed text-text-2">{linea}</p>}
     </>
@@ -251,7 +269,8 @@ function EntradaAprobada({
   const { t, f } = escritura;
   const saldo = saldoDeLaVista(vista, escritura);
   const bajada = bajadaDeLaEntrega(vista.datos.entrega, escritura);
-  const precio = vista.precio === null ? '—' : f.pesos(vista.precio);
+  const precio = vista.precio === null ? '—' : f.plata(vista.precio, vista.moneda);
+  const precioEnPesos = textoDelPrecioEnPesos(vista.precioEnPesos, escritura);
 
   if (vista.foco === 'saldo') {
     return (
@@ -269,10 +288,15 @@ function EntradaAprobada({
               {precio}
             </span>
           </span>
+          {precioEnPesos !== null && (
+            <span className="w-full text-label leading-normal text-pretty text-text-2">
+              {precioEnPesos}
+            </span>
+          )}
           <span className="flex items-baseline gap-2">
             <span className="text-text-2">{t.pagina.cifras.pagaste}</span>
             <span translate="no" className="font-semibold tabular-nums">
-              {f.pesos(vista.pagado)}
+              {f.plata(vista.pagado, vista.moneda)}
             </span>
           </span>
         </div>
@@ -289,8 +313,8 @@ function EntradaAprobada({
       <Titular texto={titular} bajada={bajada} />
       <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
         <Cifra clave={saldo.etiqueta} valor={saldo.texto} grande tono={saldo.tono} />
-        <Cifra clave={t.pagina.cifras.vale} valor={precio} />
-        <Cifra clave={t.pagina.cifras.pagaste} valor={f.pesos(vista.pagado)} />
+        <Cifra clave={t.pagina.cifras.vale} valor={precio} enPesos={precioEnPesos} />
+        <Cifra clave={t.pagina.cifras.pagaste} valor={f.plata(vista.pagado, vista.moneda)} />
       </div>
     </>
   );
@@ -336,7 +360,10 @@ function TarjetaDelTrabajo({ vista, hoy }: { vista: VistaAprobada; hoy: string }
           valor={valorDeLaEntrega(datos.entrega, escritura)}
           fuerte
         />
-        <Dato clave={t.pagina.datos.sena} valor={textoDeLaSenaAcordada(datos.sena, escritura)} />
+        <Dato
+          clave={t.pagina.datos.sena}
+          valor={textoDeLaSenaAcordada(datos.sena, vista.moneda, escritura)}
+        />
         {total !== null && <Dato clave={t.pagina.datos.total} valor={total} />}
       </dl>
     </section>
@@ -410,7 +437,7 @@ function CierreDeLosPagos({ vista, hoy }: { vista: Vista; hoy: string }) {
         <div className="flex min-h-12 items-baseline justify-between border-t border-ink py-3 text-body font-semibold">
           <span>{t.pagina.aCuentaDeLaSena}</span>
           <span translate="no" className="tabular-nums">
-            {f.pesos(vista.pagado)}
+            {f.plata(vista.pagado, vista.moneda)}
           </span>
         </div>
       );
@@ -450,10 +477,9 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
   const visuales = vista.archivos.filter(esImagen);
   const documentos = vista.archivos.filter((archivo) => !esImagen(archivo));
 
-  const como = vista.comoPagar;
-  const hayComoPagar = como !== null && (como.transferencia || como.efectivo);
+  const hayConQuePagar = hayComoPagar(vista.comoPagar);
   const textoSinPagos = sinPagosTodavia(vista, escritura);
-  const textoDelPie = pieDeLosPagos(vista, hayComoPagar, escritura);
+  const textoDelPie = pieDeLosPagos(vista, hayConQuePagar, escritura);
 
   return (
     <Pagina quieta className="gap-3 md:gap-4">
@@ -503,7 +529,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <ElPresupuesto
               presupuesto={vista.elPresupuesto}
               hoy={hoy}
-              hayComoPagar={hayComoPagar}
+              hayComoPagar={hayConQuePagar}
             />
           )}
 
@@ -579,7 +605,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                       translate="no"
                       className="py-3 text-body font-semibold whitespace-nowrap text-hogar tabular-nums"
                     >
-                      {evento.monto === null ? '' : f.pesos(evento.monto)}
+                      {evento.monto === null ? '' : f.plata(evento.monto, vista.moneda)}
                     </span>
                   </li>
                 ))}
@@ -597,28 +623,39 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
               )
             ) : (
               <ul className="list-none">
-                {vista.pagos.map((pago) => (
-                  <li
-                    key={pago.id}
-                    className="flex min-h-12 items-baseline gap-3 border-t border-hairline-soft py-2.5"
-                  >
-                    <span className="min-w-0 flex-1">
-                      {pago.concepto.trim() === '' ? (
-                        <span className="block text-body font-medium">{t.pagina.pago}</span>
-                      ) : (
-                        <span translate="no" className="block text-body font-medium">
-                          {pago.concepto}
+                {vista.pagos.map((pago) => {
+                  const enOtraMoneda = loQueSePagoEnOtraMoneda(pago, vista.moneda);
+                  return (
+                    <li
+                      key={pago.id}
+                      className="flex min-h-12 items-baseline gap-3 border-t border-hairline-soft py-2.5"
+                    >
+                      <span className="min-w-0 flex-1">
+                        {pago.concepto.trim() === '' ? (
+                          <span className="block text-body font-medium">{t.pagina.pago}</span>
+                        ) : (
+                          <span translate="no" className="block text-body font-medium">
+                            {pago.concepto}
+                          </span>
+                        )}
+                        <span translate="no" className="block text-label text-text-3 tabular-nums">
+                          {f.fechaLarga(pago.fecha, hoy)}
                         </span>
-                      )}
-                      <span translate="no" className="block text-label text-text-3 tabular-nums">
-                        {f.fechaLarga(pago.fecha, hoy)}
+                        {enOtraMoneda !== null && (
+                          <span className="block text-label leading-normal text-pretty text-text-2">
+                            {textoDeLoQueSePago(enOtraMoneda, escritura)}
+                          </span>
+                        )}
                       </span>
-                    </span>
-                    <span translate="no" className="flex-none text-body font-semibold tabular-nums">
-                      {f.pesos(pago.monto)}
-                    </span>
-                  </li>
-                ))}
+                      <span
+                        translate="no"
+                        className="flex-none text-body font-semibold tabular-nums"
+                      >
+                        {f.plata(pago.monto, vista.moneda)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <CierreDeLosPagos vista={vista} hoy={hoy} />

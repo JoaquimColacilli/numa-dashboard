@@ -1,6 +1,8 @@
 import {
   borradorNuevo,
   centavos,
+  centavosEn,
+  cotizacion,
   documentoDelPresupuesto,
   PLANTILLA_DE_SIEMPRE,
   puntosBasicos,
@@ -11,6 +13,7 @@ import {
   type DocumentoDelPresupuesto,
   type Formatos,
   type OpcionDelTrabajo,
+  type PagoDelCliente,
   type PresupuestoDelTrabajo,
   type TrabajoDelCliente,
 } from '@maun/domain';
@@ -18,6 +21,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  cargarMensajesDelCliente,
   ConElIdiomaDelCliente,
   formatosDelCliente,
   MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
@@ -1302,4 +1306,249 @@ describe('el presupuesto aceptado', () => {
       'Acordado al aprobar: $ 1.200.000',
     );
   });
+});
+
+describe('un trabajo en dólares', () => {
+  const LA_VISITA_EN_PESOS: PagoDelCliente = {
+    id: 'visita',
+    fecha: '2026-09-10',
+    concepto: 'Relevamiento',
+    monto: centavosEn('USD', 8_276),
+    pagado: { moneda: 'ARS', monto: centavos(12_000_000), cotizacion: cotizacion(145_000) },
+  };
+
+  const LA_SENA_EN_DOLARES: PagoDelCliente = {
+    id: 'sena',
+    fecha: '2026-09-15',
+    concepto: 'Seña',
+    monto: centavosEn('USD', 91_724),
+    pagado: { moneda: 'USD', monto: centavosEn('USD', 91_724), cotizacion: cotizacion(145_000) },
+  };
+
+  function enDolares(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
+    return trabajo({
+      estado: 'presupuesto_enviado',
+      moneda: 'USD',
+      cobraEn: ['ARS'],
+      precio: centavosEn('USD', 200_000),
+      sena: centavosEn('USD', 100_000),
+      dolarDelDia: { cotizacion: cotizacion(145_000), fecha: HOY },
+      fechas: fechas({ presupuesto: '2026-09-14' }),
+      pago: {
+        instancia: 'sena',
+        formas: ['efectivo'],
+        formasEnDolares: [],
+        monto: centavosEn('USD', 91_724),
+        siguiente: null,
+      },
+      pagos: [LA_VISITA_EN_PESOS],
+      ...cambios,
+    });
+  }
+
+  function aprobadoEnDolares(cambios: Partial<TrabajoDelCliente> = {}): TrabajoDelCliente {
+    return enDolares({
+      estado: 'en_curso',
+      fechas: fechas({
+        presupuesto: '2026-08-01',
+        aprobado: '2026-08-04',
+        inicio: '2026-08-24',
+        entregaPautada: '2026-10-02',
+      }),
+      pago: {
+        instancia: 'saldo',
+        formas: ['efectivo'],
+        formasEnDolares: [],
+        monto: centavosEn('USD', 100_000),
+        siguiente: null,
+      },
+      pagos: [LA_VISITA_EN_PESOS, LA_SENA_EN_DOLARES],
+      ...cambios,
+    });
+  }
+
+  it('arriba, el presupuesto en dólares con lo que son hoy en pesos, y la seña y lo pagado en dólares', () => {
+    dibujar(enDolares());
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent(
+      'PresupuestoUS$ 2.000Hoy son $ 2.900.000, con el dólar a $ 1.450 de hoy.',
+    );
+    expect(entrada).toHaveTextContent('Seña para arrancarUS$ 1.000');
+    expect(entrada).toHaveTextContent('PagasteUS$ 82,76');
+    expect(entrada).toHaveTextContent(
+      'Lo que pagaste queda a cuenta de la seña: te quedan US$ 917,24 para completarla.',
+    );
+  });
+
+  it('con el dólar del día de otro día, los pesos dicen de qué día es ese dólar', () => {
+    dibujar(enDolares({ dolarDelDia: { cotizacion: cotizacion(144_000), fecha: '2026-09-17' } }));
+
+    expect(screen.getByRole('region', { name: 'Tu mueble' })).toHaveTextContent(
+      'Son $ 2.880.000, con el dólar a $ 1.440 del 17 de septiembre.',
+    );
+  });
+
+  it('sin dólar del día, el precio va solo en dólares: ningún importe en pesos sin su cotización', () => {
+    dibujar(enDolares({ dolarDelDia: null }));
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent('PresupuestoUS$ 2.000');
+    expect(entrada).not.toHaveTextContent('con el dólar');
+  });
+
+  it('aprobado, lo que vale lleva su referencia en pesos, y el saldo y la seña van en dólares', () => {
+    dibujar(aprobadoEnDolares());
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent('Te falta pagarUS$ 1.000');
+    expect(entrada).toHaveTextContent(
+      'ValeUS$ 2.000Hoy son $ 2.900.000, con el dólar a $ 1.450 de hoy.',
+    );
+    expect(entrada).toHaveTextContent('PagasteUS$ 1.000');
+    expect(screen.getByRole('region', { name: 'Datos del trabajo' })).toHaveTextContent(
+      'SeñaUS$ 1.000 · pagada',
+    );
+  });
+
+  it('desde la entrega, con saldo, lo que vale sigue con su referencia al lado', () => {
+    dibujar(
+      aprobadoEnDolares({
+        estado: 'entregado',
+        fechas: fechas({
+          presupuesto: '2026-08-01',
+          aprobado: '2026-08-04',
+          inicio: '2026-08-24',
+          entregado: '2026-09-16',
+        }),
+      }),
+    );
+
+    const entrada = screen.getByRole('region', { name: 'Tu mueble' });
+    expect(entrada).toHaveTextContent('Te falta pagarUS$ 1.000');
+    expect(entrada).toHaveTextContent(
+      'ValeUS$ 2.000Hoy son $ 2.900.000, con el dólar a $ 1.450 de hoy.PagasteUS$ 1.000',
+    );
+  });
+
+  it('saldado, la seña y el total de la tarjeta van en dólares', () => {
+    dibujar(
+      aprobadoEnDolares({
+        estado: 'cobrado',
+        fechas: fechas({
+          presupuesto: '2026-08-01',
+          aprobado: '2026-08-04',
+          inicio: '2026-08-24',
+          entregado: '2026-09-16',
+          cobro: '2026-09-17',
+        }),
+        pago: { instancia: null, formas: [], formasEnDolares: [], monto: null, siguiente: null },
+        pagos: [
+          LA_VISITA_EN_PESOS,
+          LA_SENA_EN_DOLARES,
+          {
+            id: 'saldo',
+            fecha: '2026-09-17',
+            concepto: 'Saldo',
+            monto: centavosEn('USD', 100_000),
+            pagado: { moneda: 'USD', monto: centavosEn('USD', 100_000), cotizacion: null },
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByRole('region', { name: 'Datos del trabajo' })).toHaveTextContent(
+      'SeñaUS$ 1.000 · pagadaTotalUS$ 2.000 · pagado',
+    );
+    expect(screen.getByRole('region', { name: 'Lo que pagaste' })).toHaveTextContent(
+      'Está saldadoUS$ 0',
+    );
+  });
+
+  it('en lo que pagaste, cada pago con lo que descontó y, si fue en pesos, cuánto y a qué dólar', () => {
+    dibujar(enDolares());
+
+    const pagos = screen.getByRole('region', { name: 'Lo que pagaste' });
+    expect(pagos).toHaveTextContent('Relevamiento');
+    expect(pagos).toHaveTextContent('Pagaste $ 120.000 con el dólar a $ 1.450');
+    expect(pagos).toHaveTextContent('US$ 82,76');
+    expect(pagos).toHaveTextContent('A cuenta de la señaUS$ 82,76');
+    expect(screen.getByRole('region', { name: 'Lo que fue pasando' })).toHaveTextContent(
+      'Recibimos tu pago',
+    );
+    expect(screen.getByRole('region', { name: 'Lo que fue pasando' })).toHaveTextContent(
+      'US$ 82,76',
+    );
+  });
+
+  it('un pago en dólares de un trabajo en dólares no suma ninguna línea', () => {
+    dibujar(aprobadoEnDolares({ pagos: [LA_SENA_EN_DOLARES] }));
+
+    expect(screen.getByRole('region', { name: 'Lo que pagaste' })).not.toHaveTextContent(
+      'con el dólar',
+    );
+  });
+
+  it('en un trabajo en pesos, un pago en dólares dice cuántos dólares y a qué dólar se tomaron', () => {
+    dibujar(
+      trabajo({
+        pagos: [
+          {
+            id: 'dolares',
+            fecha: '2026-08-04',
+            concepto: 'Seña',
+            monto: centavos(154_000_000),
+            pagado: {
+              moneda: 'USD',
+              monto: centavosEn('USD', 100_000),
+              cotizacion: cotizacion(154_000),
+            },
+          },
+        ],
+      }),
+    );
+
+    const pagos = screen.getByRole('region', { name: 'Lo que pagaste' });
+    expect(pagos).toHaveTextContent('$ 1.540.000');
+    expect(pagos).toHaveTextContent('Pagaste US$ 1.000 con el dólar a $ 1.540');
+  });
+
+  it('en inglés, la referencia del precio y lo que pagaste en pesos', async () => {
+    const m = await cargarMensajesDelCliente('en');
+    render(
+      <ConElIdiomaDelCliente idioma="en">
+        <VistaDelCliente vista={vistaDelCliente(enDolares(), HOY, m.vista.delDominio)} hoy={HOY} />
+      </ConElIdiomaDelCliente>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Your furniture' })).toHaveTextContent(
+      "QuoteUS$2,000That's ARS 2,900,000 today, at today's dollar rate of ARS 1,450.",
+    );
+    expect(screen.getByRole('region', { name: "What you've paid" })).toHaveTextContent(
+      'You paid ARS 120,000 at ARS 1,450 per dollar',
+    );
+  }, 60_000);
+
+  it('en portugués, la referencia de otro día con su fecha', async () => {
+    const m = await cargarMensajesDelCliente('pt-BR');
+    render(
+      <ConElIdiomaDelCliente idioma="pt-BR">
+        <VistaDelCliente
+          vista={vistaDelCliente(
+            enDolares({ dolarDelDia: { cotizacion: cotizacion(144_000), fecha: '2026-09-17' } }),
+            HOY,
+            m.vista.delDominio,
+          )}
+          hoy={HOY}
+        />
+      </ConElIdiomaDelCliente>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Seu móvel' })).toHaveTextContent(
+      'São ARS 2.880.000, com o dólar de 17 de setembro a ARS 1.440.',
+    );
+    expect(screen.getByRole('region', { name: 'O que você pagou' })).toHaveTextContent(
+      'Você pagou ARS 120.000 com o dólar a ARS 1.450',
+    );
+  }, 60_000);
 });

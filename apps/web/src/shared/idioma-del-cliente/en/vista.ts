@@ -210,6 +210,16 @@ export const vista = {
     copiarElCuit: 'Copy CUIT',
     fijateQueSeaEsta:
       "Before you confirm, your bank shows whose name the account is in: make sure it's this one.",
+    enMoneda: { ARS: 'In pesos', USD: 'In dollars' },
+    hoySon: (pesos, dolar) => `That's ${pesos} today, at today's dollar rate of ${dolar}.`,
+    hoyEnPesos: 'Today, in pesos',
+    copiarElMontoEnPesos: 'Copy amount in pesos',
+    teLoPasaElTaller: "We'll give you the amount in pesos on the day you pay.",
+    loAcordasConElTaller: "We'll agree on the amount in dollars with you on the day you pay.",
+    oPorMercadoPagoEnPesos:
+      'Or pay from Mercado Pago without copying anything: tap the button, enter the amount in pesos above, and confirm.',
+    oPorMercadoPagoSinElMonto:
+      'Or pay from Mercado Pago: tap the button, enter the amount in pesos we give you, and confirm.',
   },
   pagina: {
     tuMueble: 'Your furniture',
@@ -229,6 +239,11 @@ export const vista = {
       otro: 'File',
     },
     pago: 'Payment',
+    pagasteConElDolar: (pagado, dolar) => `You paid ${pagado} at ${dolar} per dollar`,
+    precioEnPesos: {
+      deHoy: (pesos, dolar) => `That's ${pesos} today, at today's dollar rate of ${dolar}.`,
+      delDia: (pesos, dolar, fecha) => `That's ${pesos} at the ${fecha} dollar rate of ${dolar}.`,
+    },
     finDeLaVista:
       "We put this page together for you, and it updates on its own as your job moves along. If something doesn't match, message us.",
     buenasNoticias: (cuando) => `Good news! We're delivering on ${cuando}.`,

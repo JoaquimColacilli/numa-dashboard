@@ -205,6 +205,16 @@ export const vista = {
     copiarElCuit: 'Copiar el CUIT',
     fijateQueSeaEsta:
       'Antes de confirmar, tu banco te muestra a nombre de quién está la cuenta: fijate que sea esta.',
+    enMoneda: { ARS: 'En pesos', USD: 'En dólares' },
+    hoySon: (pesos: string, dolar: string) => `Hoy son ${pesos}, con el dólar a ${dolar} de hoy.`,
+    hoyEnPesos: 'Hoy, en pesos',
+    copiarElMontoEnPesos: 'Copiar el monto en pesos',
+    teLoPasaElTaller: 'El importe en pesos te lo pasa el taller el día que pagás.',
+    loAcordasConElTaller: 'El importe en dólares lo acordás con el taller el día que pagás.',
+    oPorMercadoPagoEnPesos:
+      'O pagá desde Mercado Pago, sin copiar nada: tocá el botón, escribí el monto en pesos de arriba y confirmá.',
+    oPorMercadoPagoSinElMonto:
+      'O pagá desde Mercado Pago: tocá el botón, escribí el monto en pesos que te pase el taller y confirmá.',
   },
   pagina: {
     tuMueble: 'Tu mueble',
@@ -224,6 +234,13 @@ export const vista = {
       otro: 'Archivo',
     },
     pago: 'Pago',
+    pagasteConElDolar: (pagado: string, dolar: string) =>
+      `Pagaste ${pagado} con el dólar a ${dolar}`,
+    precioEnPesos: {
+      deHoy: (pesos: string, dolar: string) => `Hoy son ${pesos}, con el dólar a ${dolar} de hoy.`,
+      delDia: (pesos: string, dolar: string, fecha: string) =>
+        `Son ${pesos}, con el dólar a ${dolar} del ${fecha}.`,
+    },
     finDeLaVista:
       'Esta página la arma el taller para vos y se actualiza sola a medida que avanza el trabajo. Si algo no coincide, escribile al taller.',
     buenasNoticias: (cuando: string) => `¡Buenas noticias! Lo estamos entregando el ${cuando}.`,

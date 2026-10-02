@@ -52,6 +52,10 @@ export function formatosDelCliente(idioma: Idioma): FormatosDelCliente {
   };
 }
 
+export function plataParaElBanco(centavos: number, moneda: Moneda): string {
+  return formatearPlata(centavos, moneda, IDIOMA_BASE);
+}
+
 export function formatosDelDocumento(idioma: Idioma): Formatos {
   const f = formatosDelCliente(idioma);
   const textos = textosDelDocumento(idioma);

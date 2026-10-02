@@ -216,6 +216,16 @@ export const vista = {
     copiarElCuit: 'Copiar o CUIT',
     fijateQueSeaEsta:
       'Antes de confirmar, o banco mostra em nome de quem está a conta: confira se é esta.',
+    enMoneda: { ARS: 'Em pesos', USD: 'Em dólares' },
+    hoySon: (pesos, dolar) => `Hoje são ${pesos}, com o dólar do dia a ${dolar}.`,
+    hoyEnPesos: 'Hoje, em pesos',
+    copiarElMontoEnPesos: 'Copiar o valor em pesos',
+    teLoPasaElTaller: 'Informamos o valor em pesos no dia em que você pagar.',
+    loAcordasConElTaller: 'O valor em dólares você combina com a gente no dia em que pagar.',
+    oPorMercadoPagoEnPesos:
+      'Ou pague pelo Mercado Pago, sem copiar nada: toque no botão, digite o valor em pesos acima e confirme.',
+    oPorMercadoPagoSinElMonto:
+      'Ou pague pelo Mercado Pago: toque no botão, digite o valor em pesos que a gente informar e confirme.',
   },
   pagina: {
     tuMueble: 'Seu móvel',
@@ -235,6 +245,11 @@ export const vista = {
       otro: 'Arquivo',
     },
     pago: 'Pagamento',
+    pagasteConElDolar: (pagado, dolar) => `Você pagou ${pagado} com o dólar a ${dolar}`,
+    precioEnPesos: {
+      deHoy: (pesos, dolar) => `Hoje são ${pesos}, com o dólar do dia a ${dolar}.`,
+      delDia: (pesos, dolar, fecha) => `São ${pesos}, com o dólar de ${fecha} a ${dolar}.`,
+    },
     finDeLaVista:
       'Montamos esta página para você, e ela se atualiza sozinha conforme o projeto avança. Se algo não bater, fale com a gente.',
     buenasNoticias: (cuando) => `Boa notícia! Vamos entregar em ${cuando}.`,

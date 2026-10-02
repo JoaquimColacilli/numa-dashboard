@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { cotizacion } from './cotizacion.ts';
 import { DIAS_HABILES_DE_ENTREGA, entregaEstimada, sumarDias, sumarDiasHabiles } from './fechas.ts';
 import type { Idioma } from './idioma.ts';
-import { centavos, puntosBasicos, type Money } from './money.ts';
+import { centavos, centavosEn, puntosBasicos, type Moneda, type Money } from './money.ts';
 import type { FormaDeCobro } from './pagos.ts';
 import {
   documentoDelPresupuesto,
@@ -12,15 +13,20 @@ import {
   valoresDelTrabajo,
   type BorradorDelPresupuesto,
   type DocumentoDelPresupuesto,
+  type EntradaDelDocumento,
+  type ReferenciaEnPesos,
 } from './presupuesto.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 import {
   comoPagar as comoPagarCon,
   estaAprobada,
+  hayComoPagar,
   HITOS_DEL_CAMINO,
   llegoAl,
+  loQueSePagoEnOtraMoneda,
   notaDelRelevamiento as notaDelRelevamientoCon,
   proyeccionDeLaEntrega,
+  seOfrece,
   textoDeLaProyeccion as textoDeLaProyeccionCon,
   tuvoEstimativo,
   vistaDelCliente as vistaDelClienteCon,
@@ -30,6 +36,7 @@ import {
   type SenaDeLaVista,
   type CobroDelTaller,
   type ComprometidaDelTrabajo,
+  type CuentaParaTransferir,
   type EntregaQueSeCoordina,
   type EstadoDelHito,
   type EstadoDelRelevamiento,
@@ -1039,7 +1046,7 @@ describe('lo que viaja es lo que llegó', () => {
 
 describe('los importes son centavos enteros con marca', () => {
   it('lo pagado sale de sumar los pagos', () => {
-    const total: Money = vistaDelCliente(
+    const total: Money<Moneda> = vistaDelCliente(
       trabajo({ pagos: [pago('p1', '2026-08-04', 1), pago('p2', '2026-08-05', 2)] }),
       HOY,
     ).pagado;
@@ -3078,5 +3085,658 @@ describe('el presupuesto en la página del cliente', () => {
     expect(vista.opciones).toBe(0);
     const aprobado = aprobada(vistaDelCliente({ ...viejo, estado: 'en_curso' }, HOY));
     expect(aprobado.elPresupuesto).toBeNull();
+  });
+});
+
+const DOLAR_DE_HOY: ReferenciaEnPesos = { cotizacion: cotizacion(145_000), fecha: HOY };
+
+const DOLAR_DE_AYER: ReferenciaEnPesos = { cotizacion: cotizacion(144_000), fecha: '2026-09-17' };
+
+const REFERENCIA_DEL_PRESUPUESTO: ReferenciaEnPesos = {
+  cotizacion: cotizacion(140_000),
+  fecha: '2026-09-14',
+};
+
+const CUENTA_EN_PESOS: CobroDelTaller = {
+  alias: 'maun.muebles',
+  cbu: '0110001312345678901233',
+  titular: 'Ana Gutiérrez',
+  cuit: '27-30123456-4',
+  link: 'https://mpago.la/2vXyZ1',
+};
+
+const CUENTA_EN_DOLARES: CuentaParaTransferir = {
+  alias: 'maun.dolares',
+  cbu: '0110001322345678901234',
+  titular: 'Ana Gutiérrez',
+  cuit: '27-30123456-4',
+};
+
+const LA_VISITA_EN_PESOS: PagoDelCliente = {
+  id: 'visita',
+  fecha: '2026-09-10',
+  concepto: 'Relevamiento',
+  monto: centavosEn('USD', 8_276),
+  pagado: { moneda: 'ARS', monto: centavos(12_000_000), cotizacion: cotizacion(145_000) },
+};
+
+const LA_SENA_EN_DOLARES: PagoDelCliente = {
+  id: 'sena',
+  fecha: '2026-09-15',
+  concepto: 'Seña',
+  monto: centavosEn('USD', 91_724),
+  pagado: { moneda: 'USD', monto: centavosEn('USD', 91_724), cotizacion: cotizacion(145_000) },
+};
+
+function formasPara(
+  recibe: readonly Moneda[] | null,
+  formas: readonly FormaDeCobro[],
+): Pick<PagoPendiente, 'formas' | 'formasEnDolares'> {
+  const monedas = recibe ?? ['ARS'];
+  return {
+    formas: monedas.includes('ARS') ? formas : [],
+    formasEnDolares: monedas.includes('USD') ? formas : [],
+  };
+}
+
+function enDolares(
+  recibe: readonly Moneda[] | null,
+  cambios: Partial<TrabajoDelCliente> = {},
+): TrabajoDelCliente {
+  return trabajo({
+    estado: 'presupuesto_enviado',
+    moneda: 'USD',
+    cobraEn: recibe,
+    precio: centavosEn('USD', 200_000),
+    sena: centavosEn('USD', 100_000),
+    dolarDelDia: DOLAR_DE_HOY,
+    fechas: fechas({ presupuesto: '2026-09-14' }),
+    cobro: CUENTA_EN_PESOS,
+    cobroEnDolares: CUENTA_EN_DOLARES,
+    pagos: [LA_VISITA_EN_PESOS],
+    pago: {
+      instancia: 'sena',
+      ...formasPara(recibe, ['transferencia', 'efectivo']),
+      monto: centavosEn('USD', 91_724),
+      siguiente: {
+        instancia: 'saldo',
+        ...formasPara(recibe, ['efectivo']),
+        monto: centavosEn('USD', 100_000),
+      },
+    },
+    ...cambios,
+  });
+}
+
+function enPesos(
+  recibe: readonly Moneda[] | null,
+  cambios: Partial<TrabajoDelCliente> = {},
+): TrabajoDelCliente {
+  return trabajo({
+    moneda: 'ARS',
+    cobraEn: recibe,
+    sena: centavos(62_000_000),
+    cobro: CUENTA_EN_PESOS,
+    cobroEnDolares: CUENTA_EN_DOLARES,
+    pagos: [pago('p1', '2026-08-04', 40_000_000)],
+    pago: {
+      instancia: 'sena',
+      ...formasPara(recibe, ['transferencia', 'efectivo']),
+      monto: centavos(22_000_000),
+      siguiente: {
+        instancia: 'saldo',
+        ...formasPara(recibe, ['efectivo']),
+        monto: centavos(62_000_000),
+      },
+    },
+    ...cambios,
+  });
+}
+
+const TALLER_DEL_DOCUMENTO = {
+  nombre: 'Taller MAUN',
+  titular: 'Julián Ferro',
+  cuit: '20-12345678-6',
+  condicionFiscal: 'monotributo',
+  domicilio: 'Pasaje Los Robles 450, CABA',
+  telefono: '11 4000-1234',
+  email: '',
+} as const;
+
+const FORMATOS_DEL_DOCUMENTO = {
+  plata: (importe: number) => `$${String(importe / 100)}`,
+  porcentaje: (puntos: number) => String(puntos / 100),
+  modificaciones: (cantidad: number) => `${String(cantidad)} modificaciones`,
+  meses: (cantidad: number) => `${String(cantidad)} meses`,
+};
+
+function documentoEnDolares(): DocumentoDelPresupuesto {
+  const entrada: EntradaDelDocumento = {
+    borrador: BORRADOR_DEL_PRESUPUESTO,
+    plantilla: PLANTILLA_DE_SIEMPRE,
+    taller: TALLER_DEL_DOCUMENTO,
+    cliente: 'Paula Benítez',
+    moneda: 'USD',
+    cobraEn: ['ARS'],
+    valores: valoresDelTrabajo(centavosEn('USD', 200_000), []),
+    senaBp: puntosBasicos(5_000),
+    abonado: centavosEn('USD', 8_276),
+    referencia: REFERENCIA_DEL_PRESUPUESTO,
+  };
+  return documentoDelPresupuesto(entrada, FORMATOS_DEL_DOCUMENTO);
+}
+
+function conElPresupuesto(documento: DocumentoDelPresupuesto): PresupuestoDelTrabajo {
+  return {
+    numero: '20260914-01',
+    revision: 1,
+    mandadoEl: '2026-09-14',
+    queCambio: null,
+    documento,
+    idioma: 'es',
+    aceptadoEl: null,
+    letra: null,
+  };
+}
+
+describe('un trabajo en dólares, o que se paga en dólares', () => {
+  it('pesos en pesos, con las claves nuevas, se ve igual que hoy', () => {
+    const deHoy = trabajo({
+      cobro: CUENTA_EN_PESOS,
+      sena: centavos(62_000_000),
+      pagos: [pago('p1', '2026-08-04', 40_000_000)],
+      pago: PIDE_LA_SENA,
+    });
+    const conLasClaves: TrabajoDelCliente = {
+      ...deHoy,
+      moneda: 'ARS',
+      cobraEn: ['ARS'],
+      dolarDelDia: DOLAR_DE_HOY,
+      cobroEnDolares: CUENTA_EN_DOLARES,
+      pago: { ...PIDE_LA_SENA, formasEnDolares: [] },
+    };
+
+    expect(vistaDelCliente(conLasClaves, HOY)).toEqual(vistaDelCliente(deHoy, HOY));
+    expect(comoPagar(conLasClaves, HOY)).toMatchObject({
+      moneda: 'ARS',
+      monto: FALTA_DE_LA_SENA,
+      montoParaPegar: '504000',
+      transferencia: true,
+      mercadoPago: true,
+      enLaOtraMoneda: null,
+    });
+    expect(aprobada(vistaDelCliente(conLasClaves, HOY))).toMatchObject({
+      moneda: 'ARS',
+      precioEnPesos: null,
+    });
+  });
+
+  it('dólares en pesos, con el dólar del día de hoy: la seña en dólares, y lo que son hoy en pesos para pegar', () => {
+    const vista = esperandoLaSena(vistaDelCliente(enDolares(['ARS']), HOY));
+
+    expect(vista.moneda).toBe('USD');
+    expect(vista.pagado).toBe(8_276);
+    expect(vista.sena).toEqual({
+      situacion: 'falta',
+      sena: 100_000,
+      aCuenta: 8_276,
+      falta: 91_724,
+    });
+    expect(vista.comoPagar).toMatchObject({
+      moneda: 'USD',
+      monto: 91_724,
+      montoParaPegar: null,
+      transferencia: false,
+      efectivo: false,
+      faltanLosDatos: false,
+    });
+    expect(vista.comoPagar?.enLaOtraMoneda).toEqual({
+      moneda: 'ARS',
+      transferencia: true,
+      cuenta: {
+        alias: 'maun.muebles',
+        cbu: '0110001312345678901233',
+        titular: 'Ana Gutiérrez',
+        cuit: '27-30123456-4',
+      },
+      link: 'https://mpago.la/2vXyZ1',
+      mercadoPago: true,
+      efectivo: true,
+      faltanLosDatos: false,
+      enEfectivo: TEXTOS.comoPagar.tambienEfectivo.sena,
+      importe: {
+        situacion: 'convertido',
+        monto: 132_999_800,
+        montoParaPegar: '1329998',
+        cotizacion: 145_000,
+      },
+    });
+  });
+
+  it('dólares en pesos, con el dólar del día de ayer: el importe en dólares, y los pesos los pasa el taller', () => {
+    const como = comoPagar(enDolares(['ARS'], { dolarDelDia: DOLAR_DE_AYER }), HOY);
+    expect(como?.monto).toBe(91_724);
+    expect(como?.montoParaPegar).toBeNull();
+    expect(como?.enLaOtraMoneda?.importe).toEqual({ situacion: 'te-lo-pasa-el-taller' });
+  });
+
+  it('dólares en pesos, sin dólar del día: tampoco inventa una cotización', () => {
+    const como = comoPagar(enDolares(['ARS'], { dolarDelDia: null }), HOY);
+    expect(como?.enLaOtraMoneda?.importe).toEqual({ situacion: 'te-lo-pasa-el-taller' });
+    const { dolarDelDia: _dolar, ...deAntes } = enDolares(['ARS']);
+    expect(comoPagar(deAntes, HOY)?.enLaOtraMoneda?.importe).toEqual({
+      situacion: 'te-lo-pasa-el-taller',
+    });
+  });
+
+  it('dólares en dólares: el importe para pegar en dólares, a la cuenta en dólares y sin Mercado Pago', () => {
+    const como = comoPagar(enDolares(['USD']), HOY);
+    expect(como).toMatchObject({
+      moneda: 'USD',
+      monto: 91_724,
+      montoParaPegar: '917,24',
+      transferencia: true,
+      cuenta: CUENTA_EN_DOLARES,
+      link: null,
+      mercadoPago: false,
+      efectivo: true,
+      faltanLosDatos: false,
+      enEfectivo: TEXTOS.comoPagar.tambienEfectivo.sena,
+      enLaOtraMoneda: null,
+    });
+  });
+
+  it('dólares en pesos o dólares: el bloque en dólares primero, y el de pesos con los de hoy', () => {
+    const como = comoPagar(enDolares(['ARS', 'USD']), HOY);
+    expect(como).toMatchObject({
+      moneda: 'USD',
+      montoParaPegar: '917,24',
+      transferencia: true,
+      cuenta: CUENTA_EN_DOLARES,
+      mercadoPago: false,
+    });
+    expect(como?.enLaOtraMoneda).toMatchObject({
+      moneda: 'ARS',
+      transferencia: true,
+      link: 'https://mpago.la/2vXyZ1',
+      mercadoPago: true,
+      importe: { situacion: 'convertido', monto: 132_999_800, montoParaPegar: '1329998' },
+    });
+  });
+
+  it('pesos en dólares: ningún importe en dólares, se acuerda con el taller el día que paga', () => {
+    const como = comoPagar(enPesos(['USD']), HOY);
+    expect(como).toMatchObject({
+      moneda: 'ARS',
+      monto: 22_000_000,
+      montoParaPegar: null,
+      transferencia: false,
+      efectivo: false,
+      faltanLosDatos: false,
+      mercadoPago: false,
+      link: null,
+    });
+    expect(como?.enLaOtraMoneda).toEqual({
+      moneda: 'USD',
+      transferencia: true,
+      cuenta: CUENTA_EN_DOLARES,
+      link: null,
+      mercadoPago: false,
+      efectivo: true,
+      faltanLosDatos: false,
+      enEfectivo: TEXTOS.comoPagar.tambienEfectivo.sena,
+      importe: { situacion: 'lo-acordas-con-el-taller' },
+    });
+  });
+
+  it('pesos en pesos o dólares: el bloque de pesos de siempre, y el de dólares sin importe', () => {
+    const como = comoPagar(enPesos(['ARS', 'USD']), HOY);
+    expect(como).toMatchObject({
+      moneda: 'ARS',
+      montoParaPegar: '220000',
+      transferencia: true,
+      link: 'https://mpago.la/2vXyZ1',
+      mercadoPago: true,
+    });
+    expect(como?.enLaOtraMoneda).toMatchObject({
+      moneda: 'USD',
+      importe: { situacion: 'lo-acordas-con-el-taller' },
+    });
+  });
+
+  it('sin cuenta en dólares, pedir la transferencia en dólares dice que faltan los datos', () => {
+    const { cobroEnDolares: _cuenta, ...sinCuenta } = enDolares(['USD']);
+    const como = comoPagar(sinCuenta, HOY);
+    expect(como).toMatchObject({
+      transferencia: false,
+      faltanLosDatos: true,
+      efectivo: true,
+      cuenta: { alias: null, cbu: null, titular: null, cuit: null },
+      enEfectivo: TEXTOS.comoPagar.soloEfectivo.sena,
+    });
+  });
+
+  it('una respuesta sin las formas en dólares no ofrece nada en dólares', () => {
+    const viejo = enDolares(['USD'], {
+      pago: { instancia: 'sena', formas: [], monto: centavosEn('USD', 91_724), siguiente: null },
+    });
+    const como = comoPagar(viejo, HOY);
+    expect(como).toMatchObject({ transferencia: false, efectivo: false, faltanLosDatos: false });
+    expect(hayComoPagar(como)).toBe(false);
+  });
+
+  it('sin el importe todavía, los pesos de hoy no se calculan', () => {
+    const como = comoPagar(
+      enDolares(['ARS'], {
+        pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+      }),
+      HOY,
+    );
+    expect(como?.monto).toBeNull();
+    expect(como?.enLaOtraMoneda?.importe).toEqual({ situacion: 'te-lo-pasa-el-taller' });
+  });
+
+  it('el pago que sigue nombra las formas de las dos monedas', () => {
+    const como = comoPagar(
+      enDolares(['ARS', 'USD'], {
+        pago: {
+          instancia: 'sena',
+          formas: ['transferencia'],
+          formasEnDolares: ['efectivo'],
+          monto: centavosEn('USD', 91_724),
+          siguiente: {
+            instancia: 'saldo',
+            formas: ['transferencia'],
+            formasEnDolares: ['efectivo'],
+            monto: centavosEn('USD', 100_000),
+          },
+        },
+      }),
+      HOY,
+    );
+    expect(como?.siguiente).toEqual({
+      instancia: 'saldo',
+      monto: 100_000,
+      nombre: 'el saldo',
+      comoSePaga: 'por transferencia o en efectivo',
+    });
+  });
+
+  it('vencido, en dólares tampoco pide nada', () => {
+    const como = comoPagar(
+      enDolares(['ARS', 'USD'], {
+        fechas: fechas({ presupuesto: '2026-09-01', valeHasta: '2026-09-17' }),
+      }),
+      HOY,
+    );
+    expect(como).toMatchObject({
+      moneda: 'USD',
+      monto: null,
+      montoParaPegar: null,
+      transferencia: false,
+      efectivo: false,
+      vencio: '2026-09-17',
+      enLaOtraMoneda: null,
+    });
+  });
+
+  it('hay cómo pagar si alguna de las dos monedas tiene una forma concreta', () => {
+    expect(hayComoPagar(null)).toBe(false);
+    expect(hayComoPagar(comoPagar(enPesos(null), HOY))).toBe(true);
+    expect(hayComoPagar(comoPagar(enDolares(['USD']), HOY))).toBe(true);
+
+    const soloEfectivo = enPesos(null);
+    expect(
+      hayComoPagar(
+        comoPagar({ ...soloEfectivo, pago: { ...soloEfectivo.pago, formas: ['efectivo'] } }, HOY),
+      ),
+    ).toBe(true);
+
+    const enDolaresPorTransferencia = enPesos(['USD']);
+    expect(
+      hayComoPagar(
+        comoPagar(
+          {
+            ...enDolaresPorTransferencia,
+            pago: { ...enDolaresPorTransferencia.pago, formasEnDolares: ['transferencia'] },
+          },
+          HOY,
+        ),
+      ),
+    ).toBe(true);
+
+    const enDolaresEnEfectivo = enPesos(['USD']);
+    expect(
+      hayComoPagar(
+        comoPagar(
+          {
+            ...enDolaresEnEfectivo,
+            pago: { ...enDolaresEnEfectivo.pago, formasEnDolares: ['efectivo'] },
+          },
+          HOY,
+        ),
+      ),
+    ).toBe(true);
+
+    const { cobroEnDolares: _cuenta, ...sinCuenta } = enPesos(['USD']);
+    const pidiendoLosDatos = comoPagar(
+      { ...sinCuenta, pago: { ...sinCuenta.pago, formasEnDolares: ['transferencia'] } },
+      HOY,
+    );
+    expect(hayComoPagar(pidiendoLosDatos)).toBe(false);
+    const otra = pidiendoLosDatos?.enLaOtraMoneda ?? null;
+    expect(otra === null ? null : seOfrece(otra)).toBe(true);
+  });
+
+  it('se ofrece una moneda con transferencia, con efectivo o pidiendo los datos', () => {
+    const como = comoPagar(enPesos(null), HOY);
+    if (como === null) throw new Error('Se esperaba cómo pagar.');
+    expect(seOfrece(como)).toBe(true);
+    expect(seOfrece({ ...como, transferencia: false })).toBe(true);
+    expect(seOfrece({ ...como, transferencia: false, efectivo: false })).toBe(false);
+    expect(seOfrece({ ...como, transferencia: false, efectivo: false, faltanLosDatos: true })).toBe(
+      true,
+    );
+  });
+
+  it('lo pagado y el saldo de un trabajo en dólares suman lo que descontó cada pago, en dólares', () => {
+    const vista = aprobada(
+      vistaDelCliente(
+        enDolares(['ARS', 'USD'], {
+          estado: 'en_curso',
+          fechas: fechas({ presupuesto: '2026-09-14', aprobado: '2026-09-15' }),
+          pagos: [LA_VISITA_EN_PESOS, LA_SENA_EN_DOLARES],
+        }),
+        HOY,
+      ),
+    );
+    expect(vista.moneda).toBe('USD');
+    expect(vista.pagado).toBe(100_000);
+    expect(vista.saldo).toBe(100_000);
+    expect(vista.pagos).toEqual([LA_VISITA_EN_PESOS, LA_SENA_EN_DOLARES]);
+    expect(vista.eventos.filter(({ monto }) => monto !== null).map(({ monto }) => monto)).toEqual([
+      91_724, 8_276,
+    ]);
+  });
+
+  it('de cada pago en la otra moneda, cuánto se pagó y a qué dólar', () => {
+    expect(loQueSePagoEnOtraMoneda(LA_VISITA_EN_PESOS, 'USD')).toEqual({
+      pagado: { importe: 12_000_000, moneda: 'ARS' },
+      cotizacion: 145_000,
+    });
+    expect(
+      loQueSePagoEnOtraMoneda(
+        {
+          id: 'dolares',
+          fecha: '2026-09-15',
+          concepto: 'Saldo',
+          monto: centavos(154_000_000),
+          pagado: {
+            moneda: 'USD',
+            monto: centavosEn('USD', 100_000),
+            cotizacion: cotizacion(154_000),
+          },
+        },
+        'ARS',
+      ),
+    ).toEqual({ pagado: { importe: 100_000, moneda: 'USD' }, cotizacion: 154_000 });
+  });
+
+  it('un pago en la moneda del trabajo, o sin su dólar, no dice nada más', () => {
+    expect(loQueSePagoEnOtraMoneda(LA_SENA_EN_DOLARES, 'USD')).toBeNull();
+    expect(loQueSePagoEnOtraMoneda(pago('p1', '2026-08-04', 40_000_000), 'ARS')).toBeNull();
+    expect(
+      loQueSePagoEnOtraMoneda(
+        {
+          ...LA_VISITA_EN_PESOS,
+          pagado: { moneda: 'ARS', monto: centavos(12_000_000), cotizacion: null },
+        },
+        'USD',
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('el precio de un trabajo en dólares, con su referencia en pesos', () => {
+  it('con el dólar del día de hoy, los pesos de hoy', () => {
+    expect(esperandoLaSena(vistaDelCliente(enDolares(['ARS']), HOY)).precioEnPesos).toEqual({
+      pesos: 290_000_000,
+      cotizacion: 145_000,
+      fecha: HOY,
+      deHoy: true,
+    });
+  });
+
+  it('con el de ayer y el presupuesto mandado en dólares, la referencia del presupuesto con su fecha', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        enDolares(['ARS'], {
+          dolarDelDia: DOLAR_DE_AYER,
+          presupuesto: conElPresupuesto(documentoEnDolares()),
+        }),
+        HOY,
+      ),
+    );
+    expect(vista.precioEnPesos).toEqual({
+      pesos: 280_000_000,
+      cotizacion: 140_000,
+      fecha: '2026-09-14',
+      deHoy: false,
+    });
+  });
+
+  it('el dólar del día de hoy le gana a la referencia del presupuesto', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        enDolares(['ARS'], { presupuesto: conElPresupuesto(documentoEnDolares()) }),
+        HOY,
+      ),
+    );
+    expect(vista.precioEnPesos).toMatchObject({ cotizacion: 145_000, deHoy: true });
+  });
+
+  it('sin presupuesto mandado, el último dólar del día cargado, con su fecha', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(enDolares(['ARS'], { dolarDelDia: DOLAR_DE_AYER }), HOY),
+    );
+    expect(vista.precioEnPesos).toEqual({
+      pesos: 288_000_000,
+      cotizacion: 144_000,
+      fecha: '2026-09-17',
+      deHoy: false,
+    });
+  });
+
+  it('un presupuesto en pesos no le da referencia a un trabajo que pasó a dólares', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        enDolares(['ARS'], {
+          dolarDelDia: DOLAR_DE_AYER,
+          presupuesto: conElPresupuesto(documentoMandado(false)),
+        }),
+        HOY,
+      ),
+    );
+    expect(vista.precioEnPesos).toMatchObject({ cotizacion: 144_000, fecha: '2026-09-17' });
+  });
+
+  it('sin ningún dólar cargado no hay pesos: nunca un importe en pesos sin su cotización', () => {
+    expect(
+      esperandoLaSena(vistaDelCliente(enDolares(['ARS'], { dolarDelDia: null }), HOY))
+        .precioEnPesos,
+    ).toBeNull();
+  });
+
+  it('aprobado, el precio también va con su referencia', () => {
+    const vista = aprobada(vistaDelCliente(enDolares(['ARS'], { estado: 'en_curso' }), HOY));
+    expect(vista.precio).toBe(200_000);
+    expect(vista.precioEnPesos).toMatchObject({ pesos: 290_000_000, deHoy: true });
+  });
+
+  it('sin precio, o en pesos, no hay referencia', () => {
+    expect(
+      aprobada(vistaDelCliente(enDolares(['ARS'], { estado: 'en_curso', precio: null }), HOY))
+        .precioEnPesos,
+    ).toBeNull();
+    expect(aprobada(vistaDelCliente(enPesos(null), HOY)).precioEnPesos).toBeNull();
+  });
+});
+
+describe('el presupuesto mandado en otra moneda que la del trabajo', () => {
+  it('en la misma moneda, sus cuentas descuentan lo pagado en dólares', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        enDolares(['ARS'], { presupuesto: conElPresupuesto(documentoEnDolares()) }),
+        HOY,
+      ),
+    );
+    expect(vista.elPresupuesto?.cuentas).toEqual([
+      {
+        id: null,
+        letra: null,
+        descripcion: '',
+        total: 200_000,
+        sena: 100_000,
+        pagado: 8_276,
+        faltaParaLaSena: 91_724,
+        saldo: 100_000,
+      },
+    ]);
+  });
+
+  it('en otra moneda, sus cuentas no mezclan lo pagado con sus importes', () => {
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        enDolares(['ARS'], { presupuesto: conElPresupuesto(documentoMandado(false)) }),
+        HOY,
+      ),
+    );
+    expect(vista.elPresupuesto?.cuentas.map(({ pagado }) => pagado)).toEqual([0]);
+  });
+
+  it('aprobado, lo acordado se dice solo en la moneda del presupuesto', () => {
+    const enOtra = aprobada(
+      vistaDelCliente(
+        enDolares(['ARS'], {
+          estado: 'en_curso',
+          precio: centavosEn('USD', 150_000),
+          presupuesto: conElPresupuesto(documentoMandado(false)),
+        }),
+        HOY,
+      ),
+    );
+    expect(enOtra.elPresupuesto?.acordado).toBeNull();
+
+    const enLaMisma = aprobada(
+      vistaDelCliente(
+        enDolares(['ARS'], {
+          estado: 'en_curso',
+          precio: centavosEn('USD', 150_000),
+          presupuesto: conElPresupuesto(documentoEnDolares()),
+        }),
+        HOY,
+      ),
+    );
+    expect(enLaMisma.elPresupuesto?.acordado).toBe(150_000);
   });
 });
