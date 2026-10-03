@@ -5,9 +5,6 @@ import {
   cuentaDe,
   DIAS_DE_ACIERTO,
   filasDeEntregas,
-  fraseDeLasCumplidas,
-  fraseDeLosAciertos,
-  fraseDelDesvio,
   resumenDeEntregas,
   resumirDias,
   SIN_TIPO,
@@ -108,44 +105,6 @@ describe('cuentaDe', () => {
     expect(cuentaDe(7, 12)).toEqual({ k: 7, n: 12, porcentaje: null });
     expect(cuentaDe(15, 22)).toEqual({ k: 15, n: 22, porcentaje: 68 });
   });
-
-  it('las frases de los aciertos y de las cumplidas', () => {
-    expect(fraseDeLosAciertos(cuentaDe(7, 12))).toBe('Acertaste 7 de 12.');
-    expect(fraseDeLasCumplidas(cuentaDe(9, 11))).toBe('Cumpliste 9 de 11 fechas comprometidas.');
-    expect(fraseDeLosAciertos(cuentaDe(15, 22))).toBe('Acertaste 15 de 22 (68%).');
-    expect(fraseDeLasCumplidas(cuentaDe(20, 20))).toBe(
-      'Cumpliste 20 de 20 fechas comprometidas (100%).',
-    );
-  });
-});
-
-describe('la frase del desvío', () => {
-  it('sin trabajos, con pocos, y desde la mediana en los dos sentidos', () => {
-    expect(fraseDelDesvio(resumirDias([]))).toBe(
-      'Todavía no entregaste ningún trabajo con una fecha estimada para comparar.',
-    );
-    expect(fraseDelDesvio(resumirDias([2]))).toBe(
-      'Con un trabajo todavía son pocos para sacar una cuenta: miralos uno por uno.',
-    );
-    expect(fraseDelDesvio(resumirDias([2, 3, 4]))).toBe(
-      'Con 3 trabajos todavía son pocos para sacar una cuenta: miralos uno por uno.',
-    );
-    expect(fraseDelDesvio(resumirDias([4, 4, 4, 5, 2]))).toBe(
-      'Entregás, en la mediana, 4 días después de lo estimado.',
-    );
-    expect(fraseDelDesvio(resumirDias([1, 1, 1, 0, 2]))).toBe(
-      'Entregás, en la mediana, 1 día después de lo estimado.',
-    );
-    expect(fraseDelDesvio(resumirDias([-3, -2, -1, -4, -2, -1]))).toBe(
-      'Entregás, en la mediana, 2 días antes de lo estimado.',
-    );
-    expect(fraseDelDesvio(resumirDias([0, 1, -1, 0, 0]))).toBe(
-      'Entregás, en la mediana, el mismo día que estimaste.',
-    );
-    expect(fraseDelDesvio(resumirDias([1, 2, 3, 4, 5, 6]))).toBe(
-      'Entregás, en la mediana, 3,5 días después de lo estimado.',
-    );
-  });
 });
 
 describe('analisisDeEntregas', () => {
@@ -236,9 +195,12 @@ describe('analisisDeEntregas', () => {
     expect(precision.desvio).toMatchObject({ modo: 'casos', n: 4 });
     expect(precision.aciertos).toBeNull();
     expect(precision.cumplidas).toBeNull();
-    expect(precision.frase).toBe(
-      'Con 4 trabajos todavía son pocos para sacar una cuenta: miralos uno por uno.',
-    );
+    expect(Object.keys(precision).sort()).toEqual([
+      'aciertos',
+      'cumplidas',
+      'desvio',
+      'importadas',
+    ]);
   });
 
   it('con 6, la mediana con el rango, y todavía sin los k de n', () => {

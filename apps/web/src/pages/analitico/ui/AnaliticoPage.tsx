@@ -7,6 +7,18 @@ import {
 } from '@maun/domain';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 
+import {
+  cuantosTrabajos,
+  desvioEnPalabras,
+  enDias,
+  fraseDeLasCumplidas,
+  fraseDeLosAciertos,
+  fraseDelDesvio,
+  hayAlgoPorCarga,
+  nombreDeLaCarga,
+  resumenDeLosDias,
+  resumenDelDesvio,
+} from '@/entities/entrega';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { analisisDeLaReplica } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
@@ -19,19 +31,6 @@ import {
   useVolver,
 } from '@/shared/lib';
 import { Button, EstadoVacio, Icono, Pagina } from '@/shared/ui';
-
-import {
-  cuantosTrabajos,
-  desvioEnPalabras,
-  enDias,
-  fraseDeLasCumplidas,
-  fraseDeLosAciertos,
-  fraseDelDesvio,
-  hayAlgoPorCarga,
-  nombreDeLaCarga,
-  resumenDeLosDias,
-  resumenDelDesvio,
-} from '../model/textos';
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 

@@ -7,6 +7,18 @@ export {
   type PropuestaDeEntrega,
 } from './api/mutacion';
 export {
+  cuantosTrabajos,
+  desvioEnPalabras,
+  enDias,
+  fraseDeLasCumplidas,
+  fraseDeLosAciertos,
+  fraseDelDesvio,
+  hayAlgoPorCarga,
+  nombreDeLaCarga,
+  resumenDeLosDias,
+  resumenDelDesvio,
+} from './model/analitico';
+export {
   avisosDeEntregas,
   coordinacionEnLaFicha,
   diasDeLaRespuesta,

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { fraseDelDesvio } from '@/entities/entrega';
 import { analisisDeLaReplica, type Replica } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { Ir, RUTA_DEL_ANALITICO } from '@/shared/lib';
@@ -23,7 +24,7 @@ export function AccesoAlAnalitico({ replica }: { replica: Replica }) {
       <span className="min-w-0 flex-1">
         <span className="block text-body font-semibold">{textos.analitico}</span>
         <span className="mt-0.5 block text-label leading-snug text-text-2">
-          {analisis.precision.frase}
+          {fraseDelDesvio(analisis.precision.desvio)}
         </span>
       </span>
       <span aria-hidden className="flex-none text-text-3">
