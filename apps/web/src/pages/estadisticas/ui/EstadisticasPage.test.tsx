@@ -505,6 +505,11 @@ describe('Estadísticas', () => {
     expect(seccion('¿En qué se me va la plata?')).toHaveTextContent(
       '$ 20.000 son gastos sin categoría.',
     );
+    expect(
+      within(seccion('¿En qué se me va la plata?')).getByRole('figure', {
+        name: 'Lo que más usás en cuántos trabajos lo anotaste en «Lo que hace falta»',
+      }),
+    ).toBeInTheDocument();
     expect(seccion('¿Llego a tiempo?')).toHaveTextContent(
       'Entregaste 4 de 5 trabajos el día que prometiste o antes. Tardás 30 días: la mitad de los trabajos tarda menos.',
     );

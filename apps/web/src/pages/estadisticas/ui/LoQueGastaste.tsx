@@ -1,4 +1,5 @@
 import type { LoQueGastaste, LoQueMasUsas, PeriodoResuelto } from '@maun/domain';
+import { useId } from 'react';
 
 import { categoriaEnPantalla, esCategoriaDelCatalogo } from '@/entities/movimiento';
 import { nombreDeLaCategoria } from '@/entities/proyecto';
@@ -62,6 +63,8 @@ export function SeccionDeLoQueGastaste({
 }: SeccionDeLoQueGastasteProps) {
   const mensajes = useMensajes();
   const textos = mensajes.paginaEstadisticas;
+  const idDelTitulo = useId();
+  const idDelAparte = useId();
   const hayGastos = gastos.trabajos.length + gastos.taller.length > 0;
   const hayUsos = gastos.materiales.primeros.length + gastos.herrajes.primeros.length > 0;
   const rango = resuelto.largo === 'todo' ? null : rangoEnElTexto(resuelto, hoy);
@@ -182,10 +185,12 @@ export function SeccionDeLoQueGastaste({
           )}
         </Figura>
       )}
-      <Figura separada={hayGastos}>
+      <Figura separada={hayGastos} etiquetadaPor={[idDelTitulo, idDelAparte].join(' ')}>
         <TituloDeFigura
           titulo={textos.gastos.loQueMasUsas}
           aparte={textos.gastos.enCuantosTrabajos}
+          idDelTitulo={idDelTitulo}
+          idDelAparte={idDelAparte}
           ayuda={
             <Ayuda que={textos.queEs(textos.gastos.loQueMasUsas)}>
               {textos.ayudas.loQueMasUsas}

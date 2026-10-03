@@ -92,13 +92,16 @@ export function Seccion({
 
 export function Figura({
   separada = false,
+  etiquetadaPor,
   children,
 }: {
   separada?: boolean;
+  etiquetadaPor?: string;
   children: ReactNode;
 }) {
   return (
     <figure
+      aria-labelledby={etiquetadaPor}
       className={`m-0 flex min-w-0 flex-col gap-2.5 ${
         separada ? 'border-t border-hairline-soft pt-3.5' : ''
       }`}
@@ -113,11 +116,15 @@ export function TituloDeFigura({
   aparte = null,
   ayuda = null,
   dato = false,
+  idDelTitulo,
+  idDelAparte,
 }: {
   titulo: string;
   aparte?: string | null;
   ayuda?: ReactNode;
   dato?: boolean;
+  idDelTitulo?: string;
+  idDelAparte?: string;
 }) {
   return (
     <figcaption className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
@@ -125,10 +132,14 @@ export function TituloDeFigura({
         translate={dato ? 'no' : undefined}
         className="inline-flex items-center gap-1.5 text-label font-semibold"
       >
-        {titulo}
+        <span id={idDelTitulo}>{titulo}</span>
         {ayuda}
       </span>
-      {aparte !== null && <span className="text-meta text-text-3">{aparte}</span>}
+      {aparte !== null && (
+        <span id={idDelAparte} className="text-meta text-text-3">
+          {aparte}
+        </span>
+      )}
     </figcaption>
   );
 }
