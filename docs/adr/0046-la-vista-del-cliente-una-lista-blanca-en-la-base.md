@@ -10,6 +10,10 @@ Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuán
   del siguiente y, en cada pago, la moneda, lo pagado en su moneda y la cotización. `pagos[].monto_centavos`
   pasa a ser lo que descuenta, en la moneda del trabajo. `25_vista_del_cliente.sql` clasifica cada columna
   nueva como de las que viajan o de las que no.
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): `cambios_de_estado` entra a
+  la réplica, porque Estadísticas la lee (el embudo de las consultas): está en `bootstrap()`, solo con las
+  filas de trabajos vivos, y en `delta()`, y avisa con `avisar_los_cambios`. La vista del cliente no cambia:
+  sigue leyendo esas dos fechas y nada más, y `gastos.categoria`, la columna nueva de los gastos, no viaja.
 
 ## Contexto
 
@@ -210,7 +214,7 @@ pueden reconstruir después: **cuándo le mandó el presupuesto** y **cuándo lo
 `proyectos`, así que no importa por dónde entre el cambio (el agregado, el cobro, la reapertura) y la
 app no puede forjarlo ni corregirlo: solo tiene `select`. No está en la réplica, porque todavía no
 hay pantalla que lo lea y es la única tabla que crece sin techo; cuando la línea de tiempo entre en
-la app, entra.
+la app, entra. (Entró con Estadísticas, por el [ADR 0084](0084-las-estadisticas-del-taller.md).)
 
 **Lo que el cliente ve de esa historia es curado, no todo.** La vista pública lee exactamente dos
 cosas del registro: la primera vez que el trabajo entró en `presupuesto_enviado` y la primera vez que

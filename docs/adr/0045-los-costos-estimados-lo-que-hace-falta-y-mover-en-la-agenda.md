@@ -22,6 +22,11 @@
   en pesos. En un trabajo en dólares, «Dólar para los costos» (`costos_cotizacion_centavos`, por la misma
   mutación) los muestra también en dólares, cada costo se escribe en pesos o en dólares (se guarda en pesos
   con ese dólar) y lo que te queda se calcula en dólares; sin ese dólar no se muestra y se pide.
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): los gastos reales de un
+  trabajo suman `categoria`, opcional, con las cuatro categorías de los costos estimados (madera, herrajes,
+  flete y ayudante) más «otro», para comparar lo estimado con lo gastado cuando haya trabajos cobrados con
+  gastos categorizados. Estadísticas cuenta lo que hace falta de tipo material y herraje en «Lo que más
+  usás».
 
 ## Contexto
 

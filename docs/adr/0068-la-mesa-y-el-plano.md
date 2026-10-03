@@ -363,6 +363,10 @@ la tarjeta de la primera vez en Tesoros, con la escena `la-fila` (la última fil
 única lámina de esa pantalla; el lienzo y el plano vertical van sobre la cuadrícula, que no es una
 lámina.
 
+**Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md)**: se suma Estadísticas
+vacía, con la escena `sin-estadisticas` (la fila después de Opiniones). Los gráficos de Estadísticas no son
+láminas ni usan la clase `ilustracion`: son tarjetas de contenido.
+
 | Dónde                            | Escena                            | Qué dibuja                                                                 | Por qué                                                                 |
 | -------------------------------- | --------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Proyectos, Activos vacío         | `sin-proyectos`                   | el mueble en plano, de trazos, con su cota                                 | un trabajo activo empieza siendo un plano que todavía no se construyó   |

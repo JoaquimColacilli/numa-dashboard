@@ -4,6 +4,8 @@ Estado: aceptada, 2026-09-11. La región y la base (bootstrap, índices) quedan 
 
 Completado el 2026-09-26 por el [0075](0075-la-app-abre-sin-pantalla-en-blanco.md): mientras la app arranca ya no se ve la mesa vacía sino un esqueleto de la pantalla, que sale del mismo `index.html` antes de que baje el JS; la validación de la sesión arranca con la app y no con la primera guarda; y sin réplica guardada el `bootstrap()` sale apenas se sabe que falta, sin esperar la sesión ni el render. El arranque se mide con `apps/web/scripts/medir-el-arranque.ts`, en frío, tibio y caliente, en la compu y en el celular frenado. `bootstrap()` al volumen del taller real (288 filas vivas) medido con `db:medir`: 37 ms en la base y 24 KB comprimido.
 
+Enmendado el 2026-10-03 por el [0084](0084-las-estadisticas-del-taller.md): `bootstrap()` y `delta()` suman `cambios_de_estado` (el `bootstrap()`, solo las filas de trabajos vivos). Medido con `db:medir` antes y después: a 2.400 filas el gzip pasa de 104 a 120 KB, y a 24.000 de 860 KB a 1.025 KB, que cruza por poco el umbral de 1 MB; el de 500 ms en la base ya estaba cruzado a esa escala antes del cambio (6 a 11 s, sin investigar). El `bootstrap()` de Eliseo pasó de 182 a 196 KB. **`db:medir` se corre con escalas explícitas y de a una**: la de 100.000 filas reinició el Postgres de producción el 2026-10-03. El cálculo de Estadísticas se midió contra los 50 ms de abajo: ver la objeción del 0084.
+
 ## Contexto
 
 El primer requisito del cliente: abre la app y ve sus datos, sin esperar ni mirar un spinner. La usa desde el celular en un taller con mala señal, en Buenos Aires. Cada consulta a la base paga el viaje de ida y vuelta, y eso se multiplica por cada consulta que se hace en serie.

@@ -14,6 +14,10 @@ Estado: **aceptada**. Fecha: 2026-09-12.
   su cotización.
 - Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): un pago en dólares es un renglón
   de su tesoro en dólares, con su dólar, y «Facturó el taller» suma el valor en pesos de cada pago.
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): en `ComparacionMensual` las
+  columnas del mes anterior y el cuadradito de su leyenda pasan del gris de borde (1,41:1 contra el papel) a
+  `--color-contexto` (3,23:1 en claro y 3,62:1 en oscuro), y debajo de la comparación, en el apoyo, va «Ver
+  más en Estadísticas».
 
 ## Contexto
 

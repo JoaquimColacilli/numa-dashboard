@@ -14,6 +14,10 @@ después: el cliente ve lo que se le mandó aunque el dueño siga armando o camb
   datos, también las de fábrica, sembradas en castellano: no se traducen. La encuesta, su escala y sus
   mensajes salen en el idioma de los clientes del taller, y si ese idioma no es el castellano, Ajustes avisa
   que las preguntas siguen como se escribieron.
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): `PuntosPorPersona` y la
+  barra repartida (`BarraDivergente`) bajan de `pages/opiniones` a `entities/opinion`, sin cambios de
+  aspecto, porque Estadísticas muestra la titular igual que Resultados. Estadísticas lee los mismos datos
+  (`datosDeLasOpiniones`), y su (i) dice que la encuesta no es anónima y suele dar alto.
 
 ## Contexto
 
