@@ -2,8 +2,13 @@ import { formatearCuit, LARGO_DE_CUIT, revisarCuit } from '@maun/domain';
 import { z } from 'zod';
 
 import { COLUMNAS_DE_CLIENTE, type DatosDeCliente } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import { CONDICIONES_EN_ORDEN, ORIGENES_EN_ORDEN, type Cliente } from './catalogos';
+
+function textos() {
+  return mensajes().cliente.formulario;
+}
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -31,22 +36,22 @@ function texto(maximo: number) {
   return z
     .string()
     .trim()
-    .max(maximo, { error: `No puede pasar de ${String(maximo)} caracteres.` });
+    .max(maximo, { error: () => textos().largoMaximo(maximo) });
 }
 
 export const esquemaDeCliente = z.object({
-  nombre: texto(200).min(1, { error: 'El nombre es lo único que no puede faltar.' }),
+  nombre: texto(200).min(1, { error: () => textos().faltaElNombre }),
   zona: texto(200),
   telefono: texto(200),
   email: texto(200).refine((valor) => valor === '' || EMAIL.test(valor), {
-    error: 'Revisá el mail: le falta el arroba o el punto.',
+    error: () => textos().revisaElMail,
   }),
   direccion: texto(500),
   origen_contacto: z.enum(ORIGENES_EN_ORDEN).nullable(),
   origen_detalle: texto(500),
   condicion_fiscal: z.enum(CONDICIONES_EN_ORDEN),
   cuit: texto(20).refine(largoDeCuitAceptable, {
-    error: `Un CUIT tiene ${String(LARGO_DE_CUIT)} dígitos. Dejalo vacío si no lo tenés a mano.`,
+    error: () => textos().cuitIncompleto(LARGO_DE_CUIT),
   }),
   razon_social: texto(200),
   domicilio_fiscal: texto(500),
@@ -57,14 +62,12 @@ export type FormularioDeCliente = z.infer<typeof esquemaDeCliente>;
 
 export function advertenciaDeCuit(cuit: string): string | undefined {
   const revision = revisarCuit(cuit);
-  if (revision.estado === 'ambiguo') {
-    return 'El verificador de este CUIT cae en el caso que no tiene convención única. Guardalo igual si lo copiaste bien.';
-  }
+  if (revision.estado === 'ambiguo') return textos().cuitAmbiguo;
   if (revision.estado === 'invalido' && revision.motivo === 'prefijo') {
-    return 'Los CUIT arrancan con 20, 23, 24, 27, 30, 33 o 34. Guardalo igual si es el que te pasaron.';
+    return textos().cuitConOtroPrefijo;
   }
   if (revision.estado === 'invalido' && revision.motivo === 'verificador') {
-    return 'El dígito verificador no cierra. Revisalo, pero podés guardarlo igual.';
+    return textos().cuitQueNoCierra;
   }
   return undefined;
 }

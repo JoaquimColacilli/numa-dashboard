@@ -1,10 +1,9 @@
 import {
   cuentasDelPresupuesto,
-  mensajeParaElTaller,
-  nombreDelArchivo,
-  numeroVisible,
   sumarDias,
   type DocumentoDelPresupuesto,
+  type Idioma,
+  type Moneda,
   type Money,
   type PresupuestoMandado,
 } from '@maun/domain';
@@ -14,26 +13,25 @@ export function comoLoVeElCliente(
   numero: string | null,
   revision: number,
   hoy: string,
-  abonado: Money,
+  pagado: Money<Moneda>,
+  idioma: Idioma,
 ): PresupuestoMandado {
   const cuentas =
     documento.valores === null
       ? []
-      : cuentasDelPresupuesto(documento.valores, documento.senaBp, abonado);
+      : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado);
   const [unica] = cuentas;
   return {
     etapa: 'mandado',
     numero: numero ?? '',
     revision,
-    numeroVisible: numeroVisible(numero, revision),
+    idioma,
     mandadoEl: hoy,
     documento,
     cuentas,
-    nombreDelArchivo: nombreDelArchivo(documento, numero, revision),
     queCambio: null,
     valeHasta: documento.validezDias === null ? null : sumarDias(hoy, documento.validezDias),
     vencio: null,
-    mensajeParaElTaller: numero === null ? '' : mensajeParaElTaller(numero, revision),
     pideLaSena:
       documento.valores?.tipo === 'total' && unica !== undefined && unica.faltaParaLaSena > 0,
   };

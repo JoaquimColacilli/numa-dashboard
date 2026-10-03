@@ -6,8 +6,12 @@ import {
   calcularPorLaFila,
   calcularSena,
   centavos,
+  centavosEn,
   columnasDeSiempre,
+  COMBINACIONES_DE_LA_MONEDA,
+  cotizacion,
   DIEZMO,
+  dolaresDePesos,
   documentoDelPresupuesto,
   ESTADOS,
   esEstado,
@@ -23,8 +27,12 @@ import {
   LARGO_MAXIMO_DEL_NOMBRE,
   leerLaFila,
   letraDeLaOpcion,
+  loQueDescuenta,
   loVistoEsOtro,
+  MONEDA_DEL_TALLER,
+  MONEDAS,
   pagosPorDelante,
+  pesosDeDolares,
   PLANTILLA_DE_SIEMPRE,
   planDelReparto,
   previoDelMes,
@@ -47,9 +55,11 @@ import {
   SEGMENTOS_QUE_NO_SON_UN_PERFIL,
   TESOROS,
   topesDeLaLiquidacion,
+  totalEnPesos,
   validarRespuesta,
   validarRespuestaDeEntrega,
   valoresDelTrabajo,
+  valorEnPesos,
   type AjustesDeLiquidacion,
   type Asiento,
   type BaseDeLaObligacion,
@@ -58,6 +68,7 @@ import {
   type DatosDelTaller,
   type Distribucion,
   type DocumentoDelPresupuesto,
+  type DocumentoEnPesos,
   type EntradaCascada,
   type EstadoLiquidado,
   type EstadoProyecto,
@@ -65,10 +76,12 @@ import {
   type FormaDeCobro,
   type FormaDeCoordinar,
   type Formatos,
+  type ImporteDeUnPago,
   type Liquidacion,
   type LiquidacionPorLaFila,
   type LiquidacionRegistrada,
   type ModoDePaso,
+  type Moneda,
   type Money,
   type OpcionDelTrabajo,
   type PlanDelReparto,
@@ -424,6 +437,114 @@ export async function compararSenaEsperada(cliente: pg.Client): Promise<string[]
     const sql = fila.sena === null ? null : Number(fila.sena);
     return ts === sql ? [] : [`seña ${JSON.stringify(caso)}: SQL ${String(sql)}, TS ${String(ts)}`];
   });
+}
+
+type CasoDeConversion = readonly [number, number];
+
+const CONVERSIONES_FIJAS: readonly CasoDeConversion[] = [
+  [0, 100],
+  [1, 100],
+  [1, 149],
+  [1, 150],
+  [1, 151],
+  [3, 150],
+  [1, 200],
+  [3, 200],
+  [50, 101],
+  [99, 333],
+  [12_000_000, 145_000],
+  [91_724, 145_000],
+  [40_000, 150_000],
+  [50_000, 154_050],
+  [1, 10_000_000],
+  [100_000_000, 10_000_000],
+  [1_000_000_000_000, 100],
+  [-1, 145_000],
+];
+
+function conversionesAlAzar(): CasoDeConversion[] {
+  const siguiente = generador(20_261_011);
+  return Array.from({ length: 2_000 }, () => {
+    const valor = 100 + siguiente(9_999_901);
+    const importe = siguiente(4) === 0 ? siguiente(1_000) : siguiente(100_000_000);
+    return [importe, valor] as const;
+  });
+}
+
+interface CasoDeUnPago {
+  moneda: Moneda;
+  monto: number;
+  cotizacion: number | null;
+  monedaDelTrabajo: Moneda;
+}
+
+function importeDeUnPagoDelCaso(caso: CasoDeUnPago): ImporteDeUnPago {
+  const valor = caso.cotizacion === null ? null : cotizacion(caso.cotizacion);
+  return caso.moneda === 'USD'
+    ? { moneda: 'USD', monto: centavosEn('USD', caso.monto), cotizacion: valor }
+    : { moneda: 'ARS', monto: centavos(caso.monto), cotizacion: valor };
+}
+
+function pagosAlAzar(): CasoDeUnPago[] {
+  const siguiente = generador(20_261_012);
+  const casos: CasoDeUnPago[] = [];
+  for (const moneda of MONEDAS) {
+    for (const monedaDelTrabajo of MONEDAS) {
+      casos.push({ moneda, monto: 12_000_000, cotizacion: null, monedaDelTrabajo });
+      casos.push({ moneda, monto: 1, cotizacion: 150, monedaDelTrabajo });
+      for (let i = 0; i < 300; i++) {
+        casos.push({
+          moneda,
+          monto: siguiente(100_000_000),
+          cotizacion: siguiente(10) === 0 ? null : 100 + siguiente(9_999_901),
+          monedaDelTrabajo,
+        });
+      }
+    }
+  }
+  return casos;
+}
+
+export async function compararConversiones(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  const conversiones = await compararGemela<CasoDeConversion, readonly [number, number]>(cliente, {
+    nombre: 'conversión',
+    casos: [...CONVERSIONES_FIJAS, ...conversionesAlAzar()],
+    ts: ([importe, valor]) => [
+      pesosDeDolares(centavosEn('USD', importe), cotizacion(valor)),
+      dolaresDePesos(centavos(importe), cotizacion(valor)),
+    ],
+    sql: `select private.pesos_de_dolares((c.caso ->> 0)::bigint, (c.caso ->> 1)::bigint)::text as pesos,
+                 private.dolares_de_pesos((c.caso ->> 0)::bigint, (c.caso ->> 1)::bigint)::text as dolares
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => JSON.stringify([Number(fila.pesos), Number(fila.dolares)]),
+    deTs: (valor) => JSON.stringify(valor),
+  });
+
+  const pagos = await compararGemela<CasoDeUnPago, readonly [number, number]>(cliente, {
+    nombre: 'las dos cuentas de un pago',
+    casos: pagosAlAzar(),
+    ts: (caso) => {
+      const pago = importeDeUnPagoDelCaso(caso);
+      return [valorEnPesos(pago), loQueDescuenta(pago, caso.monedaDelTrabajo)];
+    },
+    sql: `select private.valor_en_pesos(
+                   c.caso ->> 'moneda', (c.caso ->> 'monto')::bigint, (c.caso ->> 'cotizacion')::bigint
+                 )::text as pesos,
+                 private.lo_que_descuenta(
+                   c.caso ->> 'moneda', (c.caso ->> 'monto')::bigint, (c.caso ->> 'cotizacion')::bigint,
+                   c.caso ->> 'monedaDelTrabajo'
+                 )::text as descuenta
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => JSON.stringify([Number(fila.pesos), Number(fila.descuenta)]),
+    deTs: (valor) => JSON.stringify(valor),
+  });
+
+  return [...conversiones, ...pagos];
 }
 
 const FORMAS_GUARDADAS: (readonly FormaDeCobro[] | null)[] = [
@@ -1240,6 +1361,7 @@ const TESOROS_DE_LA_FILA: readonly TesoroDeLaFila[] = [
   { id: idDeLaFila(8), clave: null, archivado: false, meta: metaDeLaFila(200_000_000) },
   { id: idDeLaFila(9), clave: null, archivado: false, meta: null },
   { id: idDeLaFila(10), clave: null, archivado: true, meta: metaDeLaFila(5_000_000) },
+  { id: idDeLaFila(11), clave: null, archivado: false, meta: null, moneda: 'USD' },
 ];
 
 function tesoroDelCaso(indice: number): string {
@@ -1944,6 +2066,33 @@ const FILAS_FIJAS: readonly unknown[] = [
       { tesoro: idDeLaFila(3), porcentaje: 3000, hastaLaMeta: true },
     ],
     superavit: idDeLaFila(6),
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [
+      { tesoro: idDeLaFila(11), clase: 'prioridad', tope: 100_000, renglones: [], desde: null },
+    ],
+    reparto: [],
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [],
+    reparto: [{ tesoro: idDeLaFila(11), porcentaje: 1000 }],
+    sueldoPorTrabajo: false,
+  },
+  {
+    obligaciones: [
+      { tesoro: idDeLaFila(2), porcentaje: 1000, base: 'ingreso' },
+      { tesoro: idDeLaFila(11), porcentaje: 300, base: 'cobrado' },
+    ],
+    pasos: [],
+    reparto: [],
+    sueldoPorTrabajo: false,
+  },
+  {
+    pasos: [],
+    reparto: [{ tesoro: idDeLaFila(5), porcentaje: 1000 }],
+    superavit: idDeLaFila(11),
     sueldoPorTrabajo: false,
   },
 ];
@@ -3415,11 +3564,42 @@ async function totales(
   proyectoId: string,
 ): Promise<{ cobrado: number; gastos: number }> {
   const { rows } = await cliente.query<{ cobrado: string; gastos: string }>(
-    `select (select coalesce(sum(monto_centavos), 0) from public.pagos where proyecto_id = $1 and deleted_at is null)::text as cobrado,
+    `select (
+              select coalesce(sum(private.valor_en_pesos(moneda, monto_centavos, cotizacion_centavos)), 0)
+              from public.pagos where proyecto_id = $1 and deleted_at is null
+            )::text as cobrado,
             (select coalesce(sum(monto_centavos), 0) from public.gastos where proyecto_id = $1 and deleted_at is null)::text as gastos`,
     [proyectoId],
   );
   return { cobrado: Number(rows[0]?.cobrado), gastos: Number(rows[0]?.gastos) };
+}
+
+async function cobradoEnPesosSegunElDominio(
+  cliente: pg.Client,
+  proyectoId: string,
+): Promise<number> {
+  const { rows } = await cliente.query<{
+    moneda: string;
+    monto: string;
+    cotizacion: string | null;
+  }>(
+    `select moneda, monto_centavos::text as monto, cotizacion_centavos::text as cotizacion
+     from public.pagos where proyecto_id = $1 and deleted_at is null`,
+    [proyectoId],
+  );
+  return totalEnPesos(
+    rows.map((fila) => {
+      const cotizacionDelPago =
+        fila.cotizacion === null ? null : cotizacion(Number(fila.cotizacion));
+      return fila.moneda === 'USD'
+        ? {
+            moneda: 'USD',
+            monto: centavosEn('USD', Number(fila.monto)),
+            cotizacion: cotizacionDelPago,
+          }
+        : { moneda: 'ARS', monto: centavos(Number(fila.monto)), cotizacion: cotizacionDelPago };
+    }),
+  );
 }
 
 async function loRepartidoPorLaFila(
@@ -3467,7 +3647,8 @@ export async function prepararLiquidacion(
     'p.household_id = $1 and p.fecha_cobro is not null and p.deleted_at is null and p.id <> $2',
     [householdId, proyectoId],
   );
-  const { cobrado, gastos } = await totales(cliente, proyectoId);
+  const { gastos } = await totales(cliente, proyectoId);
+  const cobrado = await cobradoEnPesosSegunElDominio(cliente, proyectoId);
   const entrada = {
     destino,
     fecha,
@@ -3544,9 +3725,17 @@ interface AjustesDeEscenario {
   metaCocos?: number;
 }
 
+interface PagoDeEscenario {
+  monto: number;
+  moneda: Moneda;
+  cotizacion: number | null;
+  tesoro?: string;
+}
+
 interface ProyectoDeEscenario {
   estado: EstadoProyecto;
-  pagos: number[];
+  moneda?: Moneda;
+  pagos: (number | PagoDeEscenario)[];
   gastos: number[];
   fechaDeLosPagos?: string;
   pagosEnLaApertura?: boolean;
@@ -3560,6 +3749,7 @@ interface MovimientoDeEscenario {
   origen: string | null;
   destino: string | null;
   monto: number;
+  montoDestino?: number;
   fecha: string;
   categoria?: string;
   descripcion?: string;
@@ -3624,7 +3814,7 @@ export interface EscenarioDeLiquidacion {
   pasos: Paso[];
   movimientos?: MovimientoDeEscenario[];
   apertura?: string;
-  tesoros?: readonly (string | readonly [string, number])[];
+  tesoros?: readonly (string | readonly [string, number | null, Moneda?])[];
 }
 
 function unCobro(
@@ -3645,6 +3835,19 @@ function unCobro(
 function entregado(...pagos: number[]): ProyectoDeEscenario {
   return { estado: 'entregado', pagos, gastos: [] };
 }
+
+function pagoDeEscenario(pago: number | PagoDeEscenario): PagoDeEscenario {
+  return typeof pago === 'number'
+    ? { monto: pago, moneda: MONEDA_DEL_TALLER, cotizacion: null }
+    : pago;
+}
+
+const PAGO_EN_DOLARES: PagoDeEscenario = {
+  monto: 40_000,
+  moneda: 'USD',
+  cotizacion: 150_000,
+  tesoro: 'Dólares',
+};
 
 const TESOROS_DE_LA_FILA_COMPLETA: readonly string[] = ['Gastos fijos', 'Materiales', 'Inmuebles'];
 
@@ -4349,6 +4552,45 @@ export const ESCENARIOS_DE_LIQUIDACION: EscenarioDeLiquidacion[] = [
   ),
   unCobro('diezmo con medio centavo', [1_000_005], [], 50_000, 20_000),
   {
+    nombre: 'un cobro con un pago en dólares reparte su valor en pesos',
+    tesoros: [['Dólares', null, 'USD']],
+    ajustes: { sueldo: 50_000_000, fijos: 25_000_000 },
+    proyectos: {
+      p: { estado: 'entregado', pagos: [40_000_000, PAGO_EN_DOLARES], gastos: [10_000_000] },
+    },
+    pasos: [{ liquidar: 'cobrado', proyecto: 'p', fecha: '2026-09-10' }],
+  },
+  {
+    nombre: 'un trabajo en dólares con la visita en pesos y su dólar se cobra en pesos',
+    tesoros: [['Dólares', null, 'USD']],
+    ajustes: { sueldo: 50_000_000, fijos: 25_000_000 },
+    proyectos: {
+      p: {
+        estado: 'entregado',
+        moneda: 'USD',
+        pagos: [
+          { monto: 12_000_000, moneda: 'ARS', cotizacion: 145_000 },
+          { monto: 191_724, moneda: 'USD', cotizacion: 145_001, tesoro: 'Dólares' },
+        ],
+        gastos: [30_000_000],
+      },
+    },
+    pasos: [{ liquidar: 'cobrado', proyecto: 'p', fecha: '2026-09-10' }],
+  },
+  {
+    nombre: 'un perdido con la seña en dólares retiene su valor en pesos',
+    tesoros: [['Dólares', null, 'USD']],
+    ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
+    proyectos: {
+      p: {
+        estado: 'presupuesto_enviado',
+        pagos: [{ monto: 100_000, moneda: 'USD', cotizacion: 150_000, tesoro: 'Dólares' }],
+        gastos: [],
+      },
+    },
+    pasos: [{ liquidar: 'perdido', proyecto: 'p', fecha: '2026-09-12' }],
+  },
+  {
     nombre: 'dos cobros del mismo mes: el segundo toma lo que falta de los fijos; otro mes, no',
     ajustes: { sueldo: 50_000_000, fijos: 25_000_000 },
     proyectos: {
@@ -4696,14 +4938,15 @@ async function prepararEscenario(
   );
   const tesorosDelEscenario = (escenario.tesoros ?? []).map((tesoro) =>
     typeof tesoro === 'string'
-      ? { nombre: tesoro, meta: null }
-      : { nombre: tesoro[0], meta: tesoro[1] },
+      ? { nombre: tesoro, meta: null, moneda: MONEDA_DEL_TALLER }
+      : { nombre: tesoro[0], meta: tesoro[1], moneda: tesoro[2] ?? MONEDA_DEL_TALLER },
   );
   const { rows: filasDeTesoros } = await cliente.query<{ nombre: string; id: string }>(
     `with nuevos as (
-       insert into public.tesoros (household_id, nombre, tinta, icono, orden, meta_centavos)
-       select $1, t.nombre, t.tinta, 'vault', t.orden - 1, t.meta
-       from unnest($2::text[], $3::text[], $4::bigint[]) with ordinality as t (nombre, tinta, meta, orden)
+       insert into public.tesoros (household_id, nombre, tinta, icono, orden, meta_centavos, moneda)
+       select $1, t.nombre, t.tinta, 'vault', t.orden - 1, t.meta, t.moneda
+       from unnest($2::text[], $3::text[], $4::bigint[], $5::text[])
+         with ordinality as t (nombre, tinta, meta, moneda, orden)
        returning nombre, id
      )
      select nombre, id from nuevos
@@ -4716,6 +4959,7 @@ async function prepararEscenario(
         (_, orden) => TINTAS_DE_ESCENARIO[orden % TINTAS_DE_ESCENARIO.length] ?? 'grana',
       ),
       tesorosDelEscenario.map((tesoro) => tesoro.meta),
+      tesorosDelEscenario.map((tesoro) => tesoro.moneda),
     ],
   );
   const tesoros = new Map(filasDeTesoros.map((fila) => [fila.nombre, fila.id]));
@@ -4730,9 +4974,9 @@ async function prepararEscenario(
 
   const proyectos = Object.entries(escenario.proyectos);
   const { rows: filasDeProyectos } = await cliente.query<{ titulo: string; id: string }>(
-    `insert into public.proyectos (household_id, cliente_id, titulo, estado)
-     select $1, $2, p.titulo, p.estado::public.estado_proyecto
-     from unnest($3::text[], $4::text[]) with ordinality as p (titulo, estado, orden)
+    `insert into public.proyectos (household_id, cliente_id, titulo, estado, moneda)
+     select $1, $2, p.titulo, p.estado::public.estado_proyecto, p.moneda
+     from unnest($3::text[], $4::text[], $5::text[]) with ordinality as p (titulo, estado, moneda, orden)
      order by p.orden
      returning titulo, id`,
     [
@@ -4740,6 +4984,7 @@ async function prepararEscenario(
       clienteDelTaller[0]?.id,
       proyectos.map(([clave]) => clave),
       proyectos.map(([, proyecto]) => proyecto.estado),
+      proyectos.map(([, proyecto]) => proyecto.moneda ?? MONEDA_DEL_TALLER),
     ],
   );
   const ids = new Map(filasDeProyectos.map((fila) => [fila.titulo, fila.id]));
@@ -4756,22 +5001,31 @@ async function prepararEscenario(
 
   const pagos = proyectos.flatMap(([clave, proyecto]) =>
     [
-      ...proyecto.pagos.map((monto) => [monto, null] as const),
-      ...(proyecto.pagosBorrados ?? []).map((monto) => [monto, '2026-08-15T00:00:00Z'] as const),
-    ].map(([monto, borrado]) => ({
+      ...proyecto.pagos.map((pago) => [pagoDeEscenario(pago), null] as const),
+      ...(proyecto.pagosBorrados ?? []).map(
+        (monto) => [pagoDeEscenario(monto), '2026-08-15T00:00:00Z'] as const,
+      ),
+    ].map(([pago, borrado]) => ({
       proyecto: idDe(clave),
       fecha: proyecto.fechaDeLosPagos ?? '2026-08-01',
-      monto,
+      ...pago,
       borrado,
       enLaApertura: proyecto.pagosEnLaApertura === true,
     })),
   );
   if (pagos.length > 0) {
     await cliente.query(
-      `insert into public.pagos (household_id, proyecto_id, fecha, monto_centavos, deleted_at, ya_en_la_apertura)
-       select $1, p.proyecto, p.fecha, p.monto, p.borrado, p.en_la_apertura
-       from unnest($2::uuid[], $3::date[], $4::bigint[], $5::timestamptz[], $6::boolean[])
-         with ordinality as p (proyecto, fecha, monto, borrado, en_la_apertura, orden)
+      `insert into public.pagos (
+         household_id, proyecto_id, fecha, monto_centavos, deleted_at, ya_en_la_apertura, moneda,
+         cotizacion_centavos, tesoro_id
+       )
+       select $1, p.proyecto, p.fecha, p.monto, p.borrado, p.en_la_apertura, p.moneda, p.cotizacion, p.tesoro
+       from unnest(
+         $2::uuid[], $3::date[], $4::bigint[], $5::timestamptz[], $6::boolean[], $7::text[], $8::bigint[],
+         $9::uuid[]
+       ) with ordinality as p (
+         proyecto, fecha, monto, borrado, en_la_apertura, moneda, cotizacion, tesoro, orden
+       )
        order by p.orden`,
       [
         householdId,
@@ -4780,6 +5034,9 @@ async function prepararEscenario(
         pagos.map((pago) => pago.monto),
         pagos.map((pago) => pago.borrado),
         pagos.map((pago) => pago.enLaApertura),
+        pagos.map((pago) => pago.moneda),
+        pagos.map((pago) => pago.cotizacion),
+        pagos.map((pago) => (pago.tesoro === undefined ? null : idDelTesoro(tesoros, pago.tesoro))),
       ],
     );
   }
@@ -4822,13 +5079,15 @@ async function prepararEscenario(
     await cliente.query(
       `insert into public.movimientos
          (household_id, fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos,
-          categoria, descripcion, deleted_at)
+          monto_destino_centavos, categoria, descripcion, deleted_at)
        select $1, m.fecha, m.tipo::public.tipo_movimiento, m.origen::public.tesoro, m.destino::public.tesoro,
-              m.desde, m.hacia, m.monto, m.categoria, m.descripcion, m.borrado
+              m.desde, m.hacia, m.monto, m.monto_destino, m.categoria, m.descripcion, m.borrado
        from unnest(
          $2::date[], $3::text[], $4::text[], $5::text[], $6::uuid[], $7::uuid[], $8::bigint[],
-         $9::text[], $10::text[], $11::timestamptz[]
-       ) with ordinality as m (fecha, tipo, origen, destino, desde, hacia, monto, categoria, descripcion, borrado, orden)
+         $9::bigint[], $10::text[], $11::text[], $12::timestamptz[]
+       ) with ordinality as m (
+         fecha, tipo, origen, destino, desde, hacia, monto, monto_destino, categoria, descripcion, borrado, orden
+       )
        order by m.orden`,
       [
         householdId,
@@ -4839,6 +5098,7 @@ async function prepararEscenario(
         lados.map((lado) => lado.desde.id),
         lados.map((lado) => lado.hacia.id),
         movimientos.map((movimiento) => movimiento.monto),
+        movimientos.map((movimiento) => movimiento.montoDestino ?? null),
         movimientos.map((movimiento) => movimiento.categoria ?? ''),
         movimientos.map((movimiento) => movimiento.descripcion ?? ''),
         movimientos.map((movimiento) =>
@@ -4915,8 +5175,9 @@ async function moverEnElEscenario(
   const hacia = ladoDelMovimiento(contexto.tesoros, movimiento.destino);
   await cliente.query(
     `insert into public.movimientos
-       (fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos, categoria, descripcion)
-     values ($1, $2::public.tipo_movimiento, $3::public.tesoro, $4::public.tesoro, $5, $6, $7, $8, $9)`,
+       (fecha, tipo, tesoro_origen, tesoro_destino, desde_id, hacia_id, monto_centavos,
+        monto_destino_centavos, categoria, descripcion)
+     values ($1, $2::public.tipo_movimiento, $3::public.tesoro, $4::public.tesoro, $5, $6, $7, $8, $9, $10)`,
     [
       movimiento.fecha,
       movimiento.tipo,
@@ -4925,6 +5186,7 @@ async function moverEnElEscenario(
       desde.id,
       hacia.id,
       movimiento.monto,
+      movimiento.montoDestino ?? null,
       movimiento.categoria ?? '',
       movimiento.descripcion ?? '',
     ],
@@ -5702,6 +5964,83 @@ export const ESCENARIOS_DEL_LIBRO: EscenarioDeLiquidacion[] = [
       },
     ],
   },
+  {
+    nombre:
+      'una compra y una venta de dólares: cada lado entra al libro con su importe, y los dólares nunca se suman con pesos',
+    tesoros: [['Dólares', null, 'USD'], ['Reserva', 100_000, 'USD'], 'Viajes'],
+    ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
+    proyectos: {},
+    pasos: [
+      {
+        mover: {
+          tipo: 'cambio',
+          origen: 'Dólares',
+          destino: 'Viajes',
+          monto: 20_000,
+          montoDestino: 28_600_000,
+          fecha: '2026-09-29',
+          categoria: 'Blue',
+        },
+      },
+    ],
+    movimientos: [
+      ...MOVIMIENTOS_DE_TODOS_LOS_TIPOS,
+      {
+        tipo: 'cambio',
+        origen: 'maun',
+        destino: 'Dólares',
+        monto: 72_500_000,
+        montoDestino: 50_000,
+        fecha: '2026-09-28',
+        categoria: 'MEP',
+      },
+      {
+        tipo: 'transferencia',
+        origen: 'Dólares',
+        destino: 'Reserva',
+        monto: 10_000,
+        fecha: '2026-09-29',
+      },
+      {
+        tipo: 'ingreso',
+        origen: null,
+        destino: 'Reserva',
+        monto: 5_000,
+        fecha: '2026-09-29',
+        categoria: 'Ingreso en dólares',
+      },
+      { tipo: 'gasto', origen: 'Reserva', destino: null, monto: 1_000, fecha: '2026-09-30' },
+      {
+        tipo: 'cambio',
+        origen: 'Viajes',
+        destino: 'Reserva',
+        monto: 1_450_000,
+        montoDestino: 1_000,
+        fecha: '2026-09-30',
+        borrado: true,
+      },
+    ],
+  },
+  {
+    nombre:
+      'un pago en dólares entra a su tesoro en dólares y uno en pesos a Maun; cobrado, reparte el valor en pesos',
+    tesoros: [['Dólares', null, 'USD']],
+    ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
+    proyectos: {
+      enCurso: { estado: 'en_curso', pagos: [40_000_000, PAGO_EN_DOLARES], gastos: [5_000_000] },
+      cobrado: {
+        estado: 'entregado',
+        moneda: 'USD',
+        pagos: [
+          { monto: 12_000_000, moneda: 'ARS', cotizacion: 145_000 },
+          { monto: 100_000, moneda: 'USD', cotizacion: 150_000, tesoro: 'Dólares' },
+        ],
+        gastos: [],
+        pagosBorrados: [7_000_000],
+      },
+    },
+    pasos: [{ liquidar: 'cobrado', proyecto: 'cobrado', fecha: '2026-09-15' }],
+  },
 ];
 
 export async function compararLibroMayor(cliente: pg.Client): Promise<string[]> {
@@ -5763,15 +6102,22 @@ export async function compararLibroDelSeed(cliente: pg.Client): Promise<string[]
   ].map((linea) => `libro del seed, ${linea}`);
 }
 
+export interface PagoEnOtraMoneda {
+  moneda: Moneda;
+  cotizacion: number;
+  tesoro: string;
+}
+
 export interface PasoDeGuardado {
   titulo: string;
   estado: EstadoProyecto;
-  pagos: readonly (readonly [string, number, boolean?])[];
+  pagos: readonly (readonly [string, number, boolean?, PagoEnOtraMoneda?])[];
   gastos: readonly (readonly [string, number, boolean?])[];
 }
 
 export interface EscenarioDeGuardado {
   nombre: string;
+  tesoros?: EscenarioDeLiquidacion['tesoros'];
   pasos: readonly PasoDeGuardado[];
 }
 
@@ -5854,6 +6200,31 @@ export const ESCENARIOS_DE_GUARDADO: EscenarioDeGuardado[] = [
       },
     ],
   },
+  {
+    nombre:
+      'un pedido de una app sin actualizar conserva la moneda, el dólar y el tesoro de un pago en dólares',
+    tesoros: [['Dólares', null, 'USD']],
+    pasos: [
+      {
+        titulo: 'Ropero',
+        estado: 'en_curso',
+        pagos: [
+          ['sena', 40_000_000],
+          ['dolares', 50_000, false, { moneda: 'USD', cotizacion: 150_000, tesoro: 'Dólares' }],
+        ],
+        gastos: [['melamina', 30_000_000]],
+      },
+      {
+        titulo: 'Ropero de dos cuerpos',
+        estado: 'entregado',
+        pagos: [
+          ['sena', 40_000_000],
+          ['dolares', 50_000],
+        ],
+        gastos: [['melamina', 30_000_000]],
+      },
+    ],
+  },
 ];
 
 function idDelEscenario(clave: string, ids: Map<string, string>): string {
@@ -5871,7 +6242,12 @@ async function guardarPorRpc(
   version: number | null,
   paso: PasoDeGuardado,
 ): Promise<ProyectoGuardado> {
-  const hija = ([clave, monto, borrado]: readonly [string, number, boolean?]) => ({
+  const hija = ([clave, monto, borrado]: readonly [
+    string,
+    number,
+    boolean?,
+    PagoEnOtraMoneda?,
+  ]) => ({
     id: idDelEscenario(clave, contexto.ids),
     fecha: '2026-08-01',
     monto_centavos: monto,
@@ -5899,7 +6275,22 @@ async function guardarPorRpc(
         direccion_entrega: 'Olazábal 1240',
         notas: '',
       }),
-      JSON.stringify(paso.pagos.map((pago) => ({ ...hija(pago), concepto: 'Seña' }))),
+      JSON.stringify(
+        paso.pagos.map((pago) => {
+          const enOtraMoneda = pago[3];
+          return {
+            ...hija(pago),
+            concepto: 'Seña',
+            ...(enOtraMoneda === undefined
+              ? {}
+              : {
+                  moneda: enOtraMoneda.moneda,
+                  cotizacion_centavos: enOtraMoneda.cotizacion,
+                  tesoro_id: idDelTesoro(contexto.tesoros, enOtraMoneda.tesoro),
+                }),
+          };
+        }),
+      ),
       JSON.stringify(paso.gastos.map((gasto) => ({ ...hija(gasto), descripcion: 'Insumo' }))),
     ],
   );
@@ -5946,8 +6337,10 @@ async function compararTotalesDelProyecto(
   const enSql = await totales(cliente, proyectoId);
   const enTs = totalesDelProyecto(await replicaDeLaBase(cliente, contexto.usuarioId), proyectoId);
   const diferencias: string[] = [];
-  if (enTs.cobrado !== enSql.cobrado) {
-    diferencias.push(`cobrado: SQL ${String(enSql.cobrado)}, TS ${String(enTs.cobrado)}`);
+  if (enTs.cobradoEnPesos !== enSql.cobrado) {
+    diferencias.push(
+      `cobrado en pesos: SQL ${String(enSql.cobrado)}, TS ${String(enTs.cobradoEnPesos)}`,
+    );
   }
   if (enTs.gastos !== enSql.gastos) {
     diferencias.push(`gastos: SQL ${String(enSql.gastos)}, TS ${String(enTs.gastos)}`);
@@ -5965,6 +6358,7 @@ export async function compararGuardadoDeProyecto(cliente: pg.Client): Promise<st
         ajustes: { sueldo: 180_000_000, fijos: 25_000_000 },
         proyectos: {},
         pasos: [],
+        tesoros: escenario.tesoros,
       });
       const proyectoId = idDelEscenario('proyecto', contexto.ids);
       let version: number | null = null;
@@ -6014,8 +6408,11 @@ function comoLista(valor: unknown): Objeto[] {
 }
 
 const FORMATOS_DEL_PRESUPUESTO: Formatos = {
-  pesos: (importe) => `$ ${String(importe / 100)}`,
+  plata: (importe, moneda) => `${moneda === 'USD' ? 'US$' : '$'} ${String(importe / 100)}`,
   porcentaje: (puntos) => String(puntos / 100),
+  modificaciones: (cantidad) =>
+    `${String(cantidad)} ${cantidad === 1 ? 'modificación' : 'modificaciones'}`,
+  meses: (cantidad) => `${String(cantidad)} ${cantidad === 1 ? 'mes' : 'meses'}`,
 };
 
 const TALLER_DEL_PRESUPUESTO: DatosDelTaller = {
@@ -6081,19 +6478,23 @@ function borradorDelPresupuesto(): BorradorDelPresupuesto {
 function documentoDePrueba(
   valores: ValoresDelPresupuesto | null,
   abonado: number,
-): DocumentoDelPresupuesto {
-  return documentoDelPresupuesto(
+): DocumentoEnPesos {
+  const documento = documentoDelPresupuesto(
     {
       borrador: borradorDelPresupuesto(),
       plantilla: PLANTILLA_DE_SIEMPRE,
       taller: TALLER_DEL_PRESUPUESTO,
       cliente: 'Paula Benítez',
+      moneda: 'ARS',
+      cobraEn: null,
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(abonado),
     },
     FORMATOS_DEL_PRESUPUESTO,
   );
+  if (documento.forma !== 1) throw new Error('Un documento en pesos salió en otra forma.');
+  return documento;
 }
 
 function alAzarConCambios(
@@ -6142,9 +6543,34 @@ const CAMBIOS_DE_LA_PLANTILLA: readonly ((
         'garantiaMeses',
         'garantia',
         'formasDePago',
+        'monedaDeLaModificacion',
+        'clausulasDeLaMoneda',
         ...GRUPOS_DE_CLAUSULAS,
       ]),
     );
+  },
+  (p, s) => {
+    p.monedaDeLaModificacion = elegir(s, ['ARS', 'USD', 'EUR', 'usd', null, 5]);
+  },
+  (p, s) => {
+    p.clausulasDeLaMoneda = elegir(s, [null, {}, 'cláusulas', [], 5]);
+  },
+  (p, s) => {
+    const clausulas = comoObjeto(p.clausulasDeLaMoneda);
+    if (!clausulas) return;
+    const combinacion = elegir(s, COMBINACIONES_DE_LA_MONEDA);
+    if (s(5) === 0) Reflect.deleteProperty(clausulas, combinacion);
+    else
+      clausulas[combinacion] = elegir(s, [
+        '',
+        ' \n\t',
+        'c'.repeat(2000),
+        'c'.repeat(2001),
+        '😀'.repeat(2000),
+        '😀'.repeat(2001),
+        5,
+        null,
+      ]);
   },
   (p, s) => {
     p.plazoDeFabricacion = elegir(s, [0, 1, 365, 366, -1, 1.5, '30', null, 2 ** 60]);
@@ -6276,6 +6702,9 @@ const CLAVES_DEL_BORRADOR = [
   'formaDePago',
   'plazoDeFabricacion',
   'validezDias',
+  'clausulaDeLaMoneda',
+  'modificacion',
+  'monedaDeLoAbonado',
   ...GRUPOS_DE_CLAUSULAS,
 ] as const;
 
@@ -6437,6 +6866,41 @@ const CAMBIOS_DEL_BORRADOR: readonly ((
   (b, s) => {
     b.validezDias = elegir(s, [null, 0, 1, 365, 366, 1.5, '15']);
   },
+  (b, s) => {
+    b.clausulaDeLaMoneda = elegir(s, [
+      null,
+      '',
+      'c'.repeat(2000),
+      'c'.repeat(2001),
+      '😀'.repeat(2001),
+      5,
+      [],
+    ]);
+  },
+  (b, s) => {
+    b.modificacion = elegir(s, [
+      null,
+      'modificación',
+      5,
+      {},
+      [],
+      { importe: 5_000_000, moneda: 'ARS' },
+      { importe: 50_000, moneda: 'USD' },
+      { importe: 0, moneda: 'USD' },
+      { importe: -1, moneda: 'ARS' },
+      { importe: 1_000_000_000_000, moneda: 'ARS' },
+      { importe: 1_000_000_000_001, moneda: 'USD' },
+      { importe: 1.5, moneda: 'ARS' },
+      { importe: '5', moneda: 'ARS' },
+      { importe: 5, moneda: 'EUR' },
+      { importe: 5, moneda: null },
+      { importe: 5 },
+      { moneda: 'ARS' },
+    ]);
+  },
+  (b, s) => {
+    b.monedaDeLoAbonado = elegir(s, [null, 'ARS', 'USD', 'EUR', 5, []]);
+  },
   (b) => {
     b.extra = 'se ignora';
   },
@@ -6463,6 +6927,8 @@ const CLAVES_DEL_DOCUMENTO = [
   'condiciones',
   'garantia',
   'garantiaMeses',
+  'clausulaDeLaMoneda',
+  'cobraEn',
 ] as const;
 
 const TOPES_DEL_TALLER = [
@@ -6640,10 +7106,86 @@ const CAMBIOS_DEL_DOCUMENTO: readonly ((
   (d, s) => {
     d.garantiaMeses = elegir(s, [5, 6, 120, 121, 6.5, null]);
   },
+  (d, s) => {
+    d.clausulaDeLaMoneda = elegir(s, [
+      null,
+      '',
+      'c'.repeat(4000),
+      'c'.repeat(4001),
+      '😀'.repeat(4001),
+      5,
+    ]);
+  },
+  (d, s) => {
+    d.cobraEn = elegir(s, [
+      ['ARS'],
+      ['USD'],
+      ['ARS', 'USD'],
+      ['USD', 'ARS'],
+      ['ARS', 'ARS'],
+      ['EUR'],
+      [],
+      null,
+      'ARS',
+    ]);
+  },
+  (d, s) => {
+    Object.assign(d, {
+      forma: 2,
+      moneda: 'USD',
+      monedaDeLoAbonado: elegir(s, ['USD', 'ARS']),
+      referencia: { cotizacion: 154_000, fecha: '2026-10-01' },
+    });
+  },
+  (d, s) => {
+    if (d.forma !== 2) return;
+    const cambio = s(6);
+    const referencia = comoObjeto(d.referencia);
+    if (cambio === 0) d.moneda = elegir(s, ['ARS', 'EUR', null, 5]);
+    else if (cambio === 1) d.monedaDeLoAbonado = elegir(s, ['EUR', null, 5]);
+    else if (cambio === 2) d.referencia = elegir(s, [null, {}, 'referencia', []]);
+    else if (cambio === 3 && referencia) {
+      referencia.cotizacion = elegir(s, [99, 100, 10_000_000, 10_000_001, 1.5, '154000', null, -5]);
+    } else if (cambio === 4 && referencia) {
+      referencia.fecha = elegir(s, [
+        '2026-02-29',
+        '2028-02-29',
+        '2026-09-31',
+        '2026-13-01',
+        '0050-01-01',
+        '0100-01-01',
+        '26-10-01',
+        '2026-1-1',
+        '2026-10-01T00:00',
+        5,
+        null,
+      ]);
+    } else Reflect.deleteProperty(d, elegir(s, ['moneda', 'monedaDeLoAbonado', 'referencia']));
+  },
   (d) => {
     d.extra = 'se ignora';
   },
 ];
+
+function documentoEnDolaresDePrueba(abonado: number): unknown {
+  return copiaDeJson(
+    documentoDelPresupuesto(
+      {
+        borrador: borradorDelPresupuesto(),
+        plantilla: PLANTILLA_DE_SIEMPRE,
+        taller: TALLER_DEL_PRESUPUESTO,
+        cliente: 'Paula Benítez',
+        moneda: 'USD',
+        cobraEn: ['ARS', 'USD'],
+        referencia: { cotizacion: cotizacion(154_000), fecha: '2026-10-01' },
+        valores: valoresDelTrabajo(centavosEn('USD', 150_000), []),
+        senaBp: puntosBasicos(5000),
+        abonado: centavosEn('USD', abonado),
+      },
+      FORMATOS_DEL_PRESUPUESTO,
+    ),
+  );
+}
 
 interface CasoParaMandar {
   documento: DocumentoDelPresupuesto;
@@ -6782,6 +7324,13 @@ function casosDelPresupuestoConEscala(escala: number): CasosDelPresupuesto {
         () => documentoDePrueba(valoresDelTrabajo(centavos(218_100_000), []), 0),
         CAMBIOS_DEL_DOCUMENTO,
       ),
+      documentoEnDolaresDePrueba(0),
+      ...alAzarConCambios(
+        20_261_006,
+        800 * escala,
+        () => documentoEnDolaresDePrueba(8_276),
+        CAMBIOS_DEL_DOCUMENTO,
+      ),
     ],
     paraMandar: paraMandarAlAzar(escala),
   };
@@ -6861,6 +7410,7 @@ export async function compararDominioYSql(cliente: pg.Client): Promise<string[]>
     ...(await compararTopes(cliente)),
     ...(await compararPagosPorDelante(cliente)),
     ...(await compararSenaEsperada(cliente)),
+    ...(await compararConversiones(cliente)),
     ...(await compararFormasDeCobro(cliente)),
     ...(await compararLinkDeCobro(cliente)),
     ...(await compararLinkDeResena(cliente)),

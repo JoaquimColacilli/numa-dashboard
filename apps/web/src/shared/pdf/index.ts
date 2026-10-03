@@ -1,10 +1,11 @@
+export { lineaDeLaReferencia, referenciaDelDocumento } from './armado';
 export { sePuedenCompartirArchivos } from './entregar';
+export { IDIOMA_DE_LA_LEYENDA, LETRA_DE_ARCA, LEYENDA_DE_ARCA_EN_UNA_FRASE } from './leyenda';
+export { useTextosDelPdf, type TextosDelPdf } from './textos';
 export type { AceptacionEnPdf, PresupuestoEnPdf } from './tipos';
 export {
   DEMORA_PARA_PREPARAR_MS,
-  NO_SE_PUDO_ARMAR_EL_PDF,
   olvidarLosPdfGuardados,
-  PREPARANDO_EL_PDF,
   usePdfDelPresupuesto,
   type BotonDelPdf,
   type EstadoDelPdf,

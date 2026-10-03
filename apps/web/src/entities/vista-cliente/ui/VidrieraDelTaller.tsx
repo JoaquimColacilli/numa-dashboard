@@ -8,6 +8,7 @@ import {
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 import { urlDelArchivo } from '@/shared/api';
+import { useMensajesDelCliente, type MensajesDelCliente } from '@/shared/idioma-del-cliente';
 import { copiar } from '@/shared/lib';
 import {
   ConSalida,
@@ -21,15 +22,13 @@ import {
 
 import { compartirDelSistema, compartirLaRed } from '../model/compartir';
 
+type TextosDeLaVidriera = MensajesDelCliente['vista']['vidriera'];
+
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 
 const ESPERA_SIN_SCROLLEND_MS = 120;
 
 const MUESTRA_DEL_COPIADO_MS = 4_000;
-
-export const MAS_TRABAJOS_DEL_TALLER = 'Más trabajos del taller';
-
-export const EL_TALLER_EN_LAS_REDES = 'El taller en las redes';
 
 interface Carrusel {
   hayMas: boolean;
@@ -54,10 +53,6 @@ function mostrarLaFotoEnfocada(lista: HTMLElement, enfocada: EventTarget): void 
   const caja = enfocada.getBoundingClientRect();
   if (caja.left >= borde.left - 1 && caja.right <= borde.right + 1) return;
   enfocada.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'instant' });
-}
-
-function nombreDeLaFoto(indice: number, total: number): string {
-  return `Foto ${String(indice + 1)} de ${String(total)}`;
 }
 
 function mismoCarrusel(uno: Carrusel, otro: Carrusel): boolean {
@@ -113,10 +108,11 @@ function BotonDelCarrusel({
   apagado: boolean;
   alTocar: () => void;
 }) {
+  const { vidriera } = useMensajesDelCliente().vista;
   return (
     <button
       type="button"
-      aria-label={hacia === 'antes' ? 'Fotos anteriores' : 'Fotos siguientes'}
+      aria-label={hacia === 'antes' ? vidriera.fotosAnteriores : vidriera.fotosSiguientes}
       aria-controls={controla}
       aria-disabled={apagado || undefined}
       onClick={() => {
@@ -129,29 +125,32 @@ function BotonDelCarrusel({
   );
 }
 
-function nombreDelEnlace(red: RedALaVista): string {
+function nombreDelEnlace(red: RedALaVista, textos: TextosDeLaVidriera): string {
   switch (red.red) {
     case 'instagram':
-      return `${red.nombre} en Instagram`;
+      return textos.enInstagram(red.nombre);
     case 'facebook':
-      return 'Facebook del taller';
+      return textos.facebook;
     case 'tiktok':
-      return 'TikTok del taller';
+      return textos.tiktok;
   }
 }
 
 function EnlaceALaRed({ red }: { red: RedALaVista }) {
+  const { vidriera } = useMensajesDelCliente().vista;
   return (
     <a
       href={red.link}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={nombreDelEnlace(red)}
+      aria-label={nombreDelEnlace(red, vidriera)}
       className="flex min-h-tap max-w-full min-w-tap items-center justify-center gap-2 rounded-pill px-1.5 hover:bg-ink/5"
     >
       <IconoDeRed red={red.red} className="flex-none text-ink" />
       {red.red === 'instagram' && (
-        <span className="min-w-0 pr-1 text-body font-medium break-all">{red.nombre}</span>
+        <span translate="no" className="min-w-0 pr-1 text-body font-medium break-all">
+          {red.nombre}
+        </span>
       )}
     </a>
   );
@@ -160,6 +159,7 @@ function EnlaceALaRed({ red }: { red: RedALaVista }) {
 type ComoQuedoElBoton = 'quieto' | 'copiado' | 'fallo';
 
 function CompartirLasRedes({ taller, url }: { taller: string; url: string }) {
+  const { vidriera } = useMensajesDelCliente().vista;
   const [quedo, setQuedo] = useState<ComoQuedoElBoton>('quieto');
 
   useEffect(() => {
@@ -198,17 +198,17 @@ function CompartirLasRedes({ taller, url }: { taller: string; url: string }) {
         ) : (
           <Icono nombre="share-2" tamano={16} />
         )}
-        {quedo === 'copiado' ? 'Copiado' : 'Compartir'}
+        {quedo === 'copiado' ? vidriera.copiado : vidriera.compartir}
       </button>
       <span role="status" className="sr-only">
-        {quedo === 'copiado' ? 'Copiado' : ''}
+        {quedo === 'copiado' ? vidriera.copiado : ''}
       </span>
       {quedo === 'fallo' && (
         <div className="w-full">
           <DatoCopiable
-            etiqueta="Para compartir, este enlace"
+            etiqueta={vidriera.paraCompartir}
             valor={url}
-            nombre="Copiar el enlace"
+            nombre={vidriera.copiarElEnlace}
           />
         </div>
       )}
@@ -222,6 +222,7 @@ export interface VidrieraDelTallerProps {
 }
 
 export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) {
+  const textos = useMensajesDelCliente().vista.vidriera;
   const base = useId();
   const lista = useRef<HTMLUListElement>(null);
   const visor = useVisor();
@@ -244,7 +245,7 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
     <section aria-labelledby={idTitulo} data-vidriera className={TARJETA}>
       <div className="flex min-h-tap items-center justify-between gap-3">
         <h2 id={idTitulo} className="text-section font-semibold">
-          {fotos.length > 0 ? MAS_TRABAJOS_DEL_TALLER : EL_TALLER_EN_LAS_REDES}
+          {fotos.length > 0 ? textos.masTrabajos : textos.enLasRedes}
         </h2>
         {carrusel.hayMas && (
           <div className="-mr-2 flex flex-none">
@@ -273,7 +274,7 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
           ref={lista}
           id={idLista}
           role="list"
-          aria-label="Fotos de otros trabajos del taller"
+          aria-label={textos.fotosDeOtrosTrabajos}
           onFocus={(evento) => {
             mostrarLaFotoEnfocada(evento.currentTarget, evento.target);
           }}
@@ -283,7 +284,7 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
             <li key={foto.id} className="flex-none snap-start">
               <button
                 type="button"
-                aria-label={nombreDeLaFoto(indice, fotos.length)}
+                aria-label={textos.foto(indice + 1, fotos.length)}
                 onClick={(evento) => {
                   visor.abrir(foto.id, evento.currentTarget);
                 }}
@@ -307,10 +308,10 @@ export function VidrieraDelTaller({ vidriera, taller }: VidrieraDelTallerProps) 
       <ConSalida valor={visor.abierta}>
         {(inicial) => (
           <VisorDeImagenes
-            titulo={MAS_TRABAJOS_DEL_TALLER}
+            titulo={textos.masTrabajos}
             imagenes={fotos.map((foto, indice) => ({
               id: foto.id,
-              nombre: nombreDeLaFoto(indice, fotos.length),
+              nombre: textos.foto(indice + 1, fotos.length),
               url: urlDelArchivo(foto.ruta),
               ancho: foto.ancho,
               alto: foto.alto,

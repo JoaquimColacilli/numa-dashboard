@@ -20,8 +20,20 @@ vi.mock('@/shared/api', () => ({
   vinoPorRecuperacion: () => false,
 }));
 
-const ANA: Claims = { usuarioId: 'ana', email: 'ana@taller.com.ar', nombre: 'Ana', foto: '' };
-const BETO: Claims = { usuarioId: 'beto', email: 'beto@taller.com.ar', nombre: 'Beto', foto: '' };
+const ANA: Claims = {
+  usuarioId: 'ana',
+  email: 'ana@taller.com.ar',
+  nombre: 'Ana',
+  foto: '',
+  idioma: null,
+};
+const BETO: Claims = {
+  usuarioId: 'beto',
+  email: 'beto@taller.com.ar',
+  nombre: 'Beto',
+  foto: '',
+  idioma: null,
+};
 
 function nunca<T>(): Promise<T> {
   return new Promise(() => undefined);
@@ -203,6 +215,17 @@ describe('el estado de la sesión al abrir la app', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(store.leerEstadoSesion()).toEqual({ tipo: 'anonimo', vencida: true });
+  });
+
+  it('el idioma de la cuenta viaja con la sesión: si cambia en otro aparato, la sesión renovada lo trae', async () => {
+    api.leerClaims.mockResolvedValue(ANA);
+    const store = await arrancar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.leerEstadoSesion()).toMatchObject({ tipo: 'activa', idioma: null });
+
+    api.oyente?.({ ...ANA, idioma: 'pt-BR' }, 'otro');
+
+    expect(store.leerEstadoSesion()).toMatchObject({ tipo: 'activa', idioma: 'pt-BR' });
   });
 
   it('sin un cierre en el medio, la validación que contesta tarde se sigue aplicando', async () => {

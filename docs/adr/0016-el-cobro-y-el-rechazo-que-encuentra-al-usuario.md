@@ -8,6 +8,13 @@ verdad: produce asientos contables congelados que el dueño va a leer como el es
   qué vuelve de cada tesoro; y lo del mes que viaja pasa a ser un mapa por tesoro (`p_previo`), con la
   misma regla de ajustar sin rechazar. Ver las notas en «La confirmación es el despiece» y en «El
   acumulado del mes viaja».
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): el rechazo que encuentra al
+  usuario se escribe en el idioma de la persona. `rechazos.ts` traduce cada código, también los que antes
+  caían en el texto de la base, y en castellano cada uno dice lo mismo que antes.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): el cobro manda lo cobrado en
+  pesos y su pago final puede ir en dólares, con su dólar y su tesoro. Si Maun va a quedar en negativo porque
+  parte de lo cobrado está en dólares, la confirmación lo dice antes, con «Vender dólares», sin frenar el
+  cobro. Un cobro de una app sin actualizar con pagos en dólares rebota con `MN038` en lugar de `MN006`.
 
 ## Contexto
 

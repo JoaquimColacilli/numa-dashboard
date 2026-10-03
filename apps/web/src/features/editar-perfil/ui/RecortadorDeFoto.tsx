@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, FilaDeAcciones } from '@/shared/ui';
 
 import {
@@ -62,6 +63,7 @@ export function RecortadorDeFoto({
   alGuardar,
   alCancelar,
 }: RecortadorDeFotoProps) {
+  const m = useMensajes();
   const escenario = useRef<HTMLDivElement>(null);
   const viewportPrevio = useRef(0);
   const punteros = useRef(new Map<number, Punto>());
@@ -135,16 +137,15 @@ export function RecortadorDeFoto({
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:py-5">
       <p id={idAyuda} className="text-label leading-relaxed text-text-2">
-        Arrastrá la foto para encuadrarla y acercala con el zoom. Con el teclado: las flechas la
-        mueven y + y − la acercan o la alejan.
+        {m.editarPerfil.arrastraLaFoto}
       </p>
 
       <div
         ref={escenario}
         tabIndex={0}
         role="group"
-        aria-roledescription="recortador de foto"
-        aria-label="Encuadre de la foto"
+        aria-roledescription={m.editarPerfil.recortadorDeFoto}
+        aria-label={m.editarPerfil.encuadreDeLaFoto}
         aria-describedby={idAyuda}
         data-zoom={encuadre.zoom.toFixed(2)}
         className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none overflow-hidden rounded-field bg-surface-2 select-none active:cursor-grabbing"
@@ -249,7 +250,7 @@ export function RecortadorDeFoto({
         <Button
           variant="secundario"
           size="chico"
-          aria-label="Alejar"
+          aria-label={m.editarPerfil.alejar}
           disabled={encuadre.zoom <= 1}
           onClick={() => {
             zoomDesdeElCentro(1 / FACTOR_DE_ZOOM);
@@ -263,7 +264,7 @@ export function RecortadorDeFoto({
           max={maximo}
           step={0.01}
           value={encuadre.zoom}
-          aria-label="Zoom"
+          aria-label={m.editarPerfil.zoom}
           disabled={maximo <= 1}
           onChange={(evento) => {
             const zoom = Number(evento.target.value);
@@ -277,7 +278,7 @@ export function RecortadorDeFoto({
         <Button
           variant="secundario"
           size="chico"
-          aria-label="Acercar"
+          aria-label={m.editarPerfil.acercar}
           disabled={encuadre.zoom >= maximo}
           onClick={() => {
             zoomDesdeElCentro(FACTOR_DE_ZOOM);
@@ -295,7 +296,7 @@ export function RecortadorDeFoto({
 
       <FilaDeAcciones>
         <Button variant="secundario" onClick={alCancelar}>
-          Cancelar
+          {m.editarPerfil.cancelar}
         </Button>
         <Button
           cargando={guardando}
@@ -304,7 +305,7 @@ export function RecortadorDeFoto({
             if (viewport > 0) alGuardar(recorteEnLaFuente(fuente, viewport, encuadre));
           }}
         >
-          Guardar la foto
+          {m.editarPerfil.guardarLaFoto}
         </Button>
       </FilaDeAcciones>
     </div>

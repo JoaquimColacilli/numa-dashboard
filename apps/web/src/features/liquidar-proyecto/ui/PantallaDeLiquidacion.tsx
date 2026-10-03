@@ -1,23 +1,34 @@
 import {
   centavos,
+  conceptoParaGuardar,
   esAnteriorALaApertura,
+  MONEDA_DEL_TALLER,
   planDeLaLiquidacion,
+  plata,
   type EstadoLiquidado,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { EnlaceACliente } from '@/entities/cliente';
-import { CasillaDeLaApertura } from '@/entities/movimiento';
+import { CasillaDeLaApertura, rutaParaVenderDolaresA } from '@/entities/movimiento';
 import {
   ajustesDeLaReplica,
+  CamposDelPago,
   cobroPorLaFila,
+  conOtraMoneda,
   cuantosRepartos,
   datosActualesDelProyecto,
   despieceDelCobro,
   DistribucionDespiece,
+  dolarDelDiaDelTaller,
+  dolarDelDiaParaUnPago,
+  erroresDelValorDelPago,
   fechaDelCobroPropuesta,
+  importeDelValor,
+  importeParaElSaldo,
   loQueRecibeCadaTesoro,
+  monedaDeUnPagoNuevo,
   MUTACION_DE_LIQUIDACION,
   MUTACION_DE_PROYECTO,
   pedidoPorLaFila,
@@ -25,62 +36,54 @@ import {
   repartoEnLaAperturaPropuesto,
   repartosLiquidados,
   rutaDelProyecto,
+  tesorosQueRecibenDolares,
   type MontoDelTesoro,
   type ResumenDeProyecto,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosSincronizados } from '@/entities/tesoro';
 import {
   aperturaDeLaReplica,
   mensajeDeSincronizacion,
+  tesorosDeLaReplica,
+  valorEnPesosDelPago,
   type ProyectoParaGuardar,
 } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
+  etiquetaActual,
+  formatearLaPlata,
   formatearPesos,
   hoyEnElTaller,
   mesDeLaFecha,
-  nombreDelMes,
+  mesEnUnaFrase,
   uuidv7,
   Ir,
   useIr,
   useVolver,
 } from '@/shared/lib';
-import { Button, Campo, Icono, MoneyInput, Pagina } from '@/shared/ui';
+import { Button, Campo, Icono, Pagina } from '@/shared/ui';
 
-const TEXTOS = {
-  cobrado: {
-    titulo: 'Cobrar',
-    verbo: 'Cobrar y repartir',
-    volver: 'Volver sin cobrar',
-    dia: 'Día del cobro',
-  },
-  perdido: {
-    titulo: 'Dar por perdido',
-    verbo: 'Dar por perdido y liquidar la seña',
-    volver: 'Volver sin cerrarlo',
-    dia: 'Día del cierre',
-  },
-} as const;
+import { dolaresDelTrabajo, maunDespuesDelCobro } from '../model/maun';
 
-const COMO_LISTA = new Intl.ListFormat('es', { style: 'long', type: 'conjunction' });
-
-function ayudaDelDia(destino: EstadoLiquidado, fecha: string): string {
-  const mes = `${nombreDelMes(mesDeLaFecha(fecha)).toLowerCase()} de ${fecha.slice(0, 4)}`;
-  return destino === 'cobrado'
-    ? `El día en que terminó de entrar la plata. Los topes de la fila se cuentan en ${mes}.`
-    : `El día en que la seña pasa a ser del taller. El reparto se cuenta en ${mes}.`;
-}
-
-function aCadaTesoro(montos: readonly Pick<MontoDelTesoro, 'monto' | 'nombre'>[]): string {
-  return COMO_LISTA.format(
-    montos.map((tesoro) => `${formatearPesos(tesoro.monto)} a ${tesoro.nombre}`),
+function enLista(partes: readonly string[]): string {
+  return new Intl.ListFormat(etiquetaActual(), { style: 'long', type: 'conjunction' }).format(
+    partes,
   );
 }
 
-function comoSeReparte(montos: readonly MontoDelTesoro[]): string {
-  if (montos.length === 0) return '';
-  return ` ${montos.length === 1 ? 'Va' : 'Van'} ${aCadaTesoro(montos)}.`;
+function ayudaDelDia(destino: EstadoLiquidado, fecha: string): string {
+  return mensajes().liquidarProyecto.pantalla[destino].ayudaDelDia(
+    mesEnUnaFrase(mesDeLaFecha(fecha)),
+    fecha.slice(0, 4),
+  );
+}
+
+function aCadaTesoro(montos: readonly Pick<MontoDelTesoro, 'monto' | 'nombre'>[]): string {
+  const { montoATesoro } = mensajes().liquidarProyecto.pantalla;
+  return enLista(montos.map((tesoro) => montoATesoro(formatearPesos(tesoro.monto), tesoro.nombre)));
 }
 
 function idsDelCobro(cantidad: number): string[] {
@@ -88,24 +91,36 @@ function idsDelCobro(cantidad: number): string[] {
 }
 
 function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
+  const textos = useMensajes().liquidarProyecto.pantalla.trio;
   const celdas = [
     {
-      clave: 'Presupuesto',
+      clave: textos.presupuesto,
       valor:
-        resumen.proyecto.presupuesto_centavos === null ? '—' : formatearPesos(resumen.presupuesto),
+        resumen.proyecto.presupuesto_centavos === null ? '—' : formatearLaPlata(resumen.precio),
+      esDato: true,
       tono: '',
     },
-    { clave: 'Cobrado', valor: formatearPesos(resumen.cobrado), tono: 'text-hogar' },
     {
-      clave: 'Saldo',
+      clave: textos.cobrado,
+      valor: formatearLaPlata(resumen.cobradoEnSuMoneda),
+      esDato: true,
+      tono: 'text-hogar',
+    },
+    {
+      clave: textos.saldo,
       valor:
         resumen.saldo === null
           ? '—'
-          : resumen.saldo > 0
-            ? formatearPesos(resumen.saldo)
-            : 'Sin saldo',
+          : resumen.saldo.importe > 0
+            ? formatearLaPlata(resumen.saldo)
+            : textos.sinSaldo,
+      esDato: resumen.saldo === null || resumen.saldo.importe > 0,
       tono:
-        resumen.saldo === null ? 'text-text-3' : resumen.saldo > 0 ? 'text-atencion' : 'text-hogar',
+        resumen.saldo === null
+          ? 'text-text-3'
+          : resumen.saldo.importe > 0
+            ? 'text-atencion'
+            : 'text-hogar',
     },
   ];
 
@@ -123,6 +138,7 @@ function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
           >
             <dt className="text-meta text-text-2">{celda.clave}</dt>
             <dd
+              translate={celda.esDato ? 'no' : undefined}
               className={`text-money-lg font-semibold tabular-nums whitespace-nowrap ${celda.tono}`}
             >
               {celda.valor}
@@ -140,10 +156,13 @@ export interface PantallaDeLiquidacionProps {
 }
 
 export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacionProps) {
+  const m = useMensajes();
+  const { pantalla } = m.liquidarProyecto;
+  const conceptos = m.proyecto.conceptosDeSiempre;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { proyecto } = resumen;
-  const textos = TEXTOS[destino];
+  const textos = pantalla[destino];
   const vuelta = useVolver(rutaDelProyecto(proyecto.id), textos.volver, { fija: true });
 
   const guardar = useMutation(MUTACION_DE_PROYECTO);
@@ -152,16 +171,36 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
 
-  const faltaCobrar = destino === 'cobrado' && resumen.saldo !== null && resumen.saldo > 0;
+  const faltaCobrar = destino === 'cobrado' && resumen.saldo !== null && resumen.saldo.importe > 0;
+  const tesorosEnDolares = tesorosQueRecibenDolares(replica);
+  const dolarDelDia = dolarDelDiaDelTaller(replica);
   const [conPagoFinal, setConPagoFinal] = useState(faltaCobrar);
-  const [monto, setMonto] = useState<number | null>(resumen.saldo);
+  const [pagoFinal, setPagoFinal] = useState<ValorDelPago>(() => {
+    const moneda = monedaDeUnPagoNuevo(proyecto, resumen.moneda);
+    const cotizacion = dolarDelDiaParaUnPago({ moneda, fecha: hoy }, resumen.moneda, dolarDelDia);
+    return conOtraMoneda(
+      {
+        moneda,
+        monto: importeParaElSaldo(resumen.saldo, moneda, cotizacion),
+        cotizacion,
+        tesoroId: null,
+      },
+      moneda,
+      tesorosEnDolares,
+    );
+  });
   const [fechaDelPago, setFechaDelPago] = useState(hoy);
-  const [concepto, setConcepto] = useState('Saldo final en la entrega');
+  const [concepto, setConcepto] = useState<string>(conceptos.saldoFinal);
   const [fechaElegida, setFechaElegida] = useState<string | null>(null);
   const [aperturaElegida, setAperturaElegida] = useState<boolean | null>(null);
 
   const hayPagoFinal = conPagoFinal && faltaCobrar;
-  const pagoExtra = centavos(hayPagoFinal ? (monto ?? 0) : 0);
+  const importeDelPagoFinal = hayPagoFinal ? importeDelValor(pagoFinal) : null;
+  const pagoExtra =
+    importeDelPagoFinal === null ? centavos(0) : valorEnPesosDelPago(importeDelPagoFinal);
+  const erroresDelPagoFinal = hayPagoFinal
+    ? erroresDelValorDelPago(pagoFinal, resumen.moneda, tesorosEnDolares)
+    : {};
   const errorDelPago = hayPagoFinal ? errorDeLaFechaDeLaPlata(fechaDelPago, hoy) : undefined;
 
   const fecha =
@@ -189,12 +228,29 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const conTesoros = tesorosSincronizados(replica);
 
   const enCurso = liquidar.isPending && !liquidar.isPaused;
-  const listo = errorDelPago === undefined && errorDelDia === undefined && conTesoros;
+  const listo =
+    errorDelPago === undefined &&
+    errorDelDia === undefined &&
+    erroresDelPagoFinal.cotizacion === undefined &&
+    erroresDelPagoFinal.tesoro === undefined &&
+    conTesoros;
+
+  const entraAMaun =
+    hayPagoFinal && !pagoEnLaApertura && pagoFinal.moneda === MONEDA_DEL_TALLER
+      ? (pagoFinal.monto ?? 0)
+      : 0;
+  const maunDespues = maunDespuesDelCobro(replica, despiece, entraAMaun);
+  const dolares = dolaresDelTrabajo(resumen.enDolares, hayPagoFinal ? pagoFinal : null);
+  const nombresDeLosTesoros = new Map(tesorosEnDolares.map((tesoro) => [tesoro.id, tesoro.nombre]));
+  const nombreDeMaun =
+    tesorosDeLaReplica(replica).find((tesoro) => tesoro.id === maunDespues.maun)?.nombre ?? '';
+  const maunEnNegativo =
+    destino === 'cobrado' && !repartoEnLaApertura && maunDespues.saldo < 0 && dolares.length > 0;
 
   function confirmar(): void {
     if (!listo) return;
 
-    if (pagoExtra > 0) {
+    if (pagoExtra > 0 && importeDelPagoFinal !== null) {
       const pedidoDelPago: ProyectoParaGuardar = {
         id: proyecto.id,
         version: proyecto.version,
@@ -203,9 +259,12 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           {
             id: uuidv7(),
             fecha: fechaDelPago,
-            concepto: concepto.trim(),
-            monto_centavos: pagoExtra,
+            concepto: conceptoParaGuardar(concepto, conceptos),
+            monto_centavos: importeDelPagoFinal.monto,
             ya_en_la_apertura: pagoEnLaApertura,
+            moneda: pagoFinal.moneda,
+            cotizacion_centavos: pagoFinal.cotizacion,
+            tesoro_id: pagoFinal.moneda === MONEDA_DEL_TALLER ? null : pagoFinal.tesoroId,
           },
         ],
         gastos: [],
@@ -233,13 +292,37 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
 
   const aRepartir = loQueRecibeCadaTesoro(despiece);
   const superavit = despiece.piezas.find((pieza) => pieza.tipo === 'resto');
-  const loQueSobra =
-    liquidacion.superavit === null || superavit === undefined
-      ? 'queda en el taller'
-      : `va a ${superavit.nombre}`;
   const otrasObligaciones = despiece.piezas.filter(
     (pieza) => pieza.tipo === 'obligacion' && pieza.monto > 0,
   );
+  const { sena } = pantalla;
+  const loQueRetiene = [
+    sena.retenida(formatearPesos(resumen.cobradoEnPesos)),
+    ajustes.perdidoConDiezmo ? sena.diezmo(formatearPesos(liquidacion.diezmo)) : sena.sinDiezmo,
+    ...(otrasObligaciones.length > 0
+      ? [sena.otrasObligaciones(aCadaTesoro(otrasObligaciones))]
+      : []),
+    ajustes.perdidoConSueldo ? sena.conSueldo : sena.sinSueldo,
+    liquidacion.superavit === null || superavit === undefined
+      ? sena.loQueSobraQuedaEnElTaller
+      : sena.loQueSobraVaA(superavit.nombre),
+  ].join(' ');
+  const sinSenaRetenida = [
+    sena.sinSenaRetenida,
+    ...(resumen.gastos > 0 ? [sena.gastosComoPerdida(formatearPesos(resumen.gastos))] : []),
+  ].join(' ');
+  const comoSeReparte = [
+    ...(despiece.neta > 0
+      ? [
+          pantalla.seReparteElIngreso(formatearPesos(despiece.neta)),
+          ...(aRepartir.length > 0
+            ? [pantalla.vanACadaTesoro(aCadaTesoro(aRepartir), aRepartir.length)]
+            : []),
+          repartoEnLaApertura ? pantalla.quedaEnElLibro : pantalla.seMuevenLosSaldos,
+        ]
+      : [pantalla.noHayIngreso]),
+    textos.siTeEquivocaste,
+  ].join(' ');
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -255,13 +338,13 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       <header>
         <p className="text-label text-text-2">
           {resumen.cliente === undefined ? (
-            resumen.nombreDelCliente
+            <span translate="no">{resumen.nombreDelCliente}</span>
           ) : (
             <EnlaceACliente id={resumen.cliente.id} nombre={resumen.cliente.nombre} />
           )}
         </p>
         <h1 className="mt-0.5 font-display text-h1 leading-tight lg:text-h1-lg">
-          {textos.titulo} «{proyecto.titulo}»
+          {textos.titulo(proyecto.titulo)}
         </h1>
       </header>
 
@@ -269,7 +352,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
 
       <div className="flex flex-col gap-5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
         {faltaCobrar && (
-          <section aria-label="Pago final" className="@container">
+          <section aria-label={pantalla.pagoFinal} className="@container">
             <label className="flex min-h-tap items-center gap-2.5 text-body font-medium">
               <input
                 type="checkbox"
@@ -279,25 +362,25 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                 }}
                 className="size-4 accent-ink"
               />
-              Registrar el pago final de {formatearPesos(centavos(resumen.saldo ?? 0))}
+              {pantalla.registrarElPagoFinalDe(
+                formatearLaPlata(resumen.saldo ?? plata(resumen.moneda, 0)),
+              )}
             </label>
             <p className="mt-1 text-meta leading-normal text-text-3">
-              Queda cargado como un pago más del proyecto, y entra en la cuenta de abajo. Si el
-              cliente te quedó debiendo, destildalo y cobrá lo que entró.
+              {pantalla.ayudaDelPagoFinal}
             </p>
 
             {conPagoFinal && (
-              <div className="mt-3 grid gap-3 @xl:grid-cols-[minmax(0,1fr)_9rem_11.5rem]">
+              <div className="mt-3 grid gap-3 @xl:grid-cols-[minmax(0,1fr)_11.5rem]">
                 <Campo
-                  etiqueta="Concepto"
+                  etiqueta={pantalla.concepto}
                   value={concepto}
                   onChange={(evento) => {
                     setConcepto(evento.target.value);
                   }}
                 />
-                <MoneyInput etiqueta="Monto" value={monto} onChange={setMonto} />
                 <Campo
-                  etiqueta="Fecha del pago"
+                  etiqueta={pantalla.fechaDelPago}
                   type="date"
                   max={hoy}
                   value={fechaDelPago}
@@ -306,6 +389,21 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                     setFechaDelPago(evento.target.value);
                   }}
                 />
+                <div className="@xl:col-span-2">
+                  <CamposDelPago
+                    etiqueta={pantalla.monto}
+                    valor={pagoFinal}
+                    alCambiar={setPagoFinal}
+                    monedaDelTrabajo={resumen.moneda}
+                    tesorosEnDolares={tesorosEnDolares}
+                    dolarDelDia={dolarDelDiaParaUnPago(
+                      { moneda: pagoFinal.moneda, fecha: fechaDelPago },
+                      resumen.moneda,
+                      dolarDelDia,
+                    )}
+                    errores={erroresDelPagoFinal}
+                  />
+                </div>
               </div>
             )}
           </section>
@@ -335,39 +433,40 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
 
       {destino === 'perdido' && (
         <section
-          aria-label="Qué pasa con la seña"
+          aria-label={sena.queLePasa}
           className="rounded-panel bg-atencion-tint px-4 py-3.5 text-label leading-relaxed text-atencion"
         >
-          <h2 className="font-semibold">
-            Esto mueve plata, aunque sea un presupuesto que no salió
-          </h2>
-          {resumen.cobrado > 0 ? (
-            <p className="mt-1.5 max-w-[48rem]">
-              Los {formatearPesos(resumen.cobrado)} de seña que retenés dejan de ser un anticipo y
-              pasan a ser ingreso del taller.{' '}
-              {ajustes.perdidoConDiezmo
-                ? `De ahí sale el diezmo: ${formatearPesos(liquidacion.diezmo)}.`
-                : 'Esta seña no paga diezmo, según está configurado el taller.'}{' '}
-              {otrasObligaciones.length > 0 &&
-                `Las demás obligaciones salen igual: ${aCadaTesoro(otrasObligaciones)}. `}
-              {ajustes.perdidoConSueldo
-                ? 'Y también paga sueldo, según está configurado el taller.'
-                : 'No paga sueldo: un presupuesto que no prosperó no es un trabajo.'}{' '}
-              Lo demás baja por la fila como en cualquier cobro, y lo que sobra {loQueSobra}.
-            </p>
-          ) : (
-            <p className="mt-1.5 max-w-[48rem]">
-              No hay seña retenida, así que no se mueve plata de los tesoros.
-              {resumen.gastos > 0
-                ? ` Los ${formatearPesos(resumen.gastos)} de gastos que cargaste quedan como pérdida del taller.`
-                : ''}
-            </p>
-          )}
+          <h2 className="font-semibold">{sena.titulo}</h2>
           <p className="mt-1.5 max-w-[48rem]">
-            Se puede deshacer: reactivando el presupuesto vuelve a las consultas y la plata se
-            descuenta de los tesoros.
+            {resumen.cobradoEnPesos > 0 ? loQueRetiene : sinSenaRetenida}
           </p>
+          <p className="mt-1.5 max-w-[48rem]">{sena.sePuedeDeshacer}</p>
         </section>
+      )}
+
+      {maunEnNegativo && (
+        <div className="flex flex-col items-start gap-2 rounded-panel bg-atencion-tint px-4 py-3.5 text-label leading-relaxed text-atencion">
+          <p className="max-w-[48rem]">
+            {pantalla.maunEnNegativo(
+              nombreDeMaun,
+              formatearPesos(maunDespues.saldo),
+              enLista(
+                dolares.map((uno) =>
+                  pantalla.entreComillas(nombresDeLosTesoros.get(uno.tesoroId) ?? ''),
+                ),
+              ),
+            )}
+          </p>
+          {dolares[0] !== undefined && (
+            <Ir
+              a={rutaParaVenderDolaresA(dolares[0].tesoroId, maunDespues.maun, dolares[0].monto)}
+              className="flex min-h-tap items-center gap-1.5 rounded-pill border border-atencion px-3.5 font-semibold"
+            >
+              <Icono nombre="arrow-left-right" tamano={16} />
+              {pantalla.venderDolares}
+            </Ir>
+          )}
+        </div>
       )}
 
       <DistribucionDespiece despiece={despiece} />
@@ -381,8 +480,7 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
           onClick={confirmar}
         >
           <Icono nombre="hand-coins" tamano={18} />
-          {textos.verbo}
-          {despiece.neta > 0 ? ` ${formatearPesos(despiece.neta)}` : ''}
+          {despiece.neta > 0 ? textos.verboConMonto(formatearPesos(despiece.neta)) : textos.verbo}
         </Button>
 
         {!conTesoros && (
@@ -390,30 +488,11 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
             id="trayendo-los-tesoros"
             className="mt-2 max-w-[520px] text-label font-medium text-atencion"
           >
-            Estamos trayendo los tesoros del taller. Sin ellos el reparto no puede salir: el botón
-            se habilita apenas lleguen.
+            {pantalla.trayendoLosTesoros}
           </p>
         )}
 
-        <p className="mt-2 max-w-[520px] text-meta leading-relaxed text-text-3">
-          {despiece.neta > 0 ? (
-            <>
-              Se reparte el ingreso de este trabajo: {formatearPesos(despiece.neta)} (lo cobrado
-              menos los gastos).{comoSeReparte(aRepartir)}{' '}
-              {repartoEnLaApertura
-                ? 'Queda en el libro con su fecha, pero no mueve los tesoros: ya estaba en tus saldos.'
-                : 'Los saldos de los tesoros se mueven con esto.'}
-            </>
-          ) : (
-            <>
-              No hay ingreso que repartir: no se mueve ningún tesoro y la pérdida queda anotada en
-              la caja del taller.
-            </>
-          )}{' '}
-          {destino === 'cobrado'
-            ? 'Si te equivocaste, se reabre desde la ficha y el reparto se deshace.'
-            : 'Si te equivocaste, se reactiva desde la ficha y el reparto se deshace.'}
-        </p>
+        <p className="mt-2 max-w-[520px] text-meta leading-relaxed text-text-3">{comoSeReparte}</p>
 
         {liquidar.isError && (
           <p role="alert" className="mt-2 max-w-[520px] text-label font-medium text-alerta">

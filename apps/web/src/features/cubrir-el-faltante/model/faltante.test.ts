@@ -6,12 +6,7 @@ import {
 } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
-import {
-  conArticulo,
-  faltantesDeLosCompromisos,
-  fraseDelFaltante,
-  rangoDelFaltante,
-} from './faltante';
+import { faltantesDeLosCompromisos, fraseDelFaltante, rangoDelFaltante } from './faltante';
 
 const FIJOS = '01900000-0000-7000-8000-000000000005';
 const ALQUILER = '01900000-0000-7000-8000-000000000006';
@@ -131,17 +126,5 @@ describe('el faltante de los compromisos', () => {
         '2026-09',
       ).replace(/\s/g, ' '),
     ).toBe('Faltan $ 270.000 para alquiler.');
-  });
-
-  it('pone el artículo que corresponde al renglón', () => {
-    expect(conArticulo('Alquiler')).toBe('el alquiler');
-    expect(conArticulo('Luz')).toBe('la luz');
-    expect(conArticulo('Gas')).toBe('el gas');
-    expect(conArticulo('Expensas')).toBe('las expensas');
-    expect(conArticulo('Sueldos')).toBe('los sueldos');
-    expect(conArticulo('Cuota del auto')).toBe('la cuota del auto');
-    expect(conArticulo('Comisiones')).toBe('las comisiones');
-    expect(conArticulo('Agua')).toBe('el agua');
-    expect(conArticulo('ABL')).toBe('el ABL');
   });
 });

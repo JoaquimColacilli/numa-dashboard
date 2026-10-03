@@ -1,9 +1,10 @@
 import { centavos, type Money } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SyntheticEvent } from 'react';
+import { useState, type ReactNode, type SyntheticEvent } from 'react';
 
 import { MUTACION_DE_MOVIMIENTO } from '@/entities/movimiento';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, hoyLocal, useEstadoSync, uuidv7 } from '@/shared/lib';
 import { Button, MoneyInput } from '@/shared/ui';
 
@@ -13,7 +14,24 @@ export interface AjusteDeCocosProps {
   saldo: Money;
 }
 
+function LaResta({ children }: { children: ReactNode }) {
+  return <strong className="font-semibold text-ink">{children}</strong>;
+}
+
+function ElAsiento({ children }: { children: ReactNode }) {
+  return (
+    <strong translate="no" className="font-semibold">
+      {children}
+    </strong>
+  );
+}
+
+function conSigno(diferencia: Money, monto: Money): string {
+  return `${diferencia > 0 ? '+' : '−'}${formatearPesos(monto)}`;
+}
+
 export function AjusteDeCocos({ saldo }: AjusteDeCocosProps) {
+  const textos = useMensajes().ajustarCocos;
   const [leido, setLeido] = useState<number | null>(saldo);
   const [error, setError] = useState<string | undefined>(undefined);
   const [hecho, setHecho] = useState<string | undefined>(undefined);
@@ -26,12 +44,12 @@ export function AjusteDeCocos({ saldo }: AjusteDeCocosProps) {
   function enviar(evento: SyntheticEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (leido === null) {
-      setError('Escribí el saldo que tenés de verdad, por ejemplo 1.250.000.');
+      setError(textos.faltaElSaldo);
       return;
     }
     setError(undefined);
     if (!ajuste) {
-      setHecho('El saldo que escribiste es el que la app ya tiene: no hace falta ajustar nada.');
+      setHecho(textos.sinDiferencia);
       return;
     }
 
@@ -46,25 +64,25 @@ export function AjusteDeCocos({ saldo }: AjusteDeCocosProps) {
       descripcion: ajuste.concepto,
     });
     setHecho(
-      `Se anotó un ajuste de ${ajuste.diferencia > 0 ? '+' : '−'}${formatearPesos(ajuste.monto)}. Cocos queda en ${formatearPesos(centavos(leido))}.`,
+      textos.anotado(conSigno(ajuste.diferencia, ajuste.monto), formatearPesos(centavos(leido))),
     );
   }
 
   return (
     <form noValidate className="flex flex-col gap-3" onSubmit={enviar}>
       <p className="max-w-[42rem] text-label leading-relaxed text-text-2">
-        Cocos es el único saldo que se corrige a mano: sube solo por los intereses y baja cuando
-        retirás. Escribí el saldo que ves en la cuenta y la app anota la diferencia.{' '}
-        <strong className="font-semibold text-ink">La resta no la hacés vos.</strong>
+        {textos.explicacion(LaResta)}
       </p>
 
       <dl className="flex max-w-(--campo-largo) items-baseline justify-between gap-4 border-y border-hairline-soft py-2">
-        <dt className="text-label text-text-2">Lo que la app tiene calculado</dt>
-        <dd className="text-body font-semibold tabular-nums">{formatearPesos(saldo)}</dd>
+        <dt className="text-label text-text-2">{textos.calculado}</dt>
+        <dd translate="no" className="text-body font-semibold tabular-nums">
+          {formatearPesos(saldo)}
+        </dd>
       </dl>
 
       <MoneyInput
-        etiqueta="El saldo que tenés de verdad"
+        etiqueta={textos.saldoReal}
         className="max-w-(--campo-medio)"
         value={leido}
         error={error}
@@ -77,12 +95,7 @@ export function AjusteDeCocos({ saldo }: AjusteDeCocosProps) {
 
       {ajuste !== null && hecho === undefined && (
         <p className="rounded-field bg-cocos-tint px-3.5 py-2.5 text-label leading-relaxed text-ink">
-          Se va a anotar un asiento de{' '}
-          <strong className="font-semibold">
-            {ajuste.diferencia > 0 ? '+' : '−'}
-            {formatearPesos(ajuste.monto)}
-          </strong>{' '}
-          con el concepto «{ajuste.concepto}».
+          {textos.vaAAnotar(ElAsiento, conSigno(ajuste.diferencia, ajuste.monto), ajuste.concepto)}
         </p>
       )}
 
@@ -97,13 +110,11 @@ export function AjusteDeCocos({ saldo }: AjusteDeCocosProps) {
         </p>
       )}
       {mutacion.isPending && estadoSync.tipo === 'sin-conexion' && (
-        <p className="text-label text-atencion">
-          Queda en la cola: se sincroniza cuando vuelva la señal.
-        </p>
+        <p className="text-label text-atencion">{textos.enLaCola}</p>
       )}
 
       <Button type="submit" cargando={mutacion.isPending} className="self-start">
-        Ajustar el saldo de Cocos
+        {textos.ajustar}
       </Button>
     </form>
   );

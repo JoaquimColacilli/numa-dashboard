@@ -12,6 +12,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga, hoyEnElTaller, metaDeAvisos, uuidv7, useIr } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, Hoja } from '@/shared/ui';
 
@@ -26,29 +27,7 @@ import { CuandoLeEscribis } from './CuandoLeEscribis';
 
 type QueSigue = 'vuelve' | 'otra_fecha' | 'no_va';
 
-const OPCIONES: readonly { que: QueSigue; titulo: string; detalle: string }[] = [
-  {
-    que: 'vuelve',
-    titulo: 'Vuelve',
-    detalle: 'Le interesa otra vez: vuelve a las consultas.',
-  },
-  {
-    que: 'otra_fecha',
-    titulo: 'Todavía no',
-    detalle: 'Sigue en seguimiento: le volvés a escribir otro día.',
-  },
-  {
-    que: 'no_va',
-    titulo: 'No va',
-    detalle: 'Se da por perdido, por el cierre de siempre.',
-  },
-];
-
-const BOTON: Readonly<Record<QueSigue, string>> = {
-  vuelve: 'Volver a las consultas',
-  otra_fecha: 'Guardar la fecha nueva',
-  no_va: 'Seguir al cierre',
-};
+const OPCIONES: readonly QueSigue[] = ['vuelve', 'otra_fecha', 'no_va'];
 
 interface Errores {
   dia?: string;
@@ -73,6 +52,8 @@ export function HojaDeRegistrarElContacto({
   telefono,
   alCerrar,
 }: HojaDeRegistrarElContactoProps) {
+  const m = useMensajes();
+  const textos = m.hacerElSeguimiento.registrarElContacto;
   const ids = useId();
   const ir = useIr();
   const hoy = hoyEnElTaller();
@@ -112,7 +93,7 @@ export function HojaDeRegistrarElContacto({
     const encontrados: Errores = {
       dia: errorDelDiaQueLeEscribiste(dia, hoy),
       respuesta: errorDeLaNota(respuesta),
-      que: que === null ? 'Elegí qué pasó.' : undefined,
+      que: que === null ? m.hacerElSeguimiento.errores.queSigue : undefined,
       fecha: que === 'otra_fecha' ? errorDelProximoContacto(fecha, hoy) : undefined,
       nota: que === 'otra_fecha' ? errorDeLaNota(nota) : undefined,
     };
@@ -144,10 +125,20 @@ export function HojaDeRegistrarElContacto({
     guardar.mutate(guardado, { onSuccess: terminar, onError: setRechazo });
   }
 
+  const notaPendiente = pendiente.nota.trim();
+  const leTocaba =
+    notaPendiente === ''
+      ? textos.leTocabaEl(fechaLarga(pendiente.fecha, hoy))
+      : textos.leTocabaElConNota(fechaLarga(pendiente.fecha, hoy), notaPendiente);
+
   return (
     <Hoja
-      titulo="Registrar el contacto"
-      bajada={`${nombre} · ${proyecto.titulo}`}
+      titulo={textos.titulo}
+      bajada={
+        <span translate="no" className="truncate text-label text-text-2">
+          {`${nombre} · ${proyecto.titulo}`}
+        </span>
+      }
       alCerrar={alCerrar}
       conCambios={conCambios}
     >
@@ -155,18 +146,15 @@ export function HojaDeRegistrarElContacto({
         <form noValidate onSubmit={enviar} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
             <section
-              aria-label={`Contactar a ${nombre}`}
+              aria-label={textos.contactarA(nombre)}
               className="flex flex-wrap items-center justify-between gap-3 rounded-field bg-surface px-3.5 py-2.5"
             >
-              <p className="min-w-0 flex-1 text-label leading-snug text-text-2">
-                Le tocaba el {fechaLarga(pendiente.fecha, hoy)}.
-                {pendiente.nota.trim() !== '' && ` ${pendiente.nota.trim()}.`}
-              </p>
+              <p className="min-w-0 flex-1 text-label leading-snug text-text-2">{leTocaba}</p>
               <AccionesDeContacto nombre={nombre} telefono={telefono} />
             </section>
 
             <Campo
-              etiqueta="Qué día le escribiste"
+              etiqueta={textos.queDiaLeEscribiste}
               type="date"
               max={hoy}
               value={dia}
@@ -179,7 +167,7 @@ export function HojaDeRegistrarElContacto({
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${ids}-respuesta`} className="text-label text-text-2">
-                Qué te contestó
+                {textos.queTeContesto}
               </label>
               <textarea
                 id={`${ids}-respuesta`}
@@ -189,10 +177,10 @@ export function HojaDeRegistrarElContacto({
                 onChange={(evento) => {
                   setRespuesta(evento.target.value);
                 }}
-                placeholder="Que le escriba después de fin de mes, que consiguió más barato…"
+                placeholder={textos.ejemploDeRespuesta}
                 className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
               />
-              <span className="text-meta text-text-3">Opcional.</span>
+              <span className="text-meta text-text-3">{textos.opcional}</span>
               {errores.respuesta !== undefined && (
                 <span role="alert" className="text-label font-medium text-alerta">
                   {errores.respuesta}
@@ -204,18 +192,18 @@ export function HojaDeRegistrarElContacto({
               className="flex flex-col gap-1.5"
               aria-describedby={errores.que === undefined ? undefined : `${ids}-que-error`}
             >
-              <legend className="mb-1.5 text-label text-text-2">¿Y ahora?</legend>
-              <div role="radiogroup" aria-label="¿Y ahora?" className="flex flex-col gap-2">
+              <legend className="mb-1.5 text-label text-text-2">{textos.yAhora}</legend>
+              <div role="radiogroup" aria-label={textos.yAhora} className="flex flex-col gap-2">
                 {OPCIONES.map((opcion) => {
-                  const elegida = que === opcion.que;
+                  const elegida = que === opcion;
                   return (
                     <button
-                      key={opcion.que}
+                      key={opcion}
                       type="button"
                       role="radio"
                       aria-checked={elegida}
                       onClick={() => {
-                        setQue(opcion.que);
+                        setQue(opcion);
                         setErrores((previos) => ({ ...previos, que: undefined }));
                       }}
                       className={`flex min-h-[52px] flex-col items-start justify-center rounded-field border px-3.5 py-2 text-left ${
@@ -225,9 +213,11 @@ export function HojaDeRegistrarElContacto({
                       <span
                         className={`text-body leading-tight ${elegida ? 'font-semibold' : 'font-medium'}`}
                       >
-                        {opcion.titulo}
+                        {textos.opciones[opcion].titulo}
                       </span>
-                      <span className="text-meta text-text-2">{opcion.detalle}</span>
+                      <span className="text-meta text-text-2">
+                        {textos.opciones[opcion].detalle}
+                      </span>
                     </button>
                   );
                 })}
@@ -246,7 +236,7 @@ export function HojaDeRegistrarElContacto({
             {que === 'vuelve' && (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={`${ids}-etapa`} className="text-label text-text-2">
-                  Vuelve a
+                  {textos.vuelveA}
                 </label>
                 <select
                   id={`${ids}-etapa`}
@@ -262,10 +252,7 @@ export function HojaDeRegistrarElContacto({
                     </option>
                   ))}
                 </select>
-                <span className="text-meta text-text-3">
-                  La etapa en la que estaba cuando le dijiste que sí a esperar. Cambiala si
-                  corresponde otra.
-                </span>
+                <span className="text-meta text-text-3">{textos.ayudaDeLaEtapa}</span>
               </div>
             )}
 
@@ -282,7 +269,7 @@ export function HojaDeRegistrarElContacto({
                 />
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={`${ids}-nota`} className="text-label text-text-2">
-                    Nota para la próxima
+                    {textos.notaParaLaProxima}
                   </label>
                   <textarea
                     id={`${ids}-nota`}
@@ -294,15 +281,14 @@ export function HojaDeRegistrarElContacto({
                     }}
                     className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
                   />
-                  <span className="text-meta text-text-3">Opcional.</span>
+                  <span className="text-meta text-text-3">{textos.opcional}</span>
                 </div>
               </>
             )}
 
             {que === 'no_va' && (
               <p className="rounded-field bg-surface px-3.5 py-2.5 text-label leading-relaxed text-text-2">
-                Se abre el cierre, el mismo de siempre: si dejó seña, se liquida como ingreso del
-                taller, y el trabajo pasa al historial. Se puede reactivar.
+                {textos.elCierre}
               </p>
             )}
 
@@ -319,10 +305,10 @@ export function HojaDeRegistrarElContacto({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={guardar.isPending && !guardar.isPaused}>
-                {que === null ? 'Registrar' : BOTON[que]}
+                {que === null ? textos.registrar : textos.botones[que]}
               </Button>
             </FilaDeAcciones>
           </footer>

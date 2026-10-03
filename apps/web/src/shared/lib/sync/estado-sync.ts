@@ -1,3 +1,5 @@
+import { textosDeLib } from '../textos';
+
 export type EstadoSync =
   | { tipo: 'sin-conexion'; pendientes: number }
   | { tipo: 'pendiente'; pendientes: number }
@@ -16,21 +18,15 @@ export function calcularEstadoSync(
 }
 
 export function describirEstadoSync(estado: EstadoSync): string {
+  const { sync } = textosDeLib();
   switch (estado.tipo) {
     case 'sin-conexion':
-      if (estado.pendientes === 0) return 'Sin conexión. Estás viendo lo último que se sincronizó.';
-      if (estado.pendientes === 1)
-        return 'Sin conexión. 1 cambio se va a sincronizar cuando vuelva la señal.';
-      return `Sin conexión. ${estado.pendientes} cambios se van a sincronizar cuando vuelva la señal.`;
+      return sync.sinConexion(estado.pendientes);
     case 'pendiente':
-      return estado.pendientes === 1
-        ? 'Sincronizando 1 cambio…'
-        : `Sincronizando ${estado.pendientes} cambios…`;
+      return sync.sincronizando(estado.pendientes);
     case 'rechazado':
-      return estado.rechazados === 1
-        ? 'Hay 1 cambio que no se pudo guardar.'
-        : `Hay ${estado.rechazados} cambios que no se pudieron guardar.`;
+      return sync.rechazados(estado.rechazados);
     case 'sincronizado':
-      return 'Todo sincronizado.';
+      return sync.sincronizado;
   }
 }

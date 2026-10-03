@@ -5,6 +5,10 @@
 - Usa el mismo popover que la capa del día de la agenda
   ([0034](0034-la-agenda-calcula-lo-que-sale-de-los-trabajos.md)) y guarda en el dispositivo, como el tema y
   la marca del bloqueo.
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): desde la versión de los dólares y
+  los idiomas, cada entrada lleva sus líneas en los tres idiomas, con el castellano de Eliseo primero, y el
+  tipo lo obliga; las de antes quedan en castellano y se ven solo en castellano. En inglés y en portugués la
+  lista empieza en la primera entrada con ese idioma, y las palabras que no van se prueban por idioma.
 
 ## Contexto
 

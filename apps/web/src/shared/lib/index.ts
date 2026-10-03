@@ -24,10 +24,12 @@ export {
   fechaEnUnaFrase,
   fechaLarga,
   haceCuanto,
+  horaEnElTaller,
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   relativa,
   ZONA_DEL_TALLER,
@@ -38,9 +40,12 @@ export {
   mensajeParaElCliente,
   telefonoParaWhatsapp,
   whatsappCon,
+  type TextosDelMensajeAlCliente,
+  type UnMensajeAlCliente,
 } from './telefono';
 export {
   alternar,
+  compararTextos,
   criterioPorId,
   ordenar,
   type Criterio,
@@ -114,7 +119,39 @@ export { useScrollPorPantalla } from './scroll';
 export { usePantallaDespierta } from './pantalla-despierta';
 export { useAlgoEnCurso, useHayAlgoEnCurso } from './en-curso';
 export { useTirarParaActualizar, type FaseDelTiron, type Tiron } from './tirar-para-actualizar';
-export { formatearPesos } from './plata';
+export {
+  adornosDelCampo,
+  formatearCadaMoneda,
+  formatearLaPlata,
+  formatearPesos,
+  formatearPlata,
+  marcadorDelCampo,
+  porMoneda,
+  separadoresDelCampo,
+  type AdornosDelCampo,
+  type SeparadoresDelCampo,
+} from './plata';
+export { crearPlural, type FormasDelPlural } from './plural';
+export { fijarLosTextosDeLib, textosDeLib, type TextosDeLib } from './textos';
+export { type Ensanchar, type Envoltorio } from './catalogo';
+export { ABRE_EL_SEUDOIDIOMA, CIERRA_EL_SEUDOIDIOMA, seudoCatalogo, seudoTexto } from './seudo';
+export {
+  CLAVE_DEL_IDIOMA,
+  CLAVE_DEL_SEUDOIDIOMA,
+  etiquetaActual,
+  fijarElIdiomaEnUso,
+  guardarElIdioma,
+  idiomaActual,
+  enLista,
+  idiomaEnUso,
+  idiomaGuardadoDe,
+  olvidarElIdioma,
+  seudoidiomaPrendido,
+  suscribirseAlIdioma,
+  useIdiomaEnUso,
+  type IdiomaEnUso,
+  type IdiomaGuardado,
+} from './idioma';
 export {
   DIAS_DE_LA_SEMANA,
   diaDeLaSemana,

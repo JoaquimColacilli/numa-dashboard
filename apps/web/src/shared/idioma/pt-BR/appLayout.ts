@@ -1,0 +1,43 @@
+import type { Mensajes } from '../es';
+
+export const appLayout = {
+  hayUnaVersionNueva: 'Há uma nova versão do app.',
+  actualizar: 'Atualizar',
+  rechazado: ({ operacion, sujeto }) => `${operacion} não passou: ${sujeto}`,
+  verElProyecto: 'Ver projeto',
+  descartar: 'Descartar',
+  cerrarElAviso: 'Fechar aviso',
+  tardaMasDeLoNormal:
+    'Está demorando mais que o normal. O app continua tentando sozinho; se não avançar, tente de novo ou saia da conta.',
+  reintentar: 'Tentar de novo',
+  noPudimosLeerTusDatos: 'Não foi possível carregar seus dados',
+  sinNadaGuardado: 'Ainda não há nada salvo neste dispositivo para mostrar enquanto isso.',
+  saltarAlContenido: 'Pular para o conteúdo',
+  irAInicio: 'NUMA, ir para o Início',
+  cerrarElMenu: 'Fechar menu',
+  cargarAlgoNuevo: 'Registrar algo novo',
+  principal: 'Principal',
+  taller: 'Marcenaria',
+  destinos: {
+    inicio: 'Início',
+    agenda: 'Agenda',
+    consultas: 'Consultas',
+    proyectos: 'Projetos',
+    clientes: 'Clientes',
+    finanzas: 'Finanças',
+    tesoros: 'Caixinhas',
+    opiniones: 'Opiniões',
+    diezmo: 'Dízimo',
+    ajustes: 'Configurações',
+  },
+  accionesRapidas: {
+    anotar: 'Anotar algo',
+    movimiento: 'Movimentação',
+    cobro: 'Recebimento de projeto',
+    proyectoNuevo: 'Novo projeto',
+    consultaNueva: 'Nova consulta',
+  },
+  sincronizando: 'Sincronizando…',
+  soltaParaActualizar: 'Solte para atualizar',
+  tiraParaActualizar: 'Puxe para atualizar',
+} satisfies Mensajes['appLayout'];

@@ -33,6 +33,9 @@ function proyecto(id: string, clienteId: string, extra: Partial<Proyecto> = {}):
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: null,
     visita_hora: null,
@@ -90,7 +93,7 @@ function proyecto(id: string, clienteId: string, extra: Partial<Proyecto> = {}):
   };
 }
 
-function pago(id: string, proyectoId: string, monto: number): Pago {
+function pago(id: string, proyectoId: string, monto: number, extra: Partial<Pago> = {}): Pago {
   return {
     ...METADATOS,
     id,
@@ -99,6 +102,10 @@ function pago(id: string, proyectoId: string, monto: number): Pago {
     concepto: '',
     monto_centavos: monto,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
+    ...extra,
   };
 }
 
@@ -139,8 +146,8 @@ describe('resumenesDeClientes', () => {
   it('un cliente sin proyectos queda en cero, no afuera', () => {
     const [resumen] = resumenesDeClientes(replicaCon({ clientes: [cliente('c1', 'Ana')] }));
     expect(resumen).toMatchObject({
-      facturado: 0,
-      saldo: 0,
+      facturado: [],
+      saldo: [],
       facturados: 0,
       enConsultas: 0,
       ultimo: undefined,
@@ -158,7 +165,7 @@ describe('resumenesDeClientes', () => {
     });
     const [resumen] = resumenesDeClientes(replica);
 
-    expect(resumen?.facturado).toBe(150_000);
+    expect(resumen?.facturado).toEqual([{ importe: 150_000, moneda: 'ARS' }]);
     expect(resumen?.facturados).toBe(2);
     expect(resumen?.enConsultas).toBe(1);
   });
@@ -175,7 +182,31 @@ describe('resumenesDeClientes', () => {
     });
     const [resumen] = resumenesDeClientes(replica);
 
-    expect(resumen?.saldo).toBe(140_000);
+    expect(resumen?.saldo).toEqual([{ importe: 140_000, moneda: 'ARS' }]);
+  });
+
+  it('con trabajos en dólares, lo facturado y lo que debe van por moneda, sin sumar una con la otra', () => {
+    const replica = replicaCon({
+      clientes: [cliente('c1', 'Ana')],
+      proyectos: [
+        proyecto('p1', 'c1', { estado: 'en_curso', presupuesto_centavos: 100_000 }),
+        proyecto('p2', 'c1', { estado: 'en_curso', presupuesto_centavos: 200_000, moneda: 'USD' }),
+      ],
+      pagos: [
+        pago('g1', 'p2', 50_000, { moneda: 'USD', cotizacion_centavos: 150_000, tesoro_id: 'd' }),
+        pago('g2', 'p2', 150_000_000, { cotizacion_centavos: 150_000 }),
+      ],
+    });
+    const [resumen] = resumenesDeClientes(replica);
+
+    expect(resumen?.facturado).toEqual([
+      { importe: 100_000, moneda: 'ARS' },
+      { importe: 200_000, moneda: 'USD' },
+    ]);
+    expect(resumen?.saldo).toEqual([
+      { importe: 100_000, moneda: 'ARS' },
+      { importe: 50_000, moneda: 'USD' },
+    ]);
   });
 
   it('un proyecto sobrecobrado no resta del saldo de los demás', () => {
@@ -187,7 +218,7 @@ describe('resumenesDeClientes', () => {
       ],
       pagos: [pago('g1', 'p1', 50_000)],
     });
-    expect(resumenesDeClientes(replica)[0]?.saldo).toBe(100_000);
+    expect(resumenesDeClientes(replica)[0]?.saldo).toEqual([{ importe: 100_000, moneda: 'ARS' }]);
   });
 
   it('el último trabajo es el de la fecha más nueva', () => {
@@ -215,8 +246,12 @@ describe('resumenesDeClientes', () => {
     });
     const resumenes = resumenesDeClientes(replica);
 
-    expect(resumenes.find((r) => r.cliente.id === 'c1')?.facturado).toBe(100_000);
-    expect(resumenes.find((r) => r.cliente.id === 'c2')?.facturado).toBe(700_000);
+    expect(resumenes.find((r) => r.cliente.id === 'c1')?.facturado).toEqual([
+      { importe: 100_000, moneda: 'ARS' },
+    ]);
+    expect(resumenes.find((r) => r.cliente.id === 'c2')?.facturado).toEqual([
+      { importe: 700_000, moneda: 'ARS' },
+    ]);
   });
 });
 

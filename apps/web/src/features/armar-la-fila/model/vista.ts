@@ -1,6 +1,8 @@
 import {
   CERO,
+  enPesos,
   lugarLibreDelReparto,
+  MONEDA_DEL_TALLER,
   problemasDeLaFila,
   tipoDelPaso,
   type CambioDeLaFila,
@@ -19,6 +21,7 @@ import {
   type ParteDeLaEscala,
 } from '@/entities/fila';
 import {
+  metaEnPesos,
   tesoroDeLaClave,
   tesorosDelTaller,
   tesorosSincronizados,
@@ -32,6 +35,7 @@ import {
   type Replica,
   type Tesoro,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { mesDeLaFecha } from '@/shared/lib';
 
 import { cambiosDelBorrador, cuantosCambios, type BorradorDeLaFila } from './borrador';
@@ -98,7 +102,13 @@ export function vistaDeLaFila(
     problemas: armando
       ? problemasDeLaFila(
           fila,
-          tesoros.map(({ id, clave, archivado, meta }) => ({ id, clave, archivado, meta })),
+          tesoros.map((tesoro) => ({
+            id: tesoro.id,
+            clave: tesoro.clave,
+            archivado: tesoro.archivado,
+            meta: metaEnPesos(tesoro),
+            moneda: tesoro.moneda,
+          })),
         )
       : [],
     revision: (borrador?.version ?? delTaller.version) + 1,
@@ -152,7 +162,8 @@ export function tesoroDe(vista: Pick<VistaDeLaFila, 'tesoros'>, id: string): Tes
     vista.tesoros.find((tesoro) => tesoro.id === id) ?? {
       id,
       clave: null,
-      nombre: 'Un tesoro que ya no está',
+      moneda: MONEDA_DEL_TALLER,
+      nombre: mensajes().armarLaFila.ficha.tesoroQueYaNoEsta,
       descripcion: '',
       tinta: 'maun',
       icono: 'vault',
@@ -160,7 +171,7 @@ export function tesoroDe(vista: Pick<VistaDeLaFila, 'tesoros'>, id: string): Tes
       rindeAnualBp: null,
       orden: 0,
       archivado: true,
-      saldo: CERO,
+      saldo: enPesos(CERO),
     }
   );
 }
@@ -246,7 +257,10 @@ export function cuantosEnLaFila(fila: Pick<Fila, 'obligaciones' | 'pasos'>): num
 }
 
 export function lugarEnLaFila(fila: Pick<Fila, 'obligaciones' | 'pasos'>, tesoro: string): string {
-  return `${String(numeroEnLaFila(fila, tesoro))} de ${String(cuantosEnLaFila(fila))}`;
+  return mensajes().armarLaFila.ficha.lugarEnLaFila(
+    numeroEnLaFila(fila, tesoro),
+    cuantosEnLaFila(fila),
+  );
 }
 
 export interface EncabezadoDeLaFicha {
@@ -260,32 +274,35 @@ export function encabezadoDeLaFicha(
   elegido: string | null,
   conClase = true,
 ): EncabezadoDeLaFicha {
+  const textos = mensajes().armarLaFila.ficha;
   const ficha = elegido === null ? null : queFichaEs(elegido);
-  if (ficha === null)
-    return { titulo: 'La fila', bajada: 'Cómo se reparte cada cobro', tesoro: null };
+  if (ficha === null) return { titulo: textos.laFila, bajada: textos.comoSeReparte, tesoro: null };
   if (ficha.tipo === 'paso') {
     const paso = vista.fila.pasos.find((uno) => uno.tesoro === ficha.tesoro);
     const tesoro = tesoroDe(vista, ficha.tesoro);
-    if (paso === undefined) return { titulo: tesoro.nombre, bajada: 'En la fila', tesoro };
+    if (paso === undefined) return { titulo: tesoro.nombre, bajada: textos.enLaFila, tesoro };
     const tipo = NOMBRE_DEL_TIPO[tipoDelPaso(paso.clase)];
-    const donde = `${tipo} · ${lugarEnLaFila(vista.fila, paso.tesoro)}`;
+    const lugar = lugarEnLaFila(vista.fila, paso.tesoro);
     return {
       titulo: tesoro.nombre,
-      bajada: conClase && paso.clase === 'sueldo' ? `${donde} · Sueldo` : donde,
+      bajada:
+        conClase && paso.clase === 'sueldo'
+          ? textos.delSueldo(tipo, lugar)
+          : textos.delPaso(tipo, lugar),
       tesoro,
     };
   }
   if (ficha.tipo === 'parte' || ficha.tipo === 'reparto') {
-    return { titulo: 'Lo que sobra', bajada: 'Ahorros por porcentaje', tesoro: null };
+    return { titulo: textos.loQueSobra, bajada: textos.ahorrosPorPorcentaje, tesoro: null };
   }
   if (ficha.tipo === 'resto') {
     const superavit = tesoroDe(vista, vista.fila.superavit);
-    return { titulo: superavit.nombre, bajada: 'Superávit · El resto', tesoro: superavit };
+    return { titulo: superavit.nombre, bajada: textos.superavitElResto, tesoro: superavit };
   }
   if (ficha.tipo === 'estante') {
     return {
       titulo: tesoroDe(vista, ficha.tesoro).nombre,
-      bajada: 'En el estante',
+      bajada: textos.enElEstante,
       tesoro: tesoroDe(vista, ficha.tesoro),
     };
   }
@@ -294,12 +311,12 @@ export function encabezadoDeLaFicha(
     const tesoro = tesoroDe(vista, id);
     return {
       titulo: tesoro.nombre,
-      bajada: `Obligación · ${lugarEnLaFila(vista.fila, id)}`,
+      bajada: textos.deLaObligacion(lugarEnLaFila(vista.fila, id)),
       tesoro,
     };
   }
   if (ficha.tipo === 'insumos') {
-    return { titulo: 'Insumos', bajada: 'Lo que queda de cada seña', tesoro: null };
+    return { titulo: textos.insumos, bajada: textos.loQueQuedaDeCadaSena, tesoro: null };
   }
-  return { titulo: 'La fila', bajada: 'Cómo se reparte cada cobro', tesoro: null };
+  return { titulo: textos.laFila, bajada: textos.comoSeReparte, tesoro: null };
 }

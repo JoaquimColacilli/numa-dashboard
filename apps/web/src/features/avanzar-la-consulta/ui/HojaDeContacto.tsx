@@ -1,20 +1,31 @@
+import { MONEDA_DEL_TALLER } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
 import { ClienteCombobox, MUTACION_DE_CLIENTE } from '@/entities/cliente';
 import {
+  CamposDelPago,
+  dolarDelDiaParaUnPago,
   hijosDelProyecto,
   MUTACION_DE_PROYECTO,
   pagosDelProyecto,
   type Proyecto,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { aperturaDeLaReplica, filasDe, mensajeDeSincronizacion } from '@/shared/api';
-import { formatearPesos, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
-import { Button, Campo, FilaDeAcciones, Hoja, MoneyInput } from '@/shared/ui';
+import {
+  aperturaDeLaReplica,
+  filasDe,
+  mensajeDeSincronizacion,
+  totalesDelProyecto,
+} from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
+import { formatearLaPlata, hoyEnElTaller, metaDeAvisos, uuidv7 } from '@/shared/lib';
+import { Button, Campo, FilaDeAcciones, Hoja } from '@/shared/ui';
 
 import {
+  conLaSena,
   diaDeLaSena,
   erroresDelContacto,
   etiquetaDeLaVisita,
@@ -25,11 +36,13 @@ import {
   ofreceMarcarLaVisita,
   pedidoDelContacto,
   senaEditable,
+  valorDeLaSena,
   valoresConOtraVisita,
   valoresDelContacto,
   type ErroresDelContacto,
   type ValoresDelContacto,
 } from '../model/contacto';
+import { monedaDeLaConsulta, paraLosPagos } from '../model/pagoDeLaConsulta';
 
 export interface HojaDeContactoProps {
   proyecto?: Proyecto;
@@ -38,6 +51,7 @@ export interface HojaDeContactoProps {
   enfocarLaVigencia?: boolean;
   alCerrar: () => void;
   alGuardar?: (id: string) => void;
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
 }
 
 export function HojaDeContacto({
@@ -47,21 +61,25 @@ export function HojaDeContacto({
   enfocarLaVigencia = false,
   alCerrar,
   alGuardar,
+  alCrearUnTesoroEnDolares,
 }: HojaDeContactoProps) {
+  const textos = useMensajes().avanzarLaConsulta.contacto;
   const replica = useReplicaDelTaller();
   const idCampos = useId();
   const cuerpo = useRef<HTMLDivElement>(null);
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
+  const delTrabajo = monedaDeLaConsulta(proyecto);
+  const para = paraLosPagos(replica);
 
   const clientes = filasDe(replica, 'clientes');
   const pagos = proyecto === undefined ? [] : pagosDelProyecto(replica, proyecto.id);
   const sena = senaEditable(pagos);
-  const cobrado = pagos.reduce((suma, pago) => suma + pago.monto_centavos, 0);
+  const cobrado = totalesDelProyecto(replica, proyecto?.id ?? '').cobradoEnSuMoneda;
 
   const alAbrir = useRef({ id: proyecto?.id ?? uuidv7(), idDeSenaNueva: uuidv7() });
   const [iniciales] = useState<ValoresDelContacto>(() =>
-    valoresDelContacto(proyecto, sena, visitaInicial),
+    valoresDelContacto(proyecto, sena, visitaInicial, para, hoy),
   );
   const [valores, setValores] = useState<ValoresDelContacto>(iniciales);
   const [telefono, setTelefono] = useState<string | undefined>(undefined);
@@ -107,6 +125,20 @@ export function HojaDeContacto({
     }));
   }
 
+  function cambiarLaSena(valor: ValorDelPago): void {
+    setValores((previos) => conLaSena(previos, valor));
+    setErrores((previos) => ({
+      ...previos,
+      cotizacionDeLaSena: undefined,
+      tesoroDeLaSena: undefined,
+    }));
+  }
+
+  function entraAlTesoroNuevo(tesoroId: string): void {
+    setValores((previos) => ({ ...previos, tesoroDeLaSena: tesoroId }));
+    setErrores((previos) => ({ ...previos, tesoroDeLaSena: undefined }));
+  }
+
   function terminar(): void {
     if (yaTermino.current) return;
     yaTermino.current = true;
@@ -116,7 +148,10 @@ export function HojaDeContacto({
 
   function enviar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
-    const encontrados = erroresDelContacto(valores, telefonoVisible, hoy);
+    const encontrados = erroresDelContacto(valores, telefonoVisible, hoy, {
+      monedaDelTrabajo: delTrabajo,
+      tesorosEnDolares: para.tesorosEnDolares,
+    });
     setErrores(encontrados);
     if (Object.values(encontrados).some((mensaje) => mensaje !== undefined)) return;
 
@@ -161,7 +196,7 @@ export function HojaDeContacto({
 
   return (
     <Hoja
-      titulo={proyecto ? 'Editar el contacto' : 'Cargar contacto'}
+      titulo={proyecto ? textos.titulo.editar : textos.titulo.nuevo}
       alCerrar={alCerrar}
       conCambios={hayCambiosEnElContacto(iniciales, valores, cliente?.telefono ?? '', telefono)}
     >
@@ -183,7 +218,7 @@ export function HojaDeContacto({
 
             {valores.clienteId !== '' && (
               <Campo
-                etiqueta="Teléfono"
+                etiqueta={textos.telefono}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -193,17 +228,13 @@ export function HojaDeContacto({
                   setTelefono(evento.target.value);
                 }}
                 error={errores.telefono}
-                ayuda={
-                  errores.telefono === undefined
-                    ? 'Queda en el cliente: es el que usan Llamar y WhatsApp.'
-                    : undefined
-                }
+                ayuda={errores.telefono === undefined ? textos.ayudaDelTelefono : undefined}
               />
             )}
 
             <Campo
-              etiqueta="Qué pide"
-              placeholder="Placard, cocina, biblioteca…"
+              etiqueta={textos.quePide}
+              placeholder={textos.ejemploDeQuePide}
               maxLength={200}
               value={valores.titulo}
               onChange={(evento) => {
@@ -222,50 +253,66 @@ export function HojaDeContacto({
                   const visita = evento.target.value;
                   setValores((previos) => valoresConOtraVisita(proyecto, previos, visita, hoy));
                 }}
-                ayuda={
-                  esContactoSinEtapa
-                    ? 'Si ya fuiste, queda a presupuestar; si es más adelante, queda agendada.'
-                    : undefined
-                }
+                ayuda={esContactoSinEtapa ? textos.ayudaDeLaVisita : undefined}
               />
 
               <Campo
-                etiqueta="Hora de la visita"
+                etiqueta={textos.horaDeLaVisita}
                 name="visita_hora"
                 type="time"
                 value={valores.visitaHora}
                 onChange={(evento) => {
                   cambiar('visitaHora', evento.target.value);
                 }}
-                ayuda="Opcional. Con hora, la visita cae en su renglón del día en la agenda."
+                ayuda={textos.ayudaDeLaHora}
               />
 
               {pagos.length > 1 ? (
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-label text-text-2">Seña cobrada</span>
-                  <span className="flex h-field items-center text-body-lg font-semibold tabular-nums">
-                    {formatearPesos(cobrado)}
+                  <span className="text-label text-text-2">{textos.senaCobrada}</span>
+                  <span
+                    translate="no"
+                    className="flex h-field items-center text-body-lg font-semibold tabular-nums"
+                  >
+                    {formatearLaPlata(cobrado)}
                   </span>
-                  <span className="text-meta text-text-3">
-                    Son {String(pagos.length)} pagos: se corrigen desde el detalle del trabajo.
-                  </span>
+                  <span className="text-meta text-text-3">{textos.variosPagos(pagos.length)}</span>
                 </div>
               ) : (
-                <MoneyInput
-                  etiqueta="Seña cobrada"
-                  placeholder="$ 0"
-                  value={valores.sena}
-                  onChange={(centavos) => {
-                    cambiar('sena', centavos);
+                <CamposDelPago
+                  etiqueta={textos.senaCobrada}
+                  valor={valorDeLaSena(valores)}
+                  alCambiar={cambiarLaSena}
+                  monedaDelTrabajo={delTrabajo}
+                  tesorosEnDolares={para.tesorosEnDolares}
+                  dolarDelDia={dolarDelDiaParaUnPago(
+                    { moneda: valores.monedaDeLaSena, fecha: diaDeLaSena(valores, hoy) },
+                    delTrabajo,
+                    para.dolarDelDia,
+                  )}
+                  alCrearUnTesoroEnDolares={
+                    alCrearUnTesoroEnDolares === undefined
+                      ? undefined
+                      : () => {
+                          alCrearUnTesoroEnDolares(entraAlTesoroNuevo);
+                        }
+                  }
+                  errores={{
+                    cotizacion: errores.cotizacionDeLaSena,
+                    tesoro: errores.tesoroDeLaSena,
                   }}
-                  ayuda="Lo que te dejó en la visita. Entra a la caja del taller."
+                  ayudaDelMonto={
+                    valores.monedaDeLaSena === MONEDA_DEL_TALLER
+                      ? textos.ayudaDeLaSena
+                      : textos.ayudaDeLaSenaEnDolares
+                  }
                 />
               )}
 
               {pagos.length <= 1 && (valores.sena ?? 0) > 0 && (
                 <div className="flex flex-col gap-1">
                   <Campo
-                    etiqueta="Día de la seña"
+                    etiqueta={textos.diaDeLaSena}
                     type="date"
                     max={hoy}
                     value={diaDeLaSena(valores, hoy)}
@@ -275,7 +322,7 @@ export function HojaDeContacto({
                     error={errores.diaDeLaSena}
                     ayuda={
                       errores.diaDeLaSena === undefined && valores.diaDeLaSena === null
-                        ? 'El de la visita si ya fue, y si no, hoy. Cambialo si te la dio otro día.'
+                        ? textos.ayudaDelDiaDeLaSena
                         : undefined
                     }
                   />
@@ -302,18 +349,15 @@ export function HojaDeContacto({
                   className="mt-0.5 size-5 flex-none accent-ink"
                 />
                 <span className="flex min-w-0 flex-col">
-                  <span className="text-body font-medium text-ink">Ya fui a relevar</span>
-                  <span className="text-meta text-text-3">
-                    En la agenda la visita queda tachada. Si no fuiste, destildala y vuelve a quedar
-                    pendiente.
-                  </span>
+                  <span className="text-body font-medium text-ink">{textos.yaFuiARelevar}</span>
+                  <span className="text-meta text-text-3">{textos.ayudaDeYaFui}</span>
                 </span>
               </label>
             )}
 
             {muestraElVencimiento(proyecto) && (
               <Campo
-                etiqueta="Entregar el presupuesto antes del"
+                etiqueta={textos.entregarElPresupuestoAntesDel}
                 type="date"
                 value={valores.vencimiento}
                 onChange={(evento) => {
@@ -321,28 +365,28 @@ export function HojaDeContacto({
                 }}
                 ayuda={
                   proyecto?.estado === 'a_presupuestar'
-                    ? 'Sale en la agenda hasta que lo mandes. Si cambiás el día del relevamiento se corre sola, salvo que la hayas puesto a mano.'
-                    : 'Sale en la agenda hasta que marques que lo mandaste.'
+                    ? textos.ayudaDelVencimientoAPresupuestar
+                    : textos.ayudaDelVencimiento
                 }
               />
             )}
 
             {muestraLaVigencia(proyecto) && (
               <Campo
-                etiqueta="El presupuesto vale hasta"
+                etiqueta={textos.valeHasta}
                 name="vale_hasta"
                 type="date"
                 value={valores.valeHasta}
                 onChange={(evento) => {
                   cambiar('valeHasta', evento.target.value);
                 }}
-                ayuda="Tu cliente lo ve en su página: si deja la seña antes de ese día, le dice para cuándo podría estar listo. Pasado el día, le dice que venció. Sin fecha, no le promete ninguna."
+                ayuda={textos.ayudaDeValeHasta}
               />
             )}
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${idCampos}-notas`} className="text-label text-text-2">
-                Notas
+                {textos.notas}
               </label>
               <textarea
                 id={`${idCampos}-notas`}
@@ -351,7 +395,7 @@ export function HojaDeContacto({
                 onChange={(evento) => {
                   cambiar('notas', evento.target.value);
                 }}
-                placeholder="Lo que te dijo por teléfono, medidas, cómo llegar…"
+                placeholder={textos.ejemploDeNotas}
                 className="rounded-field border border-border bg-paper px-3.5 py-2.5 text-body-lg text-ink"
               />
               {errores.notas !== undefined && (
@@ -371,10 +415,10 @@ export function HojaDeContacto({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button type="button" variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {textos.cancelar}
               </Button>
               <Button type="submit" cargando={guardar.isPending && !guardar.isPaused}>
-                {proyecto ? 'Guardar los cambios' : 'Guardar contacto'}
+                {proyecto ? textos.guardar.editar : textos.guardar.nuevo}
               </Button>
             </FilaDeAcciones>
           </footer>

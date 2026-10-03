@@ -88,7 +88,7 @@ export {
 export {
   ATAJOS_DE_LA_PRUEBA,
   COBRO_DE_EJEMPLO,
-  LLEGO_A_LA_META,
+  llegoALaMeta,
   notaDeLaParteEnLaPrueba,
   notaDelPasoEnLaPrueba,
 } from './model/prueba';
@@ -127,10 +127,4 @@ export { BotonEditarTesoro, type BotonEditarTesoroProps } from './ui/BotonEditar
 export { HojaDeGuardarLaFila, type HojaDeGuardarLaFilaProps } from './ui/HojaDeGuardarLaFila';
 export { HojaDeLaFicha, type HojaDeLaFichaProps } from './ui/HojaDeLaFicha';
 export { PanelDeDetalle, type PanelDeDetalleProps } from './ui/PanelDeDetalle';
-export {
-  ETIQUETA_DE_LO_QUE_DEJA,
-  ETIQUETA_DEL_TRABAJO,
-  Probador,
-  TablaDeLaPrueba,
-  type ProbadorProps,
-} from './ui/Probador';
+export { Probador, TablaDeLaPrueba, type ProbadorProps } from './ui/Probador';

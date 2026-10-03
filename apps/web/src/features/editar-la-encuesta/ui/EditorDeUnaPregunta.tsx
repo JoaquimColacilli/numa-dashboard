@@ -11,20 +11,11 @@ import {
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { TIPO, type FilaDePregunta } from '@/entities/opinion';
+import { useMensajes } from '@/shared/idioma';
 import { hayCambios, useAlgoEnCurso } from '@/shared/lib';
 import { Button, FilaDeAcciones, Icono, Interruptor } from '@/shared/ui';
 
 import type { ModoDeGuardar } from '../model/acciones';
-
-const MENSAJE: Readonly<Record<ProblemaDelBorrador, string>> = {
-  'sin-texto': 'Escribí la pregunta.',
-  'texto-largo': 'La pregunta es muy larga: tiene que entrar en 300 letras.',
-  'opcion-vacia': 'Hay una opción vacía: escribila o sacala.',
-  'pocas-opciones': 'Tiene que tener al menos dos opciones.',
-  'muchas-opciones': 'Tiene que tener ocho opciones como mucho.',
-  'opcion-larga': 'Una opción es muy larga: tiene que entrar en 120 letras.',
-  'opciones-repetidas': 'Hay dos opciones iguales.',
-};
 
 function editableDe(pregunta: FilaDePregunta): PreguntaEditable {
   return {
@@ -68,6 +59,8 @@ export function EditorDeUnaPregunta({
   alGuardar,
   alCancelar,
 }: EditorDeUnaPreguntaProps) {
+  const textos = useMensajes().editarLaEncuesta.editor;
+  const mensajeDel = (cual: ProblemaDelBorrador): string => textos.problemas[cual];
   const id = useId();
   const original = pregunta === null ? NUEVA : editableDe(pregunta);
   const [borrador, setBorrador] = useState<PreguntaEditable>(original);
@@ -112,7 +105,7 @@ export function EditorDeUnaPregunta({
   return (
     <div className="flex max-w-[760px] flex-col gap-4 pt-1 pb-5 pl-10">
       <div className="flex flex-col gap-1.75 text-label text-text-2">
-        <label htmlFor={`${id}-texto`}>Qué se pregunta</label>
+        <label htmlFor={`${id}-texto`}>{textos.queSePregunta}</label>
         <textarea
           id={`${id}-texto`}
           ref={texto}
@@ -129,13 +122,13 @@ export function EditorDeUnaPregunta({
         />
         {errorDelTexto && (
           <span id={`${id}-error-texto`} role="alert" className="font-medium text-alerta">
-            {MENSAJE[problema]}
+            {mensajeDel(problema)}
           </span>
         )}
       </div>
 
       <fieldset className="m-0 flex min-w-0 flex-col gap-1.75 border-0 p-0">
-        <legend className="mb-1.75 p-0 text-label text-text-2">Cómo contesta</legend>
+        <legend className="mb-1.75 p-0 text-label text-text-2">{textos.comoContesta}</legend>
         <div className="@container">
           <div className="grid grid-cols-1 gap-2 @lg:grid-cols-2">
             {TIPOS_DE_PREGUNTA.map((tipo) => {
@@ -178,7 +171,7 @@ export function EditorDeUnaPregunta({
 
       {conOpciones && (
         <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 p-0 text-label text-text-2">Las opciones</legend>
+          <legend className="mb-2 p-0 text-label text-text-2">{textos.lasOpciones}</legend>
           <div ref={opciones} className="flex flex-col gap-2">
             {(borrador.opciones ?? []).map((opcion, indice) => (
               <div key={indice} className="flex items-center gap-2">
@@ -190,7 +183,7 @@ export function EditorDeUnaPregunta({
                 />
                 <input
                   value={opcion}
-                  aria-label={`Opción ${String(indice + 1)}`}
+                  aria-label={textos.opcion(indice + 1)}
                   aria-invalid={errorDeOpciones || undefined}
                   aria-describedby={errorDeOpciones ? `${id}-error-opciones` : undefined}
                   onChange={(evento) => {
@@ -202,7 +195,7 @@ export function EditorDeUnaPregunta({
                 />
                 <button
                   type="button"
-                  aria-label={`Borrar la opción ${String(indice + 1)}`}
+                  aria-label={textos.borrarLaOpcion(indice + 1)}
                   onClick={() => {
                     cambiar({
                       opciones: (borrador.opciones ?? []).filter((_, otra) => otra !== indice),
@@ -223,7 +216,7 @@ export function EditorDeUnaPregunta({
             className="flex h-11 w-fit items-center gap-2 rounded-pill border border-dashed border-border px-3.5 text-body-sm font-medium hover:bg-surface"
           >
             <Icono nombre="plus" tamano={16} />
-            Agregar una opción
+            {textos.agregarUnaOpcion}
           </button>
           {errorDeOpciones && (
             <span
@@ -231,7 +224,7 @@ export function EditorDeUnaPregunta({
               role="alert"
               className="text-label font-medium text-alerta"
             >
-              {MENSAJE[problema]}
+              {mensajeDel(problema)}
             </span>
           )}
         </fieldset>
@@ -245,8 +238,8 @@ export function EditorDeUnaPregunta({
         className="min-h-13 rounded-field border border-border bg-paper px-3 py-2"
       >
         <span className="text-body-sm leading-tight">
-          Que tenga que contestarla
-          <span className="block text-meta text-text-2">Si no, puede saltearla</span>
+          {textos.queTengaQueContestarla}
+          <span className="block text-meta text-text-2">{textos.siNoPuedeSaltearla}</span>
         </span>
       </Interruptor>
 
@@ -254,29 +247,25 @@ export function EditorDeUnaPregunta({
         <div className="flex flex-col gap-2.5 rounded-field border border-atencion bg-atencion-tint px-4 py-3.5">
           <span className="flex items-center gap-2.25 text-body font-semibold">
             <Icono nombre="history" tamano={18} />
-            {como.respuestas === 1
-              ? 'Esta pregunta ya la contestó 1 persona'
-              : `Esta pregunta ya la contestaron ${String(como.respuestas)} personas`}
+            {textos.yaLaContestaron(como.respuestas)}
           </span>
           <p className="text-body-sm leading-relaxed text-text-2">
-            {obligadaANueva
-              ? 'Le cambiaste cómo se contesta, así que esas respuestas no se pueden sumar con las nuevas. Quedan guardadas aparte, con el texto que tenían, y se empieza a contar de cero.'
-              : 'Si le cambiás el sentido, esas respuestas contestaban otra cosa y no se pueden sumar con las nuevas. Podemos guardar las viejas aparte y empezar a contar de cero con el texto nuevo.'}
+            {obligadaANueva ? textos.cambiasteComoSeContesta : textos.siLeCambiasElSentido}
           </p>
           {!obligadaANueva && (
             <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-              <legend className="sr-only">Qué hacemos con las respuestas viejas</legend>
+              <legend className="sr-only">{textos.queHacemos}</legend>
               {(
                 [
                   {
                     valor: 'nueva',
-                    etiqueta: 'Empezar a contar de cero',
-                    detalle: `Las ${String(como.respuestas)} respuestas viejas quedan guardadas aparte, con el texto que tenían. En Resultados se ven separadas.`,
+                    etiqueta: textos.empezarDeCero,
+                    detalle: textos.empezarDeCeroDetalle(como.respuestas),
                   },
                   {
                     valor: 'misma',
-                    etiqueta: 'Es la misma pregunta, solo la redacté mejor',
-                    detalle: 'Las respuestas viejas se siguen sumando con las nuevas.',
+                    etiqueta: textos.esLaMisma,
+                    detalle: textos.esLaMismaDetalle,
                   },
                 ] as const
               ).map((opcion) => {
@@ -323,9 +312,9 @@ export function EditorDeUnaPregunta({
       )}
 
       <FilaDeAcciones>
-        <Button onClick={guardar}>Guardar la pregunta</Button>
+        <Button onClick={guardar}>{textos.guardar}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Cancelar
+          {textos.cancelar}
         </Button>
       </FilaDeAcciones>
     </div>

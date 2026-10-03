@@ -1,15 +1,21 @@
-import { centavos, puntosBasicos } from '@maun/domain';
+import { centavos, plata, puntosBasicos } from '@maun/domain';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FormasDeCobroDelTrabajo, Proyecto, ResumenDeProyecto } from '@/entities/proyecto';
-import { ProveedorDeReplica } from '@/entities/replica';
+import { CLAVE_DE_AJUSTES, ProveedorDeReplica, type EdicionDeAjustes } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
-import { AL_MENOS_UNA, NADA_QUE_COBRAR, SIN_DATOS_PARA_TRANSFERIR } from '../model/comoTePaga';
 import { ComoTePaga } from './ComoTePaga';
+
+const {
+  alMenosUna: AL_MENOS_UNA,
+  nadaQueCobrar: NADA_QUE_COBRAR,
+  sinDatosParaTransferir: SIN_DATOS_PARA_TRANSFERIR,
+} = mensajes().compartirConElCliente.comoTePaga;
 
 const AHORA = '2026-09-19T12:00:00Z';
 
@@ -29,6 +35,10 @@ const AJUSTES: FilaDe<'ajustes'> = {
   cobro_titular: '',
   cobro_cuit: '',
   cobro_link: '',
+  cobro_dolares_cbu: '',
+  cobro_dolares_alias: '',
+  dolar_del_dia_centavos: null,
+  dolar_del_dia_el: null,
   resena_link: '',
   instagram_link: '',
   facebook_link: '',
@@ -46,6 +56,7 @@ const AJUSTES: FilaDe<'ajustes'> = {
   taller_email: '',
   plantilla_del_presupuesto: null,
   plantilla_del_presupuesto_version: 0,
+  idioma_de_los_clientes: 'es',
   created_at: AHORA,
   updated_at: AHORA,
   deleted_at: null,
@@ -63,6 +74,9 @@ const PROYECTO: Proyecto = {
   forma_pago: null,
   cobro_sena: null,
   cobro_saldo: null,
+  moneda: 'ARS',
+  cobra_en: null,
+  costos_cotizacion_centavos: null,
   comprobante: 'sin_comprobante',
   fecha_visita: null,
   ultimo_contacto: null,
@@ -130,10 +144,14 @@ function resumen(proyecto: Partial<Proyecto> = {}, cobrado = 0): ResumenDeProyec
     cliente: undefined,
     nombreDelCliente: 'Marcela Duarte',
     fase: 'activos',
-    presupuesto: centavos(fila.presupuesto_centavos ?? 0),
-    cobrado: centavos(cobrado),
+    moneda: 'ARS',
+    precio: plata('ARS', fila.presupuesto_centavos ?? 0),
+    cobradoEnSuMoneda: plata('ARS', cobrado),
+    cobradoEnPesos: centavos(cobrado),
+    enMaun: centavos(cobrado),
+    enDolares: [],
     gastos: centavos(0),
-    saldo: centavos((fila.presupuesto_centavos ?? 0) - cobrado),
+    saldo: plata('ARS', (fila.presupuesto_centavos ?? 0) - cobrado),
     entrega: { fecha: null, comprometida: false, franja: null, listo: null },
     urgencia: undefined,
   };
@@ -159,12 +177,29 @@ function montar(datos: ResumenDeProyecto, replica: Replica = conLosAjustes()) {
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  const mutaciones = () => queryClient.getMutationCache().getAll();
+  const deLosAjustes = (clave: unknown) =>
+    JSON.stringify(clave) === JSON.stringify(CLAVE_DE_AJUSTES);
   return {
     loGuardado: (): FormasDeCobroDelTrabajo[] =>
-      queryClient
-        .getMutationCache()
-        .getAll()
+      mutaciones()
+        .filter((mutacion) => !deLosAjustes(mutacion.options.mutationKey))
         .map((mutacion) => mutacion.state.variables as FormasDeCobroDelTrabajo),
+    loGuardadoEnLosAjustes: (): EdicionDeAjustes[] =>
+      mutaciones()
+        .filter((mutacion) => deLosAjustes(mutacion.options.mutationKey))
+        .map((mutacion) => mutacion.state.variables as EdicionDeAjustes),
+  };
+}
+
+function enDolares(proyecto: Partial<Proyecto> = {}): ResumenDeProyecto {
+  const base = resumen({ moneda: 'USD', presupuesto_centavos: 200_000, ...proyecto });
+  return {
+    ...base,
+    moneda: 'USD',
+    precio: plata('USD', 200_000),
+    cobradoEnSuMoneda: plata('USD', 0),
+    saldo: plata('USD', 200_000),
   };
 }
 
@@ -282,5 +317,159 @@ describe('cómo te paga', () => {
 
     expect(screen.queryByRole('group', { name: 'La seña: cómo te la paga' })).toBeNull();
     expect(fila('El saldo')).toBeInTheDocument();
+  });
+});
+
+function tePagaEn(nombre: string): HTMLElement {
+  return within(screen.getByRole('group', { name: 'Te paga en' })).getByRole('radio', {
+    name: nombre,
+  });
+}
+
+function enUnRenglon(elemento: HTMLElement): string {
+  return elemento.textContent.replace(/\s+/g, ' ');
+}
+
+describe('en qué te paga', () => {
+  it('sin elegir paga en pesos, y elegir otra moneda la guarda con las formas, con la versión que vio', () => {
+    const { loGuardado } = montar(resumen());
+
+    expect(tePagaEn('Pesos')).toBeChecked();
+    fireEvent.click(tePagaEn('Dólares'));
+
+    expect(loGuardado()).toEqual([
+      { id: 'p1', cambios: { cobra_en: ['USD'] }, previos: { cobra_en: null }, version: 3 },
+    ]);
+  });
+
+  it('tocar la que ya está elegida no guarda nada, y las dos se leen como «Pesos o dólares»', () => {
+    const { loGuardado } = montar(resumen({ cobra_en: ['ARS', 'USD'] }));
+
+    expect(tePagaEn('Pesos o dólares')).toBeChecked();
+    fireEvent.click(tePagaEn('Pesos o dólares'));
+    expect(loGuardado()).toEqual([]);
+
+    fireEvent.click(tePagaEn('Pesos'));
+    expect(loGuardado()).toEqual([
+      {
+        id: 'p1',
+        cambios: { cobra_en: ['ARS'] },
+        previos: { cobra_en: ['ARS', 'USD'] },
+        version: 3,
+      },
+    ]);
+  });
+
+  it('saldado no pregunta en qué te paga', () => {
+    montar(resumen({}, 100_000_000));
+
+    expect(screen.queryByRole('group', { name: 'Te paga en' })).toBeNull();
+  });
+
+  it('si acepta dólares y el taller no tiene cuenta en dólares, lo dice y lleva a Ajustes', () => {
+    montar(resumen({ cobra_en: ['USD'] }));
+
+    const aviso = screen.getByText(/Para recibir dólares por transferencia/u);
+    expect(enUnRenglon(aviso)).toBe(
+      'Para recibir dólares por transferencia, cargá tu cuenta en dólares en Ajustes.',
+    );
+    expect(
+      screen.getByRole('link', { name: 'cargá tu cuenta en dólares en Ajustes' }),
+    ).toHaveAttribute('href', '/ajustes');
+    expect(screen.queryByText(SIN_DATOS_PARA_TRANSFERIR)).toBeNull();
+    expect(
+      within(fila('La seña')).getByRole('checkbox', { name: 'Transferencia' }),
+    ).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('con la cuenta en dólares cargada no avisa, y la transferencia viene prendida', () => {
+    montar(resumen({ cobra_en: ['USD'] }), conLosAjustes({ cobro_dolares_alias: 'maun.dolares' }));
+
+    expect(screen.queryByText(/Para recibir dólares por transferencia/u)).toBeNull();
+    expect(
+      within(fila('La seña')).getByRole('checkbox', { name: 'Transferencia' }),
+    ).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('en pesos o dólares avisa de cada cuenta que falte', () => {
+    montar(resumen({ cobra_en: ['ARS', 'USD'] }), conLosAjustes({ cobro_alias: '' }));
+
+    expect(screen.getByText(SIN_DATOS_PARA_TRANSFERIR)).toBeInTheDocument();
+    expect(screen.getByText(/Para recibir dólares por transferencia/u)).toBeInTheDocument();
+  });
+});
+
+describe('el dólar del día, en un trabajo en dólares', () => {
+  const DOLAR_DEL_DIA = 'Dólar del día (para todos tus trabajos)';
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date('2026-09-19T15:00:00-03:00'));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('un trabajo en pesos no lo pide', () => {
+    montar(resumen());
+
+    expect(screen.queryByRole('textbox', { name: DOLAR_DEL_DIA })).toBeNull();
+  });
+
+  it('muestra el que hay y para qué día vale', () => {
+    montar(
+      enDolares(),
+      conLosAjustes({ dolar_del_dia_centavos: 145_000, dolar_del_dia_el: '2026-09-18' }),
+    );
+
+    const campo = screen.getByRole('textbox', { name: DOLAR_DEL_DIA });
+    expect(campo).toHaveValue('1.450');
+    expect(campo).toHaveAccessibleDescription(
+      'Vale para el 18 de septiembre. Cargalo con la regla de tu presupuesto. Tus clientes ven cuántos pesos son hoy solo si lo cargaste hoy.',
+    );
+  });
+
+  it('cambiarlo lo guarda en los ajustes con la fecha de hoy, después de una pausa', () => {
+    const { loGuardadoEnLosAjustes } = montar(
+      enDolares(),
+      conLosAjustes({ dolar_del_dia_centavos: 145_000, dolar_del_dia_el: '2026-09-18' }),
+    );
+
+    const campo = screen.getByRole('textbox', { name: DOLAR_DEL_DIA });
+    fireEvent.change(campo, { target: { value: '1.500' } });
+    expect(campo).toHaveAccessibleDescription(/^Vale para hoy\./u);
+    expect(loGuardadoEnLosAjustes()).toEqual([]);
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(loGuardadoEnLosAjustes()).toEqual([
+      {
+        id: 'aj',
+        cambios: { dolar_del_dia_centavos: 150_000, dolar_del_dia_el: '2026-09-19' },
+        previos: { dolar_del_dia_centavos: 145_000, dolar_del_dia_el: '2026-09-18' },
+      },
+    ]);
+  });
+
+  it('uno fuera de rango no se guarda y lo explica', () => {
+    const { loGuardadoEnLosAjustes } = montar(enDolares());
+
+    const campo = screen.getByRole('textbox', { name: DOLAR_DEL_DIA });
+    fireEvent.change(campo, { target: { value: '0,50' } });
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(loGuardadoEnLosAjustes()).toEqual([]);
+    expect(campo).toHaveAttribute('aria-invalid', 'true');
   });
 });

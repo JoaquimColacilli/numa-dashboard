@@ -1,12 +1,6 @@
-import {
-  HITO_DEL_ESTIMATIVO,
-  LISTO_PARA_ENTREGAR,
-  NOTA_DEL_RELEVAMIENTO,
-  RELEVAMIENTO_TECNICO,
-  TITULAR_LISTO,
-} from '@maun/domain';
 import { useState } from 'react';
 
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import { useAnchoDePantalla } from '@/shared/lib';
 import { Button, ConSalida, Hoja, Icono, type NombreDeIcono } from '@/shared/ui';
 
@@ -26,311 +20,108 @@ interface Lamina {
   pie?: string;
 }
 
-const LAMINAS: readonly Lamina[] = [
-  {
-    id: 'enlace',
-    titulo: 'El enlace y la pantalla',
-    entrada:
-      'Cada trabajo tiene su enlace. Tu cliente lo abre del celular, sin cuenta ni contraseña.',
-    filas: [
-      {
-        clave: 'no-vence',
-        icono: 'link-2',
-        titulo: 'No vence',
-        texto:
-          'Se lo pasás una vez y le sirve siempre. Deja de andar solo si lo das de baja o si das el trabajo por perdido.',
-      },
-      {
-        clave: 'se-actualiza',
-        icono: 'refresh-cw',
-        titulo: 'Se actualiza sola',
-        texto: 'Cada vez que la abre ve lo último que cargaste. No hay que avisarle nada.',
-      },
-      {
-        clave: 'lo-mismo',
-        icono: 'eye',
-        titulo: 'Es lo que ves vos',
-        texto: '«Ver cómo lo ve él» y el enlace muestran la misma pantalla, salida del mismo lado.',
-      },
-      {
-        clave: 'silencio',
-        icono: 'clock',
-        titulo: 'Fechas, no cuentas',
-        texto:
-          'Le muestra el día de cada paso y qué sigue. Nunca cuánto hace que no pasa nada: eso lo pone a contar contra vos, y una obra lleva semanas sin nada que se vea.',
-      },
-      {
-        clave: 'vidriera',
-        icono: 'image',
-        titulo: 'Tu vidriera',
-        texto:
-          'Al final de la página, las fotos y las redes que elegís en Ajustes, en «Tu vidriera». Las ve cada cliente en la página de su trabajo, en todas las etapas, y desde ahí puede compartir tus redes.',
-      },
-    ],
-  },
-  {
-    id: 'antes',
-    titulo: 'Antes del presupuesto',
-    filas: [
-      {
-        clave: 'estimativo',
-        icono: 'send',
-        titulo: HITO_DEL_ESTIMATIVO.etiqueta,
-        texto:
-          'Solo si le mandaste un estimativo: le aparece tildado, como un paso antes del presupuesto, con el día que tocaste «Mandé el estimativo», y el presupuesto queda en curso. El número no lo ve nunca.',
-      },
-      {
-        clave: 'relevamiento',
-        icono: 'info',
-        titulo: NOTA_DEL_RELEVAMIENTO.pendiente.titulo,
-        texto:
-          'Con el estimativo mandado y la visita pendiente le aparece una (i) que se lo explica, con el día de la visita si ya está agendada: al lado del día del estimativo mientras sigue en «Estimativo enviado», y en el presupuesto en curso cuando lo pasás a relevamiento o a presupuestar. Cuando tocás «Ya fui a relevar», le cuenta que el número sale de las medidas. Al aprobarlo, se va.',
-      },
-      {
-        clave: 'relevamiento-tecnico',
-        icono: 'ruler',
-        titulo: RELEVAMIENTO_TECNICO,
-        texto:
-          'Mientras falta ir a medir, abajo del camino lee qué es la visita y cuánto sale, con el valor que cargás en Ajustes, en «Tu taller». Si lo dejás vacío, lee qué es pero no el precio. Cuando tocás «Ya fui a relevar» o le mandás el presupuesto, se va.',
-      },
-      {
-        clave: 'sin-medir',
-        icono: 'route',
-        titulo: 'Si no hace falta medir',
-        texto:
-          'Pasalo a «A presupuestar» sin cargar la visita: no le aparecen ni la (i) ni el relevamiento técnico.',
-      },
-      {
-        clave: 'sin-nada',
-        icono: 'message-circle',
-        titulo: 'Sin nada mandado todavía',
-        texto:
-          'El enlace igual funciona: ve el trabajo y el camino entero, con el primer paso en curso.',
-      },
-    ],
-  },
-  {
-    id: 'presupuesto',
-    titulo: 'El presupuesto y la aprobación',
-    filas: [
-      {
-        clave: 'paso-1',
-        paso: 1,
-        titulo: 'Presupuesto enviado',
-        texto:
-          'Es el primer paso de todo trabajo que no tuvo estimativo. Mientras lo preparás lo ve en curso, y el día que ponés el contacto en «Presupuesto enviado» se tilda con esa fecha.',
-      },
-      {
-        clave: 'esperando',
-        icono: 'clock',
-        titulo: 'Mientras espera la seña',
-        texto:
-          'No ve la dirección ni las fechas que tengas cargadas: esas aparecen cuando lo aprueba. Ve para cuándo podría estar listo si deja la seña antes del día hasta el que vale el presupuesto, o si lo aprueba antes de ese día cuando lo que te pagó ya cubre la seña.',
-      },
-      {
-        clave: 'paso-2',
-        paso: 2,
-        titulo: 'Aprobado, seña cobrada',
-        texto:
-          'Queda en curso desde que le mandás el presupuesto: «Cuando lo apruebes y dejes la seña», o «Cuando lo apruebes» si lo que te pagó ya la cubre. Se tilda cuando pasás el trabajo a Proyectos; si falta la seña, sigue en curso con «Cuando dejes la seña» hasta que la deja o hasta que arrancás. La seña que cargues ahí le aparece en «Lo que pagaste».',
-      },
-    ],
-    pie: 'Si la fecha de inicio que cargaste al aprobar es de hoy o de antes, ese mismo día se tilda el paso 2 y queda en curso el 3, con ese día de inicio.',
-  },
-  {
-    id: 'el-presupuesto',
-    titulo: 'El presupuesto que le mandás',
-    entrada:
-      'Cuando lo mandás desde la app, le aparece en su página, abajo de «Tu mueble», y lo puede bajar en PDF.',
-    filas: [
-      {
-        clave: 'rotulo',
-        icono: 'file-text',
-        titulo: 'Con su número',
-        texto:
-          'Ve el número, la revisión, el día que se lo mandaste y hasta cuándo vale, y abajo todo lo que armaste: el detalle, lo que incluye, los valores y tus textos.',
-      },
-      {
-        clave: 'revision',
-        icono: 'refresh-cw',
-        titulo: 'Las revisiones',
-        texto:
-          'Si le mandás una revisión, ve la última, con lo que le contaste que cambió. Las anteriores no las ve.',
-      },
-      {
-        clave: 'opciones',
-        icono: 'split',
-        titulo: 'Con opciones',
-        texto:
-          'Ve cada opción con su total y su seña, y le pide que elija. Cuando aprobás una, las otras desaparecen de su página.',
-      },
-      {
-        clave: 'vencido',
-        icono: 'triangle-alert',
-        titulo: 'Si vence',
-        texto:
-          'Le aparece «Venció el …» y la página deja de pedirle la seña: le pide que te escriba para actualizarlo. Pasa también con un presupuesto que le mandaste por fuera de la app.',
-      },
-      {
-        clave: 'aceptado',
-        icono: 'circle-check',
-        titulo: 'Cuando lo aprueba',
-        texto:
-          'La tarjeta se achica y baja, después de «Lo que pagaste»: el presupuesto que aceptó, con la opción y el día, y el detalle plegado.',
-      },
-    ],
-  },
-  {
-    id: 'taller',
-    titulo: 'El taller y la entrega',
-    filas: [
-      {
-        clave: 'paso-3',
-        paso: 3,
-        titulo: 'En fabricación',
-        texto:
-          'Queda en curso desde que se tilda el paso 2: «Vamos a empezar a fabricarlo», y arriba lee que está en la cola del taller. El día de la fecha de inicio que cargaste pasa a «Lo estamos fabricando», con ese día, y se tilda cuando lo entregás.',
-      },
-      {
-        clave: 'paso-4',
-        paso: 4,
-        titulo: 'Entregado',
-        texto: 'Se marca cuando tocás «Ya lo entregué», con la fecha de ese día.',
-      },
-      {
-        clave: 'estimada',
-        icono: 'calendar-days',
-        titulo: 'La fecha estimada',
-        texto:
-          'Mientras lo fabricás, la entrega estimada que cargaste la lee como «Fecha estimada de entrega». Si la movés, la próxima vez que abra ve la nueva. Una fecha que ya pasó no la ve: la ficha te avisa para que la muevas.',
-      },
-    ],
-    pie: 'Sin fecha de inicio cargada, el paso 3 nunca dice «Lo estamos fabricando»: se queda en «Vamos a empezar a fabricarlo» hasta que lo entregás, y ahí se tilda sin día.',
-  },
-  {
-    id: 'listo',
-    titulo: 'Cuando está listo',
-    entrada: 'Tocás «Ya está listo» en la ficha y la entrega se coordina desde su pantalla.',
-    filas: [
-      {
-        clave: 'listo',
-        icono: 'circle-check',
-        titulo: TITULAR_LISTO,
-        texto: `Así lo lee arriba de todo, y el paso 4 dice «${LISTO_PARA_ENTREGAR}». Si no le pedís nada, lee que lo próximo es acordar el día.`,
-      },
-      {
-        clave: 'un-dia',
-        icono: 'calendar-check',
-        titulo: 'Un día que le proponés',
-        texto:
-          'Lo ve con dos botones: «Me queda bien» y «No puedo ese día». Si lo acepta, la entrega queda comprometida sola.',
-      },
-      {
-        clave: 'sus-dias',
-        icono: 'calendar-days',
-        titulo: 'Sus días',
-        texto:
-          'Si le pedís sus días, o no puede el que le propusiste, marca en un calendario los que le quedan bien, a la mañana, a la tarde o las dos, y te puede dejar una nota. Elige de pasado mañana a 30 días, sin domingos. Vos confirmás uno.',
-      },
-      {
-        clave: 'comprometida',
-        icono: 'truck',
-        titulo: 'La entrega comprometida',
-        texto:
-          'Con el día confirmado lee «¡Buenas noticias! Lo estamos entregando el…». La podés poner también mientras lo fabricás. Si hay que cambiarla, la cambiás vos desde la ficha: él no puede.',
-      },
-    ],
-    pie: 'Lo que te contesta te llega a la app abierta y a Inicio, sin aviso al celular.',
-  },
-  {
-    id: 'saldo',
-    titulo: 'Cuando queda saldado',
-    filas: [
-      {
-        clave: 'paso-5',
-        paso: 5,
-        titulo: 'Pagado',
-        texto:
-          'Desde la entrega queda en curso mientras te debe: «Cuando esté saldado». Se tilda cuando no queda saldo, o cuando cerrás el trabajo con «Cobrar y repartir».',
-      },
-      {
-        clave: 'foco',
-        icono: 'hand-coins',
-        titulo: 'Si te debe, el saldo manda',
-        texto:
-          'Entregado y con plata pendiente, la pantalla le pone el saldo arriba de todo y más grande que el estado.',
-      },
-      {
-        clave: 'primero-la-entrega',
-        icono: 'truck',
-        titulo: 'Primero sale del taller',
-        texto:
-          'Aunque te pague todo antes, el paso 5 no se tilda hasta que el mueble esté entregado: desde que lo pasás a Proyectos dice «Ya está pagado».',
-      },
-      {
-        clave: 'transferir',
-        icono: 'copy',
-        titulo: 'Cómo te transfiere',
-        texto:
-          'Si cargaste tus datos en Ajustes, los ve al lado del saldo, con un botón para copiar cada uno. Deja de verlos cuando queda todo pagado.',
-      },
-    ],
-  },
-  {
-    id: 'atras',
-    titulo: 'Volver atrás',
-    entrada: 'Se puede, y no le rompe nada de lo que ya vio.',
-    filas: [
-      {
-        clave: 'retrocede',
-        icono: 'arrow-left-right',
-        titulo: 'El camino retrocede',
-        texto:
-          'Si lo mandás para atrás, por ejemplo con «Volvió a presupuesto», él pasa a ver el paso donde está hoy.',
-      },
-      {
-        clave: 'sin-rastro',
-        icono: 'eye-off',
-        titulo: 'No se entera',
-        texto:
-          'No le salta ningún aviso ni queda una línea en «Lo que fue pasando»: ve menos pasos marcados y nada más.',
-      },
-      {
-        clave: 'fechas',
-        icono: 'calendar-check',
-        titulo: 'Las fechas quedan',
-        texto: 'Lo ya anotado sigue guardado. Si volvés a avanzar, muestra las mismas de antes.',
-      },
-    ],
-  },
-  {
-    id: 'nunca',
-    titulo: 'Lo que nunca ve',
-    filas: [
-      {
-        clave: 'tu-plata',
-        icono: 'eye-off',
-        titulo: 'Tu plata',
-        texto:
-          'Ni los costos, ni lo que te queda, ni el diezmo, ni el reparto, ni tus notas de obra. Las opciones las ve mientras decide; cuando aprobás una, las que no eligió desaparecen.',
-      },
-      {
-        clave: 'fotos',
-        icono: 'image',
-        titulo: 'Las fotos que no marcaste',
-        texto:
-          'Nacen apagadas, incluso las que ya tenías subidas. Solo ve las que prendés una por una en «Compartir», y las que sumás a tu vidriera.',
-      },
-      {
-        clave: 'otros',
-        icono: 'users',
-        titulo: 'Otro trabajo',
-        texto:
-          'El enlace abre ese mueble y nada más: ni otro trabajo suyo, ni otro cliente tuyo. De las fotos de tu vidriera ve la foto, sin nada del trabajo del que salió.',
-      },
-    ],
-  },
-];
+type TextosDeLasLaminas = Mensajes['vistaCliente']['ayuda']['laminas'];
+
+function laminasDe(t: TextosDeLasLaminas): readonly Lamina[] {
+  return [
+    {
+      id: 'enlace',
+      titulo: t.enlace.titulo,
+      entrada: t.enlace.entrada,
+      filas: [
+        { clave: 'no-vence', icono: 'link-2', ...t.enlace.noVence },
+        { clave: 'se-actualiza', icono: 'refresh-cw', ...t.enlace.seActualiza },
+        { clave: 'lo-mismo', icono: 'eye', ...t.enlace.loMismo },
+        { clave: 'silencio', icono: 'clock', ...t.enlace.silencio },
+        { clave: 'vidriera', icono: 'image', ...t.enlace.vidriera },
+      ],
+    },
+    {
+      id: 'antes',
+      titulo: t.antes.titulo,
+      filas: [
+        { clave: 'estimativo', icono: 'send', ...t.antes.estimativo },
+        { clave: 'relevamiento', icono: 'info', ...t.antes.relevamiento },
+        { clave: 'relevamiento-tecnico', icono: 'ruler', ...t.antes.relevamientoTecnico },
+        { clave: 'sin-medir', icono: 'route', ...t.antes.sinMedir },
+        { clave: 'sin-nada', icono: 'message-circle', ...t.antes.sinNada },
+      ],
+    },
+    {
+      id: 'presupuesto',
+      titulo: t.presupuesto.titulo,
+      filas: [
+        { clave: 'paso-1', paso: 1, ...t.presupuesto.paso1 },
+        { clave: 'esperando', icono: 'clock', ...t.presupuesto.esperando },
+        { clave: 'paso-2', paso: 2, ...t.presupuesto.paso2 },
+      ],
+      pie: t.presupuesto.pie,
+    },
+    {
+      id: 'el-presupuesto',
+      titulo: t.elPresupuesto.titulo,
+      entrada: t.elPresupuesto.entrada,
+      filas: [
+        { clave: 'rotulo', icono: 'file-text', ...t.elPresupuesto.rotulo },
+        { clave: 'revision', icono: 'refresh-cw', ...t.elPresupuesto.revision },
+        { clave: 'opciones', icono: 'split', ...t.elPresupuesto.opciones },
+        { clave: 'vencido', icono: 'triangle-alert', ...t.elPresupuesto.vencido },
+        { clave: 'aceptado', icono: 'circle-check', ...t.elPresupuesto.aceptado },
+      ],
+    },
+    {
+      id: 'taller',
+      titulo: t.taller.titulo,
+      filas: [
+        { clave: 'paso-3', paso: 3, ...t.taller.paso3 },
+        { clave: 'paso-4', paso: 4, ...t.taller.paso4 },
+        { clave: 'estimada', icono: 'calendar-days', ...t.taller.estimada },
+      ],
+      pie: t.taller.pie,
+    },
+    {
+      id: 'listo',
+      titulo: t.listo.titulo,
+      entrada: t.listo.entrada,
+      filas: [
+        { clave: 'listo', icono: 'circle-check', ...t.listo.listo },
+        { clave: 'un-dia', icono: 'calendar-check', ...t.listo.unDia },
+        { clave: 'sus-dias', icono: 'calendar-days', ...t.listo.susDias },
+        { clave: 'comprometida', icono: 'truck', ...t.listo.comprometida },
+      ],
+      pie: t.listo.pie,
+    },
+    {
+      id: 'saldo',
+      titulo: t.saldo.titulo,
+      filas: [
+        { clave: 'paso-5', paso: 5, ...t.saldo.paso5 },
+        { clave: 'foco', icono: 'hand-coins', ...t.saldo.foco },
+        { clave: 'primero-la-entrega', icono: 'truck', ...t.saldo.primeroLaEntrega },
+        { clave: 'transferir', icono: 'copy', ...t.saldo.transferir },
+      ],
+    },
+    {
+      id: 'atras',
+      titulo: t.atras.titulo,
+      entrada: t.atras.entrada,
+      filas: [
+        { clave: 'retrocede', icono: 'arrow-left-right', ...t.atras.retrocede },
+        { clave: 'sin-rastro', icono: 'eye-off', ...t.atras.sinRastro },
+        { clave: 'fechas', icono: 'calendar-check', ...t.atras.fechas },
+      ],
+    },
+    {
+      id: 'nunca',
+      titulo: t.nunca.titulo,
+      filas: [
+        { clave: 'tu-plata', icono: 'eye-off', ...t.nunca.tuPlata },
+        { clave: 'fotos', icono: 'image', ...t.nunca.fotos },
+        { clave: 'otros', icono: 'users', ...t.nunca.otros },
+      ],
+    },
+  ];
+}
 
 function Marca({ fila }: { fila: Fila }) {
   if (fila.paso !== undefined) {
@@ -354,12 +145,14 @@ function Marca({ fila }: { fila: Fila }) {
 }
 
 function Carrusel({ alCerrar }: { alCerrar: () => void }) {
+  const textos = useMensajes().vistaCliente.ayuda;
+  const laminas = laminasDe(textos.laminas);
   const [indice, setIndice] = useState(0);
   const esLaPrimera = indice === 0;
-  const esLaUltima = indice === LAMINAS.length - 1;
+  const esLaUltima = indice === laminas.length - 1;
 
   function mover(cuanto: number): void {
-    setIndice((actual) => Math.min(Math.max(actual + cuanto, 0), LAMINAS.length - 1));
+    setIndice((actual) => Math.min(Math.max(actual + cuanto, 0), laminas.length - 1));
   }
 
   return (
@@ -374,7 +167,7 @@ function Carrusel({ alCerrar }: { alCerrar: () => void }) {
         aria-live="polite"
         className="grid min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 md:px-6 md:py-5"
       >
-        {LAMINAS.map((una, puesto) => (
+        {laminas.map((una, puesto) => (
           <div
             key={una.id}
             aria-hidden={puesto !== indice}
@@ -384,7 +177,7 @@ function Carrusel({ alCerrar }: { alCerrar: () => void }) {
           >
             <div className="flex flex-col gap-0.5">
               <span className="text-meta font-medium text-text-3 tabular-nums">
-                {puesto + 1} de {LAMINAS.length}
+                {textos.lamina(puesto + 1, laminas.length)}
               </span>
               <h3 className="font-display text-lema leading-tight text-balance">{una.titulo}</h3>
               {una.entrada !== undefined && (
@@ -424,11 +217,11 @@ function Carrusel({ alCerrar }: { alCerrar: () => void }) {
           }}
         >
           <Icono nombre="chevron-left" tamano={16} />
-          Atrás
+          {textos.atras}
         </Button>
 
         <span aria-hidden className="flex flex-1 items-center justify-center gap-1.5">
-          {LAMINAS.map((una, puesto) => (
+          {laminas.map((una, puesto) => (
             <span
               key={una.id}
               className={`h-1.5 rounded-pill transition-[width,background-color] duration-(--dur-fast) ${
@@ -439,14 +232,14 @@ function Carrusel({ alCerrar }: { alCerrar: () => void }) {
         </span>
 
         {esLaUltima ? (
-          <Button onClick={alCerrar}>Listo</Button>
+          <Button onClick={alCerrar}>{textos.listo}</Button>
         ) : (
           <Button
             onClick={() => {
               mover(1);
             }}
           >
-            Siguiente
+            {textos.siguiente}
             <Icono nombre="chevron-right" tamano={16} />
           </Button>
         )}
@@ -460,6 +253,7 @@ export interface AyudaDeLaVistaProps {
 }
 
 export function AyudaDeLaVista({ conTexto = false }: AyudaDeLaVistaProps) {
+  const { comoLoVeTuCliente } = useMensajes().vistaCliente.ayuda;
   const [abierta, setAbierta] = useState(false);
   const enCelular = useAnchoDePantalla() === 'movil';
 
@@ -472,24 +266,19 @@ export function AyudaDeLaVista({ conTexto = false }: AyudaDeLaVistaProps) {
       <Button
         variant={conTexto ? 'secundario' : 'herramienta'}
         size={conTexto ? 'normal' : 'herramienta'}
-        aria-label="Cómo lo ve tu cliente"
-        title="Cómo lo ve tu cliente"
+        aria-label={comoLoVeTuCliente}
+        title={comoLoVeTuCliente}
         onClick={() => {
           setAbierta(true);
         }}
       >
         <Icono nombre="circle-help" tamano={conTexto ? 18 : 16} />
-        {conTexto && 'Cómo lo ve tu cliente'}
+        {conTexto && comoLoVeTuCliente}
       </Button>
 
       <ConSalida valor={abierta}>
         {() => (
-          <Hoja
-            titulo="Cómo lo ve tu cliente"
-            ancho="amplio"
-            desdeAbajo={enCelular}
-            alCerrar={cerrar}
-          >
+          <Hoja titulo={comoLoVeTuCliente} ancho="amplio" desdeAbajo={enCelular} alCerrar={cerrar}>
             <Carrusel alCerrar={cerrar} />
           </Hoja>
         )}

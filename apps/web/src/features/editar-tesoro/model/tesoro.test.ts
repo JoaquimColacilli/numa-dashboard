@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { centavos, enPesos, plata } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
@@ -9,6 +9,7 @@ import {
   borradorNuevo,
   cambiosDeCocos,
   cambiosDelTesoro,
+  conLaMoneda,
   datosQueSeEditan,
   hayDiferencias,
   iconosParaElegir,
@@ -23,15 +24,16 @@ import {
 function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>): TesoroDelTaller {
   return {
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     descripcion: 'Para la sierra nueva',
     tinta: 'petroleo',
     icono: 'wrench',
-    meta: centavos(90_000_000),
+    meta: enPesos(centavos(90_000_000)),
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(0),
+    saldo: enPesos(centavos(0)),
     ...parcial,
   };
 }
@@ -75,7 +77,7 @@ describe('el borrador de un tesoro', () => {
     expect(quienUsaLaTinta([herramientas, archivado], 'petroleo', 'x')).toBeUndefined();
   });
 
-  it('ofrece los 16 íconos, y suma el que ya tiene si no está entre ellos', () => {
+  it('ofrece los 17 íconos, y suma el que ya tiene si no está entre ellos', () => {
     expect(iconosParaElegir('wrench')).toEqual(ICONOS_DE_TESORO);
     expect(iconosParaElegir('house')).toEqual(['house', ...ICONOS_DE_TESORO]);
   });
@@ -107,6 +109,7 @@ describe('un tesoro nuevo', () => {
     const borrador: BorradorDelTesoro = {
       nombre: '  Vacaciones ',
       descripcion: ' El viaje de enero ',
+      moneda: 'ARS',
       tinta: 'petroleo',
       icono: 'plane',
       meta: 250_000_000,
@@ -121,9 +124,38 @@ describe('un tesoro nuevo', () => {
       meta_centavos: 250_000_000,
       rinde_anual_bp: null,
       orden: 3,
+      moneda: 'ARS',
     });
     expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3).meta_centavos).toBeNull();
     expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3).meta_centavos).toBeNull();
+  });
+
+  it('en pesos nace con la caja fuerte y en dólares con los billetes, salvo que se haya elegido otro', () => {
+    expect(borradorNuevo([])).toMatchObject({ moneda: 'ARS', icono: 'vault' });
+    expect(borradorNuevo([], 'USD')).toMatchObject({ moneda: 'USD', icono: 'banknote' });
+    expect(conLaMoneda(borradorNuevo([]), 'USD').icono).toBe('banknote');
+    expect(conLaMoneda(borradorNuevo([], 'USD'), 'ARS').icono).toBe('vault');
+    expect(conLaMoneda({ ...borradorNuevo([]), icono: 'plane' }, 'USD').icono).toBe('plane');
+  });
+
+  it('nace en pesos, y en dólares si se elige, con la meta en su moneda', () => {
+    expect(borradorNuevo([]).moneda).toBe('ARS');
+    const enDolares = { ...borradorNuevo([]), nombre: 'Dólares', moneda: 'USD' as const };
+    expect(tesoroNuevo({ ...enDolares, meta: 100_000 }, 'id-2', 4)).toMatchObject({
+      moneda: 'USD',
+      meta_centavos: 100_000,
+    });
+  });
+
+  it('el borrador de uno en dólares lleva su moneda y su meta en centavos de dólar', () => {
+    const dolares = tesoro({
+      id: 'usd',
+      moneda: 'USD',
+      meta: plata('USD', 500_000),
+      saldo: plata('USD', 0),
+    });
+    expect(borradorDe(dolares)).toMatchObject({ moneda: 'USD', meta: 500_000 });
+    expect(datosQueSeEditan(dolares, undefined).meta_centavos).toBe(500_000);
   });
 });
 
@@ -150,7 +182,7 @@ describe('editar un tesoro', () => {
       nombre: 'Cocos',
       tinta: 'cocos',
       icono: 'piggy-bank',
-      meta: centavos(1_000_000_000),
+      meta: enPesos(centavos(1_000_000_000)),
       rindeAnualBp: 4000,
     });
     const diferencias = cambiosDelTesoro(datosQueSeEditan(cocos, undefined), 'cocos', {
@@ -187,6 +219,7 @@ describe('editar un tesoro', () => {
       rinde_anual_bp: null,
       orden: 0,
       archivado_at: null,
+      moneda: 'ARS',
       created_at: '',
       updated_at: '',
       deleted_at: null,

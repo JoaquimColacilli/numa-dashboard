@@ -2,6 +2,15 @@
 
 Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuánto hace que no pasa nada (ver el cierre de Consecuencias), la lista blanca suma los datos para transferirle al taller (ADR 0048), y la sección «El token se muestra una sola vez» quedó revertida por el [ADR 0052](0052-el-enlace-se-guarda-entero.md). Corregida el 2026-09-22: el camino de un trabajo terminado queda completo, sin ningún paso en curso. Y el mismo día, el logo de Mercado Pago del recuadro de los datos para transferir pasó a salir por la forma de cobro (el último punto de Consecuencias). Corregida el 2026-09-24 por el [ADR 0067](0067-la-vista-antes-de-aprobar.md): cada dato viaja desde la etapa en que es cierto (ver la corrección de la lista blanca). Corregida el 2026-09-25 por el [ADR 0070](0070-el-camino-tilda-lo-que-paso.md): el ámbar del camino es lo que se hace o se espera, no el paso al que llegó el trabajo, y el titular es un campo propio de la vista. Completada el 2026-09-25 por el [ADR 0071](0071-la-entrega-y-sus-fechas.md): la lista blanca suma listo, la entrega comprometida y la coordinación de la entrega (el pedido abierto y la última respuesta del cliente), y ninguna fecha que ya pasó. Completada el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md): la lista blanca suma la vidriera del taller (ver la nota en «Lo que el cliente puede ver»). Corregida el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): las fotos se abren en el visor de la app, no en otra pestaña (ver la nota en Consecuencias), y la lista blanca suma `relevamiento_centavos` de `ajustes`, que viaja solo antes de mandar el presupuesto. Completada el 2026-10-01 por el [ADR 0080](0080-el-presupuesto-adentro-de-la-ficha.md): la lista blanca suma la clave `presupuesto`, que declara su etapa: nada antes de mandarlo; esperando la seña, la última revisión con su foto tal cual (número, revisión, día de envío, «qué cambió» y el documento, con la obra y los datos del taller adentro); aprobado, la última revisión con solo la opción elegida, el día en que se aceptó y su letra. Las opciones no elegidas no viajan después de aprobar, y los datos del taller viajan solo adentro de la foto, no como claves propias.
 
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): la lista blanca suma `idioma` (el
+  de los clientes del taller) y, adentro del presupuesto, el idioma de su revisión.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): suma `moneda`, `cobra_en`,
+  `dolar_del_dia` (solo en un trabajo en dólares y desde que se mandó el presupuesto), `cobro_en_dolares`
+  (solo si el pago que toca se ofrece en dólares por transferencia), las formas en dólares del pago que toca y
+  del siguiente y, en cada pago, la moneda, lo pagado en su moneda y la cotización. `pagos[].monto_centavos`
+  pasa a ser lo que descuenta, en la moneda del trabajo. `25_vista_del_cliente.sql` clasifica cada columna
+  nueva como de las que viajan o de las que no.
+
 ## Contexto
 
 El dueño lo pidió así:

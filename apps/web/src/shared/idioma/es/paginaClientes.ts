@@ -1,0 +1,78 @@
+const proyectos = (cantidad: number): string =>
+  `${String(cantidad)} ${cantidad === 1 ? 'proyecto' : 'proyectos'}`;
+
+export const paginaClientes = {
+  titulo: 'Clientes',
+  nuevoCliente: 'Nuevo cliente',
+  vacioTitulo: 'La agenda del taller, todavía vacía',
+  vacioDetalle:
+    'Cargá a cada cliente una sola vez: dirección, teléfono y cómo facturarle. La próxima vez que te llame, todo ya está.',
+  cargaTuPrimerCliente: 'Cargá tu primer cliente',
+  buscarPlaceholder: 'Nombre, teléfono o dirección',
+  buscarCliente: 'Buscar cliente',
+  deDondeVienen: 'De dónde vienen los trabajos',
+  clientes: (cantidad: number): string =>
+    `${String(cantidad)} ${cantidad === 1 ? 'cliente' : 'clientes'}`,
+  sinOrigen: (cantidad: number): string =>
+    `${String(cantidad)} sin anotar de dónde ${cantidad === 1 ? 'vino' : 'vinieron'}`,
+  deTantos: (filas: number, total: number): string => `${String(filas)} de ${String(total)}`,
+  ordenarPor: 'Ordenar por',
+  nadieCoincide: (consulta: string): string => `Nadie coincide con «${consulta}».`,
+  crearComoNuevo: (nombre: string): string => `Crear «${nombre}» como cliente nuevo`,
+  ultimoTrabajo: (titulo: string, cuando: string): string => `${titulo}, ${cuando}`,
+  sinTrabajosTodavia: 'Sin trabajos todavía',
+  sinTrabajos: 'Sin trabajos',
+  debe: (monto: string): string => `debe ${monto}`,
+  ficha: {
+    llamar: 'Llamar',
+    whatsapp: 'WhatsApp',
+    email: 'Email',
+    mapa: 'Mapa',
+    borrar: 'Borrar',
+    editar: 'Editar',
+    clienteDesde: (fecha: string): string => `cliente desde ${fecha}`,
+    contacto: 'Contacto',
+    telefono: 'Teléfono',
+    sinTelefono: 'Sin teléfono',
+    sinEmail: 'Sin email',
+    direccion: 'Dirección',
+    sinDireccion: 'Sin dirección',
+    comoLlego: 'Cómo llegó',
+    sinAnotar: 'Sin anotar',
+    todaviaNoAnotaste: 'Todavía no anotaste de dónde vino.',
+    facturacion: 'Facturación',
+    condicion: 'Condición',
+    comprobante: 'Comprobante',
+    cuit: 'CUIT',
+    cuitOCuil: 'CUIT / CUIL',
+    razonSocial: 'Razón social',
+    domicilioFiscal: 'Dom. fiscal',
+    historial: 'Historial',
+    proyectos,
+    proyectosYConsultas: (cantidad: number, consultas: number): string =>
+      `${proyectos(cantidad)}, ${String(consultas)} en consultas`,
+    totalFacturado: 'Total facturado',
+    saldoPendiente: 'Saldo pendiente',
+    sinSaldo: 'Sin saldo',
+    sinTrabajosCon: (nombre: string): string =>
+      `Todavía no hay trabajos con ${nombre}. Cuando arranques uno, aparece acá con su estado.`,
+    fases: {
+      consultas: 'Consulta',
+      seguimiento: 'Seguimiento',
+      obra: 'Obra',
+    },
+    faseConCuando: (fase: string, cuando: string): string => `${fase}, ${cuando}`,
+    sinPresupuesto: 'Sin presupuesto',
+    noEsta: 'Ese cliente no está',
+    noEstaDetalle:
+      'Puede que lo hayas borrado desde otro dispositivo, o que el enlace apunte a un cliente de otro taller.',
+    volverAClientes: 'Volver a Clientes',
+    arrancarUnProyecto: (nombre: string): string => `Arrancar un proyecto con ${nombre}`,
+    borrarA: (nombre: string): string => `¿Borrás a ${nombre}?`,
+    sinTrabajosCargados: 'No tiene trabajos cargados, así que no se pierde historia.',
+    conProyectosVivos:
+      'Si todavía tiene proyectos vivos, la base lo va a rechazar: primero hay que borrarlos o reasignarlos.',
+    cancelar: 'Cancelar',
+    borrarElCliente: 'Borrar el cliente',
+  },
+} as const;

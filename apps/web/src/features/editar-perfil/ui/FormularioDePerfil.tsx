@@ -8,6 +8,7 @@ import {
   useSesionActiva,
 } from '@/entities/sesion';
 import { esFalloDeRed, mensajeDeAcceso, subirFotoDeLaPersona } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { avisarEnPantalla, metaDeAvisos } from '@/shared/lib';
 import { Avatar, Button, Campo, ConSalida, Hoja, Icono } from '@/shared/ui';
 
@@ -20,12 +21,10 @@ import {
 } from '../model/imagen';
 import { RecortadorDeFoto } from './RecortadorDeFoto';
 
-const SIN_SENAL_PARA_LA_FOTO =
-  'Sin señal no se puede cambiar la foto: se sube en el momento y no queda anotada para después. Probá cuando vuelva la señal.';
-
 const LIBERAR_DESPUES_DE_CERRAR_MS = 1000;
 
 export function FormularioDePerfil() {
+  const m = useMensajes();
   const { email, usuarioId, foto } = useSesionActiva();
   const nombreActual = useNombreDeLaPersona();
   const guardar = useMutation({ ...MUTACION_DEL_PERFIL, meta: metaDeAvisos('perfil') });
@@ -50,9 +49,7 @@ export function FormularioDePerfil() {
   function enviar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
     if (limpio.length > LARGO_MAXIMO_DEL_NOMBRE) {
-      setError(
-        `Hasta ${String(LARGO_MAXIMO_DEL_NOMBRE)} letras. Con el nombre y el apellido alcanza.`,
-      );
+      setError(m.editarPerfil.hastaTantasLetras({ maximo: LARGO_MAXIMO_DEL_NOMBRE }));
       return;
     }
     setError(undefined);
@@ -61,7 +58,7 @@ export function FormularioDePerfil() {
 
   function elegirFoto(): void {
     if (!onlineManager.isOnline()) {
-      setAvisoDeLaFoto(SIN_SENAL_PARA_LA_FOTO);
+      setAvisoDeLaFoto(m.editarPerfil.sinSenalParaLaFoto);
       return;
     }
     setAvisoDeLaFoto(undefined);
@@ -77,13 +74,15 @@ export function FormularioDePerfil() {
       setErrorDeLaFoto(undefined);
       setImagen(decodificada);
     } catch (fallo) {
-      setAvisoDeLaFoto(fallo instanceof Error ? fallo.message : 'No se pudo leer esa imagen.');
+      setAvisoDeLaFoto(
+        fallo instanceof Error ? fallo.message : mensajes().editarPerfil.noSePudoLeerLaImagen,
+      );
     }
   }
 
   async function guardarFoto(abierta: ImagenDecodificada, recorte: Recorte): Promise<void> {
     if (!onlineManager.isOnline()) {
-      setErrorDeLaFoto(SIN_SENAL_PARA_LA_FOTO);
+      setErrorDeLaFoto(mensajes().editarPerfil.sinSenalParaLaFoto);
       return;
     }
     setGuardandoFoto(true);
@@ -92,9 +91,15 @@ export function FormularioDePerfil() {
       const archivo = await recortarYCodificar(abierta.fuente, recorte);
       await subirFotoDeLaPersona(usuarioId, archivo);
       setImagen(null);
-      avisarEnPantalla({ clave: 'foto', tono: 'hecho', texto: 'Foto guardada.' });
+      avisarEnPantalla({
+        clave: 'foto',
+        tono: 'hecho',
+        texto: mensajes().editarPerfil.fotoGuardada,
+      });
     } catch (fallo) {
-      setErrorDeLaFoto(esFalloDeRed(fallo) ? SIN_SENAL_PARA_LA_FOTO : mensajeDeAcceso(fallo));
+      setErrorDeLaFoto(
+        esFalloDeRed(fallo) ? mensajes().editarPerfil.sinSenalParaLaFoto : mensajeDeAcceso(fallo),
+      );
     } finally {
       setGuardandoFoto(false);
     }
@@ -106,7 +111,7 @@ export function FormularioDePerfil() {
         <button
           type="button"
           onClick={elegirFoto}
-          aria-label={foto === '' ? 'Poner una foto' : 'Cambiar la foto'}
+          aria-label={foto === '' ? m.editarPerfil.ponerUnaFoto : m.editarPerfil.cambiarLaFoto}
           className="relative flex-none rounded-pill"
         >
           <Avatar nombre={limpio === '' ? email : limpio} foto={foto} tamano="grande" />
@@ -129,10 +134,15 @@ export function FormularioDePerfil() {
           }}
         />
         <div className="min-w-0">
-          <p className="truncate text-body-lg font-semibold">
-            {limpio === '' ? 'Todavía sin nombre' : limpio}
+          <p
+            translate={limpio === '' ? undefined : 'no'}
+            className="truncate text-body-lg font-semibold"
+          >
+            {limpio === '' ? m.editarPerfil.todaviaSinNombre : limpio}
           </p>
-          <p className="truncate text-label text-text-2">{email}</p>
+          <p translate="no" className="truncate text-label text-text-2">
+            {email}
+          </p>
         </div>
       </div>
       {avisoDeLaFoto !== undefined && (
@@ -141,7 +151,7 @@ export function FormularioDePerfil() {
         </p>
       )}
       <Campo
-        etiqueta="Tu nombre"
+        etiqueta={m.editarPerfil.tuNombre}
         className="max-w-(--campo-largo)"
         value={nombre}
         autoComplete="name"
@@ -149,7 +159,7 @@ export function FormularioDePerfil() {
           setNombre(evento.target.value);
         }}
         error={error}
-        ayuda="Se ve en la barra lateral, al lado de tu mail. El mail es con el que entrás y no se cambia desde acá."
+        ayuda={m.editarPerfil.seVeEnLaBarraLateral}
       />
       <Button
         type="submit"
@@ -159,13 +169,13 @@ export function FormularioDePerfil() {
         disabled={!cambio}
         cargando={guardar.isPending && !guardar.isPaused}
       >
-        Guardar el nombre
+        {m.editarPerfil.guardarElNombre}
       </Button>
 
       <ConSalida valor={imagen}>
         {(abierta) => (
           <Hoja
-            titulo="Encuadrar la foto"
+            titulo={m.editarPerfil.encuadrarLaFoto}
             ancho="angosto"
             alCerrar={() => {
               if (!guardandoFoto) setImagen(null);

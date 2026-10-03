@@ -1,6 +1,12 @@
-import { CONDICIONES_FISCALES, formatearCuit, NOMBRE_DE_LA_CONDICION } from '@maun/domain';
-import { useId, useState } from 'react';
+import {
+  CONDICIONES_FISCALES,
+  formatearCuit,
+  NOMBRE_DE_LA_CONDICION,
+  type Idioma,
+} from '@maun/domain';
+import { useId, useState, type ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, Campo, CamposJuntos, Icono } from '@/shared/ui';
 
 import { avisoDelCuitDelTaller } from '../../model/cobro';
@@ -10,36 +16,29 @@ import {
   type DatosDeCobroParaUsar,
   type DatosEditables,
 } from '../../model/presupuestoDelTaller';
+import { CabeceraDelDocumento } from './CabeceraDelDocumento';
 import { EnTramos } from './piezas';
 
-function Membrete({ nombre, datos }: { nombre: string; datos: DatosEditables }) {
+function Membrete({
+  nombre,
+  idioma,
+  datos,
+}: {
+  nombre: string;
+  idioma: Idioma;
+  datos: DatosEditables;
+}) {
+  const m = useMensajes().configurarTaller.presupuesto.datos;
   const { renglones } = encabezadoDelPresupuesto(datos);
   return (
     <figure className="flex flex-col gap-2">
-      <figcaption className="text-label text-text-2">
-        Así sale arriba de cada presupuesto
-      </figcaption>
+      <figcaption className="text-label text-text-2">{m.asiSale}</figcaption>
       <div className="flex flex-col gap-3 rounded-field bg-surface px-4 pt-3.5 pb-4 @container/membrete">
-        <div className="flex flex-col items-start gap-2.5 @min-[16rem]/membrete:flex-row @min-[16rem]/membrete:justify-between @min-[16rem]/membrete:gap-4">
-          <div className="flex min-w-0 flex-col">
-            <p className="font-display text-body-lg leading-tight">{nombre}</p>
-            <p className="text-meta text-text-3">Muebles a medida</p>
-          </div>
-          <div aria-hidden className="flex flex-none items-center gap-2">
-            <span className="rotulo-del-plano w-[5.75rem] text-badge leading-tight font-semibold text-text-2 uppercase @min-[16rem]/membrete:text-right">
-              Documento no válido como factura
-            </span>
-            <span className="flex size-8 flex-none items-center justify-center rounded-[4px] border-[1.5px] border-ink text-body-lg leading-none font-semibold">
-              X
-            </span>
-          </div>
-        </div>
+        <CabeceraDelDocumento nombre={nombre} idioma={idioma} />
         {renglones.length === 0 ? (
-          <p className="text-label leading-relaxed text-text-3">
-            Acá van tu nombre o razón social, tu CUIT, tu condición fiscal y tu domicilio.
-          </p>
+          <p className="text-label leading-relaxed text-text-3">{m.vacio}</p>
         ) : (
-          <div className="flex flex-col gap-0.5">
+          <div translate="no" className="flex flex-col gap-0.5">
             {renglones.map((partes) => (
               <p
                 key={partes.join('·')}
@@ -55,22 +54,33 @@ function Membrete({ nombre, datos }: { nombre: string; datos: DatosEditables }) 
   );
 }
 
+function DatosDelCobro({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className="font-medium text-ink">
+      {children}
+    </span>
+  );
+}
+
 function UsarElCobro({ cobro, alUsar }: { cobro: DatosDeCobroParaUsar; alUsar: () => void }) {
+  const { configurarTaller } = useMensajes();
+  const m = configurarTaller.presupuesto.datos;
   const id = useId();
-  const cuit = cobro.cuit === '' ? null : `CUIT ${formatearCuit(cobro.cuit)}`;
+  const cuit = cobro.cuit === '' ? null : configurarTaller.cuit(formatearCuit(cobro.cuit));
   return (
     <div className="flex flex-col items-start gap-3 rounded-field border border-dashed border-border px-4 py-3.5">
       <p id={id} className="text-body leading-relaxed text-pretty text-text-2">
-        En «Cómo te pagan» tenés a{' '}
-        <span className="font-medium text-ink">
-          {cobro.titular}
-          {cobro.titular !== '' && cuit !== null ? ', ' : ''}
-          {cuit !== null && <span className="whitespace-nowrap">{cuit}</span>}
-        </span>
-        . Si presupuestás a ese nombre, no hace falta que los escribas de nuevo.
+        {m.enComoTePagan(
+          DatosDelCobro,
+          <>
+            {cobro.titular}
+            {cobro.titular !== '' && cuit !== null ? ', ' : ''}
+            {cuit !== null && <span className="whitespace-nowrap">{cuit}</span>}
+          </>,
+        )}
       </p>
       <Button variant="secundario" size="chico" aria-describedby={id} onClick={alUsar}>
-        Usar el titular y el CUIT
+        {m.usarElCobro}
       </Button>
     </div>
   );
@@ -78,6 +88,7 @@ function UsarElCobro({ cobro, alUsar }: { cobro: DatosDeCobroParaUsar; alUsar: (
 
 export interface DatosDelPresupuestoProps {
   nombre: string;
+  idioma: Idioma;
   datos: DatosEditables;
   cobro: DatosDeCobroParaUsar | null;
   problemas: Readonly<Record<string, string>>;
@@ -86,11 +97,13 @@ export interface DatosDelPresupuestoProps {
 
 export function DatosDelPresupuesto({
   nombre,
+  idioma,
   datos,
   cobro,
   problemas,
   alCambiar,
 }: DatosDelPresupuestoProps) {
+  const m = useMensajes().configurarTaller.presupuesto.datos;
   const id = useId();
   const vacios = datos.titular.trim() === '' && datos.cuit.trim() === '';
   const errorDelCuit = problemas.cuit;
@@ -102,7 +115,7 @@ export function DatosDelPresupuesto({
   if (!abiertos && !conProblemas) {
     return (
       <>
-        <Membrete nombre={nombre} datos={datos} />
+        <Membrete nombre={nombre} idioma={idioma} datos={datos} />
         <Button
           variant="secundario"
           size="chico"
@@ -112,7 +125,7 @@ export function DatosDelPresupuesto({
           }}
         >
           <Icono nombre="pencil-line" tamano={16} />
-          Cambiar tus datos
+          {m.cambiarTusDatos}
         </Button>
       </>
     );
@@ -120,7 +133,7 @@ export function DatosDelPresupuesto({
 
   return (
     <>
-      <Membrete nombre={nombre} datos={datos} />
+      <Membrete nombre={nombre} idioma={idioma} datos={datos} />
       {vacios && cobro !== null && (
         <UsarElCobro
           cobro={cobro}
@@ -131,10 +144,10 @@ export function DatosDelPresupuesto({
       )}
       <CamposJuntos campoMinimo="14rem">
         <Campo
-          etiqueta="Nombre o razón social"
+          etiqueta={m.nombreORazonSocial}
           autoComplete="organization"
           maxLength={LARGOS_DE_LOS_DATOS.titular}
-          ayuda="A nombre de quién está el CUIT."
+          ayuda={m.ayudaDelNombre}
           value={datos.titular}
           error={problemas.titular}
           onChange={(evento) => {
@@ -142,13 +155,13 @@ export function DatosDelPresupuesto({
           }}
         />
         <Campo
-          etiqueta="CUIT"
+          etiqueta={m.cuit}
           inputMode="numeric"
           placeholder="20-12345678-9"
           className="tabular-nums"
           ayuda={
             errorDelCuit === undefined
-              ? (avisoDelCuitDelTaller(datos.cuit) ?? 'Sale al lado de tu nombre.')
+              ? (avisoDelCuitDelTaller(datos.cuit) ?? m.ayudaDelCuit)
               : undefined
           }
           value={datos.cuit}
@@ -161,7 +174,7 @@ export function DatosDelPresupuesto({
       <CamposJuntos campoMinimo="14rem">
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`${id}-condicion`} className="text-label text-text-2">
-            Condición fiscal
+            {m.condicionFiscal}
           </label>
           <select
             id={`${id}-condicion`}
@@ -172,21 +185,21 @@ export function DatosDelPresupuesto({
             }}
             className="h-field rounded-field border border-border bg-paper px-3 text-body-lg text-ink"
           >
-            <option value="">Elegila</option>
+            <option value="">{m.elegila}</option>
             {CONDICIONES_FISCALES.map((condicion) => (
-              <option key={condicion} value={condicion}>
+              <option key={condicion} value={condicion} translate="no">
                 {NOMBRE_DE_LA_CONDICION[condicion]}
               </option>
             ))}
           </select>
-          <span className="text-meta text-text-3">Sale debajo de tu CUIT.</span>
+          <span className="text-meta text-text-3">{m.ayudaDeLaCondicion}</span>
         </div>
         <Campo
-          etiqueta="Domicilio"
+          etiqueta={m.domicilio}
           autoComplete="street-address"
           maxLength={LARGOS_DE_LOS_DATOS.domicilio}
-          placeholder="Calle y número, localidad"
-          ayuda="El del taller, con la localidad."
+          placeholder={m.ejemploDelDomicilio}
+          ayuda={m.ayudaDelDomicilio}
           value={datos.domicilio}
           error={problemas.domicilio}
           onChange={(evento) => {
@@ -196,11 +209,11 @@ export function DatosDelPresupuesto({
       </CamposJuntos>
       <CamposJuntos campoMinimo="14rem">
         <Campo
-          etiqueta="Teléfono"
+          etiqueta={m.telefono}
           inputMode="tel"
           autoComplete="tel"
           maxLength={LARGOS_DE_LOS_DATOS.telefono}
-          ayuda="Con el teléfono, tu cliente tiene un botón para escribirte por WhatsApp."
+          ayuda={m.ayudaDelTelefono}
           value={datos.telefono}
           error={problemas.telefono}
           onChange={(evento) => {
@@ -208,12 +221,12 @@ export function DatosDelPresupuesto({
           }}
         />
         <Campo
-          etiqueta="Email"
+          etiqueta={m.email}
           type="email"
           inputMode="email"
           autoComplete="email"
           maxLength={LARGOS_DE_LOS_DATOS.email}
-          ayuda="Sale al lado del teléfono."
+          ayuda={m.ayudaDelEmail}
           value={datos.email}
           error={problemas.email}
           onChange={(evento) => {

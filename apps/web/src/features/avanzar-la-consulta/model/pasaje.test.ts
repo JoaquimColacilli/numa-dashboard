@@ -19,6 +19,7 @@ const PAGO = 'pago-nuevo';
 const LA_MITAD = puntosBasicos(5_000);
 const SOLO_ALAN = 124_800_000;
 const LOS_DOS = 230_000_000;
+const EN_PESOS = { moneda: 'ARS', cotizacion_centavos: null, tesoro_id: null } as const;
 
 const CONTACTO = {
   id: 'p',
@@ -62,6 +63,9 @@ function valores(extra: Partial<ValoresDelPasaje> = {}): ValoresDelPasaje {
     presupuesto: null,
     opcion: null,
     sena: null,
+    monedaDeLaSena: 'ARS',
+    cotizacionDeLaSena: null,
+    tesoroDeLaSena: null,
     forma: 'transferencia',
     comprobante: 'sin_comprobante',
     inicio: HOY,
@@ -248,6 +252,7 @@ describe('la seña que se carga al aprobar', () => {
         concepto: 'Seña',
         monto_centavos: 115_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
     expect(pedido.datos).toMatchObject({ estado: 'en_curso', fecha_inicio: '2026-09-28' });
@@ -274,6 +279,7 @@ describe('la seña que se carga al aprobar', () => {
         concepto: 'Seña',
         monto_centavos: 1_000,
         ya_en_la_apertura: true,
+        ...EN_PESOS,
       },
     ]);
   });
@@ -290,7 +296,14 @@ describe('la seña que se carga al aprobar', () => {
     );
 
     expect(pedido.pagos).toEqual([
-      { id: PAGO, fecha: HOY, concepto: 'Seña', monto_centavos: 1_000, ya_en_la_apertura: false },
+      {
+        id: PAGO,
+        fecha: HOY,
+        concepto: 'Seña',
+        monto_centavos: 1_000,
+        ya_en_la_apertura: false,
+        ...EN_PESOS,
+      },
     ]);
     expect(pedido.opciones).toEqual([
       { id: 'a', descripcion: 'Opción a', monto_centavos: SOLO_ALAN, aprobada: false },
@@ -323,6 +336,7 @@ describe('la seña que se carga al aprobar', () => {
         concepto: 'Seña',
         monto_centavos: 500,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
     expect(pedido.datos.fecha_inicio).toBeNull();

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
+
 const ESPERA_PARA_REENVIAR_S = 60;
 
 function reloj(segundos: number): string {
@@ -17,6 +19,7 @@ export interface MailEnviadoProps {
 }
 
 export function MailEnviado({ email, detalle, alCambiar, reenviar }: MailEnviadoProps) {
+  const { mail: textos } = useMensajes().ui;
   const [espera, setEspera] = useState(ESPERA_PARA_REENVIAR_S);
   const [reenviando, setReenviando] = useState(false);
   const [resultado, setResultado] = useState<{ error: boolean; texto: string } | undefined>(
@@ -39,7 +42,7 @@ export function MailEnviado({ email, detalle, alCambiar, reenviar }: MailEnviado
     const error = await reenviar();
     setReenviando(false);
     if (error === undefined) {
-      setResultado({ error: false, texto: `Te lo mandamos de nuevo a ${email}.` });
+      setResultado({ error: false, texto: textos.mandadoDeNuevo(email) });
       setEspera(ESPERA_PARA_REENVIAR_S);
       return;
     }
@@ -50,11 +53,13 @@ export function MailEnviado({ email, detalle, alCambiar, reenviar }: MailEnviado
     <div className="flex flex-col gap-5">
       <div className="flex min-w-0 items-center gap-3 border-y border-hairline py-3">
         <dl className="min-w-0 flex-1">
-          <dt className="text-meta text-text-2">Lo mandamos a</dt>
-          <dd className="truncate text-body-lg font-semibold">{email}</dd>
+          <dt className="text-meta text-text-2">{textos.loMandamosA}</dt>
+          <dd translate="no" className="truncate text-body-lg font-semibold">
+            {email}
+          </dd>
         </dl>
         <Button variant="terciario" onClick={alCambiar} className="-mr-3 flex-none">
-          Cambiar
+          {textos.cambiar}
         </Button>
       </div>
 
@@ -72,10 +77,10 @@ export function MailEnviado({ email, detalle, alCambiar, reenviar }: MailEnviado
           }}
         >
           {reenviando
-            ? 'Mandándolo de nuevo…'
+            ? textos.mandandoDeNuevo
             : espera > 0
-              ? `Reenviar en ${reloj(espera)}`
-              : 'Reenviar el mail'}
+              ? textos.reenviarEn(reloj(espera))
+              : textos.reenviar}
         </Button>
         {resultado !== undefined && (
           <p

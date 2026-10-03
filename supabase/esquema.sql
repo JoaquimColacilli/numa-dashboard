@@ -64,8 +64,8 @@ comment on type public.tipo_de_necesidad is 'Qué es lo que hace falta: un mater
 create type public.tipo_de_pregunta as enum ('escala5', 'sitalvezno', 'una', 'varias', 'texto');
 comment on type public.tipo_de_pregunta is 'Cómo se contesta una pregunta, y no hay otra forma: escala de cinco caritas, sí / tal vez / no, una opción entre varias, varias opciones, o texto libre. Son los tipos del diseño y ninguno más (ADR 0057).';
 
-create type public.tipo_movimiento as enum ('ingreso', 'gasto', 'transferencia', 'pago_diezmo', 'aporte_cocos', 'ajuste');
-comment on type public.tipo_movimiento is 'Tipo de un movimiento cargado a mano. Cada tipo fija qué lados (desde_id, hacia_id) lleva: ver el check movimientos_forma_segun_tipo. Una transferencia va entre dos tesoros cualesquiera, también los del dueño; el pago del diezmo sale del diezmo y el aporte va a Cocos (ADR 0018 y 0078).';
+create type public.tipo_movimiento as enum ('ingreso', 'gasto', 'transferencia', 'pago_diezmo', 'aporte_cocos', 'ajuste', 'cambio');
+comment on type public.tipo_movimiento is 'Tipo de un movimiento cargado a mano. Cada tipo fija qué lados (desde_id, hacia_id) lleva: ver el check movimientos_forma_segun_tipo. Una transferencia va entre dos tesoros cualesquiera de la misma moneda, también los del dueño; el pago del diezmo sale del diezmo y el aporte va a Cocos; un cambio (una compra o una venta de dólares) va entre un tesoro en pesos y uno en dólares, con sus dos importes (ADR 0018, 0078 y 0081).';
 
 
 -- Tablas -----------------------------------------------------------------------------------------
@@ -107,16 +107,26 @@ create table public.ajustes (
   taller_email text not null default ''::text,
   plantilla_del_presupuesto jsonb,
   plantilla_del_presupuesto_version integer not null default 0,
+  idioma_de_los_clientes text not null default 'es'::text,
+  dolar_del_dia_centavos bigint,
+  dolar_del_dia_el date,
+  cobro_dolares_cbu text not null default ''::text,
+  cobro_dolares_alias text not null default ''::text,
   constraint ajustes_cobro_alias_formato CHECK (cobro_alias = ''::text OR cobro_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
   constraint ajustes_cobro_cbu_formato CHECK (cobro_cbu = ''::text OR cobro_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_cuit_formato CHECK (cobro_cuit = ''::text OR cobro_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
+  constraint ajustes_cobro_dolares_alias_formato CHECK (cobro_dolares_alias = ''::text OR cobro_dolares_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
+  constraint ajustes_cobro_dolares_cbu_formato CHECK (cobro_dolares_cbu = ''::text OR cobro_dolares_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_link_formato CHECK (cobro_link = ''::text OR char_length(cobro_link) <= 300 AND cobro_link ~ '^https://(www\.mercadopago\.com\.ar|mercadopago\.com\.ar|link\.mercadopago\.com\.ar|mpago\.la|mpago\.li)/[^[:space:]]*$'::text),
   constraint ajustes_cobro_titular_largo CHECK (char_length(cobro_titular) <= 200),
+  constraint ajustes_dolar_del_dia_con_su_fecha CHECK ((dolar_del_dia_centavos IS NULL) = (dolar_del_dia_el IS NULL)),
+  constraint ajustes_dolar_del_dia_en_rango CHECK (dolar_del_dia_centavos IS NULL OR dolar_del_dia_centavos >= 100 AND dolar_del_dia_centavos <= 10000000),
   constraint ajustes_facebook_link_formato CHECK (facebook_link = ''::text OR facebook_link ~ '^https://www\.facebook\.com/profile\.php\?id=[0-9]{5,20}$'::text OR facebook_link ~ '^https://www\.facebook\.com/[a-z0-9.]{5,50}$'::text AND (split_part(facebook_link, '/'::text, 4) <> ALL (ARRAY['share'::text, 'sharer.php'::text, 'people'::text, 'story.php'::text, 'photo.php'::text, 'permalink.php'::text, 'groups'::text, 'events'::text, 'watch'::text, 'marketplace'::text, 'login'::text, 'profile.php'::text]))),
   constraint ajustes_fila_es_un_objeto CHECK (fila IS NULL OR jsonb_typeof(fila) = 'object'::text),
   constraint ajustes_fila_version_valida CHECK (fila_version >= 0),
   constraint ajustes_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
   constraint ajustes_household_key UNIQUE (household_id),
+  constraint ajustes_idioma_de_los_clientes_valido CHECK (idioma_de_los_clientes = ANY (ARRAY['es'::text, 'en'::text, 'pt-BR'::text])),
   constraint ajustes_importes_no_negativos CHECK (sueldo_mensual_centavos >= 0 AND costos_fijos_centavos >= 0 AND meta_cocos_centavos >= 0),
   constraint ajustes_instagram_link_formato CHECK (instagram_link = ''::text OR instagram_link ~ '^https://www\.instagram\.com/[a-z0-9._]{1,30}/$'::text AND (split_part(instagram_link, '/'::text, 4) <> ALL (ARRAY['p'::text, 'reel'::text, 'reels'::text, 'stories'::text, 'explore'::text, 'accounts'::text, 'direct'::text, 'tv'::text]))),
   constraint ajustes_pkey PRIMARY KEY (id),
@@ -166,6 +176,11 @@ comment on column public.ajustes.taller_telefono is 'El teléfono del taller, o 
 comment on column public.ajustes.taller_email is 'El email del taller, o vacío. Va en el encabezado del presupuesto (ADR 0080).';
 comment on column public.ajustes.plantilla_del_presupuesto is 'Los textos de siempre del presupuesto del taller y sus números: lo que incluye, lo que hay que tener en cuenta, las formas de pago, los avisos, las condiciones, la garantía, el plazo de fabricación, las modificaciones incluidas, lo que vale una más y los meses de garantía. Null es la de siempre, PLANTILLA_DE_SIEMPRE de @maun/domain, con los textos del dueño. La valida private.problema_de_la_plantilla() y la escribe solo public.guardar_la_plantilla_del_presupuesto(): no tiene grant de update. Cambiarla no cambia ningún presupuesto ya mandado, que lleva su foto (ADR 0080).';
 comment on column public.ajustes.plantilla_del_presupuesto_version is 'La revisión de la plantilla del presupuesto. Suma uno cada vez que se guarda; un guardado armado con otra revisión rebota con MN030. Arranca en 0.';
+comment on column public.ajustes.idioma_de_los_clientes is 'El idioma en que leen los clientes del taller: es, en o pt-BR, con una lista y no con un formato, como las monedas. Es el de su página, la encuesta, el presupuesto que se arma desde ahora y los mensajes de WhatsApp que les manda el dueño, aunque él use la app en otro. Lo que escribió el dueño (sus textos del presupuesto, sus preguntas) queda como lo escribió. Viaja a la vista del cliente, a la encuesta y al título de la vista previa (ADR 0082).';
+comment on column public.ajustes.dolar_del_dia_centavos is 'El dólar del día del taller, en centavos de peso por dólar, de 100 a 10.000.000, o null si nunca se cargó. Lo carga el dueño con la regla de su presupuesto: con él la página de un trabajo en dólares dice cuántos pesos son hoy, solo si dolar_del_dia_el es hoy en el taller, y la hoja de mandar el presupuesto lo congela como referencia. Va con su fecha o sin ninguna de las dos (ADR 0081).';
+comment on column public.ajustes.dolar_del_dia_el is 'El día para el que vale el dólar del día, o null si nunca se cargó. Va con dolar_del_dia_centavos o sin ninguno de los dos (ADR 0081).';
+comment on column public.ajustes.cobro_dolares_cbu is 'El CBU de la cuenta en dólares del taller, 22 dígitos sin espacios ni guiones, o vacío. Mismo formato que cobro_cbu; el titular y el CUIT son los de la cuenta en pesos. Viaja a la página del cliente solo si el pago que toca se ofrece en dólares por transferencia (ADR 0081).';
+comment on column public.ajustes.cobro_dolares_alias is 'El alias de la cuenta en dólares del taller, o vacío. Mismo formato que cobro_alias (el del BCRA). Viaja a la página del cliente solo si el pago que toca se ofrece en dólares por transferencia (ADR 0081).';
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER contar_la_revision_de_la_fila BEFORE UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.contar_la_revision_de_la_fila();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
@@ -179,7 +194,7 @@ create policy ajustes_lectura on public.ajustes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.ajustes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.ajustes to service_role;
-grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos, taller_titular, taller_cuit, taller_condicion_fiscal, taller_domicilio, taller_telefono, taller_email) on public.ajustes to authenticated;
+grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos, taller_titular, taller_cuit, taller_condicion_fiscal, taller_domicilio, taller_telefono, taller_email, idioma_de_los_clientes, dolar_del_dia_centavos, dolar_del_dia_el, cobro_dolares_cbu, cobro_dolares_alias) on public.ajustes to authenticated;
 
 create table public.anotaciones (
   id uuid not null default private.uuidv7(),
@@ -679,16 +694,18 @@ create table public.movimientos (
   desde_id uuid,
   hacia_id uuid,
   cubre_el_mes date,
+  monto_destino_centavos bigint,
   constraint movimientos_cubre_el_mes_valido CHECK (cubre_el_mes IS NULL OR tipo = 'transferencia'::tipo_movimiento AND cubre_el_mes = date_trunc('month'::text, cubre_el_mes::timestamp with time zone)::date AND tesoro_origen IS DISTINCT FROM 'diezmo'::tesoro),
   constraint movimientos_desde_fk FOREIGN KEY (household_id, desde_id) REFERENCES tesoros(household_id, id),
   constraint movimientos_forma_segun_tipo CHECK (COALESCE(
 CASE tipo
-    WHEN 'ingreso'::tipo_movimiento THEN desde_id IS NULL AND hacia_id IS NOT NULL
-    WHEN 'gasto'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NULL
-    WHEN 'transferencia'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NOT NULL
-    WHEN 'pago_diezmo'::tipo_movimiento THEN desde_id IS NOT NULL AND tesoro_origen = 'diezmo'::tesoro AND hacia_id IS NULL
-    WHEN 'aporte_cocos'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NOT NULL AND tesoro_destino = 'cocos'::tesoro
-    WHEN 'ajuste'::tipo_movimiento THEN num_nonnulls(desde_id, hacia_id) = 1
+    WHEN 'ingreso'::tipo_movimiento THEN desde_id IS NULL AND hacia_id IS NOT NULL AND monto_destino_centavos IS NULL
+    WHEN 'gasto'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NULL AND monto_destino_centavos IS NULL
+    WHEN 'transferencia'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NOT NULL AND monto_destino_centavos IS NULL
+    WHEN 'pago_diezmo'::tipo_movimiento THEN desde_id IS NOT NULL AND tesoro_origen = 'diezmo'::tesoro AND hacia_id IS NULL AND monto_destino_centavos IS NULL
+    WHEN 'aporte_cocos'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NOT NULL AND tesoro_destino = 'cocos'::tesoro AND monto_destino_centavos IS NULL
+    WHEN 'ajuste'::tipo_movimiento THEN num_nonnulls(desde_id, hacia_id) = 1 AND monto_destino_centavos IS NULL
+    WHEN 'cambio'::tipo_movimiento THEN desde_id IS NOT NULL AND hacia_id IS NOT NULL AND monto_destino_centavos > 0
     ELSE NULL::boolean
 END, false)),
   constraint movimientos_hacia_fk FOREIGN KEY (household_id, hacia_id) REFERENCES tesoros(household_id, id),
@@ -702,12 +719,13 @@ END, false)),
 comment on table public.movimientos is 'Movimientos cargados a mano. Los derivados de proyectos (pagos, gastos y distribución) no se guardan acá: los arma la vista libro_mayor.';
 comment on column public.movimientos.tesoro_origen is 'De dónde sale la plata, por su clave. Null: viene de afuera (un ingreso), o sale de un tesoro del dueño, que no tiene clave: ahí manda desde_id.';
 comment on column public.movimientos.tesoro_destino is 'A dónde va la plata, por su clave. Null: se va afuera (un gasto), o va a un tesoro del dueño, que no tiene clave: ahí manda hacia_id.';
-comment on column public.movimientos.monto_centavos is 'Importe en centavos, siempre positivo: el sentido lo dan origen y destino.';
+comment on column public.movimientos.monto_centavos is 'Importe en centavos, siempre positivo: el sentido lo dan origen y destino. Va en la moneda de sus tesoros; en un cambio es lo que sale, en la moneda del tesoro de origen, y lo que entra va en monto_destino_centavos (ADR 0081).';
 comment on column public.movimientos.categoria is 'Categoría libre para agrupar: Supermercado, Servicios, Alquiler del taller.';
 comment on column public.movimientos.proyecto_id is 'Opcional: un movimiento manual atribuible a un proyecto, por ejemplo un ajuste sobre una distribución cerrada.';
 comment on column public.movimientos.desde_id is 'El tesoro de donde sale la plata, por id. Null: viene de afuera (un ingreso). Lo completa private.completar_los_tesoros() desde tesoro_origen cuando lo manda una app sin actualizar; en un tesoro del dueño, tesoro_origen queda en null (ADR 0078).';
 comment on column public.movimientos.hacia_id is 'El tesoro adonde va la plata, por id. Null: se va afuera (un gasto). Lo completa private.completar_los_tesoros() desde tesoro_destino; en un tesoro del dueño, tesoro_destino queda en null (ADR 0078).';
 comment on column public.movimientos.cubre_el_mes is 'En una transferencia que cubre el faltante de un paso de la fila, el primer día del mes que cubre; si no, null. Esa plata cuenta para el tope de ese mes del tesoro que la recibe: el próximo cobro no la vuelve a llenar (ADR 0078). No sale del diezmo.';
+comment on column public.movimientos.monto_destino_centavos is 'Solo en un cambio: lo que entra al tesoro de destino, en centavos de su moneda y siempre positivo. En todo otro tipo, null: lo que entra es monto_centavos. La cotización de un cambio sale de los dos importes y no se guarda (ADR 0081).';
 CREATE INDEX movimientos_household_actualizado ON public.movimientos USING btree (household_id, updated_at);
 CREATE INDEX movimientos_household_desde ON public.movimientos USING btree (household_id, desde_id);
 CREATE INDEX movimientos_household_hacia ON public.movimientos USING btree (household_id, hacia_id);
@@ -728,8 +746,8 @@ create policy movimientos_lectura on public.movimientos as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.movimientos to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.movimientos to service_role;
-grant insert (id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, categoria, descripcion, proyecto_id, deleted_at, desde_id, hacia_id, cubre_el_mes) on public.movimientos to authenticated;
-grant update (id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, categoria, descripcion, proyecto_id, deleted_at, desde_id, hacia_id, cubre_el_mes) on public.movimientos to authenticated;
+grant insert (id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, categoria, descripcion, proyecto_id, deleted_at, desde_id, hacia_id, cubre_el_mes, monto_destino_centavos) on public.movimientos to authenticated;
+grant update (id, fecha, tipo, tesoro_origen, tesoro_destino, monto_centavos, categoria, descripcion, proyecto_id, deleted_at, desde_id, hacia_id, cubre_el_mes, monto_destino_centavos) on public.movimientos to authenticated;
 
 create table public.necesidades (
   id uuid not null default private.uuidv7(),
@@ -797,7 +815,7 @@ create table public.opciones_de_presupuesto (
 comment on table public.opciones_de_presupuesto is 'Las opciones de presupuesto que se le presentaron al cliente para un trabajo. Cuando el cliente elige, se tilda una y su importe pasa a ser el presupuesto del trabajo. Las que no eligió no se borran: son lo que se ofreció (ADR 0043).';
 comment on column public.opciones_de_presupuesto.household_id is 'Default: el household del usuario de la sesión. El cliente de la app no lo manda.';
 comment on column public.opciones_de_presupuesto.descripcion is 'Qué incluye esta opción, y el plan de pago si lo hay. Es donde va lo que antes se escribía en las notas.';
-comment on column public.opciones_de_presupuesto.monto_centavos is 'El importe de esta opción, en centavos. Cuando se aprueba, es el presupuesto del trabajo.';
+comment on column public.opciones_de_presupuesto.monto_centavos is 'El importe de esta opción, en centavos de la moneda del trabajo (proyectos.moneda). Cuando se aprueba, es el presupuesto del trabajo (ADR 0081).';
 comment on column public.opciones_de_presupuesto.aprobada is 'La que eligió el cliente. Hay a lo sumo una viva por trabajo, y mientras no haya ninguna el trabajo no tiene presupuesto.';
 comment on column public.opciones_de_presupuesto.deleted_at is 'Borrado lógico, como en todo el household.';
 CREATE INDEX opciones_de_presupuesto_household_actualizado ON public.opciones_de_presupuesto USING btree (household_id, updated_at);
@@ -834,20 +852,35 @@ create table public.pagos (
   deleted_at timestamp with time zone,
   version integer not null default 1,
   ya_en_la_apertura boolean not null default false,
+  moneda text not null default 'ARS'::text,
+  cotizacion_centavos bigint,
+  tesoro_id uuid,
+  constraint pagos_con_su_dolar TRIGGER DEFERRABLE INITIALLY DEFERRED,
   constraint pagos_concepto_largo CHECK (char_length(concepto) <= 500),
+  constraint pagos_cotizacion_de_otra_moneda CHECK (moneda = 'ARS'::text OR cotizacion_centavos IS NOT NULL),
+  constraint pagos_cotizacion_en_rango CHECK (cotizacion_centavos IS NULL OR cotizacion_centavos >= 100 AND cotizacion_centavos <= 10000000),
   constraint pagos_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint pagos_moneda_valida CHECK (moneda = ANY (ARRAY['ARS'::text, 'USD'::text])),
   constraint pagos_monto_positivo CHECK (monto_centavos > 0),
   constraint pagos_pkey PRIMARY KEY (id),
-  constraint pagos_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id)
+  constraint pagos_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id),
+  constraint pagos_tesoro_fk FOREIGN KEY (household_id, tesoro_id) REFERENCES tesoros(household_id, id),
+  constraint pagos_tesoro_segun_moneda CHECK ((moneda = 'ARS'::text) = (tesoro_id IS NULL))
 );
-comment on table public.pagos is 'Cobros recibidos de un proyecto: seña, adelantos, saldo. Entran a MAUN. La distribución se calcula sobre su suma.';
-comment on column public.pagos.monto_centavos is 'Importe cobrado, en centavos. Siempre positivo.';
+comment on table public.pagos is 'Cobros recibidos de un proyecto: seña, adelantos, saldo. Uno en pesos entra a Maun, como siempre; uno en dólares entra a su tesoro en dólares (tesoro_id). La distribución se calcula sobre la suma de su valor en pesos (ADR 0081).';
+comment on column public.pagos.monto_centavos is 'Lo que se entregó, en centavos de la moneda del pago (pagos.moneda). Siempre positivo. Su valor en pesos y lo que descuenta del precio, en la moneda del trabajo, salen de private.valor_en_pesos y private.lo_que_descuenta con su cotización (ADR 0081).';
 comment on column public.pagos.deleted_at is 'Borrado lógico. No se puede tocar un pago de un proyecto cobrado.';
 comment on column public.pagos.ya_en_la_apertura is 'La plata de este pago ya estaba en los saldos con los que arrancó la app: es de antes de la apertura y el dueño dijo que ya la tenía contada. Queda en el trabajo y en el libro mayor con su fecha, pero no mueve los tesoros. Solo puede ser true con una fecha anterior a la apertura. Las filas que existían al agregar la columna quedaron en false, que es lo que deja los saldos como estaban (ADR 0063).';
+comment on column public.pagos.moneda is 'La moneda en que llegó el pago: ARS o USD. Uno nuevo nace en pesos. Un pago en dólares entra a un tesoro en dólares y lleva su cotización (ADR 0081).';
+comment on column public.pagos.cotizacion_centavos is 'A cuántos pesos se tomó cada dólar, en centavos de peso por dólar, de 100 a 10.000.000. La lleva todo pago en dólares (check) y todo pago de un trabajo en dólares (private.exigir_el_dolar_de_los_pagos, MN039, diferido); un pago en pesos de un trabajo en pesos no la necesita. Se guarda la cotización que se acordó y no el equivalente: el valor en pesos y lo que descuenta se calculan siempre con las funciones, y cambiar una conversión cambiaría pagos viejos (ADR 0081).';
+comment on column public.pagos.tesoro_id is 'El tesoro en dólares al que entró un pago en dólares, o null para uno en pesos, que entra a Maun. Lo cuida private.validar_el_tesoro_del_pago: en dólares, vivo y sin archivar cuando el pago entra a él (MN037) (ADR 0081).';
 CREATE INDEX pagos_household_actualizado ON public.pagos USING btree (household_id, updated_at);
 CREATE INDEX pagos_household_proyecto ON public.pagos USING btree (household_id, proyecto_id);
+CREATE INDEX pagos_household_tesoro ON public.pagos USING btree (household_id, tesoro_id);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+CREATE CONSTRAINT TRIGGER pagos_con_su_dolar AFTER INSERT OR UPDATE ON pagos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (new.moneda = 'ARS'::text AND new.cotizacion_centavos IS NULL AND new.deleted_at IS NULL) EXECUTE FUNCTION private.exigir_el_dolar_de_los_pagos();
+CREATE TRIGGER validar_el_tesoro BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.validar_el_tesoro_del_pago();
 CREATE TRIGGER validar_la_fecha BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.validar_la_fecha_del_pago();
 CREATE TRIGGER validar_proyecto_abierto BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.validar_proyecto_abierto();
 alter table public.pagos enable row level security;
@@ -863,8 +896,8 @@ create policy pagos_lectura on public.pagos as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.pagos to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.pagos to service_role;
-grant insert (id, proyecto_id, fecha, concepto, monto_centavos, deleted_at, ya_en_la_apertura) on public.pagos to authenticated;
-grant update (id, proyecto_id, fecha, concepto, monto_centavos, deleted_at, ya_en_la_apertura) on public.pagos to authenticated;
+grant insert (id, proyecto_id, fecha, concepto, monto_centavos, deleted_at, ya_en_la_apertura, moneda, cotizacion_centavos, tesoro_id) on public.pagos to authenticated;
+grant update (id, proyecto_id, fecha, concepto, monto_centavos, deleted_at, ya_en_la_apertura, moneda, cotizacion_centavos, tesoro_id) on public.pagos to authenticated;
 
 create table public.preguntas (
   id uuid not null default private.uuidv7(),
@@ -1152,14 +1185,20 @@ create table public.proyectos (
   dist_fila jsonb,
   dist_previo jsonb,
   reapertura_fila jsonb,
+  moneda text not null default 'ARS'::text,
+  cobra_en text[],
+  costos_cotizacion_centavos bigint,
+  constraint pagos_con_su_dolar TRIGGER DEFERRABLE INITIALLY DEFERRED,
   constraint presupuesto_aprobado TRIGGER DEFERRABLE INITIALLY DEFERRED,
   constraint proyectos_cliente_fk FOREIGN KEY (household_id, cliente_id) REFERENCES clientes(household_id, id),
+  constraint proyectos_cobra_en_valido CHECK (COALESCE(cobra_en IS NULL OR cobra_en = ARRAY['ARS'::text] OR cobra_en = ARRAY['USD'::text] OR cobra_en = ARRAY['ARS'::text, 'USD'::text], false)),
   constraint proyectos_cobro_saldo_valido CHECK (COALESCE(cobro_saldo IS NULL OR cobro_saldo = ARRAY['transferencia'::forma_de_cobro] OR cobro_saldo = ARRAY['efectivo'::forma_de_cobro] OR cobro_saldo = ARRAY['transferencia'::forma_de_cobro, 'efectivo'::forma_de_cobro], false)),
   constraint proyectos_cobro_sena_valido CHECK (COALESCE(cobro_sena IS NULL OR cobro_sena = ARRAY['transferencia'::forma_de_cobro] OR cobro_sena = ARRAY['efectivo'::forma_de_cobro] OR cobro_sena = ARRAY['transferencia'::forma_de_cobro, 'efectivo'::forma_de_cobro], false)),
   constraint proyectos_costo_ayudante_no_negativo CHECK (costo_ayudante_centavos IS NULL OR costo_ayudante_centavos >= 0),
   constraint proyectos_costo_flete_no_negativo CHECK (costo_flete_centavos IS NULL OR costo_flete_centavos >= 0),
   constraint proyectos_costo_herrajes_no_negativo CHECK (costo_herrajes_centavos IS NULL OR costo_herrajes_centavos >= 0),
   constraint proyectos_costo_madera_no_negativo CHECK (costo_madera_centavos IS NULL OR costo_madera_centavos >= 0),
+  constraint proyectos_costos_cotizacion_en_rango CHECK (costos_cotizacion_centavos IS NULL OR costos_cotizacion_centavos >= 100 AND costos_cotizacion_centavos <= 10000000),
   constraint proyectos_distribucion_cuadra CHECK (dist_cobrado_centavos IS NULL OR dist_cobrado_centavos >= 0 AND dist_gastos_centavos >= 0 AND dist_diezmo_bp >= 0 AND dist_diezmo_bp <= 10000 AND dist_tope_sueldo_centavos >= 0 AND dist_tope_fijos_centavos >= 0 AND dist_diezmo_centavos >= 0 AND dist_sueldo_centavos >= 0 AND dist_sueldo_centavos <= dist_tope_sueldo_centavos AND dist_fijos_centavos >= 0 AND dist_fijos_centavos <= dist_tope_fijos_centavos AND (dist_remanente_centavos >= 0 OR (dist_diezmo_centavos + dist_sueldo_centavos + dist_fijos_centavos) = 0) AND (dist_diezmo_centavos + dist_sueldo_centavos + dist_fijos_centavos + dist_remanente_centavos) = (dist_cobrado_centavos - dist_gastos_centavos)),
   constraint proyectos_fila_completa CHECK (num_nulls(dist_fila_version, dist_fila, dist_previo) = ANY (ARRAY[0, 3])),
   constraint proyectos_franja_con_su_dia CHECK (entrega_comprometida_franja IS NULL OR entrega_comprometida IS NOT NULL),
@@ -1169,6 +1208,7 @@ create table public.proyectos (
   constraint proyectos_largos CHECK (char_length(titulo) <= 200 AND char_length(descripcion) <= 10000 AND char_length(direccion_entrega) <= 500 AND char_length(notas) <= 10000),
   constraint proyectos_liquidado_con_distribucion CHECK ((estado = ANY (ARRAY['cobrado'::estado_proyecto, 'perdido'::estado_proyecto])) = (fecha_cobro IS NOT NULL) AND (num_nulls(fecha_cobro, dist_cobrado_centavos, dist_gastos_centavos, dist_diezmo_bp, dist_tope_sueldo_centavos, dist_tope_fijos_centavos, dist_diezmo_centavos, dist_sueldo_centavos, dist_fijos_centavos, dist_remanente_centavos, dist_objetivo_sueldo_centavos, dist_objetivo_fijos_centavos, dist_sueldo_mensual, dist_sueldo_previo_centavos, dist_fijos_previo_centavos, dist_liquidado_at) = ANY (ARRAY[0, 16]))),
   constraint proyectos_listo_antes_de_entregar CHECK (listo_el IS NULL OR fecha_entrega IS NULL OR listo_el <= fecha_entrega),
+  constraint proyectos_moneda_valida CHECK (moneda = ANY (ARRAY['ARS'::text, 'USD'::text])),
   constraint proyectos_pkey PRIMARY KEY (id),
   constraint proyectos_presupuesto_no_negativo CHECK (presupuesto_centavos IS NULL OR presupuesto_centavos >= 0),
   constraint proyectos_reapertura_completa CHECK ((num_nulls(reapertura_objetivo_sueldo_centavos, reapertura_objetivo_fijos_centavos, reapertura_sueldo_mensual, reapertura_fecha_cobro) = ANY (ARRAY[0, 4])) AND ((estado <> ALL (ARRAY['cobrado'::estado_proyecto, 'perdido'::estado_proyecto])) OR reapertura_fecha_cobro IS NULL)),
@@ -1185,13 +1225,13 @@ END, false)),
 );
 comment on table public.proyectos is 'Leads y proyectos: la misma fila avanza de seguimiento a obra y a cobrado, o se cierra como perdido. Liquidar (cobrar o cerrar como perdido) congela la distribución (ADR 0003 y 0011).';
 comment on column public.proyectos.titulo is 'El trabajo, en pocas palabras: "Placard 3 puertas con interior en melamina".';
-comment on column public.proyectos.presupuesto_centavos is 'Presupuesto acordado. Null mientras el lead no tiene presupuesto. La distribución NO se calcula sobre esto sino sobre lo cobrado.';
+comment on column public.proyectos.presupuesto_centavos is 'Presupuesto acordado, en centavos de la moneda del trabajo (proyectos.moneda). Null mientras el lead no tiene presupuesto. La distribución NO se calcula sobre esto sino sobre lo cobrado, en pesos (ADR 0081).';
 comment on column public.proyectos.fecha_visita is 'Visita de relevamiento, en la etapa de seguimiento. Viaja a la vista del cliente: es el día que dice el casillero del relevamiento. La hora, visita_hora, no viaja (ADR 0058).';
 comment on column public.proyectos.ultimo_contacto is 'Último contacto con el cliente, en la etapa de seguimiento.';
 comment on column public.proyectos.entrega_estimada is 'La entrega estimada: la fecha probable que calcula el taller, a 21 días hábiles del inicio por defecto, y que puede moverse. No es un acuerdo con el cliente: eso es entrega_comprometida. Mientras el trabajo está en curso, cada cambio queda en public.cambios_de_fecha con cuántos trabajos había en curso ese día, y el analítico mide contra la primera (ADR 0071).';
 comment on column public.proyectos.fecha_entrega is 'La entrega real: el día en que se entregó. La escribe «Ya lo entregué» con el día de hoy y «Volvió al taller» la borra. Con el trabajo en curso vale null siempre: la guarda private.cuidar_las_fechas_de_la_entrega() limpia la que quede de antes (ADR 0071).';
 comment on column public.proyectos.fecha_cobro is 'Fecha de la liquidación: el cobro final o el cierre como perdido. No null si y solo si el proyecto está cobrado o perdido. Es la fecha de los asientos derivados en el libro mayor y define el mes de los topes.';
-comment on column public.proyectos.dist_cobrado_centavos is 'Congelado al liquidar: total cobrado (suma de pagos vivos). En un perdido, la seña retenida.';
+comment on column public.proyectos.dist_cobrado_centavos is 'Congelado al liquidar: total cobrado en pesos, la suma del valor en pesos de los pagos vivos (uno en dólares vale sus pesos a su cotización, private.valor_en_pesos). En un perdido, la seña retenida, también en pesos (ADR 0081).';
 comment on column public.proyectos.dist_gastos_centavos is 'Congelado al liquidar: total de gastos del proyecto.';
 comment on column public.proyectos.dist_diezmo_bp is 'Congelado al liquidar: porcentaje de diezmo aplicado, en puntos básicos (1000 = 10%). Un perdido usa 0 si ajustes.perdido_con_diezmo está apagado.';
 comment on column public.proyectos.dist_tope_sueldo_centavos is 'Congelado al liquidar: tope de sueldo que se aplicó. Sale del objetivo, del modo y de lo liquidado en el mes (proyectos_topes_del_mes).';
@@ -1221,10 +1261,10 @@ comment on column public.proyectos.visita_importante is 'Marca de importante de 
 comment on column public.proyectos.entrega_importante is 'Marca de importante de la entrega en la agenda. La entrega entregada la conserva.';
 comment on column public.proyectos.presupuesto_importante is 'Marca de importante del vencimiento del presupuesto en la agenda.';
 comment on column public.proyectos.sena_bp is 'La seña de este trabajo, en puntos básicos, cuando no es la del taller. Null es "la de ajustes". El dueño dijo que la seña normal es la mitad pero puede ser otra.';
-comment on column public.proyectos.costo_madera_centavos is 'Lo que el dueño calcula que va a gastar en madera para este trabajo, en centavos. Null es «todavía no lo estimé», que no es lo mismo que cero. No es un gasto real ni alimenta el presupuesto: el presupuesto incluye su ganancia y la decide él (ADR 0045).';
-comment on column public.proyectos.costo_herrajes_centavos is 'Lo estimado en herrajes, en centavos. Null es «todavía no lo estimé».';
-comment on column public.proyectos.costo_flete_centavos is 'Lo estimado en flete, en centavos. Null es «todavía no lo estimé».';
-comment on column public.proyectos.costo_ayudante_centavos is 'Lo estimado en ayudante, en centavos. Null es «todavía no lo estimé».';
+comment on column public.proyectos.costo_madera_centavos is 'Lo que el dueño calcula que va a gastar en madera para este trabajo, en centavos de peso, también en un trabajo en dólares. Null es «todavía no lo estimé», que no es lo mismo que cero. No es un gasto real ni alimenta el presupuesto: el presupuesto incluye su ganancia y la decide él (ADR 0045 y 0081).';
+comment on column public.proyectos.costo_herrajes_centavos is 'Lo estimado en herrajes, en centavos de peso, también en un trabajo en dólares. Null es «todavía no lo estimé».';
+comment on column public.proyectos.costo_flete_centavos is 'Lo estimado en flete, en centavos de peso, también en un trabajo en dólares. Null es «todavía no lo estimé».';
+comment on column public.proyectos.costo_ayudante_centavos is 'Lo estimado en ayudante, en centavos de peso, también en un trabajo en dólares. Null es «todavía no lo estimé».';
 comment on column public.proyectos.entrega_hora is 'A qué hora es la entrega, si tiene hora. Null es «en algún momento de ese día», como en una anotación. La agenda pone lo que tiene hora en su renglón y lo demás en la franja de todo el día (ADR 0045).';
 comment on column public.proyectos.visita_hora is 'A qué hora es la visita de relevamiento, si tiene hora. Null es «en algún momento de ese día».';
 comment on column public.proyectos.cobro_sena is 'Cómo se puede pagar la seña de este trabajo, o null si el dueño no lo tocó. Null no es vacío: es «vale el valor por defecto», que private.formas_de_cobro() calcula según si el taller tiene datos para transferir cargados. El check acepta exactamente tres valores, así que un pago nunca queda sin ninguna forma (ADR 0053).';
@@ -1239,6 +1279,9 @@ comment on column public.proyectos.dist_fila_version is 'Congelado al liquidar p
 comment on column public.proyectos.dist_fila is 'Congelado al liquidar por la fila: la fila con la que se repartió, la guardada o la de siempre armada en ese momento. Reabrir el cobro la pasa a reapertura_fila, y volver a cobrarlo reparte con ella.';
 comment on column public.proyectos.dist_previo is 'Congelado al liquidar por la fila: lo que cada tesoro de un paso llevaba del mes según la base, {tesoro_id: centavos}. Si no es lo que mandó la app, la liquidación salió ajustada: la app lo ve comparando esto con lo que mandó.';
 comment on column public.proyectos.reapertura_fila is 'La fila del cobro por la fila que se reabrió, {version, fila}. Volver a cobrarlo reparte con ella y no con la fila de hoy (ADR 0003), salvo el sueldo: si la foto lo traía por trabajo y el taller ya lo reparte por mes, va por mes (ADR 0079). Una app sin actualizar no puede volver a cobrarlo (MN025). La limpia la liquidación siguiente.';
+comment on column public.proyectos.moneda is 'La moneda del trabajo, «Precio en»: ARS o USD, con una lista como la de los tesoros. Es la del presupuesto, las opciones, la seña, el saldo y todo lo que el trabajo le cobra al cliente; los costos estimados y los gastos van siempre en pesos. Se elige mientras el trabajo es una consulta (los cinco primeros estados y en_seguimiento) y después no cambia (private.cuidar_la_moneda_del_trabajo, MN036). La escribe guardar_proyecto (ADR 0081).';
+comment on column public.proyectos.cobra_en is 'En qué le paga el cliente, «Te paga en»: {ARS}, {USD} o {ARS,USD}, o null, que quiere decir la moneda del taller, así los trabajos de antes quedan como están. Dice qué se le ofrece al cliente en su página; la base no lo exige sobre los pagos, que registran lo que pasó. Se guarda con cobro_sena y cobro_saldo, por su propio update (ADR 0053 y 0081).';
+comment on column public.proyectos.costos_cotizacion_centavos is 'En un trabajo en dólares, el dólar con que se ven en dólares los costos estimados y se calcula el margen, en centavos de peso por dólar, de 100 a 10.000.000. Los costos siguen guardados en pesos. Null es «todavía no lo puse». Se guarda con los costos, por su propio update (ADR 0081).';
 CREATE INDEX proyectos_household_actualizado ON public.proyectos USING btree (household_id, updated_at);
 CREATE INDEX proyectos_household_cliente ON public.proyectos USING btree (household_id, cliente_id);
 CREATE INDEX proyectos_liquidados_por_mes ON public.proyectos USING btree (household_id, fecha_cobro) WHERE (fecha_cobro IS NOT NULL);
@@ -1248,8 +1291,10 @@ CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON proyectos 
 CREATE TRIGGER borrar_hijos AFTER UPDATE OF deleted_at ON proyectos FOR EACH ROW WHEN (new.deleted_at IS NOT NULL AND old.deleted_at IS NULL) EXECUTE FUNCTION private.borrar_hijos_de_proyecto();
 CREATE TRIGGER cerrar_el_contacto_pendiente AFTER UPDATE OF estado ON proyectos FOR EACH ROW WHEN (old.estado = 'en_seguimiento'::estado_proyecto AND new.estado IS DISTINCT FROM old.estado) EXECUTE FUNCTION private.cerrar_el_contacto_pendiente();
 CREATE TRIGGER cerrar_la_propuesta_de_entrega AFTER UPDATE ON proyectos FOR EACH ROW WHEN (new.entrega_comprometida IS NOT NULL OR new.estado <> 'en_curso'::estado_proyecto OR new.listo_el IS NULL) EXECUTE FUNCTION private.cerrar_la_propuesta_de_entrega();
+CREATE TRIGGER cuidar_la_moneda BEFORE UPDATE OF moneda ON proyectos FOR EACH ROW EXECUTE FUNCTION private.cuidar_la_moneda_del_trabajo();
 CREATE TRIGGER cuidar_las_fechas_de_la_entrega BEFORE INSERT OR UPDATE ON proyectos FOR EACH ROW EXECUTE FUNCTION private.cuidar_las_fechas_de_la_entrega();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON proyectos FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+CREATE CONSTRAINT TRIGGER pagos_con_su_dolar AFTER UPDATE OF moneda ON proyectos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (old.moneda IS DISTINCT FROM new.moneda) EXECUTE FUNCTION private.exigir_el_dolar_de_los_pagos();
 CREATE CONSTRAINT TRIGGER presupuesto_aprobado AFTER INSERT OR UPDATE ON proyectos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.validar_presupuesto_aprobado();
 CREATE CONSTRAINT TRIGGER seguimiento_con_su_contacto AFTER INSERT OR UPDATE OF estado, deleted_at ON proyectos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.revisar_el_seguimiento_del_proyecto();
 CREATE TRIGGER validar_proyecto BEFORE INSERT OR UPDATE ON proyectos FOR EACH ROW EXECUTE FUNCTION private.validar_proyecto();
@@ -1266,8 +1311,8 @@ create policy proyectos_lectura on public.proyectos as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.proyectos to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.proyectos to service_role;
-grant insert (id, cliente_id, titulo, descripcion, estado, presupuesto_centavos, forma_pago, comprobante, fecha_visita, ultimo_contacto, fecha_inicio, entrega_estimada, fecha_entrega, direccion_entrega, notas, deleted_at, vencimiento_presupuesto, presupuesto_diseno, presupuesto_despiece, presupuesto_cotizacion, presupuesto_pdf, visita_hecha, visita_importante, entrega_importante, presupuesto_importante, sena_bp, entrega_hora, visita_hora, presupuesto_vale_hasta, listo_el, entrega_comprometida, entrega_comprometida_franja, tipo_de_proyecto) on public.proyectos to authenticated;
-grant update (id, cliente_id, titulo, descripcion, estado, presupuesto_centavos, forma_pago, comprobante, fecha_visita, ultimo_contacto, fecha_inicio, entrega_estimada, fecha_entrega, direccion_entrega, notas, deleted_at, vencimiento_presupuesto, presupuesto_diseno, presupuesto_despiece, presupuesto_cotizacion, presupuesto_pdf, visita_hecha, visita_importante, entrega_importante, presupuesto_importante, sena_bp, costo_madera_centavos, costo_herrajes_centavos, costo_flete_centavos, costo_ayudante_centavos, entrega_hora, visita_hora, cobro_sena, cobro_saldo, presupuesto_vale_hasta, listo_el, entrega_comprometida, entrega_comprometida_franja, tipo_de_proyecto) on public.proyectos to authenticated;
+grant insert (id, cliente_id, titulo, descripcion, estado, presupuesto_centavos, forma_pago, comprobante, fecha_visita, ultimo_contacto, fecha_inicio, entrega_estimada, fecha_entrega, direccion_entrega, notas, deleted_at, vencimiento_presupuesto, presupuesto_diseno, presupuesto_despiece, presupuesto_cotizacion, presupuesto_pdf, visita_hecha, visita_importante, entrega_importante, presupuesto_importante, sena_bp, entrega_hora, visita_hora, presupuesto_vale_hasta, listo_el, entrega_comprometida, entrega_comprometida_franja, tipo_de_proyecto, moneda) on public.proyectos to authenticated;
+grant update (id, cliente_id, titulo, descripcion, estado, presupuesto_centavos, forma_pago, comprobante, fecha_visita, ultimo_contacto, fecha_inicio, entrega_estimada, fecha_entrega, direccion_entrega, notas, deleted_at, vencimiento_presupuesto, presupuesto_diseno, presupuesto_despiece, presupuesto_cotizacion, presupuesto_pdf, visita_hecha, visita_importante, entrega_importante, presupuesto_importante, sena_bp, costo_madera_centavos, costo_herrajes_centavos, costo_flete_centavos, costo_ayudante_centavos, entrega_hora, visita_hora, cobro_sena, cobro_saldo, presupuesto_vale_hasta, listo_el, entrega_comprometida, entrega_comprometida_franja, tipo_de_proyecto, moneda, cobra_en, costos_cotizacion_centavos) on public.proyectos to authenticated;
 
 create table public.renglones_de_respuesta (
   id uuid not null default private.uuidv7(),
@@ -1488,8 +1533,10 @@ create table public.revisiones_del_presupuesto (
   updated_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone,
   version integer not null default 1,
+  idioma text not null default 'es'::text,
   constraint revisiones_del_presupuesto_contenido_es_un_objeto CHECK (jsonb_typeof(contenido) = 'object'::text),
   constraint revisiones_del_presupuesto_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint revisiones_del_presupuesto_idioma_valido CHECK (idioma = ANY (ARRAY['es'::text, 'en'::text, 'pt-BR'::text])),
   constraint revisiones_del_presupuesto_numero_formato CHECK (numero ~ '^[0-9]{8}-[0-9]{2,}$'::text),
   constraint revisiones_del_presupuesto_pkey PRIMARY KEY (id),
   constraint revisiones_del_presupuesto_presupuesto_fk FOREIGN KEY (household_id, presupuesto_id) REFERENCES presupuestos(household_id, id),
@@ -1508,6 +1555,7 @@ comment on column public.revisiones_del_presupuesto.vale_hasta is 'Hasta cuándo
 comment on column public.revisiones_del_presupuesto.que_cambio is 'Lo que cambió desde la revisión anterior, en palabras del dueño y sin blancos en las puntas: obligatorio desde la segunda, de hasta 280 caracteres; null en la primera. El cliente lo ve arriba del presupuesto.';
 comment on column public.revisiones_del_presupuesto.contenido is 'El DocumentoDelPresupuesto de @maun/domain tal como se mandó: los textos con sus huecos completados, los importes, la seña, lo pagado hasta ese día (abonado), los datos del taller y el nombre del cliente. Lo arma la app, y la base valida su forma (private.problema_del_documento()) y compara sus importes con los del trabajo antes de congelarlo.';
 comment on column public.revisiones_del_presupuesto.deleted_at is 'Se borra solo con su trabajo, por private.borrar_el_presupuesto_del_trabajo().';
+comment on column public.revisiones_del_presupuesto.idioma is 'El idioma en que se armó esta revisión, el de su contenido: con él la página del cliente y el PDF escriben sus etiquetas, su plata y sus fechas. Lo manda la app al mandarla; si no viene (una app sin actualizar), es el de los clientes del taller en ese momento. Las revisiones de antes quedaron en es (ADR 0082).';
 CREATE INDEX revisiones_del_presupuesto_household_actualizado ON public.revisiones_del_presupuesto USING btree (household_id, updated_at);
 CREATE INDEX revisiones_del_presupuesto_household_proyecto ON public.revisiones_del_presupuesto USING btree (household_id, proyecto_id);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON revisiones_del_presupuesto FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
@@ -1535,13 +1583,16 @@ create table public.tesoros (
   updated_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone,
   version integer not null default 1,
+  moneda text not null default 'ARS'::text,
   constraint tesoros_descripcion_largo CHECK (char_length(descripcion) <= 80),
   constraint tesoros_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
   constraint tesoros_household_id_key UNIQUE (household_id, id),
   constraint tesoros_icono_valido CHECK (icono ~ '^[a-z0-9-]{1,40}$'::text),
+  constraint tesoros_los_de_siempre_en_la_moneda_del_taller CHECK (clave IS NULL OR moneda = 'ARS'::text),
   constraint tesoros_los_de_siempre_no_se_archivan CHECK (archivado_at IS NULL OR clave IS NULL),
   constraint tesoros_meta_no_negativa CHECK (meta_centavos IS NULL OR meta_centavos >= 0),
   constraint tesoros_meta_solo_de_los_propios CHECK (clave IS NULL OR meta_centavos IS NULL AND rinde_anual_bp IS NULL),
+  constraint tesoros_moneda_valida CHECK (moneda = ANY (ARRAY['ARS'::text, 'USD'::text])),
   constraint tesoros_nombre_valido CHECK (char_length(btrim(nombre)) >= 1 AND char_length(btrim(nombre)) <= 24),
   constraint tesoros_pkey PRIMARY KEY (id),
   constraint tesoros_rinde_valido CHECK (rinde_anual_bp IS NULL OR rinde_anual_bp >= 0 AND rinde_anual_bp <= 100000),
@@ -1559,10 +1610,12 @@ comment on column public.tesoros.meta_centavos is 'La meta de ahorro de un tesor
 comment on column public.tesoros.rinde_anual_bp is 'El rinde anual estimado de un tesoro del dueño, en puntos básicos, o null. En los cuatro del sistema es null: el de Cocos sigue en ajustes.tasa_cocos_anual_bp.';
 comment on column public.tesoros.orden is 'El orden en que se muestran los tesoros del dueño, después de los cuatro de siempre. No es el orden de la fila: ese vive en ajustes.fila.';
 comment on column public.tesoros.archivado_at is 'Cuándo se archivó, o null. Un tesoro archivado no entra en la fila, no se elige para mover plata y sigue en los repartos que ya hizo. Los cuatro del sistema no se archivan.';
+comment on column public.tesoros.moneda is 'La moneda del tesoro: ARS o USD, con una lista y no un formato para que una moneda nueva sea una decisión con su migración. Se elige al crearlo y no cambia nunca (private.cuidar_la_moneda_del_tesoro, MN034). Los cuatro de siempre son de la moneda del taller (ARS). Todo su saldo, sus metas y sus asientos del libro mayor van en esta moneda; nunca se suma con un tesoro de otra (ADR 0081).';
 CREATE INDEX tesoros_household_actualizado ON public.tesoros USING btree (household_id, updated_at);
 CREATE UNIQUE INDEX tesoros_una_clave_por_taller ON public.tesoros USING btree (household_id, clave) WHERE (clave IS NOT NULL);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON tesoros FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER cuidar_el_archivo BEFORE UPDATE OF archivado_at ON tesoros FOR EACH ROW EXECUTE FUNCTION private.cuidar_el_archivo_del_tesoro();
+CREATE TRIGGER cuidar_la_moneda BEFORE UPDATE OF moneda ON tesoros FOR EACH ROW EXECUTE FUNCTION private.cuidar_la_moneda_del_tesoro();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON tesoros FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
 alter table public.tesoros enable row level security;
 create policy tesoros_alta on public.tesoros as permissive
@@ -1577,8 +1630,8 @@ create policy tesoros_lectura on public.tesoros as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.tesoros to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.tesoros to service_role;
-grant insert (id, nombre, descripcion, tinta, icono, meta_centavos, rinde_anual_bp, orden, archivado_at) on public.tesoros to authenticated;
-grant update (id, nombre, descripcion, tinta, icono, meta_centavos, rinde_anual_bp, orden, archivado_at) on public.tesoros to authenticated;
+grant insert (id, nombre, descripcion, tinta, icono, meta_centavos, rinde_anual_bp, orden, archivado_at, moneda) on public.tesoros to authenticated;
+grant update (id, nombre, descripcion, tinta, icono, meta_centavos, rinde_anual_bp, orden, archivado_at, moneda) on public.tesoros to authenticated;
 
 
 -- Vistas -----------------------------------------------------------------------------------------
@@ -1590,7 +1643,7 @@ create view public.libro_mayor with (security_invoker=true) as
     m.fecha,
     m.tesoro_destino AS tesoro,
     m.tesoro_origen AS contrapartida,
-    m.monto_centavos,
+    COALESCE(m.monto_destino_centavos, m.monto_centavos) AS monto_centavos,
     m.tipo::text AS concepto,
     m.categoria,
     m.descripcion,
@@ -1622,7 +1675,10 @@ UNION ALL
     'pago'::text AS origen,
     pg.id AS asiento_id,
     pg.fecha,
-    'maun'::tesoro AS tesoro,
+        CASE
+            WHEN pg.tesoro_id IS NULL THEN 'maun'::tesoro
+            ELSE NULL::tesoro
+        END AS tesoro,
     NULL::tesoro AS contrapartida,
     pg.monto_centavos,
     'cobro'::text AS concepto,
@@ -1630,7 +1686,7 @@ UNION ALL
     pg.concepto AS descripcion,
     pg.proyecto_id,
     pg.ya_en_la_apertura,
-    tm.id AS tesoro_id,
+    COALESCE(pg.tesoro_id, tm.id) AS tesoro_id,
     NULL::uuid AS contrapartida_id
    FROM pagos pg
      JOIN proyectos p ON p.household_id = pg.household_id AND p.id = pg.proyecto_id
@@ -1696,7 +1752,7 @@ UNION ALL
      JOIN tesoros tm ON tm.household_id = r.household_id AND tm.clave = 'maun'::tesoro
      CROSS JOIN LATERAL ( VALUES (t.clave,'maun'::tesoro,r.monto_centavos,t.id,tm.id), ('maun'::tesoro,t.clave,- r.monto_centavos,tm.id,t.id)) d(tesoro, contrapartida, monto_centavos, tesoro_id, contrapartida_id)
   WHERE r.deleted_at IS NULL AND p.deleted_at IS NULL AND (p.estado = ANY (ARRAY['cobrado'::estado_proyecto, 'perdido'::estado_proyecto])) AND r.tesoro_id <> tm.id AND r.monto_centavos <> 0;
-comment on view public.libro_mayor is 'Libro mayor por tesoro: una fila por tesoro afectado, importe con signo. tesoro_id y contrapartida_id son los tesoros por id; tesoro y contrapartida, su clave (null para los tesoros del dueño). El saldo de un tesoro es sum(monto_centavos) where tesoro_id = X and not ya_en_la_apertura: una fila ya_en_la_apertura es plata de antes de la apertura que ya estaba en los saldos con los que arrancó la app, y queda en el libro con su fecha sin mover los tesoros (ADR 0063). Los repartos de un cobro por la fila salen de public.repartos (ADR 0078).';
+comment on view public.libro_mayor is 'Libro mayor por tesoro: una fila por tesoro afectado, importe con signo y en la moneda de su tesoro. tesoro_id y contrapartida_id son los tesoros por id; tesoro y contrapartida, su clave (null para los tesoros del dueño). El saldo de un tesoro es sum(monto_centavos) where tesoro_id = X and not ya_en_la_apertura, y nunca se suma con el de un tesoro de otra moneda: un cambio sale de su origen con monto_centavos y entra a su destino con monto_destino_centavos, y un pago en dólares entra a su tesoro en dólares con su importe en dólares, mientras uno en pesos entra a Maun, como siempre (ADR 0081). Una fila ya_en_la_apertura es plata de antes de la apertura que ya estaba en los saldos con los que arrancó la app, y queda en el libro con su fecha sin mover los tesoros (ADR 0063). Los repartos de un cobro por la fila salen de public.repartos (ADR 0078).';
 grant select on public.libro_mayor to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.libro_mayor to service_role;
 
@@ -2202,6 +2258,12 @@ begin
       select nullif(a.resena_link, '') from public.ajustes a
       where a.household_id = v_encuesta.household_id
     ),
+    -- El idioma de los clientes del taller: la encuesta habla en él (ADR 0082). Las preguntas quedan
+    -- como las escribió el dueño.
+    'idioma', coalesce(
+      (select a.idioma_de_los_clientes from public.ajustes a where a.household_id = v_encuesta.household_id),
+      'es'
+    ),
     'preguntas', (
       select coalesce(
         jsonb_agg(
@@ -2250,7 +2312,7 @@ begin
 end;
 $function$;
 -- execute: anon:EXECUTE, service_role:EXECUTE
-comment on function encuesta_compartida(text) is 'La encuesta de un enlace, para el cliente que lo abre sin sesión. Es una de las dos únicas funciones que el rol anónimo puede ejecutar. PUEDE: resolver el token contra su sha256 y devolver el nombre del taller, la primera palabra del nombre del cliente, el título del trabajo, el enlace de reseña del taller, las preguntas de ese enlace (la foto que se tomó al mandarlo más las propias del trabajo, cada una con id, texto, tipo, escala, obligatoria, opciones y si es propia) y, si ya contestó, qué contestó y cuándo. NO PUEDE: devolver un importe, un pago, la etapa, la dirección, el teléfono ni ningún otro dato del cliente o del trabajo; devolver nada de otro trabajo ni de otro taller; escribir nada, ni siquiera una visita (es stable, y por eso la usa también la vista previa del enlace). Un enlace inválido, dado de baja, de un trabajo borrado o perdido contestan lo mismo, MN010, sin decir si existió (ADR 0057).';
+comment on function encuesta_compartida(text) is 'La encuesta de un enlace, para el cliente que lo abre sin sesión. Es una de las dos únicas funciones que el rol anónimo puede ejecutar. PUEDE: resolver el token contra su sha256 y devolver el nombre del taller, la primera palabra del nombre del cliente, el título del trabajo, el enlace de reseña del taller, el idioma de sus clientes (ADR 0082), las preguntas de ese enlace (la foto que se tomó al mandarlo más las propias del trabajo, cada una con id, texto, tipo, escala, obligatoria, opciones y si es propia) y, si ya contestó, qué contestó y cuándo. NO PUEDE: devolver un importe, un pago, la etapa, la dirección, el teléfono ni ningún otro dato del cliente o del trabajo; devolver nada de otro trabajo ni de otro taller; escribir nada, ni siquiera una visita (es stable, y por eso la usa también la vista previa del enlace). Un enlace inválido, dado de baja, de un trabajo borrado o perdido contestan lo mismo, MN010, sin decir si existió (ADR 0057).';
 
 CREATE OR REPLACE FUNCTION public.estado_de_mis_avisos(p_endpoint text DEFAULT NULL::text)
  RETURNS jsonb
@@ -2325,6 +2387,7 @@ declare
   v_comprometida date;
   v_franja public.franja_de_entrega;
   v_tipo text;
+  v_moneda text;
   v_household_id uuid;
   v_cuantas integer;
   v_aprobadas integer;
@@ -2383,7 +2446,8 @@ begin
     listo_el text,
     entrega_comprometida text,
     entrega_comprometida_franja text,
-    tipo_de_proyecto text
+    tipo_de_proyecto text,
+    moneda text
   );
 
   if v_p.id is null or v_p.cliente_id is null or v_p.titulo is null or v_p.estado is null then
@@ -2541,6 +2605,13 @@ begin
     else v_actual.tipo_de_proyecto
   end;
 
+  -- La moneda del trabajo, con el mismo patrón: un bundle viejo no la manda y no la cambia, y un trabajo
+  -- nuevo sin la clave nace en pesos (ADR 0081).
+  v_moneda := case
+    when p_proyecto ? 'moneda' then coalesce(v_p.moneda, 'ARS')
+    else coalesce(v_actual.moneda, 'ARS')
+  end;
+
   -- Lo mismo que hace private.cuidar_las_fechas_de_la_entrega() con cualquier escritura: en curso no
   -- hay entrega real, antes de aprobar no hay listo ni comprometida, y la franja no va sin su día.
   v_fecha_entrega := case when v_p.estado = 'en_curso' then null else v_p.fecha_entrega end;
@@ -2621,7 +2692,7 @@ begin
       v_actual.vencimiento_presupuesto, v_actual.visita_hecha, v_actual.sena_bp,
       v_actual.entrega_hora, v_actual.visita_hora, v_actual.presupuesto_vale_hasta,
       v_actual.listo_el, v_actual.entrega_comprometida, v_actual.entrega_comprometida_franja,
-      v_actual.tipo_de_proyecto
+      v_actual.tipo_de_proyecto, v_actual.moneda
     ) is not distinct from (
       v_p.cliente_id, v_p.titulo, coalesce(v_p.descripcion, ''), v_p.estado,
       v_presupuesto, v_p.forma_pago, v_p.comprobante,
@@ -2629,7 +2700,7 @@ begin
       v_p.entrega_estimada, v_fecha_entrega, coalesce(v_p.direccion_entrega, ''),
       coalesce(v_p.notas, ''), v_vencimiento, v_visita_hecha, v_sena_bp,
       v_entrega_hora, v_visita_hora, v_vale_hasta,
-      v_listo, v_comprometida, v_franja, v_tipo
+      v_listo, v_comprometida, v_franja, v_tipo, v_moneda
     );
 
     -- Un guardado hecho sin señal sobre una versión vieja no pisa en silencio lo que hay. La
@@ -2645,6 +2716,43 @@ begin
               detail = format('versión vista %s, versión actual %s', v_p.version, v_actual.version),
               hint = 'Abrilo de nuevo para ver lo que hay ahora y volvé a cargar lo que te falte.';
     end if;
+
+    -- Una app sin actualizar no manda la moneda y cree que todo importe es de pesos: en un trabajo en
+    -- dólares no cambia el presupuesto ni el importe de una opción. Lo de siempre pasa (ADR 0081).
+    if not (p_proyecto ? 'moneda') and v_actual.moneda <> 'ARS' and (
+      v_presupuesto is distinct from v_actual.presupuesto_centavos
+      or exists (
+        select 1
+        from jsonb_to_recordset(coalesce(p_opciones, '[]'::jsonb))
+          as r (id uuid, monto_centavos bigint, borrado boolean)
+        left join public.opciones_de_presupuesto o
+          on o.household_id = v_household_id and o.id = r.id and o.deleted_at is null
+        where not coalesce(r.borrado, false)
+          and o.monto_centavos is distinct from r.monto_centavos
+      )
+    ) then
+      raise exception 'Este trabajo tiene plata en dólares'
+        using errcode = 'MN038',
+              detail = 'presupuesto',
+              hint = 'Actualizá la app y volvé a hacerlo.';
+    end if;
+  end if;
+
+  -- Lo mismo con un pago en dólares: sin la clave de la moneda del pago, su importe no se cambia.
+  if exists (
+    select 1
+    from jsonb_array_elements(p_pagos) as e
+    cross join lateral jsonb_to_record(e) as r (id uuid, monto_centavos bigint, borrado boolean)
+    join public.pagos g on g.household_id = v_household_id and g.id = r.id
+    where not coalesce(r.borrado, false)
+      and not (e ? 'moneda')
+      and g.moneda <> 'ARS'
+      and g.monto_centavos is distinct from r.monto_centavos
+  ) then
+    raise exception 'Este trabajo tiene plata en dólares'
+      using errcode = 'MN038',
+            detail = 'pago',
+            hint = 'Actualizá la app y volvé a hacerlo.';
   end if;
 
   -- Alta y edición se escriben por separado, no con un upsert. En un `insert ... on conflict do
@@ -2682,7 +2790,8 @@ begin
       listo_el = v_listo,
       entrega_comprometida = v_comprometida,
       entrega_comprometida_franja = v_franja,
-      tipo_de_proyecto = v_tipo
+      tipo_de_proyecto = v_tipo,
+      moneda = v_moneda
     where id = v_p.id
     returning * into v_fila;
   else
@@ -2692,14 +2801,14 @@ begin
         fecha_visita, ultimo_contacto, fecha_inicio, entrega_estimada, fecha_entrega,
         direccion_entrega, notas, vencimiento_presupuesto, visita_hecha, sena_bp,
         entrega_hora, visita_hora, presupuesto_vale_hasta, listo_el, entrega_comprometida,
-        entrega_comprometida_franja, tipo_de_proyecto
+        entrega_comprometida_franja, tipo_de_proyecto, moneda
       ) values (
         v_p.id, v_p.cliente_id, v_p.titulo, coalesce(v_p.descripcion, ''), v_p.estado,
         v_presupuesto, v_p.forma_pago, v_p.comprobante,
         v_p.fecha_visita, v_p.ultimo_contacto, v_p.fecha_inicio, v_p.entrega_estimada,
         v_fecha_entrega, coalesce(v_p.direccion_entrega, ''), coalesce(v_p.notas, ''),
         v_vencimiento, v_visita_hecha, v_sena_bp, v_entrega_hora, v_visita_hora, v_vale_hasta,
-        v_listo, v_comprometida, v_franja, v_tipo
+        v_listo, v_comprometida, v_franja, v_tipo, v_moneda
       )
       returning * into v_fila;
     exception
@@ -2712,18 +2821,26 @@ begin
   end if;
 
   -- Los hijos van después del proyecto: la foreign key compuesta exige que el padre exista. La marca
-  -- de la apertura de un pago usa el patrón de la clave presente: sin la clave (un bundle viejo)
-  -- queda la que ya tenía el pago, y un pago nuevo nace en false.
-  insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos, ya_en_la_apertura)
+  -- de la apertura de un pago, su moneda, su cotización y su tesoro usan el patrón de la clave
+  -- presente: sin la clave (un bundle viejo) queda lo que ya tenía el pago, y un pago nuevo nace en
+  -- false y en pesos, sin cotización ni tesoro. Van también en la fila propuesta, porque los checks se
+  -- evalúan sobre ella antes del on conflict.
+  insert into public.pagos (
+    id, proyecto_id, fecha, concepto, monto_centavos, ya_en_la_apertura, moneda, cotizacion_centavos,
+    tesoro_id
+  )
   select r.id, v_fila.id, r.fecha::date, coalesce(r.concepto, ''), r.monto_centavos,
          case
            when e ? 'ya_en_la_apertura' then coalesce(r.ya_en_la_apertura, false)
            else coalesce(g.ya_en_la_apertura, false)
-         end
+         end,
+         case when e ? 'moneda' then coalesce(r.moneda, 'ARS') else coalesce(g.moneda, 'ARS') end,
+         case when e ? 'cotizacion_centavos' then r.cotizacion_centavos else g.cotizacion_centavos end,
+         case when e ? 'tesoro_id' then r.tesoro_id else g.tesoro_id end
   from jsonb_array_elements(p_pagos) as e
   cross join lateral jsonb_to_record(e) as r (
     id uuid, fecha text, concepto text, monto_centavos bigint, ya_en_la_apertura boolean,
-    borrado boolean
+    moneda text, cotizacion_centavos bigint, tesoro_id uuid, borrado boolean
   )
   left join public.pagos g on g.id = r.id
   where not coalesce(r.borrado, false)
@@ -2732,7 +2849,10 @@ begin
     fecha = excluded.fecha,
     concepto = excluded.concepto,
     monto_centavos = excluded.monto_centavos,
-    ya_en_la_apertura = excluded.ya_en_la_apertura;
+    ya_en_la_apertura = excluded.ya_en_la_apertura,
+    moneda = excluded.moneda,
+    cotizacion_centavos = excluded.cotizacion_centavos,
+    tesoro_id = excluded.tesoro_id;
 
   insert into public.gastos (id, proyecto_id, fecha, descripcion, monto_centavos)
   select r.id, v_fila.id, r.fecha::date, coalesce(r.descripcion, ''), r.monto_centavos
@@ -2954,19 +3074,20 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function guardar_proyecto(jsonb,jsonb,jsonb,jsonb,jsonb,jsonb) is 'Guarda un proyecto con sus pagos, sus gastos, sus opciones de presupuesto, lo que hace falta para el trabajo y su próximo contacto en una sola transacción, idempotente por el id del proyecto. El alta es un upsert; la edición manda la version que vio el cliente y se rechaza con MN006 si la fila cambió. Las bajas de las filas hijas vienen marcadas con borrado en su propio array. Un pago sin fecha se rechaza con MN016: la fecha la manda la app (ADR 0063); la guarda de la tabla rechaza además una fecha que todavía no llegó y una marca de la apertura que no corresponde. Con opciones vivas, el presupuesto del proyecto sale de la opción aprobada y no de lo que manda el cliente. Entrar en seguimiento, cambiar la fecha y registrar el contacto viajan en p_proximos junto con el estado, y la guarda diferida exige que el trabajo en seguimiento tenga su contacto pendiente (MN019, ADR 0064); al entrar, la etapa a la que vuelve la pone la base. Hasta cuándo vale el presupuesto (presupuesto_vale_hasta), el día en que quedó listo (listo_el), la entrega comprometida con su franja y el tipo de proyecto se escriben solo si la clave viene en el pedido, como el vencimiento (ADR 0067 y 0071); con el trabajo en curso la entrega real va en null, y antes de aprobar el listo y la comprometida también. p_opciones, p_necesidades y p_proximos en null quieren decir "no toques eso", para que un bundle viejo no lo borre; lo mismo la clave ya_en_la_apertura de cada pago. Los cuatro costos estimados no los escribe esta función: van por un update de sus columnas solas.';
+comment on function guardar_proyecto(jsonb,jsonb,jsonb,jsonb,jsonb,jsonb) is 'Guarda un proyecto con sus pagos, sus gastos, sus opciones de presupuesto, lo que hace falta para el trabajo y su próximo contacto en una sola transacción, idempotente por el id del proyecto. El alta es un upsert; la edición manda la version que vio el cliente y se rechaza con MN006 si la fila cambió. Las bajas de las filas hijas vienen marcadas con borrado en su propio array. Un pago sin fecha se rechaza con MN016: la fecha la manda la app (ADR 0063); la guarda de la tabla rechaza además una fecha que todavía no llegó y una marca de la apertura que no corresponde. Con opciones vivas, el presupuesto del proyecto sale de la opción aprobada y no de lo que manda el cliente. Entrar en seguimiento, cambiar la fecha y registrar el contacto viajan en p_proximos junto con el estado, y la guarda diferida exige que el trabajo en seguimiento tenga su contacto pendiente (MN019, ADR 0064); al entrar, la etapa a la que vuelve la pone la base. Hasta cuándo vale el presupuesto (presupuesto_vale_hasta), el día en que quedó listo (listo_el), la entrega comprometida con su franja y el tipo de proyecto se escriben solo si la clave viene en el pedido, como el vencimiento (ADR 0067 y 0071); con el trabajo en curso la entrega real va en null, y antes de aprobar el listo y la comprometida también. p_opciones, p_necesidades y p_proximos en null quieren decir "no toques eso", para que un bundle viejo no lo borre; lo mismo la clave ya_en_la_apertura de cada pago. La moneda del trabajo y la moneda, la cotización y el tesoro de cada pago usan el mismo patrón de la clave presente; sin la clave de la moneda (una app sin actualizar), cambiar el presupuesto o una opción de un trabajo en dólares, o el importe de un pago en dólares, rebota con MN038 (ADR 0081). Los cuatro costos estimados, su dólar y lo que te paga en no los escribe esta función: van por un update de sus columnas solas.';
 
-CREATE OR REPLACE FUNCTION public.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date)
+CREATE OR REPLACE FUNCTION public.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date, p_idioma text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO ''
 AS $function$
   select private.mandar_el_presupuesto(
-    p_presupuesto_id, p_revision_id, p_version, p_documento, p_que_cambio, p_mandado_el, p_vale_hasta
+    p_presupuesto_id, p_revision_id, p_version, p_documento, p_que_cambio, p_mandado_el, p_vale_hasta,
+    p_idioma
   )
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date) is 'RPC de la hoja de mandar: congela una revisión del presupuesto con el documento que armó la app y devuelve la revisión, el borrador, el trabajo y sus próximos contactos para la réplica. Ver private.mandar_el_presupuesto().';
+comment on function mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date,text) is 'RPC de la hoja de mandar: congela una revisión del presupuesto con el documento que armó la app, en el idioma con que lo armó, y devuelve la revisión, el borrador, el trabajo y sus próximos contactos para la réplica. El idioma tiene default: una app sin actualizar lo llama como antes (ADR 0082). Ver private.mandar_el_presupuesto().';
 
 CREATE OR REPLACE FUNCTION private.anotar_aviso(p_suscripcion uuid, p_dia date, p_mandado boolean)
  RETURNS boolean
@@ -3336,6 +3457,16 @@ AS $function$
         -- La zona de la persona: con ella la función pasa fila_guardada_at al mes en que se guardó, que
         -- en las últimas horas del último día de un mes no es el mismo en UTC.
         'zona', d.zona,
+        -- El idioma de la persona, el que eligió para su cuenta (ADR 0082): la función escribe el aviso
+        -- en él. Si no eligió ninguno o no es uno de los tres, español, que es lo de siempre.
+        'idioma', coalesce(
+          (
+            select u.raw_user_meta_data ->> 'idioma'
+            from auth.users u
+            where u.id = d.user_id and u.raw_user_meta_data ->> 'idioma' in ('es', 'en', 'pt-BR')
+          ),
+          'es'
+        ),
         'preferencias', private.avisos_completos(d.avisos),
         'filas', jsonb_build_object(
           'proyectos', (
@@ -3405,7 +3536,7 @@ AS $function$
   where d.household_id is not null
 $function$;
 -- execute: service_role:EXECUTE
-comment on function private.avisos_por_mandar(timestamp with time zone) is 'Los dispositivos a los que les toca el aviso de la mañana en este momento, según la zona horaria y la hora de cada persona, con su zona y los datos de su taller que necesita la agenda: los trabajos, los clientes, las anotaciones, los contactos en seguimiento pendientes y, para los vencimientos de los compromisos, los ajustes con la fila, los tesoros y los gastos desde un tesoro de los meses que mira el aviso. Qué avisar lo decide eventosParaAvisar de @maun/domain en la función de borde, no esta consulta.';
+comment on function private.avisos_por_mandar(timestamp with time zone) is 'Los dispositivos a los que les toca el aviso de la mañana en este momento, según la zona horaria y la hora de cada persona, con su zona, el idioma de su cuenta (es si no eligió uno de los tres, ADR 0082) y los datos de su taller que necesita la agenda: los trabajos, los clientes, las anotaciones, los contactos en seguimiento pendientes y, para los vencimientos de los compromisos, los ajustes con la fila, los tesoros y los gastos desde un tesoro de los meses que mira el aviso. Qué avisar lo decide eventosParaAvisar de @maun/domain en la función de borde, no esta consulta.';
 
 CREATE OR REPLACE FUNCTION private.borrar_el_presupuesto_del_trabajo(p_household_id uuid, p_proyecto_id uuid, p_momento timestamp with time zone)
  RETURNS void
@@ -3706,6 +3837,8 @@ AS $function$
 declare
   v_clave public.tesoro;
   v_id uuid;
+  v_moneda_desde text;
+  v_moneda_hacia text;
 begin
   -- Cada lado por separado. En un alta manda el que vino: una app de antes manda la clave y una nueva
   -- manda el id. En una edición manda el que cambió, porque una app de antes edita mandando solo la
@@ -3792,6 +3925,45 @@ begin
     end if;
   end if;
 
+  -- Las monedas, con los dos lados ya completos: un movimiento con los dos lados va entre tesoros de
+  -- la misma moneda, salvo un cambio, que va entre monedas distintas. Se mira en toda alta y en toda
+  -- edición que toque el tipo, un lado o el segundo importe, leyendo la moneda de los dos tesoros
+  -- aunque no hayan cambiado: si no, un pase en pesos editado a cambio crearía o borraría plata en el
+  -- libro. Un tesoro que no existe no tiene moneda: lo rechaza su foreign key.
+  if (
+      tg_op = 'INSERT'
+      or new.tipo is distinct from old.tipo
+      or new.desde_id is distinct from old.desde_id
+      or new.hacia_id is distinct from old.hacia_id
+      or new.tesoro_origen is distinct from old.tesoro_origen
+      or new.tesoro_destino is distinct from old.tesoro_destino
+      or new.monto_destino_centavos is distinct from old.monto_destino_centavos
+    )
+    and new.desde_id is not null and new.hacia_id is not null
+  then
+    select t.moneda into v_moneda_desde
+    from public.tesoros t
+    where t.household_id = new.household_id and t.id = new.desde_id;
+    select t.moneda into v_moneda_hacia
+    from public.tesoros t
+    where t.household_id = new.household_id and t.id = new.hacia_id;
+
+    if v_moneda_desde is not null and v_moneda_hacia is not null then
+      if new.tipo <> 'cambio' and v_moneda_desde <> v_moneda_hacia then
+        raise exception 'Entre pesos y dólares es una compra o una venta'
+          using errcode = 'MN035',
+                detail = format('%s de %s a %s', new.tipo, v_moneda_desde, v_moneda_hacia),
+                hint = 'Actualizá la app y cargalo como compra o venta de dólares.';
+      end if;
+      if new.tipo = 'cambio' and v_moneda_desde = v_moneda_hacia then
+        raise exception 'Una compra o una venta va entre un tesoro en pesos y uno en dólares'
+          using errcode = 'MN035',
+                detail = format('%s de %s a %s', new.tipo, v_moneda_desde, v_moneda_hacia),
+                hint = 'Entre dos tesoros de la misma moneda, cargalo como un pase entre tesoros.';
+      end if;
+    end if;
+  end if;
+
   -- Todo movimiento cambia algún saldo que la liquidación puede mirar: el de un compromiso que se
   -- renueva al pagar, el de un ahorro que se repone al usarlo o el de un tesoro con meta, y la plata
   -- que cubre un mes cuenta para su tope. Toma los ajustes, como una liquidación, para que una
@@ -3811,7 +3983,7 @@ begin
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.completar_los_tesoros() is 'Trigger de movimientos: completa desde_id y hacia_id desde tesoro_origen y tesoro_destino, o al revés, siguiendo el lado que cambió, y rechaza con 23514 si los dos cambian y no dicen lo mismo. Así una app de antes, que manda el enum, y una nueva, que manda el id, escriben la misma fila. Antes de escribir toma los ajustes del taller for no key update, como una liquidación, porque todo movimiento cambia un saldo que la liquidación puede mirar (un compromiso que se renueva al pagar, un ahorro que se repone al usarlo, una meta, lo que cubre un mes); si trae proyecto_id, toma primero ese proyecto for key share, en el orden de la liquidación y de la reversión (ADR 0078).';
+comment on function private.completar_los_tesoros() is 'Trigger de movimientos: completa desde_id y hacia_id desde tesoro_origen y tesoro_destino, o al revés, siguiendo el lado que cambió, y rechaza con 23514 si los dos cambian y no dicen lo mismo. Así una app de antes, que manda el enum, y una nueva, que manda el id, escriben la misma fila. Con los dos lados completos, rechaza con MN035 un movimiento entre tesoros de monedas distintas que no sea un cambio, y un cambio entre tesoros de la misma moneda; lo mira en toda alta y en toda edición que toque el tipo, un lado o monto_destino_centavos, leyendo la moneda de los dos tesoros, que es inmutable (ADR 0081). Antes de escribir toma los ajustes del taller for no key update, como una liquidación, porque todo movimiento cambia un saldo que la liquidación puede mirar (un compromiso que se renueva al pagar, un ahorro que se repone al usarlo, una meta, lo que cubre un mes); si trae proyecto_id, toma primero ese proyecto for key share, en el orden de la liquidación y de la reversión (ADR 0078).';
 
 CREATE OR REPLACE FUNCTION private.contar_la_revision_de_la_fila()
  RETURNS trigger
@@ -4029,6 +4201,49 @@ end;
 $function$;
 -- execute: solo el dueño
 comment on function private.cuidar_la_encuesta() is 'Trigger de encuestas_enviadas: el recordatorio y la baja se escriben una sola vez. Un reenvío con la misma marca no cambia nada, y uno con otra marca conserva la primera.';
+
+CREATE OR REPLACE FUNCTION private.cuidar_la_moneda_del_tesoro()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  -- El reenvío del alta (un upsert con la misma moneda) pasa: solo rechaza un cambio de verdad.
+  if new.moneda is distinct from old.moneda then
+    raise exception 'Ese tesoro sigue en su moneda'
+      using errcode = 'MN034',
+            detail = format('moneda %s, pedida %s', old.moneda, new.moneda),
+            hint = 'La moneda de un tesoro no se cambia. Si lo necesitás en la otra moneda, creá uno nuevo y pasá la plata con una compra o una venta.';
+  end if;
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuidar_la_moneda_del_tesoro() is 'Trigger de tesoros, antes de un update de moneda: rechaza con MN034 que un tesoro cambie de moneda. El grant de update de la columna existe solo porque el alta es un upsert; el reenvío del alta con la misma moneda pasa (ADR 0081).';
+
+CREATE OR REPLACE FUNCTION private.cuidar_la_moneda_del_trabajo()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  -- El reenvío con la misma moneda pasa: solo rechaza un cambio de verdad fuera de consulta.
+  if new.moneda is distinct from old.moneda
+    and old.estado not in (
+      'contacto', 'presupuesto_estimativo', 'relevamiento', 'a_presupuestar', 'presupuesto_enviado',
+      'en_seguimiento'
+    )
+  then
+    raise exception 'La moneda de un trabajo se elige mientras es una consulta'
+      using errcode = 'MN036',
+            detail = format('estado %s, moneda %s, pedida %s', old.estado, old.moneda, new.moneda),
+            hint = 'Si hace falta cambiarla, volvé el trabajo a presupuesto enviado.';
+  end if;
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuidar_la_moneda_del_trabajo() is 'Trigger de proyectos, antes de un update de moneda: rechaza con MN036 que un trabajo cambie de moneda si ya no es una consulta (los cinco primeros estados y en_seguimiento). El reenvío con la misma moneda pasa. Un trabajo aprobado puede volver a presupuesto enviado y ahí cambiarla (ADR 0081).';
 
 CREATE OR REPLACE FUNCTION private.cuidar_la_pregunta()
  RETURNS trigger
@@ -4282,6 +4497,22 @@ $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.dar_de_baja_suscripcion(text) is 'Borra este dispositivo si es del usuario de la sesión. Un endpoint de otra cuenta no se toca.';
 
+CREATE OR REPLACE FUNCTION private.dolares_de_pesos(p_pesos bigint, p_cotizacion bigint)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if p_pesos < 0 then
+    raise exception 'Se convierte un importe no negativo' using errcode = '22023';
+  end if;
+  return div(200 * p_pesos::numeric + p_cotizacion, 2 * p_cotizacion::numeric)::bigint;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.dolares_de_pesos(bigint,bigint) is 'Los centavos de dólar de unos centavos de peso a una cotización en centavos de peso por dólar, redondeados a la mitad hacia arriba: dolares_de_pesos(pesos_de_dolares(d, c), c) = d para toda cotización desde un peso. Gemela de dolaresDePesos en cotizacion.ts (ADR 0081).';
+
 CREATE OR REPLACE FUNCTION private.entero_de_json(p_valor jsonb)
  RETURNS bigint
  LANGUAGE plpgsql
@@ -4380,6 +4611,42 @@ AS $function$
   select private.estado_de_los_avisos((select auth.uid()), p_endpoint)
 $function$;
 -- execute: authenticated:EXECUTE
+
+CREATE OR REPLACE FUNCTION private.exigir_el_dolar_de_los_pagos()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_proyecto_id uuid;
+begin
+  if tg_table_name = 'pagos' then
+    v_proyecto_id := new.proyecto_id;
+  else
+    v_proyecto_id := new.id;
+  end if;
+
+  if exists (
+    select 1
+    from public.proyectos p
+    join public.pagos g on g.household_id = p.household_id and g.proyecto_id = p.id
+    where p.household_id = new.household_id
+      and p.id = v_proyecto_id
+      and p.moneda <> 'ARS'
+      and g.deleted_at is null
+      and g.moneda = 'ARS'
+      and g.cotizacion_centavos is null
+  ) then
+    raise exception 'A un pago en pesos de este trabajo en dólares le falta su dólar'
+      using errcode = 'MN039',
+            hint = 'Actualizá la app y volvé a cargarlo.';
+  end if;
+
+  return null;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.exigir_el_dolar_de_los_pagos() is 'Constraint trigger diferido de pagos y de proyectos (solo after update of moneda): en un trabajo en dólares, todo pago vivo en pesos tiene que llevar a qué dólar se tomó; si no, MN039. Es diferido porque guardar_proyecto escribe el trabajo antes que sus pagos. Se encola solo para un pago vivo en pesos sin su dólar y para un trabajo que de verdad cambia de moneda: el when de un constraint trigger se mira al escribir, no al commit. Un pago en pesos y un cambio de moneda a la vez se esperan en el candado del proyecto, y el que commitea segundo ve al otro (ADR 0081).';
 
 CREATE OR REPLACE FUNCTION private.fecha_de_apertura(p_household_id uuid)
  RETURNS date
@@ -4607,14 +4874,16 @@ begin
   -- Null vuelve a la fila de siempre. La pantalla no lo ofrece: lo usan los e2e para dejar sin fila
   -- el taller de prueba.
   if p_fila is not null then
-    -- Los tesoros del taller con su meta: la de Cocos sigue en ajustes, la de los demás en tesoros.
+    -- Los tesoros del taller con su meta y su moneda: la meta de Cocos sigue en ajustes, la de los
+    -- demás en tesoros.
     select coalesce(
       jsonb_agg(
         jsonb_build_object(
           'id', t.id,
           'clave', t.clave,
           'archivado', t.archivado_at is not null,
-          'meta', case when t.clave = 'cocos' then v_ajustes.meta_cocos_centavos else t.meta_centavos end
+          'meta', case when t.clave = 'cocos' then v_ajustes.meta_cocos_centavos else t.meta_centavos end,
+          'moneda', t.moneda
         )
       ),
       '[]'::jsonb
@@ -4646,7 +4915,7 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE
-comment on function private.guardar_la_fila(integer,jsonb) is 'Guarda la fila del taller: bloquea los ajustes, compara la revisión que vio la app (MN006), valida la fila con private.problema_de_la_fila() contra los tesoros del taller y sus metas (la de Cocos, de ajustes) (MN023, con el código del problema en el detail), la guarda, suma una revisión y anota la fecha. Con la fila en null vuelve a la fila de siempre. Reconoce el reenvío idéntico: la misma fila con la revisión siguiente. Los cambios valen desde el próximo cobro: no toca ninguna liquidación hecha (ADR 0003 y 0078).';
+comment on function private.guardar_la_fila(integer,jsonb) is 'Guarda la fila del taller: bloquea los ajustes, compara la revisión que vio la app (MN006), valida la fila con private.problema_de_la_fila() contra los tesoros del taller con su meta (la de Cocos, de ajustes) y su moneda (MN023, con el código del problema en el detail; un tesoro en dólares no entra, ADR 0081), la guarda, suma una revisión y anota la fecha. Con la fila en null vuelve a la fila de siempre. Reconoce el reenvío idéntico: la misma fila con la revisión siguiente. Los cambios valen desde el próximo cobro: no toca ninguna liquidación hecha (ADR 0003 y 0078).';
 
 CREATE OR REPLACE FUNCTION private.guardar_la_plantilla_del_presupuesto(p_version integer, p_plantilla jsonb)
  RETURNS ajustes
@@ -4829,6 +5098,7 @@ declare
   v_topes_vistos record;
   v_ajustada boolean := false;
   v_cobrado bigint;
+  v_cobrado_crudo bigint;
   v_gastos bigint;
   v_dist record;
   v_dist_vista record;
@@ -5095,7 +5365,12 @@ begin
   from public.tesoros t
   where t.household_id = v_proyecto.household_id and t.clave = 'diezmo';
 
-  select coalesce(sum(g.monto_centavos), 0) into v_cobrado
+  -- Lo cobrado es la suma del valor en pesos de cada pago: uno en dólares vale sus pesos a su
+  -- cotización. La suma cruda de los importes es la que hace una app sin actualizar (ADR 0081).
+  select
+    coalesce(sum(private.valor_en_pesos(g.moneda, g.monto_centavos, g.cotizacion_centavos)), 0),
+    coalesce(sum(g.monto_centavos), 0)
+  into v_cobrado, v_cobrado_crudo
   from public.pagos g
   where g.household_id = v_proyecto.household_id
     and g.proyecto_id = v_proyecto.id
@@ -5198,6 +5473,15 @@ begin
     -- la app no veía otra liquidación del mes (o una reapertura), o que cambiaron los ajustes. Con el
     -- acumulado a la vista eso deja de ser una adivinanza: si el acumulado coincide, un tope distinto
     -- solo puede venir de los objetivos, y sigue siendo MN006.
+    -- Una app sin actualizar suma los importes crudos, sin mirar la moneda de cada pago: con plata en
+    -- dólares no cobra, y no le sirve que le digan que cambiaron los pagos (ADR 0081).
+    if p_cobrado_centavos = v_cobrado_crudo and p_cobrado_centavos <> v_cobrado then
+      raise exception 'Este trabajo tiene plata en dólares'
+        using errcode = 'MN038',
+              detail = 'cobro',
+              hint = 'Actualizá la app y volvé a hacerlo.';
+    end if;
+
     if v_cobrado <> p_cobrado_centavos
       or v_gastos <> p_gastos_centavos
       or v_diezmo_bp <> coalesce(p_diezmo_bp, v_diezmo_bp)
@@ -5462,6 +5746,15 @@ begin
 
   -- Los totales y el diezmo tienen que ser los que vio el usuario, como en el camino de antes. En un
   -- perdido, el diezmo es el porcentaje del diezmo en la fila, o cero si no paga diezmo.
+  -- Una app sin actualizar suma los importes crudos, sin mirar la moneda de cada pago: con plata en
+  -- dólares no cobra, y no le sirve que le digan que cambiaron los pagos (ADR 0081).
+  if p_cobrado_centavos = v_cobrado_crudo and p_cobrado_centavos <> v_cobrado then
+    raise exception 'Este trabajo tiene plata en dólares'
+      using errcode = 'MN038',
+            detail = 'cobro',
+            hint = 'Actualizá la app y volvé a hacerlo.';
+  end if;
+
   if v_cobrado <> p_cobrado_centavos
     or v_gastos <> p_gastos_centavos
     or v_diezmo_bp <> coalesce(p_diezmo_bp, v_diezmo_bp)
@@ -5670,7 +5963,7 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE
-comment on function private.liquidar(estado_proyecto,uuid,integer,date,bigint,bigint,bigint,bigint,bigint,bigint,bigint,bigint,integer,bigint,bigint,boolean,integer,jsonb,jsonb) is 'Liquida un proyecto hacia cobrado o perdido y congela su distribución con la fecha que manda la app, también al volver a cobrar un reabierto (ADR 0063). Rechaza sin fecha (MN016), con una fecha que todavía no llegó (MN017) y un reparto marcado como ya incluido en la apertura con una fecha que no es anterior a ella (MN018). Bloquea el proyecto y después los ajustes. Reconoce el reenvío, ajustado o no, antes de elegir el camino. Sin p_fila_version y sin fila guardada va por el camino de antes (la cascada, con lo del mes que suma también los repartos vivos); sin p_fila_version y con fila guardada, o al volver a cobrar un reabierto que se cobró por la fila, rechaza con MN025; con p_fila_version reparte por la fila (la de su reapertura, la de siempre armada con su foto, o la de los ajustes; en un reabierto el sueldo va por mes si la foto o el taller van por mes, sueldo_tope_mensual o la fila guardada, y lo mismo por el camino de antes), rechaza con MN006 si la revisión no es esa, calcula el previo de cada paso según su modo (lo del mes, su saldo en libro_mayor o nada) con el piso de su meta y el tope de cada parte que va hasta la meta, congela el diezmo (la obligación del tesoro del diezmo) y las columnas de siempre con columnasDeSiempre, la fila en dist_fila y lo que vio en dist_previo, y escribe una fila de public.repartos por cada otra obligación, por paso, por parte y por el superávit si no es Maun, con los ids que manda la app. En los dos caminos: MN006 si la versión, los totales o el diezmo no son los que vio el cliente, MN008 si la distribución no es la de la base, y si lo que vio la app no es lo de la base, se congela con lo de la base en vez de rechazar (ADR 0016, 0078 y 0079).';
+comment on function private.liquidar(estado_proyecto,uuid,integer,date,bigint,bigint,bigint,bigint,bigint,bigint,bigint,bigint,integer,bigint,bigint,boolean,integer,jsonb,jsonb) is 'Liquida un proyecto hacia cobrado o perdido y congela su distribución con la fecha que manda la app, también al volver a cobrar un reabierto (ADR 0063). Rechaza sin fecha (MN016), con una fecha que todavía no llegó (MN017) y un reparto marcado como ya incluido en la apertura con una fecha que no es anterior a ella (MN018). Bloquea el proyecto y después los ajustes. Lo cobrado es la suma del valor en pesos de los pagos (private.valor_en_pesos), y si lo que mandó la app es la suma cruda de los importes y no esa, rebota con MN038 antes de comparar (una app sin actualizar con plata en dólares, ADR 0081). Reconoce el reenvío, ajustado o no, antes de elegir el camino. Sin p_fila_version y sin fila guardada va por el camino de antes (la cascada, con lo del mes que suma también los repartos vivos); sin p_fila_version y con fila guardada, o al volver a cobrar un reabierto que se cobró por la fila, rechaza con MN025; con p_fila_version reparte por la fila (la de su reapertura, la de siempre armada con su foto, o la de los ajustes; en un reabierto el sueldo va por mes si la foto o el taller van por mes, sueldo_tope_mensual o la fila guardada, y lo mismo por el camino de antes), rechaza con MN006 si la revisión no es esa, calcula el previo de cada paso según su modo (lo del mes, su saldo en libro_mayor o nada) con el piso de su meta y el tope de cada parte que va hasta la meta, congela el diezmo (la obligación del tesoro del diezmo) y las columnas de siempre con columnasDeSiempre, la fila en dist_fila y lo que vio en dist_previo, y escribe una fila de public.repartos por cada otra obligación, por paso, por parte y por el superávit si no es Maun, con los ids que manda la app. En los dos caminos: MN006 si la versión, los totales o el diezmo no son los que vio el cliente, MN008 si la distribución no es la de la base, y si lo que vio la app no es lo de la base, se congela con lo de la base en vez de rechazar (ADR 0016, 0078 y 0079).';
 
 CREATE OR REPLACE FUNCTION private.lo_del_mes_es_otro(p_pasos uuid[], p_partes uuid[], p_visto jsonb, p_base jsonb)
  RETURNS boolean
@@ -5697,6 +5990,28 @@ AS $function$
 $function$;
 -- execute: solo el dueño
 comment on function private.lo_del_mes_es_otro(uuid[],uuid[],jsonb,jsonb) is 'Si lo que la app vio, {tesoro_id: centavos}, no es lo que calculó la base: algún paso con otro previo (el que falta cuenta como cero) o alguna parte con tope en uno y sin tope en el otro, o con otro tope. Las claves que no son de los pasos ni de las partes no se miran. Null en lo visto es que la app no lo mandó: no hay nada con qué ajustar. Gemela de loVistoEsOtro en fila.ts (ADR 0078).';
+
+CREATE OR REPLACE FUNCTION private.lo_que_descuenta(p_moneda text, p_monto bigint, p_cotizacion bigint, p_moneda_del_trabajo text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if p_moneda = p_moneda_del_trabajo then
+    return p_monto;
+  end if;
+  if p_cotizacion is null then
+    raise exception 'A un pago en otra moneda que la del trabajo le falta su cotización' using errcode = '22004';
+  end if;
+  if p_moneda = 'ARS' then
+    return private.dolares_de_pesos(p_monto, p_cotizacion);
+  end if;
+  return private.pesos_de_dolares(p_monto, p_cotizacion);
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.lo_que_descuenta(text,bigint,bigint,text) is 'Lo que un pago descuenta del precio, en la moneda del trabajo: su importe si es de la misma moneda, y si no, convertido a su cotización. Es lo que se resta para la seña, el saldo, lo pagado por delante y «Lo que pagaste». Gemela de loQueDescuenta en cotizacion.ts (ADR 0081).';
 
 CREATE OR REPLACE FUNCTION private.lo_que_falta_para_mandar(p_documento jsonb, p_revision integer, p_que_cambio text)
  RETURNS text[]
@@ -5767,7 +6082,7 @@ $function$;
 -- execute: solo el dueño
 comment on function private.mandar_el_aviso_de_cambios(uuid) is 'Manda el aviso de cambios al canal privado del taller, cambios:<household_id>, con el evento cambios y un payload vacío (realtime.send le agrega solo un id). Gemela de TEMA_DE_LOS_CAMBIOS y EVENTO_DE_LOS_CAMBIOS de @maun/db. realtime.send no corta la transacción si falla: la escritura del usuario vale aunque el aviso no salga.';
 
-CREATE OR REPLACE FUNCTION private.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date)
+CREATE OR REPLACE FUNCTION private.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date, p_idioma text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -5788,6 +6103,8 @@ declare
   v_mandados jsonb;
   v_pagado bigint;
   v_distintos text[] := array[]::text[];
+  v_moneda_del_documento text;
+  v_moneda_de_lo_abonado text;
 begin
   if num_nulls(p_presupuesto_id, p_revision_id, p_version, p_documento, p_mandado_el) > 0 then
     raise exception 'Mandar el presupuesto necesita el borrador, la revisión, la revisión que viste, el documento y el día'
@@ -5884,6 +6201,15 @@ begin
             hint = 'Revisá la fecha del aparato y volvé a mandarlo.';
   end if;
 
+  -- El idioma con el que la app armó el documento: uno de los tres. Sin él (una app sin actualizar),
+  -- vale el de los clientes del taller.
+  if p_idioma is not null and p_idioma not in ('es', 'en', 'pt-BR') then
+    raise exception 'El presupuesto no se pudo mandar.'
+      using errcode = 'MN031',
+            detail = 'idioma',
+            hint = 'Revisalo y probá de nuevo.';
+  end if;
+
   v_problema := private.problema_del_documento(p_documento);
   if v_problema is not null then
     raise exception 'El presupuesto no se pudo mandar.'
@@ -5902,6 +6228,28 @@ begin
       using errcode = 'MN027',
             detail = array_to_string(v_falta, ', '),
             hint = 'Revisá que tenga título, por lo menos un mueble con su detalle y un total.';
+  end if;
+
+  -- Un documento en pesos de un trabajo en dólares solo lo arma una app sin actualizar, y MN029 le
+  -- diría que cambiaron los importes cuando no cambió nada (ADR 0081).
+  if v_proyecto.moneda <> 'ARS' and p_documento -> 'forma' = '1'::jsonb then
+    raise exception 'Este trabajo tiene plata en dólares'
+      using errcode = 'MN038',
+            detail = 'presupuesto',
+            hint = 'Actualizá la app y volvé a hacerlo.';
+  end if;
+
+  v_moneda_del_documento := case
+    when p_documento -> 'forma' = '2'::jsonb then p_documento ->> 'moneda'
+    else 'ARS'
+  end;
+  v_moneda_de_lo_abonado := case
+    when p_documento -> 'forma' = '2'::jsonb then p_documento ->> 'monedaDeLoAbonado'
+    else 'ARS'
+  end;
+
+  if v_moneda_del_documento is distinct from v_proyecto.moneda then
+    v_distintos := v_distintos || 'moneda'::text;
   end if;
 
   -- Los importes que vio la app contra los vivos, como el control de lo que vio la app de la
@@ -5939,7 +6287,15 @@ begin
     v_distintos := v_distintos || 'sena'::text;
   end if;
 
-  select coalesce(sum(g.monto_centavos), 0) into v_pagado
+  -- Lo pagado hasta hoy en la moneda de lo abonado del documento: lo que descuenta cada pago si es la
+  -- del trabajo, o su valor en pesos. Gemela de abonadoEn (ADR 0081).
+  select coalesce(sum(
+    case
+      when v_moneda_de_lo_abonado = v_proyecto.moneda
+        then private.lo_que_descuenta(g.moneda, g.monto_centavos, g.cotizacion_centavos, v_proyecto.moneda)
+      else private.valor_en_pesos(g.moneda, g.monto_centavos, g.cotizacion_centavos)
+    end
+  ), 0) into v_pagado
   from public.pagos g
   where g.household_id = v_household and g.proyecto_id = v_proyecto.id and g.deleted_at is null;
 
@@ -5971,14 +6327,15 @@ begin
 
   insert into public.revisiones_del_presupuesto (
     id, household_id, presupuesto_id, proyecto_id, revision, numero, mandado_el, vale_hasta, que_cambio,
-    contenido
+    contenido, idioma
   ) values (
     p_revision_id, v_household, v_presupuesto.id, v_proyecto.id, v_siguiente, v_presupuesto.numero,
     p_mandado_el, p_vale_hasta,
     case
       when v_siguiente > 1 then regexp_replace(p_que_cambio, '^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$', '', 'g')
     end,
-    p_documento
+    p_documento,
+    coalesce(p_idioma, v_ajustes.idioma_de_los_clientes)
   )
   returning * into v_revision;
 
@@ -6010,7 +6367,7 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE
-comment on function private.mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date) is 'Manda el presupuesto, en una transacción: bloquea el trabajo y después los ajustes del taller; si la revisión ya existe la devuelve (el reenvío); rechaza si el borrador cambió (MN026), si el trabajo está aprobado (MN028) o perdido (MN032), si el día del envío no llegó (MN033), si el documento no tiene la forma (MN031), si le falta algo para mandarlo (MN027) o si sus importes, su seña o lo pagado no son los del trabajo (MN029); en el primer envío le pone número; congela la revisión siguiente y pasa el trabajo a presupuesto enviado con la vigencia, el último contacto y la tarea tildada. Devuelve la revisión, el borrador, el trabajo y sus próximos contactos. Toda lectura filtra por el taller de la sesión, también la del reenvío (ADR 0080).';
+comment on function private.mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date,text) is 'Manda el presupuesto, en una transacción: bloquea el trabajo y después los ajustes del taller; si la revisión ya existe la devuelve (el reenvío); rechaza si el borrador cambió (MN026), si el trabajo está aprobado (MN028) o perdido (MN032), si el día del envío no llegó (MN033), si el idioma no es uno de los tres o el documento no tiene la forma (MN031), si le falta algo para mandarlo (MN027), si es un documento en pesos de un trabajo en dólares (MN038, lo arma solo una app sin actualizar) o si su moneda, sus importes, su seña o lo pagado no son los del trabajo (MN029; lo pagado, en la moneda de lo abonado del documento: lo que descuenta cada pago o su valor en pesos, ADR 0081); en el primer envío le pone número; congela la revisión siguiente con el idioma en que la app la armó (sin él, una app sin actualizar, el de los clientes del taller, ADR 0082) y pasa el trabajo a presupuesto enviado con la vigencia, el último contacto y la tarea tildada. Devuelve la revisión, el borrador, el trabajo y sus próximos contactos. Toda lectura filtra por el taller de la sesión, también la del reenvío (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.mantener_metadatos()
  RETURNS trigger
@@ -6218,6 +6575,22 @@ end;
 $function$;
 -- execute: solo el dueño
 comment on function private.pedir_los_avisos() is 'Le pide a la función de borde que mande los avisos que tocan. La llama pg_cron. Sin avisos_url y avisos_secreto en Vault devuelve null y no pide nada.';
+
+CREATE OR REPLACE FUNCTION private.pesos_de_dolares(p_dolares bigint, p_cotizacion bigint)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if p_dolares < 0 then
+    raise exception 'Se convierte un importe no negativo' using errcode = '22023';
+  end if;
+  return div(p_dolares::numeric * p_cotizacion + 50, 100)::bigint;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.pesos_de_dolares(bigint,bigint) is 'Los centavos de peso de unos centavos de dólar a una cotización en centavos de peso por dólar, redondeados a la mitad hacia arriba. Gemela de pesosDeDolares en cotizacion.ts; scripts/comparacion.ts las compara en una grilla con empates (ADR 0081).';
 
 CREATE OR REPLACE FUNCTION private.plan_del_reparto(p_destino text, p_fila jsonb, p_perdido_con_sueldo boolean, p_perdido_con_diezmo boolean, p_diezmo uuid, p_maun uuid, OUT obligaciones uuid[], OUT porcentajes_de_obligacion integer[], OUT bases text[], OUT diezmo_en integer, OUT diezmo_bp integer, OUT tesoros uuid[], OUT clases text[], OUT objetivos bigint[], OUT por_mes boolean[], OUT modos text[], OUT hasta_la_meta boolean[], OUT tesoros_del_reparto uuid[], OUT porcentajes integer[], OUT hasta_la_meta_del_reparto boolean[], OUT superavit uuid)
  RETURNS record
@@ -6580,6 +6953,9 @@ begin
     if (v_tesoro ->> 'archivado')::boolean then
       return 'tesoro-archivado';
     end if;
+    if coalesce(v_tesoro ->> 'moneda', 'ARS') <> 'ARS' then
+      return 'tesoro-en-otra-moneda';
+    end if;
     if (v_obligacion ->> 'tesoro') = any (v_vistos) then
       return 'tesoro-repetido';
     end if;
@@ -6612,6 +6988,9 @@ begin
     end if;
     if (v_tesoro ->> 'archivado')::boolean then
       return 'tesoro-archivado';
+    end if;
+    if coalesce(v_tesoro ->> 'moneda', 'ARS') <> 'ARS' then
+      return 'tesoro-en-otra-moneda';
     end if;
     if (v_paso ->> 'tesoro') = any (v_vistos) then
       return 'tesoro-repetido';
@@ -6720,6 +7099,9 @@ begin
     if (v_tesoro ->> 'archivado')::boolean then
       return 'tesoro-archivado';
     end if;
+    if coalesce(v_tesoro ->> 'moneda', 'ARS') <> 'ARS' then
+      return 'tesoro-en-otra-moneda';
+    end if;
     if (v_parte ->> 'tesoro') = any (v_vistos) then
       return 'tesoro-repetido';
     end if;
@@ -6750,8 +7132,8 @@ begin
     return 'reparto-pasa-de-cien';
   end if;
 
-  -- El superávit: un tesoro conocido y vivo, que no sea Hogar ni el diezmo ni esté ya en la fila (Maun
-  -- sí puede, aunque sea un paso de gastos fijos).
+  -- El superávit: un tesoro conocido, vivo y en pesos, que no sea Hogar ni el diezmo ni esté ya en la
+  -- fila (Maun sí puede, aunque sea un paso de gastos fijos).
   select t.value into v_tesoro
   from jsonb_array_elements(p_tesoros) as t
   where t.value ->> 'id' = v_superavit
@@ -6761,6 +7143,9 @@ begin
   end if;
   if (v_tesoro ->> 'archivado')::boolean then
     return 'tesoro-archivado';
+  end if;
+  if coalesce(v_tesoro ->> 'moneda', 'ARS') <> 'ARS' then
+    return 'tesoro-en-otra-moneda';
   end if;
   v_clave := v_tesoro ->> 'clave';
   if v_clave in ('hogar', 'diezmo') then
@@ -6777,7 +7162,7 @@ begin
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.problema_de_la_fila(jsonb,jsonb) is 'El primer problema que impide guardar una fila, con el mismo código y en el mismo orden que problemasDeLaFila en fila.ts, o null si se puede guardar. Lee la forma del primer pedido completando lo que falta con lo de siempre, como leerLaFila, con los ids del diezmo y de Maun sacados de los tesoros. Recibe los tesoros del taller como un arreglo de {id, clave, archivado, meta}: la meta de Cocos es la de ajustes, y un tesoro tiene meta si es mayor que cero. Gemela de primerProblemaDeLaFila (ADR 0078).';
+comment on function private.problema_de_la_fila(jsonb,jsonb) is 'El primer problema que impide guardar una fila, con el mismo código y en el mismo orden que problemasDeLaFila en fila.ts, o null si se puede guardar. Lee la forma del primer pedido completando lo que falta con lo de siempre, como leerLaFila, con los ids del diezmo y de Maun sacados de los tesoros. Recibe los tesoros del taller como un arreglo de {id, clave, archivado, meta, moneda}: la meta de Cocos es la de ajustes, un tesoro tiene meta si es mayor que cero, y uno que no es de la moneda del taller (ARS si la moneda falta) no entra en la fila: tesoro-en-otra-moneda (ADR 0081). Gemela de primerProblemaDeLaFila (ADR 0078).';
 
 CREATE OR REPLACE FUNCTION private.problema_de_la_plantilla(p_plantilla jsonb)
  RETURNS text
@@ -6796,6 +7181,7 @@ declare
   v_vistos text[];
   v_id text;
   v_texto text;
+  v_combinacion text;
 begin
   if jsonb_typeof(p_plantilla) is distinct from 'object'
     or p_plantilla -> 'forma' is distinct from '1'::jsonb
@@ -6846,6 +7232,24 @@ begin
       return 'forma-invalida';
     end if;
   end loop;
+
+  -- La moneda del valor de una modificación y las cláusulas de la moneda: pueden faltar (una plantilla
+  -- de antes, que vale en pesos y con las de fábrica), y si están, con su forma (ADR 0081).
+  if p_plantilla ? 'monedaDeLaModificacion'
+    and (p_plantilla -> 'monedaDeLaModificacion') not in ('"ARS"'::jsonb, '"USD"'::jsonb)
+  then
+    return 'forma-invalida';
+  end if;
+  if p_plantilla ? 'clausulasDeLaMoneda' then
+    if jsonb_typeof(p_plantilla -> 'clausulasDeLaMoneda') is distinct from 'object' then
+      return 'forma-invalida';
+    end if;
+    foreach v_combinacion in array array['dolaresEnPesos', 'dolaresEnDolares', 'dolaresEnPesosODolares', 'pesosEnDolares', 'pesosEnPesosODolares'] loop
+      if jsonb_typeof(p_plantilla -> 'clausulasDeLaMoneda' -> v_combinacion) is distinct from 'string' then
+        return 'forma-invalida';
+      end if;
+    end loop;
+  end if;
 
   if v_plazo not between 1 and 365 then
     return 'plazo-fuera-de-rango';
@@ -6936,11 +7340,25 @@ begin
     return 'garantia-larga';
   end if;
 
+  -- Las cinco cláusulas de la moneda, en el orden de COMBINACIONES_DE_LA_MONEDA: ninguna vacía y de
+  -- hasta 2000 caracteres.
+  if p_plantilla ? 'clausulasDeLaMoneda' then
+    foreach v_combinacion in array array['dolaresEnPesos', 'dolaresEnDolares', 'dolaresEnPesosODolares', 'pesosEnDolares', 'pesosEnPesosODolares'] loop
+      v_texto := p_plantilla -> 'clausulasDeLaMoneda' ->> v_combinacion;
+      if v_texto !~ '[^ \t\n\r\f\v]' then
+        return 'clausula-de-la-moneda-vacia';
+      end if;
+      if char_length(v_texto) > 2000 then
+        return 'clausula-de-la-moneda-larga';
+      end if;
+    end loop;
+  end if;
+
   return null;
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.problema_de_la_plantilla(jsonb) is 'El primer problema que impide guardar una plantilla del presupuesto, con el mismo código y en el mismo orden que problemaDeLaPlantilla en presupuesto.ts, o null si se puede guardar: la forma, los rangos de los números, hasta 20 cláusulas por grupo con ids únicos, títulos de hasta 120 caracteres y textos de hasta 2000 no vacíos, de 1 a 6 formas de pago con nombre de hasta 60, y la garantía. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+comment on function private.problema_de_la_plantilla(jsonb) is 'El primer problema que impide guardar una plantilla del presupuesto, con el mismo código y en el mismo orden que problemaDeLaPlantilla en presupuesto.ts, o null si se puede guardar: la forma, los rangos de los números, hasta 20 cláusulas por grupo con ids únicos, títulos de hasta 120 caracteres y textos de hasta 2000 no vacíos, de 1 a 6 formas de pago con nombre de hasta 60, la garantía, y, si están, la moneda del valor de una modificación y las cinco cláusulas de la moneda, ninguna vacía y de hasta 2000 caracteres (ADR 0081). scripts/comparacion.ts las compara caso por caso (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.problema_del_documento(p_documento jsonb)
  RETURNS text
@@ -6959,9 +7377,12 @@ declare
   v_plazo bigint;
   v_validez bigint;
   v_meses bigint;
+  v_referencia jsonb;
+  v_fecha date;
 begin
+  -- forma 1 es en pesos y forma 2 en dólares, con su moneda y su referencia en pesos (ADR 0081).
   if jsonb_typeof(p_documento) is distinct from 'object'
-    or p_documento -> 'forma' is distinct from '1'::jsonb
+    or (p_documento -> 'forma' is distinct from '1'::jsonb and p_documento -> 'forma' is distinct from '2'::jsonb)
   then
     return 'forma-invalida';
   end if;
@@ -7076,11 +7497,54 @@ begin
     end if;
   end if;
 
+  -- La cláusula de la moneda y la combinación con que se armó pueden faltar (un documento de antes).
+  -- La combinación es una de las tres, en ese orden.
+  if coalesce(jsonb_typeof(p_documento -> 'clausulaDeLaMoneda'), 'null') not in ('null', 'string') then
+    return 'forma-invalida';
+  end if;
+  if p_documento ? 'cobraEn'
+    and (p_documento -> 'cobraEn') not in ('["ARS"]'::jsonb, '["USD"]'::jsonb, '["ARS", "USD"]'::jsonb)
+  then
+    return 'forma-invalida';
+  end if;
+
+  -- En dólares: la moneda, la de lo abonado y la referencia en pesos, con una cotización entera y una
+  -- fecha que existe, como esFechaQueExiste.
+  if p_documento -> 'forma' = '2'::jsonb then
+    v_referencia := p_documento -> 'referencia';
+    if (p_documento -> 'moneda') is distinct from '"USD"'::jsonb
+      or (p_documento -> 'monedaDeLoAbonado') not in ('"ARS"'::jsonb, '"USD"'::jsonb)
+      or (p_documento -> 'monedaDeLoAbonado') is null
+      or jsonb_typeof(v_referencia) is distinct from 'object'
+      or private.entero_de_json(v_referencia -> 'cotizacion') is null
+      or jsonb_typeof(v_referencia -> 'fecha') is distinct from 'string'
+      or (v_referencia ->> 'fecha') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    then
+      return 'forma-invalida';
+    end if;
+    begin
+      v_fecha := (v_referencia ->> 'fecha')::date;
+    exception
+      when others then
+        return 'forma-invalida';
+    end;
+    if to_char(v_fecha, 'YYYY-MM-DD') <> (v_referencia ->> 'fecha')
+      or extract(year from v_fecha) < 100
+    then
+      return 'forma-invalida';
+    end if;
+  end if;
+
   if v_sena < 0 or v_sena > 10000 then
     return 'sena-fuera-de-rango';
   end if;
   if v_abonado < 0 or v_abonado > 1000000000000 then
     return 'abonado-fuera-de-rango';
+  end if;
+  if p_documento -> 'forma' = '2'::jsonb
+    and private.entero_de_json(v_referencia -> 'cotizacion') not between 100 and 10000000
+  then
+    return 'cotizacion-fuera-de-rango';
   end if;
   if v_plazo not between 1 and 365 then
     return 'plazo-fuera-de-rango';
@@ -7150,6 +7614,7 @@ begin
       union all select o.valor ->> 'letra', 3 from jsonb_array_elements(v_opciones) as o (valor)
       union all select o.valor ->> 'descripcion', 500 from jsonb_array_elements(v_opciones) as o (valor)
       union all select coalesce(p_documento ->> 'formaDePago', ''), 4000
+      union all select coalesce(p_documento ->> 'clausulaDeLaMoneda', ''), 4000
       union all
         select coalesce(c.valor ->> 'titulo', ''), 120
         from jsonb_array_elements((p_documento -> 'avisos') || (p_documento -> 'condiciones')) as c (valor)
@@ -7167,7 +7632,7 @@ begin
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.problema_del_documento(jsonb) is 'El primer problema que impide congelar un documento del presupuesto, con el mismo código y en el mismo orden que problemaDelDocumento en presupuesto.ts, o null si sirve: la forma de cada campo, los rangos de la seña, de lo pagado, del plazo, de la vigencia, de la garantía y de los importes, los topes de las listas y el largo de cada texto. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+comment on function private.problema_del_documento(jsonb) is 'El primer problema que impide congelar un documento del presupuesto, con el mismo código y en el mismo orden que problemaDelDocumento en presupuesto.ts, o null si sirve. forma 1 es en pesos y forma 2 en dólares, con su moneda, la de lo abonado y su referencia en pesos (una cotización de 100 a 10.000.000 y una fecha que existe); las dos pueden llevar la cláusula de la moneda (hasta 4000 caracteres) y la combinación con que se armó (ADR 0081). Mira la forma de cada campo, los rangos de la seña, de lo pagado, del plazo, de la vigencia, de la garantía y de los importes, los topes de las listas y el largo de cada texto. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.problema_del_presupuesto(p_contenido jsonb)
  RETURNS text
@@ -7184,6 +7649,7 @@ declare
   v_forma jsonb;
   v_plazo bigint;
   v_validez bigint;
+  v_modificacion jsonb;
 begin
   -- La forma entera antes que cualquier tope, como en el dominio.
   if jsonb_typeof(p_contenido) is distinct from 'object'
@@ -7269,6 +7735,28 @@ begin
     if v_validez is null then
       return 'forma-invalida';
     end if;
+  end if;
+
+  -- La cláusula de la moneda retocada, el valor de una modificación en su moneda y la moneda de lo
+  -- abonado: pueden faltar (un borrador de antes) o ir en null (ADR 0081).
+  if coalesce(jsonb_typeof(p_contenido -> 'clausulaDeLaMoneda'), 'null') not in ('null', 'string') then
+    return 'forma-invalida';
+  end if;
+  v_modificacion := p_contenido -> 'modificacion';
+  if coalesce(jsonb_typeof(v_modificacion), 'null') <> 'null'
+    and (
+      jsonb_typeof(v_modificacion) <> 'object'
+      or private.entero_de_json(v_modificacion -> 'importe') is null
+      or (v_modificacion -> 'moneda') is distinct from '"ARS"'::jsonb
+        and (v_modificacion -> 'moneda') is distinct from '"USD"'::jsonb
+    )
+  then
+    return 'forma-invalida';
+  end if;
+  if coalesce(jsonb_typeof(p_contenido -> 'monedaDeLoAbonado'), 'null') <> 'null'
+    and (p_contenido -> 'monedaDeLoAbonado') not in ('"ARS"'::jsonb, '"USD"'::jsonb)
+  then
+    return 'forma-invalida';
   end if;
 
   if char_length(p_contenido ->> 'titulo') > 200 then
@@ -7388,11 +7876,22 @@ begin
     return 'validez-fuera-de-rango';
   end if;
 
+  if jsonb_typeof(p_contenido -> 'clausulaDeLaMoneda') = 'string'
+    and char_length(p_contenido ->> 'clausulaDeLaMoneda') > 2000
+  then
+    return 'clausula-de-la-moneda-larga';
+  end if;
+  if jsonb_typeof(v_modificacion) = 'object'
+    and private.entero_de_json(v_modificacion -> 'importe') not between 0 and 1000000000000
+  then
+    return 'modificacion-fuera-de-rango';
+  end if;
+
   return null;
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.problema_del_presupuesto(jsonb) is 'El primer problema que impide guardar un borrador del presupuesto, con el mismo código y en el mismo orden que problemaDelBorrador en presupuesto.ts, o null si se puede guardar. Es permisivo, porque un borrador puede estar a medio hacer: mira la forma y los topes (30 muebles, 40 herrajes, 20 tildadas y 20 propias por grupo, los largos de cada texto, ids únicos) y los rangos del plazo y de la vigencia. scripts/comparacion.ts las compara caso por caso (ADR 0080).';
+comment on function private.problema_del_presupuesto(jsonb) is 'El primer problema que impide guardar un borrador del presupuesto, con el mismo código y en el mismo orden que problemaDelBorrador en presupuesto.ts, o null si se puede guardar. Es permisivo, porque un borrador puede estar a medio hacer: mira la forma y los topes (30 muebles, 40 herrajes, 20 tildadas y 20 propias por grupo, los largos de cada texto, ids únicos) y los rangos del plazo y de la vigencia; si están, la cláusula de la moneda retocada (hasta 2000 caracteres), el valor de una modificación con su moneda (de 0 a 1.000.000.000.000) y la moneda de lo abonado (ADR 0081). scripts/comparacion.ts las compara caso por caso (ADR 0080).';
 
 CREATE OR REPLACE FUNCTION private.registrar_suscripcion(p_endpoint text, p_p256dh text, p_auth text, p_zona text)
  RETURNS jsonb
@@ -8050,6 +8549,79 @@ end;
 $function$;
 -- execute: solo el dueño
 
+CREATE OR REPLACE FUNCTION private.validar_el_tesoro_del_pago()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_tesoro public.tesoros;
+begin
+  -- En un upsert que choca contra una fila existente, este trigger corre antes de detectar el
+  -- conflicto. Se deja pasar y decide el trigger de UPDATE, que ve la fila vieja: así el reenvío de un
+  -- pago cuyo tesoro se archivó después pasa.
+  if tg_op = 'INSERT' then
+    perform 1 from public.pagos where id = new.id;
+    if found then
+      return new;
+    end if;
+  end if;
+
+  -- Sin tesoro antes ni ahora no hay nada que mirar: un pago en pesos entra a Maun.
+  if new.tesoro_id is null and (tg_op = 'INSERT' or old.tesoro_id is null) then
+    return new;
+  end if;
+
+  -- Los candados en el orden de la liquidación: el proyecto y después los ajustes, que son con los que
+  -- cuidar_el_archivo_del_tesoro lee el saldo. Archivar un tesoro y cargarle un pago se esperan.
+  perform 1
+  from public.proyectos p
+  where p.household_id = new.household_id
+    and p.id = any (
+      case when tg_op = 'INSERT' then array[new.proyecto_id] else array[old.proyecto_id, new.proyecto_id] end
+    )
+  order by p.id
+  for share;
+
+  perform 1 from public.ajustes a where a.household_id = new.household_id for no key update;
+
+  -- Se mira cuando el pago entra a un tesoro: un alta, o un cambio de tesoro o de moneda. Un pago en
+  -- pesos con tesoro lo rechaza el check; uno con un tesoro que no es del taller, la foreign key.
+  if new.tesoro_id is not null
+    and new.moneda <> 'ARS'
+    and (
+      tg_op = 'INSERT'
+      or new.tesoro_id is distinct from old.tesoro_id
+      or new.moneda is distinct from old.moneda
+    )
+  then
+    select t.* into v_tesoro
+    from public.tesoros t
+    where t.household_id = new.household_id and t.id = new.tesoro_id;
+
+    if found and (
+      v_tesoro.moneda is distinct from new.moneda
+      or v_tesoro.archivado_at is not null
+      or v_tesoro.deleted_at is not null
+    ) then
+      raise exception 'Ese tesoro no puede recibir este pago'
+        using errcode = 'MN037',
+              detail = format(
+                'tesoro en %s%s, pago en %s',
+                v_tesoro.moneda,
+                case when v_tesoro.archivado_at is not null or v_tesoro.deleted_at is not null then ', archivado' else '' end,
+                new.moneda
+              ),
+              hint = 'Elegí un tesoro en dólares que no esté archivado.';
+    end if;
+  end if;
+
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.validar_el_tesoro_del_pago() is 'Trigger de pagos: cuando un pago en otra moneda entra a un tesoro (un alta, o un cambio de tesoro o de moneda), ese tesoro tiene que ser de su moneda, vivo y sin archivar; si no, MN037. En toda escritura de un pago que tiene o tenía tesoro toma primero el proyecto for share, como validar_proyecto_abierto, y después los ajustes for no key update, que es con lo que cuidar_el_archivo_del_tesoro lee el saldo. Deja pasar el alta que choca con un pago que ya existe: decide la rama de UPDATE, así el reenvío de un pago cuyo tesoro se archivó después pasa (ADR 0081).';
+
 CREATE OR REPLACE FUNCTION private.validar_la_fecha_del_pago()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -8629,6 +9201,25 @@ end;
 $function$;
 -- execute: solo el dueño
 
+CREATE OR REPLACE FUNCTION private.valor_en_pesos(p_moneda text, p_monto bigint, p_cotizacion bigint)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if p_moneda = 'ARS' then
+    return p_monto;
+  end if;
+  if p_cotizacion is null then
+    raise exception 'A un pago en otra moneda que la del trabajo le falta su cotización' using errcode = '22004';
+  end if;
+  return private.pesos_de_dolares(p_monto, p_cotizacion);
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.valor_en_pesos(text,bigint,bigint) is 'El valor en pesos de un pago: su importe si es en pesos, y si es en dólares, sus pesos a su cotización. Es lo que se reparte al cobrar y lo que cuenta «Facturó el taller». Gemela de valorEnPesos en cotizacion.ts (ADR 0081).';
+
 CREATE OR REPLACE FUNCTION public.proponer_la_entrega(p_proyecto_id uuid, p_propuesta jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -8922,6 +9513,7 @@ declare
   v_enlace public.enlaces_publicos;
   v_p public.proyectos;
   v_taller text;
+  v_idioma text;
 begin
   if p_token is null or p_token !~ '^[A-Za-z0-9_-]{16,128}$' then
     return null;
@@ -8949,11 +9541,13 @@ begin
 
   select h.nombre into v_taller from public.households h where h.id = v_p.household_id;
 
-  return jsonb_build_object('trabajo', v_p.titulo, 'taller', v_taller);
+  select a.idioma_de_los_clientes into v_idioma from public.ajustes a where a.household_id = v_p.household_id;
+
+  return jsonb_build_object('trabajo', v_p.titulo, 'taller', v_taller, 'idioma', coalesce(v_idioma, 'es'));
 end;
 $function$;
 -- execute: anon:EXECUTE, authenticated:EXECUTE, service_role:EXECUTE
-comment on function titulo_compartido(text) is 'Devuelve solamente el título del trabajo y el nombre del taller, y no llama a public.vista_del_cliente(). Tiene que ser así por dos motivos. El primero es qué pide quien la llama: la vista previa que arma WhatsApp cuando se pega el enlace queda guardada en el chat, así que ahí no puede ir ni un importe, ni la etapa, ni el nombre ni la dirección del cliente, que son justamente las cosas que sí devuelve la vista. El segundo es quién la llama: la pide un rastreador, no una persona, y la vista cuenta cada lectura como una visita del cliente (public.vista_compartida incrementa visitas). Si la vista previa usara esa puerta, el contador que el dueño mira en la pantalla de compartir contaría robots. Es stable a propósito: no escribe nada. Un token inválido, uno dado de baja, uno inexistente y un trabajo perdido devuelven null, los cuatro iguales (ADR 0049).';
+comment on function titulo_compartido(text) is 'Devuelve solamente el título del trabajo, el nombre del taller y el idioma de sus clientes, y no llama a public.vista_del_cliente(). El idioma es con el que la vista previa escribe su texto y el lang de la página: no dice nada del trabajo, y sumarlo es la enmienda del ADR 0049 que hace el ADR 0082. Tiene que ser así por dos motivos. El primero es qué pide quien la llama: la vista previa que arma WhatsApp cuando se pega el enlace queda guardada en el chat, así que ahí no puede ir ni un importe, ni la etapa, ni el nombre ni la dirección del cliente, que son justamente las cosas que sí devuelve la vista. El segundo es quién la llama: la pide un rastreador, no una persona, y la vista cuenta cada lectura como una visita del cliente (public.vista_compartida incrementa visitas). Si la vista previa usara esa puerta, el contador que el dueño mira en la pantalla de compartir contaría robots. Es stable a propósito: no escribe nada. Un token inválido, uno dado de baja, uno inexistente y un trabajo perdido devuelven null, los cuatro iguales (ADR 0049).';
 
 CREATE OR REPLACE FUNCTION public.vista_compartida(p_token text)
  RETURNS jsonb
@@ -9025,6 +9619,11 @@ declare
   v_monto_despues bigint;
   v_formas public.forma_de_cobro[];
   v_por_transferencia boolean;
+  v_hay_cuenta_en_dolares boolean;
+  v_cobra_en_pesos boolean;
+  v_cobra_en_dolares boolean;
+  v_formas_en_dolares public.forma_de_cobro[];
+  v_por_transferencia_en_dolares boolean;
   v_siguiente jsonb;
   v_borrador public.presupuestos;
   v_revision public.revisiones_del_presupuesto;
@@ -9076,12 +9675,23 @@ begin
   v_link := nullif(v_ajustes.cobro_link, '');
   v_hay_como_transferir := v_alias is not null or v_cbu is not null or v_link is not null;
 
+  -- La cuenta en dólares y en qué le paga el cliente. Sin «Te paga en», el trabajo cobra en la moneda
+  -- del taller (ADR 0081).
+  v_hay_cuenta_en_dolares := nullif(v_ajustes.cobro_dolares_cbu, '') is not null
+    or nullif(v_ajustes.cobro_dolares_alias, '') is not null;
+  v_cobra_en_pesos := v_p.cobra_en is null or 'ARS' = any (v_p.cobra_en);
+  v_cobra_en_dolares := coalesce('USD' = any (v_p.cobra_en), false);
+
   -- El presupuesto existe para el cliente desde que se le manda. Antes, lo que haya en
   -- presupuesto_centavos es un borrador, o el número de un estimativo, y no viaja.
   v_precio := case when v_presupuesto_mandado then v_p.presupuesto_centavos end;
   v_sena_bp := coalesce(v_p.sena_bp, v_ajustes.sena_bp, 5000);
 
-  select coalesce(sum(g.monto_centavos), 0) into v_pagado
+  -- Lo pagado, en la moneda del trabajo: lo que descuenta cada pago (ADR 0081).
+  select coalesce(
+    sum(private.lo_que_descuenta(g.moneda, g.monto_centavos, g.cotizacion_centavos, v_p.moneda)),
+    0
+  ) into v_pagado
   from public.pagos g
   where g.household_id = v_p.household_id
     and g.proyecto_id = v_p.id
@@ -9104,16 +9714,29 @@ begin
     v_monto_despues := null;
   end if;
 
-  -- Con todo pagado no hay ninguna instancia, así que tampoco hay formas ni datos de la cuenta.
+  -- Con todo pagado no hay ninguna instancia, así que tampoco hay formas ni datos de la cuenta. Las
+  -- formas de cada moneda salen de lo mismo guardado; cada una va vacía si su moneda no está en «Te
+  -- paga en», y en dólares, transferir pide la cuenta en dólares (ADR 0081).
   if v_instancia is null then
     v_formas := array[]::public.forma_de_cobro[];
-  elsif v_instancia = 'sena' then
-    v_formas := private.formas_de_cobro(v_p.cobro_sena, v_hay_como_transferir);
+    v_formas_en_dolares := array[]::public.forma_de_cobro[];
   else
-    v_formas := private.formas_de_cobro(v_p.cobro_saldo, v_hay_como_transferir);
+    v_formas := case
+      when v_cobra_en_pesos then private.formas_de_cobro(
+        case when v_instancia = 'sena' then v_p.cobro_sena else v_p.cobro_saldo end, v_hay_como_transferir
+      )
+      else array[]::public.forma_de_cobro[]
+    end;
+    v_formas_en_dolares := case
+      when v_cobra_en_dolares then private.formas_de_cobro(
+        case when v_instancia = 'sena' then v_p.cobro_sena else v_p.cobro_saldo end, v_hay_cuenta_en_dolares
+      )
+      else array[]::public.forma_de_cobro[]
+    end;
   end if;
 
   v_por_transferencia := 'transferencia' = any (v_formas);
+  v_por_transferencia_en_dolares := 'transferencia' = any (v_formas_en_dolares);
 
   if v_instancia_despues is null then
     v_siguiente := null;
@@ -9122,9 +9745,18 @@ begin
       'instancia', v_instancia_despues,
       'formas', to_jsonb(
         case
+          when not v_cobra_en_pesos then array[]::public.forma_de_cobro[]
           when v_instancia_despues = 'sena'
             then private.formas_de_cobro(v_p.cobro_sena, v_hay_como_transferir)
           else private.formas_de_cobro(v_p.cobro_saldo, v_hay_como_transferir)
+        end
+      ),
+      'formas_en_dolares', to_jsonb(
+        case
+          when not v_cobra_en_dolares then array[]::public.forma_de_cobro[]
+          when v_instancia_despues = 'sena'
+            then private.formas_de_cobro(v_p.cobro_sena, v_hay_cuenta_en_dolares)
+          else private.formas_de_cobro(v_p.cobro_saldo, v_hay_cuenta_en_dolares)
         end
       ),
       'monto_centavos', v_monto_despues
@@ -9185,7 +9817,8 @@ begin
       'revision', v_revision.revision,
       'mandado_el', v_revision.mandado_el,
       'que_cambio', v_revision.que_cambio,
-      'contenido', v_revision.contenido
+      'contenido', v_revision.contenido,
+      'idioma', v_revision.idioma
     );
   else
     -- Aprobado: solo la opción que eligió, con su letra. Si ya no hay ninguna opción aprobada (se cargó
@@ -9218,6 +9851,7 @@ begin
       'revision', v_revision.revision,
       'mandado_el', v_revision.mandado_el,
       'contenido', v_contenido,
+      'idioma', v_revision.idioma,
       'aceptado_el', v_borrador.aceptado_el,
       'letra', v_elegidas -> 0 ->> 'letra'
     );
@@ -9232,11 +9866,18 @@ begin
     'taller', jsonb_build_object('nombre', v_taller),
     'cliente', jsonb_build_object('nombre', v_cliente),
     'trabajo', v_p.titulo,
+    -- El idioma de los clientes del taller: la página habla en él, con sus fechas y su plata (ADR 0082).
+    -- El presupuesto lleva adentro el de su revisión, que es el de su contenido.
+    'idioma', coalesce(v_ajustes.idioma_de_los_clientes, 'es'),
     -- La dirección de la casa del cliente, desde que aprueba. Antes viaja vacía y no en null: el
     -- lector de una versión vieja de la app la exige como texto.
     'direccion', case when v_aprobado then v_p.direccion_entrega else '' end,
     'estado', v_etapa,
     'precio_centavos', v_precio,
+    -- La moneda del trabajo, en la que van el precio, la seña, los pagos y lo que toca pagar, y en qué
+    -- le paga el cliente, null si en la moneda del taller (ADR 0081).
+    'moneda', v_p.moneda,
+    'cobra_en', to_jsonb(v_p.cobra_en),
     -- La seña en pesos: la que se le pide para arrancar mientras espera, y la acordada desde que
     -- aprueba. Sale de la misma función que el importe de «pago», así que las dos no pueden dar
     -- distinto. El porcentaje sigue sin viajar.
@@ -9247,6 +9888,7 @@ begin
     'pago', jsonb_build_object(
       'instancia', v_instancia,
       'formas', to_jsonb(v_formas),
+      'formas_en_dolares', to_jsonb(v_formas_en_dolares),
       'monto_centavos', v_monto,
       'siguiente', v_siguiente
     ),
@@ -9261,6 +9903,24 @@ begin
       'cuit', case when v_por_transferencia then nullif(v_ajustes.cobro_cuit, '') end,
       'link', case when v_por_transferencia then v_link end
     ),
+    -- La cuenta en dólares, solo si el pago que toca se ofrece en dólares por transferencia. El
+    -- titular y el CUIT son los de la cuenta en pesos (ADR 0081).
+    'cobro_en_dolares', jsonb_build_object(
+      'alias', case when v_por_transferencia_en_dolares then nullif(v_ajustes.cobro_dolares_alias, '') end,
+      'cbu', case when v_por_transferencia_en_dolares then nullif(v_ajustes.cobro_dolares_cbu, '') end,
+      'titular', case when v_por_transferencia_en_dolares then nullif(v_ajustes.cobro_titular, '') end,
+      'cuit', case when v_por_transferencia_en_dolares then nullif(v_ajustes.cobro_cuit, '') end
+    ),
+    -- El dólar del día del taller, con la fecha para la que vale: solo en un trabajo en dólares y
+    -- desde que se le manda el presupuesto, que es cuando hay un precio que pasar a pesos. La página
+    -- lo usa solo si es de hoy (ADR 0081).
+    'dolar_del_dia', case
+      when v_p.moneda <> 'ARS' and v_presupuesto_mandado and v_ajustes.dolar_del_dia_centavos is not null
+        then jsonb_build_object(
+          'cotizacion_centavos', v_ajustes.dolar_del_dia_centavos,
+          'fecha', v_ajustes.dolar_del_dia_el
+        )
+    end,
     'fechas', jsonb_build_object(
       'estimativo', (
         select min(c.ocurrio_el)
@@ -9335,7 +9995,13 @@ begin
             'id', g.id,
             'fecha', g.fecha,
             'concepto', g.concepto,
-            'monto_centavos', g.monto_centavos
+            -- Lo que descuenta, en la moneda del trabajo: la suma sigue dando lo pagado en la moneda del
+            -- precio. Lo que se entregó va en pagado_centavos, en la moneda del pago, con su dólar.
+            'monto_centavos',
+              private.lo_que_descuenta(g.moneda, g.monto_centavos, g.cotizacion_centavos, v_p.moneda),
+            'moneda', g.moneda,
+            'pagado_centavos', g.monto_centavos,
+            'cotizacion_centavos', g.cotizacion_centavos
           )
           order by g.fecha, g.id
         ),
@@ -9417,4 +10083,4 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). La clave presupuesto trae el presupuesto que se le mandó desde la app (ADR 0080): null antes de mandarlo o si nunca se mandó desde la app; esperando la seña, la última revisión tal cual (numero, revision, mandado_el, que_cambio y contenido, con las opciones y la obra adentro); desde que aprueba, la última revisión sin que_cambio, con las opciones del contenido filtradas a la aprobada, más aceptado_el y la letra de esa opción: las que no eligió no viajan. Los datos del taller para el presupuesto viajan solo adentro del contenido de cada revisión. Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076, 0079 y 0080).';
+comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). La clave presupuesto trae el presupuesto que se le mandó desde la app (ADR 0080): null antes de mandarlo o si nunca se mandó desde la app; esperando la seña, la última revisión tal cual (numero, revision, mandado_el, que_cambio y contenido, con las opciones y la obra adentro); desde que aprueba, la última revisión sin que_cambio, con las opciones del contenido filtradas a la aprobada, más aceptado_el y la letra de esa opción: las que no eligió no viajan. Los datos del taller para el presupuesto viajan solo adentro del contenido de cada revisión. La clave idioma trae el idioma de los clientes del taller, en el que habla la página, y el presupuesto trae el de su revisión, en el que se armó (ADR 0082). Desde el ADR 0081 trae también la moneda del trabajo y en qué le paga el cliente (cobra_en), las formas en dólares del pago que toca y del siguiente (vacías si no cobra en dólares; las de pesos, vacías si no cobra en pesos), la cuenta en dólares (cobro_en_dolares) solo si el pago que toca se ofrece en dólares por transferencia, y el dólar del día con su fecha solo en un trabajo en dólares y desde que se le manda el presupuesto. Lo pagado y el monto_centavos de cada pago son lo que descuenta, en la moneda del trabajo; cada pago trae además su moneda, lo que se entregó (pagado_centavos) y su dólar. Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076, 0079, 0080, 0081 y 0082).';

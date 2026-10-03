@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FilaDe } from '@/shared/api';
+import { usarIdioma } from '@/shared/idioma';
 
 import { datosActualesDelProyecto } from './liquidacion';
 import {
   cambiaLaFila,
   datosDelFormulario,
+  esquemaDeProyecto,
+  pagoVacio,
+  pedidoDeGuardado,
+  totalesDeLosPagos,
   valoresDelFormulario,
   versionDelGuardado,
 } from './formulario';
@@ -119,6 +124,158 @@ describe('el tipo de proyecto en el formulario grande', () => {
   });
 });
 
+describe('la moneda del trabajo en el formulario grande', () => {
+  const HOY = '2026-10-01';
+
+  it('va y vuelve por el formulario, y un trabajo nuevo arranca en pesos', () => {
+    const valores = valoresDelFormulario(proyecto({ moneda: 'USD' }), [], [], [], { hoy: HOY });
+    expect(valores.moneda).toBe('USD');
+    expect(datosDelFormulario(valores, HOY).moneda).toBe('USD');
+    expect(valoresDelFormulario(undefined, [], [], [], { hoy: HOY }).moneda).toBe('ARS');
+  });
+
+  it('una fila guardada en el dispositivo antes de la columna se lee en pesos', () => {
+    const vieja = proyecto();
+    delete (vieja as Partial<FilaDe<'proyectos'>>).moneda;
+    expect(valoresDelFormulario(vieja, [], [], [], { hoy: HOY }).moneda).toBe('ARS');
+  });
+
+  it('guardar manda la moneda que tiene, para que la base no la confunda con un pedido viejo', () => {
+    expect(datosActualesDelProyecto(proyecto({ moneda: 'USD' })).moneda).toBe('USD');
+  });
+});
+
+describe('los pagos en dos monedas en el formulario grande', () => {
+  const HOY = '2026-10-01';
+
+  function pago(extra: Partial<FilaDe<'pagos'>> = {}): FilaDe<'pagos'> {
+    return {
+      id: 'g',
+      household_id: 'h',
+      proyecto_id: 'p',
+      fecha: '2026-09-30',
+      concepto: 'Seña',
+      monto_centavos: 100_000,
+      ya_en_la_apertura: false,
+      moneda: 'USD',
+      cotizacion_centavos: 154_000,
+      tesoro_id: 'usd',
+      created_at: '',
+      updated_at: '',
+      deleted_at: null,
+      version: 1,
+      ...extra,
+    };
+  }
+
+  it('los conceptos de siempre se ven en el idioma de quien mira y se guardan en castellano', async () => {
+    try {
+      await usarIdioma('en');
+      const filas = [
+        pago({ id: 'a', concepto: 'Seña de la visita' }),
+        pago({ id: 'b', concepto: 'Anticipo del herraje' }),
+      ];
+      const valores = valoresDelFormulario(proyecto(), filas, [], [], { hoy: HOY });
+      expect(valores.pagos.map((fila) => fila.detalle)).toEqual([
+        'Site visit deposit',
+        'Anticipo del herraje',
+      ]);
+      const pedido = pedidoDeGuardado('p', 1, valores, {
+        pagos: ['a', 'b'],
+        gastos: [],
+        opciones: [],
+      });
+      expect(
+        pedido.pagos.map((guardado) => ('concepto' in guardado ? guardado.concepto : '')),
+      ).toEqual(['Seña de la visita', 'Anticipo del herraje']);
+    } finally {
+      await usarIdioma('es');
+    }
+  });
+
+  it('cada pago trae su moneda, su dólar y su tesoro, y uno de antes de las columnas se lee en pesos', () => {
+    const [enDolares] = valoresDelFormulario(proyecto(), [pago()], [], [], { hoy: HOY }).pagos;
+    expect(enDolares).toMatchObject({ moneda: 'USD', cotizacion: 154_000, tesoroId: 'usd' });
+    const viejo: Partial<FilaDe<'pagos'>> = pago();
+    delete viejo.moneda;
+    delete viejo.cotizacion_centavos;
+    delete viejo.tesoro_id;
+    const [deAntes] = valoresDelFormulario(proyecto(), [viejo as FilaDe<'pagos'>], [], [], {
+      hoy: HOY,
+    }).pagos;
+    expect(deAntes).toMatchObject({ moneda: 'ARS', cotizacion: null, tesoroId: null });
+  });
+
+  it('guardar manda las tres claves, y un pago en pesos nunca va con tesoro', () => {
+    const valores = valoresDelFormulario(proyecto({ moneda: 'USD' }), [pago()], [], [], {
+      hoy: HOY,
+    });
+    const enPesos = { ...pagoVacio('n', HOY, 'ARS', 150_000), monto: 30_000_000, tesoroId: 'x' };
+    const pedido = pedidoDeGuardado(
+      'p',
+      1,
+      { ...valores, pagos: [...valores.pagos, enPesos] },
+      {
+        pagos: ['g'],
+        gastos: [],
+        opciones: [],
+      },
+    );
+    expect(pedido.pagos).toEqual([
+      expect.objectContaining({
+        id: 'g',
+        moneda: 'USD',
+        cotizacion_centavos: 154_000,
+        tesoro_id: 'usd',
+      }),
+      expect.objectContaining({
+        id: 'n',
+        moneda: 'ARS',
+        cotizacion_centavos: 150_000,
+        tesoro_id: null,
+      }),
+    ]);
+  });
+
+  it('pide el dólar de un pago en pesos de un trabajo en dólares, y el tesoro de un pago en dólares', () => {
+    const base = valoresDelFormulario(
+      proyecto({ moneda: 'USD', titulo: 'Vestidor', cliente_id: 'c' }),
+      [],
+      [],
+      [],
+      { hoy: HOY },
+    );
+    const sinDolar = { ...pagoVacio('a', HOY, 'ARS'), monto: 12_000_000 };
+    const sinTesoro = { ...pagoVacio('b', HOY, 'USD', 154_000), monto: 50_000 };
+    const resultado = esquemaDeProyecto.safeParse({ ...base, pagos: [sinDolar, sinTesoro] });
+    expect(resultado.success).toBe(false);
+    const caminos = resultado.error?.issues.map((issue) => issue.path.join('.'));
+    expect(caminos).toEqual(expect.arrayContaining(['pagos.0.cotizacion', 'pagos.1.tesoroId']));
+
+    const completos = [
+      { ...sinDolar, cotizacion: 145_000 },
+      { ...sinTesoro, tesoroId: 'usd' },
+    ];
+    expect(esquemaDeProyecto.safeParse({ ...base, pagos: completos }).success).toBe(true);
+    expect(esquemaDeProyecto.safeParse({ ...base, moneda: 'ARS', pagos: [sinDolar] }).success).toBe(
+      true,
+    );
+  });
+
+  it('los totales van en la moneda del trabajo y en pesos, sin sumar una moneda con la otra', () => {
+    const filas = [
+      { moneda: 'ARS' as const, monto: 12_000_000, cotizacion: 145_000 },
+      { moneda: 'USD' as const, monto: 50_000, cotizacion: 150_000 },
+      { moneda: 'USD' as const, monto: null, cotizacion: null },
+    ];
+    expect(totalesDeLosPagos(filas, 'USD')).toEqual({ enSuMoneda: 58_276, enPesos: 87_000_000 });
+    expect(totalesDeLosPagos(filas, 'ARS')).toEqual({
+      enSuMoneda: 87_000_000,
+      enPesos: 87_000_000,
+    });
+  });
+});
+
 function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'> {
   return {
     household_id: 'h',
@@ -136,6 +293,9 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: '2026-09-10',
     visita_hora: null,

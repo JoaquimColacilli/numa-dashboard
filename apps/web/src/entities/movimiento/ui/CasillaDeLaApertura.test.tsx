@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CasillaDeLaApertura, TEXTO_DE_LA_APERTURA } from './CasillaDeLaApertura';
+import { mensajes } from '@/shared/idioma';
+
+import { CasillaDeLaApertura } from './CasillaDeLaApertura';
 
 describe('CasillaDeLaApertura', () => {
   it('solo aparece si la fecha es de antes de la apertura', () => {
@@ -13,7 +15,9 @@ describe('CasillaDeLaApertura', () => {
     rerender(
       <CasillaDeLaApertura fecha="2026-07-20" apertura="2026-09-14" marcada alCambiar={vi.fn()} />,
     );
-    expect(screen.getByRole('checkbox', { name: TEXTO_DE_LA_APERTURA })).toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: mensajes().movimiento.casillaDeLaApertura }),
+    ).toBeChecked();
   });
 
   it('en un taller sin apertura no aparece nunca', () => {

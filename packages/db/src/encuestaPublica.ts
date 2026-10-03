@@ -1,9 +1,11 @@
 import {
   ESCALAS,
   esLinkDeResena,
+  idiomaLeido,
   MOTIVOS_DEL_RECHAZO,
   TIPOS_DE_PREGUNTA,
   type Escala,
+  type Idioma,
   type MotivoDelRechazo,
   type PreguntaDeLaEncuesta,
   type RespuestaDelFormulario,
@@ -29,6 +31,7 @@ export interface EncuestaCompartida {
   taller: string;
   cliente: string | null;
   trabajo: string;
+  idioma: Idioma;
   resena: string | null;
   preguntas: PreguntaDeLaEncuesta[];
   contestada: LoQueContesto | null;
@@ -133,6 +136,7 @@ export function leerEncuestaCompartida(valor: unknown): EncuestaCompartida {
     taller: texto(cuerpo.taller, 'el nombre del taller'),
     cliente: textoONada(cuerpo.cliente, 'el nombre del cliente'),
     trabajo: texto(cuerpo.trabajo, 'el trabajo'),
+    idioma: idiomaLeido(cuerpo.idioma),
     resena: resenaDe(cuerpo.resena),
     preguntas: lista(cuerpo.preguntas, 'las preguntas').map(pregunta),
     contestada: contestada(cuerpo.contestada),

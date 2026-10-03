@@ -13,6 +13,7 @@ import { useNombreDeLaPersona, useSesionActiva } from '@/entities/sesion';
 import { OfertaDeHuella } from '@/features/activar-huella';
 import { Novedades } from '@/features/ver-novedades';
 import type { Replica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   describirEstadoSync,
   esRutaDeHoja,
@@ -31,7 +32,7 @@ import { Avisos } from './Avisos';
 import { IndicadorSync } from './IndicadorSync';
 import { Navegacion } from './Navegacion';
 import { TirarParaActualizar } from './TirarParaActualizar';
-import { DESTINOS, seccionDeLaRuta } from './destinos';
+import { seccionDeLaRuta } from './destinos';
 import { seActualizaTirando } from './pantallas-que-se-actualizan';
 import { esUnPlanoATodoElAncho } from './sin-molde';
 
@@ -138,6 +139,7 @@ function CapaDeHoja() {
 }
 
 export function Marco() {
+  const m = useMensajes();
   const { usuarioId, email, foto } = useSesionActiva();
   const nombre = useNombreDeLaPersona();
   const estadoSync = useEstadoSync();
@@ -168,7 +170,7 @@ export function Marco() {
   }, [coordinador, location.key]);
 
   const seccion = seccionDeLaRuta(visible.pathname);
-  const etiqueta = DESTINOS[seccion].etiqueta;
+  const etiqueta = m.appLayout.destinos[seccion];
   const conElGesto =
     seActualizaTirando(visible.pathname) && !esRutaDeHoja(location.pathname) && !hayAlgoEnCurso;
   const aTodoElAncho = ancho !== 'movil' && esUnPlanoATodoElAncho(visible.pathname);
@@ -203,7 +205,7 @@ export function Marco() {
         href="#contenido"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-40 focus:rounded-field focus:bg-ink focus:px-3 focus:py-2 focus:text-label focus:text-paper"
       >
-        Saltar al contenido
+        {m.appLayout.saltarAlContenido}
       </a>
 
       {ancho !== 'movil' && navegacion}

@@ -1,21 +1,28 @@
 import {
   CERO,
+  centavosEn,
   claveDelNombre,
+  enPesos,
+  esDeLaMoneda,
+  importeDelTaller,
   maximo,
+  plataEn,
   restar,
+  sumar,
   sumarTodos,
   tipoDelPaso,
   type Fila,
   type FilaDelMes,
   type Money,
   type MovimientoDelLibro,
+  type Plata,
   type TesorosDelSistema,
 } from '@maun/domain';
 
 import { loQueHayQuePagar, tiposDelTesoro } from '@/entities/fila';
-import type { TesoroDelTaller } from '@/entities/tesoro';
-
-export const AYUDA_DEL_PANORAMA = 'Dónde está la plata y para qué la podés usar.';
+import { equivalenteEnPesos, ultimoCambioEntre, type UltimoCambio } from '@/entities/movimiento';
+import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
+import { mensajes } from '@/shared/idioma';
 
 export interface EntradaDelPanorama {
   fila: Fila;
@@ -25,6 +32,12 @@ export interface EntradaDelPanorama {
   movimientos: readonly MovimientoDelLibro[];
   insumos: Money;
   trabajosConInsumos: number;
+}
+
+export interface DolaresDelTaller {
+  total: Money<'USD'>;
+  tesoros: number;
+  ultimoCambio: UltimoCambio | null;
 }
 
 export interface PanoramaDelTaller {
@@ -37,6 +50,7 @@ export interface PanoramaDelTaller {
   tesorosDeAhorro: number;
   tesoroDelSuperavit: string;
   trabajosConInsumos: number;
+  enDolares?: DolaresDelTaller | null;
 }
 
 export function gastadoEnLosRenglones(
@@ -57,7 +71,7 @@ export function gastadoEnLosRenglones(
           movimiento.fecha.startsWith(`${mes}-`) &&
           claves.has(claveDelNombre(movimiento.categoria)),
       )
-      .map((movimiento) => movimiento.monto),
+      .map((movimiento) => importeDelTaller(movimiento.monto)),
   );
 }
 
@@ -95,21 +109,39 @@ function esDeAhorro(
   return true;
 }
 
+function dolaresDelTaller(
+  tesoros: readonly TesoroDelTaller[],
+  movimientos: readonly MovimientoDelLibro[],
+): DolaresDelTaller | null {
+  const saldos = tesoros.flatMap((tesoro) =>
+    !tesoro.archivado && esDeLaMoneda(tesoro.saldo, 'USD') ? [tesoro.saldo.importe] : [],
+  );
+  if (saldos.length === 0) return null;
+  return {
+    total: saldos.reduce((suma, saldo) => sumar(suma, saldo), centavosEn('USD', 0)),
+    tesoros: saldos.length,
+    ultimoCambio: ultimoCambioEntre(movimientos, tesoros),
+  };
+}
+
 export function panoramaDelTaller(entrada: EntradaDelPanorama): PanoramaDelTaller {
   const { fila, delMes, sistema, tesoros, insumos } = entrada;
   const deMaun = compromisoDeMaun(entrada);
   const aPagar = loQueHayQuePagar(delMes).map((renglon) => renglon.aPagar);
-  const ahorros = tesoros.filter(
-    (tesoro) => !tesoro.archivado && esDeAhorro(fila, sistema, tesoro),
-  );
+  const ahorros = tesoros.flatMap((tesoro) => {
+    if (tesoro.archivado || !esDeAhorro(fila, sistema, tesoro)) return [];
+    const saldo = saldoEnPesos(tesoro);
+    return saldo === null ? [] : [saldo];
+  });
 
-  const delSuperavit = tesoros.find((tesoro) => tesoro.id === fila.superavit)?.saldo ?? CERO;
+  const delTesoro = tesoros.find((tesoro) => tesoro.id === fila.superavit);
+  const delSuperavit = (delTesoro === undefined ? null : saldoEnPesos(delTesoro)) ?? CERO;
   const superavit =
     fila.superavit === sistema.maun ? restar(restar(delSuperavit, insumos), deMaun) : delSuperavit;
 
   return {
     paraPagar: sumarTodos([...aPagar, deMaun]),
-    ahorros: sumarTodos(ahorros.map((tesoro) => tesoro.saldo)),
+    ahorros: sumarTodos(ahorros),
     superavit,
     insumos,
     compromisoDeMaun: deMaun,
@@ -117,61 +149,72 @@ export function panoramaDelTaller(entrada: EntradaDelPanorama): PanoramaDelTalle
     tesorosDeAhorro: ahorros.length,
     tesoroDelSuperavit: fila.superavit,
     trabajosConInsumos: entrada.trabajosConInsumos,
+    enDolares: dolaresDelTaller(tesoros, entrada.movimientos),
   };
 }
 
-function enTesoros(cuantos: number): string {
-  return cuantos === 1 ? 'en un tesoro' : `en ${String(cuantos)} tesoros`;
-}
-
 export interface CifraDelPanorama {
-  id: 'para-pagar' | 'ahorros' | 'superavit' | 'insumos';
+  id: 'para-pagar' | 'ahorros' | 'superavit' | 'insumos' | 'en-dolares';
   etiqueta: string;
-  monto: Money;
+  monto: Plata;
   detalle: string;
+  equivalente: string | null;
 }
 
 export function cifrasDelPanorama(
   panorama: PanoramaDelTaller,
   nombreDelSuperavit: string,
 ): CifraDelPanorama[] {
+  const textos = mensajes().paginaInicio.panorama;
   const trabajos = panorama.trabajosConInsumos;
-  return [
+  const cifras: CifraDelPanorama[] = [
     {
       id: 'para-pagar',
-      etiqueta: 'Para pagar',
-      monto: panorama.paraPagar,
+      etiqueta: textos.paraPagar,
+      monto: enPesos(panorama.paraPagar),
       detalle:
-        panorama.tesorosParaPagar === 0 ? 'nada pendiente' : enTesoros(panorama.tesorosParaPagar),
+        panorama.tesorosParaPagar === 0
+          ? textos.nadaPendiente
+          : textos.enTesoros(panorama.tesorosParaPagar),
+      equivalente: null,
     },
     {
       id: 'ahorros',
-      etiqueta: 'Ahorros',
-      monto: panorama.ahorros,
+      etiqueta: textos.ahorros,
+      monto: enPesos(panorama.ahorros),
       detalle:
         panorama.tesorosDeAhorro === 0
-          ? 'todavía sin ahorros'
-          : enTesoros(panorama.tesorosDeAhorro),
+          ? textos.todaviaSinAhorros
+          : textos.enTesoros(panorama.tesorosDeAhorro),
+      equivalente: null,
     },
     {
       id: 'superavit',
-      etiqueta: 'Superávit',
-      monto: panorama.superavit,
+      etiqueta: textos.superavit,
+      monto: enPesos(panorama.superavit),
       detalle:
         panorama.superavit < 0
-          ? `en ${nombreDelSuperavit}, que no alcanza`
-          : `en ${nombreDelSuperavit}`,
+          ? textos.enElTesoroQueNoAlcanza(nombreDelSuperavit)
+          : textos.enElTesoro(nombreDelSuperavit),
+      equivalente: null,
     },
     {
       id: 'insumos',
-      etiqueta: 'Insumos de los trabajos',
-      monto: panorama.insumos,
-      detalle:
-        trabajos === 0
-          ? 'sin trabajos en curso'
-          : trabajos === 1
-            ? 'de un trabajo'
-            : `de ${String(trabajos)} trabajos`,
+      etiqueta: textos.insumos,
+      monto: enPesos(panorama.insumos),
+      detalle: trabajos === 0 ? textos.sinTrabajosEnCurso : textos.deTrabajos(trabajos),
+      equivalente: null,
     },
   ];
+  const { enDolares } = panorama;
+  if (enDolares !== undefined && enDolares !== null) {
+    cifras.push({
+      id: 'en-dolares',
+      etiqueta: textos.enDolares,
+      monto: plataEn('USD', enDolares.total),
+      detalle: textos.enTesoros(enDolares.tesoros),
+      equivalente: equivalenteEnPesos(enDolares.total, enDolares.ultimoCambio),
+    });
+  }
+  return cifras;
 }

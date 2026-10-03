@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cargarMensajesDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
+
+import {
   enlaceParaEscribir,
   mensajeParaElCliente,
   telefonoParaWhatsapp,
   whatsappCon,
 } from './telefono';
+
+const TEXTOS = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.whatsapp;
 
 describe('el teléfono para WhatsApp', () => {
   it('un número de acá va con el 54 y el 9, sin el cero ni el quince', () => {
@@ -35,25 +42,49 @@ describe('el enlace para escribir', () => {
 
 describe('el mensaje para el cliente', () => {
   it('lo saluda por el nombre y le manda la dirección', () => {
-    expect(mensajeParaElCliente('Marcela Duarte', 'Placard 3 puertas', 'https://m/v/t')).toBe(
-      'Hola Marcela, acá podés ver cómo va tu placard 3 puertas: https://m/v/t',
-    );
+    expect(
+      mensajeParaElCliente(TEXTOS, 'Marcela Duarte', 'Placard 3 puertas', 'https://m/v/t'),
+    ).toBe('Hola Marcela, acá podés ver cómo va tu placard 3 puertas: https://m/v/t');
   });
 
   it('sin nombre saluda igual', () => {
-    expect(mensajeParaElCliente('  ', 'Mesada', 'https://m/v/t')).toContain('Hola, acá podés ver');
+    expect(mensajeParaElCliente(TEXTOS, '  ', 'Mesada', 'https://m/v/t')).toContain(
+      'Hola, acá podés ver',
+    );
   });
 
   it('con un pago pendiente, también le dice que ahí ve cómo pagarlo', () => {
-    expect(mensajeParaElCliente('Marcela', 'Placard', 'https://m/v/t', true)).toBe(
+    expect(mensajeParaElCliente(TEXTOS, 'Marcela', 'Placard', 'https://m/v/t', true)).toBe(
       'Hola Marcela, acá podés ver cómo va y cómo pagarlo tu placard: https://m/v/t',
     );
   });
 
   it('con todo pagado, el mensaje es el de siempre', () => {
-    expect(mensajeParaElCliente('Marcela', 'Placard', 'https://m/v/t', false)).toBe(
+    expect(mensajeParaElCliente(TEXTOS, 'Marcela', 'Placard', 'https://m/v/t', false)).toBe(
       'Hola Marcela, acá podés ver cómo va tu placard: https://m/v/t',
     );
+  });
+
+  it('en inglés y en portugués deja el trabajo como lo escribió el dueño', async () => {
+    const en = (await cargarMensajesDelCliente('en')).whatsapp;
+    const ptBR = (await cargarMensajesDelCliente('pt-BR')).whatsapp;
+    expect(mensajeParaElCliente(en, 'Marcela Duarte', 'Placard 3 puertas', 'https://m/v/t')).toBe(
+      'Hi Marcela, you can see how Placard 3 puertas is coming along here: https://m/v/t',
+    );
+    expect(mensajeParaElCliente(ptBR, '', 'Placard', 'https://m/v/t', true)).toBe(
+      'Olá. Aqui você acompanha o andamento de Placard e vê como pagar: https://m/v/t',
+    );
+  });
+
+  it('en los tres idiomas la dirección va al final, después de los dos puntos', async () => {
+    for (const idioma of ['es', 'en', 'pt-BR'] as const) {
+      const textos = (await cargarMensajesDelCliente(idioma)).whatsapp;
+      for (const conPago of [false, true]) {
+        for (const cliente of ['Marcela', '']) {
+          expect(mensajeParaElCliente(textos, cliente, 'Placard', '', conPago)).toMatch(/: $/u);
+        }
+      }
+    }
   });
 });
 

@@ -1,4 +1,6 @@
-import { rechazoDeLaBase, SIN_PERMISO } from '@maun/db';
+import { rechazoDeLaBase, SIN_PERMISO, type RechazoDeLaBase } from '@maun/db';
+
+import { mensajes, type Mensajes } from '@/shared/idioma';
 
 export type OperacionRechazada =
   | 'cobro'
@@ -26,255 +28,204 @@ export interface RechazoTraducido {
   codigo: string;
 }
 
+type TextosDeLosRechazos = Mensajes['api']['rechazos'];
+
+interface TituloYQueHacer {
+  titulo: string;
+  queHacer: string;
+}
+
 const CONTEXTO_GENERICO: ContextoDelRechazo = { operacion: 'guardado' };
 
-function elTrabajo(contexto: ContextoDelRechazo): string {
+const SIMPLES = [
+  'MN004',
+  'MN005',
+  'MN009',
+  'MN013',
+  'MN014',
+  'MN017',
+  'MN018',
+  'MN019',
+  'MN022',
+  'MN023',
+  'MN025',
+  'MN026',
+  'MN027',
+  'MN028',
+  'MN029',
+  'MN030',
+  'MN032',
+  'MN033',
+  'MN034',
+  'MN035',
+  'MN036',
+  'MN037',
+  'MN038',
+  'MN039',
+] as const satisfies readonly (keyof TextosDeLosRechazos)[];
+
+type CodigoSimple = (typeof SIMPLES)[number];
+
+const MOTIVO_DE_LA_ENTREGA: Readonly<Record<string, 'sinListo' | 'comprometida' | 'fecha'>> = {
+  sin_listo: 'sinListo',
+  comprometida: 'comprometida',
+  fecha: 'fecha',
+};
+
+const POR_EL_MENSAJE_DE_LA_BASE: Readonly<
+  Record<string, (r: TextosDeLosRechazos) => TituloYQueHacer>
+> = {
+  'Ese cliente ya contestó': (r) => ({ titulo: r.MN012.encuesta, queHacer: r.siSigueIgual }),
+  'Ese cliente ya contestó: sus preguntas quedan como están': (r) => r.MN012.preguntas,
+  'La opinión se le pide al cliente cuando el trabajo está entregado': (r) => r.MN015.sinEntregar,
+  'La encuesta no tiene preguntas': (r) => r.MN015.sinPreguntas,
+};
+
+function esSimple(codigo: string): codigo is CodigoSimple {
+  return (SIMPLES as readonly string[]).includes(codigo);
+}
+
+function sujetoDe(contexto: ContextoDelRechazo): string | undefined {
   return contexto.sujeto === undefined || contexto.sujeto.trim() === ''
-    ? 'Este trabajo'
-    : `«${contexto.sujeto}»`;
+    ? undefined
+    : contexto.sujeto;
 }
 
-function comoQuedo(contexto: ContextoDelRechazo): string {
-  return contexto.estado === 'perdido' ? 'cerrado como perdido' : 'cobrado';
+function elTrabajo(contexto: ContextoDelRechazo, r: TextosDeLosRechazos): string {
+  const sujeto = sujetoDe(contexto);
+  return sujeto === undefined ? r.esteTrabajo : r.trabajo(sujeto);
 }
 
-function laSalida(contexto: ContextoDelRechazo): string {
-  return contexto.estado === 'perdido'
-    ? 'Reactivá el presupuesto, cargá lo que falte y volvé a cerrarlo: el reparto de la seña se hace de nuevo.'
-    : 'Reabrí el cobro, corregí lo que haga falta y volvé a cobrarlo: el reparto se hace de nuevo con los números corregidos.';
+function comoQuedo(contexto: ContextoDelRechazo): 'cobrado' | 'perdido' {
+  return contexto.estado === 'perdido' ? 'perdido' : 'cobrado';
 }
 
-function yaEstaLiquidado(contexto: ContextoDelRechazo): RechazoTraducido {
-  if (contexto.operacion === 'cobro' || contexto.operacion === 'cierre') {
-    return {
-      titulo: `${elTrabajo(contexto)} ya estaba ${comoQuedo(contexto)}.`,
-      queHacer:
-        'Puede que lo hayas cerrado desde el celular o desde la PC. Fijate cómo quedó el reparto: si no es el que esperabas, reabrilo.',
-      codigo: '',
-    };
+function esDelCobro(contexto: ContextoDelRechazo): boolean {
+  return contexto.operacion === 'cobro' || contexto.operacion === 'cierre';
+}
+
+function detalleDe(error: unknown): string {
+  if (typeof error !== 'object' || error === null) return '';
+  const { details } = error as Record<string, unknown>;
+  return typeof details === 'string' ? details : '';
+}
+
+function yaEstaLiquidado(contexto: ContextoDelRechazo, r: TextosDeLosRechazos): TituloYQueHacer {
+  const { MN001 } = r;
+  const trabajo = elTrabajo(contexto, r);
+  const estado = comoQuedo(contexto);
+  if (esDelCobro(contexto)) {
+    return { titulo: MN001.cobro[estado](trabajo), queHacer: MN001.cobro.queHacer };
   }
-
   if (contexto.operacion === 'baja-de-proyecto') {
-    return {
-      titulo: `${elTrabajo(contexto)} tiene pagos o gastos y está ${comoQuedo(contexto)}: no se puede borrar.`,
-      queHacer:
-        'Borrar esta plata la sacaría del libro. Si el reparto está mal, corregilo reabriéndolo.',
-      codigo: '',
-    };
+    return { titulo: MN001.baja[estado](trabajo), queHacer: MN001.baja.queHacer };
   }
-
-  return {
-    titulo: `${elTrabajo(contexto)} está ${comoQuedo(contexto)} y sus números quedaron cerrados.`,
-    queHacer: laSalida(contexto),
-    codigo: '',
-  };
+  return { titulo: MN001.otro[estado](trabajo), queHacer: MN001.salida[estado] };
 }
 
-function cambioDesdeQueLoViste(contexto: ContextoDelRechazo): RechazoTraducido {
-  if (contexto.operacion === 'cobro' || contexto.operacion === 'cierre') {
-    return {
-      titulo: 'Los números cambiaron desde que viste el reparto.',
-      queHacer:
-        'Se cargó un pago o un gasto, cambiaron el sueldo o los costos fijos, o cambió la fila. Abrí el cobro otra vez: el reparto se calcula de nuevo con lo que hay ahora, y lo revisás antes de confirmar.',
-      codigo: '',
-    };
-  }
-
-  if (contexto.operacion === 'fila') {
-    return {
-      titulo: 'La fila cambió mientras la editabas.',
-      queHacer:
-        'Se guardó en otro dispositivo o cambiaron los Ajustes. Mirá cómo quedó y volvé a hacer tus cambios.',
-      codigo: '',
-    };
-  }
-
-  if (contexto.operacion === 'reapertura' || contexto.operacion === 'reactivacion') {
-    return {
-      titulo: `${elTrabajo(contexto)} cambió desde que lo abriste.`,
-      queHacer: 'Abrí la ficha de nuevo para ver cómo quedó, y probá otra vez desde ahí.',
-      codigo: '',
-    };
-  }
-
-  return {
-    titulo: `${elTrabajo(contexto)} cambió desde que lo abriste.`,
-    queHacer:
-      'Se guardó algo desde otro lado. Abrilo de nuevo para ver lo que hay ahora y volvé a cargar lo que te falte.',
-    codigo: '',
-  };
+function cambioDesdeQueLoViste(
+  contexto: ContextoDelRechazo,
+  r: TextosDeLosRechazos,
+): TituloYQueHacer {
+  const { MN006 } = r;
+  if (esDelCobro(contexto)) return MN006.cobro;
+  if (contexto.operacion === 'fila') return MN006.fila;
+  const titulo = MN006.cambio(elTrabajo(contexto, r));
+  return contexto.operacion === 'reapertura' || contexto.operacion === 'reactivacion'
+    ? { titulo, queHacer: MN006.desdeLaFicha }
+    : { titulo, queHacer: MN006.desdeOtroLado };
 }
 
-function noSePuedeDesdeAca(contexto: ContextoDelRechazo): RechazoTraducido {
+function noSePuedeDesdeAca(contexto: ContextoDelRechazo, r: TextosDeLosRechazos): TituloYQueHacer {
+  const { MN007 } = r;
   switch (contexto.operacion) {
     case 'cobro':
-      return {
-        titulo: `${elTrabajo(contexto)} todavía no está entregado.`,
-        queHacer: 'Se cobra lo que ya entregaste. Marcalo como entregado y después cobralo.',
-        codigo: '',
-      };
+      return { titulo: MN007.cobro.titulo(elTrabajo(contexto, r)), queHacer: MN007.cobro.queHacer };
     case 'cierre':
       return {
-        titulo: `${elTrabajo(contexto)} ya está entregado: no se da por perdido.`,
-        queHacer: 'Un mueble entregado se cobra, aunque el cliente tarde. Cobralo desde la ficha.',
-        codigo: '',
+        titulo: MN007.cierre.titulo(elTrabajo(contexto, r)),
+        queHacer: MN007.cierre.queHacer,
       };
     case 'reapertura':
-      return {
-        titulo: `${elTrabajo(contexto)} no está cobrado.`,
-        queHacer: 'Abrí la ficha de nuevo para ver cómo quedó.',
-        codigo: '',
-      };
+      return { titulo: MN007.reapertura(elTrabajo(contexto, r)), queHacer: MN007.verLaFicha };
     case 'reactivacion':
-      return {
-        titulo: `${elTrabajo(contexto)} no está cerrado como perdido.`,
-        queHacer: 'Abrí la ficha de nuevo para ver cómo quedó.',
-        codigo: '',
-      };
+      return { titulo: MN007.reactivacion(elTrabajo(contexto, r)), queHacer: MN007.verLaFicha };
     default:
-      return {
-        titulo: 'Ese cambio de estado no se puede hacer desde el formulario.',
-        queHacer:
-          'Cobrar y dar por perdido son botones propios de la ficha, porque reparten plata. Volvé a la ficha y usá el botón.',
-        codigo: '',
-      };
+      return MN007.formulario;
   }
 }
 
-const PARA_TODOS: Readonly<Record<string, (contexto: ContextoDelRechazo) => RechazoTraducido>> = {
-  MN002: (contexto) => ({
-    titulo: `${elTrabajo(contexto)} está borrado.`,
-    queHacer:
-      'Puede que lo hayas borrado desde otro dispositivo. Si lo necesitás, cargalo de nuevo.',
-    codigo: '',
-  }),
-  MN003: (contexto) => ({
-    titulo: `${elTrabajo(contexto)} tiene trabajos cargados.`,
-    queHacer: 'Borrá esos trabajos, o pasalos a otro cliente, y después borrá el cliente.',
-    codigo: '',
-  }),
-  MN004: () => ({
-    titulo: 'La base no aceptó ese cambio.',
-    queHacer: 'Es algo que no tendría que pasar. Volvé a cargarlo, y si sigue igual avisá.',
-    codigo: '',
-  }),
-  MN005: () => ({
-    titulo: 'El cliente de este trabajo está borrado.',
-    queHacer: 'Elegí otro cliente para el trabajo, o volvé a cargar el cliente que borraste.',
-    codigo: '',
-  }),
-  MN009: () => ({
-    titulo: 'El presupuesto de este trabajo sale de la opción que tildes.',
-    queHacer:
-      'Tildá la que te aprobaron, y si querés escribir el presupuesto a mano, sacá las opciones primero. Solo se puede tildar una.',
-    codigo: '',
-  }),
-  MN016: (contexto) => ({
-    titulo:
-      contexto.operacion === 'cobro' || contexto.operacion === 'cierre'
-        ? 'Falta el día del cobro.'
-        : 'A un pago le falta el día.',
-    queHacer:
-      'No se guardó nada. Poné el día en que entró la plata y volvé a guardarlo: la fecha no se inventa.',
-    codigo: '',
-  }),
-  MN017: () => ({
-    titulo: 'Esa fecha todavía no llegó.',
-    queHacer:
-      'No se guardó nada. Poné el día en que entró la plata, que tiene que ser hoy o antes, y volvé a guardarlo.',
-    codigo: '',
-  }),
-  MN018: () => ({
-    titulo: 'Esa plata no es de antes de que empezaras con la app.',
-    queHacer:
-      'Solo lo que entró antes de la apertura puede estar en tus saldos de arranque. Destildá esa opción, o revisá la fecha, y volvé a guardarlo.',
-    codigo: '',
-  }),
-  MN023: () => ({
-    titulo: 'La fila no se pudo guardar.',
-    queHacer: 'Revisala y probá de nuevo.',
-    codigo: '',
-  }),
-  MN024: (contexto) => ({
-    titulo:
-      contexto.sujeto === undefined || contexto.sujeto.trim() === ''
-        ? 'No se pudo archivar el tesoro.'
-        : `No se pudo archivar ${contexto.sujeto}.`,
-    queHacer:
-      'Sacalo de la fila, cobrá el trabajo reabierto que lo usa y pasá su plata a otro tesoro. Después archivalo.',
-    codigo: '',
-  }),
-  MN025: () => ({
-    titulo: 'Este cobro quedó de antes de actualizar la app.',
-    queHacer:
-      'Abrí el cobro otra vez: el reparto se calcula con tu fila y lo revisás antes de confirmar.',
-    codigo: '',
-  }),
-  MN022: () => ({
-    titulo: 'Tu vidriera ya tiene 12 fotos.',
-    queHacer:
-      'No se sumó la foto. Pasa si sumaste fotos desde otro aparato al mismo tiempo. Sacá una de tu vidriera en Ajustes y volvé a sumarla.',
-    codigo: '',
-  }),
-  MN019: () => ({
-    titulo: 'El seguimiento de este trabajo quedó a medias.',
-    queHacer:
-      'No se guardó nada. Pasa si lo cambiaste desde otro lado al mismo tiempo. Abrilo de nuevo: si está en seguimiento, registrá el contacto desde ahí; si no, ponelo en seguimiento con su fecha.',
-    codigo: '',
-  }),
-  MN026: () => ({
-    titulo: 'Este presupuesto se cambió en otro aparato.',
-    queHacer: 'Abrilo de nuevo para ver la última versión y seguí desde ahí.',
-    codigo: '',
-  }),
-  MN027: () => ({
-    titulo: 'Al presupuesto le falta algo para mandarlo.',
-    queHacer: 'Revisá que tenga título, por lo menos un mueble con su detalle y un total.',
-    codigo: '',
-  }),
-  MN028: () => ({
-    titulo: 'Ya lo aprobó: el presupuesto no se cambia.',
-    queHacer: 'Un cambio después de la seña se arregla aparte con tu cliente.',
-    codigo: '',
-  }),
-  MN029: () => ({
-    titulo: 'Cambiaron los importes desde que lo armaste.',
-    queHacer: 'Revisá los valores y volvé a mandarlo.',
-    codigo: '',
-  }),
-  MN030: () => ({
-    titulo: 'Los textos del presupuesto se cambiaron en otro aparato.',
-    queHacer: 'Abrí la pantalla de nuevo y volvé a guardar.',
-    codigo: '',
-  }),
-  MN031: (contexto) => ({
-    titulo:
-      contexto.operacion === 'plantilla'
-        ? 'Tus textos del presupuesto no se pudieron guardar.'
-        : 'El presupuesto no se pudo guardar.',
-    queHacer:
-      'Revisalo y probá de nuevo. Si vuelve a pasar, cerrá la app y abrila otra vez para que se actualice.',
-    codigo: '',
-  }),
-  MN032: () => ({
-    titulo: 'Este trabajo está perdido: su presupuesto no se cambia ni se manda.',
-    queHacer: 'Si el cliente volvió, reactivalo desde la ficha y seguí desde ahí.',
-    codigo: '',
-  }),
-  MN033: () => ({
-    titulo: 'El día del envío todavía no llegó.',
-    queHacer: 'Revisá la fecha y la hora de tu aparato, y volvé a mandarlo.',
-    codigo: '',
-  }),
-  MN008: (contexto) => ({
-    titulo: 'Esta app quedó vieja y no saca la misma cuenta que el servidor.',
-    queHacer:
-      contexto.operacion === 'cobro' || contexto.operacion === 'cierre'
-        ? 'No se guardó nada: el trabajo quedó como estaba. Puede ser el corte de la ganancia, o lo que el mes ya lleva cubierto. Cerrá la app, volvé a abrirla para que se actualice, y hacelo de nuevo.'
-        : 'Cerrá la app y volvé a abrirla para que se actualice, y probá otra vez.',
-    codigo: '',
-  }),
-};
+function laEntrega(
+  error: unknown,
+  rechazo: RechazoDeLaBase,
+  r: TextosDeLosRechazos,
+): TituloYQueHacer {
+  const detalle = detalleDe(error);
+  const motivo = Object.hasOwn(MOTIVO_DE_LA_ENTREGA, detalle)
+    ? MOTIVO_DE_LA_ENTREGA[detalle]
+    : undefined;
+  if (motivo !== undefined) return r.MN021[motivo];
+  return { titulo: `${rechazo.mensaje}.`, queHacer: r.MN021.noSeGuardoNada(rechazo.hint) };
+}
+
+function traduccionDe(
+  error: unknown,
+  rechazo: RechazoDeLaBase,
+  contexto: ContextoDelRechazo,
+  r: TextosDeLosRechazos,
+): TituloYQueHacer | undefined {
+  const { codigo } = rechazo;
+  if (codigo === SIN_PERMISO) return r.sinPermiso;
+  if (esSimple(codigo)) return r[codigo];
+  switch (codigo) {
+    case 'MN001':
+      return yaEstaLiquidado(contexto, r);
+    case 'MN002':
+      return { titulo: r.MN002.titulo(elTrabajo(contexto, r)), queHacer: r.MN002.queHacer };
+    case 'MN003': {
+      const cliente = sujetoDe(contexto);
+      return {
+        titulo: cliente === undefined ? r.MN003.sinCliente : r.MN003.titulo(cliente),
+        queHacer: r.MN003.queHacer,
+      };
+    }
+    case 'MN006':
+      return cambioDesdeQueLoViste(contexto, r);
+    case 'MN007':
+      return noSePuedeDesdeAca(contexto, r);
+    case 'MN008':
+      return {
+        titulo: r.MN008.titulo,
+        queHacer: esDelCobro(contexto) ? r.MN008.alCobrar : r.MN008.queHacer,
+      };
+    case 'MN016':
+      return {
+        titulo: esDelCobro(contexto) ? r.MN016.delCobro : r.MN016.deUnPago,
+        queHacer: r.MN016.queHacer,
+      };
+    case 'MN021':
+      return laEntrega(error, rechazo, r);
+    case 'MN024': {
+      const tesoro = sujetoDe(contexto);
+      return {
+        titulo: tesoro === undefined ? r.MN024.sinTesoro : r.MN024.titulo(tesoro),
+        queHacer: r.MN024.queHacer,
+      };
+    }
+    case 'MN031':
+      return {
+        titulo: contexto.operacion === 'plantilla' ? r.MN031.plantilla : r.MN031.presupuesto,
+        queHacer: r.MN031.queHacer,
+      };
+    case 'MN012':
+    case 'MN015':
+      return Object.hasOwn(POR_EL_MENSAJE_DE_LA_BASE, rechazo.mensaje)
+        ? POR_EL_MENSAJE_DE_LA_BASE[rechazo.mensaje]?.(r)
+        : undefined;
+    default:
+      return undefined;
+  }
+}
 
 export function traducirRechazo(
   error: unknown,
@@ -283,41 +234,15 @@ export function traducirRechazo(
   const rechazo = rechazoDeLaBase(error);
   if (!rechazo) return undefined;
 
-  if (rechazo.codigo === SIN_PERMISO) {
-    return {
-      titulo: 'Tu cuenta no tiene acceso a esto.',
-      queHacer:
-        'Puede que el trabajo sea de otro taller, o que tu cuenta haya quedado sin taller. Cerrá sesión y volvé a entrar.',
-      codigo: rechazo.codigo,
-    };
+  const r = mensajes().api.rechazos;
+  const traducido = traduccionDe(error, rechazo, contexto, r);
+  if (traducido !== undefined) {
+    return { titulo: traducido.titulo, queHacer: traducido.queHacer, codigo: rechazo.codigo };
   }
-
-  if (rechazo.codigo === 'MN001') {
-    return { ...yaEstaLiquidado(contexto), codigo: rechazo.codigo };
-  }
-
-  if (rechazo.codigo === 'MN006') {
-    return { ...cambioDesdeQueLoViste(contexto), codigo: rechazo.codigo };
-  }
-
-  if (rechazo.codigo === 'MN007') {
-    return { ...noSePuedeDesdeAca(contexto), codigo: rechazo.codigo };
-  }
-
-  if (rechazo.codigo === 'MN021') {
-    return {
-      titulo: `${rechazo.mensaje}.`,
-      queHacer: `${rechazo.hint} No se guardó nada.`,
-      codigo: rechazo.codigo,
-    };
-  }
-
-  const conocido = PARA_TODOS[rechazo.codigo];
-  if (conocido) return { ...conocido(contexto), codigo: rechazo.codigo };
 
   return {
     titulo: rechazo.mensaje,
-    queHacer: rechazo.hint === '' ? 'Volvé a intentarlo, y si sigue igual avisá.' : rechazo.hint,
+    queHacer: rechazo.hint === '' ? r.siSigueIgual : rechazo.hint,
     codigo: rechazo.codigo,
   };
 }

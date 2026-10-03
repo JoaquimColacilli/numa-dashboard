@@ -2,7 +2,7 @@ import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SIN_SENAL_PARA_ARCHIVOS } from '@/entities/archivo';
+import { sinSenalParaArchivos } from '@/entities/archivo';
 import { ProveedorDeReplica } from '@/entities/replica';
 import {
   copiarEnElBucketDeArchivos,
@@ -203,7 +203,7 @@ describe('sumar fotos a la vidriera', () => {
     onlineManager.setOnline(false);
     fireEvent.click(foto('Foto 1 de «Placard»'));
     fireEvent.click(screen.getByRole('button', { name: 'Sumar 1 foto' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(SIN_SENAL_PARA_ARCHIVOS);
+    expect(screen.getByRole('alert')).toHaveTextContent(sinSenalParaArchivos());
     expect(copiarEnElBucketDeArchivos).not.toHaveBeenCalled();
   });
 });

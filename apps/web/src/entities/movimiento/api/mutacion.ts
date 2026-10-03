@@ -58,6 +58,7 @@ function conFilaOptimista(replica: Replica, movimiento: MovimientoNuevo): Replic
     hacia_id: movimiento.hacia_id ?? null,
     cubre_el_mes: movimiento.cubre_el_mes ?? null,
     monto_centavos: movimiento.monto_centavos,
+    monto_destino_centavos: movimiento.monto_destino_centavos ?? null,
     categoria: movimiento.categoria ?? '',
     descripcion: movimiento.descripcion ?? '',
     proyecto_id: null,

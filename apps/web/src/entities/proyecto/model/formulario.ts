@@ -1,8 +1,16 @@
 import {
+  conceptoEnPantalla,
+  conceptoParaGuardar,
   esAnteriorALaApertura,
   ESTADOS,
+  MONEDA_DEL_TALLER,
+  MONEDAS,
+  monedaLeida,
+  necesitaCotizacion,
   puedeCambiarEstado,
   type EstadoProyecto,
+  type ImporteDeUnPago,
+  type Moneda,
 } from '@maun/domain';
 import { z } from 'zod';
 
@@ -10,6 +18,9 @@ import {
   COLUMNAS_DE_PROYECTO,
   horaDeLaEntrega,
   horaDeLaVisita,
+  loQueDescuentaElPago,
+  monedaDelTrabajo,
+  valorEnPesosDelPago,
   visitaHecha,
   type BajaDeFilaHija,
   type CambiosDeProyecto,
@@ -19,6 +30,7 @@ import {
   type PagoParaGuardar,
   type ProyectoParaGuardar,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   errorDeLaFechaDeLaPlata,
   formatearPorcentaje,
@@ -27,6 +39,7 @@ import {
   parsearPorcentaje,
   SENA_MAXIMA_BP,
 } from '@/shared/lib';
+import { errorDelDolar } from '@/shared/ui';
 
 import {
   COMPROBANTES_EN_ORDEN,
@@ -38,37 +51,52 @@ import {
 } from './catalogos';
 import { tipoDelTrabajo } from './entrega';
 import { senaDelProyecto, type OpcionDePresupuesto } from './opciones';
+import { importeDelValor } from './pago';
 import { vigenciaDelPresupuesto } from './vigencia';
 
-const SIN_MONTO = 'Poné cuánto, en pesos.';
+function errores() {
+  return mensajes().proyecto.formulario;
+}
 
 function texto(maximo: number) {
   return z
     .string()
     .trim()
-    .max(maximo, { error: `No puede pasar de ${String(maximo)} caracteres.` });
+    .max(maximo, { error: () => errores().demasiadoLargo(maximo) });
 }
 
 const monto = z
   .number()
   .int()
   .nullable()
-  .refine((valor) => valor !== null && valor > 0, { error: SIN_MONTO });
+  .refine((valor) => valor !== null && valor > 0, { error: () => errores().sinMonto });
 
 const filaDinamica = z.object({
   id: z.string(),
-  fecha: z.string().min(1, { error: 'Poné la fecha.' }),
+  fecha: z.string().min(1, { error: () => errores().sinFecha }),
   detalle: texto(500),
   monto,
   enLaApertura: z.boolean(),
 });
 
-const filaDePago = filaDinamica.extend({
-  fecha: z.string().superRefine((valor, contexto) => {
-    const error = errorDeLaFechaDeLaPlata(valor, hoyEnElTaller());
-    if (error !== undefined) contexto.addIssue({ code: 'custom', message: error });
-  }),
-});
+const filaDePago = filaDinamica
+  .extend({
+    fecha: z.string().superRefine((valor, contexto) => {
+      const error = errorDeLaFechaDeLaPlata(valor, hoyEnElTaller());
+      if (error !== undefined) contexto.addIssue({ code: 'custom', message: error });
+    }),
+    moneda: z.enum(MONEDAS),
+    cotizacion: z.number().int().nullable(),
+    tesoroId: z.string().nullable(),
+  })
+  .superRefine((pago, contexto) => {
+    if (pago.moneda === MONEDA_DEL_TALLER || pago.tesoroId !== null) return;
+    contexto.addIssue({
+      code: 'custom',
+      path: ['tesoroId'],
+      message: mensajes().proyecto.pago.elegiElTesoro,
+    });
+  });
 
 const filaDeOpcion = z.object({
   id: z.string(),
@@ -77,44 +105,55 @@ const filaDeOpcion = z.object({
   aprobada: z.boolean(),
 });
 
-export const esquemaDeProyecto = z.object({
-  cliente_id: z.string().min(1, { error: 'Elegí un cliente, o creá uno nuevo desde acá.' }),
-  titulo: texto(200).min(1, { error: 'Contá qué mueble es.' }),
-  descripcion: texto(10_000),
-  estado: z.enum(ESTADOS),
-  presupuesto: z
-    .number()
-    .int()
-    .nonnegative({ error: 'Revisá el presupuesto: va en pesos.' })
-    .nullable(),
-  sena: z
-    .string()
-    .refine(
-      (valor) => valor.trim() === '' || parsearPorcentaje(valor, SENA_MAXIMA_BP) !== undefined,
-      { error: 'La seña va entre 0 y 100.' },
-    ),
-  forma_pago: z.enum(FORMAS_EN_ORDEN).nullable(),
-  comprobante: z.enum(COMPROBANTES_EN_ORDEN),
-  fecha_visita: z.string(),
-  visita_hora: z.string(),
-  visita_hecha: z.boolean(),
-  ultimo_contacto: z.string(),
-  fecha_inicio: z.string(),
-  entrega_estimada: z.string(),
-  entrega_hora: z.string(),
-  fecha_entrega: z.string(),
-  direccion_entrega: texto(500),
-  notas: texto(10_000),
-  vencimiento_presupuesto: z.string(),
-  presupuesto_vale_hasta: z.string(),
-  tipo_de_proyecto: texto(60),
-  pagos: z.array(filaDePago),
-  gastos: z.array(filaDinamica),
-  opciones: z.array(filaDeOpcion),
-});
+export const esquemaDeProyecto = z
+  .object({
+    cliente_id: z.string().min(1, { error: () => errores().sinCliente }),
+    titulo: texto(200).min(1, { error: () => errores().sinTitulo }),
+    descripcion: texto(10_000),
+    estado: z.enum(ESTADOS),
+    moneda: z.enum(MONEDAS),
+    presupuesto: z
+      .number()
+      .int()
+      .nonnegative({ error: () => errores().presupuestoNegativo })
+      .nullable(),
+    sena: z
+      .string()
+      .refine(
+        (valor) => valor.trim() === '' || parsearPorcentaje(valor, SENA_MAXIMA_BP) !== undefined,
+        { error: () => errores().senaFueraDeRango },
+      ),
+    forma_pago: z.enum(FORMAS_EN_ORDEN).nullable(),
+    comprobante: z.enum(COMPROBANTES_EN_ORDEN),
+    fecha_visita: z.string(),
+    visita_hora: z.string(),
+    visita_hecha: z.boolean(),
+    ultimo_contacto: z.string(),
+    fecha_inicio: z.string(),
+    entrega_estimada: z.string(),
+    entrega_hora: z.string(),
+    fecha_entrega: z.string(),
+    direccion_entrega: texto(500),
+    notas: texto(10_000),
+    vencimiento_presupuesto: z.string(),
+    presupuesto_vale_hasta: z.string(),
+    tipo_de_proyecto: texto(60),
+    pagos: z.array(filaDePago),
+    gastos: z.array(filaDinamica),
+    opciones: z.array(filaDeOpcion),
+  })
+  .superRefine((valores, contexto) => {
+    valores.pagos.forEach((pago, indice) => {
+      if (!necesitaCotizacion(pago.moneda, valores.moneda)) return;
+      const error = errorDelDolar(pago.cotizacion);
+      if (error === undefined) return;
+      contexto.addIssue({ code: 'custom', path: ['pagos', indice, 'cotizacion'], message: error });
+    });
+  });
 
 export type FormularioDeProyecto = z.infer<typeof esquemaDeProyecto>;
 export type FilaDinamica = z.infer<typeof filaDinamica>;
+export type FilaDePago = z.infer<typeof filaDePago>;
 export type FilaDeOpcion = z.infer<typeof filaDeOpcion>;
 
 function fecha(valor: string | null): string {
@@ -137,6 +176,41 @@ function textoONull(valor: string): string | null {
 
 export function filaVacia(id: string, hoy: string = hoyEnElTaller()): FilaDinamica {
   return { id, fecha: hoy, detalle: '', monto: null, enLaApertura: true };
+}
+
+export function pagoVacio(
+  id: string,
+  hoy: string,
+  moneda: Moneda,
+  cotizacion: number | null = null,
+): FilaDePago {
+  return { ...filaVacia(id, hoy), moneda, cotizacion, tesoroId: null };
+}
+
+export function importeDeLaFila(
+  fila: Pick<FilaDePago, 'moneda' | 'monto' | 'cotizacion'>,
+): ImporteDeUnPago | null {
+  return importeDelValor({ ...fila, tesoroId: null });
+}
+
+export interface TotalesDeLosPagos {
+  enSuMoneda: number;
+  enPesos: number;
+}
+
+export function totalesDeLosPagos(
+  filas: readonly Pick<FilaDePago, 'moneda' | 'monto' | 'cotizacion'>[],
+  monedaDelTrabajo: Moneda,
+): TotalesDeLosPagos {
+  let enSuMoneda = 0;
+  let enPesos = 0;
+  for (const fila of filas) {
+    const importe = importeDeLaFila(fila);
+    if (importe === null) continue;
+    enSuMoneda += loQueDescuentaElPago(importe, monedaDelTrabajo);
+    enPesos += valorEnPesosDelPago(importe);
+  }
+  return { enSuMoneda, enPesos };
 }
 
 export function opcionVacia(id: string): FilaDeOpcion {
@@ -178,6 +252,7 @@ export function valoresDelFormulario(
       titulo: '',
       descripcion: '',
       estado: 'en_curso',
+      moneda: MONEDA_DEL_TALLER,
       presupuesto: null,
       sena: '',
       forma_pago: 'transferencia',
@@ -208,6 +283,7 @@ export function valoresDelFormulario(
     titulo: proyecto.titulo,
     descripcion: proyecto.descripcion,
     estado: proyecto.estado,
+    moneda: monedaDelTrabajo(proyecto),
     presupuesto: proyecto.presupuesto_centavos,
     sena: propia === null ? '' : formatearPorcentaje(propia),
     forma_pago: proyecto.forma_pago,
@@ -228,9 +304,12 @@ export function valoresDelFormulario(
     pagos: pagos.map((pago) => ({
       id: pago.id,
       fecha: pago.fecha,
-      detalle: pago.concepto,
+      detalle: conceptoEnPantalla(pago.concepto, mensajes().proyecto.conceptosDeSiempre),
       monto: pago.monto_centavos,
       enLaApertura: (pago as Partial<Pago>).ya_en_la_apertura === true,
+      moneda: monedaLeida((pago as Partial<Pago>).moneda),
+      cotizacion: (pago as Partial<Pago>).cotizacion_centavos ?? null,
+      tesoroId: (pago as Partial<Pago>).tesoro_id ?? null,
     })),
     gastos: gastos.map((gasto) => ({
       id: gasto.id,
@@ -263,6 +342,7 @@ export function datosDelFormulario(
       valores.opciones.length > 0
         ? presupuestoDeLasOpciones(valores.opciones)
         : valores.presupuesto,
+    moneda: valores.moneda,
     sena_bp:
       valores.sena.trim() === '' ? null : (parsearPorcentaje(valores.sena, SENA_MAXIMA_BP) ?? null),
     forma_pago: valores.forma_pago,
@@ -304,9 +384,12 @@ export function pedidoDeGuardado(
   const pagos: PagoParaGuardar[] = valores.pagos.map((fila) => ({
     id: fila.id,
     fecha: fila.fecha,
-    concepto: fila.detalle.trim(),
+    concepto: conceptoParaGuardar(fila.detalle, mensajes().proyecto.conceptosDeSiempre),
     monto_centavos: monto(fila.monto),
     ya_en_la_apertura: fila.enLaApertura && esAnteriorALaApertura(fila.fecha, apertura),
+    moneda: fila.moneda,
+    cotizacion_centavos: fila.cotizacion,
+    tesoro_id: fila.moneda === MONEDA_DEL_TALLER ? null : fila.tesoroId,
   }));
 
   const gastos: GastoParaGuardar[] = valores.gastos.map((fila) => ({

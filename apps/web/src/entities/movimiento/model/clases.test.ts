@@ -1,17 +1,28 @@
-import { centavos, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, enPesos, plata, puntosBasicos, type Fila, type Moneda } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
+
+import { usarIdioma } from '@/shared/idioma';
 
 import {
   CLASE,
   CLASES_EN_ORDEN,
+  categoriaEnPantalla,
   categoriasDeLaClase,
   claseDe,
   claseParaPagar,
   clasesDelGrupo,
+  destinosDeLaClase,
+  esUnCambio,
   gastaDesdeElTesoro,
   GRUPOS,
+  hayDolaresParaCargar,
+  origenesDeLaClase,
   renglonesPorTesoro,
+  rutaParaComprarDolares,
+  rutaParaComprarDolaresPara,
   rutaParaRegistrarElPago,
+  rutaParaVenderDolares,
+  tesorosParaElegir,
   vaEntreTesoros,
 } from './clases';
 
@@ -37,7 +48,7 @@ describe('las clases de movimiento', () => {
   });
 
   it('la novena es «Entre tesoros»: una transferencia con los dos lados para elegir', () => {
-    expect(CLASES_EN_ORDEN.at(-1)).toBe('entre_tesoros');
+    expect(CLASES_EN_ORDEN.indexOf('entre_tesoros')).toBe(9);
     expect(CLASE.entre_tesoros).toMatchObject({
       grupo: 'entre',
       etiqueta: 'Entre tesoros',
@@ -52,12 +63,14 @@ describe('las clases de movimiento', () => {
       'Diezmo',
       'Cocos',
       'Entre tesoros',
+      'Dólares',
     ]);
     expect(clasesDelGrupo('entre').map((clase) => clase.id)).toEqual(['entre_tesoros']);
   });
 
   it('la décima es «Gasto de un tesoro»: un gasto desde un tesoro del dueño, con los gastos', () => {
-    expect(CLASES_EN_ORDEN).toHaveLength(10);
+    expect(CLASES_EN_ORDEN.indexOf('gasto_tesoro')).toBe(4);
+    expect(CLASES_EN_ORDEN).toHaveLength(13);
     expect(CLASE.gasto_tesoro).toMatchObject({
       grupo: 'gasto',
       etiqueta: 'Gasto de un tesoro',
@@ -92,6 +105,111 @@ describe('las clases de movimiento', () => {
     expect(vaEntreTesoros({ clave: 'diezmo' })).toBe(false);
     expect(vaEntreTesoros({ clave: 'maun' })).toBe(true);
     expect(vaEntreTesoros({ clave: null })).toBe(true);
+  });
+});
+
+describe('las clases de los dólares', () => {
+  function tesoro(id: string, clave: 'maun' | 'diezmo' | null, moneda: Moneda, archivado = false) {
+    return { id, clave, moneda, archivado };
+  }
+  const MAUN = tesoro('maun', 'maun', 'ARS');
+  const DIEZMO = tesoro('diezmo', 'diezmo', 'ARS');
+  const MATERIALES = tesoro('materiales', null, 'ARS');
+  const DOLARES = tesoro('dolares', null, 'USD');
+  const AHORRO = tesoro('ahorro', null, 'USD');
+  const VIEJO = tesoro('viejo', null, 'USD', true);
+  const TESOROS = [MAUN, DIEZMO, MATERIALES, DOLARES, AHORRO, VIEJO];
+  const ids = (lista: readonly { id: string }[]) => lista.map((uno) => uno.id);
+
+  it('el grupo «Dólares» trae la compra, la venta y el ingreso, con «Qué dólar» de categorías', () => {
+    expect(
+      clasesDelGrupo('dolares').map((clase) => [clase.id, clase.tipo, clase.etiqueta, clase.corta]),
+    ).toEqual([
+      ['compra_de_dolares', 'cambio', 'Compra de dólares', 'Compra'],
+      ['venta_de_dolares', 'cambio', 'Venta de dólares', 'Venta'],
+      ['ingreso_en_dolares', 'ingreso', 'Ingreso en dólares', 'Ingreso'],
+    ]);
+    expect(CLASE.compra_de_dolares.categorias).toEqual([
+      'Oficial',
+      'MEP',
+      'Blue',
+      'Cripto',
+      'Otro',
+    ]);
+    expect(CLASE.venta_de_dolares.categorias).toEqual(CLASE.compra_de_dolares.categorias);
+    expect(esUnCambio('compra_de_dolares')).toBe(true);
+    expect(esUnCambio('entre_tesoros')).toBe(false);
+  });
+
+  it('un cambio es compra o venta según la moneda de su origen', () => {
+    expect(claseDe('cambio', 'maun', null, { desde: 'ARS', hacia: 'USD' })?.id).toBe(
+      'compra_de_dolares',
+    );
+    expect(claseDe('cambio', null, 'maun', { desde: 'USD', hacia: 'ARS' })?.id).toBe(
+      'venta_de_dolares',
+    );
+  });
+
+  it('un ingreso a un tesoro en dólares es un ingreso en dólares, y a uno en pesos sigue sin clase', () => {
+    expect(claseDe('ingreso', null, null, { hacia: 'USD' })?.id).toBe('ingreso_en_dolares');
+    expect(claseDe('ingreso', null, null, { hacia: 'ARS' })).toBeUndefined();
+    expect(claseDe('ingreso', null, null)).toBeUndefined();
+    expect(claseDe('ingreso', null, 'maun', { hacia: 'ARS' })?.id).toBe('ingreso_maun');
+  });
+
+  it('cada clase ofrece los lados de su moneda, sin el diezmo ni los archivados', () => {
+    expect(ids(origenesDeLaClase('compra_de_dolares', TESOROS))).toEqual(['maun', 'materiales']);
+    expect(ids(destinosDeLaClase('compra_de_dolares', TESOROS, MAUN))).toEqual([
+      'dolares',
+      'ahorro',
+    ]);
+    expect(ids(origenesDeLaClase('venta_de_dolares', TESOROS))).toEqual(['dolares', 'ahorro']);
+    expect(ids(destinosDeLaClase('venta_de_dolares', TESOROS, DOLARES))).toEqual([
+      'maun',
+      'materiales',
+    ]);
+    expect(ids(destinosDeLaClase('entre_tesoros', TESOROS, DOLARES))).toEqual(['ahorro']);
+    expect(ids(destinosDeLaClase('entre_tesoros', TESOROS, MAUN))).toEqual(['materiales']);
+    expect(ids(tesorosParaElegir('ingreso_en_dolares', TESOROS))).toEqual(['dolares', 'ahorro']);
+    expect(ids(tesorosParaElegir('gasto_tesoro', TESOROS))).toEqual([
+      'materiales',
+      'dolares',
+      'ahorro',
+    ]);
+    expect(hayDolaresParaCargar(TESOROS)).toBe(true);
+    expect(hayDolaresParaCargar([MAUN, VIEJO])).toBe(false);
+  });
+
+  it('la compra sale del tesoro en pesos con su saldo; la venta, del de dólares con el suyo', () => {
+    expect(rutaParaComprarDolares({ id: 'maun-id', saldo: enPesos(centavos(72_500_000)) })).toBe(
+      '/finanzas/nuevo?clase=compra_de_dolares&tesoro=maun-id&monto=72500000',
+    );
+    expect(rutaParaComprarDolares({ id: 'maun-id', saldo: enPesos(centavos(-1)) })).toBe(
+      '/finanzas/nuevo?clase=compra_de_dolares&tesoro=maun-id',
+    );
+    expect(rutaParaVenderDolares({ id: 'dolares-id', saldo: plata('USD', 50_000) })).toBe(
+      '/finanzas/nuevo?clase=venta_de_dolares&tesoro=dolares-id&monto=50000',
+    );
+    expect(rutaParaComprarDolaresPara({ id: 'dolares-id' })).toBe(
+      '/finanzas/nuevo?clase=compra_de_dolares&hacia=dolares-id',
+    );
+  });
+
+  it('«Qué dólar» se guarda en castellano y se muestra en el idioma de quien mira', async () => {
+    expect(categoriaEnPantalla('Cripto')).toBe('Cripto');
+    expect(categoriaEnPantalla('Una que escribí yo')).toBe('Una que escribí yo');
+    try {
+      await usarIdioma('en');
+      expect(categoriaEnPantalla('Cripto')).toBe('Crypto');
+      expect(categoriaEnPantalla('Oficial')).toBe('Official');
+      expect(CLASE.venta_de_dolares.etiqueta).toBe('Dollar sale');
+      expect(categoriaEnPantalla('Una que escribí yo')).toBe('Una que escribí yo');
+      await usarIdioma('pt-BR');
+      expect(categoriaEnPantalla('Otro')).toBe('Outro');
+      expect(GRUPOS.at(-1)?.etiqueta).toBe('Dólares');
+    } finally {
+      await usarIdioma('es');
+    }
   });
 });
 

@@ -1,3 +1,4 @@
+import { mensajes } from '@/shared/idioma';
 import {
   codificarLienzo,
   lienzoDelDocumento,
@@ -34,7 +35,7 @@ async function dibujar(
   lienzo.width = medidas.ancho;
   lienzo.height = medidas.alto;
   const contexto = lienzo.getContext('2d');
-  if (!contexto) throw new Error('Este navegador no puede preparar la imagen.');
+  if (!contexto) throw new Error(mensajes().archivo.navegadorSinLienzo);
 
   contexto.imageSmoothingEnabled = true;
   contexto.imageSmoothingQuality = 'high';
@@ -43,7 +44,7 @@ async function dibujar(
   const blob = await codificarLienzo(lienzo, CALIDAD);
   lienzo.width = 0;
   lienzo.height = 0;
-  if (!blob) throw new Error('No se pudo preparar la imagen. Probá de nuevo.');
+  if (!blob) throw new Error(mensajes().archivo.noSePudoPreparar);
   return { blob, ...medidas };
 }
 

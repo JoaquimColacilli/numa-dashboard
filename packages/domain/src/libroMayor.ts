@@ -1,6 +1,18 @@
+import type { Cotizacion } from './cotizacion.ts';
 import { estaLiquidado, type EstadoProyecto } from './estados.ts';
 import { mesDe } from './fechas.ts';
-import { BASE_PUNTOS_BASICOS, CERO, centavos, restar, sumar, type Money } from './money.ts';
+import {
+  BASE_PUNTOS_BASICOS,
+  CERO,
+  centavos,
+  importeDelTaller,
+  negar,
+  restar,
+  sumar,
+  type Moneda,
+  type MonedaDelTaller,
+  type Money,
+} from './money.ts';
 
 export const TESOROS = ['hogar', 'maun', 'diezmo', 'cocos'] as const;
 
@@ -23,7 +35,8 @@ export interface MovimientoDelLibro {
   tesoroDestino: Tesoro | null;
   desdeId: string | null;
   haciaId: string | null;
-  monto: Money;
+  monto: Money<Moneda>;
+  montoDestino?: Money<Moneda> | null;
   categoria: string;
   descripcion: string;
   proyectoId: string | null;
@@ -34,7 +47,10 @@ export interface PagoDelLibro {
   proyectoId: string;
   fecha: string;
   concepto: string;
-  monto: Money;
+  monto: Money<Moneda>;
+  moneda?: Moneda;
+  cotizacion?: Cotizacion | null;
+  tesoroId?: string | null;
   yaEnLaApertura: boolean;
 }
 
@@ -83,7 +99,7 @@ export interface Asiento {
   contrapartida: Tesoro | null;
   tesoroId: string;
   contrapartidaId: string | null;
-  monto: Money;
+  monto: Money<Moneda>;
   concepto: string;
   categoria: string;
   descripcion: string;
@@ -99,7 +115,8 @@ export interface LineaDelLibro {
   hacia: Tesoro | null;
   desdeId: string | null;
   haciaId: string | null;
-  monto: Money;
+  monto: Money<Moneda>;
+  montoHacia: Money<Moneda>;
   concepto: string;
   categoria: string;
   descripcion: string;
@@ -109,7 +126,7 @@ export interface LineaDelLibro {
 
 export type SaldosPorTesoro = Readonly<Record<Tesoro, Money>>;
 
-export type SaldosPorId = ReadonlyMap<string, Money>;
+export type SaldosPorId = ReadonlyMap<string, Money<Moneda>>;
 
 interface Tesoreria {
   idDe: (clave: Tesoro) => string;
@@ -135,10 +152,6 @@ function tesoreria(tesoros: readonly TesoroDelLibro[]): Tesoreria {
       return esClave(id) ? id : null;
     },
   };
-}
-
-function negativo(importe: Money): Money {
-  return restar(CERO, importe);
 }
 
 function ladoDelMovimiento(
@@ -168,6 +181,7 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
       desdeId: desde.id,
       haciaId: hacia.id,
       monto: movimiento.monto,
+      montoHacia: movimiento.montoDestino ?? movimiento.monto,
       concepto: movimiento.tipo,
       categoria: movimiento.categoria,
       descripcion: movimiento.descripcion,
@@ -180,15 +194,17 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
 
   for (const pago of datos.pagos) {
     if (!proyectos.has(pago.proyectoId)) continue;
+    const tesoroDelPago = pago.tesoroId ?? null;
     lineas.push({
       origen: 'pago',
       asientoId: pago.id,
       fecha: pago.fecha,
       desde: null,
-      hacia: 'maun',
+      hacia: tesoroDelPago === null ? 'maun' : tesoros.claveDe(tesoroDelPago),
       desdeId: null,
-      haciaId: maun,
+      haciaId: tesoroDelPago ?? maun,
       monto: pago.monto,
+      montoHacia: pago.monto,
       concepto: 'cobro',
       categoria: 'Cobro',
       descripcion: pago.concepto,
@@ -208,6 +224,7 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
       desdeId: maun,
       haciaId: null,
       monto: gasto.monto,
+      montoHacia: gasto.monto,
       concepto: 'gasto',
       categoria: 'Materiales',
       descripcion: gasto.descripcion,
@@ -235,6 +252,7 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
         desdeId: maun,
         haciaId: tesoros.idDe(hacia),
         monto,
+        montoHacia: monto,
         concepto,
         categoria: 'Distribución',
         descripcion: proyecto.titulo,
@@ -257,6 +275,7 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
       desdeId: maun,
       haciaId: reparto.tesoroId,
       monto: reparto.monto,
+      montoHacia: reparto.monto,
       concepto: reparto.clase ?? 'reparto',
       categoria: 'Distribución',
       descripcion: proyecto.titulo,
@@ -288,7 +307,7 @@ export function asientosDeLaLinea(linea: LineaDelLibro): Asiento[] {
       contrapartida: linea.desde,
       tesoroId: linea.haciaId,
       contrapartidaId: linea.desdeId,
-      monto: linea.monto,
+      monto: linea.montoHacia,
     });
   }
   if (linea.desdeId !== null) {
@@ -298,7 +317,7 @@ export function asientosDeLaLinea(linea: LineaDelLibro): Asiento[] {
       contrapartida: linea.hacia,
       tesoroId: linea.desdeId,
       contrapartidaId: linea.haciaId,
-      monto: negativo(linea.monto),
+      monto: negar(linea.monto),
     });
   }
   return asientos;
@@ -312,19 +331,24 @@ export function mueveLosTesoros(asiento: Asiento): boolean {
   return !asiento.yaEnLaApertura;
 }
 
+export function enLaMonedaDelTaller(asiento: Asiento): Money | null {
+  return asiento.tesoro === null ? null : importeDelTaller(asiento.monto);
+}
+
 export function saldosPorTesoro(asientos: readonly Asiento[]): SaldosPorTesoro {
   const saldos: Record<Tesoro, Money> = { hogar: CERO, maun: CERO, diezmo: CERO, cocos: CERO };
   for (const asiento of asientos.filter(mueveLosTesoros)) {
     if (asiento.tesoro === null) continue;
-    saldos[asiento.tesoro] = sumar(saldos[asiento.tesoro], asiento.monto);
+    saldos[asiento.tesoro] = sumar(saldos[asiento.tesoro], importeDelTaller(asiento.monto));
   }
   return saldos;
 }
 
 export function saldosPorId(asientos: readonly Asiento[]): SaldosPorId {
-  const saldos = new Map<string, Money>();
+  const saldos = new Map<string, Money<Moneda>>();
   for (const asiento of asientos.filter(mueveLosTesoros)) {
-    saldos.set(asiento.tesoroId, sumar(saldos.get(asiento.tesoroId) ?? CERO, asiento.monto));
+    const anterior: Money<Moneda> = saldos.get(asiento.tesoroId) ?? CERO;
+    saldos.set(asiento.tesoroId, sumar(anterior, asiento.monto));
   }
   return saldos;
 }
@@ -354,31 +378,34 @@ export function asientosDelMes(asientos: readonly Asiento[], mes: string): Asien
   return asientos.filter((asiento) => mesDe(asiento.fecha) === mes);
 }
 
-export interface EntradasYSalidas {
-  entro: Money;
-  salio: Money;
+export interface EntradasYSalidas<M extends Moneda = MonedaDelTaller> {
+  entro: Money<M>;
+  salio: Money<M>;
 }
 
-function sumarEntradasYSalidas(asientos: readonly Asiento[]): EntradasYSalidas {
-  let entro = CERO;
-  let salio = CERO;
+function sumarEntradasYSalidas(asientos: readonly Asiento[]): EntradasYSalidas<Moneda> {
+  let entro: Money<Moneda> = CERO;
+  let salio: Money<Moneda> = CERO;
 
   for (const asiento of asientos) {
     if (asiento.monto >= 0) entro = sumar(entro, asiento.monto);
-    else salio = sumar(salio, negativo(asiento.monto));
+    else salio = sumar(salio, negar(asiento.monto));
   }
 
   return { entro, salio };
 }
 
 export function entradasYSalidas(asientos: readonly Asiento[], tesoro: Tesoro): EntradasYSalidas {
-  return sumarEntradasYSalidas(asientos.filter((asiento) => asiento.tesoro === tesoro));
+  const { entro, salio } = sumarEntradasYSalidas(
+    asientos.filter((asiento) => asiento.tesoro === tesoro),
+  );
+  return { entro: importeDelTaller(entro), salio: importeDelTaller(salio) };
 }
 
 export function entradasYSalidasPorId(
   asientos: readonly Asiento[],
   tesoroId: string,
-): EntradasYSalidas {
+): EntradasYSalidas<Moneda> {
   return sumarEntradasYSalidas(asientos.filter((asiento) => asiento.tesoroId === tesoroId));
 }
 
@@ -396,7 +423,7 @@ export function estadoDelDiezmo(asientos: readonly Asiento[]): EstadoDelDiezmo {
   const saldo = restar(entro, salio);
   return {
     situacion: saldo > 0 ? 'debe' : saldo < 0 ? 'pago-de-mas' : 'al-dia',
-    importe: saldo < 0 ? negativo(saldo) : saldo,
+    importe: saldo < 0 ? negar(saldo) : saldo,
     generado: entro,
     pagado: salio,
   };

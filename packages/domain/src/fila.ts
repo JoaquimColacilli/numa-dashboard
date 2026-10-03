@@ -9,10 +9,12 @@ import {
   esNegativo,
   maximo,
   minimo,
+  MONEDA_DEL_TALLER,
   puntosBasicos,
   restar,
   sumar,
   sumarTodos,
+  type Moneda,
   type Money,
   type PuntosBasicos,
 } from './money.ts';
@@ -97,6 +99,7 @@ export interface TesoroDeLaFila {
   clave: 'hogar' | 'maun' | 'diezmo' | 'cocos' | null;
   archivado: boolean;
   meta: Money | null;
+  moneda?: Moneda;
 }
 
 export interface AjustesDeSiempre {
@@ -348,6 +351,7 @@ export type ProblemaDeLaFila =
   | 'demasiadas-partes'
   | 'tesoro-desconocido'
   | 'tesoro-archivado'
+  | 'tesoro-en-otra-moneda'
   | 'tesoro-repetido'
   | 'obligacion-en-hogar-o-maun'
   | 'obligacion-invalida'
@@ -688,8 +692,13 @@ function problemaDelTesoro(
   const tesoro = porId.get(id);
   if (tesoro === undefined) return 'tesoro-desconocido';
   if (tesoro.archivado) return 'tesoro-archivado';
+  if (!esDeLaMonedaDelTaller(tesoro)) return 'tesoro-en-otra-moneda';
   if (vistos.has(id)) return 'tesoro-repetido';
   return null;
+}
+
+export function esDeLaMonedaDelTaller(tesoro: Pick<TesoroDeLaFila, 'moneda'>): boolean {
+  return (tesoro.moneda ?? MONEDA_DEL_TALLER) === MONEDA_DEL_TALLER;
 }
 
 function problemaDeLaObligacion(
@@ -770,6 +779,7 @@ function problemaDelSuperavit(
   const tesoro = porId.get(id);
   if (tesoro === undefined) return 'tesoro-desconocido';
   if (tesoro.archivado) return 'tesoro-archivado';
+  if (!esDeLaMonedaDelTaller(tesoro)) return 'tesoro-en-otra-moneda';
   if (tesoro.clave === 'hogar' || tesoro.clave === 'diezmo') return 'superavit-invalido';
   if (tesoro.clave !== 'maun' && vistos.has(id)) return 'superavit-en-la-fila';
   return null;

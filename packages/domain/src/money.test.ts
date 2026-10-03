@@ -3,15 +3,102 @@ import { describe, expect, it } from 'vitest';
 import {
   aplicarPorcentaje,
   centavos,
+  centavosEn,
   CERO,
+  esMoneda,
   esNegativo,
+  importeDelTaller,
   maximo,
   minimo,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  MONEDAS,
+  negar,
   puntosBasicos,
   restar,
   sumar,
   sumarTodos,
+  type Moneda,
+  type Money,
 } from './money.ts';
+
+describe('las monedas', () => {
+  it('son pesos y dólares, y el taller reparte en pesos', () => {
+    expect(MONEDAS).toEqual(['ARS', 'USD']);
+    expect(MONEDA_DEL_TALLER).toBe('ARS');
+  });
+
+  it('reconoce una moneda de la lista y lee lo demás como la del taller', () => {
+    expect(esMoneda('USD')).toBe(true);
+    expect(esMoneda('EUR')).toBe(false);
+    expect(esMoneda(1)).toBe(false);
+    expect(monedaLeida('USD')).toBe('USD');
+    expect(monedaLeida(undefined)).toBe('ARS');
+    expect(monedaLeida('usd')).toBe('ARS');
+  });
+
+  it('centavosEn pide la moneda y valida igual que centavos', () => {
+    const dolares: Money<'USD'> = centavosEn('USD', 50_000);
+    expect(dolares).toBe(50_000);
+    expect(() => centavosEn('USD', 1.5)).toThrow(RangeError);
+  });
+
+  it('importeDelTaller afirma que un importe de moneda desconocida es de la moneda del taller', () => {
+    const deUnTesoroDeLaFila: Money<Moneda> = centavos(500);
+    const enPesos: Money = importeDelTaller(deUnTesoroDeLaFila);
+    expect(enPesos).toBe(500);
+    expect(() => importeDelTaller(0.5 as Money<Moneda>)).toThrow(RangeError);
+  });
+
+  it('negar da vuelta el signo sin cambiar la moneda', () => {
+    expect(negar(centavosEn('USD', 125))).toBe(-125);
+    expect(negar(CERO)).toBe(0);
+    expect(() => negar(centavos(Number.MIN_SAFE_INTEGER))).not.toThrow();
+  });
+});
+
+describe('los tipos no dejan mezclar monedas', () => {
+  const pesos = centavos(100);
+  const dolares = centavosEn('USD', 100);
+  const deCualquiera: Money<Moneda> = dolares;
+
+  it('Money sin moneda sigue siendo pesos', () => {
+    const enPesos: Money = centavosEn('ARS', 100);
+    // @ts-expect-error: los dólares no van donde van pesos
+    const mal: Money = dolares;
+    expect([enPesos, mal, pesos]).toEqual([100, 100, 100]);
+  });
+
+  it('sumar, restar, el mínimo y el máximo piden la misma moneda de los dos lados', () => {
+    expect(sumar(dolares, dolares)).toBe(200);
+    // @ts-expect-error: no se suman pesos con dólares
+    expect(sumar(pesos, dolares)).toBe(200);
+    // @ts-expect-error: no se restan dólares de pesos
+    expect(restar(pesos, dolares)).toBe(0);
+    // @ts-expect-error: no se compara el mínimo entre monedas
+    expect(minimo(dolares, pesos)).toBe(100);
+    // @ts-expect-error: ni el máximo
+    expect(maximo(dolares, pesos)).toBe(100);
+  });
+
+  it('sumarTodos no acepta una lista con las dos monedas', () => {
+    expect(sumarTodos<'USD'>([dolares, dolares])).toBe(200);
+    // @ts-expect-error: una lista mezclada no se suma
+    expect(sumarTodos([pesos, dolares])).toBe(200);
+  });
+
+  it('el constructor de pesos no fabrica dólares', () => {
+    // @ts-expect-error: centavos devuelve pesos, no dólares
+    const fabricado: Money<'USD'> = centavos(100);
+    expect(fabricado).toBe(100);
+  });
+
+  it('un importe de moneda desconocida no pasa por pesos', () => {
+    // @ts-expect-error: no se sabe si son pesos
+    const comoPesos: Money = deCualquiera;
+    expect(comoPesos).toBe(100);
+  });
+});
 
 describe('centavos', () => {
   it('acepta enteros seguros, también negativos y cero', () => {

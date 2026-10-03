@@ -2,6 +2,7 @@ import { formatearCuit } from '@maun/domain';
 import type { ReactNode } from 'react';
 
 import type { FilaDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Ir, RUTA_DEL_PRESUPUESTO_EN_AJUSTES } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -22,16 +23,14 @@ function Renglon({ clave, children }: { clave: string; children: ReactNode }) {
   );
 }
 
-function cuantas(cantidad: number, singular: string, plural: string): string {
-  return `${String(cantidad)}\u00a0${cantidad === 1 ? singular : plural}`;
-}
-
 export interface ResumenDelPresupuestoProps {
   household: FilaDe<'households'>;
   ajustes: FilaDe<'ajustes'>;
 }
 
 export function ResumenDelPresupuesto({ household, ajustes }: ResumenDelPresupuestoProps) {
+  const { configurarTaller } = useMensajes();
+  const m = configurarTaller.presupuesto.resumen;
   const plantilla = plantillaDeLosAjustes(ajustes);
   const datos = datosEditables(datosDelTaller(ajustes, household.nombre));
   const { faltan } = encabezadoDelPresupuesto(datos);
@@ -40,34 +39,33 @@ export function ResumenDelPresupuesto({ household, ajustes }: ResumenDelPresupue
   return (
     <>
       <dl className="-mt-1 flex flex-col">
-        <Renglon clave="Tus datos">
+        <Renglon clave={m.tusDatos}>
           {faltan.length > 0 ? (
             <span className="flex items-start gap-2 font-normal text-atencion">
               <Icono nombre="info" tamano={17} className="mt-0.5 flex-none" />
-              <span>
-                {faltan.length === 1 ? 'Falta' : 'Faltan'} {queFalta(faltan)}, que la ley pide en un
-                presupuesto.
-              </span>
+              <span>{m.faltan(faltan.length, queFalta(faltan))}</span>
             </span>
           ) : (
-            <span className="tabular-nums">
+            <span translate="no" className="tabular-nums">
               {titular === '' ? '' : `${titular}, `}
-              <span className="whitespace-nowrap">CUIT {formatearCuit(datos.cuit)}</span>
+              <span className="whitespace-nowrap">
+                {configurarTaller.cuit(formatearCuit(datos.cuit))}
+              </span>
             </span>
           )}
         </Renglon>
-        <Renglon clave="Plazo">
-          <span className="tabular-nums">
-            {cuantas(plantilla.plazoDeFabricacion, 'día hábil', 'días hábiles')}
-          </span>
+        <Renglon clave={m.plazo}>
+          <span className="tabular-nums">{m.diasHabiles(plantilla.plazoDeFabricacion)}</span>
         </Renglon>
-        <Renglon clave="Garantía">
-          <span className="tabular-nums">{cuantas(plantilla.garantiaMeses, 'mes', 'meses')}</span>
+        <Renglon clave={m.garantia}>
+          <span className="tabular-nums">{m.meses(plantilla.garantiaMeses)}</span>
         </Renglon>
-        <Renglon clave="Textos">
-          {cuantas(plantilla.incluye.length, 'cosa que incluye', 'cosas que incluye')},{' '}
-          {cuantas(plantilla.avisos.length, 'aviso', 'avisos')} y{' '}
-          {cuantas(plantilla.condiciones.length, 'condición', 'condiciones')}
+        <Renglon clave={m.textos}>
+          {m.cuantosTextos(
+            plantilla.incluye.length,
+            plantilla.avisos.length,
+            plantilla.condiciones.length,
+          )}
         </Renglon>
       </dl>
       <Ir
@@ -75,7 +73,7 @@ export function ResumenDelPresupuesto({ household, ajustes }: ResumenDelPresupue
         className="inline-flex min-h-tap items-center gap-1.5 self-start rounded-field text-body font-semibold underline underline-offset-3"
       >
         <Icono nombre="file-text" tamano={18} />
-        Cambiar lo que va en tus presupuestos
+        {m.cambiar}
       </Ir>
     </>
   );

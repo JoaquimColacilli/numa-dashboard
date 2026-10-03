@@ -8,11 +8,14 @@ import {
   type FilaDePregunta,
 } from '@/entities/opinion';
 import type { PreguntaParaGuardar } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { avisarEnPantalla, uuidv7, type NuevoAviso } from '@/shared/lib';
 
 export type Avisador = (aviso: NuevoAviso) => void;
 
-const DESHACER = 'Deshacer';
+function textos() {
+  return mensajes().editarLaEncuesta.avisos;
+}
 
 const LARGO_DEL_RECORTE = 34;
 
@@ -62,7 +65,7 @@ export function agregarPregunta(
     false,
     null,
   );
-  avisar({ clave: `pregunta-${id}`, tono: 'hecho', texto: 'Pregunta guardada.' });
+  avisar({ clave: `pregunta-${id}`, tono: 'hecho', texto: textos().guardada });
   return id;
 }
 
@@ -81,7 +84,7 @@ export function cambiarPregunta(
       vigente.titular,
       vigente,
     );
-    avisar({ clave: `pregunta-${vigente.id}`, tono: 'hecho', texto: 'Pregunta guardada.' });
+    avisar({ clave: `pregunta-${vigente.id}`, tono: 'hecho', texto: textos().guardada });
     return vigente.id;
   }
   const id = uuidv7();
@@ -103,9 +106,7 @@ export function cambiarPregunta(
   avisar({
     clave: `pregunta-${vigente.serie}`,
     tono: 'hecho',
-    texto: conRespuestas
-      ? 'Guardada como versión nueva. Las respuestas viejas quedan aparte.'
-      : 'Pregunta guardada.',
+    texto: conRespuestas ? textos().versionNueva : textos().guardada,
   });
   return id;
 }
@@ -127,9 +128,9 @@ export function dejarDePreguntar(
   avisar({
     clave: `pregunta-fuera-${pregunta.id}`,
     tono: 'hecho',
-    texto: `Dejaste de preguntar «${recortado(pregunta.texto)}».`,
+    texto: textos().dejasteDePreguntar(recortado(pregunta.texto)),
     accion: {
-      etiqueta: DESHACER,
+      etiqueta: textos().deshacer,
       alTocar: () => {
         const actual = preguntaEnLaReplica(cliente, pregunta.id);
         guardarEnLaCola(
@@ -157,7 +158,7 @@ export function volverAPreguntar(
   avisar({
     clave: `pregunta-vuelve-${pregunta.id}`,
     tono: 'hecho',
-    texto: 'Volviste a preguntarla.',
+    texto: textos().volvisteAPreguntarla,
   });
 }
 

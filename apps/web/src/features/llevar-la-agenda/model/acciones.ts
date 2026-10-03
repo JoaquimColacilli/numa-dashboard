@@ -2,7 +2,6 @@ import type { EventoDeLaAgenda, EventoDerivado, EventoPropio } from '@maun/domai
 import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
-  DERIVADA,
   diaEnPalabras,
   MUTACION_DE_ANOTACION,
   MUTACION_DE_ANOTACION_NUEVA,
@@ -28,11 +27,14 @@ import {
   type CambiosDeProyecto,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { avisarEnPantalla, claveDeTodaReplica, metaDeAvisos, type NuevoAviso } from '@/shared/lib';
 
 export type Avisador = (aviso: NuevoAviso) => void;
 
-const DESHACER = 'Deshacer';
+function textos() {
+  return mensajes().llevarLaAgenda;
+}
 
 function mandarALaCola<TDatos, TVariables>(
   cliente: QueryClient,
@@ -117,7 +119,7 @@ function avisarLaMarca(avisar: Avisador, id: string, importante: boolean): void 
   avisar({
     clave: `agenda-marca-${id}`,
     tono: 'hecho',
-    texto: importante ? 'Marcado como importante.' : 'Le sacaste la marca.',
+    texto: importante ? textos().marcada : textos().desmarcada,
   });
 }
 
@@ -130,9 +132,9 @@ export function anotar(
   avisar({
     clave: `agenda-anotada-${nueva.id}`,
     tono: 'hecho',
-    texto: `Anotado para el ${diaEnPalabras(nueva.fecha)}.`,
+    texto: textos().anotado(diaEnPalabras(nueva.fecha)),
     accion: {
-      etiqueta: DESHACER,
+      etiqueta: textos().deshacer,
       alTocar: () => {
         const fila = anotacionEnLaReplica(cliente, nueva.id);
         if (fila) quitar(cliente, fila);
@@ -152,9 +154,9 @@ export function tildar(
   avisar({
     clave: `agenda-lista-${evento.id}`,
     tono: 'hecho',
-    texto: `Listo: ${evento.texto}.`,
+    texto: textos().listo(evento.texto),
     accion: {
-      etiqueta: DESHACER,
+      etiqueta: textos().deshacer,
       alTocar: () => {
         editar(cliente, evento, { hecha: false }, { hecha: true });
       },
@@ -224,9 +226,9 @@ export function borrar(
   avisar({
     clave: `agenda-borrada-${anotacion.id}`,
     tono: 'hecho',
-    texto: `Borraste «${anotacion.texto}».`,
+    texto: textos().borraste(anotacion.texto),
     accion: {
-      etiqueta: DESHACER,
+      etiqueta: textos().deshacer,
       alTocar: () => {
         guardar(cliente, datosDe(anotacion), anotacion);
       },
@@ -301,15 +303,17 @@ export function mover(
   if (fecha === evento.fecha) return;
   if (!escribirElMovimiento(cliente, evento, fecha, hoy)) return;
 
+  const nombre = nombreDelEvento(evento);
+  const dia = diaEnPalabras(fecha);
   avisar({
     clave: `agenda-movido-${evento.id}`,
     tono: 'hecho',
     texto:
       evento.clase === 'derivada'
-        ? `${nombreDelEvento(evento)}: al ${diaEnPalabras(fecha)}. Le cambiaste ${DERIVADA[evento.categoria].queCambia}.`
-        : `${nombreDelEvento(evento)} pasó al ${diaEnPalabras(fecha)}.`,
+        ? textos().movida[evento.categoria](nombre, dia)
+        : textos().pasoAl(nombre, dia),
     accion: {
-      etiqueta: DESHACER,
+      etiqueta: textos().deshacer,
       alTocar: () => {
         escribirElMovimiento(cliente, { ...evento, fecha }, evento.fecha, hoy);
       },

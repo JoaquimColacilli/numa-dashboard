@@ -14,6 +14,10 @@ Estado: aceptada, 2026-09-11. La base (ids, metadatos, bootstrap, delta, guardas
   Mandar toma el trabajo y después `ajustes`, en el orden de siempre, y cuenta los números del día recién
   con los dos candados tomados; las dos esperas tienen sus pruebas en `tests/concurrencia.test.ts`. Mandar
   sin señal deja la revisión en la réplica con el número vacío, y la base lo pone al llegar.
+- Enmendado el 2026-10-02 por los ADR [0081](0081-los-tesoros-en-dolares.md) y
+  [0083](0083-los-trabajos-en-dolares.md): la tabla de códigos suma `MN034` a `MN039`, las columnas nuevas de
+  los dólares viajan solas en `bootstrap()` y `delta()` sin subir `VERSION_CACHE`, y los locks suman una
+  espera. Ver la nota después de la tabla.
 
 ## Contexto
 
@@ -108,6 +112,12 @@ La alternativa de un contador asignado en el commit es más exacta, pero pide un
 | `MN031` | La forma no sirve: la del borrador, la de la plantilla o la del documento que se manda. El código de la gemela va en el `detail` (ADR 0080).                                                                                                           |
 | `MN032` | El trabajo está perdido: su presupuesto no se manda ni se guarda (ADR 0080).                                                                                                                                                                           |
 | `MN033` | El día de envío del presupuesto todavía no llegó, contado con el día del taller (ADR 0080).                                                                                                                                                            |
+| `MN034` | Un tesoro no cambia de moneda. El grant de `update` existe porque el alta es un upsert, y el reenvío con la misma moneda pasa (ADR 0081).                                                                                                              |
+| `MN035` | Un movimiento entre tesoros de monedas distintas que no es un cambio, o un cambio entre dos tesoros de la misma moneda. El tipo y las dos monedas van en el `detail` (ADR 0081).                                                                       |
+| `MN036` | La moneda de un trabajo se cambia solo mientras es una consulta o está en seguimiento (ADR 0083).                                                                                                                                                      |
+| `MN037` | El tesoro de un pago en dólares no es en dólares, no es de este taller o está archivado (ADR 0083).                                                                                                                                                    |
+| `MN038` | Lo armó una app sin actualizar que toma un importe en dólares por pesos: un pedido sin `moneda` que cambia un importe de un trabajo o de un pago en dólares, un cobro con la suma cruda o un documento `forma: 1` de un trabajo en dólares (ADR 0083). |
+| `MN039` | A un pago vivo en pesos de un trabajo en dólares le falta su dólar. Lo exige un trigger diferido, al commitear (ADR 0083).                                                                                                                             |
 | `42501` | El usuario no tiene household asignado, o no tiene permiso.                                                                                                                                                                                            |
 
 **Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** La tabla llegaba hasta `MN015`: de `MN016` a `MN021` estaban solo en sus ADR (0063, 0064 y 0071). Se suman acá, con `MN022`, el tope de la vidriera.
@@ -131,6 +141,19 @@ renueva al pagar cambia el saldo que mira la liquidación. Si trae `proyecto_id`
 que un gasto desde un tesoro espera a la liquidación del mismo taller, y que un movimiento con su
 trabajo, junto al cobro de ese trabajo, no se traba. Un update masivo sobre movimientos de trabajos
 distintos sí puede trabarse con un cobro en curso (`40P01`): la app escribe de a uno.
+
+**Enmendado el 2026-10-02 por los ADR [0081](0081-los-tesoros-en-dolares.md) y
+[0083](0083-los-trabajos-en-dolares.md).** `MN034` a `MN039` son de los dólares. Sus mensajes de la base van
+en el castellano de Eliseo y sin decir «versión», porque una app sin actualizar los muestra tal cual; la app
+nueva los traduce a los tres idiomas. Las columnas nuevas (`tesoros.moneda`,
+`movimientos.monto_destino_centavos`, la moneda y la cotización de los trabajos y los pagos, el tesoro de un
+pago, el dólar del día y la cuenta en dólares) viajan solas en `bootstrap()` y `delta()`, sin subir
+`VERSION_CACHE`, y los lectores toleran que falten. Los locks suman una espera, en el orden de siempre:
+escribir un pago que tiene o tenía tesoro toma primero el proyecto y después `ajustes` `for no key update`,
+el candado con que el archivo de un tesoro lee su saldo, así que archivar un tesoro y cargarle un pago se
+esperan. `concurrencia.test.ts` prueba ese caso y el de un pago en pesos sin dólar contra pasar el trabajo a
+dólares. La regla de monedas de los movimientos no suma ninguno: lee la moneda de un tesoro, que no cambia
+nunca (ADR 0081).
 
 **La UI no miente.** Cuatro estados, visibles y siempre correctos: sin conexión, N cambios pendientes, N cambios rechazados y sincronizado. Nunca "guardado" para algo que está en la cola.
 

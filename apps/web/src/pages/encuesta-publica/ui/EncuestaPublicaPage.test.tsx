@@ -1,16 +1,21 @@
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncuestaCompartida } from '@/shared/api';
-
 import {
-  CAMBIO_LA_ENCUESTA,
-  EncuestaPublicaPage,
-  TEXTO_MUERTO,
-  TITULO_MUERTO,
-} from './EncuestaPublicaPage';
+  cargarMensajesDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
+
+import { EncuestaPublicaPage } from './EncuestaPublicaPage';
+
+const TITULO_MUERTO = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.encuesta.muerto.titulo;
+
+const TEXTO_MUERTO = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.encuesta.muerto.texto;
+
+const CAMBIO_LA_ENCUESTA = MENSAJES_DEL_CLIENTE_EN_CASTELLANO.encuesta.alMandar.cambioLaEncuesta;
 
 const api = vi.hoisted(() => ({
   encuestaCompartida: vi.fn<(token: string) => Promise<EncuestaCompartida>>(),
@@ -27,6 +32,7 @@ const ENCUESTA: EncuestaCompartida = {
   taller: 'Taller MAUN',
   cliente: 'Marcela',
   trabajo: 'Placard 3 puertas con interior en melamina',
+  idioma: 'es',
   resena: 'https://g.page/r/maun/review',
   preguntas: [
     {
@@ -101,6 +107,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  document.documentElement.lang = 'es-AR';
 });
 
 describe('la encuesta que abre el cliente', () => {
@@ -324,5 +331,88 @@ describe('la encuesta que abre el cliente', () => {
       name: '¿La altura de la alacena te quedó cómoda?',
     });
     expect(within(propia).getAllByRole('radio')).toHaveLength(5);
+  });
+});
+
+describe('el idioma de la encuesta', () => {
+  beforeAll(async () => {
+    await Promise.all([cargarMensajesDelCliente('en'), cargarMensajesDelCliente('pt-BR')]);
+  }, 30_000);
+
+  it('es el de los clientes del taller, con el lang y la pestaña en ese idioma, y las preguntas como se escribieron', async () => {
+    api.encuestaCompartida.mockResolvedValue({ ...ENCUESTA, idioma: 'pt-BR' });
+    montar();
+
+    const titulo = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Como foi a experiência com “Placard 3 puertas con interior en melamina”?',
+    });
+    expect(within(titulo).getByText('Placard 3 puertas con interior en melamina')).toHaveAttribute(
+      'translate',
+      'no',
+    );
+    expect(
+      screen.getByText(
+        'São 2 perguntas e leva menos de 2 minutos. Quem lê é o dono da marcenaria.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: '¿Qué tan conforme quedaste con el mueble?' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Gostei muito' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Sim, com certeza' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar minha opinião' })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe('pt-BR');
+    expect(document.title).toBe('Pesquisa de satisfação · Taller MAUN');
+  });
+
+  it('el motivo con que la base rechaza una respuesta se dice en el idioma del cliente', async () => {
+    api.encuestaCompartida.mockResolvedValue({ ...ENCUESTA, idioma: 'en' });
+    api.contestarEncuesta.mockRejectedValue({
+      code: 'MN011',
+      details: 'obligatoria',
+      hint: null,
+      message: 'Falta contestar una pregunta obligatoria',
+    });
+    montar();
+
+    fireEvent.click(await screen.findByRole('radio', { name: 'Very satisfied' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Yes, absolutely' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send my feedback' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'A required question is missing its answer',
+    );
+  });
+
+  it('en castellano, el motivo dice lo mismo que la base', async () => {
+    api.encuestaCompartida.mockResolvedValue(ENCUESTA);
+    api.contestarEncuesta.mockRejectedValue({
+      code: 'MN011',
+      details: 'largo',
+      hint: null,
+      message: 'Un texto pasa de los 2000 caracteres que acepta la encuesta',
+    });
+    montar();
+
+    await screen.findByRole('button', { name: 'Mandar mi opinión' });
+    marcarTodo();
+    fireEvent.click(screen.getByRole('button', { name: 'Mandar mi opinión' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Un texto pasa de los 2000 caracteres que acepta la encuesta',
+    );
+  });
+
+  it('sin encuesta, el aviso habla en el idioma que ya tenía la página', async () => {
+    document.documentElement.lang = 'en-US';
+    api.encuestaCompartida.mockRejectedValue(LINK_MUERTO);
+    montar();
+
+    expect(
+      await screen.findByRole('heading', { name: 'This link no longer works' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Taller MAUN')).toHaveAttribute('translate', 'no');
+    expect(document.documentElement.lang).toBe('en-US');
   });
 });

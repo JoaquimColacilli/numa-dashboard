@@ -64,6 +64,12 @@ export const PANTALLAS: readonly Pantalla[] = [
     listo: enElMarco,
   },
   {
+    clave: 'en-dolares',
+    nombre: 'Ficha de un trabajo en dólares',
+    ruta: (t) => `/proyectos/${t.enDolares}`,
+    listo: enElMarco,
+  },
+  {
     clave: 'entregado',
     nombre: 'Ficha de una obra entregada',
     ruta: (t) => `/proyectos/${t.entregado}`,
@@ -238,7 +244,7 @@ export const EXCEPCIONES: readonly Excepcion[] = [
       'Es una sola sección: su título a la izquierda y sus controles a la derecha. La fila mide lo que mide la sección.',
   },
   {
-    selector: 'div:has(> aside[aria-label="Detalle"])',
+    selector: 'div:has(> aside[data-reparto="detalle"])',
     motivo:
       'El plano de Tesoros y su panel de detalle: el lienzo ocupa todo el alto y el panel mide lo que tiene y scrollea solo. No son dos columnas de contenido que tengan que terminar juntas.',
   },

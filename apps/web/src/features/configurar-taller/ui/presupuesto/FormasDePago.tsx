@@ -1,6 +1,7 @@
 import type { Hueco } from '@maun/domain';
 import { useCallback, useId, useRef, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { Button, Campo, FilaDeAcciones, Icono } from '@/shared/ui';
 
 import {
@@ -42,10 +43,11 @@ interface FilaDeFormaProps {
 }
 
 function LaQueVaElegida() {
+  const m = useMensajes().configurarTaller.presupuesto.formas;
   return (
     <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-pill bg-ink/6 px-2.5 py-0.5 text-meta font-medium text-ink">
       <Icono nombre="check" tamano={13} grosor={2.25} />
-      Va elegida de entrada
+      {m.vaElegida}
     </span>
   );
 }
@@ -64,6 +66,8 @@ function FilaDeForma({
   alCambiar,
   alQuitar,
 }: FilaDeFormaProps) {
+  const textos = useMensajes().configurarTaller.presupuesto;
+  const m = textos.formas;
   const id = useId();
   const insertar = useRef<((hueco: Hueco) => void) | null>(null);
   const registrar = useCallback((funcion: ((hueco: Hueco) => void) | null) => {
@@ -80,10 +84,17 @@ function FilaDeForma({
         >
           <span className="flex min-w-0 flex-col items-start">
             <span className="text-body leading-normal font-semibold text-ink">
-              <span className="sr-only">Cambiar la forma de pago </span>
-              {forma.nombre.trim() === '' ? 'Sin nombre' : forma.nombre}
+              <span className="sr-only">{m.cambiarLaForma} </span>
+              {forma.nombre.trim() === '' ? (
+                m.sinNombre
+              ) : (
+                <span translate="no">{forma.nombre}</span>
+              )}
             </span>
-            <span className="max-w-[36rem] text-body leading-normal text-pretty text-text-2">
+            <span
+              translate="no"
+              className="max-w-[36rem] text-body leading-normal text-pretty text-text-2"
+            >
               <TextoConDatos texto={forma.texto} valores={valores} />
             </span>
             {(problemaDelNombre ?? problemaDelTexto) !== undefined && (
@@ -92,7 +103,7 @@ function FilaDeForma({
               </span>
             )}
             {primera && <LaQueVaElegida />}
-            <MarcaSinGuardar marca={marca} nuevo="Nueva" />
+            <MarcaSinGuardar marca={marca} nueva={m.nuevaSinGuardar} />
           </span>
           <Icono nombre="pencil-line" tamano={16} className="mt-0.5 text-text-3" />
         </button>
@@ -109,10 +120,10 @@ function FilaDeForma({
       <div className="rounded-field bg-surface px-3.5 pt-3.5 pb-4 md:px-4">
         <div className="flex max-w-[42rem] flex-col gap-4">
           <Campo
-            etiqueta="Nombre"
+            etiqueta={m.nombre}
             value={forma.nombre}
             maxLength={60}
-            ayuda="Es para vos, para elegirla en cada presupuesto. Tu cliente lee el texto de abajo."
+            ayuda={m.ayudaDelNombre}
             error={problemaDelNombre}
             onChange={(evento) => {
               alCambiar({ nombre: evento.target.value });
@@ -120,7 +131,7 @@ function FilaDeForma({
           />
           <div className="flex flex-col gap-1.5">
             <span id={`${id}-etiqueta`} className="text-label text-text-2">
-              Lo que lee tu cliente
+              {m.loQueLeeTuCliente}
             </span>
             <EditorConDatos
               texto={forma.texto}
@@ -129,7 +140,7 @@ function FilaDeForma({
               descritoPor={problemaDelTexto === undefined ? undefined : `${id}-error`}
               invalido={problemaDelTexto !== undefined}
               enfocarAlAbrir={enfocarAlAbrir}
-              placeholder="Por ejemplo: seña del 50% y el saldo en dos cuotas…"
+              placeholder={m.ejemploDelTexto}
               registrar={registrar}
               alCambiar={(texto) => {
                 alCambiar({ texto });
@@ -151,10 +162,10 @@ function FilaDeForma({
           <FilaDeAcciones>
             <Button variant="secundario" onClick={alQuitar}>
               <Icono nombre="trash-2" tamano={16} />
-              Quitar esta forma de pago
+              {m.quitar}
             </Button>
             <Button variant="secundario" onClick={alCerrar}>
-              Listo
+              {textos.lista.listo}
             </Button>
           </FilaDeAcciones>
         </div>
@@ -186,6 +197,8 @@ export function FormasDePago({
   alCambiarLaLista,
   alAgregar,
 }: FormasDePagoProps) {
+  const textos = useMensajes().configurarTaller.presupuesto;
+  const m = textos.formas;
   const lista = useRef<HTMLUListElement>(null);
   const [ordenando, setOrdenando] = useState(false);
   const [movida, setMovida] = useState<string | null>(null);
@@ -200,12 +213,10 @@ export function FormasDePago({
   return (
     <>
       <CabeceraDeLaLista
-        resumen={
-          enLaLista.length === 1 ? '1 forma de pago' : `${String(enLaLista.length)} formas de pago`
-        }
+        resumen={m.cuantas(enLaLista.length)}
         ordenando={ordenando}
         sePuedeOrdenar={enLaLista.length > 1}
-        ayudaAlOrdenar="Subí o bajá cada una: la primera va elegida en cada presupuesto nuevo."
+        ayudaAlOrdenar={m.ayudaAlOrdenar}
         alOrdenar={(sigue) => {
           if (sigue) alAbrir(null);
           setOrdenando(sigue);
@@ -214,7 +225,7 @@ export function FormasDePago({
       />
       <ul
         ref={lista}
-        aria-label="Formas de pago"
+        aria-label={textos.secciones.formas.titulo}
         className="-mt-2 flex list-none flex-col @container/lista"
       >
         {ordenando &&
@@ -222,8 +233,21 @@ export function FormasDePago({
             <FilaParaOrdenar
               key={forma.id}
               id={forma.id}
-              texto={forma.nombre.trim() === '' ? 'Sin nombre' : forma.nombre}
-              que={forma.nombre.trim() === '' ? 'la forma de pago nueva' : `«${forma.nombre}»`}
+              texto={
+                forma.nombre.trim() === '' ? (
+                  m.sinNombre
+                ) : (
+                  <span translate="no">{forma.nombre}</span>
+                )
+              }
+              etiquetas={
+                forma.nombre.trim() === ''
+                  ? { subir: m.subirLaNueva, bajar: m.bajarLaNueva }
+                  : {
+                      subir: textos.lista.subir(forma.nombre),
+                      bajar: textos.lista.bajar(forma.nombre),
+                    }
+              }
               primera={posicion === 0}
               ultima={posicion === enLaLista.length - 1}
               movida={movida === forma.id}
@@ -300,13 +324,11 @@ export function FormasDePago({
           className="inline-flex min-h-tap items-center gap-2 self-start rounded-pill border border-dashed border-border bg-paper px-4 text-body font-medium text-ink hover:bg-surface disabled:text-text-3 disabled:hover:bg-paper"
         >
           <Icono nombre="plus" tamano={17} />
-          Agregar una forma de pago
+          {m.agregar}
         </button>
       )}
       {!ordenando && lleno && (
-        <p className="-mt-1.5 text-meta text-text-3">
-          Entran {String(cuantasPuedenSer('formas'))} como mucho: para sumar otra, quitá una.
-        </p>
+        <p className="-mt-1.5 text-meta text-text-3">{m.lleno(cuantasPuedenSer('formas'))}</p>
       )}
     </>
   );

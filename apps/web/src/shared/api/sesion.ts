@@ -1,4 +1,5 @@
 import { CLAVE_DE_SESION } from '@maun/db';
+import { esIdioma, type Idioma } from '@maun/domain';
 
 import { leerEnv } from '@/shared/config';
 
@@ -10,6 +11,7 @@ export interface Claims {
   email: string;
   nombre: string;
   foto: string;
+  idioma: Idioma | null;
 }
 
 interface SesionMinima {
@@ -35,6 +37,12 @@ function fotoDeLosMetadatos(metadatos: unknown): string {
   return foto.startsWith(`${base}/storage/v1/object/public/${BUCKET_DE_FOTOS}/`) ? foto : '';
 }
 
+function idiomaDeLosMetadatos(metadatos: unknown): Idioma | null {
+  if (typeof metadatos !== 'object' || metadatos === null || !('idioma' in metadatos)) return null;
+  const valor = (metadatos as Record<string, unknown>).idioma;
+  return esIdioma(valor) ? valor : null;
+}
+
 function claimsDeSesion(sesion: SesionMinima | null): Claims | undefined {
   if (!sesion) return undefined;
   return {
@@ -42,6 +50,7 @@ function claimsDeSesion(sesion: SesionMinima | null): Claims | undefined {
     email: sesion.user.email ?? '',
     nombre: nombreDeLosMetadatos(sesion.user.user_metadata),
     foto: fotoDeLosMetadatos(sesion.user.user_metadata),
+    idioma: idiomaDeLosMetadatos(sesion.user.user_metadata),
   };
 }
 
@@ -60,6 +69,7 @@ function sesionGuardada(): Claims | undefined {
       email: typeof email === 'string' ? email : '',
       nombre: nombreDeLosMetadatos(guardado.user?.user_metadata),
       foto: fotoDeLosMetadatos(guardado.user?.user_metadata),
+      idioma: idiomaDeLosMetadatos(guardado.user?.user_metadata),
     };
   } catch {
     return undefined;
@@ -86,6 +96,10 @@ export async function leerClaims(): Promise<Claims | undefined> {
           : nombreDeLosMetadatos(data.claims.user_metadata),
       foto:
         guardada?.usuarioId === sub ? guardada.foto : fotoDeLosMetadatos(data.claims.user_metadata),
+      idioma:
+        guardada?.usuarioId === sub
+          ? guardada.idioma
+          : idiomaDeLosMetadatos(data.claims.user_metadata),
     };
   } catch (error) {
     if (!esFalloDeRed(error)) throw error;
@@ -126,11 +140,12 @@ export async function crearCuenta(
   email: string,
   contrasena: string,
   volverA: string,
+  idioma: Idioma,
 ): Promise<void> {
   const { data, error } = await clienteMaun().auth.signUp({
     email,
     password: contrasena,
-    options: { emailRedirectTo: volverA },
+    options: { emailRedirectTo: volverA, data: { idioma } },
   });
   if (error) throw error;
   if (esAltaRepetida(data.user)) throw new RechazoDeAcceso('user_already_exists');
@@ -157,6 +172,11 @@ export async function cambiarContrasena(contrasena: string): Promise<void> {
 
 export async function guardarNombreDeLaPersona(nombre: string): Promise<void> {
   const { error } = await clienteMaun().auth.updateUser({ data: { nombre } });
+  if (error) throw error;
+}
+
+export async function guardarElIdiomaDeLaPersona(idioma: Idioma): Promise<void> {
+  const { error } = await clienteMaun().auth.updateUser({ data: { idioma } });
   if (error) throw error;
 }
 

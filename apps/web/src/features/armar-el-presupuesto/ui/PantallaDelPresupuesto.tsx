@@ -1,10 +1,12 @@
 import {
   huecosDelPresupuesto,
   leerBorrador,
+  MONEDA_DEL_TALLER,
   puedeCambiarEstado,
   textoDeLaGarantia,
   type BorradorDelPresupuesto,
   type CampoQueFalta,
+  type ReferenciaEnPesos,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -25,12 +27,14 @@ import {
   tareaHecha,
   type Proyecto,
 } from '@/entities/proyecto';
-import { useReplicaDelTaller } from '@/entities/replica';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { ElPresupuesto } from '@/entities/vista-cliente';
-import { ajustesDe, filaPorId, mensajeDeSincronizacion } from '@/shared/api';
+import { ajustesDe, filaPorId, mensajeDeSincronizacion, monedaDelTrabajo } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   enlaceDelCliente,
   fechaLarga,
+  formatearPlata,
   hashDelToken,
   hoyEnElTaller,
   metaDeAvisos,
@@ -46,7 +50,7 @@ import {
   useVolver,
   uuidv7,
 } from '@/shared/lib';
-import { PREPARANDO_EL_PDF, usePdfDelPresupuesto } from '@/shared/pdf';
+import { usePdfDelPresupuesto, useTextosDelPdf } from '@/shared/pdf';
 import {
   Button,
   ConSalida,
@@ -59,8 +63,11 @@ import {
 import {
   abonadoDeHoy,
   borradorGuardado,
+  cobraEnDelTrabajo,
+  combinacionDelTrabajo,
   documentoDeHoy,
-  FORMATOS_DE_LA_APP,
+  formatosDeLaReplica,
+  monedaDeLoAbonadoDeHoy,
   nombreDelCliente,
   plantillaDeLaReplica,
   senaDeHoy,
@@ -86,6 +93,8 @@ import {
   FormaDePagoDelBorrador,
   GarantiaDelBorrador,
   HerrajesDelBorrador,
+  ModificacionDelBorrador,
+  MonedaDeLoAbonado,
   ValoresDelBorrador,
 } from './SeccionesDelBorrador';
 
@@ -94,11 +103,6 @@ export const DEMORA_DEL_GUARDADO_MS = 900;
 const DEMORA_PARA_IR_AL_CAMPO_MS = 420;
 
 type Pestana = 'armarlo' | 'cliente';
-
-const PESTANAS: readonly { id: Pestana; etiqueta: string }[] = [
-  { id: 'armarlo', etiqueta: 'Armarlo' },
-  { id: 'cliente', etiqueta: 'Ver cómo lo ve tu cliente' },
-];
 
 function Pestanas({
   elegida,
@@ -109,14 +113,19 @@ function Pestanas({
   alElegir: (pestana: Pestana) => void;
   className?: string;
 }) {
+  const m = useMensajes().armarElPresupuesto.pestanas;
+  const pestanas: readonly { id: Pestana; etiqueta: string }[] = [
+    { id: 'armarlo', etiqueta: m.armarlo },
+    { id: 'cliente', etiqueta: m.comoLoVe },
+  ];
   return (
     <div
       role="tablist"
-      aria-label="Qué mirar"
+      aria-label={m.queMirar}
       className={`relative grid grid-cols-2 gap-0.5 rounded-pill bg-ink/6 p-1 ${className}`}
     >
       <FondoDelElegido elegido={elegida} />
-      {PESTANAS.map((pestana) => (
+      {pestanas.map((pestana) => (
         <button
           key={pestana.id}
           type="button"
@@ -156,6 +165,7 @@ function EstadoDelBorrador({
   guardadoEl: string | null;
   hoy: string;
 }) {
+  const m = useMensajes().armarElPresupuesto.guardado;
   if (sinGuardar || enPausa || enVuelo || conError || guardado) {
     return (
       <EstadoDeGuardado
@@ -171,10 +181,10 @@ function EstadoDelBorrador({
     <span role="status" className="flex items-center gap-1.5 text-meta text-text-2">
       <Icono nombre={guardadoEl === null ? 'pencil-line' : 'check'} tamano={13} />
       {guardadoEl === null
-        ? 'Se guarda solo mientras lo armás'
+        ? m.seGuardaSolo
         : guardadoEl === hoy
-          ? 'Guardado hoy'
-          : `Guardado el ${fechaLarga(guardadoEl, hoy)}`}
+          ? m.hoy
+          : m.el(fechaLarga(guardadoEl, hoy))}
     </span>
   );
 }
@@ -197,8 +207,12 @@ export interface PantallaDelPresupuestoProps {
 }
 
 export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps) {
+  const textos = useMensajes().armarElPresupuesto;
+  const textosDelPdf = useTextosDelPdf();
   const replica = useReplicaDelTaller();
-  const cerrar = useVolver(rutaDelProyecto(proyecto.id), 'Cerrar', { fija: true });
+  const idioma = idiomaDeLosClientes(replica);
+  const formatos = formatosDeLaReplica(replica);
+  const cerrar = useVolver(rutaDelProyecto(proyecto.id), textos.cerrar, { fija: true });
   const ancho = useAnchoDePantalla();
   const altoVisible = useAltoVisible();
   const hoy = hoyEnElTaller();
@@ -211,7 +225,10 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
   const revisiones = guardado === null ? [] : revisionesDelPresupuesto(replica, guardado.id);
   const revision = revisionQueSeManda(revisiones);
   const numero = guardado?.numero ?? null;
-  const abonado = abonadoDeHoy(replica, proyecto.id);
+  const moneda = monedaDelTrabajo(proyecto);
+  const cobraEn = cobraEnDelTrabajo(proyecto);
+  const conDolares = combinacionDelTrabajo(proyecto) !== null;
+  const pagado = abonadoDeHoy(replica, proyecto.id);
   const senaBp = senaDeHoy(replica, proyecto);
   const diasDeAjustes = diasQueValeElPresupuesto(ajustesDe(replica));
   const herrajesDelTrabajo = necesidadesDelProyecto(replica, proyecto.id)
@@ -332,24 +349,38 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     guardarAhora.current();
   }, [mandarAlAbrir]);
 
+  const deLoAbonado = monedaDeLoAbonadoDeHoy(proyecto, borrador);
+  const abonado = abonadoDeHoy(replica, proyecto.id, deLoAbonado);
   const huecos = {
     valores: huecosDelPresupuesto(
-      { plazoDeFabricacion: borrador.plazoDeFabricacion, plantilla, abonado, senaBp },
-      FORMATOS_DE_LA_APP,
+      {
+        plazoDeFabricacion: borrador.plazoDeFabricacion,
+        plantilla,
+        modificacion: borrador.modificacion,
+        abonado,
+        monedaDeLoAbonado: deLoAbonado,
+        senaBp,
+      },
+      formatos,
     ),
     abonado,
   };
 
-  const documento = documentoDeHoy({
-    replica,
-    proyecto,
-    borrador,
-    total: totalDelEditor(valores),
-    opciones: opcionesDelEditor(valores),
-    abonado,
-  });
+  function documentoCon(referencia?: ReferenciaEnPesos | null) {
+    return documentoDeHoy({
+      replica,
+      proyecto,
+      borrador,
+      total: totalDelEditor(valores),
+      opciones: opcionesDelEditor(valores),
+      abonado,
+      referencia,
+    });
+  }
 
-  const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision), {
+  const documento = documentoCon();
+
+  const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision, idioma), {
     alAbrir: true,
   });
 
@@ -362,17 +393,22 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     JSON.stringify(borradorEnLaReplica) === JSON.stringify(leerBorrador(borrador, plantilla)) &&
     mismosValores(valoresDelProyecto(proyecto, opcionesDelProyecto(replica, proyecto.id)), valores);
 
-  function armarElEnvio(queCambio: string): EnvioDelPresupuesto | null {
+  function armarElEnvio(
+    queCambio: string,
+    referencia: ReferenciaEnPesos | null,
+  ): EnvioDelPresupuesto | null {
     const { replica: deAhora } = ultimo.current;
     const presupuesto = presupuestoDelTrabajo(deAhora, proyecto.id);
     const fila = filaPorId(deAhora, 'proyectos', proyecto.id);
     if (presupuesto === null || fila === undefined) return null;
+    if (moneda !== MONEDA_DEL_TALLER && referencia === null) return null;
     return envioDelPresupuesto({
       proyecto: fila,
       proximos: hijosDelProyecto(deAhora, proyecto.id).proximos,
       presupuesto,
       revisiones: revisionesDelPresupuesto(deAhora, presupuesto.id),
-      documento,
+      documento: moneda === MONEDA_DEL_TALLER ? documento : documentoCon(referencia),
+      idioma,
       queCambio,
       hoy,
       validezDias: borrador.validezDias,
@@ -408,7 +444,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
 
   const enCelular = ancho === 'movil';
   const etiquetaDeMandar =
-    revision <= 1 ? 'Mandar el presupuesto' : `Mandar la revisión ${String(revision)}`;
+    revision <= 1 ? textos.mandarElPresupuesto : textos.mandarLaRevision(revision);
   const guardadoEl = guardado === null ? null : hoyEnElTaller(new Date(guardado.updated_at));
 
   return (
@@ -424,11 +460,11 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
         <div className="mx-auto grid w-full max-w-content grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 px-3 pt-2 pb-3 md:min-h-17 md:px-(--page-pad-tablet) md:py-2.5 lg:px-(--page-pad-desktop)">
           <Button variant="terciario" className="justify-self-start" onClick={cerrar.volver}>
             <Icono nombre="x" tamano={20} />
-            Cerrar
+            {textos.cerrar}
           </Button>
           <div className="flex max-w-[min(26rem,calc(100vw-13rem))] min-w-0 flex-col items-center text-center">
-            <h1 className="truncate text-body-lg leading-snug font-semibold">El presupuesto</h1>
-            <p className="max-w-full truncate text-label text-text-2">
+            <h1 className="truncate text-body-lg leading-snug font-semibold">{textos.titulo}</h1>
+            <p translate="no" className="max-w-full truncate text-label text-text-2">
               {proyecto.titulo}
               {cliente === '' ? '' : ` · ${cliente}`}
             </p>
@@ -456,12 +492,9 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             aria-labelledby="pestana-cliente"
             className="mx-auto flex max-w-[52rem] flex-col gap-3"
           >
-            <p className="px-1 text-label leading-relaxed text-text-2">
-              Así lo vería tu cliente si lo mandás hoy. Lo de tu página no cambia hasta que lo
-              mandes.
-            </p>
+            <p className="px-1 text-label leading-relaxed text-text-2">{textos.asiLoVeria}</p>
             <ElPresupuesto
-              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, abonado)}
+              presupuesto={comoLoVeElCliente(documento, numero, revision, hoy, pagado, idioma)}
               hoy={hoy}
               hayComoPagar={false}
               borrador
@@ -490,60 +523,73 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 alCambiar={cambiar}
                 numero={4}
                 grupo="aTenerEnCuenta"
-                titulo="A tener en cuenta"
-                bajada="Lo que este trabajo no incluye. Tildá lo que tu cliente tiene que saber."
                 clausulas={plantilla.aTenerEnCuenta}
                 huecos={huecos}
-                placeholder="No incluye el retiro de los muebles existentes."
               />
               <CasillasDelBorrador
                 borrador={borrador}
                 alCambiar={cambiar}
                 numero={5}
                 grupo="incluye"
-                titulo="Incluye"
-                bajada="Lo que sí va. Las de siempre vienen tildadas."
                 clausulas={plantilla.incluye}
                 huecos={huecos}
-                placeholder="Retiro de los restos de la instalación."
               />
               <ValoresDelBorrador
                 valores={valores}
                 alCambiar={cambiarLosValores}
                 senaBp={senaBp}
                 senaPropia={senaEsPropia(proyecto)}
-                abonado={abonado}
+                abonado={pagado}
+                moneda={moneda}
+                extra={
+                  moneda !== MONEDA_DEL_TALLER && pagado > 0 ? (
+                    <MonedaDeLoAbonado
+                      borrador={borrador}
+                      alCambiar={cambiar}
+                      enDolares={formatearPlata(pagado, moneda)}
+                      enPesos={formatearPlata(
+                        abonadoDeHoy(replica, proyecto.id, MONEDA_DEL_TALLER),
+                        MONEDA_DEL_TALLER,
+                      )}
+                    />
+                  ) : null
+                }
               />
               <FormaDePagoDelBorrador
                 borrador={borrador}
                 alCambiar={cambiar}
                 plantilla={plantilla}
                 huecos={huecos}
+                moneda={moneda}
+                cobraEn={cobraEn}
               />
               <CasillasDelBorrador
                 borrador={borrador}
                 alCambiar={cambiar}
                 numero={8}
                 grupo="avisos"
-                titulo="Avisos"
-                bajada="Tus textos de siempre, con los números de este presupuesto."
                 clausulas={plantilla.avisos}
                 huecos={huecos}
-                placeholder="La fecha de producción se reserva según la agenda del taller…"
+                antes={
+                  conDolares ? (
+                    <ModificacionDelBorrador
+                      borrador={borrador}
+                      alCambiar={cambiar}
+                      plantilla={plantilla}
+                    />
+                  ) : null
+                }
               />
               <CasillasDelBorrador
                 borrador={borrador}
                 alCambiar={cambiar}
                 numero={9}
                 grupo="condiciones"
-                titulo="Condiciones"
-                bajada="Lo que tu cliente tiene que asegurar para la instalación."
                 clausulas={plantilla.condiciones}
                 huecos={huecos}
-                placeholder="El edificio debe permitir el uso del ascensor…"
               />
               <GarantiaDelBorrador
-                texto={textoDeLaGarantia(plantilla)}
+                texto={textoDeLaGarantia(plantilla, formatos)}
                 meses={plantilla.garantiaMeses}
               />
             </SeccionesEnFilas>
@@ -576,17 +622,17 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             variant="herramienta"
             size="herramienta"
             className="px-3.5 sm:px-4"
-            aria-label="Ver el PDF"
+            aria-label={textos.verElPdf}
             onClick={pdf.descargar}
           >
             <Icono nombre="file-text" tamano={16} />
             <span className="sm:hidden">
-              {pdf.estado === 'preparando' && pdf.esperando === 'descargar' ? '…' : 'PDF'}
+              {pdf.estado === 'preparando' && pdf.esperando === 'descargar' ? '…' : textos.pdf}
             </span>
             <span className="hidden sm:inline">
               {pdf.estado === 'preparando' && pdf.esperando === 'descargar'
-                ? PREPARANDO_EL_PDF
-                : 'Ver el PDF'}
+                ? textosDelPdf.preparando
+                : textos.verElPdf}
             </span>
           </Button>
           <Button

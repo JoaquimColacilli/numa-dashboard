@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { cotizacion, pesosDeDolares } from './cotizacion.ts';
 import {
   calcularMargen,
+  calcularMargenEnDolares,
   CATEGORIAS_DE_COSTO,
   categoriasEstimadas,
   costoEstimado,
+  costosEnDolares,
   SIN_ESTIMAR,
   type CostosEstimados,
 } from './costos.ts';
-import { centavos } from './money.ts';
+import { centavos, centavosEn } from './money.ts';
 
 function costos(parcial: Partial<Record<(typeof CATEGORIAS_DE_COSTO)[number], number>>) {
   const armados: Record<string, ReturnType<typeof centavos> | null> = { ...SIN_ESTIMAR };
@@ -111,5 +114,55 @@ describe('el margen', () => {
     });
     expect(conCostos).not.toHaveProperty('presupuesto');
     expect(conCostos).not.toHaveProperty('margen');
+  });
+});
+
+describe('el margen de un trabajo en dólares', () => {
+  const DOLAR = cotizacion(145_000);
+
+  it('los costos siguen en pesos y se pasan a dólares con el dólar de los costos', () => {
+    expect(costosEnDolares(costos({ madera: 14_500_000, flete: 0 }), DOLAR)).toEqual({
+      madera: 10_000,
+      herrajes: null,
+      flete: 0,
+      ayudante: null,
+    });
+  });
+
+  it('un costo escrito en dólares vuelve exacto: la ida y vuelta de las conversiones', () => {
+    const enPesos = pesosDeDolares(centavosEn('USD', 12_345), DOLAR);
+    expect(costosEnDolares(costos({ herrajes: enPesos }), DOLAR).herrajes).toBe(12_345);
+  });
+
+  it('el margen sale en dólares con ese dólar', () => {
+    expect(
+      calcularMargenEnDolares({
+        presupuesto: centavosEn('USD', 200_000),
+        costos: costos({ madera: 145_000_000 }),
+        cotizacion: DOLAR,
+      }),
+    ).toEqual({
+      situacion: 'con-margen',
+      estimado: 100_000,
+      cargadas: 1,
+      presupuesto: 200_000,
+      margen: 100_000,
+    });
+  });
+
+  it('sin el dólar de los costos no hay margen: dice cuánto suma en pesos y lo pide', () => {
+    expect(
+      calcularMargenEnDolares({
+        presupuesto: centavosEn('USD', 200_000),
+        costos: costos({ madera: 145_000_000, flete: 1 }),
+        cotizacion: null,
+      }),
+    ).toEqual({ situacion: 'sin-cotizacion', estimado: 145_000_001, cargadas: 2 });
+  });
+
+  it('sin costos estimados no dice nada, haya dólar o no', () => {
+    expect(
+      calcularMargenEnDolares({ presupuesto: null, costos: SIN_ESTIMAR, cotizacion: null }),
+    ).toEqual({ situacion: 'sin-estimar' });
   });
 });

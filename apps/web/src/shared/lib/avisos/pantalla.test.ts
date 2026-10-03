@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { fijarLosTextosDeLib, textosDeLib } from '../textos';
 import {
   avisarEnPantalla,
   avisoEnPantalla,
@@ -115,6 +116,28 @@ describe('la meta de una mutación', () => {
   it('una mutación silenciosa lo lleva en la meta, y también sobrevive al disco', () => {
     const meta = structuredClone(metaDeAvisos('anotacion', { silencioso: true, sujeto: 'Pintar' }));
     expect(avisosDeLaMeta(meta)).toMatchObject({ que: 'anotacion', silencioso: true });
+  });
+
+  it('guarda qué se guarda y no sus textos: se leen en el idioma de cuando se avisa', () => {
+    const meta = structuredClone(metaDeAvisos('clienteBorrado'));
+    expect(JSON.stringify(meta)).not.toContain('Cliente borrado.');
+
+    const anteriores = textosDeLib();
+    try {
+      fijarLosTextosDeLib(() => ({
+        ...anteriores,
+        avisos: {
+          ...anteriores.avisos,
+          clienteBorrado: { hecho: 'Client deleted.', enCola: 'Queued.', error: 'Not deleted.' },
+        },
+      }));
+      expect(avisosDeLaMeta(meta)).toMatchObject({
+        hecho: 'Client deleted.',
+        error: 'Not deleted.',
+      });
+    } finally {
+      fijarLosTextosDeLib(() => anteriores);
+    }
   });
 
   it('una mutación sin avisos no avisa', () => {

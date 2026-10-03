@@ -1,3 +1,7 @@
+import { ETIQUETAS_DE_IDIOMA, type Idioma } from '@maun/domain';
+
+import { idiomaActual } from './idioma';
+
 export type Sentido = 'asc' | 'desc';
 
 export type TipoDeOrden = 'texto' | 'numero' | 'fecha';
@@ -8,15 +12,32 @@ export interface Criterio<T> {
   tipo: TipoDeOrden;
   leer: (fila: T) => string | number | undefined;
   inicial: Sentido;
+  grupo?: (fila: T) => number;
 }
 
-const TEXTO = new Intl.Collator('es', { sensitivity: 'base', numeric: true });
+const COMPARADORES = new Map<Idioma, Intl.Collator>();
+
+function comparador(idioma: Idioma): Intl.Collator {
+  let hallado = COMPARADORES.get(idioma);
+  if (hallado === undefined) {
+    hallado = new Intl.Collator(ETIQUETAS_DE_IDIOMA[idioma], {
+      sensitivity: 'base',
+      numeric: true,
+    });
+    COMPARADORES.set(idioma, hallado);
+  }
+  return hallado;
+}
+
+export function compararTextos(uno: string, otro: string, idioma: Idioma = idiomaActual()): number {
+  return comparador(idioma).compare(uno, otro);
+}
 
 function comparar(tipo: TipoDeOrden, uno: string | number, otro: string | number): number {
   if (typeof uno === 'number' && typeof otro === 'number') return uno - otro;
   const izquierda = String(uno);
   const derecha = String(otro);
-  if (tipo === 'texto') return TEXTO.compare(izquierda, derecha);
+  if (tipo === 'texto') return compararTextos(izquierda, derecha);
   return izquierda < derecha ? -1 : izquierda > derecha ? 1 : 0;
 }
 
@@ -40,15 +61,17 @@ export function ordenar<T>(
   const signo = sentido === 'asc' ? 1 : -1;
 
   return [...filas].sort((uno, otro) => {
+    const grupos = (criterio.grupo?.(uno) ?? 0) - (criterio.grupo?.(otro) ?? 0);
+    if (grupos !== 0) return grupos;
     const izquierda = criterio.leer(uno);
     const derecha = criterio.leer(otro);
 
     if (izquierda === undefined || derecha === undefined) {
       if (izquierda !== derecha) return izquierda === undefined ? 1 : -1;
-      return TEXTO.compare(desempate(uno), desempate(otro));
+      return compararTextos(desempate(uno), desempate(otro));
     }
 
     const resultado = comparar(criterio.tipo, izquierda, derecha);
-    return resultado === 0 ? TEXTO.compare(desempate(uno), desempate(otro)) : resultado * signo;
+    return resultado === 0 ? compararTextos(desempate(uno), desempate(otro)) : resultado * signo;
   });
 }

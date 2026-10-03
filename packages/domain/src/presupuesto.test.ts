@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import { DIAS_HABILES_DE_ENTREGA } from './fechas.ts';
-import { centavos, puntosBasicos, type Money } from './money.ts';
+import { cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
+import { centavos, centavosEn, puntosBasicos, type Money } from './money.ts';
+import { plata } from './plata.ts';
 import {
+  abonadoEn,
   acordadoAlAprobar,
+  acordadoConElDocumento,
   borradorNuevo,
+  CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
+  clausulaDeLaMonedaDelTrabajo,
+  cobraEnLeido,
+  combinacionDeLaMoneda,
   completarHuecos,
   cuentasDelPresupuesto,
   documentoDelPresupuesto,
@@ -18,10 +26,17 @@ import {
   leerPlantilla,
   letraDeLaOpcion,
   mensajeParaElTaller,
+  modificacionDelPresupuesto,
+  monedaDeLoAbonado,
+  monedaDeLoAbonadoDelDocumento,
+  monedaDelDocumento,
+  MOTIVOS_DE_LO_QUE_FALTA,
   NOMBRE_DE_LA_CONDICION,
   nombreDelArchivo,
   numeroVisible,
   PLANTILLA_DE_SIEMPRE,
+  PLANTILLAS_DE_SIEMPRE,
+  plantillaDeSiempre,
   plantillaDelTaller,
   plazoDelPresupuesto,
   problemaDeLaPlantilla,
@@ -31,28 +46,60 @@ import {
   recortado,
   resumenDeLosValores,
   soloLaAceptada,
-  TEXTOS_DE_LO_QUE_FALTA,
   textoDeLaForma,
   textoDeLaGarantia,
   tildadasPorDefecto,
   tituloDelArchivo,
-  totalDeLoPagado,
   totalPropuesto,
   usaElHueco,
   valoresDelTrabajo,
   type BorradorDelPresupuesto,
+  type Clausula,
   type DatosDelTaller,
   type DocumentoDelPresupuesto,
   type EntradaDelDocumento,
   type Formatos,
+  type FrasesDelNumero,
   type PlantillaDelPresupuesto,
 } from './presupuesto.ts';
 import { calcularSena } from './sena.ts';
 
+function conSuPlural(cantidad: number, singular: string, plural: string): string {
+  return `${String(cantidad)} ${cantidad === 1 ? singular : plural}`;
+}
+
 const FORMATOS: Formatos = {
-  pesos: (importe) => `$${String(importe / 100)}`,
+  plata: (importe, moneda) => `${moneda === 'USD' ? 'US$' : '$'}${String(importe / 100)}`,
   porcentaje: (puntos) => String(puntos / 100),
+  modificaciones: (cantidad) => conSuPlural(cantidad, 'modificación', 'modificaciones'),
+  meses: (cantidad) => conSuPlural(cantidad, 'mes', 'meses'),
 };
+
+const DEL_NUMERO: FrasesDelNumero = {
+  sinNumero: 'Sin número todavía',
+  numero: (numero) => `Nº ${numero}`,
+  conRevision: (numero, revision) => `Nº ${numero} · Rev. ${String(revision)}`,
+};
+
+const DEL_ARCHIVO: FrasesDelNumero = {
+  sinNumero: 'Presupuesto (borrador)',
+  numero: (numero) => `Presupuesto ${numero}`,
+  conRevision: (numero, revision) => `Presupuesto ${numero} Rev ${String(revision)}`,
+};
+
+const DEL_TITULO: FrasesDelNumero = {
+  sinNumero: 'Presupuesto (borrador)',
+  numero: (numero) => `Presupuesto ${numero}`,
+  conRevision: (numero, revision) => `Presupuesto ${numero} · Rev. ${String(revision)}`,
+};
+
+const DEL_MENSAJE: Omit<FrasesDelNumero, 'sinNumero'> = {
+  numero: (numero) => `Hola, te escribo por el presupuesto Nº ${numero}.`,
+  conRevision: (numero, revision) =>
+    `Hola, te escribo por el presupuesto Nº ${numero} Rev. ${String(revision)}.`,
+};
+
+const pesos = (importe: number): string => FORMATOS.plata(centavos(importe), 'ARS');
 
 const TALLER: DatosDelTaller = {
   nombre: 'Taller de prueba',
@@ -112,14 +159,23 @@ const BORRADOR: BorradorDelPresupuesto = {
   validezDias: 15,
   avisos: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.avisos),
   condiciones: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.condiciones),
+  clausulaDeLaMoneda: null,
+  modificacion: null,
+  monedaDeLoAbonado: null,
 };
 
-function entrada(cambios: Partial<EntradaDelDocumento> = {}): EntradaDelDocumento {
+type EntradaEnPesos = Extract<EntradaDelDocumento, { moneda: 'ARS' }>;
+
+type EntradaEnDolares = Extract<EntradaDelDocumento, { moneda: 'USD' }>;
+
+function entrada(cambios: Partial<EntradaEnPesos> = {}): EntradaEnPesos {
   return {
     borrador: BORRADOR,
     plantilla: PLANTILLA_DE_SIEMPRE,
     taller: TALLER,
     cliente: 'Paula Benítez',
+    moneda: 'ARS',
+    cobraEn: null,
     valores: valoresDelTrabajo(TOTAL, []),
     senaBp: SENA_BP,
     abonado: RELEVAMIENTO,
@@ -127,8 +183,26 @@ function entrada(cambios: Partial<EntradaDelDocumento> = {}): EntradaDelDocument
   };
 }
 
-function documento(cambios: Partial<EntradaDelDocumento> = {}): DocumentoDelPresupuesto {
+function documento(cambios: Partial<EntradaEnPesos> = {}): DocumentoDelPresupuesto {
   return documentoDelPresupuesto(entrada(cambios), FORMATOS);
+}
+
+const REFERENCIA = { cotizacion: cotizacion(154_000), fecha: '2026-10-01' };
+
+function entradaEnDolares(cambios: Partial<EntradaEnDolares> = {}): EntradaEnDolares {
+  return {
+    borrador: BORRADOR,
+    plantilla: PLANTILLA_DE_SIEMPRE,
+    taller: TALLER,
+    cliente: 'Paula Benítez',
+    moneda: 'USD',
+    cobraEn: null,
+    valores: valoresDelTrabajo(centavosEn('USD', 240_000), []),
+    senaBp: SENA_BP,
+    abonado: centavosEn('USD', 8_276),
+    referencia: REFERENCIA,
+    ...cambios,
+  };
 }
 
 function textoDe(largo: number, letra = 'a'): string {
@@ -185,7 +259,7 @@ describe('la plantilla de siempre', () => {
 
   it('pasa su propia validación y se lee igual', () => {
     expect(problemaDeLaPlantilla(PLANTILLA_DE_SIEMPRE)).toBeNull();
-    expect(leerPlantilla(copia(PLANTILLA_DE_SIEMPRE))).toEqual(PLANTILLA_DE_SIEMPRE);
+    expect(leerPlantilla(copia(PLANTILLA_DE_SIEMPRE), 'es')).toEqual(PLANTILLA_DE_SIEMPRE);
   });
 
   it('las condiciones fiscales tienen su nombre para el documento', () => {
@@ -193,10 +267,82 @@ describe('la plantilla de siempre', () => {
   });
 });
 
+describe('la plantilla de siempre en cada idioma', () => {
+  function forma(plantilla: PlantillaDelPresupuesto) {
+    const ids = (clausulas: readonly Clausula[]) =>
+      clausulas.map(({ id, titulo, tildadaPorDefecto }) => [
+        id,
+        titulo === null,
+        tildadaPorDefecto,
+      ]);
+    return {
+      numeros: [
+        plantilla.plazoDeFabricacion,
+        plantilla.modificacionesIncluidas,
+        plantilla.valorDeUnaModificacion,
+        plantilla.monedaDeLaModificacion,
+        plantilla.garantiaMeses,
+      ],
+      incluye: ids(plantilla.incluye),
+      aTenerEnCuenta: ids(plantilla.aTenerEnCuenta),
+      avisos: ids(plantilla.avisos),
+      condiciones: ids(plantilla.condiciones),
+      formas: plantilla.formasDePago.map(({ id }) => id),
+    };
+  }
+
+  it('la castellana es la de siempre, los textos de Eliseo', () => {
+    expect(plantillaDeSiempre('es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(PLANTILLAS_DE_SIEMPRE.es).toBe(PLANTILLA_DE_SIEMPRE);
+  });
+
+  it.each(['en', 'pt-BR'] as const)(
+    'en %s tiene los mismos números, ids y tildes, con sus propios textos',
+    (idioma) => {
+      const traducida = plantillaDeSiempre(idioma);
+      expect(problemaDeLaPlantilla(traducida)).toBeNull();
+      expect(forma(traducida)).toEqual(forma(PLANTILLA_DE_SIEMPRE));
+      expect(traducida.garantia).not.toBe(PLANTILLA_DE_SIEMPRE.garantia);
+      expect(traducida.clausulasDeLaMoneda.dolaresEnPesos).toContain(
+        'Banco de la Nación Argentina',
+      );
+      const textos = [
+        ...[
+          ...traducida.incluye,
+          ...traducida.aTenerEnCuenta,
+          ...traducida.avisos,
+          ...traducida.condiciones,
+        ].map(({ texto }) => texto),
+        ...traducida.formasDePago.map(({ texto }) => texto),
+        traducida.garantia,
+      ];
+      const huecos = (texto: string) => texto.match(/\{[a-z_]+\}/g) ?? [];
+      const deSiempre = [
+        ...[
+          ...PLANTILLA_DE_SIEMPRE.incluye,
+          ...PLANTILLA_DE_SIEMPRE.aTenerEnCuenta,
+          ...PLANTILLA_DE_SIEMPRE.avisos,
+          ...PLANTILLA_DE_SIEMPRE.condiciones,
+        ].map(({ texto }) => texto),
+        ...PLANTILLA_DE_SIEMPRE.formasDePago.map(({ texto }) => texto),
+        PLANTILLA_DE_SIEMPRE.garantia,
+      ];
+      expect(textos.map(huecos)).toEqual(deSiempre.map(huecos));
+    },
+  );
+});
+
 describe('la plantilla del taller', () => {
-  it('sin plantilla guardada, es la de siempre', () => {
-    expect(plantillaDelTaller(null)).toBe(PLANTILLA_DE_SIEMPRE);
-    expect(plantillaDelTaller({ forma: 2 })).toBe(PLANTILLA_DE_SIEMPRE);
+  it('sin plantilla guardada, es la de siempre en el idioma de los clientes', () => {
+    expect(plantillaDelTaller(null, 'es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller({ forma: 2 }, 'es')).toBe(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller(null, 'en')).toBe(PLANTILLAS_DE_SIEMPRE.en);
+    expect(plantillaDelTaller(null, 'pt-BR')).toBe(PLANTILLAS_DE_SIEMPRE['pt-BR']);
+  });
+
+  it('una guardada es del dueño: no cambia con el idioma de los clientes', () => {
+    const guardada = copia(PLANTILLA_DE_SIEMPRE);
+    expect(plantillaDelTaller(guardada, 'en')).toEqual(PLANTILLA_DE_SIEMPRE);
   });
 
   it('con una guardada, se lee: un título vacío es sin título', () => {
@@ -205,7 +351,7 @@ describe('la plantilla del taller', () => {
     guardada.avisos = [
       { id: 'aviso-agenda', titulo: '', texto: 'Reservamos la fecha.', tildadaPorDefecto: true },
     ];
-    const leida = plantillaDelTaller(guardada);
+    const leida = plantillaDelTaller(guardada, 'es');
     expect(leida.plazoDeFabricacion).toBe(35);
     expect(leida.avisos).toEqual([
       { id: 'aviso-agenda', titulo: null, texto: 'Reservamos la fecha.', tildadaPorDefecto: true },
@@ -215,7 +361,7 @@ describe('la plantilla del taller', () => {
   it('una cláusula sin la clave del título se lee sin título', () => {
     const guardada = copia(PLANTILLA_DE_SIEMPRE);
     guardada.incluye = [{ id: 'uno', texto: 'Traslados.', tildadaPorDefecto: true }];
-    expect(leerPlantilla(guardada)?.incluye[0]?.titulo).toBeNull();
+    expect(leerPlantilla(guardada, 'es')?.incluye[0]?.titulo).toBeNull();
   });
 });
 
@@ -378,7 +524,105 @@ describe('problemaDeLaPlantilla', () => {
   });
 
   it('una plantilla que no se puede guardar no se lee', () => {
-    expect(leerPlantilla(conCambios({ garantia: '' }))).toBeNull();
+    expect(leerPlantilla(conCambios({ garantia: '' }), 'es')).toBeNull();
+  });
+
+  it('la moneda de la modificación es una de la lista, y sin ella es la del taller', () => {
+    expect(problemaDeLaPlantilla(conCambios({ monedaDeLaModificacion: 'EUR' }))).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDeLaPlantilla(conCambios({ monedaDeLaModificacion: 'USD' }))).toBeNull();
+    const sinMoneda = copia(PLANTILLA_DE_SIEMPRE);
+    delete sinMoneda.monedaDeLaModificacion;
+    expect(problemaDeLaPlantilla(sinMoneda)).toBeNull();
+    expect(leerPlantilla(sinMoneda, 'es')?.monedaDeLaModificacion).toBe('ARS');
+    expect(
+      leerPlantilla(
+        conCambios({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 }),
+        'es',
+      ),
+    ).toMatchObject({ monedaDeLaModificacion: 'USD', valorDeUnaModificacion: 4_000 });
+  });
+
+  it('las cláusulas de la moneda: las cinco, ninguna vacía ni de más de 2000', () => {
+    const conClausulas = (cambios: Record<string, unknown>) =>
+      conCambios({
+        clausulasDeLaMoneda: { ...CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE, ...cambios },
+      });
+    expect(problemaDeLaPlantilla(conCambios({ clausulasDeLaMoneda: 'una' }))).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDeLaPlantilla(conClausulas({ pesosEnDolares: undefined }))).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDeLaPlantilla(conClausulas({ dolaresEnPesos: 4 }))).toBe('forma-invalida');
+    expect(problemaDeLaPlantilla(conClausulas({ dolaresEnDolares: '  ' }))).toBe(
+      'clausula-de-la-moneda-vacia',
+    );
+    expect(problemaDeLaPlantilla(conClausulas({ pesosEnPesosODolares: textoDe(2001) }))).toBe(
+      'clausula-de-la-moneda-larga',
+    );
+    expect(problemaDeLaPlantilla(conClausulas({ pesosEnPesosODolares: textoDe(2000) }))).toBeNull();
+  });
+
+  it('sin las cláusulas guardadas se leen las de fábrica; guardadas, las del taller', () => {
+    const sinClausulas = copia(PLANTILLA_DE_SIEMPRE);
+    delete sinClausulas.clausulasDeLaMoneda;
+    expect(problemaDeLaPlantilla(sinClausulas)).toBeNull();
+    expect(leerPlantilla(sinClausulas, 'es')?.clausulasDeLaMoneda).toEqual(
+      CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
+    );
+    expect(leerPlantilla(sinClausulas, 'en')?.clausulasDeLaMoneda).toEqual(
+      plantillaDeSiempre('en').clausulasDeLaMoneda,
+    );
+    const propias = { ...CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE, dolaresEnPesos: 'Al dólar MEP.' };
+    expect(
+      leerPlantilla(conCambios({ clausulasDeLaMoneda: { ...propias, extra: 'x' } }), 'pt-BR')
+        ?.clausulasDeLaMoneda,
+    ).toEqual(propias);
+  });
+});
+
+describe('las cláusulas de la moneda', () => {
+  it('las de fábrica son los borradores de la investigación, tal cual', () => {
+    expect(CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.dolaresEnPesos).toBe(
+      'Se paga en pesos. Cada pago se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina al cierre del día hábil anterior a la fecha del pago, y se descuenta del saldo en dólares.',
+    );
+    expect(CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.pesosEnPesosODolares).toBe(
+      'Si una parte se paga en dólares, se toma a la cotización que se acuerde ese día y se descuenta del saldo en pesos.',
+    );
+  });
+
+  it('cada combinación de «Precio en» y «Te paga en» tiene la suya, menos pesos en pesos', () => {
+    expect(combinacionDeLaMoneda('ARS', null)).toBeNull();
+    expect(combinacionDeLaMoneda('ARS', ['ARS'])).toBeNull();
+    expect(combinacionDeLaMoneda('ARS', ['USD'])).toBe('pesosEnDolares');
+    expect(combinacionDeLaMoneda('ARS', ['ARS', 'USD'])).toBe('pesosEnPesosODolares');
+    expect(combinacionDeLaMoneda('USD', null)).toBe('dolaresEnPesos');
+    expect(combinacionDeLaMoneda('USD', ['ARS'])).toBe('dolaresEnPesos');
+    expect(combinacionDeLaMoneda('USD', ['USD'])).toBe('dolaresEnDolares');
+    expect(combinacionDeLaMoneda('USD', ['ARS', 'USD'])).toBe('dolaresEnPesosODolares');
+  });
+
+  it('«Te paga en» se lee solo en una de sus tres formas', () => {
+    expect(cobraEnLeido(['ARS'])).toEqual(['ARS']);
+    expect(cobraEnLeido(['USD'])).toEqual(['USD']);
+    expect(cobraEnLeido(['ARS', 'USD'])).toEqual(['ARS', 'USD']);
+    expect(cobraEnLeido(['USD', 'ARS'])).toBeNull();
+    expect(cobraEnLeido([])).toBeNull();
+    expect(cobraEnLeido(['ARS', 'ARS'])).toBeNull();
+    expect(cobraEnLeido('ARS')).toBeNull();
+  });
+
+  it('la del trabajo: la del borrador si la retocó, si no la de la plantilla', () => {
+    const retocada = { ...BORRADOR, clausulaDeLaMoneda: 'Al dólar MEP del día anterior.' };
+    expect(clausulaDeLaMonedaDelTrabajo(PLANTILLA_DE_SIEMPRE, BORRADOR, 'USD', ['USD'])).toBe(
+      CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.dolaresEnDolares,
+    );
+    expect(clausulaDeLaMonedaDelTrabajo(PLANTILLA_DE_SIEMPRE, retocada, 'USD', ['USD'])).toBe(
+      'Al dólar MEP del día anterior.',
+    );
+    expect(clausulaDeLaMonedaDelTrabajo(PLANTILLA_DE_SIEMPRE, retocada, 'ARS', null)).toBeNull();
   });
 });
 
@@ -484,7 +728,9 @@ describe('los huecos', () => {
       {
         plazoDeFabricacion: 35,
         plantilla: PLANTILLA_DE_SIEMPRE,
+        modificacion: null,
         abonado: RELEVAMIENTO,
+        monedaDeLoAbonado: 'ARS',
         senaBp: SENA_BP,
       },
       FORMATOS,
@@ -503,9 +749,12 @@ describe('los huecos', () => {
         plantilla: {
           modificacionesIncluidas: 1,
           valorDeUnaModificacion: centavos(0),
+          monedaDeLaModificacion: 'ARS',
           garantiaMeses: 1,
         },
+        modificacion: null,
         abonado: centavos(0),
+        monedaDeLoAbonado: 'ARS',
         senaBp: puntosBasicos(3_333),
       },
       FORMATOS,
@@ -517,10 +766,50 @@ describe('los huecos', () => {
     });
   });
 
+  it('el valor de una modificación y lo abonado van cada uno en su moneda', () => {
+    const huecos = huecosDelPresupuesto(
+      {
+        plazoDeFabricacion: 30,
+        plantilla: PLANTILLA_DE_SIEMPRE,
+        modificacion: { importe: centavosEn('USD', 4_000), moneda: 'USD' },
+        abonado: centavosEn('USD', 8_276),
+        monedaDeLoAbonado: 'USD',
+        senaBp: SENA_BP,
+      },
+      FORMATOS,
+    );
+    expect(huecos.valor_modificacion).toBe('US$40');
+    expect(huecos.relevamiento).toBe('US$82.76');
+  });
+
   it('la garantía dice sus meses', () => {
-    expect(textoDeLaGarantia(PLANTILLA_DE_SIEMPRE)).toMatch(
+    expect(textoDeLaGarantia(PLANTILLA_DE_SIEMPRE, FORMATOS)).toMatch(
       /^Garantía de 6 meses desde la entrega/,
     );
+  });
+
+  it('los meses y las modificaciones los escribe el idioma del documento', () => {
+    const enIngles: Formatos = {
+      ...FORMATOS,
+      modificaciones: (cantidad) => `${String(cantidad)} modifications`,
+      meses: (cantidad) => `${String(cantidad)} months`,
+    };
+    expect(textoDeLaGarantia(plantillaDeSiempre('en'), enIngles)).toMatch(
+      /^Warranty for 6 months from delivery/,
+    );
+    expect(
+      huecosDelPresupuesto(
+        {
+          plazoDeFabricacion: 30,
+          plantilla: PLANTILLA_DE_SIEMPRE,
+          modificacion: null,
+          abonado: RELEVAMIENTO,
+          monedaDeLoAbonado: 'ARS',
+          senaBp: SENA_BP,
+        },
+        enIngles,
+      ),
+    ).toMatchObject({ modificaciones: '2 modifications', meses: '6 months' });
   });
 });
 
@@ -632,6 +921,84 @@ describe('documentoDelPresupuesto', () => {
     expect(hecho.cliente).toHaveLength(200);
     expect(problemaDelDocumento(hecho)).toBeNull();
   });
+
+  it('en pesos que cobra en pesos no lleva cláusula de la moneda, y dice la combinación', () => {
+    const hecho = documento();
+    expect(hecho.clausulaDeLaMoneda).toBeNull();
+    expect(hecho.cobraEn).toEqual(['ARS']);
+    expect(monedaDelDocumento(hecho)).toBe('ARS');
+    expect(monedaDeLoAbonadoDelDocumento(hecho)).toBe('ARS');
+  });
+
+  it('en pesos que acepta dólares sigue en forma 1, con la cláusula de su combinación', () => {
+    const hecho = documento({ cobraEn: ['ARS', 'USD'] });
+    expect(hecho.forma).toBe(1);
+    expect(hecho.clausulaDeLaMoneda).toBe(CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.pesosEnPesosODolares);
+    expect(hecho.cobraEn).toEqual(['ARS', 'USD']);
+    expect(problemaDelDocumento(hecho)).toBeNull();
+  });
+
+  it('una cláusula retocada en blanco no sale', () => {
+    const borrador = { ...BORRADOR, clausulaDeLaMoneda: '  \n ' };
+    expect(documento({ borrador, cobraEn: ['USD'] }).clausulaDeLaMoneda).toBeNull();
+  });
+
+  it('en dólares es forma 2: la moneda, la referencia en pesos y lo abonado en su moneda', () => {
+    const hecho = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(hecho).toMatchObject({
+      forma: 2,
+      moneda: 'USD',
+      valores: { tipo: 'total', total: 240_000 },
+      abonado: 8_276,
+      monedaDeLoAbonado: 'USD',
+      referencia: REFERENCIA,
+      cobraEn: ['ARS'],
+      clausulaDeLaMoneda: CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.dolaresEnPesos,
+    });
+    expect(hecho.avisos[3]?.texto).toContain('relevamiento técnico y diseño 3D (US$82.76)');
+    expect(monedaDelDocumento(hecho)).toBe('USD');
+    expect(monedaDeLoAbonadoDelDocumento(hecho)).toBe('USD');
+    expect(problemaDelDocumento(hecho)).toBeNull();
+  });
+
+  it('en dólares, lo abonado va en la moneda que eligió el borrador, y la modificación también', () => {
+    const borrador: BorradorDelPresupuesto = {
+      ...BORRADOR,
+      monedaDeLoAbonado: 'ARS',
+      modificacion: { importe: centavosEn('USD', 4_000), moneda: 'USD' },
+    };
+    const hecho = documentoDelPresupuesto(
+      entradaEnDolares({ borrador, abonado: centavos(12_000_000) }),
+      FORMATOS,
+    );
+    expect(hecho).toMatchObject({ monedaDeLoAbonado: 'ARS', abonado: 12_000_000 });
+    expect(hecho.avisos[2]?.texto).toContain('un valor estimativo de US$40 c/u');
+    expect(hecho.avisos[3]?.texto).toContain('($120000)');
+  });
+
+  it('en dólares sin un dólar para la referencia, es un borrador que todavía no se puede mandar', () => {
+    const hecho = documentoDelPresupuesto(entradaEnDolares({ referencia: null }), FORMATOS);
+    expect(hecho).toMatchObject({ forma: 2, moneda: 'USD', referencia: null });
+    expect(problemaDelDocumento(hecho)).toBe('forma-invalida');
+    expect(leerDocumento(copia(hecho))).toBeNull();
+  });
+
+  it('en pesos, lo abonado va siempre en pesos aunque el borrador diga otra cosa', () => {
+    expect(monedaDeLoAbonado({ monedaDeLoAbonado: 'USD' }, 'ARS')).toBe('ARS');
+    expect(monedaDeLoAbonado({ monedaDeLoAbonado: null }, 'USD')).toBe('USD');
+  });
+
+  it('la modificación del borrador pisa la de la plantilla', () => {
+    expect(modificacionDelPresupuesto(PLANTILLA_DE_SIEMPRE, null)).toEqual({
+      importe: 5_000_000,
+      moneda: 'ARS',
+    });
+    expect(
+      modificacionDelPresupuesto(PLANTILLA_DE_SIEMPRE, {
+        modificacion: { importe: centavosEn('USD', 4_000), moneda: 'USD' },
+      }),
+    ).toEqual({ importe: 4_000, moneda: 'USD' });
+  });
 });
 
 describe('cuentasDelPresupuesto', () => {
@@ -726,6 +1093,19 @@ describe('la opción aceptada y lo acordado al aprobar', () => {
     expect(acordadoAlAprobar(null, centavos(200_000_000))).toBe(200_000_000);
     expect(acordadoAlAprobar(aceptada, null)).toBeNull();
   });
+
+  it('lo acordado se compara solo con un documento de la misma moneda', () => {
+    const enPesos = documento();
+    expect(acordadoConElDocumento(enPesos, null)).toBeNull();
+    expect(acordadoConElDocumento(enPesos, plata('ARS', TOTAL))).toBeNull();
+    expect(acordadoConElDocumento(enPesos, plata('ARS', 200_000_000))).toBe(200_000_000);
+    expect(acordadoConElDocumento(enPesos, plata('USD', 200_000_000))).toBeNull();
+
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(acordadoConElDocumento(enDolares, plata('USD', 240_000))).toBeNull();
+    expect(acordadoConElDocumento(enDolares, plata('USD', 250_000))).toBe(250_000);
+    expect(acordadoConElDocumento(enDolares, plata('ARS', 250_000))).toBeNull();
+  });
 });
 
 describe('el plazo del presupuesto', () => {
@@ -737,44 +1117,44 @@ describe('el plazo del presupuesto', () => {
 
 describe('el número y el archivo', () => {
   it('el número visible lleva la revisión desde la segunda', () => {
-    expect(numeroVisible(null, 1)).toBe('Sin número todavía');
-    expect(numeroVisible('20260826-01', 1)).toBe('Nº 20260826-01');
-    expect(numeroVisible('20260826-01', 2)).toBe('Nº 20260826-01 · Rev. 2');
+    expect(numeroVisible(null, 1, DEL_NUMERO)).toBe('Sin número todavía');
+    expect(numeroVisible('20260826-01', 1, DEL_NUMERO)).toBe('Nº 20260826-01');
+    expect(numeroVisible('20260826-01', 2, DEL_NUMERO)).toBe('Nº 20260826-01 · Rev. 2');
   });
 
   it('el nombre del archivo lleva el número, la revisión y el cliente', () => {
     const conCliente = { cliente: 'Paula Benítez' };
-    expect(nombreDelArchivo(conCliente, '20260826-01', 1)).toBe(
+    expect(nombreDelArchivo(conCliente, '20260826-01', 1, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01 - Paula Benítez.pdf',
     );
-    expect(nombreDelArchivo(conCliente, '20260826-01', 2)).toBe(
+    expect(nombreDelArchivo(conCliente, '20260826-01', 2, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01 Rev 2 - Paula Benítez.pdf',
     );
-    expect(nombreDelArchivo(conCliente, null, 1)).toBe(
+    expect(nombreDelArchivo(conCliente, null, 1, DEL_ARCHIVO)).toBe(
       'Presupuesto (borrador) - Paula Benítez.pdf',
     );
   });
 
   it('sin caracteres que un sistema no deja en un nombre de archivo', () => {
-    expect(nombreDelArchivo({ cliente: 'Ana/Luis: "Casa"*?<>|\\\u0007' }, '20260826-01', 1)).toBe(
-      'Presupuesto 20260826-01 - Ana Luis Casa.pdf',
-    );
-    expect(nombreDelArchivo({ cliente: ' / ' }, '20260826-01', 1)).toBe(
+    expect(
+      nombreDelArchivo({ cliente: 'Ana/Luis: "Casa"*?<>|\\\u0007' }, '20260826-01', 1, DEL_ARCHIVO),
+    ).toBe('Presupuesto 20260826-01 - Ana Luis Casa.pdf');
+    expect(nombreDelArchivo({ cliente: ' / ' }, '20260826-01', 1, DEL_ARCHIVO)).toBe(
       'Presupuesto 20260826-01.pdf',
     );
   });
 
   it('el título del archivo, como el pie del documento', () => {
-    expect(tituloDelArchivo(null, 1)).toBe('Presupuesto (borrador)');
-    expect(tituloDelArchivo('20260826-01', 1)).toBe('Presupuesto 20260826-01');
-    expect(tituloDelArchivo('20260826-01', 2)).toBe('Presupuesto 20260826-01 · Rev. 2');
+    expect(tituloDelArchivo(null, 1, DEL_TITULO)).toBe('Presupuesto (borrador)');
+    expect(tituloDelArchivo('20260826-01', 1, DEL_TITULO)).toBe('Presupuesto 20260826-01');
+    expect(tituloDelArchivo('20260826-01', 2, DEL_TITULO)).toBe('Presupuesto 20260826-01 · Rev. 2');
   });
 
   it('el mensaje para escribirle al taller nombra el presupuesto', () => {
-    expect(mensajeParaElTaller('20260826-01', 1)).toBe(
+    expect(mensajeParaElTaller('20260826-01', 1, DEL_MENSAJE)).toBe(
       'Hola, te escribo por el presupuesto Nº 20260826-01.',
     );
-    expect(mensajeParaElTaller('20260826-01', 3)).toBe(
+    expect(mensajeParaElTaller('20260826-01', 3, DEL_MENSAJE)).toBe(
       'Hola, te escribo por el presupuesto Nº 20260826-01 Rev. 3.',
     );
   });
@@ -808,46 +1188,82 @@ describe('problemasParaMandar', () => {
       valores: null,
     });
     expect(problemasParaMandar(vacio, 2, '  ')).toEqual([
-      { campo: 'titulo', texto: TEXTOS_DE_LO_QUE_FALTA.titulo },
-      { campo: 'muebles', texto: TEXTOS_DE_LO_QUE_FALTA.muebles },
-      { campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.total },
-      { campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambio },
+      { campo: 'titulo', motivo: 'titulo' },
+      { campo: 'muebles', motivo: 'muebles' },
+      { campo: 'valores', motivo: 'total' },
+      { campo: 'queCambio', motivo: 'queCambio' },
     ]);
   });
 
   it('un total en cero falta; con opciones, cada una necesita su importe', () => {
     expect(
       problemasParaMandar(documento({ valores: { tipo: 'total', total: centavos(0) } }), 1, ''),
-    ).toEqual([{ campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.total }]);
+    ).toEqual([{ campo: 'valores', motivo: 'total' }]);
     const conUnaEnCero = valoresDelTrabajo(null, [OPCION_A, { ...OPCION_B, monto: centavos(0) }]);
     expect(problemasParaMandar(documento({ valores: conUnaEnCero }), 1, '')).toEqual([
-      { campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.opciones },
+      { campo: 'valores', motivo: 'opciones' },
     ]);
     expect(
       problemasParaMandar(documento({ valores: { tipo: 'opciones', opciones: [] } }), 1, ''),
-    ).toEqual([{ campo: 'valores', texto: TEXTOS_DE_LO_QUE_FALTA.opciones }]);
+    ).toEqual([{ campo: 'valores', motivo: 'opciones' }]);
   });
 
   it('desde la segunda revisión pide qué cambió, en 280 caracteres como mucho', () => {
     expect(problemasParaMandar(documento(), 2, 'Cambió el color.')).toEqual([]);
     expect(problemasParaMandar(documento(), 2, ` ${textoDe(280, 'é')} `)).toEqual([]);
     expect(problemasParaMandar(documento(), 2, textoDe(281))).toEqual([
-      { campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambioLargo },
+      { campo: 'queCambio', motivo: 'queCambioLargo' },
+    ]);
+  });
+
+  it('dice el motivo con un código: el texto lo escribe la app en el idioma del dueño', () => {
+    expect(MOTIVOS_DE_LO_QUE_FALTA).toEqual([
+      'titulo',
+      'muebles',
+      'total',
+      'opciones',
+      'queCambio',
+      'queCambioLargo',
     ]);
   });
 });
 
-describe('resumenDeLosValores y totalDeLoPagado', () => {
+describe('resumenDeLosValores y abonadoEn', () => {
   it('resume el total o las opciones', () => {
-    expect(resumenDeLosValores(null, FORMATOS.pesos)).toBeNull();
-    expect(resumenDeLosValores({ tipo: 'total', total: TOTAL }, FORMATOS.pesos)).toBe('$2181000');
-    expect(resumenDeLosValores(valoresDelTrabajo(null, [OPCION_A, OPCION_B]), FORMATOS.pesos)).toBe(
+    const opcion = (letra: string, importe: string) => `Opción ${letra} ${importe}`;
+    expect(resumenDeLosValores(null, pesos, opcion)).toBeNull();
+    expect(resumenDeLosValores({ tipo: 'total', total: TOTAL }, pesos, opcion)).toBe('$2181000');
+    expect(resumenDeLosValores(valoresDelTrabajo(null, [OPCION_A, OPCION_B]), pesos, opcion)).toBe(
       'Opción A $2181000 · Opción B $2740000',
     );
   });
 
-  it('suma lo pagado', () => {
-    expect(totalDeLoPagado([{ monto: centavos(100) }, { monto: centavos(250) }])).toBe(350);
+  const DOLAR = cotizacion(145_000);
+  const PAGOS: ImporteDeUnPago[] = [
+    { moneda: 'ARS', monto: centavos(12_000_000), cotizacion: DOLAR },
+    { moneda: 'USD', monto: centavosEn('USD', 50_000), cotizacion: DOLAR },
+  ];
+
+  it('suma lo pagado en pesos en un trabajo en pesos', () => {
+    expect(
+      abonadoEn(
+        [
+          { moneda: 'ARS', monto: centavos(100), cotizacion: null },
+          { moneda: 'ARS', monto: centavos(250), cotizacion: null },
+        ],
+        'ARS',
+        'ARS',
+      ),
+    ).toBe(350);
+  });
+
+  it('en un trabajo en dólares, en dólares es lo que descontó y en pesos lo que valió cada pago', () => {
+    expect(abonadoEn(PAGOS, 'USD', 'USD')).toBe(8_276 + 50_000);
+    expect(abonadoEn(PAGOS, 'USD', 'ARS')).toBe(12_000_000 + 72_500_000);
+  });
+
+  it('en un trabajo en pesos, un pago en dólares cuenta lo que descontó en pesos', () => {
+    expect(abonadoEn(PAGOS, 'ARS', 'ARS')).toBe(12_000_000 + 72_500_000);
   });
 });
 
@@ -892,6 +1308,27 @@ describe('hayCambiosSinMandar', () => {
     const conOtraClave = { ...mandado, extra: 1 } as unknown as DocumentoDelPresupuesto;
     expect(hayCambiosSinMandar(entrada(), conOtraClave, FORMATOS)).toBe(true);
   });
+
+  it('en dólares, un dólar del día nuevo no es un cambio: vale la referencia que se mandó', () => {
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    const otroDolar = { cotizacion: cotizacion(160_000), fecha: '2026-10-02' };
+    expect(
+      hayCambiosSinMandar(entradaEnDolares({ referencia: otroDolar }), enDolares, FORMATOS),
+    ).toBe(false);
+    expect(hayCambiosSinMandar(entradaEnDolares({ referencia: null }), enDolares, FORMATOS)).toBe(
+      false,
+    );
+  });
+
+  it('cambiar la moneda o en qué te paga sí es un cambio sin mandar', () => {
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(hayCambiosSinMandar(entrada(), enDolares, FORMATOS)).toBe(true);
+    expect(hayCambiosSinMandar(entradaEnDolares(), mandado, FORMATOS)).toBe(true);
+    expect(hayCambiosSinMandar(entradaEnDolares({ cobraEn: ['USD'] }), enDolares, FORMATOS)).toBe(
+      true,
+    );
+    expect(hayCambiosSinMandar(entrada({ cobraEn: ['ARS', 'USD'] }), mandado, FORMATOS)).toBe(true);
+  });
 });
 
 describe('leerDocumento', () => {
@@ -930,12 +1367,41 @@ describe('leerDocumento', () => {
       senaBp: 5_000,
       abonado: 0,
       formaDePago: null,
+      clausulaDeLaMoneda: null,
+      cobraEn: ['ARS'],
       plazoDeFabricacion: 30,
       validezDias: null,
       avisos: [],
       condiciones: [],
       garantia: '',
       garantiaMeses: 6,
+    });
+  });
+
+  it('un documento de antes de los dólares se lee con la combinación de siempre, igual que uno nuevo', () => {
+    const hecho = documento();
+    const deAntes = copia(hecho);
+    delete deAntes.clausulaDeLaMoneda;
+    delete deAntes.cobraEn;
+    expect(leerDocumento(deAntes)).toEqual(hecho);
+  });
+
+  it('lee un documento en dólares con su referencia, y sin referencia no lo lee', () => {
+    const enDolares = documentoDelPresupuesto(entradaEnDolares(), FORMATOS);
+    expect(leerDocumento(copia(enDolares))).toEqual(enDolares);
+    expect(leerDocumento({ ...copia(enDolares), referencia: null })).toBeNull();
+    expect(
+      leerDocumento({ ...copia(enDolares), referencia: { cotizacion: 99, fecha: '2026-10-01' } }),
+    ).toBeNull();
+    expect(
+      leerDocumento({
+        ...copia(enDolares),
+        referencia: { cotizacion: 154_000, fecha: '2026-02-30' },
+      }),
+    ).toBeNull();
+    expect(leerDocumento({ ...copia(enDolares), moneda: 'ARS' })).toBeNull();
+    expect(leerDocumento({ ...copia(enDolares), monedaDeLoAbonado: 'EUR' })).toMatchObject({
+      monedaDeLoAbonado: 'USD',
     });
   });
 
@@ -1168,6 +1634,43 @@ describe('problemaDelBorrador', () => {
     expect(problemaDelBorrador(conCambios({ validezDias: 0 }))).toBe('validez-fuera-de-rango');
     expect(problemaDelBorrador(conCambios({ validezDias: 366 }))).toBe('validez-fuera-de-rango');
   });
+
+  it('la cláusula de la moneda, la modificación y lo abonado: sus formas y sus topes', () => {
+    expect(problemaDelBorrador(conCambios({ clausulaDeLaMoneda: 3 }))).toBe('forma-invalida');
+    expect(problemaDelBorrador(conCambios({ clausulaDeLaMoneda: textoDe(2001) }))).toBe(
+      'clausula-de-la-moneda-larga',
+    );
+    expect(problemaDelBorrador(conCambios({ clausulaDeLaMoneda: textoDe(2000) }))).toBeNull();
+    expect(problemaDelBorrador(conCambios({ modificacion: { importe: 1 } }))).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDelBorrador(conCambios({ modificacion: { importe: 1.5, moneda: 'USD' } }))).toBe(
+      'forma-invalida',
+    );
+    expect(
+      problemaDelBorrador(
+        conCambios({
+          modificacion: { importe: IMPORTE_MAXIMO_DEL_PRESUPUESTO + 1, moneda: 'USD' },
+        }),
+      ),
+    ).toBe('modificacion-fuera-de-rango');
+    expect(problemaDelBorrador(conCambios({ modificacion: { importe: -1, moneda: 'ARS' } }))).toBe(
+      'modificacion-fuera-de-rango',
+    );
+    expect(problemaDelBorrador(conCambios({ modificacion: { importe: 0, moneda: 'USD' } }))).toBe(
+      null,
+    );
+    expect(problemaDelBorrador(conCambios({ monedaDeLoAbonado: 'EUR' }))).toBe('forma-invalida');
+    expect(problemaDelBorrador(conCambios({ monedaDeLoAbonado: 'ARS' }))).toBeNull();
+  });
+
+  it('un borrador de antes de los dólares, sin las claves nuevas, se puede guardar', () => {
+    const deAntes = copia(BORRADOR);
+    delete deAntes.clausulaDeLaMoneda;
+    delete deAntes.modificacion;
+    delete deAntes.monedaDeLoAbonado;
+    expect(problemaDelBorrador(deAntes)).toBeNull();
+  });
 });
 
 describe('leerBorrador', () => {
@@ -1200,7 +1703,30 @@ describe('leerBorrador', () => {
       validezDias: 15,
       avisos: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.avisos),
       condiciones: tildadasPorDefecto(PLANTILLA_DE_SIEMPRE.condiciones),
+      clausulaDeLaMoneda: null,
+      modificacion: null,
+      monedaDeLoAbonado: null,
     });
+  });
+
+  it('lee la cláusula, la modificación y lo abonado de un trabajo en dólares', () => {
+    const enDolares: BorradorDelPresupuesto = {
+      ...BORRADOR,
+      clausulaDeLaMoneda: 'Al dólar MEP.',
+      modificacion: { importe: centavosEn('USD', 4_000), moneda: 'USD' },
+      monedaDeLoAbonado: 'ARS',
+    };
+    expect(leerBorrador(copia(enDolares), PLANTILLA_DE_SIEMPRE)).toEqual(enDolares);
+    expect(
+      leerBorrador(
+        { forma: 1, modificacion: { importe: 'x', moneda: 'USD' }, monedaDeLoAbonado: 'EUR' },
+        PLANTILLA_DE_SIEMPRE,
+      ),
+    ).toMatchObject({ modificacion: null, monedaDeLoAbonado: null });
+    expect(
+      leerBorrador({ forma: 1, modificacion: { importe: 1, moneda: 'EUR' } }, PLANTILLA_DE_SIEMPRE)
+        ?.modificacion,
+    ).toBeNull();
   });
 
   it('tolera cada pieza rota', () => {
@@ -1351,6 +1877,70 @@ describe('problemaDelDocumento', () => {
     ).toBe('texto-largo');
     expect(problemaDelDocumento(conCambios({ garantia: textoDe(4001) }))).toBe('texto-largo');
     expect(problemaDelDocumento(conCambios({ garantia: textoDe(4000) }))).toBeNull();
+  });
+
+  it('la cláusula de la moneda y la combinación, también en forma 1', () => {
+    const deAntes = copia(valido);
+    delete deAntes.clausulaDeLaMoneda;
+    delete deAntes.cobraEn;
+    expect(problemaDelDocumento(deAntes)).toBeNull();
+    expect(problemaDelDocumento(conCambios({ clausulaDeLaMoneda: 4 }))).toBe('forma-invalida');
+    expect(problemaDelDocumento(conCambios({ cobraEn: ['USD', 'ARS'] }))).toBe('forma-invalida');
+    expect(problemaDelDocumento(conCambios({ cobraEn: ['USD'] }))).toBeNull();
+    expect(problemaDelDocumento(conCambios({ clausulaDeLaMoneda: textoDe(4001) }))).toBe(
+      'texto-largo',
+    );
+    expect(problemaDelDocumento(conCambios({ clausulaDeLaMoneda: textoDe(4000) }))).toBeNull();
+  });
+
+  describe('en dólares', () => {
+    const enDolares = copia(documentoDelPresupuesto(entradaEnDolares(), FORMATOS));
+
+    function conCambiosEnDolares(cambios: Record<string, unknown>): Record<string, unknown> {
+      return { ...enDolares, ...cambios };
+    }
+
+    it('se puede mandar con su moneda, su referencia y la moneda de lo abonado', () => {
+      expect(problemaDelDocumento(enDolares)).toBeNull();
+    });
+
+    it('le falta algo de lo suyo, o la moneda no es otra que la del taller', () => {
+      expect(problemaDelDocumento(conCambiosEnDolares({ moneda: undefined }))).toBe(
+        'forma-invalida',
+      );
+      expect(problemaDelDocumento(conCambiosEnDolares({ moneda: 'ARS' }))).toBe('forma-invalida');
+      expect(problemaDelDocumento(conCambiosEnDolares({ moneda: 'EUR' }))).toBe('forma-invalida');
+      expect(problemaDelDocumento(conCambiosEnDolares({ monedaDeLoAbonado: null }))).toBe(
+        'forma-invalida',
+      );
+      expect(problemaDelDocumento(conCambiosEnDolares({ referencia: null }))).toBe(
+        'forma-invalida',
+      );
+      expect(
+        problemaDelDocumento(
+          conCambiosEnDolares({ referencia: { cotizacion: '1540', fecha: '2026-10-01' } }),
+        ),
+      ).toBe('forma-invalida');
+      expect(
+        problemaDelDocumento(conCambiosEnDolares({ referencia: { cotizacion: 154_000 } })),
+      ).toBe('forma-invalida');
+      expect(
+        problemaDelDocumento(
+          conCambiosEnDolares({ referencia: { cotizacion: 154_000, fecha: '2026-13-01' } }),
+        ),
+      ).toBe('forma-invalida');
+    });
+
+    it('la cotización de la referencia va de $ 1 a $ 100.000 por dólar', () => {
+      const conCotizacion = (cotizacion: number) =>
+        problemaDelDocumento(
+          conCambiosEnDolares({ referencia: { cotizacion, fecha: '2026-10-01' } }),
+        );
+      expect(conCotizacion(99)).toBe('cotizacion-fuera-de-rango');
+      expect(conCotizacion(10_000_001)).toBe('cotizacion-fuera-de-rango');
+      expect(conCotizacion(100)).toBeNull();
+      expect(conCotizacion(10_000_000)).toBeNull();
+    });
   });
 });
 

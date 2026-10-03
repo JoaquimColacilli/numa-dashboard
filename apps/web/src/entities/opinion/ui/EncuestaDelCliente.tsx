@@ -1,9 +1,12 @@
 import {
   armarRespuesta,
+  duracion,
   faltantes,
   LARGO_MAXIMO_DE_LA_RESPUESTA,
+  menosDeMinutos,
   pasosDe,
   primeraPalabra,
+  queTieneLaEncuesta,
   type Paso,
   type PreguntaDeLaEncuesta,
   type RespuestaDelFormulario,
@@ -11,6 +14,7 @@ import {
 } from '@maun/domain';
 import { useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 
+import { useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import {
   ESCENA_EN_LA_LAMINA,
   Icono,
@@ -20,19 +24,19 @@ import {
 } from '@/shared/ui';
 
 import { colorDelPaso, ICONO_DE_LA_CARA } from '../model/polos';
-import {
-  AVISO_DE_FIRMA,
-  AYUDA_DEL_COMENTARIO,
-  bajadaDeLaEncuesta,
-  faltanPreguntas,
-  tituloDeLaEncuesta,
-} from '../model/textos';
+
+function TalComoVino({ children }: { children: ReactNode }) {
+  return <span translate="no">{children}</span>;
+}
 
 export function MarcaDelTaller({ taller, conLema = false }: { taller: string; conLema?: boolean }) {
+  const { formulario } = useMensajesDelCliente().encuesta;
   return (
     <span className="flex items-baseline gap-2.25">
-      <span className={`font-display text-firma ${conLema ? '' : 'text-text-2'}`}>{taller}</span>
-      {conLema && <span className="text-meta text-text-3">Muebles a medida</span>}
+      <span translate="no" className={`font-display text-firma ${conLema ? '' : 'text-text-2'}`}>
+        {taller}
+      </span>
+      {conLema && <span className="text-meta text-text-3">{formulario.lema}</span>}
     </span>
   );
 }
@@ -53,9 +57,10 @@ interface ControlProps {
 }
 
 function Escala({ pregunta, valor, nombre, descripcion, alCambiar, primerControl }: ControlProps) {
+  const { escalas } = useMensajesDelCliente().encuesta;
   return (
     <div className="grid grid-cols-5 gap-1.25 @lg:gap-2">
-      {pasosDe(pregunta).map((paso, indice) => {
+      {pasosDe(pregunta, escalas).map((paso, indice) => {
         const elegida = valor === paso.valor;
         return (
           <label
@@ -109,11 +114,13 @@ function Punto({ elegida, cuadrado }: { elegida: boolean; cuadrado: boolean }) {
 }
 
 function Botones({ pregunta, valor, nombre, descripcion, alCambiar, primerControl }: ControlProps) {
+  const { escalas } = useMensajesDelCliente().encuesta;
   const varias = pregunta.tipo === 'varias';
+  const escritas = pregunta.tipo === 'una' || varias;
   const elegidas: readonly number[] = Array.isArray(valor) ? valor : [];
   return (
     <div className="flex flex-col gap-2.25">
-      {pasosDe(pregunta).map((paso: Paso, indice) => {
+      {pasosDe(pregunta, escalas).map((paso: Paso, indice) => {
         const elegida = varias ? elegidas.includes(paso.valor) : valor === paso.valor;
         return (
           <label
@@ -143,7 +150,7 @@ function Botones({ pregunta, valor, nombre, descripcion, alCambiar, primerContro
               className="sr-only"
             />
             <Punto elegida={elegida} cuadrado={varias} />
-            {paso.etiqueta}
+            <span translate={escritas ? 'no' : undefined}>{paso.etiqueta}</span>
           </label>
         );
       })}
@@ -158,6 +165,7 @@ function Comentario({
   primerControl,
   etiqueta,
 }: Omit<ControlProps, 'pregunta' | 'nombre'> & { etiqueta: string }) {
+  const { formulario } = useMensajesDelCliente().encuesta;
   return (
     <textarea
       ref={primerControl}
@@ -166,7 +174,7 @@ function Comentario({
       maxLength={LARGO_MAXIMO_DE_LA_RESPUESTA}
       aria-labelledby={etiqueta}
       aria-describedby={descripcion}
-      placeholder="Lo que se te ocurra. Si no, dejalo vacío y mandá igual."
+      placeholder={formulario.loQueSeTeOcurra}
       onChange={(evento) => {
         alCambiar(evento.target.value);
       }}
@@ -190,12 +198,13 @@ function PreguntaDelFormulario({
   alCambiar,
   primerControl,
 }: PreguntaDelFormularioProps) {
+  const { formulario } = useMensajesDelCliente().encuesta;
   const id = useId();
   const idDelTexto = `${id}-texto`;
   const idDeLaAyuda = `${id}-ayuda`;
   const idDelError = `${id}-error`;
   const esTexto = pregunta.tipo === 'texto';
-  const ayuda = esTexto && !pregunta.obligatoria ? AYUDA_DEL_COMENTARIO : null;
+  const ayuda = esTexto && !pregunta.obligatoria ? formulario.ayudaDelComentario : null;
   const descripcion =
     [ayuda === null ? null : idDeLaAyuda, falta ? idDelError : null]
       .filter((parte) => parte !== null)
@@ -214,6 +223,7 @@ function PreguntaDelFormulario({
       <legend className="mb-3 flex flex-col gap-0.75 p-0">
         <span
           id={idDelTexto}
+          translate="no"
           className="text-subtitulo leading-snug font-semibold text-pretty @lg:text-subtitulo-lg"
         >
           {pregunta.texto}
@@ -225,9 +235,7 @@ function PreguntaDelFormulario({
         )}
         {falta && (
           <span id={idDelError} className="text-label font-medium text-alerta">
-            {esTexto
-              ? 'Falta esta. Escribí algo para seguir.'
-              : 'Falta esta. Tocá una opción para seguir.'}
+            {esTexto ? formulario.faltaEscribir : formulario.faltaElegir}
           </span>
         )}
       </legend>
@@ -257,11 +265,14 @@ export function FormularioDeLaEncuesta({
   alMandar,
   arriba,
 }: FormularioDeLaEncuestaProps) {
+  const { formulario } = useMensajesDelCliente().encuesta;
   const [valores, setValores] = useState<Record<string, ValorDelFormulario | undefined>>({});
   const [conFalta, setConFalta] = useState<readonly string[]>([]);
   const [errorGeneral, setErrorGeneral] = useState('');
   const [enviando, setEnviando] = useState(false);
   const controles = useRef(new Map<string, HTMLInputElement | HTMLTextAreaElement>());
+  const tipos = preguntas.map((pregunta) => pregunta.tipo);
+  const loQueTiene = queTieneLaEncuesta(tipos);
 
   function cambiar(id: string, valor: ValorDelFormulario): void {
     setValores((previos) => ({ ...previos, [id]: valor }));
@@ -275,7 +286,7 @@ export function FormularioDeLaEncuesta({
     const faltan = faltantes(preguntas, valores);
     if (faltan.length > 0) {
       setConFalta(faltan);
-      setErrorGeneral(faltanPreguntas(faltan.length));
+      setErrorGeneral(formulario.faltan(faltan.length));
       controles.current.get(faltan[0] ?? '')?.focus();
       return;
     }
@@ -294,16 +305,20 @@ export function FormularioDeLaEncuesta({
         </header>
 
         <h1 className="mt-4.5 font-display text-h1 leading-tight font-normal tracking-[-0.01em] text-pretty @lg:text-h1-lg">
-          {tituloDeLaEncuesta(trabajo)}
+          {formulario.titulo(TalComoVino, trabajo)}
         </h1>
         <p className="mt-2.5 text-body-lg leading-relaxed text-text-2">
-          {bajadaDeLaEncuesta(preguntas)}
+          {formulario.bajada(
+            loQueTiene.preguntas,
+            loQueTiene.comentarios,
+            menosDeMinutos(duracion(tipos).segundos),
+          )}
         </p>
-        <p className="mt-3 text-label leading-relaxed text-text-3">{AVISO_DE_FIRMA}</p>
+        <p className="mt-3 text-label leading-relaxed text-text-3">{formulario.avisoDeFirma}</p>
 
         <form
           noValidate
-          aria-label="Encuesta"
+          aria-label={formulario.nombre}
           onSubmit={(evento) => {
             void mandar(evento);
           }}
@@ -349,10 +364,10 @@ export function FormularioDeLaEncuesta({
                   <Icono nombre="loader-circle" tamano={18} />
                 </span>
               )}
-              {enviando ? 'Mandando…' : 'Mandar mi opinión'}
+              {enviando ? formulario.mandando : formulario.mandar}
             </button>
             <p className="text-center text-label leading-relaxed text-text-3">
-              Se manda una sola vez y no se puede editar después.
+              {formulario.unaSolaVez}
             </p>
           </div>
         </form>
@@ -368,6 +383,7 @@ export interface GraciasPorContestarProps {
 }
 
 export function GraciasPorContestar({ taller, cliente, resena }: GraciasPorContestarProps) {
+  const { gracias } = useMensajesDelCliente().encuesta;
   const nombre = cliente === null ? '' : primeraPalabra(cliente);
   return (
     <div data-quieta="" className="@container w-full">
@@ -379,18 +395,15 @@ export function GraciasPorContestar({ taller, cliente, resena }: GraciasPorConte
           lamina={ESCENA_EN_LA_LAMINA}
           className="mt-1"
         >
-          <h1 className={TITULO_DE_LAMINA}>{nombre === '' ? 'Gracias' : `Gracias, ${nombre}`}</h1>
-          <p className="text-body-lg leading-relaxed text-text-2">
-            Lo leemos nosotros, no un sistema. Lo que nos marcaste nos sirve para el próximo mueble.
-          </p>
+          <h1 className={TITULO_DE_LAMINA}>
+            {nombre === '' ? gracias.titulo : gracias.conElNombre(TalComoVino, nombre)}
+          </h1>
+          <p className="text-body-lg leading-relaxed text-text-2">{gracias.texto}</p>
         </TarjetaConLamina>
         {resena !== null && (
           <div className="flex w-full flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4">
-            <span className="text-body font-semibold">¿Nos dejás la misma reseña en Google?</span>
-            <span className="text-body-sm leading-relaxed text-text-2">
-              Se lo pedimos a todos los clientes, contesten lo que contesten. A un taller chico le
-              cambia bastante.
-            </span>
+            <span className="text-body font-semibold">{gracias.resena.pregunta}</span>
+            <span className="text-body-sm leading-relaxed text-text-2">{gracias.resena.texto}</span>
             <a
               href={resena}
               target="_blank"
@@ -398,7 +411,7 @@ export function GraciasPorContestar({ taller, cliente, resena }: GraciasPorConte
               className="flex min-h-12 w-fit items-center gap-2 rounded-pill border border-border px-4.5 text-body font-medium no-underline hover:bg-surface"
             >
               <Icono nombre="star" tamano={17} />
-              Dejar una reseña
+              {gracias.resena.dejarla}
             </a>
           </div>
         )}

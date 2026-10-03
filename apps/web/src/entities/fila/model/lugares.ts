@@ -1,11 +1,15 @@
 import {
   lugarLibreDelReparto,
+  MONEDA_DEL_TALLER,
   TOPE_DE_OBLIGACIONES,
   TOPE_DE_PARTES,
   TOPE_DE_PASOS,
   type Fila,
+  type Moneda,
   type TesoroDeLaFila,
 } from '@maun/domain';
+
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 export const LUGARES_EN_LA_FILA = [
   'obligacion',
@@ -17,15 +21,15 @@ export const LUGARES_EN_LA_FILA = [
 
 export type LugarEnLaFila = (typeof LUGARES_EN_LA_FILA)[number];
 
-export const TITULO_DEL_LUGAR: Readonly<Record<LugarEnLaFila, string>> = {
-  obligacion: 'Como obligación',
-  compromiso: 'Como compromiso',
-  'ahorro-fijo': 'Como ahorro fijo',
-  reparto: 'En el reparto',
-  superavit: 'Que reciba lo que sobra',
-};
+export const TITULO_DEL_LUGAR: Readonly<Record<LugarEnLaFila, string>> = textosDelIdioma(
+  () => mensajes().fila.lugares,
+);
 
 type Clave = TesoroDeLaFila['clave'];
+
+export function entraEnLaFila(tesoro: { moneda: Moneda }): boolean {
+  return tesoro.moneda === MONEDA_DEL_TALLER;
+}
 
 function esElSuperavitAparte(fila: Fila, tesoro: string, clave: Clave): boolean {
   return clave !== 'maun' && fila.superavit === tesoro;
@@ -87,10 +91,16 @@ const PUEDE: Readonly<
   superavit: puedeSerSuperavit,
 };
 
-export function lugaresParaSumar(fila: Fila, tesoro: string, clave: Clave): LugarParaSumar[] {
+export function lugaresParaSumar(
+  fila: Fila,
+  tesoro: string,
+  clave: Clave,
+  moneda: Moneda = MONEDA_DEL_TALLER,
+): LugarParaSumar[] {
+  const enLaFila = entraEnLaFila({ moneda });
   return LUGARES_EN_LA_FILA.map((lugar) => ({
     lugar,
     titulo: TITULO_DEL_LUGAR[lugar],
-    sePuede: PUEDE[lugar](fila, tesoro, clave),
+    sePuede: enLaFila && PUEDE[lugar](fila, tesoro, clave),
   }));
 }

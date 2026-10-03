@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { usarIdioma } from '@/shared/idioma';
+
 import {
   compararVersiones,
   etiquetaDeLaVersion,
@@ -31,6 +33,21 @@ describe('la versión', () => {
     expect(compararVersiones('2026-10-01.2', '2026-10-01')).toBeGreaterThan(0);
     expect(compararVersiones('2026-10-01.10', '2026-10-01.9')).toBeGreaterThan(0);
     expect(compararVersiones('2026-10-01', '2026-10-01')).toBe(0);
+  });
+
+  it('en inglés y en portugués se lee en su idioma, y sin fecha también', async () => {
+    try {
+      await usarIdioma('en');
+      expect(etiquetaDeLaVersion('2026-09-15')).toBe('Version of September 15, 2026');
+      expect(etiquetaDeLaVersion('2026-10-01.2')).toBe('Version of October 1, 2026 (2)');
+      await usarIdioma('pt-BR');
+      expect(etiquetaDeLaVersion('2026-09-15')).toBe('Versão de 15 de setembro de 2026');
+      expect(etiquetaDeLaVersion('2026-10-01.2')).toBe('Versão de 1º de outubro de 2026 (2)');
+      expect(etiquetaDeLaVersion('1.2.3')).toBe('Versão sem data');
+    } finally {
+      await usarIdioma('es');
+    }
+    expect(etiquetaDeLaVersion('1.2.3')).toBe('Versión sin fecha');
   });
 
   it('la actual es la de la entrada de más arriba', () => {

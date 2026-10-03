@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { centavos, ETIQUETAS_DE_IDIOMA, IDIOMAS } from '@maun/domain';
 import { render, screen, within } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -14,9 +14,12 @@ import {
   CIFRA_DEL_PANORAMA,
   CIFRAS_DEL_PANORAMA,
   conElEsqueleto,
+  ETIQUETAS_DEL_ARRANQUE,
   htmlDelEsqueleto,
   RAIZ_VACIA,
+  scriptDelEstadoDelArranque,
   SECCION_DEL_PANORAMA,
+  TEXTOS_DEL_ARRANQUE,
   TITULO_DEL_PANORAMA,
   TRAYENDO_LOS_DATOS,
 } from './esqueleto';
@@ -225,4 +228,48 @@ describe('la forma', () => {
     expect(html).toContain('[[data-arranque=acceso]_&amp;]:block');
     expect(html).toContain('[[data-arranque=bloqueo]_&amp;]:block');
   });
+});
+
+describe('el primer cuadro en el idioma de quien abre', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.documentElement.lang = 'es-AR';
+  });
+
+  it('los textos del arranque están en los tres idiomas, con las etiquetas de la app', () => {
+    expect(Object.keys(TEXTOS_DEL_ARRANQUE).sort()).toEqual([...IDIOMAS].sort());
+    expect(ETIQUETAS_DEL_ARRANQUE).toEqual(ETIQUETAS_DE_IDIOMA);
+    for (const textos of Object.values(TEXTOS_DEL_ARRANQUE)) {
+      for (const texto of Object.values(textos)) expect(texto.trim()).not.toBe('');
+    }
+  });
+
+  it('el build pone el script del estado justo después de la raíz, que React reemplaza al dibujar', () => {
+    expect(conElEsqueleto(HTML)).toContain(
+      `<div id="root">${htmlDelEsqueleto()}</div>${scriptDelEstadoDelArranque()}`,
+    );
+  });
+
+  it.each(IDIOMAS)(
+    'en %s, el script deja el mismo DOM que React dibuja al arrancar, con un solo estado',
+    (idioma) => {
+      document.body.innerHTML = `<div id="root">${htmlDelEsqueleto()}</div>`;
+      document.documentElement.lang = ETIQUETAS_DE_IDIOMA[idioma];
+      const delBuild = document.createElement('script');
+      delBuild.textContent =
+        /<script>([\s\S]*?)<\/script>/u.exec(scriptDelEstadoDelArranque())?.[1] ?? '';
+      document.body.append(delBuild);
+      delBuild.remove();
+
+      const raiz = document.getElementById('root');
+      expect(raiz?.querySelectorAll('[role="status"]')).toHaveLength(1);
+      for (const forma of ['marco', 'acceso', 'bloqueo'] as const) {
+        const deReact = document.createElement('div');
+        deReact.innerHTML = renderToStaticMarkup(
+          <EsqueletoDeArranque que={TEXTOS_DEL_ARRANQUE[idioma].abriendoLaApp} forma={forma} />,
+        );
+        expect(raiz?.innerHTML).toBe(deReact.innerHTML);
+      }
+    },
+  );
 });

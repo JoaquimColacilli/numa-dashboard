@@ -33,6 +33,10 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     cobro_titular: '',
     cobro_cuit: '',
     cobro_link: '',
+    cobro_dolares_cbu: '',
+    cobro_dolares_alias: '',
+    dolar_del_dia_centavos: null,
+    dolar_del_dia_el: null,
     resena_link: '',
     instagram_link: '',
     facebook_link: '',
@@ -50,6 +54,7 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     taller_email: '',
     plantilla_del_presupuesto: null,
     plantilla_del_presupuesto_version: 0,
+    idioma_de_los_clientes: 'es',
     created_at: '2026-09-19T12:00:00Z',
     updated_at: '2026-09-19T12:00:00Z',
     deleted_at: null,
@@ -59,7 +64,18 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
 }
 
 function datos(extra: Partial<DatosDeCobro> = {}): DatosDeCobro {
-  return { alias: '', cbu: '', titular: '', cuit: '', link: '', ...extra };
+  return {
+    alias: '',
+    cbu: '',
+    titular: '',
+    cuit: '',
+    link: '',
+    aliasEnDolares: '',
+    cbuEnDolares: '',
+    dolarDelDia: null,
+    dolarDelDiaEl: null,
+    ...extra,
+  };
 }
 
 describe('lo que se carga y lo que se guarda', () => {
@@ -78,6 +94,51 @@ describe('lo que se carga y lo que se guarda', () => {
       cobro_titular: 'Ana',
       cobro_cuit: '27-30123456-4',
       cobro_link: '',
+      cobro_dolares_alias: '',
+      cobro_dolares_cbu: '',
+      dolar_del_dia_centavos: null,
+      dolar_del_dia_el: null,
+    });
+  });
+
+  it('la cuenta en dólares se guarda como la de pesos, y el dólar del día con el día para el que vale', () => {
+    const cargados = cobroDeLosAjustes(
+      ajustes({
+        cobro_dolares_cbu: CBU,
+        cobro_dolares_alias: 'maun.dolares',
+        dolar_del_dia_centavos: 154_000,
+        dolar_del_dia_el: '2026-10-01',
+      }),
+    );
+    expect(cargados).toMatchObject({
+      aliasEnDolares: 'maun.dolares',
+      cbuEnDolares: '0110 0013 1234 5678 9012 33',
+      dolarDelDia: 154_000,
+      dolarDelDiaEl: '2026-10-01',
+    });
+    expect(cambiosDeCobro(cargados)).toMatchObject({
+      cobro_dolares_cbu: CBU,
+      cobro_dolares_alias: 'maun.dolares',
+      dolar_del_dia_centavos: 154_000,
+      dolar_del_dia_el: '2026-10-01',
+    });
+    expect(cambiosDeCobro({ ...cargados, dolarDelDia: null })).toMatchObject({
+      dolar_del_dia_centavos: null,
+      dolar_del_dia_el: null,
+    });
+  });
+
+  it('unos ajustes de antes, sin las columnas de los dólares, se leen vacíos', () => {
+    const viejos: Partial<FilaDe<'ajustes'>> = ajustes();
+    delete viejos.cobro_dolares_cbu;
+    delete viejos.cobro_dolares_alias;
+    delete viejos.dolar_del_dia_centavos;
+    delete viejos.dolar_del_dia_el;
+    expect(cobroDeLosAjustes(viejos as FilaDe<'ajustes'>)).toMatchObject({
+      aliasEnDolares: '',
+      cbuEnDolares: '',
+      dolarDelDia: null,
+      dolarDelDiaEl: null,
     });
   });
 
@@ -106,6 +167,15 @@ describe('lo que se carga y lo que se guarda', () => {
 describe('lo que frena el formulario', () => {
   it('todo vacío se guarda: los cuatro son opcionales', () => {
     expect(errorDeCobro(datos())).toBeNull();
+  });
+
+  it('la cuenta en dólares y el dólar del día se revisan con sus propias reglas', () => {
+    expect(errorDeCobro(datos({ cbuEnDolares: '0110 0013' }))?.campo).toBe('cbuEnDolares');
+    expect(errorDeCobro(datos({ aliasEnDolares: 'a b' }))?.campo).toBe('aliasEnDolares');
+    expect(errorDeCobro(datos({ dolarDelDia: 50, dolarDelDiaEl: '2026-10-02' }))).toMatchObject({
+      campo: 'dolarDelDia',
+    });
+    expect(errorDeCobro(datos({ dolarDelDia: 154_000, dolarDelDiaEl: '2026-10-02' }))).toBeNull();
   });
 
   it('un alias con guion bajo o demasiado corto no pasa', () => {

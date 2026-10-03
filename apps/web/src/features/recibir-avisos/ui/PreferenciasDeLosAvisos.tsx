@@ -8,13 +8,15 @@ import { useId } from 'react';
 
 import { MarcaDeCategoria } from '@/entities/agenda';
 import type { EstadoDeLosAvisos, PreferenciasDeLaPersona } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Button, Icono, Interruptor } from '@/shared/ui';
 
 import {
-  ANTICIPACION_EN_PALABRAS,
+  anticipacionEnPalabras,
   anticipacionesDe,
   cuandoSalio,
   esHora,
+  horaEnPantalla,
   HORAS_SUGERIDAS,
   otrosDispositivos,
   QUE_AVISA,
@@ -43,6 +45,7 @@ export function PreferenciasDeLosAvisos({
   alProbar,
   alApagar,
 }: PreferenciasDeLosAvisosProps) {
+  const m = useMensajes();
   const id = useId();
 
   function cambiarAviso(
@@ -57,17 +60,17 @@ export function PreferenciasDeLosAvisos({
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-panel border border-hairline bg-paper px-4 py-3 md:px-5">
         <Icono nombre="bell" tamano={18} className="flex-none" />
         <p className="min-w-[12rem] flex-1 text-body leading-tight">
-          Avisos activos en este dispositivo. {cuandoSalio(estado.ultimoEnvio)}
+          {m.recibirAvisos.activosEnEsteDispositivo} {cuandoSalio(estado.ultimoEnvio)}
           {otrosDispositivos(estado.dispositivos)}
         </p>
         <Button variant="secundario" size="chico" cargando={probando} onClick={alProbar}>
-          Probar
+          {m.recibirAvisos.probar}
         </Button>
       </div>
 
       <section aria-labelledby={`${id}-que`} className={TARJETA}>
         <h2 id={`${id}-que`} className={`mb-0.5 ${TITULO_DE_SECCION}`}>
-          Qué te avisa
+          {m.recibirAvisos.queTeAvisa}
         </h2>
         {AVISOS_DE_LA_AGENDA.map((aviso) => {
           const datos = QUE_AVISA[aviso];
@@ -90,7 +93,7 @@ export function PreferenciasDeLosAvisos({
                 <p className="text-label leading-tight text-text-2">{datos.detalle}</p>
               </div>
               <select
-                aria-label={`Anticipación de ${datos.etiqueta}`}
+                aria-label={m.recibirAvisos.anticipacionDe({ aviso: datos.etiqueta })}
                 disabled={!preferencia.activo}
                 value={String(preferencia.anticipacion)}
                 onChange={(evento) => {
@@ -105,7 +108,7 @@ export function PreferenciasDeLosAvisos({
               >
                 {anticipacionesDe(aviso, preferencia.anticipacion).map((anticipacion) => (
                   <option key={anticipacion} value={String(anticipacion)}>
-                    {ANTICIPACION_EN_PALABRAS[anticipacion]}
+                    {anticipacionEnPalabras(anticipacion)}
                   </option>
                 ))}
               </select>
@@ -123,7 +126,7 @@ export function PreferenciasDeLosAvisos({
 
       <section aria-labelledby={`${id}-hora`} className={TARJETA}>
         <h2 id={`${id}-hora`} className={`mb-2.5 ${TITULO_DE_SECCION}`}>
-          A qué hora
+          {m.recibirAvisos.aQueHora}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {HORAS_SUGERIDAS.map((hora) => {
@@ -132,6 +135,7 @@ export function PreferenciasDeLosAvisos({
               <button
                 key={hora}
                 type="button"
+                translate="no"
                 aria-pressed={elegida}
                 onClick={() => {
                   if (!elegida) alCambiar({ ...preferencias, hora });
@@ -142,13 +146,13 @@ export function PreferenciasDeLosAvisos({
                     : 'border-border bg-paper text-ink hover:bg-surface'
                 }`}
               >
-                {hora}
+                {horaEnPantalla(hora)}
               </button>
             );
           })}
           <input
             type="time"
-            aria-label="Otra hora"
+            aria-label={m.recibirAvisos.otraHora}
             value={preferencias.hora}
             onChange={(evento) => {
               const hora = evento.target.value;
@@ -161,14 +165,13 @@ export function PreferenciasDeLosAvisos({
 
       <section aria-labelledby={`${id}-zona`} className={TARJETA}>
         <h2 id={`${id}-zona`} className={`mb-1.5 ${TITULO_DE_SECCION}`}>
-          ¿Dónde vivís?
+          {m.recibirAvisos.dondeVivis}
         </h2>
         <p
           id={`${id}-zona-ayuda`}
           className="mb-2.5 max-w-[520px] text-body leading-relaxed text-text-2"
         >
-          El aviso lo manda un servidor, no tu teléfono, así que necesita saber en qué zona horaria
-          estás para mandarlo a la hora que elegiste.
+          {m.recibirAvisos.elAvisoLoMandaUnServidor}
         </p>
         <select
           aria-labelledby={`${id}-zona`}
@@ -188,14 +191,12 @@ export function PreferenciasDeLosAvisos({
         className={`flex flex-col items-start gap-2 ${TARJETA}`}
       >
         <h2 id={`${id}-dispositivo`} className={TITULO_DE_SECCION}>
-          En este dispositivo
+          {m.recibirAvisos.enEsteDispositivo}
         </h2>
-        <p className="text-body leading-relaxed text-text-2">
-          Apagarlos acá no cambia lo que llega a tus otros dispositivos.
-        </p>
+        <p className="text-body leading-relaxed text-text-2">{m.recibirAvisos.apagarlosAca}</p>
         <Button variant="secundario" size="chico" cargando={apagando} onClick={alApagar}>
           {!apagando && <Icono nombre="bell-off" tamano={16} />}
-          Apagar los avisos en este dispositivo
+          {m.recibirAvisos.apagarLosAvisos}
         </Button>
       </section>
     </div>

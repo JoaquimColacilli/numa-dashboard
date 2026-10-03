@@ -3,7 +3,7 @@ import plex600 from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-nor
 import youngSerif from '@fontsource/young-serif/files/young-serif-latin-400-normal.woff?url';
 import { pdf } from '@react-pdf/renderer';
 
-import { PresupuestoPdf } from './Documento';
+import { presupuestoEnSuIdioma } from './enSuIdioma';
 import { registrarLasFuentes } from './fuentes';
 import type { PedidoAlTrabajador, RespuestaDelTrabajador } from './tipos';
 
@@ -15,7 +15,7 @@ function responder(respuesta: RespuestaDelTrabajador, transferir: Transferable[]
 
 async function generar({ id, presupuesto }: PedidoAlTrabajador): Promise<void> {
   try {
-    const archivo = await pdf(PresupuestoPdf(presupuesto)).toBlob();
+    const archivo = await pdf(await presupuestoEnSuIdioma(presupuesto)).toBlob();
     const bytes = await archivo.arrayBuffer();
     responder({ id, listo: true, bytes }, [bytes]);
   } catch (error) {
@@ -23,6 +23,9 @@ async function generar({ id, presupuesto }: PedidoAlTrabajador): Promise<void> {
   }
 }
 
+let enFila: Promise<void> = Promise.resolve();
+
 self.addEventListener('message', (evento: MessageEvent<PedidoAlTrabajador>) => {
-  void generar(evento.data);
+  const pedido = evento.data;
+  enFila = enFila.then(() => generar(pedido));
 });

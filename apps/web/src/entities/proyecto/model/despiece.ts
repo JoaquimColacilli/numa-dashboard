@@ -29,6 +29,7 @@ import {
   tesorosDeLaReplica,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   formatearPorcentaje,
   iconoDelTesoro,
@@ -141,20 +142,29 @@ export function repartoEnLaAperturaPropuesto(
   return (proyecto as Partial<Proyecto>).reparto_ya_en_la_apertura === true;
 }
 
-const NOMBRE_DE_LA_CLASE: Readonly<Record<string, string>> = {
-  sueldo: 'Sueldo',
-  fijos: 'Gastos fijos',
-  prioridad: 'Ahorro fijo',
-};
+function etiquetaDelDiezmo(porcentaje: number, base: BaseDeLaObligacion | null): string {
+  const textos = mensajes().proyecto.despiece;
+  const cuanto = formatearPorcentaje(porcentaje);
+  if (base === 'cobrado') return textos.diezmoSobreLoCobrado(cuanto);
+  if (base === 'ingreso') return textos.diezmoSobreElIngreso(cuanto);
+  return textos.diezmo(cuanto);
+}
 
-const SOBRE_QUE: Readonly<Record<BaseDeLaObligacion, string>> = {
-  cobrado: 'sobre lo que cobrás',
-  ingreso: 'sobre el ingreso',
-};
+function etiquetaDeLaObligacion(
+  tesoro: string,
+  porcentaje: number,
+  base: BaseDeLaObligacion | null,
+): string {
+  const textos = mensajes().proyecto.despiece;
+  const cuanto = formatearPorcentaje(porcentaje);
+  if (base === 'cobrado') return textos.obligacionSobreLoCobrado(tesoro, cuanto);
+  if (base === 'ingreso') return textos.obligacionSobreElIngreso(tesoro, cuanto);
+  return textos.obligacion(tesoro, cuanto);
+}
 
-function reglaDeLaObligacion(porcentaje: number, base: BaseDeLaObligacion | null): string {
-  const cuanto = `${formatearPorcentaje(porcentaje)}%`;
-  return base === null ? cuanto : `${cuanto} ${SOBRE_QUE[base]}`;
+function etiquetaDelPaso(clase: string | null): string {
+  const textos = mensajes().proyecto.despiece;
+  return esClaseDePaso(clase) ? textos.clases[clase] : textos.topeDelMes;
 }
 
 interface DatosDelTesoro {
@@ -181,7 +191,7 @@ function datosDeLosTesoros(replica: Replica): DatosPorId {
       const datos = TESORO[clave];
       return { nombre: datos.nombre, tinta: clave, icono: datos.icono };
     }
-    return { nombre: 'Tesoro', tinta: 'maun', icono: 'vault' };
+    return { nombre: mensajes().proyecto.tesoroSinNombre, tinta: 'maun', icono: 'vault' };
   };
 }
 
@@ -260,13 +270,12 @@ function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte
         llegaALaMeta: false,
         parte: parte(obligacion.monto),
       };
-      const regla = reglaDeLaObligacion(obligacion.porcentaje, obligacion.base);
       if (obligacion.diezmo) {
         return {
           ...comun,
           id: 'diezmo',
           tipo: 'diezmo',
-          etiqueta: `Diezmo ${regla}`,
+          etiqueta: etiquetaDelDiezmo(obligacion.porcentaje, obligacion.base),
           ...datos(obligacion.tesoro),
         };
       }
@@ -275,7 +284,7 @@ function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte
         ...comun,
         id: `obligacion-${obligacion.tesoro}`,
         tipo: 'obligacion',
-        etiqueta: `${nombrado.nombre} ${regla}`,
+        etiqueta: etiquetaDeLaObligacion(nombrado.nombre, obligacion.porcentaje, obligacion.base),
         ...nombrado,
       };
     }),
@@ -285,8 +294,7 @@ function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte
         id: `paso-${paso.tesoro}`,
         tipo: 'paso' as const,
         tipoDeTesoro: tipoDeLaClase(paso.clase),
-        etiqueta:
-          (paso.clase === null ? undefined : NOMBRE_DE_LA_CLASE[paso.clase]) ?? 'Tope del mes',
+        etiqueta: etiquetaDelPaso(paso.clase),
         tesoro: paso.tesoro,
         ...conNombre(paso.tesoro, paso.nombre),
         monto: paso.monto,
@@ -301,7 +309,7 @@ function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte
       id: `parte-${una.tesoro}`,
       tipo: 'parte' as const,
       tipoDeTesoro: 'ahorro-por-porcentaje' as const,
-      etiqueta: `${formatearPorcentaje(una.porcentaje)}% de lo que sobra`,
+      etiqueta: mensajes().proyecto.despiece.deLoQueSobra(formatearPorcentaje(una.porcentaje)),
       tesoro: una.tesoro,
       ...conNombre(una.tesoro, una.nombre),
       monto: una.monto,
@@ -315,7 +323,7 @@ function despieceDelCorte(replica: Replica, modo: Despiece['modo'], corte: Corte
       id: 'resto',
       tipo: 'resto',
       tipoDeTesoro: 'superavit',
-      etiqueta: 'El resto',
+      etiqueta: mensajes().proyecto.despiece.elResto,
       tesoro: resto.tesoro,
       ...conNombre(resto.tesoro, resto.nombre),
       monto: corte.resto,

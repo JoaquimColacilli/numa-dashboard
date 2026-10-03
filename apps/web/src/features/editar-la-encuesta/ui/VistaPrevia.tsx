@@ -2,6 +2,9 @@ import type { PreguntaDeLaEncuesta } from '@maun/domain';
 import { useState } from 'react';
 
 import { FormularioDeLaEncuesta, GraciasPorContestar } from '@/entities/opinion';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
+import { ConElIdiomaDelCliente } from '@/shared/idioma-del-cliente';
 import { Hoja } from '@/shared/ui';
 
 export interface VistaPreviaProps {
@@ -12,30 +15,30 @@ export interface VistaPreviaProps {
 }
 
 export function VistaPrevia({ taller, preguntas, resena, alCerrar }: VistaPreviaProps) {
+  const textos = useMensajes().editarLaEncuesta.vistaPrevia;
+  const replica = useReplicaDelTaller();
   const [contestada, setContestada] = useState(false);
 
   return (
-    <Hoja
-      titulo="Así la ve tu cliente"
-      bajada="No se guarda nada de lo que toques acá"
-      alCerrar={alCerrar}
-    >
+    <Hoja titulo={textos.titulo} bajada={textos.bajada} alCerrar={alCerrar}>
       <div className="flex min-h-0 flex-1 justify-center overflow-auto bg-surface p-4.5">
         <div className="h-fit w-[390px] max-w-full flex-none overflow-hidden rounded-telefono border border-border bg-mesa shadow-float">
-          {contestada ? (
-            <GraciasPorContestar taller={taller} cliente={null} resena={resena} />
-          ) : (
-            <FormularioDeLaEncuesta
-              taller={taller}
-              trabajo=""
-              preguntas={preguntas}
-              idDeLaRespuesta="vista-previa"
-              alMandar={() => {
-                setContestada(true);
-                return Promise.resolve(null);
-              }}
-            />
-          )}
+          <ConElIdiomaDelCliente idioma={idiomaDeLosClientes(replica)}>
+            {contestada ? (
+              <GraciasPorContestar taller={taller} cliente={null} resena={resena} />
+            ) : (
+              <FormularioDeLaEncuesta
+                taller={taller}
+                trabajo=""
+                preguntas={preguntas}
+                idDeLaRespuesta="vista-previa"
+                alMandar={() => {
+                  setContestada(true);
+                  return Promise.resolve(null);
+                }}
+              />
+            )}
+          </ConElIdiomaDelCliente>
         </div>
       </div>
     </Hoja>

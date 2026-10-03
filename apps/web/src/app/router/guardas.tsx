@@ -6,10 +6,12 @@ import { ProveedorDeSesion, useSesion, useSesionActiva } from '@/entities/sesion
 import { EntrarConOtraCuenta } from '@/features/cerrar-sesion';
 import { BloqueoAlVolver, PantallaDeBloqueo } from '@/features/desbloquear-la-app';
 import { householdDe, tieneAcceso } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { esCelular, useAppBloqueada, useVueltaPorUnAviso, vigilarElBloqueo } from '@/shared/lib';
 
 import { EsqueletoDeArranque } from '../arranque/EsqueletoDeArranque';
-import { ABRIENDO_LA_APP, TRAYENDO_LOS_DATOS } from '../arranque/esqueleto';
+import { IdiomaDeLaCuenta } from '../arranque/IdiomaDeLaCuenta';
+import { useTextosDelArranque } from '../arranque/textos';
 import { CargaQueTarda, ErrorDeCarga } from '../layout/ErrorDeCarga';
 import { ProveedorDeLaPuerta } from '../navegacion/ProveedorDeLaPuerta';
 
@@ -30,8 +32,9 @@ function useTardaMasDe(milisegundos: number): boolean {
 
 export function RutaPublica() {
   const sesion = useSesion();
+  const textos = useTextosDelArranque();
 
-  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={ABRIENDO_LA_APP} />;
+  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={textos.abriendoLaApp} />;
   if (sesion.tipo === 'activa') return <Navigate to="/" replace />;
   return <Outlet />;
 }
@@ -57,8 +60,9 @@ function ConBloqueo({ usuarioId }: { usuarioId: string }) {
 
 export function RutaConSesion() {
   const sesion = useSesion();
+  const textos = useTextosDelArranque();
 
-  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={ABRIENDO_LA_APP} />;
+  if (sesion.tipo === 'cargando') return <EsqueletoDeArranque que={textos.abriendoLaApp} />;
   if (sesion.tipo === 'anonimo') return <Navigate to="/acceso" replace />;
 
   return (
@@ -68,8 +72,10 @@ export function RutaConSesion() {
         email: sesion.email,
         nombre: sesion.nombre,
         foto: sesion.foto,
+        idioma: sesion.idioma,
       }}
     >
+      <IdiomaDeLaCuenta />
       <ProveedorDeLaPuerta>
         <ConBloqueo usuarioId={sesion.usuarioId} />
       </ProveedorDeLaPuerta>
@@ -77,12 +83,12 @@ export function RutaConSesion() {
   );
 }
 
-const SIN_TALLER = new Error('Tu cuenta no quedó asociada a ningún taller.');
-
 export function RutaConAcceso() {
+  const m = useMensajes();
   const { usuarioId } = useSesionActiva();
   const replica = useReplica(usuarioId);
   const tarda = useTardaMasDe(TOPE_DE_LA_PRIMERA_CARGA_MS);
+  const textos = useTextosDelArranque();
   useCambiosEnVivo(usuarioId, replica.data ? (householdDe(replica.data)?.id ?? null) : null);
   const reintentar = () => {
     void replica.refetch();
@@ -98,8 +104,8 @@ export function RutaConAcceso() {
     }
     return (
       <ErrorDeCarga
-        error={SIN_TALLER}
-        detalle="El taller se crea solo al confirmar la cuenta, así que esto no debería pasar. Probá de nuevo; si sigue igual, cerrá sesión y volvé a entrar."
+        error={new Error(m.appRouter.sinTaller)}
+        detalle={m.appRouter.elTallerSeCreaSolo}
         reintentar={reintentar}
       />
     );
@@ -110,7 +116,7 @@ export function RutaConAcceso() {
   }
 
   return (
-    <EsqueletoDeArranque que={TRAYENDO_LOS_DATOS} visible forma="marco">
+    <EsqueletoDeArranque que={textos.trayendoLosDatos} visible forma="marco">
       {tarda && <CargaQueTarda reintentar={reintentar} />}
     </EsqueletoDeArranque>
   );

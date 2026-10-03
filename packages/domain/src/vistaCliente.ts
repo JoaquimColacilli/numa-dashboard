@@ -1,17 +1,28 @@
+import { pesosDeDolares, type Cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
-import { restar, sumarTodos, type Money } from './money.ts';
+import { idiomaLeido, type Idioma } from './idioma.ts';
+import {
+  centavosEn,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  restar,
+  sumar,
+  type Moneda,
+  type Money,
+} from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
+import { plata, type Plata } from './plata.ts';
 import {
   acordadoAlAprobar,
+  cobraEnLeido,
   cuentasDelPresupuesto,
-  mensajeParaElTaller,
-  nombreDelArchivo,
-  numeroVisible,
+  monedaDelDocumento,
   plazoDelPresupuesto,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
+  type ReferenciaEnPesos,
 } from './presupuesto.ts';
 import { vencioElPresupuesto } from './vigencia.ts';
 import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
@@ -27,7 +38,8 @@ export interface PagoDelCliente {
   id: string;
   fecha: string;
   concepto: string;
-  monto: Money;
+  monto: Money<Moneda>;
+  pagado?: ImporteDeUnPago;
 }
 
 export interface ArchivoDelCliente {
@@ -93,13 +105,15 @@ export interface CobroDelTaller {
 export interface PagoOfrecido {
   instancia: InstanciaDePago;
   formas: readonly FormaDeCobro[];
-  monto: Money | null;
+  formasEnDolares?: readonly FormaDeCobro[];
+  monto: Money<Moneda> | null;
 }
 
 export interface PagoPendiente {
   instancia: InstanciaDePago | null;
   formas: readonly FormaDeCobro[];
-  monto: Money | null;
+  formasEnDolares?: readonly FormaDeCobro[];
+  monto: Money<Moneda> | null;
   siguiente: PagoOfrecido | null;
 }
 
@@ -114,6 +128,7 @@ export interface PresupuestoDelTrabajo {
   mandadoEl: string;
   queCambio: string | null;
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   aceptadoEl: string | null;
   letra: string | null;
 }
@@ -122,15 +137,20 @@ export interface TrabajoDelCliente {
   taller: string;
   cliente: string;
   trabajo: string;
+  idioma: Idioma;
   direccion: string;
   estado: EstadoProyecto;
-  precio: Money | null;
-  sena: Money | null;
+  moneda?: Moneda;
+  cobraEn?: readonly Moneda[] | null;
+  precio: Money<Moneda> | null;
+  sena: Money<Moneda> | null;
+  dolarDelDia?: ReferenciaEnPesos | null;
   fechas: FechasDelTrabajo;
   visita: VisitaDelTrabajo;
   entrega: EntregaQueSeCoordina;
   pago: PagoPendiente;
   cobro: CobroDelTaller;
+  cobroEnDolares?: CuentaParaTransferir;
   pagos: readonly PagoDelCliente[];
   archivos: readonly ArchivoDelCliente[];
   vidriera: VidrieraDelTaller;
@@ -144,7 +164,7 @@ export function hayComoTransferir(cobro: CobroDelTaller): boolean {
 
 export interface PagoQueSigue {
   instancia: InstanciaDePago;
-  monto: Money | null;
+  monto: Money<Moneda> | null;
   nombre: string;
   comoSePaga: string;
 }
@@ -156,72 +176,73 @@ export interface CuentaParaTransferir {
   cuit: string | null;
 }
 
-export interface ComoPagar {
-  instancia: InstanciaDePago;
-  monto: Money | null;
-  montoParaPegar: string | null;
+export interface FormasEnUnaMoneda {
+  moneda: Moneda;
   transferencia: boolean;
   cuenta: CuentaParaTransferir;
   link: string | null;
   mercadoPago: boolean;
   efectivo: boolean;
   faltanLosDatos: boolean;
+  enEfectivo: string;
+}
+
+export type ImporteEnLaOtraMoneda =
+  | { situacion: 'convertido'; monto: Money; montoParaPegar: string; cotizacion: Cotizacion }
+  | { situacion: 'te-lo-pasa-el-taller' }
+  | { situacion: 'lo-acordas-con-el-taller' };
+
+export interface PagoEnLaOtraMoneda extends FormasEnUnaMoneda {
+  importe: ImporteEnLaOtraMoneda;
+}
+
+export interface ComoPagar extends FormasEnUnaMoneda {
+  instancia: InstanciaDePago;
+  monto: Money<Moneda> | null;
+  montoParaPegar: string | null;
   titulo: string;
   etiquetaDelImporte: string;
   pasos: string;
-  enEfectivo: string;
   siguiente: PagoQueSigue | null;
   vencio: string | null;
+  enLaOtraMoneda: PagoEnLaOtraMoneda | null;
 }
 
-const TITULO = 'Cómo pagar';
+export interface TextosDeComoPagar {
+  titulo: string;
+  etiquetaDelImporte: Readonly<Record<InstanciaDePago, string>>;
+  nombre: Readonly<Record<InstanciaDePago, string>>;
+  porTransferenciaOEnEfectivo: string;
+  porTransferencia: string;
+  enEfectivo: string;
+  pasosParaTransferir: string;
+  soloEfectivo: Readonly<Record<InstanciaDePago, string>>;
+  tambienEfectivo: Readonly<Record<InstanciaDePago, string>>;
+}
 
-const ETIQUETA_DEL_IMPORTE: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'Ahora, la seña',
-  saldo: 'Ahora, el saldo',
-};
-
-const NOMBRE: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'la seña',
-  saldo: 'el saldo',
-};
-
-function comoSePaga(formas: readonly FormaDeCobro[]): string {
+function comoSePaga(formas: readonly FormaDeCobro[], textos: TextosDeComoPagar): string {
   const porTransferencia = ofrece(formas, 'transferencia');
   const enEfectivo = ofrece(formas, 'efectivo');
-  if (porTransferencia && enEfectivo) return 'por transferencia o en efectivo';
-  if (porTransferencia) return 'por transferencia';
-  return 'en efectivo';
+  if (porTransferencia && enEfectivo) return textos.porTransferenciaOEnEfectivo;
+  if (porTransferencia) return textos.porTransferencia;
+  return textos.enEfectivo;
 }
 
-function elQueSigue(pago: PagoOfrecido | null): PagoQueSigue | null {
+function formasDeLasDosMonedas(
+  pago: Pick<PagoOfrecido, 'formas' | 'formasEnDolares'>,
+): readonly FormaDeCobro[] {
+  return [...pago.formas, ...(pago.formasEnDolares ?? [])];
+}
+
+function elQueSigue(pago: PagoOfrecido | null, textos: TextosDeComoPagar): PagoQueSigue | null {
   if (pago === null) return null;
   return {
     instancia: pago.instancia,
     monto: pago.monto,
-    nombre: NOMBRE[pago.instancia],
-    comoSePaga: comoSePaga(pago.formas),
+    nombre: textos.nombre[pago.instancia],
+    comoSePaga: comoSePaga(formasDeLasDosMonedas(pago), textos),
   };
 }
-
-export const O_POR_MERCADO_PAGO =
-  'O pagá desde Mercado Pago, sin copiar nada: tocá el botón, escribí el monto de arriba y confirmá.';
-
-export const PASOS_PARA_TRANSFERIR =
-  'Copiá el alias, pegalo en Transferir en la app de tu banco o de tu billetera, escribí el monto y confirmá.';
-
-export const PEDILE_LOS_DATOS =
-  'Para transferir, pedile los datos de la cuenta al taller: todavía no los cargó.';
-
-const SOLO_EFECTIVO: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'La seña es en efectivo, en mano. Lo coordinás con el taller.',
-  saldo: 'El saldo es en efectivo, en mano. Lo coordinás con el taller.',
-};
-
-const TAMBIEN_EFECTIVO: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'La seña también la podés dejar en efectivo, en mano, coordinándolo con el taller.',
-  saldo: 'El saldo también lo podés pagar en efectivo, en mano, coordinándolo con el taller.',
-};
 
 const SIN_CUENTA: CuentaParaTransferir = { alias: null, cbu: null, titular: null, cuit: null };
 
@@ -231,59 +252,217 @@ function vencioLaSena(trabajo: TrabajoDelCliente, hoy: string): string | null {
   return vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
 }
 
-export function comoPagar(trabajo: TrabajoDelCliente, hoy: string): ComoPagar | null {
+function monedaDelTrabajo(trabajo: TrabajoDelCliente): Moneda {
+  return monedaLeida(trabajo.moneda);
+}
+
+function monedasQueRecibe(trabajo: TrabajoDelCliente): readonly Moneda[] {
+  return cobraEnLeido(trabajo.cobraEn) ?? [MONEDA_DEL_TALLER];
+}
+
+function laOtraMoneda(moneda: Moneda): Moneda {
+  return moneda === MONEDA_DEL_TALLER ? 'USD' : MONEDA_DEL_TALLER;
+}
+
+function dolarDelDiaDe(trabajo: TrabajoDelCliente): ReferenciaEnPesos | null {
+  return trabajo.dolarDelDia ?? null;
+}
+
+function dolarDeHoy(trabajo: TrabajoDelCliente, hoy: string): Cotizacion | null {
+  const delDia = dolarDelDiaDe(trabajo);
+  return delDia !== null && delDia.fecha === hoy ? delDia.cotizacion : null;
+}
+
+function sinFormas(moneda: Moneda): FormasEnUnaMoneda {
+  return {
+    moneda,
+    transferencia: false,
+    cuenta: SIN_CUENTA,
+    link: null,
+    mercadoPago: false,
+    efectivo: false,
+    faltanLosDatos: false,
+    enEfectivo: '',
+  };
+}
+
+interface LoQueHayEnUnaMoneda {
+  formas: readonly FormaDeCobro[];
+  cuenta: CuentaParaTransferir;
+  link: string | null;
+}
+
+function loQueHayEn(
+  moneda: Moneda,
+  trabajo: TrabajoDelCliente,
+  pago: PagoPendiente,
+  cobro: CobroDelTaller,
+): LoQueHayEnUnaMoneda {
+  if (moneda === MONEDA_DEL_TALLER) return { formas: pago.formas, cuenta: cobro, link: cobro.link };
+  return {
+    formas: pago.formasEnDolares ?? [],
+    cuenta: trabajo.cobroEnDolares ?? SIN_CUENTA,
+    link: null,
+  };
+}
+
+function formasEnUnaMoneda(
+  moneda: Moneda,
+  { formas, cuenta, link }: LoQueHayEnUnaMoneda,
+  instancia: InstanciaDePago,
+  textos: TextosDeComoPagar,
+): FormasEnUnaMoneda {
+  const { alias, cbu, titular, cuit } = cuenta;
+  const pideTransferencia = ofrece(formas, 'transferencia');
+  const transferencia = pideTransferencia && (alias !== null || cbu !== null || link !== null);
+  return {
+    moneda,
+    transferencia,
+    cuenta: transferencia ? { alias, cbu, titular, cuit } : SIN_CUENTA,
+    link: transferencia ? link : null,
+    mercadoPago: transferencia && moneda === MONEDA_DEL_TALLER,
+    efectivo: ofrece(formas, 'efectivo'),
+    faltanLosDatos: pideTransferencia && !transferencia,
+    enEfectivo: transferencia ? textos.tambienEfectivo[instancia] : textos.soloEfectivo[instancia],
+  };
+}
+
+function importeEnLaOtraMoneda(
+  moneda: Moneda,
+  monto: Money<Moneda> | null,
+  dolar: Cotizacion | null,
+): ImporteEnLaOtraMoneda {
+  if (moneda === MONEDA_DEL_TALLER) return { situacion: 'lo-acordas-con-el-taller' };
+  if (monto === null || dolar === null) return { situacion: 'te-lo-pasa-el-taller' };
+  const pesos = pesosDeDolares(centavosEn('USD', monto), dolar);
+  return {
+    situacion: 'convertido',
+    monto: pesos,
+    montoParaPegar: montoParaPegar(pesos),
+    cotizacion: dolar,
+  };
+}
+
+export function seOfrece(formas: FormasEnUnaMoneda): boolean {
+  return formas.transferencia || formas.efectivo || formas.faltanLosDatos;
+}
+
+export function hayComoPagar(como: ComoPagar | null): boolean {
+  if (como === null) return false;
+  const otra = como.enLaOtraMoneda;
+  return (
+    como.transferencia || como.efectivo || (otra !== null && (otra.transferencia || otra.efectivo))
+  );
+}
+
+export function comoPagar(
+  trabajo: TrabajoDelCliente,
+  hoy: string,
+  textos: TextosDeComoPagar,
+): ComoPagar | null {
   const pago = trabajo.pago as PagoPendiente | undefined;
   const cobro = trabajo.cobro as CobroDelTaller | undefined;
   if (pago === undefined || cobro === undefined) return null;
 
-  const { instancia, formas, monto } = pago;
+  const { instancia, monto } = pago;
   if (instancia === null) return null;
+
+  const moneda = monedaDelTrabajo(trabajo);
+  const comun = {
+    instancia,
+    titulo: textos.titulo,
+    etiquetaDelImporte: textos.etiquetaDelImporte[instancia],
+    pasos: textos.pasosParaTransferir,
+  };
 
   const vencio = instancia === 'sena' ? vencioLaSena(trabajo, hoy) : null;
   if (vencio !== null) {
     return {
-      instancia,
+      ...sinFormas(moneda),
+      ...comun,
       monto: null,
       montoParaPegar: null,
-      transferencia: false,
-      cuenta: SIN_CUENTA,
-      link: null,
-      mercadoPago: false,
-      efectivo: false,
-      faltanLosDatos: false,
-      titulo: TITULO,
-      etiquetaDelImporte: ETIQUETA_DEL_IMPORTE[instancia],
-      pasos: PASOS_PARA_TRANSFERIR,
-      enEfectivo: '',
       siguiente: null,
       vencio,
+      enLaOtraMoneda: null,
     };
   }
 
-  const pideTransferencia = ofrece(formas, 'transferencia');
-  const transferencia = pideTransferencia && hayComoTransferir(cobro);
-  const efectivo = ofrece(formas, 'efectivo');
-  const link = transferencia ? cobro.link : null;
+  const recibe = monedasQueRecibe(trabajo);
+  const enSuMoneda = recibe.includes(moneda);
+  const otra = laOtraMoneda(moneda);
+  const enUna = (en: Moneda): FormasEnUnaMoneda =>
+    formasEnUnaMoneda(en, loQueHayEn(en, trabajo, pago, cobro), instancia, textos);
 
   return {
-    instancia,
+    ...(enSuMoneda ? enUna(moneda) : sinFormas(moneda)),
+    ...comun,
     monto,
-    montoParaPegar: monto === null ? null : montoParaPegar(monto),
-    transferencia,
-    cuenta: transferencia
-      ? { alias: cobro.alias, cbu: cobro.cbu, titular: cobro.titular, cuit: cobro.cuit }
-      : SIN_CUENTA,
-    link,
-    mercadoPago: transferencia,
-    efectivo,
-    faltanLosDatos: pideTransferencia && !transferencia,
-    titulo: TITULO,
-    etiquetaDelImporte: ETIQUETA_DEL_IMPORTE[instancia],
-    pasos: PASOS_PARA_TRANSFERIR,
-    enEfectivo: transferencia ? TAMBIEN_EFECTIVO[instancia] : SOLO_EFECTIVO[instancia],
-    siguiente: elQueSigue(pago.siguiente),
+    montoParaPegar: enSuMoneda && monto !== null ? montoParaPegar(monto) : null,
+    siguiente: elQueSigue(pago.siguiente, textos),
     vencio: null,
+    enLaOtraMoneda: recibe.includes(otra)
+      ? {
+          ...enUna(otra),
+          importe: importeEnLaOtraMoneda(moneda, monto, dolarDeHoy(trabajo, hoy)),
+        }
+      : null,
   };
+}
+
+export interface LoQueSePagoEnOtraMoneda {
+  pagado: Plata;
+  cotizacion: Cotizacion;
+}
+
+export function loQueSePagoEnOtraMoneda(
+  pago: PagoDelCliente,
+  moneda: Moneda,
+): LoQueSePagoEnOtraMoneda | null {
+  const { pagado } = pago;
+  if (pagado === undefined || pagado.moneda === moneda || pagado.cotizacion === null) return null;
+  return { pagado: plata(pagado.moneda, pagado.monto), cotizacion: pagado.cotizacion };
+}
+
+export interface PrecioEnPesos {
+  pesos: Money;
+  cotizacion: Cotizacion;
+  fecha: string;
+  deHoy: boolean;
+}
+
+function referenciaDelPrecio(trabajo: TrabajoDelCliente, hoy: string): ReferenciaEnPesos | null {
+  const delDia = dolarDelDiaDe(trabajo);
+  if (delDia !== null && delDia.fecha === hoy) return delDia;
+  const documento = presupuestoDe(trabajo)?.documento ?? null;
+  return documento?.forma === 2 ? documento.referencia : delDia;
+}
+
+function precioEnPesos(
+  trabajo: TrabajoDelCliente,
+  moneda: Moneda,
+  hoy: string,
+): PrecioEnPesos | null {
+  const { precio } = trabajo;
+  if (moneda === MONEDA_DEL_TALLER || precio === null) return null;
+  const referencia = referenciaDelPrecio(trabajo, hoy);
+  if (referencia === null) return null;
+  return {
+    pesos: pesosDeDolares(centavosEn('USD', precio), referencia.cotizacion),
+    cotizacion: referencia.cotizacion,
+    fecha: referencia.fecha,
+    deHoy: referencia.fecha === hoy,
+  };
+}
+
+function sumarEnLaMoneda<M extends Moneda>(
+  moneda: M,
+  importes: readonly Money<Moneda>[],
+): Money<M> {
+  return importes.reduce<Money<M>>(
+    (total, importe) => sumar(total, centavosEn(moneda, importe)),
+    centavosEn(moneda, 0),
+  );
 }
 
 export interface HitoDeLaVista {
@@ -299,7 +478,7 @@ export interface EventoDelCliente {
   fecha: string;
   texto: string;
   hito: HitoDelTrabajo;
-  monto: Money | null;
+  monto: Money<Moneda> | null;
 }
 
 export type EstadoDelRelevamiento = 'pendiente' | 'hecho';
@@ -326,8 +505,8 @@ export interface FormatosDeFecha {
 
 export type SenaDeLaVista =
   | { situacion: 'sin-presupuesto' }
-  | { situacion: 'falta'; sena: Money; aCuenta: Money; falta: Money }
-  | { situacion: 'cubierta'; sena: Money; aCuenta: Money };
+  | { situacion: 'falta'; sena: Money<Moneda>; aCuenta: Money<Moneda>; falta: Money<Moneda> }
+  | { situacion: 'cubierta'; sena: Money<Moneda>; aCuenta: Money<Moneda> };
 
 export type ProyeccionDeLaEntrega =
   | { situacion: 'sin-fecha' }
@@ -369,8 +548,9 @@ interface LoComunDeLaVista {
   relevamiento: RelevamientoDeLaVista | null;
   eventos: readonly EventoDelCliente[];
   sigue: string;
+  moneda: Moneda;
   pagos: readonly PagoDelCliente[];
-  pagado: Money;
+  pagado: Money<Moneda>;
   archivos: readonly ArchivoDelCliente[];
   comoPagar: ComoPagar | null;
   vidriera: VidrieraDelTaller;
@@ -385,11 +565,10 @@ export interface RelevamientoPorHacer {
 interface LoComunDelPresupuesto {
   numero: string;
   revision: number;
-  numeroVisible: string;
+  idioma: Idioma;
   mandadoEl: string;
   documento: DocumentoDelPresupuesto;
-  cuentas: readonly CuentaDeUnValor[];
-  nombreDelArchivo: string;
+  cuentas: readonly CuentaDeUnValor<Moneda>[];
 }
 
 export interface PresupuestoMandado extends LoComunDelPresupuesto {
@@ -397,7 +576,6 @@ export interface PresupuestoMandado extends LoComunDelPresupuesto {
   queCambio: string | null;
   valeHasta: string | null;
   vencio: string | null;
-  mensajeParaElTaller: string;
   pideLaSena: boolean;
 }
 
@@ -405,7 +583,7 @@ export interface PresupuestoAceptado extends LoComunDelPresupuesto {
   etapa: 'aceptado';
   aceptadoEl: string | null;
   letra: string | null;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
 }
 
 export type PresupuestoDeLaVista = PresupuestoMandado | PresupuestoAceptado;
@@ -417,7 +595,8 @@ export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
 
 export interface VistaEsperandoLaSena extends LoComunDeLaVista {
   etapa: 'esperando-la-sena';
-  presupuesto: Money | null;
+  presupuesto: Money<Moneda> | null;
+  precioEnPesos: PrecioEnPesos | null;
   opciones: number;
   sena: SenaDeLaVista;
   proyeccion: ProyeccionDeLaEntrega;
@@ -428,8 +607,9 @@ export type EtapaAprobada = 'aprobado' | 'fabricacion' | 'listo' | 'entregado' |
 
 export interface VistaAprobada extends LoComunDeLaVista {
   etapa: EtapaAprobada;
-  precio: Money | null;
-  saldo: Money | null;
+  precio: Money<Moneda> | null;
+  precioEnPesos: PrecioEnPesos | null;
+  saldo: Money<Moneda> | null;
   saldado: boolean;
   foco: FocoDeLaVista;
   datos: DatosDelTrabajo;
@@ -441,155 +621,89 @@ export type VistaDelCliente = VistaAntesDelPresupuesto | VistaEsperandoLaSena | 
 
 export type EtapaDeLaVista = VistaDelCliente['etapa'];
 
-interface HitoDelCamino {
-  id: HitoDelTrabajo;
+export interface TextosDelHito {
   etiqueta: string;
   futuro: string;
 }
 
-export const HITO_DEL_ESTIMATIVO: HitoDelCamino = {
-  id: 'estimativo',
-  etiqueta: 'Te pasamos un número estimado',
-  futuro: 'Te pasamos un número estimado',
-};
+export interface TextosDeLosEventos {
+  estimativo: string;
+  relevamiento: string;
+  presupuesto: string;
+  pago: string;
+  pagoQueSalda: string;
+  saldoQueSalda: string;
+  aprobado: string;
+  inicio: string;
+  listo: string;
+  entregado: string;
+}
 
-export const HITOS: readonly HitoDelCamino[] = [
-  { id: 'presupuesto', etiqueta: 'Presupuesto enviado', futuro: 'Te vamos a pasar el presupuesto' },
-  {
-    id: 'aprobado',
-    etiqueta: 'Aprobado, seña cobrada',
-    futuro: 'Cuando lo apruebes y dejes la seña',
-  },
-  { id: 'fabricacion', etiqueta: 'En fabricación', futuro: 'Vamos a empezar a fabricarlo' },
-  { id: 'entregado', etiqueta: 'Entregado', futuro: 'Lo llevamos y lo instalamos' },
-  { id: 'pagado', etiqueta: 'Pagado', futuro: 'Cuando esté saldado' },
+export interface TextosDeLaProyeccion {
+  coordinamosLaEntrega: string;
+  coordinamosLaEntregaAlAprobar: string;
+  vencio: (fecha: string) => string;
+  siLoAprobasAntesDel: (antesDe: string, listoPara: string) => string;
+  siDejasLaSenaAntesDel: (antesDe: string, listoPara: string) => string;
+  vamosTomandoLosTrabajos: string;
+}
+
+export interface TextosDeLaNota {
+  pendiente: TextosDeLaNotaEnSuEstado;
+  hecho: TextosDeLaNotaEnSuEstado;
+  yaFuimosAMedir: string;
+  fuimosAMedirEl: (fecha: string) => string;
+  armamosElPresupuesto: string;
+  cerrandoElPresupuesto: string;
+  resumenYaFuimos: string;
+  medidoEl: (fecha: string) => string;
+  faltaMedirDelEstimado: readonly string[];
+  sinFechaParaLaVisita: string;
+  quedamosEnIrEl: (fecha: string) => string;
+  resumenFaltaMedir: string;
+}
+
+export interface TextosDeLaNotaEnSuEstado {
+  etiqueta: string;
+  titulo: string;
+}
+
+export interface TextosDeLaVista {
+  hitos: Readonly<Record<HitoDelTrabajo, TextosDelHito>>;
+  aprobadoSinLaSena: string;
+  cuandoLoApruebes: string;
+  cuandoDejesLaSena: string;
+  yaEstaPagado: string;
+  enCurso: Readonly<Record<HitoDelTrabajo, string>>;
+  presupuestoMandado: string;
+  titularDelAprobado: Readonly<Record<SenaDeLaVista['situacion'], string>>;
+  sigue: Readonly<Record<Exclude<HitoDelTrabajo, 'pagado'>, string>>;
+  titularListo: string;
+  listoParaEntregar: string;
+  sigueListo: Readonly<Record<CoordinacionDeLaEntrega['situacion'] | 'mandados', string>>;
+  sigueConLaComprometida: string;
+  sigueConElPresupuestoMandado: string;
+  sigueConLaSenaCubierta: string;
+  sigueConElPresupuestoVencido: string;
+  sigueFaltaLaSena: string;
+  sigueFaltaMedir: Readonly<Record<'estimativo' | 'presupuesto', string>>;
+  relevamientoTecnico: string;
+  queEsElRelevamiento: readonly string[];
+  eventos: TextosDeLosEventos;
+  comoPagar: TextosDeComoPagar;
+  proyeccion: TextosDeLaProyeccion;
+  nota: TextosDeLaNota;
+}
+
+export const HITOS_DEL_CAMINO: readonly HitoDelTrabajo[] = [
+  'presupuesto',
+  'aprobado',
+  'fabricacion',
+  'entregado',
+  'pagado',
 ];
 
-export const APROBADO_SIN_LA_SENA = 'Aprobado';
-
-export const CUANDO_LO_APRUEBES = 'Cuando lo apruebes';
-
-export const CUANDO_DEJES_LA_SENA = 'Cuando dejes la seña';
-
-export const YA_ESTA_PAGADO = 'Ya está pagado';
-
-const ORDEN_DE_LOS_HITOS: readonly HitoDelTrabajo[] = [
-  'estimativo',
-  ...HITOS.map((hito) => hito.id),
-];
-
-const EN_CURSO: Readonly<Record<HitoDelTrabajo, string>> = {
-  estimativo: 'Te pasamos un número estimado',
-  presupuesto: 'Estamos preparando tu presupuesto',
-  aprobado: 'Recibimos la seña y ya estás en la cola del taller',
-  fabricacion: 'Lo estamos fabricando',
-  entregado: 'Ya está instalado en tu casa',
-  pagado: 'Listo, está saldado',
-};
-
-export const PRESUPUESTO_MANDADO = 'Te pasamos el presupuesto';
-
-export const TITULAR_DEL_APROBADO: Readonly<Record<SenaDeLaVista['situacion'], string>> = {
-  cubierta: EN_CURSO.aprobado,
-  falta: 'Lo aprobaste y falta la seña para entrar en la cola del taller',
-  'sin-presupuesto': 'Lo aprobaste y ya estás en la cola del taller',
-};
-
-export const SIGUE: Readonly<Record<HitoDelTrabajo, string>> = {
-  estimativo: 'Si seguimos adelante, lo próximo que vas a ver acá es el presupuesto.',
-  presupuesto: 'Lo próximo que vas a ver acá es el presupuesto.',
-  aprobado: 'Lo próximo que vas a ver acá es el arranque de la fabricación.',
-  fabricacion: 'Lo próximo que vas a ver acá es la entrega.',
-  entregado: 'Lo próximo que vas a ver acá es el pago del saldo.',
-  pagado: '',
-};
-
-export const TITULAR_LISTO = 'Tu mueble está listo';
-
-export const LISTO_PARA_ENTREGAR = 'Listo para entregar';
-
-export const TERMINAMOS_TU_MUEBLE = 'Terminamos tu mueble';
-
-export const SIGUE_LISTO: Readonly<
-  Record<CoordinacionDeLaEntrega['situacion'] | 'mandados', string>
-> = {
-  'sin-pedido': 'Lo próximo es acordar el día de la entrega.',
-  'un-dia': 'Lo próximo es que nos digas si te queda bien ese día.',
-  'sus-dias': 'Lo próximo es que nos pases los días que te quedan bien.',
-  mandados: 'Lo próximo es que te confirmemos el día.',
-};
-
-export const SIGUE_CON_LA_COMPROMETIDA = 'Lo próximo que vas a ver acá es la entrega.';
-
-export const SIGUE_CON_EL_PRESUPUESTO_MANDADO = 'Lo próximo es que lo apruebes y dejes la seña.';
-
-export const SIGUE_CON_LA_SENA_CUBIERTA = 'Lo próximo es que lo apruebes.';
-
-export const SIGUE_CON_EL_PRESUPUESTO_VENCIDO =
-  'Lo próximo es que le escribas al taller para actualizarlo.';
-
-export const SIGUE_FALTA_LA_SENA = 'Lo próximo es que dejes la seña.';
-
-export const SIGUE_FALTA_MEDIR: Readonly<Record<'estimativo' | 'presupuesto', string>> = {
-  estimativo: 'Si seguimos adelante, lo próximo es ir a medir para pasarte el presupuesto.',
-  presupuesto: 'Lo próximo es ir a medir, para poder pasarte el presupuesto.',
-};
-
-export const NOTA_DEL_RELEVAMIENTO: Readonly<
-  Record<EstadoDelRelevamiento, { etiqueta: string; titulo: string }>
-> = {
-  pendiente: {
-    etiqueta: 'Por qué el número todavía puede cambiar',
-    titulo: 'El número todavía puede cambiar',
-  },
-  hecho: {
-    etiqueta: 'De dónde sale este número',
-    titulo: 'El número ya está tomado de las medidas reales',
-  },
-};
-
-export const FALTA_MEDIR_DEL_ESTIMADO: readonly string[] = [
-  'Lo que te pasamos es un estimado, sacado de lo que hablamos.',
-  'Para cerrarlo tenemos que ir a tu casa a tomar las medidas.',
-];
-
-export const SIN_FECHA_PARA_LA_VISITA = 'Todavía no tenemos fecha para la visita.';
-
-export const CERRANDO_EL_PRESUPUESTO = 'Con esas medidas estamos cerrando el presupuesto final.';
-
-export const ARMAMOS_EL_PRESUPUESTO = 'Con esas medidas armamos el presupuesto final.';
-
-export const RESUMEN_FALTA_MEDIR = 'Número estimado, falta ir a medir';
-
-export const RELEVAMIENTO_TECNICO = 'Relevamiento técnico';
-
-export const QUE_ES_EL_RELEVAMIENTO: readonly string[] = [
-  'El siguiente paso es el relevamiento técnico en obra. Es una visita donde relevamos medidas exactas, revisamos instalaciones y definimos detalles constructivos para poder proyectar tu mueble al milímetro.',
-  'A partir de ese relevamiento te entregamos el diseño 3D y el presupuesto final y definitivo.',
-];
-
-export const TE_PASAMOS_EL_ESTIMATIVO = 'Te pasamos un número estimado';
-
-export const FUIMOS_A_MEDIR = 'Fuimos a medir';
-
-export const TE_PASAMOS_EL_PRESUPUESTO = 'Te pasamos el presupuesto';
-
-export const RECIBIMOS_TU_PAGO = 'Recibimos tu pago';
-
-export const APROBASTE_EL_PRESUPUESTO = 'Aprobaste el presupuesto';
-
-export const EMPEZAMOS_A_FABRICARLO = 'Empezamos a fabricarlo en el taller';
-
-export const LO_LLEVAMOS_Y_LO_INSTALAMOS = 'Lo llevamos y lo instalamos';
-
-export const COORDINAMOS_LA_ENTREGA =
-  'Cuando lo apruebes y dejes la seña, coordinamos la fecha de entrega.';
-
-export const COORDINAMOS_LA_ENTREGA_AL_APROBAR =
-  'Cuando lo apruebes, coordinamos la fecha de entrega.';
-
-export const VAMOS_TOMANDO_LOS_TRABAJOS =
-  'Vamos tomando los trabajos a medida que entran las señas.';
+const ORDEN_DE_LOS_HITOS: readonly HitoDelTrabajo[] = ['estimativo', ...HITOS_DEL_CAMINO];
 
 const HITOS_DEL_PRESUPUESTO: readonly HitoDelTrabajo[] = ['estimativo', 'presupuesto'];
 
@@ -665,12 +779,15 @@ function coordinacionDelTrabajo(trabajo: TrabajoDelCliente, hoy: string): Coordi
   return { situacion: 'un-dia', propuesta: { ...propuesta, fecha }, respuesta };
 }
 
-function loQueSigueListo(coordinacion: CoordinacionDeLaEntrega | null): string {
-  if (coordinacion === null) return SIGUE_LISTO['sin-pedido'];
+function loQueSigueListo(
+  coordinacion: CoordinacionDeLaEntrega | null,
+  textos: TextosDeLaVista,
+): string {
+  if (coordinacion === null) return textos.sigueListo['sin-pedido'];
   if (coordinacion.situacion !== 'sin-pedido' && coordinacion.respuesta !== null) {
-    return SIGUE_LISTO.mandados;
+    return textos.sigueListo.mandados;
   }
-  return SIGUE_LISTO[coordinacion.situacion];
+  return textos.sigueListo[coordinacion.situacion];
 }
 
 export function tuvoEstimativo(trabajo: TrabajoDelCliente): boolean {
@@ -707,23 +824,22 @@ export function textoDeLaProyeccion(
   proyeccion: ProyeccionDeLaEntrega,
   formatos: Pick<FormatosDeFecha, 'enUnaFrase'>,
   sena: SenaDeLaVista['situacion'],
+  textos: TextosDeLaProyeccion,
 ): readonly string[] {
   const cubierta = sena === 'cubierta';
   switch (proyeccion.situacion) {
     case 'sin-fecha':
-      return [cubierta ? COORDINAMOS_LA_ENTREGA_AL_APROBAR : COORDINAMOS_LA_ENTREGA];
+      return [cubierta ? textos.coordinamosLaEntregaAlAprobar : textos.coordinamosLaEntrega];
     case 'vencida':
-      return [
-        `Este presupuesto venció el ${formatos.enUnaFrase(proyeccion.vencio)}. Hablá con el taller para actualizarlo.`,
-      ];
+      return [textos.vencio(formatos.enUnaFrase(proyeccion.vencio))];
     case 'vigente': {
       const antesDe = formatos.enUnaFrase(proyeccion.senarAntesDe);
       const listoPara = formatos.enUnaFrase(proyeccion.listoPara);
       return [
         cubierta
-          ? `Si lo aprobás antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`
-          : `Si dejás la seña antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`,
-        VAMOS_TOMANDO_LOS_TRABAJOS,
+          ? textos.siLoAprobasAntesDel(antesDe, listoPara)
+          : textos.siDejasLaSenaAntesDel(antesDe, listoPara),
+        textos.vamosTomandoLosTrabajos,
       ];
     }
   }
@@ -735,33 +851,41 @@ function presupuestoDe({
   return presupuesto ?? null;
 }
 
+function esDeLaMonedaDelTrabajo(documento: DocumentoDelPresupuesto, moneda: Moneda): boolean {
+  return monedaDelDocumento(documento) === moneda;
+}
+
 function loComunDelPresupuesto(
   presupuesto: PresupuestoDelTrabajo,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
 ): LoComunDelPresupuesto {
   const { numero, revision, mandadoEl, documento } = presupuesto;
+  const pagadoEnSuMoneda = esDeLaMonedaDelTrabajo(documento, moneda)
+    ? pagado
+    : centavosEn(monedaDelDocumento(documento), 0);
   return {
     numero,
     revision,
-    numeroVisible: numeroVisible(numero, revision),
+    idioma: idiomaLeido(presupuesto.idioma),
     mandadoEl,
     documento,
     cuentas:
       documento.valores === null
         ? []
-        : cuentasDelPresupuesto(documento.valores, documento.senaBp, pagado),
-    nombreDelArchivo: nombreDelArchivo(documento, numero, revision),
+        : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagadoEnSuMoneda),
   };
 }
 
 function presupuestoMandado(
   trabajo: TrabajoDelCliente,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
   hoy: string,
 ): PresupuestoMandado | null {
   const presupuesto = presupuestoDe(trabajo);
   if (presupuesto === null) return null;
-  const comun = loComunDelPresupuesto(presupuesto, pagado);
+  const comun = loComunDelPresupuesto(presupuesto, moneda, pagado);
   const valeHasta = fechasDe(trabajo).valeHasta ?? null;
   const vencio = vencioElPresupuesto(valeHasta, hoy) ? valeHasta : null;
   const [unica] = comun.cuentas;
@@ -771,7 +895,6 @@ function presupuestoMandado(
     queCambio: presupuesto.revision > 1 ? presupuesto.queCambio : null,
     valeHasta,
     vencio,
-    mensajeParaElTaller: mensajeParaElTaller(presupuesto.numero, presupuesto.revision),
     pideLaSena:
       vencio === null &&
       presupuesto.documento.valores?.tipo === 'total' &&
@@ -782,16 +905,20 @@ function presupuestoMandado(
 
 function presupuestoAceptado(
   trabajo: TrabajoDelCliente,
-  pagado: Money,
+  moneda: Moneda,
+  pagado: Money<Moneda>,
 ): PresupuestoAceptado | null {
   const presupuesto = presupuestoDe(trabajo);
   if (presupuesto === null) return null;
+  const { documento } = presupuesto;
   return {
-    ...loComunDelPresupuesto(presupuesto, pagado),
+    ...loComunDelPresupuesto(presupuesto, moneda, pagado),
     etapa: 'aceptado',
     aceptadoEl: presupuesto.aceptadoEl,
     letra: presupuesto.letra,
-    acordado: acordadoAlAprobar(presupuesto.documento.valores, trabajo.precio),
+    acordado: esDeLaMonedaDelTrabajo(documento, moneda)
+      ? acordadoAlAprobar<Moneda>(documento.valores, trabajo.precio)
+      : null,
   };
 }
 
@@ -800,8 +927,8 @@ function opcionesMandadas(trabajo: TrabajoDelCliente): number {
   return valores?.tipo === 'opciones' ? valores.opciones.length : 0;
 }
 
-function senaDelTrabajo(trabajo: TrabajoDelCliente, pagado: Money): SenaDeLaVista {
-  const sena = (trabajo.sena as Money | null | undefined) ?? null;
+function senaDelTrabajo(trabajo: TrabajoDelCliente, pagado: Money<Moneda>): SenaDeLaVista {
+  const sena = (trabajo.sena as Money<Moneda> | null | undefined) ?? null;
   const pago = trabajo.pago as PagoPendiente | undefined;
   if (sena === null || pago === undefined) return { situacion: 'sin-presupuesto' };
   if (pago.instancia !== 'sena') return { situacion: 'cubierta', sena, aCuenta: pagado };
@@ -858,35 +985,38 @@ interface Contexto {
   sena: SenaDeLaVista['situacion'];
   relevamiento: RelevamientoDeLaVista | null;
   vencido: boolean;
+  textos: TextosDeLaVista;
 }
 
-function textoEnCurso(hito: HitoDelTrabajo, { trabajo, sena }: Contexto): string {
+function textoEnCurso(hito: HitoDelTrabajo, { trabajo, sena, textos }: Contexto): string {
   if (hito === 'presupuesto' && trabajo.estado === 'presupuesto_enviado') {
-    return PRESUPUESTO_MANDADO;
+    return textos.presupuestoMandado;
   }
-  if (hito === 'aprobado') return TITULAR_DEL_APROBADO[sena];
-  return EN_CURSO[hito];
+  if (hito === 'aprobado') return textos.titularDelAprobado[sena];
+  return textos.enCurso[hito];
 }
 
 function loQueSigue(
   hito: HitoDelTrabajo,
-  { trabajo, sena, relevamiento, vencido }: Contexto,
+  { trabajo, sena, relevamiento, vencido, textos }: Contexto,
 ): string {
   if (hito === 'presupuesto' && trabajo.estado === 'presupuesto_enviado') {
-    if (vencido) return SIGUE_CON_EL_PRESUPUESTO_VENCIDO;
-    return sena === 'cubierta' ? SIGUE_CON_LA_SENA_CUBIERTA : SIGUE_CON_EL_PRESUPUESTO_MANDADO;
+    if (vencido) return textos.sigueConElPresupuestoVencido;
+    return sena === 'cubierta'
+      ? textos.sigueConLaSenaCubierta
+      : textos.sigueConElPresupuestoMandado;
   }
   if ((hito === 'estimativo' || hito === 'presupuesto') && relevamiento?.estado === 'pendiente') {
-    return SIGUE_FALTA_MEDIR[hito];
+    return textos.sigueFaltaMedir[hito];
   }
-  if (hito === 'aprobado' && sena === 'falta') return SIGUE_FALTA_LA_SENA;
-  return SIGUE[hito];
+  if (hito === 'aprobado' && sena === 'falta') return textos.sigueFaltaLaSena;
+  return hito === 'pagado' ? '' : textos.sigue[hito];
 }
 
-function etiquetaDelHito(hito: HitoDelCamino, { aprobado, sena }: Contexto): string {
-  return hito.id === 'aprobado' && aprobado && sena !== 'cubierta'
-    ? APROBADO_SIN_LA_SENA
-    : hito.etiqueta;
+function etiquetaDelHito(hito: HitoDelTrabajo, { aprobado, sena, textos }: Contexto): string {
+  return hito === 'aprobado' && aprobado && sena !== 'cubierta'
+    ? textos.aprobadoSinLaSena
+    : textos.hitos[hito].etiqueta;
 }
 
 function pasoEnCurso(
@@ -912,15 +1042,18 @@ function pasoEnCurso(
 }
 
 function textoDelPasoEnCurso(
-  hito: HitoDelCamino,
+  hito: HitoDelTrabajo,
   hitoActual: HitoDelTrabajo,
   sena: SenaDeLaVista['situacion'],
+  textos: TextosDeLaVista,
 ): string {
-  if (hito.id !== hitoActual) {
-    return hito.id === 'aprobado' && sena === 'cubierta' ? CUANDO_LO_APRUEBES : hito.futuro;
+  if (hito !== hitoActual) {
+    return hito === 'aprobado' && sena === 'cubierta'
+      ? textos.cuandoLoApruebes
+      : textos.hitos[hito].futuro;
   }
-  if (hito.id === 'aprobado') return CUANDO_DEJES_LA_SENA;
-  return EN_CURSO[hito.id];
+  if (hito === 'aprobado') return textos.cuandoDejesLaSena;
+  return textos.enCurso[hito];
 }
 
 function fechasDeLosHitos(
@@ -940,11 +1073,14 @@ function fechasDeLosHitos(
   };
 }
 
-function textoDelPago(cantidad: number, esElUltimo: boolean, saldado: boolean): string {
-  if (!saldado || !esElUltimo) return RECIBIMOS_TU_PAGO;
-  return cantidad === 1
-    ? 'Recibimos el pago y quedó saldado'
-    : 'Recibimos el saldo y quedó saldado';
+function textoDelPago(
+  cantidad: number,
+  esElUltimo: boolean,
+  saldado: boolean,
+  textos: TextosDeLosEventos,
+): string {
+  if (!saldado || !esElUltimo) return textos.pago;
+  return cantidad === 1 ? textos.pagoQueSalda : textos.saldoQueSalda;
 }
 
 interface EventoOrdenable extends EventoDelCliente {
@@ -952,7 +1088,7 @@ interface EventoOrdenable extends EventoDelCliente {
 }
 
 function eventosDelTrabajo(
-  { trabajo, aprobado, relevamiento }: Contexto,
+  { trabajo, aprobado, relevamiento, textos }: Contexto,
   etapa: EtapaDeLaVista,
   saldado: boolean,
   hoy: string,
@@ -966,7 +1102,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'estimativo',
       fecha: estimativo,
-      texto: TE_PASAMOS_EL_ESTIMATIVO,
+      texto: textos.eventos.estimativo,
       hito: 'estimativo',
       monto: null,
       orden: -2,
@@ -977,7 +1113,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'relevamiento',
       fecha: relevamiento.fecha,
-      texto: FUIMOS_A_MEDIR,
+      texto: textos.eventos.relevamiento,
       hito: 'presupuesto',
       monto: null,
       orden: -1,
@@ -989,7 +1125,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'presupuesto',
       fecha: presupuesto,
-      texto: TE_PASAMOS_EL_PRESUPUESTO,
+      texto: textos.eventos.presupuesto,
       hito: 'presupuesto',
       monto: null,
       orden: 0,
@@ -1001,7 +1137,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: pago.id,
       fecha: pago.fecha,
-      texto: textoDelPago(cantidad, esElUltimo, saldado),
+      texto: textoDelPago(cantidad, esElUltimo, saldado, textos.eventos),
       hito: saldado && esElUltimo ? 'pagado' : aprobado ? 'aprobado' : 'presupuesto',
       monto: pago.monto,
       orden: indice + 1,
@@ -1013,7 +1149,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'aprobado',
       fecha: aprobadoEl,
-      texto: APROBASTE_EL_PRESUPUESTO,
+      texto: textos.eventos.aprobado,
       hito: 'aprobado',
       monto: null,
       orden: cantidad + 1,
@@ -1025,7 +1161,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'inicio',
       fecha: inicio,
-      texto: EMPEZAMOS_A_FABRICARLO,
+      texto: textos.eventos.inicio,
       hito: 'fabricacion',
       monto: null,
       orden: cantidad + 2,
@@ -1037,7 +1173,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'listo',
       fecha: listo,
-      texto: TERMINAMOS_TU_MUEBLE,
+      texto: textos.eventos.listo,
       hito: 'fabricacion',
       monto: null,
       orden: cantidad + 3,
@@ -1049,7 +1185,7 @@ function eventosDelTrabajo(
     eventos.push({
       id: 'entregado',
       fecha: entregado,
-      texto: LO_LLEVAMOS_Y_LO_INSTALAMOS,
+      texto: textos.eventos.entregado,
       hito: 'entregado',
       monto: null,
       orden: cantidad + 4,
@@ -1109,9 +1245,17 @@ function datosDelTrabajo(
   };
 }
 
-export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaDelCliente {
+export function vistaDelCliente(
+  trabajo: TrabajoDelCliente,
+  hoy: string,
+  textos: TextosDeLaVista,
+): VistaDelCliente {
+  const moneda = monedaDelTrabajo(trabajo);
   const aprobado = APROBADOS.includes(trabajo.estado);
-  const pagado = sumarTodos(trabajo.pagos.map((pago) => pago.monto));
+  const pagado = sumarEnLaMoneda(
+    moneda,
+    trabajo.pagos.map((pago) => pago.monto),
+  );
   const saldo = aprobado && trabajo.precio !== null ? restar(trabajo.precio, pagado) : null;
   const saldado = saldo !== null && saldo <= 0;
   const sena = senaDelTrabajo(trabajo, pagado);
@@ -1119,14 +1263,22 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
   const vencido =
     trabajo.estado === 'presupuesto_enviado' &&
     vencioElPresupuesto(fechasDe(trabajo).valeHasta ?? null, hoy);
-  const contexto: Contexto = { trabajo, aprobado, sena: sena.situacion, relevamiento, vencido };
+  const contexto: Contexto = {
+    trabajo,
+    aprobado,
+    sena: sena.situacion,
+    relevamiento,
+    vencido,
+    textos,
+  };
 
   const etapa = etapaDeLaVista(trabajo, saldado, hoy);
   const hitoActual = hitoDeLaEtapa(etapa, trabajo);
-  const camino = tuvoEstimativo(trabajo) ? [HITO_DEL_ESTIMATIVO, ...HITOS] : HITOS;
+  const camino: readonly HitoDelTrabajo[] = tuvoEstimativo(trabajo)
+    ? ORDEN_DE_LOS_HITOS
+    : HITOS_DEL_CAMINO;
   const enCurso = pasoEnCurso(etapa, sena.situacion);
-  const indiceEnCurso =
-    enCurso === null ? camino.length : camino.findIndex((hito) => hito.id === enCurso);
+  const indiceEnCurso = enCurso === null ? camino.length : camino.indexOf(enCurso);
   const fechaDe = fechasDeLosHitos(trabajo, saldado, hoy);
   const comprometida = antesDeEntregar(etapa) ? comprometidaVigente(trabajo, hoy) : null;
   const coordinacion =
@@ -1139,47 +1291,49 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     return hito === 'entregado' ? (comprometida?.fecha ?? null) : null;
   }
 
-  function textoDelPasoDeHoy(hito: HitoDelCamino): string {
-    if (etapa !== 'listo') return textoDelPasoEnCurso(hito, hitoActual, sena.situacion);
-    return comprometida === null ? LISTO_PARA_ENTREGAR : hito.futuro;
+  function textoDelPasoDeHoy(hito: HitoDelTrabajo): string {
+    if (etapa !== 'listo') return textoDelPasoEnCurso(hito, hitoActual, sena.situacion, textos);
+    return comprometida === null ? textos.listoParaEntregar : textos.hitos[hito].futuro;
   }
 
   function titularDeLaVista(): TitularDeLaVista {
     if (comprometida !== null) return { comprometida };
-    return etapa === 'listo' ? TITULAR_LISTO : textoEnCurso(hitoActual, contexto);
+    return etapa === 'listo' ? textos.titularListo : textoEnCurso(hitoActual, contexto);
   }
 
   function loQueSigueEnLaVista(): string {
-    if (comprometida !== null) return SIGUE_CON_LA_COMPROMETIDA;
-    return etapa === 'listo' ? loQueSigueListo(coordinacion) : loQueSigue(hitoActual, contexto);
+    if (comprometida !== null) return textos.sigueConLaComprometida;
+    return etapa === 'listo'
+      ? loQueSigueListo(coordinacion, textos)
+      : loQueSigue(hitoActual, contexto);
   }
 
   const hitos: HitoDeLaVista[] = camino.map((hito, indice) => {
     const etiqueta = etiquetaDelHito(hito, contexto);
     if (indice < indiceEnCurso) {
       return {
-        id: hito.id,
+        id: hito,
         etiqueta,
         estado: 'pasado',
-        fecha: fechaDe[hito.id],
-        texto: hito.id === 'pagado' ? EN_CURSO.pagado : etiqueta,
+        fecha: fechaDe[hito],
+        texto: hito === 'pagado' ? textos.enCurso.pagado : etiqueta,
       };
     }
     if (indice === indiceEnCurso) {
       return {
-        id: hito.id,
+        id: hito,
         etiqueta,
         estado: 'actual',
-        fecha: fechaDelPasoEnCurso(hito.id),
+        fecha: fechaDelPasoEnCurso(hito),
         texto: textoDelPasoDeHoy(hito),
       };
     }
     return {
-      id: hito.id,
+      id: hito,
       etiqueta,
       estado: 'futuro',
       fecha: null,
-      texto: hito.id === 'pagado' && saldado ? YA_ESTA_PAGADO : hito.futuro,
+      texto: hito === 'pagado' && saldado ? textos.yaEstaPagado : textos.hitos[hito].futuro,
     };
   });
 
@@ -1193,10 +1347,11 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     relevamiento,
     eventos: eventosDelTrabajo(contexto, etapa, saldado, hoy),
     sigue: loQueSigueEnLaVista(),
+    moneda,
     pagos: trabajo.pagos,
     pagado,
     archivos: trabajo.archivos,
-    comoPagar: comoPagar(trabajo, hoy),
+    comoPagar: comoPagar(trabajo, hoy, textos.comoPagar),
     vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
   };
 
@@ -1204,8 +1359,8 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     const relevamientoPorHacer: RelevamientoPorHacer | null =
       relevamiento?.estado === 'pendiente'
         ? {
-            titulo: RELEVAMIENTO_TECNICO,
-            lineas: QUE_ES_EL_RELEVAMIENTO,
+            titulo: textos.relevamientoTecnico,
+            lineas: textos.queEsElRelevamiento,
             valor: valorDelRelevamientoDe(trabajo),
           }
         : null;
@@ -1222,6 +1377,7 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
       ...comun,
       etapa,
       presupuesto: trabajo.precio,
+      precioEnPesos: precioEnPesos(trabajo, moneda, hoy),
       opciones: opcionesMandadas(trabajo),
       sena,
       proyeccion: proyeccionDeLaEntrega(
@@ -1229,7 +1385,7 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
         hoy,
         plazoDelPresupuesto(presupuestoDe(trabajo)?.documento ?? null),
       ),
-      elPresupuesto: presupuestoMandado(trabajo, pagado, hoy),
+      elPresupuesto: presupuestoMandado(trabajo, moneda, pagado, hoy),
     };
   }
 
@@ -1237,18 +1393,20 @@ export function vistaDelCliente(trabajo: TrabajoDelCliente, hoy: string): VistaD
     ...comun,
     etapa,
     precio: trabajo.precio,
+    precioEnPesos: precioEnPesos(trabajo, moneda, hoy),
     saldo,
     saldado,
     foco: yaSeEntrego(etapa) && saldo !== null && saldo > 0 ? 'saldo' : 'estado',
     datos: datosDelTrabajo(trabajo, etapa, sena, hoy),
     coordinacion,
-    elPresupuesto: presupuestoAceptado(trabajo, pagado),
+    elPresupuesto: presupuestoAceptado(trabajo, moneda, pagado),
   };
 }
 
 export function notaDelRelevamiento(
   vista: VistaDelCliente,
   formatos: Pick<FormatosDeFecha, 'larga' | 'corta'>,
+  textos: TextosDeLaNota,
 ): NotaDelRelevamiento | null {
   const { relevamiento } = vista;
   if (relevamiento === null || !HITOS_DEL_PRESUPUESTO.includes(vista.hitoActual)) return null;
@@ -1259,12 +1417,12 @@ export function notaDelRelevamiento(
     return {
       hito: vista.hitoActual,
       estado: 'hecho',
-      ...NOTA_DEL_RELEVAMIENTO.hecho,
+      ...textos.hecho,
       lineas: [
-        fecha === null ? 'Ya fuimos a medir.' : `${FUIMOS_A_MEDIR} el ${formatos.larga(fecha)}.`,
-        mandado ? ARMAMOS_EL_PRESUPUESTO : CERRANDO_EL_PRESUPUESTO,
+        fecha === null ? textos.yaFuimosAMedir : textos.fuimosAMedirEl(formatos.larga(fecha)),
+        mandado ? textos.armamosElPresupuesto : textos.cerrandoElPresupuesto,
       ],
-      resumen: fecha === null ? 'Ya fuimos a medir' : `Medido el ${formatos.corta(fecha)}`,
+      resumen: fecha === null ? textos.resumenYaFuimos : textos.medidoEl(formatos.corta(fecha)),
     };
   }
 
@@ -1273,11 +1431,11 @@ export function notaDelRelevamiento(
   return {
     hito: vista.hitoActual,
     estado: 'pendiente',
-    ...NOTA_DEL_RELEVAMIENTO.pendiente,
+    ...textos.pendiente,
     lineas: [
-      ...FALTA_MEDIR_DEL_ESTIMADO,
-      fecha === null ? SIN_FECHA_PARA_LA_VISITA : `Quedamos en ir el ${formatos.larga(fecha)}.`,
+      ...textos.faltaMedirDelEstimado,
+      fecha === null ? textos.sinFechaParaLaVisita : textos.quedamosEnIrEl(formatos.larga(fecha)),
     ],
-    resumen: RESUMEN_FALTA_MEDIR,
+    resumen: textos.resumenFaltaMedir,
   };
 }

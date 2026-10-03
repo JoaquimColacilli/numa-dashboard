@@ -13,6 +13,9 @@
   scrollea), al [0058](0058-el-estimativo-y-el-relevamiento-en-el-camino-del-cliente.md) y al
   [0067](0067-la-vista-antes-de-aprobar.md) (el bloque del relevamiento técnico y su valor, antes de
   mandar el presupuesto) y al 0046 (la lista blanca suma `relevamiento_centavos`).
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): el valor del relevamiento sigue
+  en pesos, en `ajustes`; en un trabajo en dólares, el pago de la visita lleva su dólar (el del día si es de
+  la fecha del pago).
 
 ## Contexto
 

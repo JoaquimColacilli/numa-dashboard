@@ -1,6 +1,6 @@
 import type { HitoDeLaVista, NotaDelRelevamiento } from '@maun/domain';
 
-import { fechaLarga } from '@/shared/lib';
+import { useFormatosDelCliente } from '@/shared/idioma-del-cliente';
 import { Icono } from '@/shared/ui';
 
 import { PasoDelCamino } from './NotaDelRelevamiento';
@@ -23,6 +23,7 @@ function linea(activa: boolean, oculta: boolean): string {
 }
 
 export function CaminoDeHitos({ hitos, nota, hoy }: CaminoDeHitosProps) {
+  const f = useFormatosDelCliente();
   const alcanzado = hitos.filter((hito) => hito.estado !== 'futuro').length - 1;
 
   return (
@@ -68,7 +69,9 @@ export function CaminoDeHitos({ hitos, nota, hoy }: CaminoDeHitosProps) {
                 </span>
                 {(hito.fecha !== null || boton !== null) && (
                   <span className="flex flex-wrap items-center gap-x-1.5 text-label text-text-3 tabular-nums @xl:-mr-3">
-                    {hito.fecha !== null && fechaLarga(hito.fecha, hoy)}
+                    {hito.fecha !== null && (
+                      <span translate="no">{f.fechaLarga(hito.fecha, hoy)}</span>
+                    )}
                     {boton}
                   </span>
                 )}

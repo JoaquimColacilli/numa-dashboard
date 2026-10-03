@@ -170,7 +170,7 @@ describe('el calendario de lunes a domingo', () => {
 
   it('hoy, mañana y ayer tienen etiqueta; los demás días no', () => {
     expect(etiquetaDelDia('2026-09-14', HOY)).toBe('hoy');
-    expect(etiquetaDelDia('2026-09-15', HOY)).toBe('mañana');
+    expect(etiquetaDelDia('2026-09-15', HOY)).toBe('manana');
     expect(etiquetaDelDia('2026-09-13', HOY)).toBe('ayer');
     expect(etiquetaDelDia('2026-09-20', HOY)).toBeNull();
   });

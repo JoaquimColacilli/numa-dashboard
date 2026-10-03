@@ -88,6 +88,7 @@ export function CasillaDeAnotacion({ evento, alTildar, dibujar = false }: Casill
       role="checkbox"
       aria-checked={evento.hecha}
       aria-label={evento.texto}
+      translate="no"
       onClick={alTildar}
       className="-my-2.5 -ml-3 flex size-tap flex-none items-center justify-center rounded-field"
     >

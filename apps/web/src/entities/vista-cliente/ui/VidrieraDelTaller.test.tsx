@@ -3,10 +3,14 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  EL_TALLER_EN_LAS_REDES,
-  MAS_TRABAJOS_DEL_TALLER,
-  VidrieraDelTaller,
-} from './VidrieraDelTaller';
+  ConElIdiomaDelCliente,
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO,
+} from '@/shared/idioma-del-cliente';
+
+import { VidrieraDelTaller } from './VidrieraDelTaller';
+
+const { enLasRedes: EL_TALLER_EN_LAS_REDES, masTrabajos: MAS_TRABAJOS_DEL_TALLER } =
+  MENSAJES_DEL_CLIENTE_EN_CASTELLANO.vista.vidriera;
 
 vi.mock('@/shared/api', () => ({
   urlDelArchivo: (ruta: string) => `https://cdn.maun.test/${ruta}`,
@@ -29,7 +33,11 @@ function fotos(cantidad: number): Vidriera['fotos'] {
 }
 
 function montar(vidriera: Vidriera) {
-  return render(<VidrieraDelTaller vidriera={vidriera} taller="Taller MAUN" />);
+  return render(
+    <ConElIdiomaDelCliente idioma="es">
+      <VidrieraDelTaller vidriera={vidriera} taller="Taller MAUN" />
+    </ConElIdiomaDelCliente>,
+  );
 }
 
 afterEach(() => {
@@ -41,7 +49,7 @@ afterEach(() => {
 describe('la vidriera del taller en la página del cliente', () => {
   it('sin fotos ni redes no aparece', () => {
     const { container } = montar(VIDRIERA_VACIA);
-    expect(container).toBeEmptyDOMElement();
+    expect(container.firstElementChild).toBeEmptyDOMElement();
   });
 
   it('con fotos se llama «Más trabajos del taller» y cada foto es un botón con su miniatura', () => {

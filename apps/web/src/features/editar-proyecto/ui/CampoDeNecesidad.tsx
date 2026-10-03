@@ -3,6 +3,7 @@ import { useCombobox } from 'downshift';
 import { useMemo } from 'react';
 
 import { sugerenciasParaEscribir, type Necesidad } from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
 import { Icono } from '@/shared/ui';
 
 export interface CampoDeNecesidadProps {
@@ -24,6 +25,7 @@ export function CampoDeNecesidad({
   alEscribir,
   alElegir,
 }: CampoDeNecesidadProps) {
+  const textos = useMensajes().editarProyecto.loQueHaceFalta;
   const sugerencias = useMemo(
     () => sugerenciasParaEscribir(catalogo, valor, yaCargados),
     [catalogo, valor, yaCargados],
@@ -76,7 +78,7 @@ export function CampoDeNecesidad({
               className="px-3 pt-2 pb-1 text-meta text-text-3"
               key="titulo-de-las-sugerencias"
             >
-              {valor.trim() === '' ? 'Lo que más usás' : 'Ya lo usaste antes'}
+              {valor.trim() === '' ? textos.loQueMasUsas : textos.yaLoUsasteAntes}
             </li>
             {sugerencias.map((entrada, indice) => (
               <li
@@ -86,10 +88,12 @@ export function CampoDeNecesidad({
                   combobox.highlightedIndex === indice ? 'bg-surface' : ''
                 }`}
               >
-                <span className="min-w-0 truncate text-body">{entrada.nombre}</span>
+                <span translate="no" className="min-w-0 truncate text-body">
+                  {entrada.nombre}
+                </span>
                 <span className="flex flex-none items-center gap-1 text-meta text-text-3 tabular-nums">
                   <Icono nombre="hammer" tamano={12} />
-                  {entrada.veces === 1 ? '1 trabajo' : `${String(entrada.veces)} trabajos`}
+                  {textos.trabajos(entrada.veces)}
                 </span>
               </li>
             ))}

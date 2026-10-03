@@ -1,4 +1,4 @@
-import { centavos } from '@maun/domain';
+import { centavos, enPesos, plata, type Moneda } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -26,10 +26,12 @@ function tesoro(
   tinta: TintaDeTesoro,
   saldo: number,
   archivado = false,
+  moneda: Moneda = 'ARS',
 ): TesoroDelTaller {
   return {
     id,
     clave,
+    moneda,
     nombre,
     descripcion: '',
     tinta,
@@ -38,7 +40,7 @@ function tesoro(
     rindeAnualBp: null,
     orden: 0,
     archivado,
-    saldo: centavos(saldo),
+    saldo: moneda === 'ARS' ? enPesos(centavos(saldo)) : plata(moneda, saldo),
   };
 }
 
@@ -116,6 +118,7 @@ function movimiento(extra: Partial<FilaDe<'movimientos'>>): FilaDe<'movimientos'
     hacia_id: ID.materiales,
     cubre_el_mes: null,
     monto_centavos: 15_000_000,
+    monto_destino_centavos: null,
     categoria: '',
     descripcion: 'Para los materiales',
     proyecto_id: null,
@@ -276,6 +279,180 @@ describe('la hoja de un movimiento entre tesoros', () => {
     expect(screen.getByRole('radio', { name: 'Gasto' })).toBeDisabled();
     expect(screen.getByRole('radio', { name: 'Entre tesoros' })).toBeEnabled();
     expect(screen.getByText(/gastos fijos de septiembre/)).toBeInTheDocument();
+  });
+});
+
+const ID_DOLARES = '0192aaaa-0000-7000-8000-000000000007';
+const ID_AHORRO_EN_DOLARES = '0192aaaa-0000-7000-8000-000000000008';
+
+const CON_DOLARES: readonly TesoroDelTaller[] = [
+  ...TESOROS,
+  tesoro(ID_DOLARES, null, 'Dólares', 'ciruela', 10_000, false, 'USD'),
+  tesoro(ID_AHORRO_EN_DOLARES, null, 'Ahorro en dólares', 'petroleo', 0, false, 'USD'),
+];
+
+function escribirEn(campo: string, texto: string): void {
+  fireEvent.paste(screen.getByRole('textbox', { name: campo }), {
+    clipboardData: { getData: () => texto },
+  });
+}
+
+describe('la hoja con tesoros en dólares', () => {
+  it('sin un tesoro en dólares vivo, el grupo «Dólares» no aparece', () => {
+    montar();
+    expect(screen.queryByRole('radio', { name: 'Dólares' })).toBeNull();
+  });
+
+  it('una compra: salen pesos, entran dólares, y dice a cuánto quedó el dólar', () => {
+    const { enviados, alCerrar } = montar({ tesoros: CON_DOLARES });
+    fireEvent.click(screen.getByRole('radio', { name: 'Dólares' }));
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Compra', 'Venta', 'Ingreso']);
+    expect(nombresDe(grupo('Salen de'))).toEqual(['Hogar', 'Maun', 'Cocos', 'Materiales']);
+    expect(nombresDe(grupo('Entran a'))).toEqual(['Dólares', 'Ahorro en dólares']);
+    expect(within(grupo('Salen de')).getByRole('button', { name: 'Maun' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    escribirEn('Pagaste', '725.000');
+    escribirEn('Recibiste', '500');
+    expect(screen.getByText('Te quedó a $ 1.450 por dólar.')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('combobox', { name: 'Qué dólar' }))
+        .getAllByRole('option')
+        .map((opcion) => opcion.textContent),
+    ).toEqual(['Oficial', 'MEP', 'Blue', 'Cripto', 'Otro']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Qué dólar' }), {
+      target: { value: 'MEP' },
+    });
+    expect(
+      screen.getByText(/Cambia pesos por dólares: la plata no se va, cambia de moneda/),
+    ).toBeInTheDocument();
+    cargar();
+
+    expect(alCerrar).toHaveBeenCalled();
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'cambio',
+      tesoro_origen: 'maun',
+      desde_id: ID.maun,
+      tesoro_destino: null,
+      hacia_id: ID_DOLARES,
+      monto_centavos: 72_500_000,
+      monto_destino_centavos: 50_000,
+      categoria: 'MEP',
+    });
+  });
+
+  it('una venta: salen dólares, entran pesos, y dice a cuánto te lo pagaron', () => {
+    const { enviados } = montar({ tesoros: CON_DOLARES, claseInicial: 'venta_de_dolares' });
+    expect(nombresDe(grupo('Salen de'))).toEqual(['Dólares', 'Ahorro en dólares']);
+    expect(nombresDe(grupo('Entran a'))).toEqual(['Hogar', 'Maun', 'Cocos', 'Materiales']);
+    expect(within(grupo('Entran a')).getByRole('button', { name: 'Maun' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    escribirEn('Vendiste', '100');
+    escribirEn('Recibiste', '143.000');
+    expect(screen.getByText('Te lo pagaron a $ 1.430 por dólar.')).toBeInTheDocument();
+    cargar();
+
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'cambio',
+      tesoro_origen: null,
+      desde_id: ID_DOLARES,
+      tesoro_destino: 'maun',
+      hacia_id: ID.maun,
+      monto_centavos: 10_000,
+      monto_destino_centavos: 14_300_000,
+      categoria: 'Oficial',
+    });
+  });
+
+  it('sin lo que recibiste no carga y lo dice', () => {
+    const { enviados } = montar({ tesoros: CON_DOLARES, claseInicial: 'compra_de_dolares' });
+    escribirEn('Pagaste', '725.000');
+    cargar();
+    expect(screen.getByText('Escribí cuánto recibiste.')).toBeInTheDocument();
+    expect(enviados()).toEqual([]);
+  });
+
+  it('un ingreso en dólares entra al tesoro que elegís, con el adorno de los dólares', () => {
+    const { enviados } = montar({ tesoros: CON_DOLARES, claseInicial: 'ingreso_en_dolares' });
+    expect(nombresDe(grupo('Entra a'))).toEqual(['Dólares', 'Ahorro en dólares']);
+    expect(screen.getByText('US$')).toBeInTheDocument();
+    expect(categorias()).toEqual(['Ahorro previo', 'Cobro suelto', 'Regalo', 'Otro']);
+    escribirEn('Cuánta plata', '50');
+    cargar();
+
+    const [nuevo] = enviados() as MovimientoNuevo[];
+    expect(nuevo).toMatchObject({
+      tipo: 'ingreso',
+      tesoro_origen: null,
+      desde_id: null,
+      tesoro_destino: null,
+      hacia_id: ID_DOLARES,
+      monto_centavos: 5_000,
+      categoria: 'Ahorro previo',
+    });
+    expect(nuevo).not.toHaveProperty('monto_destino_centavos');
+  });
+
+  it('entre tesoros, desde uno en dólares solo se pasa a otro en dólares', () => {
+    montar({ tesoros: CON_DOLARES, claseInicial: 'entre_tesoros' });
+    expect(nombresDe(grupo('Entra a'))).toEqual(['Hogar', 'Cocos', 'Materiales']);
+    fireEvent.click(within(grupo('Sale de')).getByRole('button', { name: 'Dólares' }));
+    expect(nombresDe(grupo('Entra a'))).toEqual(['Ahorro en dólares']);
+    expect(
+      within(grupo('Entra a')).getByRole('button', { name: 'Ahorro en dólares' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('US$')).toBeInTheDocument();
+  });
+
+  it('desde el panel de un tesoro en pesos, la compra abre con ese tesoro y su saldo', () => {
+    montar({
+      tesoros: CON_DOLARES,
+      claseInicial: 'compra_de_dolares',
+      tesoroInicial: ID.materiales,
+      montoInicial: 5_000_000,
+    });
+    expect(within(grupo('Salen de')).getByRole('button', { name: 'Materiales' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('textbox', { name: 'Pagaste' })).toHaveValue('50.000');
+  });
+
+  it('una clase de los dólares sin tesoros en dólares abre un gasto del hogar', () => {
+    montar({ claseInicial: 'venta_de_dolares' });
+    expect(screen.getByRole('radio', { name: 'Gasto' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('al editar una compra arranca con sus dos importes y los manda juntos', () => {
+    const { enviados } = montar({
+      tesoros: CON_DOLARES,
+      movimiento: movimiento({
+        tipo: 'cambio',
+        hacia_id: ID_DOLARES,
+        monto_centavos: 72_500_000,
+        monto_destino_centavos: 50_000,
+        categoria: 'Blue',
+      }),
+    });
+    expect(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'Compra' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('textbox', { name: 'Recibiste' })).toHaveValue('500');
+    escribirEn('Recibiste', '520');
+    cargar();
+
+    const [edicion] = enviados() as EdicionDeMovimiento[];
+    expect(edicion?.cambios).toMatchObject({
+      tipo: 'cambio',
+      monto_centavos: 72_500_000,
+      monto_destino_centavos: 52_000,
+      categoria: 'Blue',
+    });
+    expect(edicion?.previos).toMatchObject({ monto_destino_centavos: 50_000 });
   });
 });
 

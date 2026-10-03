@@ -1,11 +1,12 @@
 import { expect, test as setup } from '@playwright/test';
 
 import { ESTADO_DE_SESION } from './apoyo/entorno';
-import { iniciarSesionDePrueba, vaciarTaller } from './apoyo/taller';
+import { iniciarSesionDePrueba, idiomaDeLaCuentaPorRest, vaciarTaller } from './apoyo/taller';
 
 setup('la cuenta de prueba entra una vez y deja su sesión guardada', async ({ page }) => {
   const sesion = await iniciarSesionDePrueba();
   await vaciarTaller(sesion);
+  await idiomaDeLaCuentaPorRest(sesion, null);
 
   await page.goto('/acceso');
   await page.getByLabel('Email').fill(sesion.entorno.email);

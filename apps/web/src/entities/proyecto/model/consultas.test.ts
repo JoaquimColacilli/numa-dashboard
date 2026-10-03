@@ -40,6 +40,9 @@ function proyecto(id: string, extra: Partial<Proyecto> = {}): Proyecto {
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: null,
     visita_hora: null,
@@ -110,6 +113,9 @@ function pago(id: string, proyectoId: string, actualizado: string): FilaDe<'pago
     concepto: 'Seña',
     monto_centavos: SENA,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
   };
 }
 

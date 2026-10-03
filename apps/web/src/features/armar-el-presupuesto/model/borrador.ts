@@ -68,7 +68,7 @@ export function conElMuebleMovido(
 
 function claveDelTexto(texto: string): string {
   return texto
-    .toLocaleLowerCase('es-AR')
+    .toLowerCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, ' ')

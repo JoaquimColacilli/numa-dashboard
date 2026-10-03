@@ -1,4 +1,5 @@
 import { centavos, puntosBasicos, problemasDeLaFila, type Fila } from '@maun/domain';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -14,7 +15,16 @@ import {
   sumarComoPaso,
   tiposPosibles,
 } from './edicion';
-import { renglonDelCambio, textoDelProblema, type ContextoDelCambio } from './textos';
+import {
+  renglonDelCambio,
+  textoDelProblema,
+  type ContextoDelCambio,
+  type RenglonDelCambio,
+} from './textos';
+
+function despuesDelNombre(renglon: RenglonDelCambio): string {
+  return renderToStaticMarkup(renglon.frase(() => null));
+}
 
 const HOGAR = '01900000-0000-7000-8000-000000000001';
 const MAUN = '01900000-0000-7000-8000-000000000002';
@@ -227,15 +237,17 @@ describe('los textos', () => {
       'minus',
     );
     expect(
-      renglonDelCambio(
-        {
-          tipo: 'cambia-el-porcentaje',
-          tesoro: COCOS,
-          antes: puntosBasicos(3000),
-          despues: puntosBasicos(2500),
-        },
-        ambos,
-      ).despuesDelNombre,
+      despuesDelNombre(
+        renglonDelCambio(
+          {
+            tipo: 'cambia-el-porcentaje',
+            tesoro: COCOS,
+            antes: puntosBasicos(3000),
+            despues: puntosBasicos(2500),
+          },
+          ambos,
+        ),
+      ),
     ).toBe(': de 30% a 25% de lo que sobra.');
   });
 
@@ -249,7 +261,7 @@ describe('los textos', () => {
     };
     const ambos = contexto(FILA, conIngresosBrutos);
     const texto = (cambio: Parameters<typeof renglonDelCambio>[0]) =>
-      renglonDelCambio(cambio, ambos).despuesDelNombre.replace(/\s/g, ' ');
+      despuesDelNombre(renglonDelCambio(cambio, ambos)).replace(/\s/g, ' ');
 
     expect(
       texto({
@@ -300,10 +312,12 @@ describe('los textos', () => {
       }),
     ).toBe(' entra como ahorro fijo 5, con $ 100.000 por mes, hasta la meta.');
     expect(
-      renglonDelCambio(
-        { tipo: 'cambia-de-lugar', tesoro: MATERIALES, antes: 1, despues: 0 },
-        contexto(FILA, FILA),
-      ).despuesDelNombre,
+      despuesDelNombre(
+        renglonDelCambio(
+          { tipo: 'cambia-de-lugar', tesoro: MATERIALES, antes: 1, despues: 0 },
+          contexto(FILA, FILA),
+        ),
+      ),
     ).toBe(' pasa del 3 al 2 en la fila.');
     expect(
       texto({ tipo: 'cambia-la-clase', tesoro: MATERIALES, antes: 'prioridad', despues: 'fijos' }),
@@ -353,10 +367,10 @@ describe('los textos', () => {
       despues: centavos(35_000_000),
     };
     expect(
-      renglonDelCambio(cambio, contexto(FILA, FILA)).despuesDelNombre.replace(/\s/g, ' '),
+      despuesDelNombre(renglonDelCambio(cambio, contexto(FILA, FILA))).replace(/\s/g, ' '),
     ).toBe(': de $ 300.000 a $ 350.000 por mes.');
     expect(
-      renglonDelCambio(cambio, contexto(FILA, renueva)).despuesDelNombre.replace(/\s/g, ' '),
+      despuesDelNombre(renglonDelCambio(cambio, contexto(FILA, renueva))).replace(/\s/g, ' '),
     ).toBe(': de $ 300.000 a $ 350.000.');
   });
 });

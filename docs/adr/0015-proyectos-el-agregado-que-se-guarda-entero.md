@@ -2,6 +2,12 @@
 
 Estado: aceptada, 2026-09-12. Es el tercer paso de la fase 2D: la pantalla más grande de la app.
 
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): el agregado suma `moneda` en el
+  trabajo y `moneda`, `cotizacion_centavos` y `tesoro_id` en cada pago, las cuatro con el patrón de la clave
+  presente, también en la lista del `insert`. Un pedido sin `moneda` que cambia el presupuesto o una opción de
+  un trabajo en dólares, o el importe de un pago en dólares, rebota con `MN038`; un pago en pesos de un
+  trabajo en dólares sin su dólar, con `MN039` al commitear.
+
 ## Contexto
 
 Un proyecto con sus pagos y sus gastos son 1 + N + M filas en tres tablas. El formulario del sistema

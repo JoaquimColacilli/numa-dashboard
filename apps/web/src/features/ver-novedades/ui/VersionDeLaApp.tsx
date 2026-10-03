@@ -1,3 +1,5 @@
+import { useMensajes } from '@/shared/idioma';
+
 import { abrirNovedades } from '../model/abiertas';
 import { etiquetaDeLaVersion, versionActual } from '../model/version';
 
@@ -7,6 +9,7 @@ export interface VersionDeLaAppProps {
 }
 
 export function VersionDeLaApp({ className = '', conInvitacion = false }: VersionDeLaAppProps) {
+  const textos = useMensajes().verNovedades;
   return (
     <button
       type="button"
@@ -18,7 +21,7 @@ export function VersionDeLaApp({ className = '', conInvitacion = false }: Versio
       <span>{etiquetaDeLaVersion(versionActual())}</span>
       {conInvitacion && (
         <span className="font-semibold text-ink underline underline-offset-3">
-          Ver las novedades
+          {textos.verLasNovedades}
         </span>
       )}
     </button>

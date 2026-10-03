@@ -2,11 +2,13 @@ import { useCallback, useState, type ReactNode } from 'react';
 
 import { AccionesDeContacto, rutaDelCliente } from '@/entities/cliente';
 import {
+  enOtrosTesoros,
   ESTADO,
   EstadoBadge,
   etapaAlVolver,
   historiaDelSeguimiento,
   insumosDelProyecto,
+  loCobradoEnPalabras,
   pendienteDelSeguimiento,
   RUTA_DE_SEGUIMIENTO,
   rutaDeCierre,
@@ -19,10 +21,12 @@ import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
 import { HojaDeContacto } from '@/features/avanzar-la-consulta';
 import { BorradoDelProyecto, NotasDelProyecto } from '@/features/editar-proyecto';
 import { HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
+import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
   fechaLarga,
-  formatearPesos,
+  formatearLaPlata,
+  formatearPlata,
   hoyEnElTaller,
   relativa,
   useAvisosDelProyecto,
@@ -41,21 +45,29 @@ import {
   PrincipalYApoyo,
 } from '@/shared/ui';
 
+import { ConTesoroEnDolaresNuevo } from './ConTesoroEnDolaresNuevo';
 import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
   clave,
   children,
   tono = '',
+  dato = false,
 }: {
   clave: string;
   children: ReactNode;
   tono?: string;
+  dato?: boolean;
 }) {
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-3 border-t border-hairline-soft py-2.5 text-body first:border-t-0">
       <dt className="text-text-3">{clave}</dt>
-      <dd className={`leading-snug font-medium tabular-nums ${tono}`}>{children}</dd>
+      <dd
+        translate={dato ? 'no' : undefined}
+        className={`leading-snug font-medium tabular-nums ${tono}`}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -66,10 +78,24 @@ export interface FichaDeSeguimientoProps {
   resumen: ResumenDeProyecto;
 }
 
-export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
+export function FichaDeSeguimiento(props: FichaDeSeguimientoProps) {
+  return (
+    <ConTesoroEnDolaresNuevo>
+      {(pedir) => <FichaDelSeguimiento {...props} pedirUnTesoroEnDolares={pedir} />}
+    </ConTesoroEnDolaresNuevo>
+  );
+}
+
+function FichaDelSeguimiento({
+  resumen,
+  pedirUnTesoroEnDolares,
+}: FichaDeSeguimientoProps & {
+  pedirUnTesoroEnDolares: (alCrear: (tesoroId: string) => void) => void;
+}) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
-  const vuelta = useVolver(RUTA_DE_SEGUIMIENTO, 'Seguimiento');
+  const { comun, seguimiento: textos } = useMensajes().paginaProyectos;
+  const vuelta = useVolver(RUTA_DE_SEGUIMIENTO, textos.seguimiento);
   const { proyecto, cliente } = resumen;
   const avisos = useAvisosDelProyecto(proyecto.id);
   const [hoja, setHoja] = useState<HojaAbierta>(null);
@@ -87,18 +113,27 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
 
   const paso =
     pendiente === undefined
-      ? 'Sin día para volver a escribirle'
+      ? textos.sinDia
       : pendiente.fecha === hoy
-        ? 'Hoy le volvés a escribir'
+        ? textos.hoy
         : atrasado
-          ? `Le tocaba el ${fechaLarga(pendiente.fecha, hoy)}`
-          : `Le volvés a escribir el ${fechaLarga(pendiente.fecha, hoy)}`;
+          ? textos.leTocaba(fechaLarga(pendiente.fecha, hoy))
+          : textos.leVolvesAEscribir(fechaLarga(pendiente.fecha, hoy));
+  const nota = pendiente?.nota.trim() ?? '';
   const detalle =
-    pendiente === undefined
-      ? ''
-      : [relativa(pendiente.fecha, hoy), pendiente.nota.trim()]
-          .filter((parte) => parte !== '')
-          .join(' · ');
+    pendiente === undefined ? (
+      ''
+    ) : (
+      <span>
+        {relativa(pendiente.fecha, hoy)}
+        {nota !== '' && (
+          <>
+            {' · '}
+            <span translate="no">{nota}</span>
+          </>
+        )}
+      </span>
+    );
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -114,7 +149,7 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
         <div className="ml-auto flex flex-none gap-1">
           <BorradoDelProyecto
             proyecto={proyecto}
-            sustantivo="contacto"
+            variante="contacto"
             alBorrar={() => {
               ir(RUTA_DE_SEGUIMIENTO, { como: 'terminar' });
             }}
@@ -123,13 +158,13 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
             variant="herramienta"
             size="herramienta"
             className="sm:px-4"
-            aria-label="Editar"
+            aria-label={comun.editar}
             onClick={() => {
               setHoja('editar');
             }}
           >
             <Icono nombre="pencil" tamano={16} />
-            <span className="hidden sm:inline">Editar</span>
+            <span className="hidden sm:inline">{comun.editar}</span>
           </Button>
         </div>
       </div>
@@ -139,10 +174,13 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
         className="flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
       >
         {cliente === undefined ? (
-          <span className="text-label text-text-3">{resumen.nombreDelCliente}</span>
+          <span translate="no" className="text-label text-text-3">
+            {resumen.nombreDelCliente}
+          </span>
         ) : (
           <Ir
             a={rutaDelCliente(cliente.id)}
+            translate="no"
             className="inline-flex items-center gap-1.5 self-start text-label font-medium text-text-2"
           >
             {cliente.nombre}
@@ -150,7 +188,10 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
           </Ir>
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg">
+          <h1
+            translate="no"
+            className="max-w-[720px] font-display text-h1 leading-tight text-pretty lg:text-h1-lg"
+          >
             {proyecto.titulo}
           </h1>
           <EstadoBadge estado={proyecto.estado} />
@@ -164,12 +205,12 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
         separacion="gap-y-3 @min-[40rem]/apoyo:gap-y-4"
         apoyo={
           <div className="flex flex-col gap-3 md:gap-4">
-            <section aria-label={`Contactar a ${nombre}`}>
+            <section aria-label={comun.contactarA(nombre)}>
               <AccionesDeContacto nombre={nombre} telefono={telefono} amplias />
             </section>
 
             <PanelDePaso
-              titulo="Próximo contacto"
+              titulo={textos.proximoContacto}
               paso={paso}
               detalle={detalle}
               icono="calendar"
@@ -183,13 +224,12 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
                     }}
                   >
                     <Icono nombre="message-circle" tamano={18} />
-                    Registrar el contacto
+                    {textos.registrarElContacto}
                   </Button>
                 </FilaDeAcciones>
               )}
               <p className="mt-3 text-meta leading-relaxed text-text-3">
-                Cuando le escribas, registralo: ahí elegís si vuelve a las consultas, si sigue en
-                seguimiento con otra fecha o si no va.
+                {textos.cuandoLeEscribas}
               </p>
             </PanelDePaso>
           </div>
@@ -199,55 +239,62 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
           <TarjetaDelPresupuesto proyecto={proyecto} />
 
           <section
-            aria-label="Datos del trabajo"
+            aria-label={textos.datosDelTrabajo}
             className="rounded-panel border border-hairline bg-paper px-4 md:px-5"
           >
             <dl>
-              <Dato clave="Estaba en">{ESTADO[etapaAlVolver(pendiente)].etiqueta}</Dato>
-              <Dato clave="Presupuesto">
+              <Dato clave={comun.estabaEn}>{ESTADO[etapaAlVolver(pendiente)].etiqueta}</Dato>
+              <Dato clave={comun.presupuesto} dato={proyecto.presupuesto_centavos !== null}>
                 {proyecto.presupuesto_centavos === null
-                  ? 'Todavía sin presupuesto'
-                  : formatearPesos(proyecto.presupuesto_centavos)}
+                  ? comun.todaviaSinPresupuesto
+                  : formatearPlata(proyecto.presupuesto_centavos, resumen.moneda)}
               </Dato>
-              <Dato clave="Seña cobrada" tono={resumen.cobrado > 0 ? 'text-hogar' : ''}>
-                {resumen.cobrado > 0 ? formatearPesos(resumen.cobrado) : 'Sin seña'}
+              <Dato
+                clave={comun.senaCobrada}
+                tono={resumen.cobradoEnPesos > 0 ? 'text-hogar' : ''}
+                dato={resumen.cobradoEnPesos > 0}
+              >
+                {resumen.cobradoEnPesos > 0
+                  ? formatearLaPlata(resumen.cobradoEnSuMoneda)
+                  : comun.sinSena}
               </Dato>
-              <Dato clave="Teléfono">{telefono.trim() === '' ? 'Sin teléfono' : telefono}</Dato>
+              <Dato clave={comun.telefono} dato={telefono.trim() !== ''}>
+                {telefono.trim() === '' ? comun.sinTelefono : telefono}
+              </Dato>
             </dl>
           </section>
 
-          {insumos !== null && (insumos.entro !== 0 || insumos.gastado !== 0) && (
-            <InsumosDelTrabajo insumos={insumos} />
-          )}
+          {insumos !== null &&
+            (insumos.entro !== 0 || insumos.gastado !== 0 || insumos.enDolares.length > 0) && (
+              <InsumosDelTrabajo insumos={insumos} otros={enOtrosTesoros(replica, insumos)} />
+            )}
 
           <section
             aria-labelledby="historia-del-seguimiento"
             className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
             <h2 id="historia-del-seguimiento" className="text-section font-semibold">
-              Historia del seguimiento
+              {textos.historia}
             </h2>
             {historia.length === 0 ? (
-              <p className="mt-1.5 text-label text-text-2">
-                Todavía no le volviste a escribir desde que pasó a seguimiento.
-              </p>
+              <p className="mt-1.5 text-label text-text-2">{textos.sinHistoria}</p>
             ) : (
               <ol className="mt-1.5 flex list-none flex-col">
                 {historia.map((contacto) => (
                   <li key={contacto.id} className="border-t border-hairline-soft py-2.5">
                     <p className="text-body">
-                      <span className="font-semibold">
+                      <span translate="no" className="font-semibold">
                         {fechaLarga(contacto.hecho_el ?? contacto.fecha, hoy)}
                       </span>
                       {textoDelResultado(contacto.resultado) !== '' && (
                         <span className="text-text-2">
-                          {' · '}
+                          <span translate="no">{' · '}</span>
                           {textoDelResultado(contacto.resultado)}
                         </span>
                       )}
                     </p>
                     {contacto.respuesta.trim() !== '' && (
-                      <p className="mt-0.5 text-label leading-snug text-text-2">
+                      <p translate="no" className="mt-0.5 text-label leading-snug text-text-2">
                         {contacto.respuesta}
                       </p>
                     )}
@@ -259,21 +306,21 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
 
           <NotasDelProyecto
             proyecto={proyecto}
-            titulo="Notas"
-            placeholder="Lo que te dijo por teléfono, medidas, cómo llegar…"
+            titulo={comun.notas}
+            placeholder={comun.notasEjemplo}
           />
 
           <ArchivosDelTrabajo proyectoId={proyecto.id} />
 
           <section
-            aria-label="Si no sale"
+            aria-label={comun.siNoSale}
             className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
           >
-            <h2 className="text-section font-semibold">Si no sale</h2>
+            <h2 className="text-section font-semibold">{comun.siNoSale}</h2>
             <p className="mt-1 text-label leading-relaxed text-text-2">
-              {resumen.cobrado > 0
-                ? `La seña de ${formatearPesos(resumen.cobrado)} se liquida como ingreso del taller, y el trabajo pasa al historial. Se puede reactivar.`
-                : 'Pasa al historial sin mover plata. Se puede reactivar.'}
+              {resumen.cobradoEnPesos > 0
+                ? textos.siNoSaleConSena(loCobradoEnPalabras(resumen))
+                : textos.siNoSaleSinSena}
             </p>
             <Button
               variant="secundario"
@@ -283,7 +330,7 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
               }}
             >
               <Icono nombre="x" tamano={16} />
-              Dar por perdido
+              {comun.darPorPerdido}
             </Button>
           </section>
         </div>
@@ -300,7 +347,11 @@ export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
               alCerrar={cerrarLaHoja}
             />
           ) : (
-            <HojaDeContacto proyecto={proyecto} alCerrar={cerrarLaHoja} />
+            <HojaDeContacto
+              proyecto={proyecto}
+              alCerrar={cerrarLaHoja}
+              alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
+            />
           )
         }
       </ConSalida>

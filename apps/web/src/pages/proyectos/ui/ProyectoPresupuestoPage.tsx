@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import { PantallaDelPresupuesto, sePuedeMandarOtra } from '@/features/armar-el-presupuesto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { filaPorId } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { rutaDelProyecto, useVolver } from '@/shared/lib';
 import {
   Button,
@@ -44,17 +45,18 @@ function Aviso({
 export function ProyectoPresupuestoPage() {
   const replica = useReplicaDelTaller();
   const { id = '' } = useParams();
+  const { comun, presupuesto: textos } = useMensajes().paginaProyectos;
   const proyecto = filaPorId(replica, 'proyectos', id);
-  const aProyectos = useVolver('/proyectos', 'Proyectos');
-  const alTrabajo = useVolver(rutaDelProyecto(id), 'Volver al trabajo');
+  const aProyectos = useVolver('/proyectos', comun.proyectos);
+  const alTrabajo = useVolver(rutaDelProyecto(id), textos.volverAlTrabajo);
 
   if (proyecto === undefined) {
     return (
       <Aviso
-        titulo="Ese proyecto no está"
-        texto="Puede que lo hayas borrado desde otro dispositivo, o que el enlace apunte a un proyecto de otro taller."
+        titulo={comun.noEsta}
+        texto={comun.noEstaTexto}
         volver={aProyectos.volver}
-        etiqueta="Volver a Proyectos"
+        etiqueta={comun.volverAProyectos}
       />
     );
   }
@@ -62,10 +64,10 @@ export function ProyectoPresupuestoPage() {
   if (!sePuedeMandarOtra(proyecto.estado)) {
     return (
       <Aviso
-        titulo="Este presupuesto ya no se cambia"
-        texto="El trabajo ya está aprobado o cerrado. Lo que le mandaste queda en la ficha, con su PDF."
+        titulo={textos.yaNoSeCambia}
+        texto={textos.yaNoSeCambiaTexto}
         volver={alTrabajo.volver}
-        etiqueta="Volver al trabajo"
+        etiqueta={textos.volverAlTrabajo}
       />
     );
   }

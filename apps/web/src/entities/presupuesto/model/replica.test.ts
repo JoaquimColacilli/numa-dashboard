@@ -86,6 +86,7 @@ function revision(id: string, numero: number, extra: Partial<FilaDeRevision> = {
     vale_hasta: null,
     que_cambio: null,
     contenido: { forma: 1 },
+    idioma: 'es',
     created_at: AHORA,
     updated_at: AHORA,
     deleted_at: null,
@@ -113,6 +114,7 @@ function envio(cambios: Partial<EnvioDelPresupuesto> = {}): EnvioDelPresupuesto 
       revisionId: 'r9',
       version: 2,
       documento: { forma: 1 } as unknown as EnvioDelPresupuesto['pedido']['documento'],
+      idioma: 'es',
       queCambio: null,
       mandadoEl: '2026-09-22',
       valeHasta: '2026-10-07',
@@ -226,6 +228,22 @@ describe('mandar el presupuesto', () => {
     });
   });
 
+  it('la revisión guarda el idioma en que se armó, y una mandada antes de la clave queda en español', () => {
+    const conPortugues = envio();
+    const enPortugues = conElPresupuestoMandado(
+      replica({ proyectos: { p1: proyecto('a_presupuestar') } }),
+      { ...conPortugues, pedido: { ...conPortugues.pedido, idioma: 'pt-BR' } },
+    );
+    expect(filaPorId(enPortugues, 'revisiones_del_presupuesto', 'r9')?.idioma).toBe('pt-BR');
+
+    const deLaCola = envio();
+    delete (deLaCola.pedido as Partial<EnvioDelPresupuesto['pedido']>).idioma;
+    const deAntes = conElPresupuestoMandado(
+      replica({ proyectos: { p1: proyecto('a_presupuestar') } }),
+      deLaCola,
+    );
+    expect(filaPorId(deAntes, 'revisiones_del_presupuesto', 'r9')?.idioma).toBe('es');
+  });
   it('una revisión lleva el número que ya tenía y lo que cambió sin blancos, y deja el trabajo donde estaba', () => {
     const mandado = conElPresupuestoMandado(
       replica({ proyectos: { p1: proyecto('presupuesto_enviado') } }),

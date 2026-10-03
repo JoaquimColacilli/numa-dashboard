@@ -1,0 +1,43 @@
+export const appLayout = {
+  hayUnaVersionNueva: 'Hay una versión nueva de la app.',
+  actualizar: 'Actualizar',
+  rechazado: ({ operacion, sujeto }: { operacion: string; sujeto: string }) =>
+    `${operacion} rechazado: ${sujeto}`,
+  verElProyecto: 'Ver el proyecto',
+  descartar: 'Descartar',
+  cerrarElAviso: 'Cerrar el aviso',
+  tardaMasDeLoNormal:
+    'Está tardando más de lo normal. Sigue intentando solo; si no avanza, reintentá o cerrá sesión.',
+  reintentar: 'Reintentar',
+  noPudimosLeerTusDatos: 'No pudimos leer tus datos',
+  sinNadaGuardado:
+    'En este dispositivo todavía no hay nada guardado para mostrarte mientras tanto.',
+  saltarAlContenido: 'Saltar al contenido',
+  irAInicio: 'NUMA, ir a Inicio',
+  cerrarElMenu: 'Cerrar el menú',
+  cargarAlgoNuevo: 'Cargar algo nuevo',
+  principal: 'Principal',
+  taller: 'Taller',
+  destinos: {
+    inicio: 'Inicio',
+    agenda: 'Agenda',
+    consultas: 'Consultas',
+    proyectos: 'Proyectos',
+    clientes: 'Clientes',
+    finanzas: 'Finanzas',
+    tesoros: 'Tesoros',
+    opiniones: 'Opiniones',
+    diezmo: 'Diezmo',
+    ajustes: 'Ajustes',
+  },
+  accionesRapidas: {
+    anotar: 'Anotar algo',
+    movimiento: 'Movimiento',
+    cobro: 'Cobro de proyecto',
+    proyectoNuevo: 'Proyecto nuevo',
+    consultaNueva: 'Consulta nueva',
+  },
+  sincronizando: 'Sincronizando…',
+  soltaParaActualizar: 'Soltá para actualizar',
+  tiraParaActualizar: 'Tirá para actualizar',
+} as const;

@@ -1,8 +1,13 @@
 import {
+  conceptoDeSiempre,
+  conceptoEnPantalla,
   estaAprobada,
+  hayComoPagar,
+  loQueSePagoEnOtraMoneda,
   notaDelRelevamiento,
   textoDeLaProyeccion,
   type ArchivoDelCliente,
+  type Moneda,
   type ProyeccionDeLaEntrega,
   type RelevamientoPorHacer,
   type SenaDeLaVista,
@@ -14,7 +19,7 @@ import {
 import { useId, useState } from 'react';
 
 import { urlDelArchivo } from '@/shared/api';
-import { diaYMesCorto, fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
+import { useFormatosDelCliente, useMensajesDelCliente } from '@/shared/idioma-del-cliente';
 import {
   ConSalida,
   Icono,
@@ -31,28 +36,25 @@ import { etapaDelDibujo } from '../model/etapa';
 import type { CoordinacionConPedido, MandarLaEntrega } from '../model/mandar';
 import { ID_DE_COMO_PAGAR } from '../model/presupuesto';
 import {
-  A_CONFIRMAR,
-  A_CUENTA_DE_LA_SENA,
   bajadaDeLaEntrega,
-  bajadaDeLasOpciones,
-  cifraDeLasOpciones,
   claveDeLaEntrega,
   lineaDeLaSena,
-  lineaDelPresupuestoVencido,
-  lineaDelValorDelRelevamiento,
   pieDeLosPagos,
-  QUEDA_A_CUENTA,
   saldoDeLaVista,
   sinPagosTodavia,
   textoDeLaSenaAcordada,
+  textoDeLoQueSePago,
+  textoDelPrecioEnPesos,
   textoDelTitular,
   textoDelTotalPagado,
   valorDeLaEntrega,
+  type Escritura,
 } from '../model/textos';
 import { CaminoDeHitos } from './CaminoDeHitos';
 import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
 import { ElPresupuesto, ElPresupuestoAceptado } from './ElPresupuesto';
+import { useEscritura } from './escritura';
 import { VidrieraDelTaller } from './VidrieraDelTaller';
 
 export interface VistaDelClienteProps {
@@ -60,12 +62,6 @@ export interface VistaDelClienteProps {
   hoy: string;
   alMandar?: MandarLaEntrega;
 }
-
-const TIPO: Readonly<Record<string, string>> = {
-  'image/webp': 'Imagen',
-  'image/jpeg': 'Imagen',
-  'application/pdf': 'PDF',
-};
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 
@@ -78,25 +74,38 @@ function esImagen(archivo: ArchivoDelCliente): boolean {
   return archivo.tipo === 'image/webp' || archivo.tipo === 'image/jpeg';
 }
 
+function tipoDelArchivo(archivo: ArchivoDelCliente, { t }: Escritura): string {
+  if (esImagen(archivo)) return t.pagina.tipos.imagen;
+  return archivo.tipo === 'application/pdf' ? t.pagina.tipos.pdf : t.pagina.tipos.otro;
+}
+
 function Cifra({
   clave,
   valor,
   grande = false,
   tono = '',
+  importe = true,
+  enPesos = null,
 }: {
   clave: string;
   valor: string;
   grande?: boolean;
   tono?: string;
+  importe?: boolean;
+  enPesos?: string | null;
 }) {
   return (
     <span className="flex flex-col gap-px">
       <span className="text-label text-text-2">{clave}</span>
       <span
+        translate={importe ? 'no' : undefined}
         className={`font-semibold tabular-nums ${grande ? 'text-money-lg' : 'text-body-lg'} ${tono}`}
       >
         {valor}
       </span>
+      {enPesos !== null && (
+        <span className="text-label leading-normal text-pretty text-text-2">{enPesos}</span>
+      )}
     </span>
   );
 }
@@ -105,15 +114,18 @@ function Dato({
   clave,
   valor,
   fuerte = false,
+  delTrabajo = false,
 }: {
   clave: string;
   valor: string;
   fuerte?: boolean;
+  delTrabajo?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3.5 border-t border-hairline-soft py-2.5 first:border-t-0">
       <dt className="flex-none text-label text-text-2">{clave}</dt>
       <dd
+        translate={delTrabajo ? 'no' : undefined}
         className={`text-right text-body leading-normal ${fuerte ? 'font-semibold' : 'font-medium'}`}
       >
         {valor}
@@ -133,6 +145,8 @@ function Titular({ texto, bajada }: { texto: string; bajada: string }) {
 
 function RelevamientoTecnico({ relevamiento }: { relevamiento: RelevamientoPorHacer }) {
   const titulo = useId();
+  const m = useMensajesDelCliente();
+  const f = useFormatosDelCliente();
   return (
     <section aria-labelledby={titulo} className="mt-3.5 border-t border-hairline-soft pt-3.5">
       <h3 id={titulo} className="text-body font-semibold">
@@ -142,19 +156,25 @@ function RelevamientoTecnico({ relevamiento }: { relevamiento: RelevamientoPorHa
         {relevamiento.lineas.map((linea) => (
           <p key={linea}>{linea}</p>
         ))}
-        {relevamiento.valor !== null && <p>{lineaDelValorDelRelevamiento(relevamiento.valor)}</p>}
+        {relevamiento.valor !== null && (
+          <p>{m.vista.pagina.valorDelRelevamiento(f.pesos(relevamiento.valor))}</p>
+        )}
       </div>
     </section>
   );
 }
 
-function CifrasDeLaSena({ sena }: { sena: SenaDeLaVista }) {
+function CifrasDeLaSena({ sena, moneda }: { sena: SenaDeLaVista; moneda: Moneda }) {
+  const m = useMensajesDelCliente();
+  const f = useFormatosDelCliente();
   switch (sena.situacion) {
     case 'sin-presupuesto':
       return null;
     case 'falta':
     case 'cubierta':
-      return <Cifra clave="Seña para arrancar" valor={formatearPesos(sena.sena)} />;
+      return (
+        <Cifra clave={m.vista.pagina.cifras.senaParaArrancar} valor={f.plata(sena.sena, moneda)} />
+      );
   }
 }
 
@@ -167,32 +187,40 @@ function EntradaAntesDelPresupuesto({
   titular: string;
   bajada: string;
 }) {
+  const m = useMensajesDelCliente();
+  const f = useFormatosDelCliente();
   return (
     <>
       <Titular texto={titular} bajada={bajada} />
       {vista.pagado > 0 && (
         <>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
-            <Cifra clave="Pagaste" valor={formatearPesos(vista.pagado)} />
+            <Cifra
+              clave={m.vista.pagina.cifras.pagaste}
+              valor={f.plata(vista.pagado, vista.moneda)}
+            />
           </div>
-          <p className="mt-2.5 text-body leading-relaxed text-text-2">{QUEDA_A_CUENTA}</p>
+          <p className="mt-2.5 text-body leading-relaxed text-text-2">
+            {m.vista.pagina.quedaACuenta}
+          </p>
         </>
       )}
     </>
   );
 }
 
-function lineaDeLaEntrada(vista: VistaEsperandoLaSena, hoy: string): string {
+function lineaDeLaEntrada(vista: VistaEsperandoLaSena, escritura: Escritura): string {
+  const { t, f, hoy } = escritura;
   if (vista.proyeccion.situacion === 'vencida') {
-    return lineaDelPresupuestoVencido(vista.proyeccion.vencio, hoy);
+    return t.pagina.presupuestoVencido(f.fechaLarga(vista.proyeccion.vencio, hoy));
   }
-  if (vista.opciones > 0) return bajadaDeLasOpciones(vista.opciones);
-  return lineaDeLaSena(vista.sena, vista.pagado);
+  if (vista.opciones > 0) return t.pagina.miraLasOpciones(vista.opciones);
+  return lineaDeLaSena(vista.sena, vista.pagado, vista.moneda, escritura);
 }
 
-function cifraDelPresupuesto(vista: VistaEsperandoLaSena): string {
-  if (vista.opciones > 0) return cifraDeLasOpciones(vista.opciones);
-  return vista.presupuesto === null ? '—' : formatearPesos(vista.presupuesto);
+function cifraDelPresupuesto(vista: VistaEsperandoLaSena, { t, f }: Escritura): string {
+  if (vista.opciones > 0) return t.pagina.opciones(vista.opciones);
+  return vista.presupuesto === null ? '—' : f.plata(vista.presupuesto, vista.moneda);
 }
 
 function EntradaEsperandoLaSena({
@@ -206,14 +234,24 @@ function EntradaEsperandoLaSena({
   bajada: string;
   hoy: string;
 }) {
-  const linea = lineaDeLaEntrada(vista, hoy);
+  const escritura = useEscritura(hoy);
+  const { t, f } = escritura;
+  const linea = lineaDeLaEntrada(vista, escritura);
   return (
     <>
       <Titular texto={titular} bajada={bajada} />
       <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
-        <Cifra clave="Presupuesto" valor={cifraDelPresupuesto(vista)} grande />
-        <CifrasDeLaSena sena={vista.sena} />
-        <Cifra clave="Pagaste" valor={formatearPesos(vista.pagado)} />
+        <Cifra
+          clave={t.pagina.cifras.presupuesto}
+          valor={cifraDelPresupuesto(vista, escritura)}
+          grande
+          importe={vista.opciones === 0}
+          enPesos={
+            vista.opciones === 0 ? textoDelPrecioEnPesos(vista.precioEnPesos, escritura) : null
+          }
+        />
+        <CifrasDeLaSena sena={vista.sena} moneda={vista.moneda} />
+        <Cifra clave={t.pagina.cifras.pagaste} valor={f.plata(vista.pagado, vista.moneda)} />
       </div>
       {linea !== '' && <p className="mt-2.5 text-body leading-relaxed text-text-2">{linea}</p>}
     </>
@@ -229,9 +267,12 @@ function EntradaAprobada({
   titular: string;
   hoy: string;
 }) {
-  const saldo = saldoDeLaVista(vista);
-  const bajada = bajadaDeLaEntrega(vista.datos.entrega, hoy);
-  const precio = vista.precio === null ? '—' : formatearPesos(vista.precio);
+  const escritura = useEscritura(hoy);
+  const { t, f } = escritura;
+  const saldo = saldoDeLaVista(vista, escritura);
+  const bajada = bajadaDeLaEntrega(vista.datos.entrega, escritura);
+  const precio = vista.precio === null ? '—' : f.plata(vista.precio, vista.moneda);
+  const precioEnPesos = textoDelPrecioEnPesos(vista.precioEnPesos, escritura);
 
   if (vista.foco === 'saldo') {
     return (
@@ -244,12 +285,21 @@ function EntradaAprobada({
         </div>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-body">
           <span className="flex items-baseline gap-2">
-            <span className="text-text-2">Vale</span>
-            <span className="font-semibold tabular-nums">{precio}</span>
+            <span className="text-text-2">{t.pagina.cifras.vale}</span>
+            <span translate="no" className="font-semibold tabular-nums">
+              {precio}
+            </span>
           </span>
+          {precioEnPesos !== null && (
+            <span className="w-full text-label leading-normal text-pretty text-text-2">
+              {precioEnPesos}
+            </span>
+          )}
           <span className="flex items-baseline gap-2">
-            <span className="text-text-2">Pagaste</span>
-            <span className="font-semibold tabular-nums">{formatearPesos(vista.pagado)}</span>
+            <span className="text-text-2">{t.pagina.cifras.pagaste}</span>
+            <span translate="no" className="font-semibold tabular-nums">
+              {f.plata(vista.pagado, vista.moneda)}
+            </span>
           </span>
         </div>
         <div className="mt-3.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 self-stretch border-t border-hairline-soft pt-3.5">
@@ -265,15 +315,16 @@ function EntradaAprobada({
       <Titular texto={titular} bajada={bajada} />
       <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 self-stretch border-t border-hairline-soft pt-3.5">
         <Cifra clave={saldo.etiqueta} valor={saldo.texto} grande tono={saldo.tono} />
-        <Cifra clave="Vale" valor={precio} />
-        <Cifra clave="Pagaste" valor={formatearPesos(vista.pagado)} />
+        <Cifra clave={t.pagina.cifras.vale} valor={precio} enPesos={precioEnPesos} />
+        <Cifra clave={t.pagina.cifras.pagaste} valor={f.plata(vista.pagado, vista.moneda)} />
       </div>
     </>
   );
 }
 
 function EntradaDeLaVista({ vista, bajada, hoy }: { vista: Vista; bajada: string; hoy: string }) {
-  const titular = textoDelTitular(vista.titular, hoy);
+  const escritura = useEscritura(hoy);
+  const titular = textoDelTitular(vista.titular, escritura);
   switch (vista.etapa) {
     case 'antes-del-presupuesto':
       return <EntradaAntesDelPresupuesto vista={vista} titular={titular} bajada={bajada} />;
@@ -289,23 +340,33 @@ function EntradaDeLaVista({ vista, bajada, hoy }: { vista: Vista; bajada: string
 }
 
 function TarjetaDelTrabajo({ vista, hoy }: { vista: VistaAprobada; hoy: string }) {
+  const escritura = useEscritura(hoy);
+  const { t, f } = escritura;
   const { datos } = vista;
-  const total = textoDelTotalPagado(vista);
+  const total = textoDelTotalPagado(vista, escritura);
   return (
-    <section aria-label="Datos del trabajo">
+    <section aria-label={t.pagina.datos.titulo}>
       <dl className="rounded-panel border border-hairline bg-paper px-4 py-1">
-        <Dato clave="Dirección" valor={datos.direccion ?? A_CONFIRMAR} />
         <Dato
-          clave="Empezamos"
-          valor={datos.inicio === null ? 'Todavía no' : fechaLarga(datos.inicio, hoy)}
+          clave={t.pagina.datos.direccion}
+          valor={datos.direccion ?? t.pagina.datos.aConfirmar}
+          delTrabajo={datos.direccion !== null}
         />
         <Dato
-          clave={claveDeLaEntrega(datos.entrega)}
-          valor={valorDeLaEntrega(datos.entrega, hoy)}
+          clave={t.pagina.datos.empezamos}
+          valor={datos.inicio === null ? t.pagina.datos.todaviaNo : f.fechaLarga(datos.inicio, hoy)}
+          delTrabajo={datos.inicio !== null}
+        />
+        <Dato
+          clave={claveDeLaEntrega(datos.entrega, escritura)}
+          valor={valorDeLaEntrega(datos.entrega, escritura)}
           fuerte
         />
-        <Dato clave="Seña" valor={textoDeLaSenaAcordada(datos.sena)} />
-        {total !== null && <Dato clave="Total" valor={total} />}
+        <Dato
+          clave={t.pagina.datos.sena}
+          valor={textoDeLaSenaAcordada(datos.sena, vista.moneda, escritura)}
+        />
+        {total !== null && <Dato clave={t.pagina.datos.total} valor={total} />}
       </dl>
     </section>
   );
@@ -320,13 +381,15 @@ function ParaCuando({
   sena: SenaDeLaVista;
   hoy: string;
 }) {
+  const { t, f } = useEscritura(hoy);
   const [principal, ...resto] = textoDeLaProyeccion(
     proyeccion,
-    { enUnaFrase: (fecha) => fechaEnUnaFrase(fecha, hoy) },
+    { enUnaFrase: (fecha) => f.fechaEnUnaFrase(fecha, hoy) },
     sena.situacion,
+    t.delDominio.proyeccion,
   );
   return (
-    <section aria-label="Para cuándo">
+    <section aria-label={t.pagina.paraCuando}>
       <div className={TARJETA}>
         <p className="text-body leading-relaxed font-medium text-pretty">{principal}</p>
         {resto.map((linea) => (
@@ -366,14 +429,18 @@ function ApoyoDeLaVista({ vista, hoy }: { vista: Vista; hoy: string }) {
   }
 }
 
-function CierreDeLosPagos({ vista }: { vista: Vista }) {
+function CierreDeLosPagos({ vista, hoy }: { vista: Vista; hoy: string }) {
+  const escritura = useEscritura(hoy);
+  const { t, f } = escritura;
   switch (vista.etapa) {
     case 'antes-del-presupuesto':
     case 'esperando-la-sena':
       return vista.pagos.length === 0 ? null : (
         <div className="flex min-h-12 items-baseline justify-between border-t border-ink py-3 text-body font-semibold">
-          <span>{A_CUENTA_DE_LA_SENA}</span>
-          <span className="tabular-nums">{formatearPesos(vista.pagado)}</span>
+          <span>{t.pagina.aCuentaDeLaSena}</span>
+          <span translate="no" className="tabular-nums">
+            {f.plata(vista.pagado, vista.moneda)}
+          </span>
         </div>
       );
     case 'aprobado':
@@ -381,11 +448,13 @@ function CierreDeLosPagos({ vista }: { vista: Vista }) {
     case 'listo':
     case 'entregado':
     case 'pagado': {
-      const saldo = saldoDeLaVista(vista);
+      const saldo = saldoDeLaVista(vista, escritura);
       return (
         <div className="flex min-h-12 items-baseline justify-between border-t border-ink py-3 text-body font-semibold">
           <span>{saldo.etiqueta}</span>
-          <span className={`tabular-nums ${saldo.tono}`}>{saldo.texto}</span>
+          <span translate="no" className={`tabular-nums ${saldo.tono}`}>
+            {saldo.texto}
+          </span>
         </div>
       );
     }
@@ -393,26 +462,33 @@ function CierreDeLosPagos({ vista }: { vista: Vista }) {
 }
 
 export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) {
+  const escritura = useEscritura(hoy);
+  const { t, f } = escritura;
   const [anuncio, setAnuncio] = useState('');
   const visor = useVisor();
   const coordinacion = coordinacionConPedido(vista);
-  const nota = notaDelRelevamiento(vista, {
-    larga: (fecha) => fechaLarga(fecha, hoy),
-    corta: diaYMesCorto,
-  });
+  const nota = notaDelRelevamiento(
+    vista,
+    {
+      larga: (fecha) => f.fechaLarga(fecha, hoy),
+      corta: f.diaYMesCorto,
+    },
+    t.delDominio.nota,
+  );
 
   const visuales = vista.archivos.filter(esImagen);
   const documentos = vista.archivos.filter((archivo) => !esImagen(archivo));
 
-  const como = vista.comoPagar;
-  const hayComoPagar = como !== null && (como.transferencia || como.efectivo);
-  const textoSinPagos = sinPagosTodavia(vista);
-  const textoDelPie = pieDeLosPagos(vista, hayComoPagar);
+  const hayConQuePagar = hayComoPagar(vista.comoPagar);
+  const textoSinPagos = sinPagosTodavia(vista, escritura);
+  const textoDelPie = pieDeLosPagos(vista, hayConQuePagar, escritura);
 
   return (
     <Pagina quieta className="gap-3 md:gap-4">
       <header className="flex items-center justify-between gap-3 px-1">
-        <span className="min-w-0 font-display text-lema leading-tight">{vista.taller}</span>
+        <span translate="no" className="min-w-0 font-display text-lema leading-tight">
+          {vista.taller}
+        </span>
       </header>
 
       <PrincipalYApoyo
@@ -425,8 +501,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <VidrieraDelTaller vidriera={vista.vidriera} taller={vista.taller} />
 
             <p data-fin-de-la-vista className="px-1 text-label leading-relaxed text-text-3">
-              Esta página la arma el taller para vos y se actualiza sola a medida que avanza el
-              trabajo. Si algo no coincide, escribile al taller.
+              {t.pagina.finDeLaVista}
             </p>
           </div>
         }
@@ -434,13 +509,18 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
         <div className="flex flex-col gap-3 md:gap-4">
           <TarjetaConLamina
             como="section"
-            aria-label="Tu mueble"
+            aria-label={t.pagina.tuMueble}
             dibujo={<TrabajoEnEtapa etapa={etapaDelDibujo(vista)} />}
             lamina="[&>svg]:w-56 @min-[40rem]/con-lamina:[&>svg]:w-72"
             apilada
           >
-            <span className="text-body text-text-2">{vista.cliente}</span>
-            <h1 className="font-display text-h1 leading-tight text-pretty lg:text-h1-lg">
+            <span translate="no" className="text-body text-text-2">
+              {vista.cliente}
+            </span>
+            <h1
+              translate="no"
+              className="font-display text-h1 leading-tight text-pretty lg:text-h1-lg"
+            >
               {vista.titulo}
             </h1>
 
@@ -451,7 +531,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <ElPresupuesto
               presupuesto={vista.elPresupuesto}
               hoy={hoy}
-              hayComoPagar={hayComoPagar}
+              hayComoPagar={hayConQuePagar}
             />
           )}
 
@@ -481,8 +561,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             />
           )}
 
-          <section aria-label="En qué anda" className={`@container ${TARJETA}`}>
-            <h2 className="mb-3.5 text-section font-semibold">El camino de tu mueble</h2>
+          <section aria-label={t.pagina.enQueAnda} className={`@container ${TARJETA}`}>
+            <h2 className="mb-3.5 text-section font-semibold">{t.pagina.elCaminoDeTuMueble}</h2>
             <CaminoDeHitos hitos={vista.hitos} nota={nota} hoy={hoy} />
             {vista.sigue !== '' && (
               <p className="mt-3.5 text-body leading-relaxed text-text-2">{vista.sigue}</p>
@@ -493,8 +573,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
           </section>
 
           {vista.eventos.length > 0 && (
-            <section aria-label="Lo que fue pasando" className={TARJETA}>
-              <h2 className="mb-1 text-section font-semibold">Lo que fue pasando</h2>
+            <section aria-label={t.pagina.loQueFuePasando} className={TARJETA}>
+              <h2 className="mb-1 text-section font-semibold">{t.pagina.loQueFuePasando}</h2>
               <ol className="list-none">
                 {vista.eventos.map((evento, indice) => (
                   <li
@@ -516,12 +596,18 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                       <span className="block text-body leading-normal text-pretty">
                         {evento.texto}
                       </span>
-                      <span className="mt-0.5 block text-label text-text-3 tabular-nums">
-                        {fechaLarga(evento.fecha, hoy)}
+                      <span
+                        translate="no"
+                        className="mt-0.5 block text-label text-text-3 tabular-nums"
+                      >
+                        {f.fechaLarga(evento.fecha, hoy)}
                       </span>
                     </span>
-                    <span className="py-3 text-body font-semibold whitespace-nowrap text-hogar tabular-nums">
-                      {evento.monto === null ? '' : formatearPesos(evento.monto)}
+                    <span
+                      translate="no"
+                      className="py-3 text-body font-semibold whitespace-nowrap text-hogar tabular-nums"
+                    >
+                      {evento.monto === null ? '' : f.plata(evento.monto, vista.moneda)}
                     </span>
                   </li>
                 ))}
@@ -529,8 +615,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             </section>
           )}
 
-          <section aria-label="Lo que pagaste" className={TARJETA}>
-            <h2 className="mb-1.5 text-section font-semibold">Lo que pagaste</h2>
+          <section aria-label={t.pagina.loQuePagaste} className={TARJETA}>
+            <h2 className="mb-1.5 text-section font-semibold">{t.pagina.loQuePagaste}</h2>
             {vista.pagos.length === 0 ? (
               textoSinPagos !== '' && (
                 <p className="border-t border-hairline py-3.5 text-body leading-normal text-text-2">
@@ -539,27 +625,46 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
               )
             ) : (
               <ul className="list-none">
-                {vista.pagos.map((pago) => (
-                  <li
-                    key={pago.id}
-                    className="flex min-h-12 items-baseline gap-3 border-t border-hairline-soft py-2.5"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-body font-medium">
-                        {pago.concepto.trim() === '' ? 'Pago' : pago.concepto}
+                {vista.pagos.map((pago) => {
+                  const enOtraMoneda = loQueSePagoEnOtraMoneda(pago, vista.moneda);
+                  return (
+                    <li
+                      key={pago.id}
+                      className="flex min-h-12 items-baseline gap-3 border-t border-hairline-soft py-2.5"
+                    >
+                      <span className="min-w-0 flex-1">
+                        {pago.concepto.trim() === '' ? (
+                          <span className="block text-body font-medium">{t.pagina.pago}</span>
+                        ) : conceptoDeSiempre(pago.concepto) !== null ? (
+                          <span className="block text-body font-medium">
+                            {conceptoEnPantalla(pago.concepto, t.conceptosDeSiempre)}
+                          </span>
+                        ) : (
+                          <span translate="no" className="block text-body font-medium">
+                            {pago.concepto}
+                          </span>
+                        )}
+                        <span translate="no" className="block text-label text-text-3 tabular-nums">
+                          {f.fechaLarga(pago.fecha, hoy)}
+                        </span>
+                        {enOtraMoneda !== null && (
+                          <span className="block text-label leading-normal text-pretty text-text-2">
+                            {textoDeLoQueSePago(enOtraMoneda, escritura)}
+                          </span>
+                        )}
                       </span>
-                      <span className="block text-label text-text-3 tabular-nums">
-                        {fechaLarga(pago.fecha, hoy)}
+                      <span
+                        translate="no"
+                        className="flex-none text-body font-semibold tabular-nums"
+                      >
+                        {f.plata(pago.monto, vista.moneda)}
                       </span>
-                    </span>
-                    <span className="flex-none text-body font-semibold tabular-nums">
-                      {formatearPesos(pago.monto)}
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
-            <CierreDeLosPagos vista={vista} />
+            <CierreDeLosPagos vista={vista} hoy={hoy} />
             <p className="mt-2.5 text-label leading-normal text-text-3">{textoDelPie}</p>
           </section>
 
@@ -567,24 +672,21 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <ElPresupuestoAceptado presupuesto={vista.elPresupuesto} />
           )}
 
-          <section aria-label="Fotos y planos" className={TARJETA}>
+          <section aria-label={t.pagina.fotosYPlanos} className={TARJETA}>
             <div className="mb-3 flex items-baseline justify-between gap-2.5">
-              <h2 className="text-section font-semibold">Fotos y planos</h2>
+              <h2 className="text-section font-semibold">{t.pagina.fotosYPlanos}</h2>
               {vista.archivos.length > 0 && (
                 <span className="text-label text-text-3">
-                  {vista.archivos.length === 1
-                    ? '1 archivo'
-                    : `${String(vista.archivos.length)} archivos`}
+                  {t.pagina.archivos(vista.archivos.length)}
                 </span>
               )}
             </div>
 
             {vista.archivos.length === 0 ? (
               <div className="flex flex-col gap-2 rounded-field border border-dashed border-border px-4 py-5">
-                <span className="text-body font-medium">Todavía no hay fotos</span>
+                <span className="text-body font-medium">{t.pagina.todaviaNoHayFotos}</span>
                 <span className="text-body leading-normal text-text-2">
-                  Acá van a aparecer los planos, los renders y las fotos que el taller comparta, del
-                  diseño a la entrega.
+                  {t.pagina.acaVanAAparecer}
                 </span>
               </div>
             ) : (
@@ -595,7 +697,7 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                       <li key={archivo.id}>
                         <button
                           type="button"
-                          aria-label={`Ver ${archivo.nombre}`}
+                          aria-label={t.pagina.ver(archivo.nombre)}
                           onClick={(evento) => {
                             visor.abrir(archivo.id, evento.currentTarget);
                           }}
@@ -611,7 +713,10 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                           />
                           <span className="flex items-center gap-2 border-t border-hairline-soft px-2.5 py-2">
                             <Icono nombre="image" tamano={15} />
-                            <span className="min-w-0 flex-1 truncate text-label leading-normal">
+                            <span
+                              translate="no"
+                              className="min-w-0 flex-1 truncate text-label leading-normal"
+                            >
                               {archivo.nombre}
                             </span>
                           </span>
@@ -635,11 +740,11 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
                             <Icono nombre="file-text" tamano={18} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-body font-medium">
+                            <span translate="no" className="block truncate text-body font-medium">
                               {archivo.nombre}
                             </span>
                             <span className="block text-meta text-text-3">
-                              {TIPO[archivo.tipo] ?? 'Archivo'}
+                              {tipoDelArchivo(archivo, escritura)}
                             </span>
                           </span>
                           <Icono nombre="arrow-up-right" tamano={16} />

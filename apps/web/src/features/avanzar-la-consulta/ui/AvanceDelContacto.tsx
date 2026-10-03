@@ -1,4 +1,4 @@
-import { ESTADOS_DE_CONSULTA, puedeCambiarEstado } from '@maun/domain';
+import { ESTADOS_DE_CONSULTA, MONEDA_DEL_TALLER, puedeCambiarEstado } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -25,6 +25,7 @@ import {
   type CambiosDeProyecto,
   type PagoParaGuardar,
 } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   hoyLocal,
   metaDeAvisos,
@@ -35,6 +36,7 @@ import {
 } from '@/shared/lib';
 import { Button, FilaDeAcciones, PanelDePaso } from '@/shared/ui';
 
+import { monedaDeLaConsulta } from '../model/pagoDeLaConsulta';
 import { cambiosAlPasarAPresupuestar, pagoAntesDePresupuestar } from '../model/relevamiento';
 import {
   FormularioDelPago,
@@ -69,6 +71,7 @@ export interface AvanceDelContactoProps {
   cobrado: number;
   conOpciones: boolean;
   alAgendar: () => void;
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
 }
 
 export function AvanceDelContacto({
@@ -78,10 +81,13 @@ export function AvanceDelContacto({
   cobrado,
   conOpciones,
   alAgendar,
+  alCrearUnTesoroEnDolares,
 }: AvanceDelContactoProps) {
+  const m = useMensajes();
   const ir = useIr();
   const replica = useReplicaDelTaller();
   const apertura = aperturaDeLaReplica(replica);
+  const delTrabajo = monedaDeLaConsulta(proyecto);
   const dias = diasQueValeElPresupuesto(ajustesDe(replica));
   const guardar = useMutation({
     ...MUTACION_DE_PROYECTO,
@@ -135,7 +141,8 @@ export function AvanceDelContacto({
         else setFormulario('pasar-a-presupuestar');
         return;
       case 'presupuesto':
-        if (conOpciones) mover({ estado: 'presupuesto_enviado' });
+        if (delTrabajo !== MONEDA_DEL_TALLER) ir(rutaDelPresupuesto(proyecto.id));
+        else if (conOpciones) mover({ estado: 'presupuesto_enviado' });
         else setFormulario('presupuesto');
         return;
       case 'relevar':
@@ -149,7 +156,7 @@ export function AvanceDelContacto({
 
   return (
     <PanelDePaso
-      titulo="Qué falta"
+      titulo={m.avanzarLaConsulta.avance.queFalta}
       paso={situacion.proximoPaso}
       detalle={situacion.espera}
       icono={situacion.agendada ? 'calendar' : 'clock'}
@@ -164,6 +171,7 @@ export function AvanceDelContacto({
             mover(cambios, dia, pagos);
           }}
           alCancelar={cerrarElFormulario}
+          alCrearUnTesoroEnDolares={alCrearUnTesoroEnDolares}
         />
       ) : formulario === 'presupuesto' ? (
         <FormularioDelPresupuesto
@@ -178,15 +186,17 @@ export function AvanceDelContacto({
         />
       ) : formulario === 'pasar-a-presupuestar' ? (
         <FormularioDelPago
+          proyecto={proyecto}
           apertura={apertura}
-          alListo={(monto, dia, yaEnLaApertura) => {
+          alListo={(pago, dia, yaEnLaApertura) => {
             mover(
               cambiosAlPasarAPresupuestar(proyecto, hoyLocal()),
               undefined,
-              pagoAntesDePresupuestar(monto, uuidv7(), dia, yaEnLaApertura),
+              pagoAntesDePresupuestar(pago, uuidv7(), dia, yaEnLaApertura, delTrabajo),
             );
           }}
           alCancelar={cerrarElFormulario}
+          alCrearUnTesoroEnDolares={alCrearUnTesoroEnDolares}
         />
       ) : (
         <FilaDeAcciones className="mt-3">
@@ -207,10 +217,10 @@ export function AvanceDelContacto({
       {etapa === 'a_presupuestar' && <TareasDelPresupuesto proyecto={proyecto} />}
 
       <div className="mt-4">
-        <span className="text-meta text-text-2">Etapa</span>
+        <span className="text-meta text-text-2">{m.avanzarLaConsulta.avance.etapa}</span>
         <div
           role="radiogroup"
-          aria-label="Etapa"
+          aria-label={m.avanzarLaConsulta.avance.etapa}
           className="mt-1 grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @md:grid-cols-3"
         >
           {etapas.map((estado) => (

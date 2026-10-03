@@ -68,8 +68,16 @@ describe('las tres listas del trabajo', () => {
       'Agregar el herraje',
       'Agregar la herramienta',
     ]);
-    expect(LISTAS_DEL_TRABAJO.map((lista) => lista.listo)).toEqual(['Listo', 'Listo', 'Lista']);
-    expect(LISTAS_DEL_TRABAJO.map((lista) => lista.listos)).toEqual(['listos', 'listos', 'listas']);
+    expect(LISTAS_DEL_TRABAJO.map((lista) => lista.casilla('X'))).toEqual([
+      'Listo: X',
+      'Listo: X',
+      'Lista: X',
+    ]);
+    expect(LISTAS_DEL_TRABAJO.map((lista) => lista.cuantosListos(1, 2))).toEqual([
+      '1 de 2 listos',
+      '1 de 2 listos',
+      '1 de 2 listas',
+    ]);
   });
 
   it('los textos de un tipo se buscan por el tipo', () => {

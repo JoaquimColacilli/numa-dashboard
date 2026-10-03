@@ -1,10 +1,12 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { useAlgoEnCurso } from '@/shared/lib';
 
 import { PantallaDeBloqueo } from './PantallaDeBloqueo';
 
 export function BloqueoAlVolver({ otraCuenta }: { otraCuenta?: ReactNode }) {
+  const m = useMensajes();
   const dialogo = useRef<HTMLDialogElement>(null);
   const saliendo = useRef(false);
   useAlgoEnCurso(true);
@@ -23,7 +25,7 @@ export function BloqueoAlVolver({ otraCuenta }: { otraCuenta?: ReactNode }) {
   return (
     <dialog
       ref={dialogo}
-      aria-label="La app está bloqueada"
+      aria-label={m.desbloquearLaApp.laAppEstaBloqueada}
       onCancel={(evento) => {
         evento.preventDefault();
       }}

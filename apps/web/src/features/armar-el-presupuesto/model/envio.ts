@@ -1,4 +1,4 @@
-import { sumarDias, type DocumentoDelPresupuesto } from '@maun/domain';
+import { sumarDias, type DocumentoDelPresupuesto, type Idioma } from '@maun/domain';
 
 import type {
   EnvioDelPresupuesto,
@@ -13,6 +13,7 @@ export interface DatosDelEnvio {
   presupuesto: FilaDelPresupuesto;
   revisiones: readonly FilaDeRevision[];
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   queCambio: string;
   hoy: string;
   validezDias: number | null;
@@ -38,6 +39,7 @@ export function envioDelPresupuesto(datos: DatosDelEnvio): EnvioDelPresupuesto {
       revisionId: datos.revisionId,
       version: datos.presupuesto.borrador_version,
       documento: datos.documento,
+      idioma: datos.idioma,
       queCambio: revision > 1 ? datos.queCambio.trim() : null,
       mandadoEl: datos.hoy,
       valeHasta: valeHastaAlMandar(datos.hoy, datos.validezDias),

@@ -1,12 +1,22 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { useSesion } from '@/entities/sesion';
 import { FormularioDeNuevaContrasena } from '@/features/recuperar-acceso';
 import { errorDelEnlace } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { useEstadoSync, Ir, useIr } from '@/shared/lib';
 import { Button, ENLACE_DE_ACCESO, PantallaDeAcceso } from '@/shared/ui';
 
+function Fuerte({ children }: { children: ReactNode }) {
+  return (
+    <strong translate="no" className="font-medium text-ink">
+      {children}
+    </strong>
+  );
+}
+
 export function NuevaContrasenaPage() {
+  const m = useMensajes();
   const sesion = useSesion();
   const estadoSync = useEstadoSync();
   const ir = useIr();
@@ -16,10 +26,10 @@ export function NuevaContrasenaPage() {
   if (listo) {
     return (
       <PantallaDeAcceso
-        titulo="Listo, ya entraste"
+        titulo={m.paginaNuevaContrasena.listoYaEntraste}
         pose="pulgar"
         animarElDibujo
-        bajada="Guardamos la contraseña nueva. Si entrás desde otro dispositivo, usá esta."
+        bajada={m.paginaNuevaContrasena.guardamosLaContrasena}
       >
         <Button
           size="grande"
@@ -28,7 +38,7 @@ export function NuevaContrasenaPage() {
             ir('/', { como: 'reemplazar' });
           }}
         >
-          Ir al taller
+          {m.paginaNuevaContrasena.irAlTaller}
         </Button>
       </PantallaDeAcceso>
     );
@@ -37,12 +47,12 @@ export function NuevaContrasenaPage() {
   if (sesion.tipo === 'cargando') {
     return (
       <PantallaDeAcceso
-        titulo="Un segundo"
+        titulo={m.paginaNuevaContrasena.unSegundo}
         pose="pensando"
-        bajada="Estamos validando el enlace del correo."
+        bajada={m.paginaNuevaContrasena.estamosValidando}
       >
         <p role="status" aria-busy="true" className="text-body text-text-2">
-          Verificando el enlace…
+          {m.paginaNuevaContrasena.verificandoElEnlace}
         </p>
       </PantallaDeAcceso>
     );
@@ -52,24 +62,23 @@ export function NuevaContrasenaPage() {
     const sinConexion = estadoSync.tipo === 'sin-conexion';
     return (
       <PantallaDeAcceso
-        titulo={sinConexion ? 'Sin señal' : 'Este enlace no sirve'}
+        titulo={
+          sinConexion ? m.paginaNuevaContrasena.sinSenal : m.paginaNuevaContrasena.esteEnlaceNoSirve
+        }
         pose="pensando"
         bajada={
           sinConexion
-            ? 'El enlace se valida contra el servidor y ahora no hay señal.'
-            : (delEnlace ??
-              'Los enlaces del correo se abren en el mismo navegador desde el que los pediste, y vencen.')
+            ? m.paginaNuevaContrasena.seValidaContraElServidor
+            : (delEnlace ?? m.paginaNuevaContrasena.losEnlacesDelCorreo)
         }
         pie={
           <Ir a="/acceso/recuperar" className={ENLACE_DE_ACCESO}>
-            Pedir otro enlace
+            {m.paginaNuevaContrasena.pedirOtroEnlace}
           </Ir>
         }
       >
         <p className="text-body leading-relaxed text-text-2">
-          {sinConexion
-            ? 'Buscá señal y volvé a abrir el enlace del correo. Si ya no funciona, pedí uno nuevo: el servidor manda pocos mails por hora.'
-            : 'Pedí uno nuevo desde este dispositivo y abrilo sin copiarlo a otro navegador.'}
+          {sinConexion ? m.paginaNuevaContrasena.buscaSenal : m.paginaNuevaContrasena.pediUnoNuevo}
         </p>
       </PantallaDeAcceso>
     );
@@ -78,31 +87,25 @@ export function NuevaContrasenaPage() {
   if (!sesion.porRecuperacion) {
     return (
       <PantallaDeAcceso
-        titulo="Esta pantalla se abre desde el correo"
+        titulo={m.paginaNuevaContrasena.seAbreDesdeElCorreo}
         pose="pensando"
-        bajada="Para cambiar la contraseña hay que pedir el enlace y abrirlo desde el mail."
+        bajada={m.paginaNuevaContrasena.paraCambiarLaContrasena}
         pie={
           <Ir a="/" className={ENLACE_DE_ACCESO}>
-            Volver al taller
+            {m.paginaNuevaContrasena.volverAlTaller}
           </Ir>
         }
       >
-        <p className="text-body leading-relaxed text-text-2">
-          Así nadie que agarre el dispositivo desbloqueado puede cambiarla.
-        </p>
+        <p className="text-body leading-relaxed text-text-2">{m.paginaNuevaContrasena.asiNadie}</p>
       </PantallaDeAcceso>
     );
   }
 
   return (
     <PantallaDeAcceso
-      titulo="Poné una contraseña nueva"
+      titulo={m.paginaNuevaContrasena.poneUnaContrasenaNueva}
       pose="pensando"
-      bajada={
-        <>
-          Es para <strong className="font-medium text-ink">{sesion.email}</strong>.
-        </>
-      }
+      bajada={m.paginaNuevaContrasena.esPara({ email: sesion.email, Fuerte })}
     >
       <FormularioDeNuevaContrasena
         alCambiar={() => {

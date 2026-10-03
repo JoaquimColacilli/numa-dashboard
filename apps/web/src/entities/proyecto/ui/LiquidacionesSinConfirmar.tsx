@@ -1,4 +1,5 @@
 import { filaPorId, type Replica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { Ir } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -10,13 +11,18 @@ export interface LiquidacionesSinConfirmarProps {
 }
 
 export function LiquidacionesSinConfirmar({ replica }: LiquidacionesSinConfirmarProps) {
+  const textos = useMensajes().proyecto.liquidacionesSinConfirmar;
   const enVuelo = useLiquidacionesEnVuelo();
   if (enVuelo.length === 0) return null;
 
-  const proyectos = enVuelo.map((pendiente) => ({
-    id: pendiente.proyectoId,
-    titulo: filaPorId(replica, 'proyectos', pendiente.proyectoId)?.titulo ?? 'Un proyecto',
-  }));
+  const proyectos = enVuelo.map((pendiente) => {
+    const titulo = filaPorId(replica, 'proyectos', pendiente.proyectoId)?.titulo;
+    return {
+      id: pendiente.proyectoId,
+      titulo: titulo ?? textos.unProyecto,
+      conocido: titulo !== undefined,
+    };
+  });
 
   return (
     <p
@@ -24,15 +30,12 @@ export function LiquidacionesSinConfirmar({ replica }: LiquidacionesSinConfirmar
       className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-field bg-atencion-tint px-3 py-2 text-meta leading-relaxed text-atencion"
     >
       <Icono nombre="cloud-off" tamano={14} />
-      <span>
-        {proyectos.length === 1
-          ? 'Estos saldos cuentan una liquidación que el servidor todavía no confirmó:'
-          : `Estos saldos cuentan ${String(proyectos.length)} liquidaciones que el servidor todavía no confirmó:`}
-      </span>
+      <span>{textos.cuentan(proyectos.length)}</span>
       {proyectos.map((proyecto, indice) => (
         <span key={proyecto.id}>
           <Ir
             a={rutaDelProyecto(proyecto.id)}
+            translate={proyecto.conocido ? 'no' : undefined}
             className="font-semibold underline underline-offset-2"
           >
             {proyecto.titulo}

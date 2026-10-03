@@ -1,12 +1,19 @@
 import {
+  centavosEn,
+  cobraEnLeido,
+  cotizacionLeida,
+  esFechaQueExiste,
   esFranja,
   esLinkDeLaRed,
   esLinkDeMercadoPago,
+  esMoneda,
   esNumeroDePresupuesto,
   FORMAS_DE_COBRO,
   FORMAS_DE_COORDINAR,
+  idiomaLeido,
   INSTANCIAS_DE_PAGO,
   leerDocumento,
+  MONEDA_DEL_TALLER,
   RESPUESTAS_DE_ENTREGA,
   TOPE_DE_LA_VIDRIERA,
   VIDRIERA_VACIA,
@@ -14,6 +21,8 @@ import {
 import type {
   CobroDelTaller,
   ComprometidaDelTrabajo,
+  Cotizacion,
+  CuentaParaTransferir,
   DiaQueLeQuedaBien,
   EntregaQueSeCoordina,
   ArchivoDelCliente,
@@ -21,7 +30,9 @@ import type {
   FechasDelTrabajo,
   FormaDeCobro,
   FotoDeLaVidriera,
+  ImporteDeUnPago,
   InstanciaDePago,
+  Moneda,
   Money,
   PagoDelCliente,
   PagoOfrecido,
@@ -30,6 +41,7 @@ import type {
   PropuestaDeEntrega,
   RedDelTaller,
   RedesDelTaller,
+  ReferenciaEnPesos,
   RespuestaDelCliente,
   FranjaDeEntrega,
   TrabajoDelCliente,
@@ -75,7 +87,41 @@ function lista(valor: unknown, que: string): unknown[] {
   return valor;
 }
 
-function pagos(valor: unknown): PagoDelCliente[] {
+function monedaONada(valor: unknown): Moneda | null {
+  if (valor === null || valor === undefined) return null;
+  if (!esMoneda(valor)) {
+    throw new RespuestaInvalidaError('La vista del cliente devolvió una moneda desconocida.');
+  }
+  return valor;
+}
+
+function enSuMoneda(moneda: Moneda, importe: number): Money<Moneda> {
+  return centavosEn(moneda, importe);
+}
+
+function importeConSuDolar(
+  moneda: Moneda,
+  monto: number,
+  cotizacion: Cotizacion | null,
+): ImporteDeUnPago {
+  return moneda === MONEDA_DEL_TALLER
+    ? { moneda, monto: dinero(monto), cotizacion }
+    : { moneda: 'USD', monto: centavosEn('USD', monto), cotizacion };
+}
+
+function loQueSeEntrego(
+  pago: Record<string, unknown>,
+  monedaDelTrabajo: Moneda,
+  monto: number,
+): ImporteDeUnPago {
+  const cotizacion = cotizacionLeida(pago.cotizacion_centavos);
+  const entregado = numeroONada(pago.pagado_centavos, 'lo que se entregó en un pago');
+  if (entregado === null) return importeConSuDolar(monedaDelTrabajo, monto, cotizacion);
+  const moneda = monedaONada(pago.moneda) ?? monedaDelTrabajo;
+  return importeConSuDolar(moneda, entregado, cotizacion);
+}
+
+function pagos(valor: unknown, moneda: Moneda): PagoDelCliente[] {
   return lista(valor, 'los pagos').map((fila) => {
     const pago = objeto(fila, 'un pago');
     const monto = numeroONada(pago.monto_centavos, 'el importe de un pago');
@@ -84,7 +130,8 @@ function pagos(valor: unknown): PagoDelCliente[] {
       id: texto(pago.id, 'el id de un pago'),
       fecha: texto(pago.fecha, 'la fecha de un pago'),
       concepto: texto(pago.concepto, 'el concepto de un pago'),
-      monto: dinero(monto),
+      monto: enSuMoneda(moneda, monto),
+      pagado: loQueSeEntrego(pago, moneda, monto),
     };
   });
 }
@@ -130,11 +177,44 @@ function cobro(valor: unknown): CobroDelTaller {
   };
 }
 
+function cuentaEnDolares(valor: unknown): CuentaParaTransferir {
+  if (valor === null || valor === undefined) {
+    return { alias: null, cbu: null, titular: null, cuit: null };
+  }
+  const crudo = objeto(valor, 'la cuenta en dólares');
+  return {
+    alias: textoONada(crudo.alias, 'el alias de la cuenta en dólares'),
+    cbu: textoONada(crudo.cbu, 'el CBU de la cuenta en dólares'),
+    titular: textoONada(crudo.titular, 'el titular de la cuenta en dólares'),
+    cuit: textoONada(crudo.cuit, 'el CUIT del titular de la cuenta en dólares'),
+  };
+}
+
+function dolarDelDia(valor: unknown): ReferenciaEnPesos | null {
+  if (typeof valor !== 'object' || valor === null) return null;
+  const crudo = valor as Record<string, unknown>;
+  const cotizacion = cotizacionLeida(crudo.cotizacion_centavos);
+  const { fecha } = crudo;
+  if (cotizacion === null || typeof fecha !== 'string' || !esFechaQueExiste(fecha)) return null;
+  return { cotizacion, fecha };
+}
+
 function esForma(valor: unknown): valor is FormaDeCobro {
   return FORMAS_DE_COBRO.some((forma) => forma === valor);
 }
 
-const SIN_PAGO: PagoPendiente = { instancia: null, formas: [], monto: null, siguiente: null };
+function formasEnDolares(valor: unknown, que: string): FormaDeCobro[] {
+  if (valor === null || valor === undefined) return [];
+  return lista(valor, que).filter(esForma);
+}
+
+const SIN_PAGO: PagoPendiente = {
+  instancia: null,
+  formas: [],
+  formasEnDolares: [],
+  monto: null,
+  siguiente: null,
+};
 
 function instanciaDe(valor: unknown, que: string): InstanciaDePago | null {
   const leida = textoONada(valor, que);
@@ -146,7 +226,7 @@ function instanciaDe(valor: unknown, que: string): InstanciaDePago | null {
   return conocida;
 }
 
-function pagoOfrecido(valor: unknown): PagoOfrecido | null {
+function pagoOfrecido(valor: unknown, moneda: Moneda): PagoOfrecido | null {
   if (valor === null || valor === undefined) return null;
   const crudo = objeto(valor, 'el pago que sigue');
   const instancia = instanciaDe(crudo.instancia, 'la instancia del pago que sigue');
@@ -155,19 +235,24 @@ function pagoOfrecido(valor: unknown): PagoOfrecido | null {
   return {
     instancia,
     formas: lista(crudo.formas, 'las formas del pago que sigue').filter(esForma),
-    monto: monto === null ? null : dinero(monto),
+    formasEnDolares: formasEnDolares(
+      crudo.formas_en_dolares,
+      'las formas en dólares del pago que sigue',
+    ),
+    monto: monto === null ? null : enSuMoneda(moneda, monto),
   };
 }
 
-function pagoPendiente(valor: unknown): PagoPendiente {
+function pagoPendiente(valor: unknown, moneda: Moneda): PagoPendiente {
   if (valor === null || valor === undefined) return SIN_PAGO;
   const crudo = objeto(valor, 'el pago que toca');
   const monto = numeroONada(crudo.monto_centavos, 'el importe del pago que toca');
   return {
     instancia: instanciaDe(crudo.instancia, 'la instancia del pago'),
     formas: lista(crudo.formas, 'las formas de pago').filter(esForma),
-    monto: monto === null ? null : dinero(monto),
-    siguiente: pagoOfrecido(crudo.siguiente),
+    formasEnDolares: formasEnDolares(crudo.formas_en_dolares, 'las formas de pago en dólares'),
+    monto: monto === null ? null : enSuMoneda(moneda, monto),
+    siguiente: pagoOfrecido(crudo.siguiente, moneda),
   };
 }
 
@@ -189,6 +274,11 @@ function fechas(valor: unknown): FechasDelTrabajo {
 function importeONada(valor: unknown, que: string): Money | null {
   const importe = numeroONada(valor, que);
   return importe === null ? null : dinero(importe);
+}
+
+function importeEnSuMonedaONada(moneda: Moneda, valor: unknown, que: string): Money<Moneda> | null {
+  const importe = numeroONada(valor, que);
+  return importe === null ? null : enSuMoneda(moneda, importe);
 }
 
 const SIN_VISITA: VisitaDelTrabajo = { dia: null, hecha: false };
@@ -327,6 +417,7 @@ function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
     mandadoEl: crudo.mandado_el,
     queCambio: textoQuePuedeFaltar(crudo.que_cambio),
     documento,
+    idioma: idiomaLeido(crudo.idioma),
     aceptadoEl: textoQuePuedeFaltar(crudo.aceptado_el),
     letra: textoQuePuedeFaltar(crudo.letra),
   };
@@ -334,20 +425,26 @@ function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
 
 export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
   const cuerpo = objeto(valor, 'el trabajo');
+  const moneda = monedaONada(cuerpo.moneda) ?? MONEDA_DEL_TALLER;
   return {
     taller: texto(objeto(cuerpo.taller, 'el taller').nombre, 'el nombre del taller'),
     cliente: texto(objeto(cuerpo.cliente, 'el cliente').nombre, 'el nombre del cliente'),
     trabajo: texto(cuerpo.trabajo, 'el trabajo'),
+    idioma: idiomaLeido(cuerpo.idioma),
     direccion: texto(cuerpo.direccion, 'la dirección'),
     estado: texto(cuerpo.estado, 'la etapa') as EstadoProyecto,
-    precio: importeONada(cuerpo.precio_centavos, 'el precio'),
-    sena: importeONada(cuerpo.sena_centavos, 'la seña'),
+    moneda,
+    cobraEn: cobraEnLeido(cuerpo.cobra_en),
+    precio: importeEnSuMonedaONada(moneda, cuerpo.precio_centavos, 'el precio'),
+    sena: importeEnSuMonedaONada(moneda, cuerpo.sena_centavos, 'la seña'),
+    dolarDelDia: dolarDelDia(cuerpo.dolar_del_dia),
     fechas: fechas(cuerpo.fechas),
     visita: visita(cuerpo.visita),
     entrega: entrega(cuerpo.entrega),
-    pago: pagoPendiente(cuerpo.pago),
+    pago: pagoPendiente(cuerpo.pago, moneda),
     cobro: cobro(cuerpo.cobro),
-    pagos: pagos(cuerpo.pagos),
+    cobroEnDolares: cuentaEnDolares(cuerpo.cobro_en_dolares),
+    pagos: pagos(cuerpo.pagos, moneda),
     archivos: archivos(cuerpo.archivos),
     vidriera: vidriera(cuerpo.vidriera),
     valorDelRelevamiento: importeONada(cuerpo.relevamiento_centavos, 'el valor del relevamiento'),

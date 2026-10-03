@@ -1,14 +1,7 @@
 import { diasEntre, type EventoDeLaAgenda } from '@maun/domain';
 
-import {
-  DIAS_DE_LA_SEMANA,
-  diaDeLaSemana,
-  formatearPesos,
-  nombreDelMes,
-  relativa,
-} from '@/shared/lib';
-
-import { DERIVADA, VENCIMIENTO } from './categorias';
+import { mensajes } from '@/shared/idioma';
+import { fechaEnUnaFrase, formatearPesos, mesEnUnaFrase, relativa } from '@/shared/lib';
 
 export {
   DIAS_DE_LA_SEMANA,
@@ -25,8 +18,9 @@ export {
 } from '@/shared/lib';
 
 export function mesEnPalabras(mes: string, hoy: string): string {
-  const nombre = nombreDelMes(mes).toLowerCase();
-  return mes.slice(0, 4) === hoy.slice(0, 4) ? nombre : `${nombre} ${mes.slice(0, 4)}`;
+  const nombre = mesEnUnaFrase(mes);
+  const anio = mes.slice(0, 4);
+  return anio === hoy.slice(0, 4) ? nombre : mensajes().agenda.mesConAnio(nombre, anio);
 }
 
 export function numeroDelDia(fecha: string): number {
@@ -34,16 +28,15 @@ export function numeroDelDia(fecha: string): number {
 }
 
 export function diaEnPalabras(fecha: string): string {
-  const dia = DIAS_DE_LA_SEMANA[diaDeLaSemana(fecha)] ?? '';
-  return `${dia} ${String(numeroDelDia(fecha))} de ${nombreDelMes(fecha.slice(0, 7)).toLowerCase()}`;
+  return fechaEnUnaFrase(fecha, fecha);
 }
 
-export type EtiquetaDelDia = 'hoy' | 'mañana' | 'ayer';
+export type EtiquetaDelDia = 'hoy' | 'manana' | 'ayer';
 
 export function etiquetaDelDia(fecha: string, hoy: string): EtiquetaDelDia | null {
   const dias = diasEntre(hoy, fecha);
   if (dias === 0) return 'hoy';
-  if (dias === 1) return 'mañana';
+  if (dias === 1) return 'manana';
   if (dias === -1) return 'ayer';
   return null;
 }
@@ -60,9 +53,10 @@ export function estaHecha(evento: EventoDeLaAgenda): boolean {
 }
 
 export function textoDeLoHecho(evento: EventoDeLaAgenda): string {
-  if (evento.clase === 'propia') return 'hecha';
-  if (evento.clase === 'vencimiento') return VENCIMIENTO.hecha;
-  return DERIVADA[evento.categoria].hecha;
+  const { agenda } = mensajes();
+  if (evento.clase === 'propia') return agenda.propiaHecha;
+  if (evento.clase === 'vencimiento') return agenda.vencimiento.hecha;
+  return agenda.derivadas[evento.categoria].hecha;
 }
 
 export function conLoHechoAlFinal(eventos: readonly EventoDeLaAgenda[]): EventoDeLaAgenda[] {
@@ -70,10 +64,6 @@ export function conLoHechoAlFinal(eventos: readonly EventoDeLaAgenda[]): EventoD
     ...eventos.filter((evento) => !estaHecha(evento)),
     ...eventos.filter((evento) => estaHecha(evento)),
   ];
-}
-
-function plural(cantidad: number, singular: string, varios: string): string {
-  return `${String(cantidad)} ${cantidad === 1 ? singular : varios}`;
 }
 
 interface CuentaDeLoPendiente {
@@ -96,35 +86,36 @@ function cuentaDeLoPendiente(eventos: readonly EventoDeLaAgenda[]): CuentaDeLoPe
 }
 
 export function resumenDelMes(eventos: readonly EventoDeLaAgenda[]): string {
-  if (eventos.length === 0) return 'sin nada agendado';
+  const { cuentas, nadaEnElMes } = mensajes().agenda;
+  if (eventos.length === 0) return nadaEnElMes;
   const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
-  const partes = [plural(citas, 'cita', 'citas')];
-  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
-  partes.push(plural(anotadas, 'anotación', 'anotaciones'));
-  if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
+  const partes = [cuentas.citas(citas)];
+  if (vencimientos > 0) partes.push(cuentas.vencimientos(vencimientos));
+  partes.push(cuentas.anotaciones(anotadas));
+  if (hechas > 0) partes.push(cuentas.hechas(hechas));
   return partes.join(' · ');
 }
 
 export function resumenDelDia(eventos: readonly EventoDeLaAgenda[]): string {
+  const { cuentas, nadaEnElDia } = mensajes().agenda;
   const { citas, vencimientos, anotadas, hechas } = cuentaDeLoPendiente(eventos);
 
   const partes: string[] = [];
-  if (citas > 0) partes.push(plural(citas, 'cita', 'citas'));
-  if (vencimientos > 0) partes.push(plural(vencimientos, 'vencimiento', 'vencimientos'));
-  if (anotadas > 0) partes.push(plural(anotadas, 'cosa anotada', 'cosas anotadas'));
-  if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
-  return partes.length === 0 ? 'Nada agendado' : partes.join(' · ');
+  if (citas > 0) partes.push(cuentas.citas(citas));
+  if (vencimientos > 0) partes.push(cuentas.vencimientos(vencimientos));
+  if (anotadas > 0) partes.push(cuentas.cosasAnotadas(anotadas));
+  if (hechas > 0) partes.push(cuentas.hechas(hechas));
+  return partes.length === 0 ? nadaEnElDia : partes.join(' · ');
 }
 
 export function cuentaDelDia(eventos: readonly EventoDeLaAgenda[]): string {
-  if (eventos.length === 0) return 'nada agendado';
+  const { cuentas, nadaAgendado } = mensajes().agenda;
+  if (eventos.length === 0) return nadaAgendado;
   const hechas = eventos.filter((evento) => estaHecha(evento)).length;
   const pendientes = eventos.length - hechas;
 
-  const partes: string[] = [];
-  if (pendientes > 0) partes.push(plural(pendientes, 'cosa', 'cosas'));
-  if (hechas > 0) partes.push(plural(hechas, 'hecha', 'hechas'));
-  return partes.join(' y ');
+  if (pendientes > 0 && hechas > 0) return cuentas.cosasYHechas(pendientes, hechas);
+  return pendientes > 0 ? cuentas.cosas(pendientes) : cuentas.hechas(hechas);
 }
 
 export type TonoDeUrgencia = 'alerta' | 'atencion' | 'normal';
@@ -136,16 +127,17 @@ export interface UrgenciaDelEvento {
 
 export function urgenciaDelEvento(evento: EventoDeLaAgenda, hoy: string): UrgenciaDelEvento | null {
   if (evento.clase === 'propia' || estaHecha(evento)) return null;
+  const { urgencia } = mensajes().agenda;
   const dias = diasEntre(hoy, evento.fecha);
   if (dias < 0) {
     const cuando = relativa(evento.fecha, hoy);
     return {
-      texto: evento.clase === 'vencimiento' ? `venció ${cuando}` : `atrasada, era ${cuando}`,
+      texto: evento.clase === 'vencimiento' ? urgencia.vencio(cuando) : urgencia.atrasada(cuando),
       tono: 'alerta',
     };
   }
-  if (dias === 0) return { texto: 'es hoy', tono: 'alerta' };
-  if (dias === 1) return { texto: 'es mañana', tono: 'atencion' };
+  if (dias === 0) return { texto: urgencia.hoy, tono: 'alerta' };
+  if (dias === 1) return { texto: urgencia.manana, tono: 'atencion' };
   return { texto: relativa(evento.fecha, hoy), tono: dias <= 4 ? 'atencion' : 'normal' };
 }
 
@@ -162,18 +154,16 @@ export function idDelProximoContacto(evento: EventoDeLaAgenda): string | null {
 
 export function nombreDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
-  if (evento.clase === 'vencimiento') {
-    return `${VENCIMIENTO.accion}${VENCIMIENTO.conector}${evento.renglon}`;
-  }
-  return `${DERIVADA[evento.categoria].accion}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
+  const { agenda } = mensajes();
+  if (evento.clase === 'vencimiento') return agenda.vencimiento.nombre(evento.renglon);
+  return agenda.derivadas[evento.categoria].nombre(evento.titulo);
 }
 
 export function textoCortoDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
-  if (evento.clase === 'vencimiento') {
-    return `${VENCIMIENTO.corta}${VENCIMIENTO.conector}${evento.renglon}`;
-  }
-  return `${DERIVADA[evento.categoria].corta}${DERIVADA[evento.categoria].conector}${evento.titulo}`;
+  const { agenda } = mensajes();
+  if (evento.clase === 'vencimiento') return agenda.vencimiento.corto(evento.renglon);
+  return agenda.derivadas[evento.categoria].corto(evento.titulo);
 }
 
 export function detalleDelEvento(evento: EventoDeLaAgenda): string {
@@ -181,7 +171,7 @@ export function detalleDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'vencimiento') {
     const nombre = evento.nombreDelTesoro.trim();
     const pesos = formatearPesos(evento.monto);
-    return nombre === '' ? pesos : `${pesos} de ${nombre}`;
+    return nombre === '' ? pesos : mensajes().agenda.vencimiento.monto(pesos, nombre);
   }
   return [evento.cliente, evento.lugar].filter((parte) => parte.trim() !== '').join(', ');
 }

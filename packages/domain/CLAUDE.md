@@ -14,6 +14,8 @@ Lógica de negocio pura: la plata (`money.ts`), la cascada de distribución (`ca
 - `Money` es un `number` entero de centavos con brand (ADR 0002). Nada de decimales ni de `BigInt` de JavaScript. Toda operación corta con `RangeError` si el resultado deja de ser un entero seguro.
 - Los porcentajes son `PuntosBasicos` enteros (1000 = 10%). `aplicarPorcentaje` redondea al centavo mitad hacia arriba: `floor((importe × bp + 5000) / 10000)`, la misma cuenta que SQL.
 - Dividir por 100 pasa una sola vez, al formatear, y el formateo no vive acá.
+- `Money<M>` es genérico en la moneda (pesos por defecto; otra con `centavosEn`), y donde conviven monedas va `Plata`: pesos más dólares no compila (ADR 0081). Un pago tiene dos cuentas, `valorEnPesos` y `loQueDescuenta`, con redondeo a la mitad hacia arriba y gemela en SQL (ADR 0083).
+- El dominio no escribe frases: devuelve datos y códigos, o recibe los textos inyectados (`Formatos`, `TextosDeLaVista`), así sirve en los tres idiomas (ADR 0082).
 
 ## La cascada
 
@@ -162,8 +164,8 @@ fija caso por caso; una etapa o una variante nueva entra ahí.
 ## Las opiniones (ADR 0057)
 
 - **Los umbrales viven en `opiniones.ts` y en ningún otro lado**: `UMBRAL_BARRAS` (12: hasta 11, un punto por persona), `UMBRAL_EVOLUCION` y `UMBRAL_MESES` (12 respuestas **y** medio año para mostrar la evolución), `TOPE_PREGUNTAS` y `TOPE_PROPIAS`. Lo que se muestra lo decide `modoDeMostrar`, y la barra repartida es solo para las preguntas con polos. **Una pantalla no compara contra 12**: lee `resultado.modo` y `evolucion.conEvolucion`.
-- **`resumenDeOpiniones(datos, hoy)` es todo Resultados**, calculado en el aparato desde la réplica: la titular con su promedio y su cuenta, lo enviado y lo contestado, la distribución de cada pregunta, sus versiones anteriores aparte, las archivadas aparte, los comentarios, la evolución y lo que no se leyó. **Las propias de un trabajo no entran en ningún número general.**
-- **Un porcentaje nunca va solo** (`porcentaje`: «53% (9 de 17)») y un promedio lleva su cuenta (`promedio`, con un decimal solo si hace falta).
+- **`resumenDeOpiniones(datos, hoy, escalas)` es todo Resultados**, calculado en el aparato desde la réplica: la titular con su promedio y su cuenta, lo enviado y lo contestado, la distribución de cada pregunta, sus versiones anteriores aparte, las archivadas aparte, los comentarios, la evolución y lo que no se leyó. **Las propias de un trabajo no entran en ningún número general.**
+- **El dominio no escribe frases** (ADR 0082): las etiquetas de cada escala llegan en `TextosDeLasEscalas`, que reciben `resumenDeOpiniones`, `pasosDe`, `pasoDe` y `lineasDeLaRespuesta`; el dueño las inyecta de su catálogo y el cliente del suyo. `promedio` devuelve `{ decimas, n }`, `queTieneLaEncuesta` devuelve números y `menosDeMinutos` los minutos: la pantalla arma la frase y nunca muestra un porcentaje solo («53% (9 de 17)»).
 - **`comoGuardar` decide qué es una versión nueva**: en el lugar si nadie la vio; se pregunta si ya la contestaron y cambió el texto; versión nueva sin preguntar si cambió cómo se contesta y ya salió. La base sostiene lo mismo (`MN013`, `MN014`). `sePuedeBorrar` repite la regla de borrado del trigger para que la pantalla no mande un borrado que la base rechazaría; **no la ata el comparador**: si cambia una, se cambia la otra a mano, y `26_opiniones.sql` y sus tests las cubren por separado.
 - **`validarRespuesta` (`encuesta.ts`) es gemela de `private.validar_respuesta`**, y el orden de las revisiones es parte de la regla: el motivo que devuelve tiene que ser el mismo que el de la base, caso por caso. Los largos se cuentan en puntos de código (`Array.from`), no en unidades de UTF-16, y los blancos que se recortan son los de ASCII, como en SQL.
 - `esLinkDeResena` es gemela del `check` de `ajustes.resena_link`.

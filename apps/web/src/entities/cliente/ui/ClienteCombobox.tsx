@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useCombobox } from 'downshift';
 import { useId, useMemo, useState } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { uuidv7 } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -34,9 +35,11 @@ export function ClienteCombobox({
   clientes,
   elegidoId,
   alElegir,
-  etiqueta = 'Cliente',
+  etiqueta,
   error,
 }: ClienteComboboxProps) {
+  const textos = useMensajes().cliente.combobox;
+  const rotulo = etiqueta ?? textos.cliente;
   const [consulta, setConsulta] = useState('');
   const idError = useId();
   const elegido = clientes.find((cliente) => cliente.id === elegidoId) ?? null;
@@ -92,15 +95,23 @@ export function ClienteCombobox({
   if (elegido) {
     return (
       <div className="flex flex-col gap-1.5">
-        <span className="text-label text-text-2">{etiqueta}</span>
+        <span className="text-label text-text-2">{rotulo}</span>
         <div className="flex min-h-tap items-center gap-3 rounded-field border border-border bg-paper px-3 py-2 @min-[33rem]/campos:h-field @min-[33rem]/campos:py-0">
-          <span className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+          <span
+            translate="no"
+            className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+          >
             {iniciales(elegido.nombre)}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-body font-medium">{elegido.nombre}</span>
-            <span className="block truncate text-meta text-text-2">
-              {detalleDe(elegido) === '' ? 'Sin datos de contacto todavía' : detalleDe(elegido)}
+            <span translate="no" className="block truncate text-body font-medium">
+              {elegido.nombre}
+            </span>
+            <span
+              translate={detalleDe(elegido) === '' ? undefined : 'no'}
+              className="block truncate text-meta text-text-2"
+            >
+              {detalleDe(elegido) === '' ? textos.sinDatos : detalleDe(elegido)}
             </span>
           </span>
           <button
@@ -109,7 +120,7 @@ export function ClienteCombobox({
               alElegir(null);
             }}
             className="flex size-11 flex-none items-center justify-center rounded-pill text-text-2 hover:bg-surface"
-            aria-label={`Cambiar el cliente, ahora ${elegido.nombre}`}
+            aria-label={textos.cambiar(elegido.nombre)}
           >
             <Icono nombre="arrow-left-right" tamano={18} />
           </button>
@@ -121,12 +132,12 @@ export function ClienteCombobox({
   return (
     <div className="flex flex-col gap-1.5">
       <label {...combobox.getLabelProps()} className="text-label text-text-2">
-        {etiqueta}
+        {rotulo}
       </label>
       <div className="relative">
         <input
           {...combobox.getInputProps({
-            placeholder: 'Buscá por nombre, o escribí uno nuevo',
+            placeholder: textos.buscar,
             autoComplete: 'off',
             'aria-invalid': error === undefined ? undefined : true,
             'aria-describedby': error === undefined ? undefined : idError,
@@ -157,19 +168,20 @@ export function ClienteCombobox({
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-body font-medium">
-                        Crear «{opcion.nombre}»
+                        {textos.crear(opcion.nombre)}
                       </span>
-                      <span className="block text-meta text-text-2">
-                        Queda cargado con el nombre; el resto lo completás después
-                      </span>
+                      <span className="block text-meta text-text-2">{textos.quedaCargado}</span>
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+                    <span
+                      translate="no"
+                      className="flex size-9 flex-none items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+                    >
                       {iniciales(opcion.nombre)}
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0" translate="no">
                       <span className="block truncate text-body font-medium">{opcion.nombre}</span>
                       {detalleDe(opcion) !== '' && (
                         <span className="block truncate text-meta text-text-2">

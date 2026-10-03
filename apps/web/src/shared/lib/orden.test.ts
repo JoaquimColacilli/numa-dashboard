@@ -78,6 +78,25 @@ describe('ordenar por plata', () => {
     const otraVez = ordenar([...FILAS].reverse(), POR_PLATA, 'desc', desempate);
     expect(nombres(unaVez)).toEqual(nombres(otraVez));
   });
+
+  it('con grupos, primero va un grupo entero y después el otro, en los dos sentidos', () => {
+    const PRIMERO_LOS_DE_A: Criterio<Fila> = {
+      ...POR_PLATA,
+      grupo: (fila) => (fila.nombre.localeCompare('b', 'es') < 0 ? 0 : 1),
+    };
+    expect(nombres(ordenar(FILAS, PRIMERO_LOS_DE_A, 'desc', desempate))).toEqual([
+      'acuña',
+      'ávila',
+      'Zapata',
+      'Benítez',
+    ]);
+    expect(nombres(ordenar(FILAS, PRIMERO_LOS_DE_A, 'asc', desempate))).toEqual([
+      'ávila',
+      'acuña',
+      'Benítez',
+      'Zapata',
+    ]);
+  });
 });
 
 describe('ordenar por fecha', () => {

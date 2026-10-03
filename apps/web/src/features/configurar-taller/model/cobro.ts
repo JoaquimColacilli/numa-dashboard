@@ -14,8 +14,11 @@ import {
 } from '@maun/domain';
 
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
+import { errorDelDolar } from '@/shared/ui';
 
-export type CampoDeCobro = 'alias' | 'cbu' | 'titular' | 'cuit' | 'link';
+export type CampoDeCobro =
+  'alias' | 'cbu' | 'titular' | 'cuit' | 'link' | 'aliasEnDolares' | 'cbuEnDolares' | 'dolarDelDia';
 
 export interface DatosDeCobro {
   alias: string;
@@ -23,6 +26,10 @@ export interface DatosDeCobro {
   titular: string;
   cuit: string;
   link: string;
+  aliasEnDolares: string;
+  cbuEnDolares: string;
+  dolarDelDia: number | null;
+  dolarDelDiaEl: string | null;
 }
 
 export interface ErrorDeCobro {
@@ -32,8 +39,15 @@ export interface ErrorDeCobro {
 
 export const LARGO_DEL_TITULAR = 200;
 
-export type AjustesGuardados = Omit<FilaDe<'ajustes'>, 'cobro_link'> &
-  Partial<Pick<FilaDe<'ajustes'>, 'cobro_link'>>;
+type ColumnaQuePuedeFaltar =
+  | 'cobro_link'
+  | 'cobro_dolares_alias'
+  | 'cobro_dolares_cbu'
+  | 'dolar_del_dia_centavos'
+  | 'dolar_del_dia_el';
+
+export type AjustesGuardados = Omit<FilaDe<'ajustes'>, ColumnaQuePuedeFaltar> &
+  Partial<Pick<FilaDe<'ajustes'>, ColumnaQuePuedeFaltar>>;
 
 export function cobroDeLosAjustes(ajustes: AjustesGuardados): DatosDeCobro {
   return {
@@ -42,6 +56,10 @@ export function cobroDeLosAjustes(ajustes: AjustesGuardados): DatosDeCobro {
     titular: ajustes.cobro_titular,
     cuit: ajustes.cobro_cuit,
     link: ajustes.cobro_link ?? '',
+    aliasEnDolares: ajustes.cobro_dolares_alias ?? '',
+    cbuEnDolares: formatearCbu(ajustes.cobro_dolares_cbu ?? ''),
+    dolarDelDia: ajustes.dolar_del_dia_centavos ?? null,
+    dolarDelDiaEl: ajustes.dolar_del_dia_el ?? null,
   };
 }
 
@@ -52,32 +70,39 @@ export function cambiosDeCobro(datos: DatosDeCobro): CambiosDeAjustes {
     cobro_titular: datos.titular.trim(),
     cobro_cuit: formatearCuit(datos.cuit),
     cobro_link: normalizarLinkDeCobro(datos.link),
+    cobro_dolares_alias: normalizarAlias(datos.aliasEnDolares),
+    cobro_dolares_cbu: digitosDeCbu(datos.cbuEnDolares),
+    dolar_del_dia_centavos: datos.dolarDelDia,
+    dolar_del_dia_el: datos.dolarDelDia === null ? null : datos.dolarDelDiaEl,
   };
 }
 
-function errorDelAlias(alias: string): ErrorDeCobro | null {
+function errorDelAlias(
+  alias: string,
+  campo: 'alias' | 'aliasEnDolares' = 'alias',
+): ErrorDeCobro | null {
   const revision = revisarAlias(alias);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
-    campo: 'alias',
+    campo,
     mensaje:
-      revision.motivo === 'caracteres'
-        ? 'Un alias lleva letras, números, punto y guion medio. Nada más: ni espacios, ni guion bajo, ni acentos.'
-        : 'Un alias tiene entre 6 y 20 caracteres. Si no te acordás, miralo en tu banco.',
+      revision.motivo === 'caracteres' ? errores.aliasConOtrosCaracteres : errores.aliasDeOtroLargo,
   };
 }
 
-function errorDelCbu(cbu: string): ErrorDeCobro | null {
+function errorDelCbu(cbu: string, campo: 'cbu' | 'cbuEnDolares' = 'cbu'): ErrorDeCobro | null {
   const revision = revisarCbu(cbu);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
-    campo: 'cbu',
+    campo,
     mensaje:
       revision.motivo === 'largo'
-        ? 'Un CBU o un CVU tiene 22 dígitos. Copialo de tu banco, no lo escribas de memoria.'
+        ? errores.cbuDeOtroLargo
         : revision.motivo === 'banco'
-          ? 'Este número no cierra: el control del banco da otro dígito. Revisá los primeros ocho.'
-          : 'Este número no cierra: el control de la cuenta da otro dígito. Revisá los últimos catorce.',
+          ? errores.cbuConOtroBanco
+          : errores.cbuConOtraCuenta,
   };
 }
 
@@ -86,7 +111,7 @@ function errorDelCuit(cuit: string): ErrorDeCobro | null {
   if (revision.estado !== 'invalido' || revision.motivo !== 'largo') return null;
   return {
     campo: 'cuit',
-    mensaje: 'Un CUIT tiene 11 dígitos. Dejalo vacío si no lo tenés a mano.',
+    mensaje: mensajes().configurarTaller.errorDelCuit,
   };
 }
 
@@ -94,22 +119,28 @@ function errorDelTitular(titular: string): ErrorDeCobro | null {
   if (titular.trim().length <= LARGO_DEL_TITULAR) return null;
   return {
     campo: 'titular',
-    mensaje: `El nombre del titular entra en ${String(LARGO_DEL_TITULAR)} caracteres.`,
+    mensaje: mensajes().configurarTaller.cobro.errores.titularLargo(LARGO_DEL_TITULAR),
   };
 }
 
 function errorDelLink(link: string): ErrorDeCobro | null {
   const revision = revisarLinkDeCobro(link);
   if (revision.estado !== 'invalido') return null;
+  const { errores } = mensajes().configurarTaller.cobro;
   return {
     campo: 'link',
     mensaje:
       revision.motivo === 'largo'
-        ? `Un link de Mercado Pago no pasa los ${String(LARGO_MAXIMO_DEL_LINK)} caracteres. Copialo de nuevo desde la app.`
+        ? errores.linkLargo(LARGO_MAXIMO_DEL_LINK)
         : revision.motivo === 'sin-https'
-          ? 'Pegá el link entero, arrancando por https://. Usá el botón de copiar de la app de Mercado Pago.'
-          : `Este link no es de Mercado Pago. Tiene que empezar por ${HOSTS_DE_MERCADO_PAGO.join(', ')}.`,
+          ? errores.linkSinHttps
+          : errores.linkDeOtroSitio(HOSTS_DE_MERCADO_PAGO.join(', ')),
   };
+}
+
+function errorDelDolarDelDia(valor: number | null): ErrorDeCobro | null {
+  const mensaje = errorDelDolar(valor, false);
+  return mensaje === undefined ? null : { campo: 'dolarDelDia', mensaje };
 }
 
 export function errorDeCobro(datos: DatosDeCobro): ErrorDeCobro | null {
@@ -118,34 +149,38 @@ export function errorDeCobro(datos: DatosDeCobro): ErrorDeCobro | null {
     errorDelCbu(datos.cbu) ??
     errorDelTitular(datos.titular) ??
     errorDelCuit(datos.cuit) ??
-    errorDelLink(datos.link)
+    errorDelLink(datos.link) ??
+    errorDelAlias(datos.aliasEnDolares, 'aliasEnDolares') ??
+    errorDelCbu(datos.cbuEnDolares, 'cbuEnDolares') ??
+    errorDelDolarDelDia(datos.dolarDelDia)
   );
 }
 
 export function avisoDelAlias(alias: string): string | undefined {
   const revision = revisarAlias(alias);
   if (revision.estado !== 'valido' || revision.aviso === null) return undefined;
+  const { avisos } = mensajes().configurarTaller.cobro;
   return revision.aviso === 'separador-en-la-punta'
-    ? 'Arranca o termina con un punto o un guion. La norma del banco central no lo prohíbe: si es el tuyo, guardalo igual.'
-    : 'Tiene dos puntos o guiones seguidos. La norma del banco central no lo prohíbe: si es el tuyo, guardalo igual.';
+    ? avisos.aliasConSeparadorEnLaPunta
+    : avisos.aliasConSeparadoresSeguidos;
 }
 
 export function avisoDelCuitDelTaller(cuit: string): string | undefined {
   const revision = revisarCuit(cuit);
-  if (revision.estado === 'ambiguo') {
-    return 'El verificador de este CUIT cae en el caso que no tiene una convención única. Guardalo igual si lo copiaste bien.';
-  }
+  const { avisos } = mensajes().configurarTaller.cobro;
+  if (revision.estado === 'ambiguo') return avisos.cuitAmbiguo;
   if (revision.estado === 'invalido' && revision.motivo === 'prefijo') {
-    return 'Los CUIT arrancan con 20, 23, 24, 27, 30, 33 o 34. Revisalo, pero podés guardarlo igual.';
+    return avisos.cuitConOtroPrefijo;
   }
   if (revision.estado === 'invalido' && revision.motivo === 'verificador') {
-    return 'El dígito verificador no cierra. Revisalo, pero podés guardarlo igual.';
+    return avisos.cuitConOtroVerificador;
   }
   return undefined;
 }
 
 export function etiquetaDeLaClave(cbu: string): string {
+  const textos = mensajes().configurarTaller.cobro;
   return revisarCbu(cbu).estado === 'valido' && claveBancariaDe(cbu) === 'cvu'
-    ? 'CVU de la billetera'
-    : 'CBU o CVU';
+    ? textos.cvuDeLaBilletera
+    : textos.cbuOCvu;
 }

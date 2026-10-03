@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
+import { usarIdioma } from '@/shared/idioma';
 
 import {
   fichaDeLaRespuesta,
@@ -224,6 +225,16 @@ describe('la ficha de una respuesta', () => {
   it('una respuesta que no está devuelve nada en vez de romper', () => {
     expect(fichaDeLaRespuesta(TALLER, 'otra')).toBeNull();
   });
+
+  it('el dueño lee lo que eligió el cliente en su propio idioma', async () => {
+    await usarIdioma('en');
+    try {
+      expect(fichaDeLaRespuesta(TALLER, 'r1')?.titular?.etiqueta).toBe('Very satisfied');
+      expect(novedadesDeOpiniones(TALLER, HOY).ultima?.titular?.etiqueta).toBe('Very satisfied');
+    } finally {
+      await usarIdioma('es');
+    }
+  }, 30_000);
 });
 
 describe('lo sin leer', () => {

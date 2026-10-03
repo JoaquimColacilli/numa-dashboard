@@ -1,5 +1,6 @@
 import {
   armarRespuestaDeEntrega,
+  ETIQUETAS_DE_IDIOMA,
   FRANJAS_DE_ENTREGA,
   LARGO_MAXIMO_DE_LA_NOTA,
   validarRespuestaDeEntrega,
@@ -11,7 +12,9 @@ import {
 } from '@maun/domain';
 import { useId, useRef, useState } from 'react';
 
-import { diaDeLaSemana, INICIALES_DE_LA_SEMANA, nombreDelMes, uuidv7 } from '@/shared/lib';
+import { useIdioma, useMensajes } from '@/shared/idioma';
+import type { MensajesDelCliente } from '@/shared/idioma-del-cliente';
+import { diaDeLaSemana, uuidv7 } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
 import {
@@ -22,22 +25,9 @@ import {
   llegoAlMaximo,
   mesesDelCalendario,
 } from '../model/calendario';
-import {
-  ACA_NO_SE_GUARDA_NADA,
-  anuncioDeLoMandado,
-  CAMBIO_EL_PEDIDO,
-  COORDINEMOS_LA_ENTREGA,
-  fechaConFranja,
-  LA_NOTA_MANDADA,
-  LLEGASTE_AL_MAXIMO,
-  loQueVeConElDiaAceptado,
-  LOS_DIAS_MANDADOS,
-  MOTIVO_DE_LA_ENTREGA,
-  QUEDO_CONFIRMADA,
-  textoDelDiaElegido,
-  YA_ESTABA_CONFIRMADA,
-} from '../model/textos';
-import type { CoordinacionConPedido, MandarLaEntrega } from '../model/mandar';
+import type { CoordinacionConPedido, MandarLaEntrega, MotivoDelError } from '../model/mandar';
+import { anuncioDeLoMandado, fechaConFranja, textoDelDiaElegido } from '../model/textos';
+import { useEscritura } from './escritura';
 
 export interface CoordinarLaEntregaProps {
   coordinacion: CoordinacionConPedido;
@@ -48,27 +38,20 @@ export interface CoordinarLaEntregaProps {
 
 type Modo = 'propuesta' | 'calendario' | 'mandados';
 
+type TextosDelCalendario = MensajesDelCliente['vista']['coordinar']['calendario'];
+
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 
-const DIAS_COMPLETOS = [
-  'lunes',
-  'martes',
-  'miércoles',
-  'jueves',
-  'viernes',
-  'sábado',
-  'domingo',
-] as const;
+function diaParaLeer(fecha: string, calendario: TextosDelCalendario): string {
+  return calendario.dia(
+    diaDeLaSemana(fecha),
+    Number(fecha.slice(8, 10)),
+    Number(fecha.slice(5, 7)) - 1,
+  );
+}
 
-const PARA_LA_FRANJA: Readonly<Record<FranjaDeEntrega, string>> = {
-  manana: 'A la mañana',
-  tarde: 'A la tarde',
-};
-
-function diaParaLeer(fecha: string): string {
-  const dia = DIAS_COMPLETOS[diaDeLaSemana(fecha)] ?? '';
-  const mes = nombreDelMes(fecha.slice(0, 7)).toLowerCase();
-  return `${dia} ${String(Number(fecha.slice(8, 10)))} de ${mes}`;
+function tituloDelMes(mes: string, calendario: TextosDelCalendario): string {
+  return calendario.meses[Number(mes.slice(5, 7)) - 1] ?? '';
 }
 
 function modoInicial(coordinacion: CoordinacionConPedido): Modo {
@@ -82,6 +65,10 @@ function enfocar(elemento: HTMLElement | null): void {
   elemento.focus();
 }
 
+function useDelDueno(): string {
+  return ETIQUETAS_DE_IDIOMA[useIdioma()];
+}
+
 function Calendario({
   hoy,
   elegidos,
@@ -91,6 +78,7 @@ function Calendario({
   elegidos: readonly DiaElegido[];
   alTocar: (fecha: string) => void;
 }) {
+  const { calendario } = useEscritura(hoy).t.coordinar;
   const base = useId();
   const lleno = llegoAlMaximo(elegidos);
   return (
@@ -98,10 +86,10 @@ function Calendario({
       {mesesDelCalendario(hoy).map(({ mes, semanas }) => (
         <div key={mes} role="group" aria-labelledby={`${base}-${mes}`}>
           <h3 id={`${base}-${mes}`} className="mb-2 text-body font-semibold">
-            {nombreDelMes(mes)}
+            {tituloDelMes(mes, calendario)}
           </h3>
           <div aria-hidden className="mb-1 grid grid-cols-7 gap-0.5">
-            {INICIALES_DE_LA_SEMANA.map((inicial, puesto) => (
+            {calendario.iniciales.map((inicial, puesto) => (
               <span
                 key={`${inicial}-${String(puesto)}`}
                 className="text-center text-meta font-medium text-text-3 uppercase"
@@ -132,7 +120,7 @@ function Calendario({
                   key={celda.fecha}
                   type="button"
                   aria-pressed={elegido}
-                  aria-label={diaParaLeer(celda.fecha)}
+                  aria-label={diaParaLeer(celda.fecha, calendario)}
                   disabled={apagado}
                   onClick={() => {
                     alTocar(celda.fecha);
@@ -157,21 +145,24 @@ function Calendario({
 }
 
 function LosDiasElegidos({
+  hoy,
   elegidos,
   alCambiarLaFranja,
   alSacar,
 }: {
+  hoy: string;
   elegidos: readonly DiaElegido[];
   alCambiarLaFranja: (fecha: string, franja: FranjaDeEntrega) => void;
   alSacar: (fecha: string) => void;
 }) {
+  const { coordinar } = useEscritura(hoy).t;
   if (elegidos.length === 0) return null;
   return (
     <div className="flex flex-col gap-1.5">
-      <h3 className="text-body font-semibold">Tus días</h3>
+      <h3 className="text-body font-semibold">{coordinar.tusDias}</h3>
       <ul className="list-none">
         {elegidos.map((dia) => {
-          const leido = diaParaLeer(dia.fecha);
+          const leido = diaParaLeer(dia.fecha, coordinar.calendario);
           return (
             <li
               key={dia.fecha}
@@ -180,7 +171,7 @@ function LosDiasElegidos({
               <span className="min-w-0 flex-1 basis-40 text-body font-medium first-letter:uppercase">
                 {leido}
               </span>
-              <span role="group" aria-label={`Horario del ${leido}`} className="flex gap-1.5">
+              <span role="group" aria-label={coordinar.horarioDel(leido)} className="flex gap-1.5">
                 {FRANJAS_DE_ENTREGA.map((franja) => {
                   const marcada = dia.franjas.includes(franja);
                   return (
@@ -197,7 +188,7 @@ function LosDiasElegidos({
                           : 'border-border bg-paper text-ink hover:bg-surface'
                       }`}
                     >
-                      {PARA_LA_FRANJA[franja]}
+                      {coordinar.franjas[franja]}
                     </button>
                   );
                 })}
@@ -205,8 +196,8 @@ function LosDiasElegidos({
               <Button
                 variant="herramienta"
                 size="herramienta"
-                aria-label={`Sacar el ${leido}`}
-                title="Sacar este día"
+                aria-label={coordinar.sacar(leido)}
+                title={coordinar.sacarEsteDia}
                 onClick={() => {
                   alSacar(dia.fecha);
                 }}
@@ -230,15 +221,22 @@ function LoQueMandaste({
   hoy: string;
   enLaPrueba: string | null;
 }) {
+  const escritura = useEscritura(hoy);
+  const { coordinar } = escritura.t;
+  const delDueno = useDelDueno();
   if (respuesta.respuesta === 'me_queda_bien') {
-    return (
-      <p className="mt-1 text-body leading-relaxed text-text-2">{enLaPrueba ?? QUEDO_CONFIRMADA}</p>
+    return enLaPrueba === null ? (
+      <p className="mt-1 text-body leading-relaxed text-text-2">{coordinar.quedoConfirmada}</p>
+    ) : (
+      <p lang={delDueno} className="mt-1 text-body leading-relaxed text-text-2">
+        {enLaPrueba}
+      </p>
     );
   }
   return (
     <>
       <p className="mt-1 text-body leading-relaxed text-text-2">
-        {respuesta.dias.length === 0 ? LA_NOTA_MANDADA : LOS_DIAS_MANDADOS}
+        {respuesta.dias.length === 0 ? coordinar.laNotaMandada : coordinar.losDiasMandados}
       </p>
       {respuesta.dias.length > 0 && (
         <ul className="mt-2.5 list-none">
@@ -247,13 +245,16 @@ function LoQueMandaste({
               key={dia.fecha}
               className="border-t border-hairline-soft py-2 text-body font-medium tabular-nums first-letter:uppercase"
             >
-              {textoDelDiaElegido(dia, hoy)}
+              {textoDelDiaElegido(dia, escritura)}
             </li>
           ))}
         </ul>
       )}
       {respuesta.nota.trim() !== '' && (
-        <p className="mt-2.5 rounded-field bg-surface-3 px-3.5 py-2.5 text-body leading-relaxed whitespace-pre-line">
+        <p
+          translate="no"
+          className="mt-2.5 rounded-field bg-surface-3 px-3.5 py-2.5 text-body leading-relaxed whitespace-pre-line"
+        >
           {respuesta.nota}
         </p>
       )}
@@ -267,6 +268,10 @@ export function CoordinarLaEntrega({
   alMandar,
   alAnunciar,
 }: CoordinarLaEntregaProps) {
+  const escritura = useEscritura(hoy);
+  const { coordinar } = escritura.t;
+  const delDueno = useDelDueno();
+  const dueno = useMensajes().vistaCliente;
   const base = useId();
   const titulo = useRef<HTMLHeadingElement>(null);
   const instrucciones = useRef<HTMLParagraphElement>(null);
@@ -278,12 +283,12 @@ export function CoordinarLaEntrega({
   const [mandada, setMandada] = useState<RespuestaDelCliente | null>(coordinacion.respuesta);
   const [idDeLaRespuesta, setIdDeLaRespuesta] = useState(uuidv7);
   const [mandando, setMandando] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<MotivoDelError | null>(null);
   const { propuesta } = coordinacion;
   const esPrueba = alMandar === undefined;
 
   function abrirElCalendario(): void {
-    setError('');
+    setError(null);
     setModo('calendario');
     requestAnimationFrame(() => {
       enfocar(instrucciones.current);
@@ -291,7 +296,7 @@ export function CoordinarLaEntrega({
   }
 
   function volverALaPropuesta(): void {
-    setError('');
+    setError(null);
     setMandada(coordinacion.respuesta);
     setModo('propuesta');
     requestAnimationFrame(() => {
@@ -300,7 +305,7 @@ export function CoordinarLaEntrega({
   }
 
   function dejarComoEstaban(anterior: RespuestaDelCliente): void {
-    setError('');
+    setError(null);
     setElegidos(diasQueSiguenSirviendo(anterior.dias, hoy));
     setNota(anterior.nota);
     setModo('mandados');
@@ -313,7 +318,7 @@ export function CoordinarLaEntrega({
     setMandada({ respuesta: armada.respuesta, dias: armada.dias, nota: armada.nota });
     setIdDeLaRespuesta(uuidv7());
     setModo('mandados');
-    alAnunciar(anuncioDeLoMandado(armada, propuesta, hoy));
+    alAnunciar(anuncioDeLoMandado(armada, propuesta, escritura));
     requestAnimationFrame(() => {
       enfocar(titulo.current);
     });
@@ -321,7 +326,7 @@ export function CoordinarLaEntrega({
 
   async function mandar(respuesta: RespuestaDeEntrega): Promise<void> {
     if (mandando) return;
-    setError('');
+    setError(null);
     const armada = armarRespuestaDeEntrega(
       idDeLaRespuesta,
       propuesta.id,
@@ -331,7 +336,7 @@ export function CoordinarLaEntrega({
     );
     const motivo = validarRespuestaDeEntrega(armada, propuesta.forma, hoy);
     if (motivo !== null) {
-      setError(MOTIVO_DE_LA_ENTREGA[motivo]);
+      setError(motivo);
       return;
     }
     if (alMandar === undefined) {
@@ -346,25 +351,27 @@ export function CoordinarLaEntrega({
         quedoMandada(armada);
         return;
       case 'ya-confirmada':
-        alAnunciar(YA_ESTABA_CONFIRMADA);
+        alAnunciar(coordinar.yaEstabaConfirmada);
         return;
       case 'cambio':
-        alAnunciar(CAMBIO_EL_PEDIDO);
+        alAnunciar(coordinar.cambioElPedido);
         return;
       case 'error':
-        setError(resultado.texto);
+        setError(resultado.motivo);
     }
   }
 
   const pie = (
     <>
-      {error !== '' && (
+      {error !== null && (
         <p role="alert" className="mt-3 text-body leading-relaxed font-medium text-alerta">
-          {error}
+          {coordinar.motivos[error]}
         </p>
       )}
       {esPrueba && (
-        <p className="mt-3 text-label leading-relaxed text-text-3">{ACA_NO_SE_GUARDA_NADA}</p>
+        <p lang={delDueno} className="mt-3 text-label leading-relaxed text-text-3">
+          {dueno.acaNoSeGuardaNada}
+        </p>
       )}
     </>
   );
@@ -372,14 +379,14 @@ export function CoordinarLaEntrega({
   return (
     <section aria-labelledby={`${base}-titulo`} className={TARJETA}>
       <h2 id={`${base}-titulo`} ref={titulo} className="text-section font-semibold">
-        {COORDINEMOS_LA_ENTREGA}
+        {coordinar.titulo}
       </h2>
 
       {modo === 'propuesta' && coordinacion.situacion === 'un-dia' && (
         <>
-          <p className="mt-1 text-body leading-relaxed text-text-2">Te proponemos este día:</p>
+          <p className="mt-1 text-body leading-relaxed text-text-2">{coordinar.teProponemos}</p>
           <p className="mt-2 text-body-lg font-semibold first-letter:uppercase">
-            {fechaConFranja(coordinacion.propuesta.fecha, coordinacion.propuesta.franja, hoy)}
+            {fechaConFranja(coordinacion.propuesta.fecha, coordinacion.propuesta.franja, escritura)}
           </p>
           <div className="mt-4 flex flex-col gap-2 min-[26rem]:flex-row">
             <Button
@@ -388,10 +395,10 @@ export function CoordinarLaEntrega({
                 void mandar('me_queda_bien');
               }}
             >
-              {mandando ? 'Mandando…' : 'Me queda bien'}
+              {mandando ? coordinar.mandando : coordinar.meQuedaBien}
             </Button>
             <Button variant="secundario" disabled={mandando} onClick={abrirElCalendario}>
-              No puedo ese día
+              {coordinar.noPuedoEseDia}
             </Button>
           </div>
           {pie}
@@ -401,23 +408,22 @@ export function CoordinarLaEntrega({
       {modo === 'calendario' && (
         <>
           <p ref={instrucciones} className="mt-1 text-body leading-relaxed text-text-2">
-            {coordinacion.situacion === 'un-dia'
-              ? 'Marcá los días que te quedan bien y si es a la mañana, a la tarde o las dos. Entregamos de lunes a sábado.'
-              : 'Para coordinar la entrega, marcá los días que te quedan bien y si es a la mañana, a la tarde o las dos. Entregamos de lunes a sábado.'}
+            {coordinar.marcaLosDias[coordinacion.situacion]}
           </p>
           <div className="mt-4 flex flex-col gap-4">
             <Calendario
               hoy={hoy}
               elegidos={elegidos}
               alTocar={(fecha) => {
-                setError('');
+                setError(null);
                 setElegidos((actuales) => conElDia(actuales, fecha));
               }}
             />
             {llegoAlMaximo(elegidos) && (
-              <p className="text-label leading-relaxed text-text-2">{LLEGASTE_AL_MAXIMO}</p>
+              <p className="text-label leading-relaxed text-text-2">{coordinar.llegasteAlMaximo}</p>
             )}
             <LosDiasElegidos
+              hoy={hoy}
               elegidos={elegidos}
               alCambiarLaFranja={(fecha, franja) => {
                 setElegidos((actuales) => conLaFranja(actuales, fecha, franja));
@@ -428,11 +434,10 @@ export function CoordinarLaEntrega({
             />
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${base}-nota`} className="text-body font-semibold">
-                ¿Algo que tengamos que saber?
+                {coordinar.algoQueTengamosQueSaber}
               </label>
               <span id={`${base}-ayuda`} className="text-label leading-relaxed text-text-2">
-                Por ejemplo, si hay portero, el piso o un horario que no podés. Si no marcás días,
-                contanos acá cuándo te queda bien.
+                {coordinar.porEjemplo}
               </span>
               <textarea
                 id={`${base}-nota`}
@@ -441,7 +446,7 @@ export function CoordinarLaEntrega({
                 rows={3}
                 maxLength={LARGO_MAXIMO_DE_LA_NOTA}
                 onChange={(evento) => {
-                  setError('');
+                  setError(null);
                   setNota(evento.target.value);
                 }}
                 className="w-full resize-y rounded-field border-[1.5px] border-border bg-paper px-3.5 py-3 text-body-lg leading-7 text-ink placeholder:text-text-3 focus:border-ink"
@@ -455,11 +460,11 @@ export function CoordinarLaEntrega({
                 void mandar('mis_dias');
               }}
             >
-              {mandando ? 'Mandando…' : 'Mandar mis días'}
+              {mandando ? coordinar.mandando : coordinar.mandarMisDias}
             </Button>
             {coordinacion.situacion === 'un-dia' && mandada === null && (
               <Button variant="secundario" disabled={mandando} onClick={volverALaPropuesta}>
-                Volver al día que te propusimos
+                {coordinar.volverAlDiaQueTePropusimos}
               </Button>
             )}
             {mandada !== null && (
@@ -470,7 +475,7 @@ export function CoordinarLaEntrega({
                   dejarComoEstaban(mandada);
                 }}
               >
-                Dejarlos como estaban
+                {coordinar.dejarlosComoEstaban}
               </Button>
             )}
           </div>
@@ -485,10 +490,15 @@ export function CoordinarLaEntrega({
             hoy={hoy}
             enLaPrueba={
               esPrueba && coordinacion.situacion === 'un-dia'
-                ? loQueVeConElDiaAceptado(
-                    coordinacion.propuesta.fecha,
-                    coordinacion.propuesta.franja,
-                    hoy,
+                ? dueno.loQueVeConElDiaAceptado(
+                    coordinar.meQuedaBien,
+                    escritura.t.pagina.buenasNoticias(
+                      fechaConFranja(
+                        coordinacion.propuesta.fecha,
+                        coordinacion.propuesta.franja,
+                        escritura,
+                      ),
+                    ),
                   )
                 : null
             }
@@ -496,14 +506,14 @@ export function CoordinarLaEntrega({
           {mandada.respuesta === 'mis_dias' && (
             <div className="mt-4">
               <Button variant="secundario" onClick={abrirElCalendario}>
-                Cambiar mis días
+                {coordinar.cambiarMisDias}
               </Button>
             </div>
           )}
           {mandada.respuesta === 'me_queda_bien' && esPrueba && (
             <div className="mt-4">
-              <Button variant="secundario" onClick={volverALaPropuesta}>
-                Volver a empezar
+              <Button lang={delDueno} variant="secundario" onClick={volverALaPropuesta}>
+                {dueno.volverAEmpezar}
               </Button>
             </div>
           )}

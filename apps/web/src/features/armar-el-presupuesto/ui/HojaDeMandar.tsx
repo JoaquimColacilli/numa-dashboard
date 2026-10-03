@@ -1,25 +1,36 @@
 import {
+  cotizacionLeida,
+  idiomaLeido,
   LARGOS_DEL_PRESUPUESTO,
   problemasParaMandar,
   type CampoQueFalta,
   type DocumentoDelPresupuesto,
+  type Idioma,
+  type ReferenciaEnPesos,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState, type MouseEvent, type ReactNode } from 'react';
 
 import { MUTACION_DEL_ENVIO, type EnvioDelPresupuesto } from '@/entities/presupuesto';
 import { EstadoBadge } from '@/entities/proyecto';
-import { mensajeDeSincronizacion, traducirRechazo } from '@/shared/api';
+import { idiomaDeLosClientes, MUTACION_DE_AJUSTES, useReplicaDelTaller } from '@/entities/replica';
+import { ajustesDe, mensajeDeSincronizacion, traducirRechazo, type FilaDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
+import { useMensajesDelClienteEn } from '@/shared/idioma-del-cliente';
 import {
   fechaLarga,
+  formatearPesos,
   mensajeParaElCliente,
   metaDeAvisos,
   useAnchoDePantalla,
   whatsappCon,
+  type TextosDelMensajeAlCliente,
 } from '@/shared/lib';
-import { PREPARANDO_EL_PDF, usePdfDelPresupuesto } from '@/shared/pdf';
+import { usePdfDelPresupuesto, useTextosDelPdf } from '@/shared/pdf';
 import {
   Button,
+  CampoDelDolar,
+  errorDelDolar,
   FilaDeAcciones,
   Hoja,
   Icono,
@@ -28,6 +39,8 @@ import {
   TextoQueCrece,
   type NombreDeIcono,
 } from '@/shared/ui';
+
+import { dolarDeHoy } from '../model/documento';
 
 function Renglon({ icono, children }: { icono: NombreDeIcono; children: ReactNode }) {
   return (
@@ -43,12 +56,9 @@ function Renglon({ icono, children }: { icono: NombreDeIcono; children: ReactNod
   );
 }
 
-const NOMBRE_DEL_CAMPO: Readonly<Record<CampoQueFalta, string>> = {
-  titulo: 'Título',
-  muebles: 'Detalle',
-  valores: 'Valores',
-  queCambio: 'Qué cambió',
-};
+function MensajeAlCliente({ children }: { children: ReactNode }) {
+  return <span translate="no">{children}</span>;
+}
 
 export interface EnlaceParaMandar {
   url: string | null;
@@ -68,14 +78,25 @@ export interface HojaDeMandarProps {
   trabajo: string;
   telefono: string;
   enlace: EnlaceParaMandar;
-  armarElEnvio: (queCambio: string) => EnvioDelPresupuesto | null;
+  armarElEnvio: (
+    queCambio: string,
+    referencia: ReferenciaEnPesos | null,
+  ) => EnvioDelPresupuesto | null;
   alIrAlCampo: (campo: CampoQueFalta) => void;
   alCerrar: () => void;
 }
 
+type DolarDelTaller = Pick<FilaDe<'ajustes'>, 'dolar_del_dia_centavos' | 'dolar_del_dia_el'>;
+
+function dolarGuardado(ajustes: Partial<DolarDelTaller>): DolarDelTaller {
+  return {
+    dolar_del_dia_centavos: ajustes.dolar_del_dia_centavos ?? null,
+    dolar_del_dia_el: ajustes.dolar_del_dia_el ?? null,
+  };
+}
+
 function primerNombre(cliente: string): string {
-  const nombre = cliente.trim().split(/\s+/)[0] ?? '';
-  return nombre === '' ? 'Tu cliente' : nombre;
+  return cliente.trim().split(/\s+/)[0] ?? '';
 }
 
 function Listo({
@@ -84,11 +105,13 @@ function Listo({
   hoy,
   valeHasta,
   documento,
+  idioma,
   cliente,
   trabajo,
   telefono,
   enlace,
   queCambio,
+  whatsapp,
   alCerrar,
 }: {
   numero: string;
@@ -96,13 +119,17 @@ function Listo({
   hoy: string;
   valeHasta: string | null;
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   cliente: string;
   trabajo: string;
   telefono: string;
   enlace: EnlaceParaMandar;
   queCambio: string | null;
+  whatsapp: TextosDelMensajeAlCliente | undefined;
   alCerrar: () => void;
 }) {
+  const m = useMensajes().armarElPresupuesto.mandar.listo;
+  const textosDelPdf = useTextosDelPdf();
   const id = useId();
   const enCelular = useAnchoDePantalla() === 'movil';
   const esLaPrimera = revision <= 1;
@@ -110,6 +137,7 @@ function Listo({
   const pdf = usePdfDelPresupuesto(
     {
       documento,
+      idioma,
       numero,
       revision,
       mandadoEl: hoy,
@@ -120,7 +148,17 @@ function Listo({
     },
     { alAbrir: true },
   );
-  const mensaje = mensajeParaElCliente(cliente, trabajo, url ?? '', true);
+  const paraElCliente = (direccion: string) =>
+    whatsapp === undefined ? '' : mensajeParaElCliente(whatsapp, cliente, trabajo, direccion, true);
+  const mensaje = paraElCliente(url ?? '');
+  const nombre = primerNombre(cliente);
+  const yaLoVe = esLaPrimera
+    ? nombre === ''
+      ? m.tuClienteYaLoPuedeVer
+      : m.yaLoPuedeVer(nombre)
+    : nombre === ''
+      ? m.tuClienteYaVeLaRevision(revision)
+      : m.yaVeLaRevision(nombre, revision);
 
   function alTocarWhatsapp(evento: MouseEvent<HTMLAnchorElement>): void {
     if (url !== null) return;
@@ -130,16 +168,13 @@ function Listo({
       return;
     }
     setUrl(nueva);
-    evento.currentTarget.href = whatsappCon(
-      telefono,
-      mensajeParaElCliente(cliente, trabajo, nueva, true),
-    );
+    evento.currentTarget.href = whatsappCon(telefono, paraElCliente(nueva));
   }
 
   return (
     <Hoja
-      titulo="Listo"
-      bajada={esLaPrimera ? `Nº ${numero}` : `Nº ${numero} · Rev. ${String(revision)}`}
+      titulo={m.titulo}
+      bajada={esLaPrimera ? m.numero(numero) : m.numeroYRevision(numero, revision)}
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
     >
@@ -152,9 +187,7 @@ function Listo({
             >
               <Icono nombre="check" tamano={16} grosor={2.25} />
             </span>
-            {esLaPrimera
-              ? `${primerNombre(cliente)} ya lo puede ver en su página.`
-              : `${primerNombre(cliente)} ya ve la revisión ${String(revision)} en su página.`}
+            {yaLoVe}
           </p>
           <RotuloDelPresupuesto
             numero={numero}
@@ -164,17 +197,12 @@ function Listo({
           />
           <section aria-labelledby={`${id}-aviso`} className="flex flex-col gap-2">
             <h3 id={`${id}-aviso`} className="text-label font-medium text-text-2">
-              Avisale por WhatsApp
+              {m.avisale}
             </h3>
             <p className="rounded-field border border-hairline bg-surface-3 px-3.5 py-3 text-body leading-relaxed text-ink">
-              «{mensajeParaElCliente(cliente, trabajo, '', true).replace(/: $/, '')}», con el enlace
-              a su página.
+              {m.conElEnlace(MensajeAlCliente, paraElCliente('').replace(/: $/, ''))}
             </p>
-            {url === null && (
-              <p className="text-meta text-text-3">
-                Todavía no tiene enlace: al tocar, se crea y va en el mensaje.
-              </p>
-            )}
+            {url === null && <p className="text-meta text-text-3">{m.sinEnlace}</p>}
           </section>
         </div>
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
@@ -187,13 +215,13 @@ function Listo({
               className="apretable inline-flex min-h-button items-center justify-center gap-2 rounded-pill bg-ink px-[18px] py-1.5 text-center text-body font-medium text-paper hover:bg-ink-hover"
             >
               <Icono nombre="message-circle" tamano={18} />
-              Mandarle el link por WhatsApp
+              {m.mandarleElLink}
             </a>
             <Button variant="secundario" onClick={pdf.descargar}>
               <Icono nombre="download" tamano={16} />
               {pdf.estado === 'preparando' && pdf.esperando === 'descargar'
-                ? PREPARANDO_EL_PDF
-                : 'Descargar el PDF'}
+                ? textosDelPdf.preparando
+                : m.descargarElPdf}
             </Button>
           </div>
         </footer>
@@ -211,11 +239,14 @@ function Anotado({
   cliente: string;
   alCerrar: () => void;
 }) {
+  const textos = useMensajes().armarElPresupuesto;
+  const m = textos.mandar.anotado;
   const enCelular = useAnchoDePantalla() === 'movil';
+  const nombre = primerNombre(cliente);
   return (
     <Hoja
-      titulo="Anotado sin señal"
-      bajada={revision <= 1 ? 'El presupuesto' : `La revisión ${String(revision)}`}
+      titulo={m.titulo}
+      bajada={revision <= 1 ? m.elPresupuesto : m.laRevision(revision)}
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
     >
@@ -228,17 +259,15 @@ function Anotado({
             >
               <Icono nombre="cloud-off" tamano={16} />
             </span>
-            Se numera cuando vuelva la señal.
+            {textos.seNumeraCuandoVuelvaLaSenal}
           </p>
           <p className="text-body leading-relaxed text-text-2">
-            Quedó en la cola: apenas haya señal se manda solo, con su número, y{' '}
-            {primerNombre(cliente)} lo ve en su página. El link por WhatsApp lo vas a tener en la
-            tarjeta del presupuesto cuando se mande.
+            {nombre === '' ? m.quedoEnLaColaTuCliente : m.quedoEnLaCola(nombre)}
           </p>
         </div>
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
           <Button className="w-full" onClick={alCerrar}>
-            Listo
+            {m.listo}
           </Button>
         </footer>
       </div>
@@ -263,16 +292,43 @@ export function HojaDeMandar({
   alIrAlCampo,
   alCerrar,
 }: HojaDeMandarProps) {
+  const textos = useMensajes().armarElPresupuesto;
+  const m = textos.mandar;
+  const replica = useReplicaDelTaller();
+  const delCliente = useMensajesDelClienteEn(idiomaDeLosClientes(replica));
   const id = useId();
   const enCelular = useAnchoDePantalla() === 'movil';
   const [queCambio, setQueCambio] = useState('');
+  const [dolarEscrito, setDolarEscrito] = useState<number | null>(null);
   const mandar = useMutation({
     ...MUTACION_DEL_ENVIO,
     meta: metaDeAvisos('presupuestoMandado', { errorEnPantalla: true, sujeto: trabajo }),
   });
+  const guardarElDolar = useMutation(MUTACION_DE_AJUSTES);
   const problemas = problemasParaMandar(documento, revision, queCambio);
   const faltaAlgoDelBorrador = problemas.some(({ campo }) => campo !== 'queCambio');
   const esLaPrimera = revision <= 1;
+  const enDolares = documento.forma === 2;
+  const delDia = enDolares ? dolarDeHoy(replica, hoy) : null;
+  const pideElDolar = enDolares && delDia === null;
+  const dolar = delDia ?? cotizacionLeida(dolarEscrito);
+  const referencia: ReferenciaEnPesos | null =
+    !enDolares || dolar === null ? null : { cotizacion: dolar, fecha: hoy };
+  const faltaElDolar = enDolares && referencia === null;
+
+  function mandarlo(): void {
+    const envio = armarElEnvio(queCambio, referencia);
+    if (envio === null) return;
+    const ajustes = ajustesDe(replica);
+    if (pideElDolar && referencia !== null && ajustes !== undefined) {
+      guardarElDolar.mutate({
+        id: ajustes.id,
+        cambios: { dolar_del_dia_centavos: referencia.cotizacion, dolar_del_dia_el: hoy },
+        previos: dolarGuardado(ajustes),
+      });
+    }
+    mandar.mutate(envio);
+  }
 
   if (mandar.isSuccess) {
     return (
@@ -281,12 +337,14 @@ export function HojaDeMandar({
         revision={mandar.data.revision.revision}
         hoy={mandar.data.revision.mandado_el}
         valeHasta={mandar.data.revision.vale_hasta}
-        documento={documento}
+        documento={mandar.variables.pedido.documento}
+        idioma={idiomaLeido(mandar.data.revision.idioma)}
         cliente={cliente}
         trabajo={trabajo}
         telefono={telefono}
         enlace={enlace}
         queCambio={mandar.data.revision.que_cambio}
+        whatsapp={delCliente?.whatsapp}
         alCerrar={alCerrar}
       />
     );
@@ -298,22 +356,24 @@ export function HojaDeMandar({
 
   const rechazo = mandar.isError
     ? (traducirRechazo(mandar.error, { operacion: 'presupuesto', sujeto: trabajo }) ?? {
-        titulo: 'No se pudo mandar el presupuesto.',
+        titulo: m.noSePudoMandar,
         queHacer: mensajeDeSincronizacion(mandar.error),
       })
     : null;
-  const titulo = esLaPrimera ? 'Mandar el presupuesto' : `Mandar la revisión ${String(revision)}`;
+  const titulo = esLaPrimera ? textos.mandarElPresupuesto : textos.mandarLaRevision(revision);
   const delPresupuesto = documento.titulo.trim();
 
   return (
     <Hoja
       titulo={titulo}
       bajada={
-        numero !== null
-          ? `Nº ${numero} · ${cliente}`
-          : delPresupuesto === ''
-            ? cliente
-            : `${delPresupuesto} · ${cliente}`
+        numero !== null ? (
+          m.numeroYCliente(numero, cliente)
+        ) : (
+          <span translate="no" className="truncate text-label text-text-2">
+            {delPresupuesto === '' ? cliente : `${delPresupuesto} · ${cliente}`}
+          </span>
+        )
       }
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
@@ -332,7 +392,7 @@ export function HojaDeMandar({
                   className="flex items-center gap-2 text-body font-semibold text-atencion"
                 >
                   <Icono nombre="triangle-alert" tamano={16} />
-                  Le falta algo para mandarlo
+                  {m.leFaltaAlgo}
                 </h3>
                 <ul className="flex flex-col">
                   {problemas
@@ -346,9 +406,9 @@ export function HojaDeMandar({
                           }}
                           className="flex min-h-tap w-full items-center gap-3 text-left text-body text-ink"
                         >
-                          <span className="min-w-0 flex-1">{problema.texto}</span>
+                          <span className="min-w-0 flex-1">{m.loQueFalta[problema.motivo]}</span>
                           <span className="flex flex-none items-center gap-1 text-label font-semibold underline underline-offset-3">
-                            {NOMBRE_DEL_CAMPO[problema.campo]}
+                            {m.campos[problema.campo]}
                             <Icono nombre="chevron-right" tamano={16} />
                           </span>
                         </button>
@@ -371,35 +431,41 @@ export function HojaDeMandar({
               </p>
             )}
 
+            {pideElDolar && (
+              <CampoDelDolar
+                etiqueta={m.dolar.pregunta}
+                value={dolarEscrito}
+                onChange={setDolarEscrito}
+                error={dolarEscrito === null ? undefined : errorDelDolar(dolarEscrito, false)}
+                ayuda={m.dolar.ayuda}
+              />
+            )}
+
             <section aria-labelledby={`${id}-que-pasa`} className="flex flex-col gap-2.5">
               <h3 id={`${id}-que-pasa`} className="text-label font-medium text-text-2">
-                Qué pasa al mandarlo
+                {m.quePasa}
               </h3>
               <ul className="flex flex-col gap-2">
                 <Renglon icono="eye">
-                  Tu cliente lo ve en su página con el número y la fecha de hoy
-                  {esLaPrimera ? ', y lo puede bajar en PDF.' : ', arriba de todo lo que cambió.'}
+                  {esLaPrimera ? m.loVeYLoPuedeBajar : m.loVeArribaDeLoQueCambio}
                 </Renglon>
                 <Renglon icono="calendar">
-                  {valeHasta === null
-                    ? 'No vence: no le mostramos una fecha límite.'
-                    : `Vale hasta el ${fechaLarga(valeHasta, hoy)}.`}
+                  {valeHasta === null ? m.noVence : m.valeHasta(fechaLarga(valeHasta, hoy))}
                 </Renglon>
                 {pasaAPresupuestoEnviado && (
                   <Renglon icono="arrow-right">
                     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                      Pasa a <EstadoBadge estado="presupuesto_enviado" />
+                      {m.pasaA(<EstadoBadge estado="presupuesto_enviado" />)}
                     </span>
                   </Renglon>
                 )}
-                {tildaLaTarea && (
-                  <Renglon icono="list-checks">
-                    Se tilda «Armar el presupuesto» en Qué falta.
-                  </Renglon>
-                )}
-                {!esLaPrimera && (
-                  <Renglon icono="history">
-                    La revisión {revision - 1} queda guardada en la ficha, con su PDF.
+                {tildaLaTarea && <Renglon icono="list-checks">{m.seTilda}</Renglon>}
+                {!esLaPrimera && <Renglon icono="history">{m.quedaGuardada(revision - 1)}</Renglon>}
+                {enDolares && (
+                  <Renglon icono="coins">
+                    {referencia === null
+                      ? m.conElDolarDeHoy
+                      : m.conLaReferencia(formatearPesos(referencia.cotizacion))}
                   </Renglon>
                 )}
               </ul>
@@ -413,10 +479,10 @@ export function HojaDeMandar({
                     className="flex items-center gap-2 text-body font-semibold"
                   >
                     <MarcaDeRevision numero={revision} suelta />
-                    Qué cambió
+                    {m.queCambio}
                   </label>
                   <span className="text-meta text-text-3 tabular-nums">
-                    {queCambio.length} de {LARGOS_DEL_PRESUPUESTO.queCambio}
+                    {m.contador(queCambio.length, LARGOS_DEL_PRESUPUESTO.queCambio)}
                   </span>
                 </span>
                 <TextoQueCrece
@@ -424,12 +490,10 @@ export function HojaDeMandar({
                   valor={queCambio}
                   filasMinimas={3}
                   maxLength={LARGOS_DEL_PRESUPUESTO.queCambio}
-                  placeholder="Pasamos la alacena a Gris Grafito y sumamos…"
+                  placeholder={m.ejemploDeQueCambio}
                   alCambiar={setQueCambio}
                 />
-                <span className="text-meta text-text-3">
-                  Lo lee tu cliente arriba del presupuesto. Hace falta para mandar una revisión.
-                </span>
+                <span className="text-meta text-text-3">{m.loLeeTuCliente}</span>
               </section>
             )}
           </div>
@@ -437,17 +501,14 @@ export function HojaDeMandar({
           <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
             <FilaDeAcciones>
               <Button variant="secundario" onClick={pedirCierre}>
-                Cancelar
+                {m.cancelar}
               </Button>
               <Button
-                disabled={problemas.length > 0 || !todoGuardado || mandar.isPending}
-                onClick={() => {
-                  const envio = armarElEnvio(queCambio);
-                  if (envio !== null) mandar.mutate(envio);
-                }}
+                disabled={problemas.length > 0 || faltaElDolar || !todoGuardado || mandar.isPending}
+                onClick={mandarlo}
               >
                 <Icono nombre="send" tamano={16} />
-                {mandar.isPending ? 'Mandando…' : todoGuardado ? 'Mandar' : 'Guardando…'}
+                {mandar.isPending ? m.mandando : todoGuardado ? m.mandar : m.guardando}
               </Button>
             </FilaDeAcciones>
           </footer>

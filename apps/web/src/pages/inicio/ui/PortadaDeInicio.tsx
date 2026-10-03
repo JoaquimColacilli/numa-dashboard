@@ -1,10 +1,11 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 
 import { fraseDelCorte, piezasDelCorte, type CorteDelMes } from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
 import {
   formatearPesos,
   mesDeLaFecha,
-  nombreDelMes,
+  mesEnUnaFrase,
   useAnchoDePantalla,
   useIr,
 } from '@/shared/lib';
@@ -26,6 +27,8 @@ export interface PortadaDeInicioProps {
 }
 
 export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) {
+  const m = useMensajes();
+  const textos = m.paginaInicio.portada;
   const titulo = useId();
   const ir = useIr();
   const ancho = useAnchoDePantalla();
@@ -65,12 +68,9 @@ export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) 
       {arranque ? (
         <>
           <h2 id={titulo} className={TITULO_DE_LAMINA}>
-            El taller arranca acá
+            {textos.arrancaAca}
           </h2>
-          <p className="text-body leading-relaxed text-text-2">
-            Cargá el sueldo que te asignás y tus costos fijos para que Inicio te cuente cuánto te
-            falta cada mes. Después, el primer proyecto.
-          </p>
+          <p className="text-body leading-relaxed text-text-2">{textos.cargaElSueldo}</p>
           <div className="w-full pt-2">
             <FilaDeAcciones>
               <Button
@@ -78,7 +78,7 @@ export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) 
                   ir('/ajustes');
                 }}
               >
-                Cargar sueldo y costos fijos
+                {textos.cargarSueldoYCostosFijos}
               </Button>
               <Button
                 variant="secundario"
@@ -86,7 +86,7 @@ export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) 
                   ir('/proyectos');
                 }}
               >
-                Cargar el primer proyecto
+                {textos.cargarElPrimerProyecto}
               </Button>
             </FilaDeAcciones>
           </div>
@@ -94,7 +94,7 @@ export function PortadaDeInicio({ hoy, corte, arranque }: PortadaDeInicioProps) 
       ) : (
         <>
           <h2 id={titulo} className="text-label font-semibold text-text-2">
-            {`El corte de ${nombreDelMes(mes).toLowerCase()}`}
+            {textos.elCorte(mesEnUnaFrase(mes))}
           </h2>
           <p className="font-display text-firma leading-snug text-pretty @min-[40rem]/con-lamina:text-portada">
             {fraseDelCorte(corte, mes)}

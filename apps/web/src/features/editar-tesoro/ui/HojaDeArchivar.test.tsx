@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProveedorDeReplica } from '@/entities/replica';
-import { formatearPesos } from '@/shared/lib';
+import { formatearPesos, formatearPlata } from '@/shared/lib';
 import {
   TABLAS_REPLICADAS,
   type MovimientoNuevo,
@@ -24,12 +24,21 @@ const MAUN = '01900000-0000-7000-8000-000000000002';
 const DIEZMO = '01900000-0000-7000-8000-000000000003';
 const COCOS = '01900000-0000-7000-8000-000000000004';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000006';
+const DOLARES = '01900000-0000-7000-8000-000000000007';
+const AHORRO_EN_DOLARES = '01900000-0000-7000-8000-000000000008';
 
-function filaDeTesoro(id: string, clave: string | null, nombre: string, tinta: string) {
+function filaDeTesoro(
+  id: string,
+  clave: string | null,
+  nombre: string,
+  tinta: string,
+  moneda = 'ARS',
+) {
   return {
     id,
     household_id: 'h',
     clave,
+    moneda,
     nombre,
     descripcion: '',
     tinta,
@@ -77,10 +86,23 @@ function gasto(desde: string, monto: number) {
   };
 }
 
+function conPlata(tesoro: string, clave: string | null, saldo: number) {
+  if (saldo > 0) return [ingreso(tesoro, clave, saldo)];
+  if (saldo < 0) return [gasto(tesoro, -saldo)];
+  return [];
+}
+
 function replicaDelTaller({
   herramientas = 15_000_000,
   fila = null,
-}: { herramientas?: number; fila?: unknown } = {}): Replica {
+  dolares,
+  ahorroEnDolares,
+}: {
+  herramientas?: number;
+  fila?: unknown;
+  dolares?: number;
+  ahorroEnDolares?: number;
+} = {}): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.households = { h: { id: 'h', nombre: 'Taller MAUN' } };
@@ -93,29 +115,39 @@ function replicaDelTaller({
     filaDeTesoro(DIEZMO, 'diezmo', 'Diezmo', 'diezmo'),
     filaDeTesoro(COCOS, 'cocos', 'Cocos', 'cocos'),
     filaDeTesoro(HERRAMIENTAS, null, 'Herramientas', 'petroleo'),
+    ...(dolares === undefined ? [] : [filaDeTesoro(DOLARES, null, 'Dólares', 'ciruela', 'USD')]),
+    ...(ahorroEnDolares === undefined
+      ? []
+      : [filaDeTesoro(AHORRO_EN_DOLARES, null, 'Ahorro en dólares', 'mostaza', 'USD')]),
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((una) => [una.id, una]));
   const movimientos = [
     ingreso(MAUN, 'maun', 124_800_000),
     ingreso(HOGAR, 'hogar', 41_230_000),
     ingreso(DIEZMO, 'diezmo', 27_000_000),
-    ...(herramientas > 0
-      ? [ingreso(HERRAMIENTAS, null, herramientas)]
-      : herramientas < 0
-        ? [gasto(HERRAMIENTAS, -herramientas)]
-        : []),
+    ...conPlata(HERRAMIENTAS, null, herramientas),
+    ...conPlata(DOLARES, null, dolares ?? 0),
+    ...conPlata(AHORRO_EN_DOLARES, null, ahorroEnDolares ?? 0),
   ];
   tablas.movimientos = Object.fromEntries(movimientos.map((uno) => [uno.id, uno]));
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
-function montar(replica: Replica) {
+function montar(
+  replica: Replica,
+  tesoroId = HERRAMIENTAS,
+  alCambiarDolares?: (ruta: string) => void,
+) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
       <ProveedorDeReplica replica={replica}>
-        <HojaDeArchivar tesoroId={HERRAMIENTAS} alCerrar={alCerrar} />
+        <HojaDeArchivar
+          tesoroId={tesoroId}
+          alCerrar={alCerrar}
+          {...(alCambiarDolares === undefined ? {} : { alCambiarDolares })}
+        />
       </ProveedorDeReplica>
     </QueryClientProvider>,
   );
@@ -211,6 +243,79 @@ describe('archivar un tesoro', () => {
       hacia_id: HERRAMIENTAS,
       monto_centavos: 500_000,
     });
+  });
+
+  it('por moneda: la plata de un tesoro en pesos no va a uno en dólares', () => {
+    montar(replicaDelTaller({ dolares: 50_000 }));
+    const destinos = screen.getByRole('group', { name: 'A dónde pasa la plata' });
+    expect(
+      within(destinos)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.closest('label')?.querySelector('.truncate')?.textContent),
+    ).toEqual(['Maun', 'Hogar', 'Cocos']);
+  });
+
+  it('por moneda: uno en dólares con plata y sin otro en dólares no se archiva; ofrece vender', () => {
+    const alCambiarDolares = vi.fn();
+    const { encoladas, alCerrar } = montar(
+      replicaDelTaller({ dolares: 50_000 }),
+      DOLARES,
+      alCambiarDolares,
+    );
+    expect(
+      screen.getByText(`Tiene ${formatearPlata(50_000, 'USD')}`.replace(/\s/g, ' ')),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('group')).toBeNull();
+    expect(screen.getByText('Todavía no se puede archivar Dólares.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Para archivarlo, vendé los dólares o pasalos a otro tesoro en dólares.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Pasar|^Archivar/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vender dólares' }));
+    expect(alCambiarDolares).toHaveBeenCalledWith(
+      `/finanzas/nuevo?clase=venta_de_dolares&tesoro=${DOLARES}&monto=50000`,
+    );
+    expect(alCerrar).toHaveBeenCalledOnce();
+    expect(encoladas()).toEqual([]);
+  });
+
+  it('por moneda: con otro en dólares, pasa sus dólares a ese y dice cómo queda en dólares', () => {
+    const { encoladas } = montar(
+      replicaDelTaller({ dolares: 50_000, ahorroEnDolares: 10_000 }),
+      DOLARES,
+    );
+    const destinos = screen.getByRole('group', { name: 'A dónde pasa la plata' });
+    expect(
+      within(destinos)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.closest('label')?.textContent),
+    ).toEqual([`Ahorro en dólaresqueda en ${formatearPlata(60_000, 'USD')}`]);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Pasar ${formatearPlata(50_000, 'USD')} a Ahorro en dólares y archivar`,
+      }),
+    );
+    expect(encoladas()[0]?.variables).toMatchObject({
+      tipo: 'transferencia',
+      desde_id: DOLARES,
+      hacia_id: AHORRO_EN_DOLARES,
+      monto_centavos: 50_000,
+    });
+  });
+
+  it('por moneda: si a uno en dólares le faltan dólares y no hay otro, ofrece comprarlos', () => {
+    const alCambiarDolares = vi.fn();
+    montar(replicaDelTaller({ dolares: -2_000 }), DOLARES, alCambiarDolares);
+    expect(
+      screen.getByText(
+        'Para archivarlo, comprá los dólares que le faltan o traelos de otro tesoro en dólares.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Comprar dólares' }));
+    expect(alCambiarDolares).toHaveBeenCalledWith(
+      `/finanzas/nuevo?clase=compra_de_dolares&hacia=${DOLARES}`,
+    );
   });
 
   it('si está en la fila no deja archivar y dice por qué', () => {

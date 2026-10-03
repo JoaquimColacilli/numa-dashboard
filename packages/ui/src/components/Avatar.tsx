@@ -52,6 +52,7 @@ export function Avatar({ nombre, foto = '', tamano = 'chico', className = '' }: 
   return (
     <span
       aria-hidden
+      translate="no"
       data-foto={estado}
       className={[
         'relative inline-flex flex-none items-center justify-center overflow-hidden rounded-pill font-semibold select-none',

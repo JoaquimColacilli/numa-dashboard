@@ -42,6 +42,7 @@ import {
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
 import type { LugarDelTesoro } from '@/features/editar-tesoro';
+import { mensajes, useMensajes } from '@/shared/idioma';
 
 import {
   aplicarElArrastre,
@@ -220,6 +221,7 @@ function LienzoInterno({
   tapadoDesde,
   flotaDesde,
 }: LienzoProps) {
+  const m = useMensajes();
   const store = useStoreApi<NodoDelPlano, AristaDelPlano>();
   const { zoomTo } = useReactFlow<NodoDelPlano, AristaDelPlano>();
   const editable = modo === 'editar';
@@ -438,13 +440,14 @@ function LienzoInterno({
       (tesoro) => tesoroDe(laVista, tesoro).nombre,
       union,
       hacia !== null,
+      hacia ?? undefined,
     );
   }, []);
 
   const anunciar = useCallback((direccion: string): string => {
     const { vista: laVista, elegido: laElegida } = actual.current;
     const tesoro = laElegida === null ? null : tesoroQueSeMueve(laElegida, laVista.sistema.diezmo);
-    if (tesoro === null) return 'Solo las obligaciones y los pasos de la fila cambian de lugar.';
+    if (tesoro === null) return mensajes().paginaTesoros.union.soloCambianDeLugar;
     return anuncioDelMovimiento(
       laVista.fila,
       tesoro,
@@ -453,23 +456,22 @@ function LienzoInterno({
     );
   }, []);
 
-  const etiquetas = useMemo<Partial<AriaLabelConfig>>(
-    () => ({
-      'node.a11yDescription.default': 'Enter o espacio elige la ficha y Escape la suelta.',
-      'node.a11yDescription.keyboardDisabled':
-        'Enter o espacio elige la ficha y Escape la suelta. Mientras editás la fila, Alt con las flechas de arriba y abajo cambia de lugar la ficha elegida adentro de su tipo y Suprimir la saca de la fila.',
+  const etiquetas = useMemo<Partial<AriaLabelConfig>>(() => {
+    const { lienzo, rotulo } = m.paginaTesoros;
+    return {
+      'node.a11yDescription.default': lienzo.elegirLaFicha,
+      'node.a11yDescription.keyboardDisabled': lienzo.elegirYMoverLaFicha,
       'node.a11yDescription.ariaLiveMessage': ({ direction }) => anunciar(direction),
-      'edge.a11yDescription.default': 'Flecha por donde baja la plata.',
-      'controls.ariaLabel': 'Controles del plano',
-      'controls.zoomIn.ariaLabel': 'Acercar',
-      'controls.zoomOut.ariaLabel': 'Alejar',
-      'controls.fitView.ariaLabel': 'Ver toda la fila',
-      'controls.interactive.ariaLabel': 'Dejar de mover el plano',
-      'minimap.ariaLabel': 'Croquis de la fila',
-      'handle.ariaLabel': 'Manija para unir con otro tesoro',
-    }),
-    [anunciar],
-  );
+      'edge.a11yDescription.default': lienzo.flecha,
+      'controls.ariaLabel': rotulo.controles,
+      'controls.zoomIn.ariaLabel': rotulo.acercar,
+      'controls.zoomOut.ariaLabel': rotulo.alejar,
+      'controls.fitView.ariaLabel': rotulo.verTodaLaFila,
+      'controls.interactive.ariaLabel': lienzo.dejarDeMover,
+      'minimap.ariaLabel': lienzo.croquis,
+      'handle.ariaLabel': lienzo.manija,
+    };
+  }, [anunciar, m]);
 
   const enfocarLaElegidaDespues = () => {
     requestAnimationFrame(() => {
@@ -577,7 +579,7 @@ function LienzoInterno({
               <ReactFlow<NodoDelPlano, AristaDelPlano>
                 className="plano"
                 data-sin-encuadrar={encuadrado ? undefined : ''}
-                aria-label="La fila de los tesoros"
+                aria-label={m.paginaTesoros.rotulo.laFilaDeLosTesoros}
                 nodes={nodos}
                 edges={plano.aristas}
                 nodeTypes={TIPOS_DE_NODO}

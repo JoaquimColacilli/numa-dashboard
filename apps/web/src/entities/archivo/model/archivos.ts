@@ -1,4 +1,5 @@
 import { filasDe, type FilaDe, type Replica } from '@/shared/api';
+import { etiquetaActual } from '@/shared/lib';
 
 export type Archivo = FilaDe<'archivos'>;
 
@@ -116,7 +117,7 @@ const MB = 1024 * KB;
 const GB = 1024 * MB;
 
 function conUnDecimal(valor: number): string {
-  return valor.toLocaleString('es-AR', { maximumFractionDigits: 1 });
+  return valor.toLocaleString(etiquetaActual(), { maximumFractionDigits: 1 });
 }
 
 export function pesoLegible(bytes: number): string {

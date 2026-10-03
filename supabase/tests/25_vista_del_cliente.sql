@@ -37,7 +37,8 @@ select tests.guardar('household_b', private.crear_household('Taller de Beto', te
 -- en que el mueble quedó listo («fechas.listo») y la entrega comprometida con su franja
 -- («entrega.comprometida»); el tipo de proyecto es una palabra del dueño para su analítico y no viaja.
 -- La fila con la que se liquidó, lo que cada tesoro llevaba del mes y la foto de la reapertura (ADR
--- 0078) son la distribución del taller, como los dist_*: no viajan.
+-- 0078) son la distribución del taller, como los dist_*: no viajan. Desde el ADR 0081 viajan la moneda
+-- del trabajo y en qué le paga; el dólar de los costos es de los costos, y no viaja.
 select set_eq(
   $$
     select a.attname::text
@@ -52,8 +53,9 @@ select set_eq(
     'cobro_sena', 'cobro_saldo',
     'presupuesto_vale_hasta',
     'listo_el', 'entrega_comprometida', 'entrega_comprometida_franja',
+    'moneda', 'cobra_en',
     -- No viajan
-    'tipo_de_proyecto',
+    'tipo_de_proyecto', 'costos_cotizacion_centavos',
     'id', 'household_id', 'cliente_id', 'descripcion', 'forma_pago', 'comprobante',
     'ultimo_contacto', 'notas', 'vencimiento_presupuesto',
     'created_at', 'updated_at', 'deleted_at', 'version',
@@ -88,7 +90,9 @@ select set_eq(
 -- cómo se reparte la plata adentro del taller: no viajan. El valor del relevamiento (ADR 0079) viaja,
 -- y solo antes de mandar el presupuesto: es lo que el taller cobra la visita, no una cuenta de adentro.
 -- Los datos del taller para el presupuesto y sus textos de siempre (ADR 0080) no viajan como columnas:
--- llegan solo adentro de la foto de cada revisión que se le mandó, ya resueltos.
+-- llegan solo adentro de la foto de cada revisión que se le mandó, ya resueltos. El idioma de los
+-- clientes (ADR 0082) viaja: es en el que le habla la página. La cuenta en dólares y el dólar del día
+-- (ADR 0081) viajan, cada uno solo cuando toca.
 select set_eq(
   $$
     select a.attname::text
@@ -99,7 +103,8 @@ select set_eq(
     -- Viajan
     'cobro_alias', 'cobro_cbu', 'cobro_titular', 'cobro_cuit', 'cobro_link',
     'instagram_link', 'facebook_link', 'tiktok_link',
-    'relevamiento_centavos',
+    'relevamiento_centavos', 'idioma_de_los_clientes',
+    'cobro_dolares_cbu', 'cobro_dolares_alias', 'dolar_del_dia_centavos', 'dolar_del_dia_el',
     -- No viajan
     'id', 'household_id', 'created_at', 'updated_at', 'deleted_at', 'version',
     'sueldo_mensual_centavos', 'costos_fijos_centavos', 'meta_cocos_centavos',
@@ -136,7 +141,8 @@ select set_eq(
 
 -- De la última revisión viaja el documento que se le mandó, con su número, su revisión y su día, y lo
 -- que cambió mientras espera la seña. Desde que aprueba, el documento con solo la opción que eligió. Su
--- vigencia es historia del taller: la viva es la del trabajo, fechas.vale_hasta.
+-- vigencia es historia del taller: la viva es la del trabajo, fechas.vale_hasta. Su idioma viaja: es
+-- el de su contenido (ADR 0082).
 select set_eq(
   $$
     select a.attname::text
@@ -145,7 +151,7 @@ select set_eq(
   $$,
   array[
     -- Viajan
-    'numero', 'revision', 'mandado_el', 'que_cambio', 'contenido',
+    'numero', 'revision', 'mandado_el', 'que_cambio', 'contenido', 'idioma',
     -- No viajan
     'id', 'household_id', 'presupuesto_id', 'proyecto_id', 'vale_hasta',
     'created_at', 'updated_at', 'deleted_at', 'version'
@@ -296,14 +302,14 @@ where household_id = tests.id('household_a');
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')) $$,
-  array['taller', 'cliente', 'trabajo', 'direccion', 'estado', 'precio_centavos', 'sena_centavos', 'pago', 'cobro', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto'],
+  array['taller', 'cliente', 'trabajo', 'idioma', 'direccion', 'estado', 'precio_centavos', 'moneda', 'cobra_en', 'sena_centavos', 'pago', 'cobro', 'cobro_en_dolares', 'dolar_del_dia', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto'],
   'la vista devuelve exactamente estos campos y ninguno más'
 );
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'presupuesto') $$,
-  array['numero', 'revision', 'mandado_el', 'contenido', 'aceptado_el', 'letra'],
-  'del presupuesto aprobado viajan su número, su revisión, el día, el documento, el día en que se aceptó y la letra: lo que cambió, no'
+  array['numero', 'revision', 'mandado_el', 'contenido', 'idioma', 'aceptado_el', 'letra'],
+  'del presupuesto aprobado viajan su número, su revisión, el día, el documento, su idioma, el día en que se aceptó y la letra: lo que cambió, no'
 );
 
 select is(
@@ -323,8 +329,8 @@ select set_eq(
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'pago') $$,
-  array['instancia', 'formas', 'monto_centavos', 'siguiente'],
-  'del pago que toca viajan exactamente cuatro cosas: cuál es, cómo se paga, cuánto falta y cuál viene después'
+  array['instancia', 'formas', 'formas_en_dolares', 'monto_centavos', 'siguiente'],
+  'del pago que toca viajan exactamente cinco cosas: cuál es, cómo se paga en pesos y en dólares, cuánto falta y cuál viene después'
 );
 
 select set_eq(
@@ -350,8 +356,8 @@ select set_eq(
     select jsonb_object_keys(e)
     from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'pagos') as e
   $$,
-  array['id', 'fecha', 'concepto', 'monto_centavos'],
-  'de cada pago viajan el día, el concepto y el importe: nada más'
+  array['id', 'fecha', 'concepto', 'monto_centavos', 'moneda', 'pagado_centavos', 'cotizacion_centavos'],
+  'de cada pago viajan el día, el concepto, lo que descuenta, su moneda, lo que se entregó y su dólar: nada más'
 );
 
 select set_eq(
@@ -708,10 +714,12 @@ select set_config(
 -- La vista previa la pide un rastreador sin sesión, como el cliente.
 select tests.entrar_como_anon();
 
+-- El idioma de los clientes del taller viaja desde el ADR 0082, que enmienda el 0049: con él la vista
+-- previa escribe su texto, y no dice nada del trabajo.
 select set_eq(
   $$ select jsonb_object_keys(public.titulo_compartido('el-token-nuevo-de-marcela')) $$,
-  array['trabajo', 'taller'],
-  'el título devuelve exactamente dos campos: ni un importe, ni la etapa, ni el nombre del cliente'
+  array['trabajo', 'taller', 'idioma'],
+  'el título devuelve exactamente tres campos, el trabajo, el taller y el idioma de sus clientes: ni un importe, ni la etapa, ni el nombre del cliente'
 );
 
 select is(
@@ -953,10 +961,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 50000000,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('transferencia', 'efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', 50000000
     )
   ),
@@ -996,10 +1006,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 50000000,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', 50000000
     )
   ),
@@ -1040,6 +1052,7 @@ select is(
   jsonb_build_object(
     'instancia', 'saldo',
     'formas', jsonb_build_array('efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 50000000,
     'siguiente', null
   ),
@@ -1084,7 +1097,8 @@ insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos)
 select is(
   public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000040') -> 'pago',
   jsonb_build_object(
-    'instancia', null, 'formas', jsonb_build_array(), 'monto_centavos', null, 'siguiente', null
+    'instancia', null, 'formas', jsonb_build_array(), 'formas_en_dolares', jsonb_build_array(),
+    'monto_centavos', null, 'siguiente', null
   ),
   'con todo pagado no toca ninguna instancia y no hay ninguna forma que ofrecer'
 );
@@ -1109,10 +1123,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', null,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('transferencia', 'efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', null
     )
   ),
@@ -1369,10 +1385,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', null,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('transferencia', 'efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', null
     )
   ),
@@ -1803,7 +1821,8 @@ select tests.entrar_como_anon();
 select is(
   public.vista_compartida('el-token-del-vestidor-aa') -> 'pago',
   jsonb_build_object(
-    'instancia', null, 'formas', jsonb_build_array(), 'monto_centavos', null, 'siguiente', null
+    'instancia', null, 'formas', jsonb_build_array(), 'formas_en_dolares', jsonb_build_array(),
+    'monto_centavos', null, 'siguiente', null
   ),
   'por el link se ve el mismo pago que desde la app: es la misma función'
 );

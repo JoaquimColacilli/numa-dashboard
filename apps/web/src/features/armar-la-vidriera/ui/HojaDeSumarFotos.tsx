@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEven
 import {
   prepararImagen,
   rutaDeLaMiniatura,
-  SIN_SENAL_PARA_ARCHIVOS,
+  sinSenalParaArchivos,
   type DependenciasDeLaSubida,
 } from '@/entities/archivo';
 import { useReplicaDelTaller } from '@/entities/replica';
@@ -15,6 +15,7 @@ import {
   subirAlBucketDeArchivos,
   urlDelArchivo,
 } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { avisarEnPantalla, decodificarImagen, uuidv7 } from '@/shared/lib';
 import { Button, FilaDeAcciones, FondoDelElegido, Hoja, Icono, Tilde } from '@/shared/ui';
 
@@ -34,15 +35,9 @@ import {
 } from '../model/sumar';
 import { filaParaOrdenar, fotosDeLaVidriera } from '../model/vidriera';
 
-export const LAS_VEN_TODOS =
-  'Las fotos que sumes las ven todos tus clientes, en la página de cada trabajo.';
-
 type Pestana = 'trabajos' | 'subir';
 
-const PESTANAS: readonly { id: Pestana; etiqueta: string }[] = [
-  { id: 'trabajos', etiqueta: 'De tus trabajos' },
-  { id: 'subir', etiqueta: 'Subir nuevas' },
-];
+const PESTANAS: readonly Pestana[] = ['trabajos', 'subir'];
 
 const DEPENDENCIAS: DependenciasDeLaSubida = {
   subir: subirAlBucketDeArchivos,
@@ -55,10 +50,7 @@ function avisarLoSumado(cantidad: number): void {
   avisarEnPantalla({
     clave: 'fotos-sumadas-a-la-vidriera',
     tono: 'hecho',
-    texto:
-      cantidad === 1
-        ? 'Sumaste una foto a tu vidriera.'
-        : `Sumaste ${String(cantidad)} fotos a tu vidriera.`,
+    texto: mensajes().armarLaVidriera.hoja.sumaste(cantidad),
   });
 }
 
@@ -81,6 +73,7 @@ function FotoParaElegir({
   idDelMotivo,
   alTocar,
 }: FotoParaElegirProps) {
+  const textos = useMensajes().armarLaVidriera.hoja;
   const apagada = foto.yaEsta || noEntra;
   const idMarca = useId();
   return (
@@ -89,7 +82,7 @@ function FotoParaElegir({
         type="button"
         aria-pressed={elegida}
         aria-disabled={apagada || undefined}
-        aria-label={`Foto ${String(numero)} de «${titulo}»`}
+        aria-label={textos.fotoDelTrabajo(numero, titulo)}
         aria-describedby={
           [
             foto.yaEsta ? idMarca : '',
@@ -124,7 +117,7 @@ function FotoParaElegir({
             id={idMarca}
             className="absolute inset-x-1.5 bottom-1.5 rounded-pill bg-paper px-2 py-0.5 text-center text-badge font-semibold text-ink"
           >
-            Ya está en tu vidriera
+            {textos.yaEsta}
           </span>
         ) : (
           !foto.compartida && (
@@ -133,7 +126,7 @@ function FotoParaElegir({
               className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-pill bg-paper px-2 py-0.5 text-badge font-medium text-ink"
             >
               <Icono nombre="eye-off" tamano={12} />
-              Sin compartir
+              {textos.sinCompartir}
             </span>
           )
         )}
@@ -147,6 +140,7 @@ export interface HojaDeSumarFotosProps {
 }
 
 export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
+  const textos = useMensajes().armarLaVidriera.hoja;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const base = useId();
@@ -191,7 +185,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
 
   function sinSenal(): boolean {
     if (onlineManager.isOnline()) return false;
-    setProblemas([SIN_SENAL_PARA_ARCHIVOS]);
+    setProblemas([sinSenalParaArchivos()]);
     return true;
   }
 
@@ -252,7 +246,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
   }
 
   function alTeclear(evento: KeyboardEvent<HTMLDivElement>): void {
-    const indice = PESTANAS.findIndex((una) => una.id === pestana);
+    const indice = PESTANAS.indexOf(pestana);
     const destino =
       evento.key === 'ArrowRight'
         ? (indice + 1) % PESTANAS.length
@@ -267,17 +261,17 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
     evento.preventDefault();
     const elegida = PESTANAS[destino];
     if (!elegida) return;
-    setPestana(elegida.id);
-    pestanas.current?.querySelector<HTMLElement>(`[data-opcion="${elegida.id}"]`)?.focus();
+    setPestana(elegida);
+    pestanas.current?.querySelector<HTMLElement>(`[data-opcion="${elegida}"]`)?.focus();
   }
 
   return (
     <Hoja
-      titulo="Sumar fotos a la vidriera"
+      titulo={textos.titulo}
       ancho="amplio"
       alCerrar={alCerrar}
       conCambios={elegidas.length > 0 && !trabajando}
-      bajada={libres === 1 ? 'Entra 1 foto más.' : `Entran ${String(libres)} fotos más.`}
+      bajada={textos.entranMas(libres)}
     >
       {(pedirCierre) => (
         <>
@@ -285,27 +279,27 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
             <div
               ref={pestanas}
               role="tablist"
-              aria-label="De dónde salen las fotos"
+              aria-label={textos.deDondeSalen}
               onKeyDown={alTeclear}
               className="relative grid grid-cols-2 gap-0.5 rounded-pill bg-ink/6 p-1"
             >
               <FondoDelElegido elegido={pestana} />
               {PESTANAS.map((una) => (
                 <button
-                  key={una.id}
+                  key={una}
                   type="button"
                   role="tab"
-                  id={`${base}-pestana-${una.id}`}
-                  data-opcion={una.id}
-                  aria-selected={pestana === una.id}
-                  aria-controls={`${base}-panel-${una.id}`}
-                  tabIndex={pestana === una.id ? 0 : -1}
+                  id={`${base}-pestana-${una}`}
+                  data-opcion={una}
+                  aria-selected={pestana === una}
+                  aria-controls={`${base}-panel-${una}`}
+                  tabIndex={pestana === una ? 0 : -1}
                   onClick={() => {
-                    setPestana(una.id);
+                    setPestana(una);
                   }}
                   className="relative flex min-h-tap items-center justify-center rounded-pill px-2 text-label font-medium text-text-2 aria-selected:font-semibold aria-selected:text-ink"
                 >
-                  {una.etiqueta}
+                  {textos.pestanas[una]}
                 </button>
               ))}
             </div>
@@ -319,10 +313,10 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
             tabIndex={0}
             className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6"
           >
-            <p className="mb-3 text-label leading-relaxed text-text-2">{LAS_VEN_TODOS}</p>
+            <p className="mb-3 text-label leading-relaxed text-text-2">{textos.lasVenTodos}</p>
             {trabajos.length === 0 ? (
               <p className="text-body leading-relaxed text-text-2">
-                Todavía no hay fotos en tus trabajos. Podés subir fotos nuevas en «Subir nuevas».
+                {textos.sinFotosEnLosTrabajos}
               </p>
             ) : (
               <div className="@container flex flex-col gap-4">
@@ -330,6 +324,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                   <section key={trabajo.id} aria-labelledby={`${base}-trabajo-${trabajo.id}`}>
                     <h3
                       id={`${base}-trabajo-${trabajo.id}`}
+                      translate="no"
                       className="mb-2 truncate text-body font-semibold"
                     >
                       {trabajo.titulo}
@@ -368,12 +363,9 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
             tabIndex={0}
             className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6"
           >
-            <p className="mb-3 text-label leading-relaxed text-text-2">{LAS_VEN_TODOS}</p>
+            <p className="mb-3 text-label leading-relaxed text-text-2">{textos.lasVenTodos}</p>
             <div className="flex flex-col items-start gap-3">
-              <p className="text-body leading-relaxed text-text-2">
-                Fotos o capturas del celular o de la compu. Se achican antes de subirse, como las de
-                los trabajos.
-              </p>
+              <p className="text-body leading-relaxed text-text-2">{textos.delCelular}</p>
               <Button
                 variant="secundario"
                 cargando={trabajando}
@@ -381,7 +373,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                 onClick={elegirArchivos}
               >
                 <Icono nombre="image" tamano={16} />
-                Elegir fotos
+                {textos.elegirFotos}
               </Button>
               <input
                 ref={selector}
@@ -402,8 +394,9 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
             <div className="flex flex-none flex-col gap-3 border-t border-hairline px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-4">
               {avance !== null && (
                 <p role="status" className="text-label text-text-2 tabular-nums">
-                  {pestana === 'trabajos' ? 'Sumando' : 'Subiendo'} {avance.actual} de{' '}
-                  {avance.total}…
+                  {pestana === 'trabajos'
+                    ? textos.sumando(avance.actual, avance.total)
+                    : textos.subiendo(avance.actual, avance.total)}
                 </p>
               )}
               {problemas.map((problema) => (
@@ -419,8 +412,8 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                 <>
                   <p id={idDelMotivo} className="text-label text-text-2 tabular-nums">
                     {elegidas.length >= libres && libres > 0
-                      ? `Elegiste ${String(elegidas.length)}: es lo que entra en tu vidriera.`
-                      : `Elegiste ${String(elegidas.length)} de ${String(libres)} que entran.`}
+                      ? textos.elegisteTodas(elegidas.length)
+                      : textos.elegisteDe(elegidas.length, libres)}
                   </p>
                   {avisando ? (
                     <div
@@ -436,7 +429,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                             void sumarLasElegidas();
                           }}
                         >
-                          Sumar igual
+                          {textos.sumarIgual}
                         </Button>
                         <Button
                           variant="secundario"
@@ -444,7 +437,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                             setAvisando(false);
                           }}
                         >
-                          Revisar
+                          {textos.revisar}
                         </Button>
                       </FilaDeAcciones>
                     </div>
@@ -458,7 +451,7 @@ export function HojaDeSumarFotos({ alCerrar }: HojaDeSumarFotosProps) {
                         {textoDelBotonDeSumar(elegidas.length)}
                       </Button>
                       <Button variant="secundario" onClick={pedirCierre}>
-                        Cancelar
+                        {textos.cancelar}
                       </Button>
                     </FilaDeAcciones>
                   )}

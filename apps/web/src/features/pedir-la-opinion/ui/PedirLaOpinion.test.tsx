@@ -1,11 +1,12 @@
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { GuardadoDePregunta, RecordatorioDeEncuesta } from '@/entities/opinion';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
+import { cargarMensajesDelCliente } from '@/shared/idioma-del-cliente';
 
 import { PedirLaOpinion } from './PedirLaOpinion';
 
@@ -151,6 +152,21 @@ describe('pedir la opinión desde el trabajo terminado', () => {
       /^Hola Marcela, ya terminamos tu placard\. ¿Nos contás en un minuto cómo te fue\? http:\/\/localhost(:\d+)?\/o\/[A-Za-z0-9_-]{32}$/,
     );
   });
+
+  it('el mensaje va en el idioma de los clientes del taller, y lo que lee el dueño sigue en el suyo', async () => {
+    await cargarMensajesDelCliente('en');
+    montar({
+      ajustes: [{ id: 'a1', idioma_de_los_clientes: 'en' } as FilaDe<'ajustes'>],
+    });
+
+    const bloque = screen.getByRole('region', { name: 'Pedile la opinión a Marcela' });
+    const whatsapp = within(bloque).getByRole('link', { name: 'Pedírsela por WhatsApp' });
+    await waitFor(() => {
+      expect(new URL(whatsapp.getAttribute('href') ?? '').searchParams.get('text')).toMatch(
+        /^Hi Marcela, we've finished your “Placard 3 puertas con interior en melamina\.” Could you take a minute to tell us how it went\? http:\/\/localhost(:\d+)?\/o\/[A-Za-z0-9_-]{32}$/,
+      );
+    });
+  }, 30_000);
 
   it('sin señal no manda nada y dice por qué', () => {
     const { variables } = montar({});

@@ -31,14 +31,13 @@ import {
 } from '@maun/domain';
 
 import type { Tesoro } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 export { entraOtroPaso, puedeIrAlReparto } from '@/entities/fila';
 
-export const NOMBRE_DE_LA_CLASE: Readonly<Record<ClaseDePaso, string>> = {
-  sueldo: 'Sueldo',
-  fijos: 'Gastos fijos',
-  prioridad: 'Prioridad',
-};
+export const NOMBRE_DE_LA_CLASE: Readonly<Record<ClaseDePaso, string>> = textosDelIdioma(
+  () => mensajes().armarLaFila.clases,
+);
 
 const PORCENTAJE_AL_SUMAR = 1000;
 

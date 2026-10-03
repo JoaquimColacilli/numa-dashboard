@@ -11,7 +11,13 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { sinTextoSuelto } from './sin-texto-suelto.js';
+
 const CONDICIONES = ['@maun/source', 'types', 'import', 'default'];
+
+const TEXTOS = { rules: { 'sin-texto-suelto': sinTextoSuelto } };
+
+const CATALOGOS = 'src/shared/{idioma,idioma-del-cliente}/{es,en,pt-BR}/**';
 
 const PROHIBIDO_EN_TODO_EL_REPO = [
   { regex: '^@maun/web(/|$)', message: '@maun/web es la app: ningún paquete importa de ella.' },
@@ -184,6 +190,37 @@ const SOLO_EL_COORDINADOR_ANIMA = [
   },
 ];
 
+const FORMATEADORES_DEL_DUENO = {
+  name: '@/shared/lib',
+  importNames: [
+    'formatearPesos',
+    'formatearPlata',
+    'formatearLaPlata',
+    'formatearCadaMoneda',
+    'formatearPorcentaje',
+    'fechaLarga',
+    'fechaEnUnaFrase',
+    'diaYMes',
+    'diaYMesCorto',
+    'fechaConAnio',
+    'fechaDelRotulo',
+    'nombreDelMes',
+    'mesEnUnaFrase',
+    'relativa',
+    'haceCuanto',
+  ],
+  message:
+    'Lo que ve el cliente se escribe en el idioma de los clientes: formateá con useFormatosDelCliente() o formatosDelCliente(idioma) de @/shared/idioma-del-cliente (ADR 0082).',
+};
+
+const LO_QUE_VE_EL_CLIENTE = [
+  'src/entities/vista-cliente/**/*.{ts,tsx}',
+  'src/entities/opinion/ui/EncuestaDelCliente.tsx',
+  'src/pages/vista-cliente/**/*.{ts,tsx}',
+  'src/pages/encuesta-publica/**/*.{ts,tsx}',
+  'src/shared/pdf/**/*.{ts,tsx}',
+];
+
 const EL_ESCENARIO_DEL_COORDINADOR = 'src/app/navegacion/escenario.ts';
 
 const LA_PUERTA_Y_EL_COORDINADOR = [
@@ -192,7 +229,7 @@ const LA_PUERTA_Y_EL_COORDINADOR = [
   'src/app/navegacion/**/*.{ts,tsx}',
 ];
 
-export function web(dir) {
+export function web(dir, { zonasQueFaltan = [] } = {}) {
   return defineConfig(
     base(dir, [
       'tsconfig.app.json',
@@ -286,6 +323,14 @@ export function web(dir) {
       },
     },
     {
+      files: LO_QUE_VE_EL_CLIENTE,
+      ignores: ['src/**/*.test.{ts,tsx}'],
+      rules: prohibirImportsYNombres(
+        [SISTEMA_DE_DISENO, ACCESO_A_DATOS],
+        [NAVEGAR_POR_EL_ROUTER, TRANSICIONES_DEL_ROUTER, FORMATEADORES_DEL_DUENO],
+      ),
+    },
+    {
       files: [EL_ESCENARIO_DEL_COORDINADOR],
       rules: { 'no-restricted-syntax': ['error', ...SIN_VIEW_TRANSITION_DEL_ROUTER] },
     },
@@ -318,6 +363,16 @@ export function web(dir) {
     {
       files: ['src/shared/api/**/*.test.{ts,tsx}'],
       rules: prohibirImportsYNombres([SISTEMA_DE_DISENO], [TRANSICIONES_DEL_ROUTER]),
+    },
+    {
+      files: ['src/**/*.tsx'],
+      ignores: [
+        'src/**/*.test.tsx',
+        CATALOGOS,
+        ...zonasQueFaltan.map((zona) => (zona.endsWith('/') ? `${zona}**` : zona)),
+      ],
+      plugins: { maun: TEXTOS },
+      rules: { 'maun/sin-texto-suelto': 'error' },
     },
   );
 }

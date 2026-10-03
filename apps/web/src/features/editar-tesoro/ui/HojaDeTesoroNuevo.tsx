@@ -1,4 +1,4 @@
-import type { BaseDeLaObligacion, Fila } from '@maun/domain';
+import { MONEDA_DEL_TALLER, type BaseDeLaObligacion, type Fila, type Moneda } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useRef, useState, type SyntheticEvent } from 'react';
 
@@ -6,6 +6,7 @@ import { AyudaDeLaBase, ETIQUETA_DE_LA_BASE } from '@/entities/fila';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { MUTACION_DE_TESORO_NUEVO, tesoroPorId, tesorosDelTaller } from '@/entities/tesoro';
 import { filaDelTaller, type TesoroNuevo } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { hayCambios, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import {
   Button,
@@ -32,6 +33,7 @@ import {
 } from '../model/lugar';
 import {
   borradorNuevo,
+  conLaMoneda,
   hayErrores,
   ordenAlFinal,
   revisarElTesoro,
@@ -47,6 +49,7 @@ export interface HojaDeTesoroNuevoProps {
   fila?: Fila;
   lugarInicial?: LugarDelTesoro;
   despuesDe?: string | null;
+  monedaInicial?: Moneda;
 }
 
 const BASES: readonly BaseDeLaObligacion[] = ['cobrado', 'ingreso'];
@@ -59,15 +62,16 @@ function SobreQueSeCalcula({
   base: BaseDeLaObligacion;
   alElegir: (base: BaseDeLaObligacion) => void;
 }) {
+  const textos = useMensajes().editarTesoro.nuevo;
   return (
     <div className="flex flex-col gap-1.5">
       <span className="flex items-center gap-1.5 text-label text-text-2">
-        Sobre qué se calcula
+        {textos.sobreQueSeCalcula}
         <AyudaDeLaBase />
       </span>
       <div
         role="radiogroup"
-        aria-label="Sobre qué se calcula"
+        aria-label={textos.sobreQueSeCalcula}
         className="relative grid grid-cols-2 gap-0.5 rounded-pill bg-ink/6 p-1"
       >
         <FondoDelElegido elegido={base} />
@@ -102,9 +106,10 @@ function Sugerencias({
   nombre: string;
   alElegir: (sugerencia: SugerenciaDeNombre) => void;
 }) {
+  const textos = useMensajes().editarTesoro.nuevo;
   if (sugerencias.length === 0) return null;
   return (
-    <div role="group" aria-label="Nombres sugeridos" className="-mt-1 flex flex-wrap gap-1.5">
+    <div role="group" aria-label={textos.nombresSugeridos} className="-mt-1 flex flex-wrap gap-1.5">
       {sugerencias.map((sugerencia) => {
         const elegida = nombre.trim() === sugerencia.nombre;
         return (
@@ -135,20 +140,25 @@ export function HojaDeTesoroNuevo({
   fila,
   lugarInicial = 'estante',
   despuesDe,
+  monedaInicial = MONEDA_DEL_TALLER,
 }: HojaDeTesoroNuevoProps) {
+  const m = useMensajes().editarTesoro;
+  const textos = m.nuevo;
   const replica = useReplicaDelTaller();
   const tesoros = tesorosDelTaller(replica);
   const laFila = fila ?? filaDelTaller(replica).fila;
-  const nombreDe = (id: string) => tesoroPorId(tesoros, id)?.nombre ?? 'el anterior';
-  const opciones = opcionesDeLugar(laFila, nombreDe(laFila.superavit));
+  const nombreDe = (id: string) => tesoroPorId(tesoros, id)?.nombre ?? m.lugar.elAnterior;
   const libre = libreEnElReparto(laFila);
   const id = useId();
 
   const [inicial] = useState(() => {
-    const posible = opciones.find((opcion) => opcion.id === lugarInicial)?.sePuede ?? false;
+    const posible =
+      opcionesDeLugar(laFila, nombreDe(laFila.superavit)).find(
+        (opcion) => opcion.id === lugarInicial,
+      )?.sePuede ?? false;
     return {
-      borrador: borradorNuevo(tesoros),
-      lugar: posible ? lugarInicial : 'estante',
+      borrador: borradorNuevo(tesoros, monedaInicial),
+      lugar: posible && monedaInicial === MONEDA_DEL_TALLER ? lugarInicial : 'estante',
       monto: null as number | null,
       porcentaje: '',
       porcentajeDelReparto: porcentajeSugerido(libre),
@@ -169,10 +179,18 @@ export function HojaDeTesoroNuevo({
 
   const crear = useMutation({ ...MUTACION_DE_TESORO_NUEVO, meta: metaDeAvisos('tesoroNuevo') });
   const despuesDelElegido = lugar === inicial.lugar ? despuesDe : undefined;
+  const opciones = opcionesDeLugar(laFila, nombreDe(laFila.superavit), borrador.moneda);
 
   function cambiar(cambios: Partial<BorradorDelTesoro>) {
-    setBorrador((previo) => ({ ...previo, ...cambios }));
+    setBorrador((previo) => {
+      const { moneda, ...resto } = cambios;
+      return { ...(moneda === undefined ? previo : conLaMoneda(previo, moneda)), ...resto };
+    });
     if ('nombre' in cambios || 'descripcion' in cambios) setErrores({});
+    if (cambios.moneda !== undefined && cambios.moneda !== MONEDA_DEL_TALLER) {
+      setLugar('estante');
+      setErroresDelLugar({});
+    }
   }
 
   function sugerir(sugerencia: SugerenciaDeNombre) {
@@ -210,8 +228,8 @@ export function HojaDeTesoroNuevo({
 
   return (
     <Hoja
-      titulo="Nuevo tesoro"
-      bajada="Un lugar más para la plata"
+      titulo={textos.titulo}
+      bajada={textos.bajada}
       alCerrar={alCerrar}
       conCambios={hayCambios(
         {
@@ -236,6 +254,7 @@ export function HojaDeTesoroNuevo({
             excepto={null}
             conMeta
             conRinde={false}
+            eligeLaMoneda
             campoDelNombre={campoDelNombre}
             debajoDelNombre={
               <Sugerencias
@@ -247,7 +266,7 @@ export function HojaDeTesoroNuevo({
           />
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-label text-text-2">Dónde va</legend>
+            <legend className="mb-1.5 text-label text-text-2">{textos.dondeVa}</legend>
             {opciones.map((opcion) => {
               const elegida = lugar === opcion.id;
               const donde = elegida ? dondeEntra(opcion.id, despuesDelElegido, nombreDe) : null;
@@ -283,7 +302,7 @@ export function HojaDeTesoroNuevo({
                   {elegida && opcion.id === 'obligacion' && (
                     <div className="flex flex-col gap-3 px-3.5 pb-3">
                       <Campo
-                        etiqueta="Porcentaje (%)"
+                        etiqueta={textos.porcentaje}
                         inputMode="decimal"
                         autoComplete="off"
                         value={porcentaje}
@@ -299,18 +318,18 @@ export function HojaDeTesoroNuevo({
                         alCambiar={setAntesDelDiezmo}
                         className="min-h-tap rounded-pill text-body"
                       >
-                        Antes del diezmo
+                        {textos.antesDelDiezmo}
                       </Interruptor>
                     </div>
                   )}
                   {elegida && (opcion.id === 'compromiso' || opcion.id === 'ahorro-fijo') && (
                     <div className="px-3.5 pb-3">
                       <MoneyInput
-                        etiqueta="Monto"
+                        etiqueta={textos.monto}
                         ayuda={
                           opcion.id === 'compromiso'
-                            ? 'Junta hasta eso y se renueva al pagar: cuando registrás el pago, vuelve a juntar.'
-                            : 'Recibe hasta eso por mes. Lo que pasa de eso sigue abajo.'
+                            ? textos.ayudaDelCompromiso
+                            : textos.ayudaDelAhorroFijo
                         }
                         value={monto}
                         error={erroresDelLugar.monto}
@@ -324,7 +343,7 @@ export function HojaDeTesoroNuevo({
                   {elegida && opcion.id === 'reparto' && (
                     <div className="px-3.5 pb-3">
                       <Campo
-                        etiqueta="Porcentaje de lo que sobra (%)"
+                        etiqueta={textos.porcentajeDeLoQueSobra}
                         inputMode="decimal"
                         autoComplete="off"
                         value={porcentajeDelReparto}
@@ -352,7 +371,7 @@ export function HojaDeTesoroNuevo({
 
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
           <FilaDeAcciones>
-            <Button type="submit">Crear el tesoro</Button>
+            <Button type="submit">{textos.crear}</Button>
           </FilaDeAcciones>
         </footer>
       </form>

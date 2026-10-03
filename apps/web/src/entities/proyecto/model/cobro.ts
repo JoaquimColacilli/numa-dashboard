@@ -1,30 +1,34 @@
 import {
+  cobraEnLeido,
   formasDeCobro,
   hayComoTransferir,
   INSTANCIAS_DE_PAGO,
+  MONEDA_DEL_TALLER,
   type CobroDelTaller,
   type FormaDeCobro,
   type InstanciaDePago,
+  type Moneda,
 } from '@maun/domain';
 
 import type { CambiosDeFormasDeCobro, ColumnaDeFormaDeCobro, FilaDe } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
-export const COLUMNA_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, ColumnaDeFormaDeCobro>> = {
+type ColumnaDeLaInstancia = Exclude<ColumnaDeFormaDeCobro, 'cobra_en'>;
+
+export const COLUMNA_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, ColumnaDeLaInstancia>> = {
   sena: 'cobro_sena',
   saldo: 'cobro_saldo',
 };
 
-export const NOMBRE_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, string>> = {
-  sena: 'La seña',
-  saldo: 'El saldo',
-};
+export const NOMBRE_DE_LA_INSTANCIA: Readonly<Record<InstanciaDePago, string>> = textosDelIdioma(
+  () => mensajes().proyecto.cobro.instancias,
+);
 
-export const ETIQUETA_DE_LA_FORMA: Readonly<Record<FormaDeCobro, string>> = {
-  transferencia: 'Transferencia',
-  efectivo: 'Efectivo',
-};
+export const ETIQUETA_DE_LA_FORMA: Readonly<Record<FormaDeCobro, string>> = textosDelIdioma(
+  () => mensajes().proyecto.cobro.formas,
+);
 
 type FilaQuizasSinFormas = Partial<Pick<Proyecto, ColumnaDeFormaDeCobro>>;
 
@@ -47,6 +51,13 @@ export function elTallerRecibeTransferencias(ajustes: FilaDe<'ajustes'> | undefi
   return hayComoTransferir(cobroDelTaller(ajustes));
 }
 
+export function elTallerRecibeDolares(ajustes: FilaDe<'ajustes'> | undefined): boolean {
+  return (
+    vacioEsNulo(ajustes?.cobro_dolares_alias) !== null ||
+    vacioEsNulo(ajustes?.cobro_dolares_cbu) !== null
+  );
+}
+
 export function formasGuardadas(
   proyecto: Proyecto,
   instancia: InstanciaDePago,
@@ -54,12 +65,41 @@ export function formasGuardadas(
   return (proyecto as FilaQuizasSinFormas)[COLUMNA_DE_LA_INSTANCIA[instancia]] ?? null;
 }
 
+export function monedasGuardadas(proyecto: Proyecto): readonly Moneda[] | null {
+  return cobraEnLeido((proyecto as FilaQuizasSinFormas).cobra_en ?? null);
+}
+
+export function monedasDelCobro(proyecto: Proyecto): readonly Moneda[] {
+  return monedasGuardadas(proyecto) ?? [MONEDA_DEL_TALLER];
+}
+
+export function cobraEnPesos(proyecto: Proyecto): boolean {
+  return monedasDelCobro(proyecto).includes(MONEDA_DEL_TALLER);
+}
+
+export function cobraEnDolares(proyecto: Proyecto): boolean {
+  return monedasDelCobro(proyecto).includes('USD');
+}
+
+export function elClientePuedeTransferir(
+  proyecto: Proyecto,
+  ajustes: FilaDe<'ajustes'> | undefined,
+): boolean {
+  return (
+    (cobraEnPesos(proyecto) && elTallerRecibeTransferencias(ajustes)) ||
+    (cobraEnDolares(proyecto) && elTallerRecibeDolares(ajustes))
+  );
+}
+
 export function formasDelTrabajo(
   proyecto: Proyecto,
   instancia: InstanciaDePago,
   ajustes: FilaDe<'ajustes'> | undefined,
 ): readonly FormaDeCobro[] {
-  return formasDeCobro(formasGuardadas(proyecto, instancia), elTallerRecibeTransferencias(ajustes));
+  return formasDeCobro(
+    formasGuardadas(proyecto, instancia),
+    elClientePuedeTransferir(proyecto, ajustes),
+  );
 }
 
 export function cambioDeFormas(
@@ -82,17 +122,20 @@ export function formasComoEstan(proyecto: Proyecto): CambiosDeFormasDeCobro {
 }
 
 function iguales(
-  una: readonly FormaDeCobro[] | null,
-  otra: readonly FormaDeCobro[] | null | undefined,
+  una: readonly string[] | null,
+  otra: readonly string[] | null | undefined,
 ): boolean {
   if (una === null || otra === null || otra === undefined) return una === (otra ?? null);
   return una.length === otra.length && una.every((forma, indice) => forma === otra[indice]);
 }
 
 export function cambiaAlgunaForma(proyecto: Proyecto, cambios: CambiosDeFormasDeCobro): boolean {
-  return INSTANCIAS_DE_PAGO.some((instancia) => {
-    const columna = COLUMNA_DE_LA_INSTANCIA[instancia];
-    if (!(columna in cambios)) return false;
-    return !iguales(formasGuardadas(proyecto, instancia), cambios[columna]);
-  });
+  return (
+    INSTANCIAS_DE_PAGO.some((instancia) => {
+      const columna = COLUMNA_DE_LA_INSTANCIA[instancia];
+      if (!(columna in cambios)) return false;
+      return !iguales(formasGuardadas(proyecto, instancia), cambios[columna]);
+    }) ||
+    ('cobra_en' in cambios && !iguales(monedasGuardadas(proyecto), cambios.cobra_en))
+  );
 }

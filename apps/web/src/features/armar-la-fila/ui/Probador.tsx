@@ -2,6 +2,7 @@ import { centavos, tipoDelPaso, type LiquidacionPorLaFila, type Money } from '@m
 import type { ReactNode } from 'react';
 
 import { AyudaDeLoDeHoy, Globo, LineaDePuntos } from '@/entities/fila';
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos, TINTA } from '@/shared/lib';
 import { Icono, MoneyInput } from '@/shared/ui';
 
@@ -22,11 +23,10 @@ export interface ProbadorProps {
   forma?: 'panel' | 'celular' | 'flotante';
 }
 
-export const ETIQUETA_DE_LO_QUE_DEJA = 'Deja (cobrado menos gastos)';
-export const ETIQUETA_DEL_TRABAJO = 'Probá con un trabajo que deje';
-
 export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }: ProbadorProps) {
+  const textos = useMensajes().armarLaFila.probador;
   const conCobrado = pideLoCobrado(vista.fila);
+  const etiquetaDelMonto = conCobrado ? textos.loQueDeja : textos.conUnTrabajo;
   const cambiarMonto = (monto: number | null) => {
     alProbar({ ...prueba, monto: monto === null ? null : centavos(monto) });
   };
@@ -35,11 +35,11 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
   };
   const segmentado = (
     <Segmentado
-      etiqueta="Con qué se prueba"
+      etiqueta={textos.conQueSePrueba}
       chico
       opciones={[
-        { id: 'hoy', etiqueta: 'Con lo de hoy' },
-        { id: 'cero', etiqueta: 'Todo en cero' },
+        { id: 'hoy', etiqueta: textos.conLoDeHoy },
+        { id: 'cero', etiqueta: textos.todoEnCero },
       ]}
       elegido={prueba.enCero ? 'cero' : 'hoy'}
       alElegir={(opcion) => {
@@ -49,9 +49,9 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
   );
   const seCobro = conCobrado && (
     <MoneyInput
-      etiqueta="Se cobró"
-      ayuda="Todo lo que entró del trabajo, para lo que se calcula sobre lo que cobrás."
-      placeholder="$ 0"
+      etiqueta={textos.seCobro}
+      ayuda={textos.ayudaDeLoCobrado}
+      conMarcador
       value={prueba.cobrado}
       onChange={cambiarCobrado}
     />
@@ -62,15 +62,15 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
       <div className="flex flex-col gap-2">
         {conCobrado && (
           <MoneyInput
-            etiqueta="Se cobró"
-            placeholder="$ 0"
+            etiqueta={textos.seCobro}
+            conMarcador
             value={prueba.cobrado}
             onChange={cambiarCobrado}
           />
         )}
         <MoneyInput
-          etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
-          placeholder="$ 0"
+          etiqueta={etiquetaDelMonto}
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
         />
@@ -84,35 +84,40 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
       {seCobro}
       {forma === 'celular' && !conCobrado ? (
         <MoneyInput
-          aria-label="Lo que deja el trabajo"
-          placeholder="$ 0"
+          aria-label={textos.loQueDejaElTrabajo}
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
           className="h-field w-full rounded-field border border-border bg-paper px-3.5 text-body-lg"
         />
       ) : (
         <MoneyInput
-          etiqueta={conCobrado ? ETIQUETA_DE_LO_QUE_DEJA : ETIQUETA_DEL_TRABAJO}
-          placeholder="$ 0"
+          etiqueta={etiquetaDelMonto}
+          conMarcador
           value={prueba.monto}
           onChange={cambiarMonto}
         />
       )}
-      <div className={forma === 'celular' ? 'grid grid-cols-3 gap-1.5' : 'flex flex-wrap gap-1.5'}>
+      <div
+        className={
+          forma === 'celular' ? 'flex flex-wrap gap-x-1.5 gap-y-2' : 'flex flex-wrap gap-1.5'
+        }
+      >
         {ATAJOS_DE_LA_PRUEBA.map((monto) => {
           const elegido = prueba.monto === monto;
           return (
             <button
               key={monto}
               type="button"
+              translate="no"
               aria-pressed={elegido}
               onClick={() => {
                 alProbar({ ...prueba, monto });
               }}
-              className={`apretable relative rounded-pill border px-3 text-label tabular-nums ${
+              className={`apretable relative rounded-pill border text-label tabular-nums ${
                 forma === 'celular'
-                  ? 'min-h-9 before:absolute before:inset-x-0 before:-inset-y-1'
-                  : 'min-h-tap'
+                  ? 'min-h-9 max-w-1/2 flex-1 px-1.5 before:absolute before:inset-x-0 before:-inset-y-1'
+                  : 'min-h-tap px-3'
               } ${
                 elegido
                   ? 'border-ink bg-ink font-semibold text-paper'
@@ -141,6 +146,14 @@ export function Probador({ vista, prueba, resultado, alProbar, forma = 'panel' }
   );
 }
 
+function ElSobrante({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className="font-semibold text-ink tabular-nums">
+      {children}
+    </span>
+  );
+}
+
 function Sobran({
   resultado,
   conMirar = false,
@@ -148,13 +161,11 @@ function Sobran({
   resultado: LiquidacionPorLaFila;
   conMirar?: boolean;
 }) {
+  const textos = useMensajes().armarLaFila.probador;
+  const sobrante = formatearPesos(resultado.sobrante);
   return (
     <p className="text-label text-text-2">
-      Sobran{' '}
-      <span className="font-semibold text-ink tabular-nums">
-        {formatearPesos(resultado.sobrante)}
-      </span>{' '}
-      para repartir.{conMirar ? ' Mirá la fila.' : ''}
+      {conMirar ? textos.sobranYMira(ElSobrante, sobrante) : textos.sobran(ElSobrante, sobrante)}
     </p>
   );
 }
@@ -189,7 +200,10 @@ function RenglonDeLaTabla({
           className="min-w-0 flex-1 text-label"
           izquierda={nombre}
           derecha={
-            <span className={`font-semibold ${monto <= 0 ? 'text-text-3' : 'text-ink'}`}>
+            <span
+              translate="no"
+              className={`font-semibold ${monto <= 0 ? 'text-text-3' : 'text-ink'}`}
+            >
               {formatearPesos(monto)}
             </span>
           }
@@ -211,7 +225,11 @@ function Subtotal({ icono, nombre, monto }: { icono?: ReactNode; nombre: string;
       <LineaDePuntos
         className="min-w-0 flex-1 text-label font-medium"
         izquierda={nombre}
-        derecha={<span className="font-semibold text-ink">{formatearPesos(monto)}</span>}
+        derecha={
+          <span translate="no" className="font-semibold text-ink">
+            {formatearPesos(monto)}
+          </span>
+        }
       />
     </li>
   );
@@ -224,6 +242,7 @@ export function TablaDeLaPrueba({
   vista: Pick<VistaDeLaFila, 'tesoros' | 'sistema'>;
   resultado: LiquidacionPorLaFila;
 }) {
+  const textos = useMensajes().armarLaFila.probador;
   const suma =
     resultado.obligaciones.reduce((total, obligacion) => total + obligacion.monto, 0) +
     resultado.pasos.reduce((total, paso) => total + paso.monto, 0) +
@@ -246,29 +265,32 @@ export function TablaDeLaPrueba({
   );
   return (
     <div className="rounded-field border border-hairline bg-surface-3 px-3 py-3">
-      <ul aria-label="Cómo baja este cobro" className="flex flex-col gap-2">
+      <ul aria-label={textos.comoBaja} className="flex flex-col gap-2">
         {resultado.obligaciones.map((obligacion, indice) => {
           const tesoro = tesoroDe(vista, obligacion.tesoro);
           return (
             <RenglonDeLaTabla
               key={obligacion.tesoro}
               numero={indice + 1}
-              nombre={`${obligacion.diezmo ? 'Diezmo' : tesoro.nombre} ${porciento(obligacion.porcentaje)}`}
+              nombre={textos.conPorcentaje(
+                obligacion.diezmo ? textos.diezmo : tesoro.nombre,
+                porciento(obligacion.porcentaje),
+              )}
               monto={obligacion.monto}
             />
           );
         })}
         {compromisos.length > 0 && (
           <>
-            <Subtotal nombre="Ingreso libre" monto={resultado.libre} />
+            <Subtotal nombre={textos.ingresoLibre} monto={resultado.libre} />
             {compromisos.map(renglonDelPaso)}
           </>
         )}
-        <Subtotal nombre="Ganancia" monto={resultado.ganancia} />
+        <Subtotal nombre={textos.ganancia} monto={resultado.ganancia} />
         {ahorros.map(renglonDelPaso)}
         <Subtotal
           icono={<Icono nombre="split" tamano={14} />}
-          nombre="Lo que sobra"
+          nombre={textos.loQueSobra}
           monto={resultado.sobrante}
         />
         {resultado.reparto.map((parte) => {
@@ -277,7 +299,7 @@ export function TablaDeLaPrueba({
             <RenglonDeLaTabla
               key={parte.tesoro}
               sangria
-              nombre={`${tesoro.nombre} ${porciento(parte.porcentaje)}`}
+              nombre={textos.conPorcentaje(tesoro.nombre, porciento(parte.porcentaje))}
               punto={TINTA[tesoro.tinta].fondo}
               monto={parte.monto}
               nota={notaDeLaParteEnLaPrueba(parte)}
@@ -286,21 +308,21 @@ export function TablaDeLaPrueba({
         })}
         <RenglonDeLaTabla
           sangria
-          nombre={`${superavit.nombre}, el resto ${porciento(restoBp)}`}
+          nombre={textos.elResto(superavit.nombre, porciento(restoBp))}
           punto={TINTA[superavit.tinta].fondo}
           monto={resultado.remanente}
         />
       </ul>
       <div className="mt-2.5 flex items-center justify-between border-t border-ink pt-2 text-label">
         <span className="rotulo-del-plano text-badge font-semibold text-text-2 uppercase">
-          Suma
+          {textos.suma}
         </span>
         <span className="flex items-center gap-1.5 font-semibold tabular-nums">
-          {formatearPesos(suma)}
+          <span translate="no">{formatearPesos(suma)}</span>
           {cierra && (
             <>
               <Icono nombre="check" tamano={14} grosor={2.25} />
-              <span className="sr-only">da el ingreso</span>
+              <span className="sr-only">{textos.daElIngreso}</span>
             </>
           )}
         </span>

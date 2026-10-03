@@ -5,6 +5,7 @@ import {
   puntosBasicos,
   sumaDelReparto,
   tipoDelPaso,
+  totalesPorMoneda,
   ULTIMO_DIA_DE_PAGO,
   type BaseDeLaObligacion,
   type LiquidacionPorLaFila,
@@ -39,6 +40,7 @@ import {
   BASE_EN_PALABRAS,
   ETIQUETA_DE_LA_BASE,
   EscalaDelReparto,
+  entraEnLaFila,
   Globo,
   LineaDePuntos,
   lugaresParaSumar,
@@ -50,13 +52,29 @@ import {
   puedeSerSuperavit,
   tituloDelModo,
 } from '@/entities/fila';
-import type { PagoParaRegistrar } from '@/entities/movimiento';
-import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
-import { ChipDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
 import {
+  categoriaEnPantalla,
+  equivalenteEnPesos,
+  rutaParaComprarDolares,
+  type PagoParaRegistrar,
+  type UltimoCambio,
+} from '@/entities/movimiento';
+import { fraseDeLosInsumos, type InsumosDeLosTrabajos } from '@/entities/proyecto';
+import {
+  ChipDelTesoro,
+  enOtraMoneda,
+  esDeLaMonedaDelTaller,
+  metaEnPesos,
+  type TesoroDelTaller,
+} from '@/entities/tesoro';
+import { mensajes, useMensajes } from '@/shared/idioma';
+import {
+  formatearLaPlata,
   formatearPesos,
+  formatearPlata,
   formatearPorcentaje,
   Ir,
+  mesEnUnaFrase,
   nombreDelMes,
   parsearPorcentaje,
   rutaDelProyecto,
@@ -99,7 +117,7 @@ import {
   fichaEnElLugar,
   queFichaEs,
 } from '../model/fichas';
-import { mesYAnio, porciento, problemasDe, textoDelProblema } from '../model/textos';
+import { porciento, problemasDe, textoDelProblema } from '../model/textos';
 import {
   escalaDe,
   lugarEnLaFila,
@@ -122,6 +140,8 @@ export interface PanelDeDetalleProps {
   alCubrir: (paso: PasoDelMes) => void;
   alEditarTesoro: (tesoro: string) => void;
   alRegistrarElPago?: (pago: PagoParaRegistrar) => void;
+  alCambiarDolares?: (ruta: string) => void;
+  ultimoCambio?: UltimoCambio | null;
   insumos?: InsumosDeLosTrabajos;
   arriba?: ReactNode;
   enHoja?: boolean;
@@ -133,6 +153,18 @@ const SOBRANTE_DE_EJEMPLO = centavos(47_000_000);
 const SIN_INSUMOS: InsumosDeLosTrabajos = { total: centavos(0), trabajos: [] };
 
 const ContextoDelFoco = createContext<() => void>(() => undefined);
+
+function NumeroEnNegrita({ children }: { children: ReactNode }) {
+  return <span className="font-semibold tabular-nums">{children}</span>;
+}
+
+function NombreEnNegrita({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className="font-semibold">
+      {children}
+    </span>
+  );
+}
 
 function textosDe(
   vista: VistaDeLaFila,
@@ -147,11 +179,58 @@ function textosDe(
   );
 }
 
+function ComprarDolares({
+  vista,
+  tesoro,
+  props,
+}: {
+  vista: VistaDeLaFila;
+  tesoro: TesoroDelTaller;
+  props: PanelDeDetalleProps;
+}) {
+  const m = useMensajes();
+  const { alCambiarDolares } = props;
+  if (alCambiarDolares === undefined || !vista.sincronizados) return null;
+  if (!esDeLaMonedaDelTaller(tesoro) || tesoro.clave === 'diezmo' || tesoro.archivado) return null;
+  if (enOtraMoneda(vista.tesoros).length === 0) return null;
+  return (
+    <div className="pb-5">
+      <Button
+        variant="secundario"
+        onClick={() => {
+          alCambiarDolares(rutaParaComprarDolares(tesoro));
+        }}
+      >
+        <Icono nombre="arrow-left-right" tamano={16} />
+        {m.movimiento.comprarDolares}
+      </Button>
+    </div>
+  );
+}
+
+function EquivalenteEnPesos({
+  tesoro,
+  ultimoCambio,
+}: {
+  tesoro: TesoroDelTaller;
+  ultimoCambio: UltimoCambio | null | undefined;
+}) {
+  if (tesoro.saldo.moneda !== 'USD') return null;
+  const equivalente = equivalenteEnPesos(tesoro.saldo.importe, ultimoCambio ?? null);
+  if (equivalente === null) return null;
+  return (
+    <p data-equivalente-en-pesos className="text-label text-text-2 tabular-nums">
+      {equivalente}
+    </p>
+  );
+}
+
 function BotonCerrar({ alCerrar }: { alCerrar: () => void }) {
+  const m = useMensajes();
   return (
     <button
       type="button"
-      aria-label="Cerrar el detalle"
+      aria-label={m.armarLaFila.panel.cerrarElDetalle}
       onClick={alCerrar}
       className="-mt-1 -mr-2 flex size-11 flex-none items-center justify-center rounded-field text-text-2 hover:bg-surface"
     >
@@ -183,12 +262,15 @@ function Cabecera({
         <h2
           tabIndex={-1}
           data-foco-del-panel
+          translate="no"
           className={`truncate text-h2 leading-tight font-semibold ${TINTA[tesoro.tinta].texto}`}
         >
           {tesoro.nombre}
         </h2>
         {tesoro.descripcion !== '' && (
-          <p className="truncate text-label text-text-2">{tesoro.descripcion}</p>
+          <p translate="no" className="truncate text-label text-text-2">
+            {tesoro.descripcion}
+          </p>
         )}
       </div>
       {vista.sincronizados && (
@@ -243,6 +325,7 @@ function BotonesDeLugar({
   puedeBajar: boolean;
   alMover: (hacia: -1 | 1) => void;
 }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
     <div className="flex gap-2">
       <Button
@@ -255,7 +338,7 @@ function BotonesDeLugar({
         className="px-3"
       >
         <Icono nombre="arrow-up" tamano={16} />
-        Subir
+        {textos.subir}
       </Button>
       <Button
         variant="herramienta"
@@ -267,7 +350,7 @@ function BotonesDeLugar({
         className="px-3"
       >
         <Icono nombre="arrow-down" tamano={16} />
-        Bajar
+        {textos.bajar}
       </Button>
     </div>
   );
@@ -290,6 +373,7 @@ function SeccionDelLugar({
   puede: Puede;
   debajo?: ReactNode;
 }) {
+  const textos = useMensajes().armarLaFila.panel;
   const botones = useRef<HTMLDivElement>(null);
   const alMover = (hacia: -1 | 1) => {
     const despues = mover(vista.fila, tesoro, hacia);
@@ -303,11 +387,14 @@ function SeccionDelLugar({
     });
   };
   return (
-    <Seccion titulo="Lugar en la fila" ayuda={<AyudaDelLugar />}>
+    <Seccion titulo={textos.lugarEnLaFila} ayuda={<AyudaDelLugar />}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body">
-          <span className="font-semibold tabular-nums">{numeroEnLaFila(vista.fila, tesoro)}</span>{' '}
-          de {vista.fila.obligaciones.length + vista.fila.pasos.length}
+          {textos.numeroDeCuantos(
+            NumeroEnNegrita,
+            numeroEnLaFila(vista.fila, tesoro),
+            vista.fila.obligaciones.length + vista.fila.pasos.length,
+          )}
         </span>
         {vista.armando && (
           <div ref={botones}>
@@ -325,14 +412,13 @@ function SeccionDelLugar({
 }
 
 function SacarDeLaFila({ texto, alSacar }: { texto: string; alSacar: () => void }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
     <div className="border-t border-hairline pt-4">
       <Button variant="terciario" className="-ml-3 min-h-tap" onClick={alSacar}>
         {texto}
       </Button>
-      <p className="mt-0.5 text-meta text-text-3">
-        Vuelve al estante con lo que tiene. Nada se borra.
-      </p>
+      <p className="mt-0.5 text-meta text-text-3">{textos.vuelveAlEstante}</p>
     </div>
   );
 }
@@ -381,6 +467,7 @@ function CampoDelPorcentaje({
 }
 
 function BotonDePago({ etiqueta, alTocar }: { etiqueta?: string; alTocar: () => void }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
     <Button
       variant="secundario"
@@ -390,7 +477,7 @@ function BotonDePago({ etiqueta, alTocar }: { etiqueta?: string; alTocar: () => 
       onClick={alTocar}
     >
       <Icono nombre="receipt" tamano={16} />
-      Registrar el pago
+      {textos.registrarElPago}
     </Button>
   );
 }
@@ -404,6 +491,8 @@ function PanelDeLaObligacion({
   tesoroId: string;
   props: PanelDeDetalleProps;
 }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const obligacion = vista.fila.obligaciones.find((una) => una.tesoro === tesoroId);
   const moverElFoco = useContext(ContextoDelFoco);
   if (obligacion === undefined) return null;
@@ -411,7 +500,7 @@ function PanelDeLaObligacion({
   const esDiezmo = tesoroId === vista.sistema.diezmo;
   const delMes = vista.delMes.obligaciones.find((una) => una.tesoro === tesoroId);
   const aPagar = delMes?.aPagar ?? 0;
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const mes = mesEnUnaFrase(vista.mes);
   const cerrar = () => {
     props.alElegir(null);
   };
@@ -420,17 +509,17 @@ function PanelDeLaObligacion({
       {props.enHoja !== true && (
         <Cabecera
           tesoro={tesoro}
-          sobre={`Obligación · ${lugarEnLaFila(vista.fila, tesoroId)}`}
+          sobre={m.ficha.deLaObligacion(lugarEnLaFila(vista.fila, tesoroId))}
           vista={vista}
           alCerrar={cerrar}
           alEditarTesoro={props.alEditarTesoro}
         />
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, tesoroId, ['tesoro'])} />
-      <Seccion titulo="Porcentaje" ayuda={<AyudaDelGrupo grupo="obligaciones" />}>
+      <Seccion titulo={textos.porcentaje} ayuda={<AyudaDelGrupo grupo="obligaciones" />}>
         {vista.armando ? (
           <CampoDelPorcentaje
-            etiqueta={`Porcentaje de ${tesoro.nombre}`}
+            etiqueta={textos.porcentajeDe(tesoro.nombre)}
             porcentaje={obligacion.porcentaje}
             alCambiar={(bp) => {
               editarLaFila(
@@ -441,16 +530,16 @@ function PanelDeLaObligacion({
             }}
           />
         ) : (
-          <p className="text-money-lg font-semibold tabular-nums">
+          <p translate="no" className="text-money-lg font-semibold tabular-nums">
             {porciento(obligacion.porcentaje)}
           </p>
         )}
         <ProblemasDeLaSeccion textos={textosDe(vista, tesoroId, ['obligacion'])} />
       </Seccion>
-      <Seccion titulo="Sobre qué se calcula" ayuda={<AyudaDeLaBase />}>
+      <Seccion titulo={textos.sobreQueSeCalcula} ayuda={<AyudaDeLaBase />}>
         {vista.armando ? (
           <Segmentado<BaseDeLaObligacion>
-            etiqueta={`Sobre qué se calcula ${tesoro.nombre}`}
+            etiqueta={textos.sobreQueSeCalculaDe(tesoro.nombre)}
             opciones={[
               { id: 'cobrado', etiqueta: ETIQUETA_DE_LA_BASE.cobrado },
               { id: 'ingreso', etiqueta: ETIQUETA_DE_LA_BASE.ingreso },
@@ -466,16 +555,22 @@ function PanelDeLaObligacion({
           </p>
         )}
       </Seccion>
-      <Seccion titulo={`En ${mes}`}>
+      <Seccion titulo={textos.enElMes(mes)}>
         <LineaDePuntos
           className="text-label"
-          izquierda="Apartado"
-          derecha={<span className="font-semibold">{formatearPesos(delMes?.apartado ?? 0)}</span>}
+          izquierda={textos.apartado}
+          derecha={
+            <span translate="no" className="font-semibold">
+              {formatearPesos(delMes?.apartado ?? 0)}
+            </span>
+          }
         />
       </Seccion>
-      <Seccion titulo="A pagar">
+      <Seccion titulo={textos.aPagar}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-money-lg font-semibold tabular-nums">{formatearPesos(aPagar)}</p>
+          <p translate="no" className="text-money-lg font-semibold tabular-nums">
+            {formatearPesos(aPagar)}
+          </p>
           {aPagar > 0 && vista.sincronizados && props.alRegistrarElPago !== undefined && (
             <BotonDePago
               alTocar={() => {
@@ -489,6 +584,7 @@ function PanelDeLaObligacion({
           )}
         </div>
       </Seccion>
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
       <SeccionDelLugar
         vista={vista}
         tesoro={tesoroId}
@@ -498,14 +594,14 @@ function PanelDeLaObligacion({
           esDiezmo ? (
             <p className="flex items-center gap-1.5 text-meta text-text-3">
               <Icono nombre="lock" tamano={13} />
-              El diezmo no se puede sacar de la fila: su porcentaje y su lugar sí se cambian.
+              {textos.candadoDelDiezmo}
             </p>
           ) : undefined
         }
       />
       {vista.armando && puedeSalirDeLaFila(tesoroId, vista.sistema.diezmo) && (
         <SacarDeLaFila
-          texto="Sacar de las obligaciones"
+          texto={textos.sacarDeLasObligaciones}
           alSacar={() => {
             moverElFoco();
             editarLaFila(vista, (fila) => sacar(fila, tesoroId));
@@ -526,11 +622,12 @@ function SelectorDelDia({
   dia: number | null;
   alCambiar: (dia: number | null) => void;
 }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
     <label className="flex min-w-0 items-center gap-2 text-label text-text-2">
-      Vence el
+      {textos.venceEl}
       <select
-        aria-label={`Día de pago de ${nombre === '' ? 'este renglón' : nombre}`}
+        aria-label={nombre === '' ? textos.diaDePagoDeEsteRenglon : textos.diaDePagoDe(nombre)}
         value={dia === null ? '' : String(dia)}
         onChange={(evento) => {
           const valor = evento.target.value;
@@ -538,7 +635,7 @@ function SelectorDelDia({
         }}
         className="h-11 min-w-0 rounded-field border border-border bg-paper px-2 text-body text-ink"
       >
-        <option value="">sin día</option>
+        <option value="">{textos.sinDia}</option>
         {Array.from({ length: ULTIMO_DIA_DE_PAGO }, (_, indice) => indice + 1).map((uno) => (
           <option key={uno} value={String(uno)}>
             {uno}
@@ -550,6 +647,7 @@ function SelectorDelDia({
 }
 
 function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeLaFila }) {
+  const textos = useMensajes().armarLaFila.panel;
   const [recienSumado, setRecienSumado] = useState<number | null>(null);
   const nombre = tesoroDe(vista, paso.tesoro).nombre;
   const delMes = vista.delMes.pasos.find((candidato) => candidato.tesoro === paso.tesoro);
@@ -585,13 +683,8 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
 
   return (
     <Seccion
-      titulo="Renglones"
-      ayuda={
-        <Ayuda que="Qué son los renglones">
-          Cada gasto que se paga todos los meses. El monto del compromiso es la suma: cuando cambia
-          un renglón, cambia el monto desde el próximo cobro.
-        </Ayuda>
-      }
+      titulo={textos.renglones}
+      ayuda={<Ayuda que={textos.queSonLosRenglones}>{textos.ayudaDeLosRenglones}</Ayuda>}
     >
       <ul className="flex flex-col gap-2">
         {paso.renglones.map((renglon, indice) =>
@@ -602,8 +695,8 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
             >
               <div className="flex items-center gap-2">
                 <input
-                  aria-label={`Renglón ${String(indice + 1)} de ${nombre}`}
-                  value={renglon.nombre}
+                  aria-label={textos.renglonDe(indice + 1, nombre)}
+                  value={categoriaEnPantalla(renglon.nombre)}
                   maxLength={LARGO_MAXIMO_DEL_RENGLON}
                   autoFocus={recienSumado === indice}
                   onChange={(evento) => {
@@ -613,7 +706,11 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
                 />
                 <button
                   type="button"
-                  aria-label={`Sacar el renglón ${renglon.nombre === '' ? String(indice + 1) : renglon.nombre}`}
+                  aria-label={
+                    renglon.nombre === ''
+                      ? textos.sacarElRenglonNumero(indice + 1)
+                      : textos.sacarElRenglon(categoriaEnPantalla(renglon.nombre))
+                  }
                   onClick={() => {
                     editarLaFila(vista, (fila) => {
                       const actual = pasoDe(fila, paso.tesoro);
@@ -632,7 +729,11 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
               </div>
               <div className="flex items-center gap-2">
                 <MoneyInput
-                  aria-label={`Monto de ${renglon.nombre === '' ? `el renglón ${String(indice + 1)}` : renglon.nombre}`}
+                  aria-label={
+                    renglon.nombre === ''
+                      ? textos.montoDelRenglon(indice + 1)
+                      : textos.montoDe(categoriaEnPantalla(renglon.nombre))
+                  }
                   placeholder="0"
                   value={renglon.monto === 0 ? null : renglon.monto}
                   onChange={(monto) => {
@@ -641,7 +742,7 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
                   className="h-11 w-32 min-w-0 flex-1 rounded-field border border-border bg-paper px-3 text-right text-body text-ink"
                 />
                 <SelectorDelDia
-                  nombre={renglon.nombre}
+                  nombre={categoriaEnPantalla(renglon.nombre)}
                   dia={renglon.dia}
                   alCambiar={(dia) => {
                     cambiarRenglon(indice, { dia });
@@ -654,17 +755,17 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
               <LineaDePuntos
                 izquierda={
                   <span>
-                    {renglon.nombre}
+                    <span translate="no">{categoriaEnPantalla(renglon.nombre)}</span>
                     {renglon.dia !== null && (
                       <span className="text-text-3">
                         {' '}
-                        · vence el {renglon.dia}
+                        {textos.venceElDia(renglon.dia)}
                         {pagados.get(indice) === true && ' ✓'}
                       </span>
                     )}
                   </span>
                 }
-                derecha={formatearPesos(renglon.monto)}
+                derecha={<span translate="no">{formatearPesos(renglon.monto)}</span>}
               />
             </li>
           ),
@@ -684,33 +785,37 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
           className="flex min-h-tap items-center gap-2 self-start rounded-pill px-1 text-label font-medium text-ink underline underline-offset-3"
         >
           <Icono nombre="plus" tamano={16} />
-          Sumar un renglón
+          {textos.sumarUnRenglon}
         </button>
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['renglones'])} />
       <div className="flex items-baseline justify-between border-t border-ink pt-2 text-body">
-        <span className="text-label text-text-2">Monto, la suma</span>
-        <span className="font-semibold tabular-nums">{formatearPesos(paso.tope)}</span>
+        <span className="text-label text-text-2">{textos.montoLaSuma}</span>
+        <span translate="no" className="font-semibold tabular-nums">
+          {formatearPesos(paso.tope)}
+        </span>
       </div>
     </Seccion>
   );
 }
 
 function rigeDesde(vista: VistaDeLaFila, paso: PasoDeLaFila): string {
+  const textos = mensajes().armarLaFila.panel;
   const antes = pasoDe(vista.base, paso.tesoro);
   if (paso.desde === null || antes === undefined || antes.tope !== paso.tope) {
-    return 'Rige desde el próximo cobro';
+    return textos.rigeDesdeElProximoCobro;
   }
-  return `Rige desde ${mesYAnio(paso.desde, nombreDelMes(paso.desde))}`;
+  return textos.rigeDesde(mesEnUnaFrase(paso.desde), paso.desde.slice(0, 4));
 }
 
 function MontoDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeLaFila }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
-    <Seccion titulo="Monto" ayuda={<AyudaDelMonto monto={paso.tope} />}>
+    <Seccion titulo={textos.monto} ayuda={<AyudaDelMonto monto={paso.tope} />}>
       {vista.armando ? (
         <MoneyInput
-          aria-label={`Monto de ${tesoroDe(vista, paso.tesoro).nombre}`}
-          placeholder="$ 0"
+          aria-label={textos.montoDe(tesoroDe(vista, paso.tesoro).nombre)}
+          conMarcador
           value={paso.tope}
           onChange={(monto) => {
             editarLaFila(
@@ -722,16 +827,14 @@ function MontoDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeLaFil
           className="h-field w-full rounded-field border border-border bg-paper px-3.5 text-body-lg text-ink"
         />
       ) : (
-        <p className="text-money-lg font-semibold tabular-nums">{formatearPesos(paso.tope)}</p>
+        <p translate="no" className="text-money-lg font-semibold tabular-nums">
+          {formatearPesos(paso.tope)}
+        </p>
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['tope'])} />
       <p className="text-meta text-text-3">{rigeDesde(vista, paso)}</p>
     </Seccion>
   );
-}
-
-function conMayuscula(texto: string): string {
-  return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
 }
 
 function ComoSeLlena({
@@ -745,12 +848,14 @@ function ComoSeLlena({
   tesoro: TesoroDelTaller;
   tipo: TipoDelPaso;
 }) {
+  const m = useMensajes();
+  const textos = m.armarLaFila.panel;
   const modos = modosDelPaso(paso.clase, tesoro.clave);
   return (
     <Seccion titulo={tituloDelModo(tipo)} ayuda={<AyudaDelModo tipo={tipo} />}>
       {vista.armando && modos.length > 1 ? (
         <Segmentado<ModoDePaso>
-          etiqueta={`${tituloDelModo(tipo)} ${tesoro.nombre}`}
+          etiqueta={textos.comoSeLlenaDe(tipo, tesoro.nombre)}
           opciones={modos}
           elegido={paso.modo}
           alElegir={(modo) => {
@@ -758,13 +863,9 @@ function ComoSeLlena({
           }}
         />
       ) : (
-        <p className="text-body text-ink">{conMayuscula(modoEnPalabras(paso.modo, tipo))}</p>
+        <p className="text-body text-ink">{m.fila.opcionDelModo[tipo][paso.modo]}</p>
       )}
-      {paso.clase === 'sueldo' && (
-        <p className="text-meta text-text-3">
-          El sueldo del Hogar va siempre por mes: el Hogar gasta su saldo todo el mes.
-        </p>
-      )}
+      {paso.clase === 'sueldo' && <p className="text-meta text-text-3">{textos.sueldoPorMes}</p>}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['modo'])} />
     </Seccion>
   );
@@ -781,8 +882,9 @@ function HastaLaMeta({
   hastaLaMeta: boolean;
   meta: { meta: number; saldo: number; falta: number; llego: boolean } | null;
 }) {
+  const textos = useMensajes().armarLaFila.panel;
   return (
-    <Seccion titulo="Hasta la meta" ayuda={<AyudaDeLaMeta />}>
+    <Seccion titulo={textos.hastaLaMeta} ayuda={<AyudaDeLaMeta />}>
       {vista.armando ? (
         <Interruptor
           activo={hastaLaMeta}
@@ -791,20 +893,20 @@ function HastaLaMeta({
           }}
           className="min-h-tap rounded-pill text-body"
         >
-          Hasta la meta
+          {textos.hastaLaMeta}
         </Interruptor>
       ) : (
         <p className="text-body text-ink">
-          {hastaLaMeta ? 'Junta hasta llegar a su meta.' : 'Junta sin fin.'}
+          {hastaLaMeta ? textos.juntaHastaLaMeta : textos.juntaSinFin}
         </p>
       )}
       {meta !== null && (
         <LineaDePuntos
           className="text-label text-text-2"
-          izquierda={meta.llego ? 'Llegó a su meta' : `Le faltan ${formatearPesos(meta.falta)}`}
+          izquierda={meta.llego ? textos.llegoASuMeta : textos.leFaltan(formatearPesos(meta.falta))}
           derecha={
-            <span className="font-semibold text-ink">
-              {formatearPesos(meta.saldo)} de {formatearPesos(meta.meta)}
+            <span translate="no" className="font-semibold text-ink">
+              {textos.deTotal(formatearPesos(meta.saldo), formatearPesos(meta.meta))}
             </span>
           }
         />
@@ -827,18 +929,23 @@ function ElMesDelPaso({
   delMes: PasoDelMes | undefined;
   props: PanelDeDetalleProps;
 }) {
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const textos = useMensajes().armarLaFila.panel;
+  const mes = mesEnUnaFrase(vista.mes);
   const sinTope = paso.tope <= 0;
   if (paso.modo === 'trabajo') {
     return (
-      <Seccion titulo={`En ${mes}`}>
+      <Seccion titulo={textos.enElMes(mes)}>
         <LineaDePuntos
           className="text-label"
-          izquierda="Recibió"
-          derecha={<span className="font-semibold">{formatearPesos(delMes?.recibido ?? 0)}</span>}
+          izquierda={textos.recibio}
+          derecha={
+            <span translate="no" className="font-semibold">
+              {formatearPesos(delMes?.recibido ?? 0)}
+            </span>
+          }
         />
         <p className="text-meta text-text-3">
-          Recibe {formatearPesos(paso.tope)} en cada cobro, sin mirar el mes.
+          {textos.recibeEnCadaCobro(formatearPesos(paso.tope))}
         </p>
       </Seccion>
     );
@@ -846,26 +953,27 @@ function ElMesDelPaso({
   const lleva = delMes?.lleva ?? 0;
   const falta = delMes?.falta ?? paso.tope;
   const enSaldo = paso.modo === 'saldo';
+  const llevaDeTope = textos.deTotal(formatearPesos(lleva), formatearPesos(paso.tope));
   return (
-    <Seccion titulo={enSaldo ? 'Lo apartado' : `En ${mes}`}>
+    <Seccion titulo={enSaldo ? textos.loApartado : textos.enElMes(mes)}>
       <NivelDelMes
         tinta={tesoro.tinta}
         lleva={lleva}
         tope={paso.tope}
-        etiqueta={enSaldo ? `${tesoro.nombre}, lo apartado` : `${tesoro.nombre} en ${mes}`}
-        texto={
-          sinTope ? 'Sin monto todavía' : `${formatearPesos(lleva)} de ${formatearPesos(paso.tope)}`
+        etiqueta={
+          enSaldo ? textos.nivelApartado(tesoro.nombre) : textos.nivelDelMes(tesoro.nombre, mes)
         }
+        texto={sinTope ? textos.sinMontoTodavia : llevaDeTope}
       />
       <div className="flex items-baseline justify-between gap-3 text-label">
-        <span className="text-text-2 tabular-nums">
-          {formatearPesos(lleva)} de {formatearPesos(paso.tope)}
+        <span translate="no" className="text-text-2 tabular-nums">
+          {llevaDeTope}
         </span>
         {sinTope ? (
-          <span className="font-medium text-text-3">Poné el monto</span>
+          <span className="font-medium text-text-3">{textos.poneElMonto}</span>
         ) : (
           <span className="font-semibold tabular-nums">
-            {falta <= 0 ? 'Completo' : `Faltan ${formatearPesos(falta)}`}
+            {falta <= 0 ? textos.completo : textos.faltan(formatearPesos(falta))}
           </span>
         )}
       </div>
@@ -879,7 +987,7 @@ function ElMesDelPaso({
           }}
         >
           <Icono nombre="arrow-left-right" tamano={16} />
-          Cubrir desde otro tesoro
+          {textos.cubrirDesdeOtroTesoro}
         </Button>
       )}
     </Seccion>
@@ -899,37 +1007,45 @@ function APagarDelCompromiso({
   delMes: PasoDelMes;
   props: PanelDeDetalleProps;
 }) {
+  const textos = useMensajes().armarLaFila.panel;
   const pagados = new Map(delMes.vencimientos.map((uno) => [uno.indice, uno.pagado]));
   const puedePagar = vista.sincronizados && props.alRegistrarElPago !== undefined;
   return (
-    <Seccion titulo="A pagar">
-      <p className="text-money-lg font-semibold tabular-nums">
+    <Seccion titulo={textos.aPagar}>
+      <p translate="no" className="text-money-lg font-semibold tabular-nums">
         {formatearPesos(delMes.aPagar ?? 0)}
       </p>
       <ul className="flex flex-col divide-y divide-hairline-soft">
         {paso.renglones.map((renglon, indice) => {
           const pagado = pagados.get(indice) === true;
+          const nombre = categoriaEnPantalla(renglon.nombre);
           return (
             <li
               key={`${renglon.nombre}-${String(indice)}`}
               className="flex min-h-tap items-center justify-between gap-3 py-1.5"
             >
               <span className="min-w-0">
-                <span className="block truncate text-body">{renglon.nombre}</span>
+                <span translate="no" className="block truncate text-body">
+                  {nombre}
+                </span>
                 <span className="block text-meta text-text-3 tabular-nums">
-                  {formatearPesos(renglon.monto)}
-                  {renglon.dia !== null && ` · vence el ${String(renglon.dia)}`}
+                  <span translate="no">{formatearPesos(renglon.monto)}</span>
+                  {renglon.dia !== null && <> {textos.venceElDia(renglon.dia)}</>}
                 </span>
               </span>
               {pagado ? (
                 <span className="flex flex-none items-center gap-1 text-label font-semibold">
                   <Icono nombre="check" tamano={15} grosor={2.25} />
-                  Pagado
+                  {textos.pagado}
                 </span>
               ) : (
                 puedePagar && (
                   <BotonDePago
-                    etiqueta={`Registrar el pago de ${renglon.nombre === '' ? 'este renglón' : renglon.nombre}`}
+                    etiqueta={
+                      renglon.nombre === ''
+                        ? textos.registrarElPagoDeEsteRenglon
+                        : textos.registrarElPagoDe(nombre)
+                    }
                     alTocar={() => {
                       props.alRegistrarElPago?.({
                         tesoro: { id: tesoro.id, clave: tesoro.clave },
@@ -957,6 +1073,8 @@ function PanelDelPaso({
   paso: PasoDeLaFila;
   props: PanelDeDetalleProps;
 }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const tesoro = tesoroDe(vista, paso.tesoro);
   const tipo = tipoDelPaso(paso.clase);
   const delMes = vista.delMes.pasos.find((candidato) => candidato.tesoro === paso.tesoro);
@@ -965,9 +1083,11 @@ function PanelDelPaso({
   const cerrar = () => {
     props.alElegir(null);
   };
-  const sobre = `${NOMBRE_DEL_TIPO[tipo]} · ${lugarEnLaFila(vista.fila, paso.tesoro)}${
-    paso.clase === 'sueldo' ? ' · Sueldo' : ''
-  }`;
+  const lugar = lugarEnLaFila(vista.fila, paso.tesoro);
+  const sobre =
+    paso.clase === 'sueldo'
+      ? m.ficha.delSueldo(NOMBRE_DEL_TIPO[tipo], lugar)
+      : m.ficha.delPaso(NOMBRE_DEL_TIPO[tipo], lugar);
 
   return (
     <>
@@ -981,22 +1101,23 @@ function PanelDelPaso({
         />
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['tesoro'])} />
-      <Seccion titulo="Qué es" ayuda={<AyudaDeQueEs />}>
+      <Seccion titulo={textos.queEs} ayuda={<AyudaDeQueEs />}>
         {vista.armando && tipos.length > 1 ? (
           <Segmentado<TipoDelPaso>
-            etiqueta={`Qué es ${tesoro.nombre}`}
+            etiqueta={textos.queEsDe(tesoro.nombre)}
             opciones={tipos.map((uno) => ({ id: uno, etiqueta: NOMBRE_DEL_TIPO[uno] }))}
             elegido={tipo}
             alElegir={(uno) => {
               editarLaFila(vista, (fila) =>
-                conTipo(fila, paso.tesoro, uno, tesoro.clave, tesoro.meta),
+                conTipo(fila, paso.tesoro, uno, tesoro.clave, metaEnPesos(tesoro)),
               );
             }}
           />
         ) : (
           <p className="text-body text-ink">
-            {NOMBRE_DEL_TIPO[tipo]}
-            {paso.clase === 'sueldo' ? ' · el sueldo del Hogar' : ''}
+            {paso.clase === 'sueldo'
+              ? textos.tipoDelSueldo(NOMBRE_DEL_TIPO[tipo])
+              : NOMBRE_DEL_TIPO[tipo]}
           </p>
         )}
       </Seccion>
@@ -1009,7 +1130,7 @@ function PanelDelPaso({
 
       <ComoSeLlena vista={vista} paso={paso} tesoro={tesoro} tipo={tipo} />
 
-      {tipo === 'ahorro-fijo' && tesoro.meta !== null && tesoro.meta > 0 && (
+      {tipo === 'ahorro-fijo' && metaEnPesos(tesoro) !== null && (
         <HastaLaMeta
           vista={vista}
           tesoro={tesoro}
@@ -1017,7 +1138,7 @@ function PanelDelPaso({
           meta={delMes?.meta ?? null}
         />
       )}
-      {tipo === 'ahorro-fijo' && (tesoro.meta === null || tesoro.meta <= 0) && (
+      {tipo === 'ahorro-fijo' && metaEnPesos(tesoro) === null && (
         <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['meta'])} />
       )}
 
@@ -1036,6 +1157,8 @@ function PanelDelPaso({
           />
         )}
 
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
+
       <SeccionDelLugar
         vista={vista}
         tesoro={paso.tesoro}
@@ -1045,7 +1168,7 @@ function PanelDelPaso({
 
       {vista.armando && (
         <SacarDeLaFila
-          texto="Sacar de la fila"
+          texto={textos.sacarDeLaFila}
           alSacar={() => {
             moverElFoco();
             editarLaFila(vista, (fila) => sacar(fila, paso.tesoro));
@@ -1058,6 +1181,8 @@ function PanelDelPaso({
 }
 
 function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelDeDetalleProps }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const libre = lugarLibreDelReparto(vista.fila);
   const suma = sumaDelReparto(vista.fila);
   const superavit = tesoroDe(vista, vista.fila.superavit);
@@ -1072,16 +1197,16 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
       {props.enHoja !== true && (
         <CabeceraNeutra
           icono="split"
-          sobre="Ahorros por porcentaje"
-          titulo="Lo que sobra"
-          bajada="Se reparte por porcentaje"
+          sobre={m.ficha.ahorrosPorPorcentaje}
+          titulo={m.ficha.loQueSobra}
+          bajada={textos.seRepartePorPorcentaje}
           alCerrar={() => {
             props.alElegir(null);
           }}
         />
       )}
       <Seccion
-        titulo="Reparto"
+        titulo={textos.reparto}
         ayuda={
           <AyudaDelReparto
             porcentaje={vista.fila.reparto[0]?.porcentaje ?? null}
@@ -1093,12 +1218,13 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
         <ul className="flex flex-col gap-2">
           {vista.fila.reparto.map((parte) => {
             const tesoro = tesoroDe(vista, parte.tesoro);
-            const conMeta = tesoro.meta !== null && tesoro.meta > 0;
+            const conMeta = metaEnPesos(tesoro) !== null;
             return (
               <li key={parte.tesoro} className="flex flex-col gap-1">
                 <div className="flex min-h-11 items-center gap-2">
                   <ChipDelTesoro tesoro={tesoro} />
                   <span
+                    translate="no"
                     className={`ml-1 min-w-0 flex-1 truncate text-body font-medium ${TINTA[tesoro.tinta].texto}`}
                   >
                     {tesoro.nombre}
@@ -1107,7 +1233,7 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                   {vista.armando ? (
                     <>
                       <CampoDelPorcentaje
-                        etiqueta={`Porcentaje de ${tesoro.nombre}`}
+                        etiqueta={textos.porcentajeDe(tesoro.nombre)}
                         porcentaje={parte.porcentaje}
                         alCambiar={(bp) => {
                           editarLaFila(
@@ -1119,7 +1245,7 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                       />
                       <button
                         type="button"
-                        aria-label={`Sacar a ${tesoro.nombre} del reparto`}
+                        aria-label={textos.sacarDelReparto(tesoro.nombre)}
                         onClick={() => {
                           moverElFoco();
                           editarLaFila(vista, (fila) => sacar(fila, parte.tesoro));
@@ -1130,7 +1256,7 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                       </button>
                     </>
                   ) : (
-                    <span className="text-body font-semibold tabular-nums">
+                    <span translate="no" className="text-body font-semibold tabular-nums">
                       {porciento(parte.porcentaje)}
                     </span>
                   )}
@@ -1140,21 +1266,24 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                     {vista.armando ? (
                       <Interruptor
                         activo={parte.hastaLaMeta}
-                        etiqueta={`${tesoro.nombre} hasta la meta`}
+                        etiqueta={textos.hastaLaMetaDe(tesoro.nombre)}
                         alCambiar={(activo) => {
                           editarLaFila(vista, (fila) => conHastaLaMeta(fila, tesoro.id, activo));
                         }}
                         className="min-h-tap rounded-pill text-label text-text-2"
                       >
-                        <span aria-hidden>Hasta la meta</span>
+                        <span aria-hidden>{textos.hastaLaMeta}</span>
                       </Interruptor>
                     ) : (
                       <span className="text-meta text-text-2">
-                        {parte.hastaLaMeta ? 'Hasta la meta' : 'Junta sin fin'}
+                        {parte.hastaLaMeta ? textos.hastaLaMeta : textos.juntaSinFin}
                       </span>
                     )}
-                    <span className="text-meta text-text-3 tabular-nums">
-                      {formatearPesos(tesoro.saldo)} de {formatearPesos(tesoro.meta ?? 0)}
+                    <span translate="no" className="text-meta text-text-3 tabular-nums">
+                      {textos.deTotal(
+                        formatearLaPlata(tesoro.saldo),
+                        formatearPlata(tesoro.meta?.importe ?? 0, tesoro.moneda),
+                      )}
                     </span>
                   </div>
                 )}
@@ -1166,10 +1295,13 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
             <span
               className={`ml-1 min-w-0 flex-1 truncate text-body font-medium ${TINTA[superavit.tinta].texto}`}
             >
-              {superavit.nombre}, el resto
+              {textos.elResto(superavit.nombre)}
             </span>
             {editar(superavit)}
-            <span className={`text-body font-semibold tabular-nums ${vista.armando ? 'mr-9' : ''}`}>
+            <span
+              translate="no"
+              className={`text-body font-semibold tabular-nums ${vista.armando ? 'mr-9' : ''}`}
+            >
               {porciento(libre)}
             </span>
           </li>
@@ -1181,8 +1313,8 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
         {suma <= 10_000 && (
           <p className="text-meta text-text-3">
             {suma === 10_000
-              ? `El reparto llega al 100%: ${superavit.nombre} se queda solo con los centavos del redondeo.`
-              : `Los porcentajes suman ${porciento(suma)}. El ${porciento(libre)} que falta va a ${superavit.nombre}, que recibe lo que sobra.`}
+              ? textos.repartoEnCien(superavit.nombre)
+              : textos.repartoConLibre(porciento(suma), porciento(libre), superavit.nombre)}
           </p>
         )}
       </Seccion>
@@ -1191,21 +1323,23 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
 }
 
 function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: PanelDeDetalleProps }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const superavit = tesoroDe(vista, vista.fila.superavit);
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const mes = mesEnUnaFrase(vista.mes);
   const libre = lugarLibreDelReparto(vista.fila);
   const candidatos = vista.tesoros.filter(
     (tesoro) =>
       !tesoro.archivado &&
       (tesoro.id === vista.fila.superavit ||
-        puedeSerSuperavit(vista.fila, tesoro.id, tesoro.clave)),
+        (entraEnLaFila(tesoro) && puedeSerSuperavit(vista.fila, tesoro.id, tesoro.clave))),
   );
   return (
     <>
       {props.enHoja !== true && (
         <Cabecera
           tesoro={superavit}
-          sobre="Superávit · El resto"
+          sobre={m.ficha.superavitElResto}
           vista={vista}
           alCerrar={() => {
             props.alElegir(null);
@@ -1213,15 +1347,16 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
           alEditarTesoro={props.alEditarTesoro}
         />
       )}
-      <Seccion titulo="Qué es" ayuda={<AyudaDelGrupo grupo="superavit" />}>
-        <p className="text-body leading-relaxed">
-          Recibe lo que sobra después de todo: el {porciento(libre)} de lo que se reparte y los
-          centavos del redondeo.
-        </p>
+      <Seccion titulo={textos.queEs} ayuda={<AyudaDelGrupo grupo="superavit" />}>
+        <p className="text-body leading-relaxed">{textos.superavitRecibe(porciento(libre))}</p>
       </Seccion>
-      <Seccion titulo="Dónde cae lo que sobra" ayuda={<AyudaDelSuperavit />}>
+      <Seccion titulo={textos.dondeCaeLoQueSobra} ayuda={<AyudaDelSuperavit />}>
         {vista.armando ? (
-          <ul role="radiogroup" aria-label="Dónde cae lo que sobra" className="flex flex-col gap-1">
+          <ul
+            role="radiogroup"
+            aria-label={textos.dondeCaeLoQueSobra}
+            className="flex flex-col gap-1"
+          >
             {candidatos.map((tesoro) => {
               const elegido = tesoro.id === vista.fila.superavit;
               return (
@@ -1235,7 +1370,7 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
                       editarLaFila(vista, (fila) =>
                         sumarEnElLugar(
                           fila,
-                          { id: tesoro.id, clave: tesoro.clave, meta: tesoro.meta },
+                          { id: tesoro.id, clave: tesoro.clave, meta: metaEnPesos(tesoro) },
                           'superavit',
                         ),
                       );
@@ -1245,7 +1380,7 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
                     }`}
                   >
                     <ChipDelTesoro tesoro={tesoro} />
-                    <span className="min-w-0 flex-1 truncate text-body font-medium">
+                    <span translate="no" className="min-w-0 flex-1 truncate text-body font-medium">
                       {tesoro.nombre}
                     </span>
                     {elegido && <Icono nombre="check" tamano={16} grosor={2.25} />}
@@ -1255,27 +1390,32 @@ function PanelDelSuperavit({ vista, props }: { vista: VistaDeLaFila; props: Pane
             })}
           </ul>
         ) : (
-          <p className="text-body text-ink">
-            Cae en <span className="font-semibold">{superavit.nombre}</span>.
-          </p>
+          <p className="text-body text-ink">{textos.caeEn(NombreEnNegrita, superavit.nombre)}</p>
         )}
         <ProblemasDeLaSeccion textos={textosDe(vista, null, ['superavit'])} />
         <ProblemasDeLaSeccion textos={textosDe(vista, vista.fila.superavit, ['superavit'])} />
       </Seccion>
-      <Seccion titulo={`En ${mes}`}>
+      <Seccion titulo={textos.enElMes(mes)}>
         <LineaDePuntos
           className="text-label"
-          izquierda="Recibió"
+          izquierda={textos.recibio}
           derecha={
-            <span className="font-semibold">{formatearPesos(vista.delMes.superavit.recibido)}</span>
+            <span translate="no" className="font-semibold">
+              {formatearPesos(vista.delMes.superavit.recibido)}
+            </span>
           }
         />
         <LineaDePuntos
           className="text-label"
-          izquierda="Tiene"
-          derecha={<span className="font-semibold">{formatearPesos(superavit.saldo)}</span>}
+          izquierda={textos.tiene}
+          derecha={
+            <span translate="no" className="font-semibold">
+              {formatearLaPlata(superavit.saldo)}
+            </span>
+          }
         />
       </Seccion>
+      <ComprarDolares vista={vista} tesoro={superavit} props={props} />
     </>
   );
 }
@@ -1289,14 +1429,16 @@ function PanelDelEstante({
   tesoro: TesoroDelTaller;
   props: PanelDeDetalleProps;
 }) {
+  const m = useMensajes();
+  const textos = m.armarLaFila.panel;
   const puede = sePuedeEditar(vista);
-  const lugares = lugaresParaSumar(vista.fila, tesoro.id, tesoro.clave);
+  const lugares = lugaresParaSumar(vista.fila, tesoro.id, tesoro.clave, tesoro.moneda);
   return (
     <>
       {props.enHoja !== true && (
         <Cabecera
           tesoro={tesoro}
-          sobre="En el estante"
+          sobre={m.armarLaFila.ficha.enElEstante}
           vista={vista}
           alCerrar={() => {
             props.alElegir(null);
@@ -1304,51 +1446,66 @@ function PanelDelEstante({
           alEditarTesoro={props.alEditarTesoro}
         />
       )}
-      <Seccion titulo="Tiene">
-        <p className="text-money-lg font-semibold tabular-nums">{formatearPesos(tesoro.saldo)}</p>
-        {tesoro.meta !== null && tesoro.meta > 0 && (
+      <Seccion titulo={textos.tiene}>
+        <p translate="no" className="text-money-lg font-semibold tabular-nums">
+          {formatearLaPlata(tesoro.saldo)}
+        </p>
+        {tesoro.meta !== null && tesoro.meta.importe > 0 && (
           <p className="text-label text-text-2">
-            {Math.floor((tesoro.saldo / tesoro.meta) * 100)}% de la meta de{' '}
-            {formatearPesos(tesoro.meta)}
+            {textos.deLaMeta(
+              String(Math.floor((tesoro.saldo.importe / tesoro.meta.importe) * 100)),
+              formatearLaPlata(tesoro.meta),
+            )}
           </p>
         )}
+        <EquivalenteEnPesos tesoro={tesoro} ultimoCambio={props.ultimoCambio} />
       </Seccion>
-      <Seccion titulo="Sumarlo a la fila">
-        <p className="text-label leading-relaxed text-text-2">
-          Ahora no recibe plata de los cobros.{' '}
-          {!vista.armando
-            ? 'Elegí dónde va: la fila pasa a editarse y nada viaja hasta que la guardes.'
-            : props.conFlechas === false
-              ? 'Elegí dónde va.'
-              : 'Uní una flecha hasta su ficha o elegí dónde va.'}
-        </p>
-        <div className="flex flex-col gap-2">
-          {lugares.map(({ lugar, titulo, sePuede }) => (
-            <Button
-              key={lugar}
-              variant="secundario"
-              disabled={!puede || !sePuede}
-              onClick={() => {
-                editarLaFila(vista, (fila) =>
-                  sumarEnElLugar(
-                    fila,
-                    { id: tesoro.id, clave: tesoro.clave, meta: tesoro.meta },
-                    lugar,
-                  ),
-                );
-                props.alElegir(fichaEnElLugar(lugar, tesoro.id, vista.sistema.diezmo));
-              }}
-            >
-              {titulo}
-            </Button>
-          ))}
-        </div>
+      <ComprarDolares vista={vista} tesoro={tesoro} props={props} />
+      <Seccion titulo={textos.sumarloALaFila}>
+        {!entraEnLaFila(tesoro) ? (
+          <p data-la-fila-reparte-pesos className="text-label leading-relaxed text-text-2">
+            {m.fila.laFilaRepartePesos}
+          </p>
+        ) : (
+          <p className="text-label leading-relaxed text-text-2">
+            {!vista.armando
+              ? textos.noRecibeYSeEdita
+              : props.conFlechas === false
+                ? textos.noRecibe
+                : textos.noRecibeConFlechas}
+          </p>
+        )}
+        {entraEnLaFila(tesoro) && (
+          <div className="flex flex-col gap-2">
+            {lugares.map(({ lugar, titulo, sePuede }) => (
+              <Button
+                key={lugar}
+                variant="secundario"
+                disabled={!puede || !sePuede}
+                onClick={() => {
+                  editarLaFila(vista, (fila) =>
+                    sumarEnElLugar(
+                      fila,
+                      { id: tesoro.id, clave: tesoro.clave, meta: metaEnPesos(tesoro) },
+                      lugar,
+                    ),
+                  );
+                  props.alElegir(fichaEnElLugar(lugar, tesoro.id, vista.sistema.diezmo));
+                }}
+              >
+                {titulo}
+              </Button>
+            ))}
+          </div>
+        )}
       </Seccion>
     </>
   );
 }
 
 function PanelDeLosInsumos({ props }: { props: PanelDeDetalleProps }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const insumos = props.insumos ?? SIN_INSUMOS;
   const cuantos = insumos.trabajos.length;
   return (
@@ -1356,24 +1513,24 @@ function PanelDeLosInsumos({ props }: { props: PanelDeDetalleProps }) {
       {props.enHoja !== true && (
         <CabeceraNeutra
           icono="hand-coins"
-          sobre="Insumos"
-          titulo="Lo que queda de cada seña"
-          bajada="De los trabajos en curso"
+          sobre={m.ficha.insumos}
+          titulo={m.ficha.loQueQuedaDeCadaSena}
+          bajada={textos.deLosTrabajosEnCurso}
           alCerrar={() => {
             props.alElegir(null);
           }}
         />
       )}
-      <Seccion titulo="Insumos" ayuda={<AyudaDeLosInsumos />}>
-        <p className="text-money-lg font-semibold tabular-nums">{formatearPesos(insumos.total)}</p>
+      <Seccion titulo={m.ficha.insumos} ayuda={<AyudaDeLosInsumos />}>
+        <p translate="no" className="text-money-lg font-semibold tabular-nums">
+          {formatearPesos(insumos.total)}
+        </p>
         <p className="text-label text-text-2">
-          {cuantos === 0
-            ? 'No hay trabajos en curso con plata.'
-            : `En ${String(cuantos)} ${cuantos === 1 ? 'trabajo en curso' : 'trabajos en curso'}. Está en Maun hasta que el trabajo se cobra.`}
+          {cuantos === 0 ? textos.sinTrabajos : textos.enTrabajos(cuantos)}
         </p>
       </Seccion>
       {cuantos > 0 && (
-        <Seccion titulo="Por trabajo">
+        <Seccion titulo={textos.porTrabajo}>
           <ul className="-mx-2 flex flex-col">
             {insumos.trabajos.map((trabajo) => {
               const frase = fraseDeLosInsumos(trabajo);
@@ -1384,16 +1541,27 @@ function PanelDeLosInsumos({ props }: { props: PanelDeDetalleProps }) {
                     className="flex min-h-tap items-center justify-between gap-3 rounded-field px-2 py-1.5 hover:bg-surface"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-body font-medium underline-offset-3 hover:underline">
-                        {trabajo.titulo === '' ? 'Un trabajo' : trabajo.titulo}
-                      </span>
+                      {trabajo.titulo === '' ? (
+                        <span className="block truncate text-body font-medium underline-offset-3 hover:underline">
+                          {textos.unTrabajo}
+                        </span>
+                      ) : (
+                        <span
+                          translate="no"
+                          className="block truncate text-body font-medium underline-offset-3 hover:underline"
+                        >
+                          {trabajo.titulo}
+                        </span>
+                      )}
                       <span className="block text-meta text-text-3 tabular-nums">
-                        entró {formatearPesos(trabajo.entro)} · gastado{' '}
-                        {formatearPesos(trabajo.gastado)}
+                        {textos.entroYGastado(
+                          formatearPesos(trabajo.entro),
+                          formatearPesos(trabajo.gastado),
+                        )}
                       </span>
                     </span>
                     <span className="flex-none text-right text-body font-semibold tabular-nums">
-                      {frase ?? formatearPesos(trabajo.queda)}
+                      {frase ?? <span translate="no">{formatearPesos(trabajo.queda)}</span>}
                     </span>
                   </Ir>
                 </li>
@@ -1417,6 +1585,7 @@ interface RenglonDeLaLista {
 }
 
 function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaLista[]][] {
+  const textos = mensajes().armarLaFila.panel;
   const grupos = new Map<GrupoDeLaLista, RenglonDeLaLista[]>([
     ['obligaciones', []],
     ['compromisos', []],
@@ -1436,19 +1605,18 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
           : fichaDeLaObligacion(obligacion.tesoro),
       tesoro: tesoroDe(vista, obligacion.tesoro),
       numero: indice + 1,
-      lugar: `${porciento(obligacion.porcentaje)} ${BASE_EN_PALABRAS[obligacion.base]}`,
+      lugar: textos.lugarDeLaObligacion(porciento(obligacion.porcentaje), obligacion.base),
       estante: false,
     });
   });
   vista.fila.pasos.forEach((paso, indice) => {
     const tipo = tipoDelPaso(paso.clase);
-    const modo = modoEnPalabras(paso.modo, tipo);
     const lugar =
       paso.clase === 'sueldo'
-        ? `sueldo, ${modo}`
+        ? textos.lugarDelSueldo(paso.modo)
         : paso.tesoro === vista.fila.superavit
-          ? `${modo}, y el resto`
-          : modo;
+          ? textos.lugarConElResto(tipo, paso.modo)
+          : modoEnPalabras(paso.modo, tipo);
     sumar(tipo === 'compromiso' ? 'compromisos' : 'ahorros', {
       ficha: fichaDelPaso(paso.tesoro),
       tesoro: tesoroDe(vista, paso.tesoro),
@@ -1462,7 +1630,9 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
       ficha: fichaDeLaParte(parte.tesoro),
       tesoro: tesoroDe(vista, parte.tesoro),
       numero: null,
-      lugar: `${porciento(parte.porcentaje)} de lo que sobra${parte.hastaLaMeta ? ', hasta la meta' : ''}`,
+      lugar: parte.hastaLaMeta
+        ? textos.lugarDeLaParteHastaLaMeta(porciento(parte.porcentaje))
+        : textos.lugarDeLaParte(porciento(parte.porcentaje)),
       estante: false,
     });
   }
@@ -1471,7 +1641,7 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
       ficha: FICHA_DEL_RESTO,
       tesoro: tesoroDe(vista, vista.fila.superavit),
       numero: null,
-      lugar: 'el resto',
+      lugar: textos.lugarDelResto,
       estante: false,
     });
   }
@@ -1480,48 +1650,51 @@ function renglonesDeLaLista(vista: VistaDeLaFila): [GrupoDeLaLista, RenglonDeLaL
       ficha: fichaDelEstante(suelto.id),
       tesoro: suelto,
       numero: null,
-      lugar: 'estante',
+      lugar: textos.lugarDelEstante,
       estante: true,
     });
   }
   return [...grupos.entries()].filter(([, renglones]) => renglones.length > 0);
 }
 
-function saldoEnLaLista(tesoro: TesoroDelTaller): string {
-  if (tesoro.clave === 'diezmo' && tesoro.saldo < 0) {
-    return `${formatearPesos(Math.abs(tesoro.saldo))} de más`;
-  }
-  return formatearPesos(tesoro.saldo);
+function pagoDeMasDelDiezmo(tesoro: TesoroDelTaller): boolean {
+  return tesoro.clave === 'diezmo' && tesoro.saldo.importe < 0;
 }
 
-const TITULO_DEL_GRUPO_DE_LA_LISTA: Readonly<Record<GrupoDeLaLista, string>> = {
-  obligaciones: NOMBRE_DEL_GRUPO.obligaciones,
-  compromisos: NOMBRE_DEL_GRUPO.compromisos,
-  ahorros: NOMBRE_DEL_GRUPO.ahorros,
-  superavit: NOMBRE_DEL_GRUPO.superavit,
-  estante: 'Estante',
-};
+function saldoEnLaLista(tesoro: TesoroDelTaller): string {
+  if (pagoDeMasDelDiezmo(tesoro)) {
+    return mensajes().armarLaFila.panel.deMas(
+      formatearPlata(Math.abs(tesoro.saldo.importe), tesoro.saldo.moneda),
+    );
+  }
+  return formatearLaPlata(tesoro.saldo);
+}
+
+function entreTodos(tesoros: readonly TesoroDelTaller[]): string {
+  const totales = totalesPorMoneda(
+    tesoros.filter((tesoro) => !tesoro.archivado).map((tesoro) => tesoro.saldo),
+  );
+  if (totales.length === 0) return formatearPesos(0);
+  return totales.map(({ total }) => formatearLaPlata(total)).join(' · ');
+}
+
+function tituloDelGrupoDeLaLista(grupo: GrupoDeLaLista): string {
+  return grupo === 'estante' ? mensajes().armarLaFila.panel.estante : NOMBRE_DEL_GRUPO[grupo];
+}
 
 function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDeDetalleProps }) {
+  const textos = useMensajes().armarLaFila.panel;
   const grupos = renglonesDeLaLista(vista);
-  const total = vista.tesoros
-    .filter((tesoro) => !tesoro.archivado)
-    .reduce((suma, tesoro) => suma + tesoro.saldo, 0);
   return (
     <Seccion
-      titulo="Lista de tesoros"
-      ayuda={
-        <Ayuda que="Qué es la lista de tesoros">
-          Todos los tesoros con lo que tienen hoy, en el orden de la fila. Tocá uno para verlo en el
-          plano.
-        </Ayuda>
-      }
+      titulo={textos.listaDeTesoros}
+      ayuda={<Ayuda que={textos.queEsLaLista}>{textos.ayudaDeLaLista}</Ayuda>}
     >
       <div className="-mx-2 flex flex-col gap-2">
         {grupos.map(([grupo, renglones]) => (
-          <div key={grupo} role="group" aria-label={TITULO_DEL_GRUPO_DE_LA_LISTA[grupo]}>
+          <div key={grupo} role="group" aria-label={tituloDelGrupoDeLaLista(grupo)}>
             <h4 className="rotulo-del-plano px-2 pb-0.5 text-badge font-semibold text-text-3 uppercase">
-              {TITULO_DEL_GRUPO_DE_LA_LISTA[grupo]}
+              {tituloDelGrupoDeLaLista(grupo)}
             </h4>
             <ul className="flex flex-col">
               {renglones.map((renglon) => (
@@ -1549,17 +1722,23 @@ function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDe
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body leading-snug font-medium">
+                      <span
+                        translate="no"
+                        className="block truncate text-body leading-snug font-medium"
+                      >
                         {renglon.tesoro.nombre}
                       </span>
                       <span className="block truncate text-meta text-text-3">
                         {renglon.numero !== null && (
-                          <span className="sr-only">el {renglon.numero} de la fila, </span>
+                          <span className="sr-only">{textos.numeroEnLaFila(renglon.numero)}</span>
                         )}
                         {renglon.lugar}
                       </span>
                     </span>
-                    <span className="flex-none text-body font-semibold tabular-nums">
+                    <span
+                      translate={pagoDeMasDelDiezmo(renglon.tesoro) ? undefined : 'no'}
+                      className="flex-none text-body font-semibold tabular-nums"
+                    >
                       {saldoEnLaLista(renglon.tesoro)}
                     </span>
                   </button>
@@ -1571,15 +1750,19 @@ function ListaDeTesoros({ vista, props }: { vista: VistaDeLaFila; props: PanelDe
       </div>
       <div className="flex items-baseline justify-between border-t border-ink pt-2 text-label">
         <span className="rotulo-del-plano text-badge font-semibold text-text-2 uppercase">
-          Entre todos
+          {textos.entreTodos}
         </span>
-        <span className="font-semibold tabular-nums">{formatearPesos(total)}</span>
+        <span translate="no" className="font-semibold tabular-nums">
+          {entreTodos(vista.tesoros)}
+        </span>
       </div>
     </Seccion>
   );
 }
 
 function PanelDeLaFila({ vista, props }: { vista: VistaDeLaFila; props: PanelDeDetalleProps }) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.panel;
   const nombre = nombreDelMes(vista.mes);
   const cobros = vista.delMes.cobros;
   const compromisos = vista.delMes.pasos.filter((paso) => paso.tipo === 'compromiso');
@@ -1594,17 +1777,15 @@ function PanelDeLaFila({ vista, props }: { vista: VistaDeLaFila; props: PanelDeD
       {props.arriba !== undefined && <div className="pb-5">{props.arriba}</div>}
       <div className="pb-4">
         <span className="rotulo-del-plano block text-badge font-semibold text-text-2 uppercase">
-          Cómo se reparte cada cobro
+          {m.ficha.comoSeReparte}
         </span>
         <h2 className="flex items-center gap-2 text-h2 leading-tight font-semibold">
-          La fila
+          {m.ficha.laFila}
           <AyudaDeLaFila />
         </h2>
-        <p className="mt-1 text-label leading-relaxed text-text-2">
-          Tocá una ficha para ver sus reglas, o probá un cobro y mirá por dónde baja la plata.
-        </p>
+        <p className="mt-1 text-label leading-relaxed text-text-2">{textos.tocaUnaFicha}</p>
       </div>
-      <Seccion titulo="Probar un cobro" className="@container">
+      <Seccion titulo={textos.probarUnCobro} className="@container">
         <Probador
           vista={vista}
           prueba={props.prueba}
@@ -1620,44 +1801,56 @@ function PanelDeLaFila({ vista, props }: { vista: VistaDeLaFila; props: PanelDeD
                 className="min-w-0 flex-1"
                 izquierda={
                   <span className="inline-flex items-center gap-1">
-                    Ingreso en {cobros} {cobros === 1 ? 'cobro' : 'cobros'}
+                    {textos.ingresoEnCobros(cobros)}
                     <AyudaDelIngreso />
                   </span>
                 }
                 derecha={
-                  <span className="font-semibold">{formatearPesos(vista.delMes.ingreso)}</span>
-                }
-              />
-            </li>
-            <li>
-              <LineaDePuntos
-                izquierda="Obligaciones apartadas"
-                derecha={
-                  <span className="font-semibold">{formatearPesos(vista.delMes.apartado)}</span>
-                }
-              />
-            </li>
-            <li>
-              <LineaDePuntos
-                izquierda={falta <= 0 ? 'Los compromisos' : 'Falta para los compromisos'}
-                derecha={
-                  <span className="font-semibold">
-                    {falta <= 0 ? 'llenos' : formatearPesos(falta)}
+                  <span translate="no" className="font-semibold">
+                    {formatearPesos(vista.delMes.ingreso)}
                   </span>
                 }
               />
             </li>
             <li>
               <LineaDePuntos
-                izquierda="Ahorrado"
-                derecha={<span className="font-semibold">{formatearPesos(ahorrado)}</span>}
+                izquierda={textos.obligacionesApartadas}
+                derecha={
+                  <span translate="no" className="font-semibold">
+                    {formatearPesos(vista.delMes.apartado)}
+                  </span>
+                }
               />
             </li>
             <li>
               <LineaDePuntos
-                izquierda="Superávit"
+                izquierda={falta <= 0 ? textos.losCompromisos : textos.faltaParaLosCompromisos}
                 derecha={
-                  <span className="font-semibold">
+                  falta <= 0 ? (
+                    <span className="font-semibold">{textos.llenos}</span>
+                  ) : (
+                    <span translate="no" className="font-semibold">
+                      {formatearPesos(falta)}
+                    </span>
+                  )
+                }
+              />
+            </li>
+            <li>
+              <LineaDePuntos
+                izquierda={textos.ahorrado}
+                derecha={
+                  <span translate="no" className="font-semibold">
+                    {formatearPesos(ahorrado)}
+                  </span>
+                }
+              />
+            </li>
+            <li>
+              <LineaDePuntos
+                izquierda={textos.superavit}
+                derecha={
+                  <span translate="no" className="font-semibold">
                     {formatearPesos(vista.delMes.superavit.recibido)}
                   </span>
                 }

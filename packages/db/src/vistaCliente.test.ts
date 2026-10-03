@@ -100,10 +100,14 @@ describe('leer la vista del cliente', () => {
       taller: 'Taller MAUN',
       cliente: 'Marcela Duarte',
       trabajo: 'Placard 3 puertas',
+      idioma: 'es',
       direccion: 'Olazábal 1240',
       estado: 'en_curso',
+      moneda: 'ARS',
+      cobraEn: null,
       precio: 124_000_000,
       sena: 62_000_000,
+      dolarDelDia: null,
       fechas: {
         estimativo: '2026-07-24',
         presupuesto: '2026-08-01',
@@ -128,8 +132,14 @@ describe('leer la vista del cliente', () => {
       pago: {
         instancia: 'sena',
         formas: ['transferencia', 'efectivo'],
+        formasEnDolares: [],
         monto: 22_000_000,
-        siguiente: { instancia: 'saldo', formas: ['efectivo'], monto: 62_000_000 },
+        siguiente: {
+          instancia: 'saldo',
+          formas: ['efectivo'],
+          formasEnDolares: [],
+          monto: 62_000_000,
+        },
       },
       cobro: {
         alias: 'maun.muebles',
@@ -138,7 +148,16 @@ describe('leer la vista del cliente', () => {
         cuit: '27-30123456-4',
         link: 'https://mpago.la/2vXyZ1',
       },
-      pagos: [{ id: 'p1', fecha: '2026-08-04', concepto: 'Seña', monto: 40_000_000 }],
+      cobroEnDolares: { alias: null, cbu: null, titular: null, cuit: null },
+      pagos: [
+        {
+          id: 'p1',
+          fecha: '2026-08-04',
+          concepto: 'Seña',
+          monto: 40_000_000,
+          pagado: { moneda: 'ARS', monto: 40_000_000, cotizacion: null },
+        },
+      ],
       archivos: [
         {
           id: 'a1',
@@ -377,8 +396,14 @@ describe('el pago que toca', () => {
     expect(leerVistaDelCliente(respuesta()).pago).toEqual({
       instancia: 'sena',
       formas: ['transferencia', 'efectivo'],
+      formasEnDolares: [],
       monto: 22_000_000,
-      siguiente: { instancia: 'saldo', formas: ['efectivo'], monto: 62_000_000 },
+      siguiente: {
+        instancia: 'saldo',
+        formas: ['efectivo'],
+        formasEnDolares: [],
+        monto: 62_000_000,
+      },
     });
   });
 
@@ -407,13 +432,20 @@ describe('el pago que toca', () => {
     const leido = leerVistaDelCliente(
       respuesta({ pago: { instancia: null, formas: [], monto_centavos: null, siguiente: null } }),
     );
-    expect(leido.pago).toEqual({ instancia: null, formas: [], monto: null, siguiente: null });
+    expect(leido.pago).toEqual({
+      instancia: null,
+      formas: [],
+      formasEnDolares: [],
+      monto: null,
+      siguiente: null,
+    });
   });
 
   it('una respuesta vieja, sin la clave, no rompe la vista', () => {
     expect(leerVistaDelCliente(respuesta({ pago: undefined })).pago).toEqual({
       instancia: null,
       formas: [],
+      formasEnDolares: [],
       monto: null,
       siguiente: null,
     });
@@ -662,5 +694,223 @@ describe('el presupuesto que se le mandó', () => {
     expect(conPresupuesto({ ...bueno, revision: 1.5 })).toBeNull();
     expect(conPresupuesto({ ...bueno, mandado_el: null })).toBeNull();
     expect(conPresupuesto(bueno)).not.toBeNull();
+  });
+});
+
+describe('un trabajo en dólares', () => {
+  const EN_DOLARES = {
+    estado: 'presupuesto_enviado',
+    moneda: 'USD',
+    cobra_en: ['ARS', 'USD'],
+    precio_centavos: 200_000,
+    sena_centavos: 100_000,
+    dolar_del_dia: { cotizacion_centavos: 145_000, fecha: '2026-09-18' },
+    pago: {
+      instancia: 'sena',
+      formas: ['transferencia', 'efectivo'],
+      formas_en_dolares: ['transferencia'],
+      monto_centavos: 91_724,
+      siguiente: {
+        instancia: 'saldo',
+        formas: ['efectivo'],
+        formas_en_dolares: ['efectivo'],
+        monto_centavos: 100_000,
+      },
+    },
+    cobro_en_dolares: {
+      alias: ' maun.dolares ',
+      cbu: '0110001322345678901234',
+      titular: 'Ana Gutiérrez',
+      cuit: '27-30123456-4',
+    },
+    pagos: [
+      {
+        id: 'visita',
+        fecha: '2026-09-10',
+        concepto: 'Relevamiento',
+        monto_centavos: 8_276,
+        moneda: 'ARS',
+        pagado_centavos: 12_000_000,
+        cotizacion_centavos: 145_000,
+      },
+      {
+        id: 'sena',
+        fecha: '2026-09-15',
+        concepto: 'Seña',
+        monto_centavos: 50_000,
+        moneda: 'USD',
+        pagado_centavos: 50_000,
+        cotizacion_centavos: 145_000,
+      },
+    ],
+  };
+
+  it('lee la moneda, en qué paga, el dólar del día, la cuenta en dólares y las formas en dólares', () => {
+    const leido = leerVistaDelCliente(respuesta(EN_DOLARES));
+    expect(leido).toMatchObject({
+      moneda: 'USD',
+      cobraEn: ['ARS', 'USD'],
+      precio: 200_000,
+      sena: 100_000,
+      dolarDelDia: { cotizacion: 145_000, fecha: '2026-09-18' },
+      cobroEnDolares: {
+        alias: 'maun.dolares',
+        cbu: '0110001322345678901234',
+        titular: 'Ana Gutiérrez',
+        cuit: '27-30123456-4',
+      },
+    });
+    expect(leido.pago).toEqual({
+      instancia: 'sena',
+      formas: ['transferencia', 'efectivo'],
+      formasEnDolares: ['transferencia'],
+      monto: 91_724,
+      siguiente: {
+        instancia: 'saldo',
+        formas: ['efectivo'],
+        formasEnDolares: ['efectivo'],
+        monto: 100_000,
+      },
+    });
+  });
+
+  it('cada pago trae lo que descontó en la moneda del trabajo, y lo que se entregó en la suya con su dólar', () => {
+    expect(leerVistaDelCliente(respuesta(EN_DOLARES)).pagos).toEqual([
+      {
+        id: 'visita',
+        fecha: '2026-09-10',
+        concepto: 'Relevamiento',
+        monto: 8_276,
+        pagado: { moneda: 'ARS', monto: 12_000_000, cotizacion: 145_000 },
+      },
+      {
+        id: 'sena',
+        fecha: '2026-09-15',
+        concepto: 'Seña',
+        monto: 50_000,
+        pagado: { moneda: 'USD', monto: 50_000, cotizacion: 145_000 },
+      },
+    ]);
+  });
+
+  it('un pago sin la moneda ni lo entregado es de la moneda del trabajo, por lo que descontó', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        ...EN_DOLARES,
+        pagos: [
+          { id: 'p1', fecha: '2026-09-10', concepto: 'Pago', monto_centavos: 1_000 },
+          {
+            id: 'p2',
+            fecha: '2026-09-11',
+            concepto: 'Pago',
+            monto_centavos: 2_000,
+            pagado_centavos: 2_000,
+            cotizacion_centavos: 'mil',
+          },
+        ],
+      }),
+    );
+    expect(leido.pagos.map((pago) => pago.pagado)).toEqual([
+      { moneda: 'USD', monto: 1_000, cotizacion: null },
+      { moneda: 'USD', monto: 2_000, cotizacion: null },
+    ]);
+  });
+
+  it('un dólar del día que no se puede leer es como si no hubiera', () => {
+    for (const dolar of [
+      'mil',
+      { cotizacion_centavos: 50, fecha: '2026-09-18' },
+      { cotizacion_centavos: '145000', fecha: '2026-09-18' },
+      { cotizacion_centavos: 145_000, fecha: null },
+      { cotizacion_centavos: 145_000, fecha: '2026-02-30' },
+    ]) {
+      expect(
+        leerVistaDelCliente(respuesta({ ...EN_DOLARES, dolar_del_dia: dolar })).dolarDelDia,
+      ).toBeNull();
+    }
+  });
+
+  it('«Te paga en» que esta versión no conoce se lee como la moneda del taller', () => {
+    expect(leerVistaDelCliente(respuesta({ ...EN_DOLARES, cobra_en: ['EUR'] })).cobraEn).toBeNull();
+  });
+
+  it('una forma en dólares que esta versión no conoce se ignora', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({
+        ...EN_DOLARES,
+        pago: {
+          instancia: 'saldo',
+          formas: [],
+          formas_en_dolares: ['efectivo', 'cripto'],
+          monto_centavos: 1,
+        },
+      }),
+    );
+    expect(leido.pago.formasEnDolares).toEqual(['efectivo']);
+  });
+
+  it('no lee como pesos una moneda que no conoce, ni le cree a lo de dólares mal formado', () => {
+    for (const rota of [
+      respuesta({ ...EN_DOLARES, moneda: 'EUR' }),
+      respuesta({
+        ...EN_DOLARES,
+        pagos: [
+          {
+            id: 'p1',
+            fecha: '2026-09-10',
+            concepto: 'Pago',
+            monto_centavos: 1_000,
+            moneda: 'EUR',
+            pagado_centavos: 1_000,
+          },
+        ],
+      }),
+      respuesta({ ...EN_DOLARES, cobro_en_dolares: 'maun.dolares' }),
+      respuesta({ ...EN_DOLARES, cobro_en_dolares: { alias: 7 } }),
+      respuesta({ ...EN_DOLARES, pago: { ...EN_DOLARES.pago, formas_en_dolares: 'efectivo' } }),
+      respuesta({
+        ...EN_DOLARES,
+        pagos: [
+          {
+            id: 'p1',
+            fecha: '2026-09-10',
+            concepto: 'Pago',
+            monto_centavos: 1_000,
+            pagado_centavos: '1000',
+          },
+        ],
+      }),
+    ]) {
+      expect(() => leerVistaDelCliente(rota)).toThrow(RespuestaInvalidaError);
+    }
+  });
+});
+
+describe('el idioma', () => {
+  const presupuesto = {
+    numero: '20260920-01',
+    revision: 1,
+    mandado_el: '2026-09-20',
+    contenido: CONTENIDO,
+  };
+
+  it('la página habla en el idioma de los clientes del taller, y el presupuesto en el de su revisión', () => {
+    const leido = leerVistaDelCliente(
+      respuesta({ idioma: 'pt-BR', presupuesto: { ...presupuesto, idioma: 'en' } }),
+    );
+    expect(leido.idioma).toBe('pt-BR');
+    expect(leido.presupuesto?.idioma).toBe('en');
+  });
+
+  it('una respuesta de antes, sin la clave, o con un idioma que esta versión no conoce, se lee en español', () => {
+    const vieja = leerVistaDelCliente(respuesta({ presupuesto }));
+    expect(vieja.idioma).toBe('es');
+    expect(vieja.presupuesto?.idioma).toBe('es');
+
+    const desconocido = leerVistaDelCliente(
+      respuesta({ idioma: 'fr', presupuesto: { ...presupuesto, idioma: 'pt-PT' } }),
+    );
+    expect(desconocido.idioma).toBe('es');
+    expect(desconocido.presupuesto?.idioma).toBe('es');
   });
 });

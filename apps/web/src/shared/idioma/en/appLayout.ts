@@ -1,0 +1,43 @@
+import type { Mensajes } from '../es';
+
+export const appLayout = {
+  hayUnaVersionNueva: "There's a new version of the app.",
+  actualizar: 'Update',
+  rechazado: ({ operacion, sujeto }) => `${operacion} rejected: ${sujeto}`,
+  verElProyecto: 'View job',
+  descartar: 'Dismiss',
+  cerrarElAviso: 'Close notice',
+  tardaMasDeLoNormal:
+    'This is taking longer than usual. It keeps trying on its own; if nothing happens, try again or log out.',
+  reintentar: 'Try again',
+  noPudimosLeerTusDatos: "Couldn't load your data",
+  sinNadaGuardado: "There's nothing saved on this device to show you in the meantime.",
+  saltarAlContenido: 'Skip to content',
+  irAInicio: 'NUMA, go to Home',
+  cerrarElMenu: 'Close menu',
+  cargarAlgoNuevo: 'Add something new',
+  principal: 'Main',
+  taller: 'Shop',
+  destinos: {
+    inicio: 'Home',
+    agenda: 'Calendar',
+    consultas: 'Inquiries',
+    proyectos: 'Jobs',
+    clientes: 'Clients',
+    finanzas: 'Finances',
+    tesoros: 'Buckets',
+    opiniones: 'Feedback',
+    diezmo: 'Tithe',
+    ajustes: 'Settings',
+  },
+  accionesRapidas: {
+    anotar: 'Make a note',
+    movimiento: 'Transaction',
+    cobro: 'Job payment',
+    proyectoNuevo: 'New job',
+    consultaNueva: 'New inquiry',
+  },
+  sincronizando: 'Syncing…',
+  soltaParaActualizar: 'Release to refresh',
+  tiraParaActualizar: 'Pull to refresh',
+} satisfies Mensajes['appLayout'];

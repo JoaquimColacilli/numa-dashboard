@@ -1,6 +1,8 @@
+import { IDIOMA_BASE, type Idioma } from '@maun/domain';
+
 import { claimsGuardados } from '@/shared/api';
 
-import { NOVEDADES, type Novedad } from './novedades';
+import { NOVEDADES, novedadesEnElIdioma, type Novedad } from './novedades';
 import { novedadesSinVer, versionActual } from './version';
 
 export const CLAVE_DE_LAS_NOVEDADES = 'maun:novedades-vistas';
@@ -25,11 +27,12 @@ function anotarVersionVista(version: string): void {
 
 export function tomarNovedadesSinVer(
   novedades: readonly Novedad[] = NOVEDADES,
+  idioma: Idioma = IDIOMA_BASE,
 ): readonly Novedad[] {
   const actual = versionActual(novedades);
   if (actual === '') return [];
   const vista = versionVista();
   if (vista !== actual) anotarVersionVista(actual);
   if (vista === null && !HABIA_SESION_AL_ABRIR) return [];
-  return novedadesSinVer(vista, novedades);
+  return novedadesEnElIdioma(novedadesSinVer(vista, novedades), idioma);
 }

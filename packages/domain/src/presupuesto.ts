@@ -1,17 +1,30 @@
+import {
+  cotizacionLeida,
+  esCotizacion,
+  totalEnPesos,
+  totalQueDescuenta,
+  type Cotizacion,
+  type ImporteDeUnPago,
+} from './cotizacion.ts';
 import { largoDelTexto, sinBlancosEnLasPuntas, tieneTexto } from './encuesta.ts';
-import { DIAS_HABILES_DE_ENTREGA } from './fechas.ts';
+import { DIAS_HABILES_DE_ENTREGA, esFechaQueExiste } from './fechas.ts';
+import type { Idioma } from './idioma.ts';
 import {
   aplicarPorcentaje,
   BASE_PUNTOS_BASICOS,
   centavos,
-  CERO,
+  centavosEn,
+  esMoneda,
   maximo,
+  MONEDA_DEL_TALLER,
   puntosBasicos,
   restar,
-  sumarTodos,
+  type Moneda,
+  type MonedaDelTaller,
   type Money,
   type PuntosBasicos,
 } from './money.ts';
+import type { Plata } from './plata.ts';
 import { SENA_HABITUAL } from './sena.ts';
 import { DIAS_QUE_VALE_UN_PRESUPUESTO } from './vigencia.ts';
 
@@ -62,6 +75,27 @@ export const RANGOS_DEL_PRESUPUESTO = {
 
 export const IMPORTE_MAXIMO_DEL_PRESUPUESTO: Money = centavos(1_000_000_000_000);
 
+export const COMBINACIONES_DE_LA_MONEDA = [
+  'dolaresEnPesos',
+  'dolaresEnDolares',
+  'dolaresEnPesosODolares',
+  'pesosEnDolares',
+  'pesosEnPesosODolares',
+] as const;
+
+export type CombinacionDeLaMoneda = (typeof COMBINACIONES_DE_LA_MONEDA)[number];
+
+export type ClausulasDeLaMoneda = Readonly<Record<CombinacionDeLaMoneda, string>>;
+
+export const COBROS_POSIBLES: readonly (readonly Moneda[])[] = [['ARS'], ['USD'], ['ARS', 'USD']];
+
+export const LARGO_DE_LA_CLAUSULA_DEL_DOCUMENTO = 4000;
+
+export interface ReferenciaEnPesos {
+  cotizacion: Cotizacion;
+  fecha: string;
+}
+
 export interface Clausula {
   id: string;
   titulo: string | null;
@@ -79,7 +113,9 @@ export interface PlantillaDelPresupuesto {
   forma: 1;
   plazoDeFabricacion: number;
   modificacionesIncluidas: number;
-  valorDeUnaModificacion: Money;
+  valorDeUnaModificacion: Money<Moneda>;
+  monedaDeLaModificacion: Moneda;
+  clausulasDeLaMoneda: ClausulasDeLaMoneda;
   garantiaMeses: number;
   incluye: readonly Clausula[];
   aTenerEnCuenta: readonly Clausula[];
@@ -104,11 +140,26 @@ export const HUECOS = [
 
 export type Hueco = (typeof HUECOS)[number];
 
+export const CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE: ClausulasDeLaMoneda = {
+  dolaresEnPesos:
+    'Se paga en pesos. Cada pago se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina al cierre del día hábil anterior a la fecha del pago, y se descuenta del saldo en dólares.',
+  dolaresEnDolares:
+    'Se paga en dólares estadounidenses. Si alguna parte se paga en pesos, se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina al cierre del día hábil anterior a ese pago.',
+  dolaresEnPesosODolares:
+    'Se paga en dólares estadounidenses o en pesos. Cada pago en pesos se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina al cierre del día hábil anterior a la fecha del pago, y se descuenta del saldo en dólares.',
+  pesosEnDolares:
+    'Se paga en dólares estadounidenses. Cada pago se toma a la cotización que se acuerde ese día y se descuenta del saldo en pesos.',
+  pesosEnPesosODolares:
+    'Si una parte se paga en dólares, se toma a la cotización que se acuerde ese día y se descuenta del saldo en pesos.',
+};
+
 export const PLANTILLA_DE_SIEMPRE: PlantillaDelPresupuesto = {
   forma: 1,
   plazoDeFabricacion: 30,
   modificacionesIncluidas: 2,
   valorDeUnaModificacion: centavos(5_000_000),
+  monedaDeLaModificacion: MONEDA_DEL_TALLER,
+  clausulasDeLaMoneda: CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
   garantiaMeses: 6,
   incluye: [
     {
@@ -238,6 +289,310 @@ export const PLANTILLA_DE_SIEMPRE: PlantillaDelPresupuesto = {
     'Garantía de {meses} desde la entrega e instalación, por defectos de fabricación o de instalación. No cubre daños por golpes, humedad o filtraciones, calor o sol directo, un uso distinto del previsto, ni arreglos hechos por otras personas.',
 };
 
+const PLANTILLA_DE_SIEMPRE_EN_INGLES: PlantillaDelPresupuesto = {
+  forma: 1,
+  plazoDeFabricacion: PLANTILLA_DE_SIEMPRE.plazoDeFabricacion,
+  modificacionesIncluidas: PLANTILLA_DE_SIEMPRE.modificacionesIncluidas,
+  valorDeUnaModificacion: PLANTILLA_DE_SIEMPRE.valorDeUnaModificacion,
+  monedaDeLaModificacion: PLANTILLA_DE_SIEMPRE.monedaDeLaModificacion,
+  clausulasDeLaMoneda: {
+    dolaresEnPesos:
+      'Payment is made in pesos. Each payment is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before the payment date, and is deducted from the balance in dollars.',
+    dolaresEnDolares:
+      'Payment is made in US dollars. If any part is paid in pesos, it is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before that payment.',
+    dolaresEnPesosODolares:
+      'Payment is made in US dollars or in pesos. Each payment in pesos is converted at the Banco de la Nación Argentina US dollar banknote selling rate at the close of the business day before the payment date, and is deducted from the balance in dollars.',
+    pesosEnDolares:
+      'Payment is made in US dollars. Each payment is converted at the rate agreed on that day and is deducted from the balance in pesos.',
+    pesosEnPesosODolares:
+      'If any part is paid in dollars, it is converted at the rate agreed on that day and is deducted from the balance in pesos.',
+  },
+  garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  incluye: [
+    {
+      id: 'incluye-visita',
+      titulo: null,
+      texto: 'Home visit to take measurements and settle the details.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-diseno',
+      titulo: null,
+      texto: '3D design based on the agreed requirements.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-fabricacion',
+      titulo: null,
+      texto: 'Development and manufacturing based on the proposed design.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-transporte',
+      titulo: null,
+      texto: 'Transport and delivery.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-instalacion',
+      titulo: null,
+      texto: 'Installation and finishing work at the home.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  aTenerEnCuenta: [
+    { id: 'no-mesada', titulo: null, texto: 'Countertop not included.', tildadaPorDefecto: false },
+    {
+      id: 'no-bacha',
+      titulo: null,
+      texto: 'Sink and faucets not included.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-conexiones',
+      titulo: null,
+      texto: 'Water, gas, and electrical connections not included.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-electrodomesticos',
+      titulo: null,
+      texto: 'Appliance installation not included.',
+      tildadaPorDefecto: false,
+    },
+  ],
+  formasDePago: [
+    {
+      id: 'sena-y-entrega',
+      nombre: 'Deposit and balance on delivery',
+      texto: '{sena} deposit to confirm the job, and the balance on delivery.',
+    },
+    {
+      id: 'sena-y-cuotas',
+      nombre: 'Deposit and installments',
+      texto:
+        '{sena} deposit to confirm the job, and the balance in installments, to be agreed before work begins.',
+    },
+    {
+      id: 'todo-al-confirmar',
+      nombre: 'Full payment upfront',
+      texto: 'Full payment when the job is confirmed.',
+    },
+  ],
+  avisos: [
+    {
+      id: 'aviso-plazo',
+      titulo: null,
+      texto:
+        'The estimated lead time is {plazo} business days from when the deposit clears and the final project specifications are confirmed. This lead time reflects current production and material supply times. If the work is finished before the stated lead time, the client will be notified to arrange an earlier delivery. The stated lead times may be affected by delays in material supply, logistics, or external factors beyond the manufacturing process. Should any of these occur, the client will be informed in a timely manner.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-aceptacion',
+      titulo: null,
+      texto:
+        'Paying the deposit and starting the project imply acceptance of the design, technical specifications, lead times, and conditions set out in this document.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-modificaciones',
+      titulo: null,
+      texto:
+        'This quote includes a 3D design and up to {modificaciones}. Additional modifications (a complete redesign) have an estimated cost of {valor_modificacion} each.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-relevamiento',
+      titulo: null,
+      texto:
+        'The amount paid for the site measure and 3D design ({relevamiento}) covers the site visit, measurements, layout, and 3D design. This amount is already included in the total of this quote and is deducted from the deposit.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-colores',
+      titulo: null,
+      texto:
+        'The colors and patterns of the boards may look different on screens or in samples than they do in reality.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  condiciones: [
+    {
+      id: 'condicion-espacio',
+      titulo: 'Installation site conditions',
+      texto:
+        'The client must ensure adequate access and space for bringing in and installing the furniture. Exceptional situations that call for special maneuvers or additional work may require prior coordination.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'condicion-perforaciones',
+      titulo: null,
+      texto:
+        'The client is solely responsible for disclosing and clearly marking the routes of cables and pipes in walls that may be drilled. MAUN is not liable for damage resulting from drilling in areas that were not marked or were incorrectly reported by the owner.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  garantia:
+    'Warranty for {meses} from delivery and installation, against manufacturing or installation defects. It does not cover damage from impacts, moisture or leaks, heat or direct sunlight, use other than intended, or repairs made by others.',
+};
+
+const PLANTILLA_DE_SIEMPRE_EN_PORTUGUES: PlantillaDelPresupuesto = {
+  forma: 1,
+  plazoDeFabricacion: PLANTILLA_DE_SIEMPRE.plazoDeFabricacion,
+  modificacionesIncluidas: PLANTILLA_DE_SIEMPRE.modificacionesIncluidas,
+  valorDeUnaModificacion: PLANTILLA_DE_SIEMPRE.valorDeUnaModificacion,
+  monedaDeLaModificacion: PLANTILLA_DE_SIEMPRE.monedaDeLaModificacion,
+  clausulasDeLaMoneda: {
+    dolaresEnPesos:
+      'O pagamento é feito em pesos. Cada pagamento é convertido pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior à data do pagamento e é descontado do saldo em dólares.',
+    dolaresEnDolares:
+      'O pagamento é feito em dólares norte-americanos. Se alguma parte for paga em pesos, ela é convertida pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior a esse pagamento.',
+    dolaresEnPesosODolares:
+      'O pagamento é feito em dólares norte-americanos ou em pesos. Cada pagamento em pesos é convertido pela cotação de venda do dólar em espécie do Banco de la Nación Argentina no fechamento do dia útil anterior à data do pagamento e é descontado do saldo em dólares.',
+    pesosEnDolares:
+      'O pagamento é feito em dólares norte-americanos. Cada pagamento é convertido pela cotação combinada nesse dia e é descontado do saldo em pesos.',
+    pesosEnPesosODolares:
+      'Se uma parte for paga em dólares, ela é convertida pela cotação combinada nesse dia e é descontada do saldo em pesos.',
+  },
+  garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  incluye: [
+    {
+      id: 'incluye-visita',
+      titulo: null,
+      texto: 'Visita ao local para medição e definição dos detalhes.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-diseno',
+      titulo: null,
+      texto: 'Projeto 3D conforme os requisitos estabelecidos.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-fabricacion',
+      titulo: null,
+      texto: 'Desenvolvimento e fabricação com base no projeto proposto.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-transporte',
+      titulo: null,
+      texto: 'Transporte e entrega.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'incluye-instalacion',
+      titulo: null,
+      texto: 'Montagem e acabamentos no local.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  aTenerEnCuenta: [
+    { id: 'no-mesada', titulo: null, texto: 'Bancada não inclusa.', tildadaPorDefecto: false },
+    {
+      id: 'no-bacha',
+      titulo: null,
+      texto: 'Cuba e torneira não inclusas.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-conexiones',
+      titulo: null,
+      texto: 'Ligações de água, gás e eletricidade não inclusas.',
+      tildadaPorDefecto: false,
+    },
+    {
+      id: 'no-electrodomesticos',
+      titulo: null,
+      texto: 'Instalação de eletrodomésticos não inclusa.',
+      tildadaPorDefecto: false,
+    },
+  ],
+  formasDePago: [
+    {
+      id: 'sena-y-entrega',
+      nombre: 'Sinal e saldo na entrega',
+      texto: 'Sinal de {sena} para confirmar o projeto e o saldo na entrega.',
+    },
+    {
+      id: 'sena-y-cuotas',
+      nombre: 'Sinal e parcelas',
+      texto:
+        'Sinal de {sena} para confirmar o projeto e o saldo em parcelas, a combinar antes de começar.',
+    },
+    {
+      id: 'todo-al-confirmar',
+      nombre: 'Tudo na confirmação',
+      texto: 'Pagamento total na confirmação do projeto.',
+    },
+  ],
+  avisos: [
+    {
+      id: 'aviso-plazo',
+      titulo: null,
+      texto:
+        'O prazo estimado de fabricação é de {plazo} dias úteis a partir do recebimento do sinal e da confirmação das especificações finais do projeto. Este prazo considera os tempos atuais de produção e de fornecimento de materiais. Caso o trabalho seja concluído antes do prazo indicado, o cliente será avisado para combinar uma entrega antecipada. Os prazos indicados podem ser afetados por atrasos no fornecimento de materiais, na logística ou por fatores externos alheios ao processo de fabricação. Caso essas situações ocorram, o cliente será informado oportunamente.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-aceptacion',
+      titulo: null,
+      texto:
+        'O pagamento do sinal e o início do projeto implicam a aceitação do design, das especificações técnicas, dos prazos de fabricação e das condições detalhadas neste documento.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-modificaciones',
+      titulo: null,
+      texto:
+        'Este orçamento inclui projeto 3D e até {modificaciones}. Modificações adicionais (novo projeto completo) têm um valor estimado de {valor_modificacion} cada.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-relevamiento',
+      titulo: null,
+      texto:
+        'O valor pago pela visita técnica e pelo projeto 3D ({relevamiento}) cobre a visita à obra, a tomada de medidas, o estudo e o projeto 3D. Esse valor já está incluído no total deste orçamento e é descontado do valor do sinal.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'aviso-colores',
+      titulo: null,
+      texto:
+        'As cores e os padrões das chapas podem parecer diferentes nas telas ou nas amostras do que são na realidade.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  condiciones: [
+    {
+      id: 'condicion-espacio',
+      titulo: 'Condições do local de montagem',
+      texto:
+        'O cliente deverá garantir condições adequadas de acesso e de espaço para a entrada e a montagem do mobiliário. Situações excepcionais que exijam manobras especiais ou trabalhos adicionais podem precisar de coordenação prévia.',
+      tildadaPorDefecto: true,
+    },
+    {
+      id: 'condicion-perforaciones',
+      titulo: null,
+      texto:
+        'É responsabilidade exclusiva do cliente informar e deixar claramente definidos os trajetos de cabos e tubulações nas paredes que possam ser perfuradas. A MAUN não se responsabiliza por danos decorrentes de perfurações em áreas não sinalizadas ou informadas incorretamente pelo proprietário.',
+      tildadaPorDefecto: true,
+    },
+  ],
+  garantia:
+    'Garantia de {meses} a partir da entrega e da montagem, contra defeitos de fabricação ou de montagem. Não cobre danos causados por batidas, umidade ou infiltrações, calor ou sol direto, uso diferente do previsto, nem reparos feitos por terceiros.',
+};
+
+export const PLANTILLAS_DE_SIEMPRE: Readonly<Record<Idioma, PlantillaDelPresupuesto>> = {
+  es: PLANTILLA_DE_SIEMPRE,
+  en: PLANTILLA_DE_SIEMPRE_EN_INGLES,
+  'pt-BR': PLANTILLA_DE_SIEMPRE_EN_PORTUGUES,
+};
+
+export function plantillaDeSiempre(idioma: Idioma): PlantillaDelPresupuesto {
+  return PLANTILLAS_DE_SIEMPRE[idioma];
+}
+
 export interface Propia {
   id: string;
   texto: string;
@@ -264,6 +619,11 @@ export interface HerrajesDelBorrador {
   lista: readonly Propia[];
 }
 
+export interface ModificacionDelBorrador {
+  importe: Money<Moneda>;
+  moneda: Moneda;
+}
+
 export interface BorradorDelPresupuesto {
   forma: 1;
   titulo: string;
@@ -278,6 +638,9 @@ export interface BorradorDelPresupuesto {
   validezDias: number | null;
   avisos: Seleccion;
   condiciones: Seleccion;
+  clausulaDeLaMoneda: string | null;
+  modificacion: ModificacionDelBorrador | null;
+  monedaDeLoAbonado: Moneda | null;
 }
 
 export const CONDICIONES_FISCALES = ['monotributo', 'responsable_inscripto', 'exento'] as const;
@@ -300,15 +663,16 @@ export interface DatosDelTaller {
   email: string;
 }
 
-export interface OpcionDelDocumento {
+export interface OpcionDelDocumento<M extends Moneda = MonedaDelTaller> {
   id: string;
   letra: string;
   descripcion: string;
-  total: Money;
+  total: Money<M>;
 }
 
-export type ValoresDelPresupuesto =
-  { tipo: 'total'; total: Money } | { tipo: 'opciones'; opciones: readonly OpcionDelDocumento[] };
+export type ValoresDelPresupuesto<M extends Moneda = MonedaDelTaller> =
+  | { tipo: 'total'; total: Money<M> }
+  | { tipo: 'opciones'; opciones: readonly OpcionDelDocumento<M>[] };
 
 export interface TextoConTitulo {
   titulo: string | null;
@@ -320,8 +684,7 @@ export interface MuebleDelDocumento {
   descripcion: string;
 }
 
-export interface DocumentoDelPresupuesto {
-  forma: 1;
+interface ComunDelDocumento {
   taller: DatosDelTaller;
   cliente: string;
   titulo: string;
@@ -331,10 +694,11 @@ export interface DocumentoDelPresupuesto {
   herrajes: readonly string[];
   aTenerEnCuenta: readonly string[];
   incluye: readonly string[];
-  valores: ValoresDelPresupuesto | null;
   senaBp: PuntosBasicos;
-  abonado: Money;
+  abonado: Money<Moneda>;
   formaDePago: string | null;
+  clausulaDeLaMoneda: string | null;
+  cobraEn: readonly Moneda[];
   plazoDeFabricacion: number;
   validezDias: number | null;
   avisos: readonly TextoConTitulo[];
@@ -343,10 +707,25 @@ export interface DocumentoDelPresupuesto {
   garantiaMeses: number;
 }
 
-export interface OpcionDelTrabajo {
+export interface DocumentoEnPesos extends ComunDelDocumento {
+  forma: 1;
+  valores: ValoresDelPresupuesto | null;
+}
+
+export interface DocumentoEnDolares extends ComunDelDocumento {
+  forma: 2;
+  moneda: 'USD';
+  valores: ValoresDelPresupuesto<'USD'> | null;
+  monedaDeLoAbonado: Moneda;
+  referencia: ReferenciaEnPesos | null;
+}
+
+export type DocumentoDelPresupuesto = DocumentoEnPesos | DocumentoEnDolares;
+
+export interface OpcionDelTrabajo<M extends Moneda = MonedaDelTaller> {
   id: string;
   descripcion: string;
-  monto: Money;
+  monto: Money<M>;
 }
 
 const FORMATO_DEL_ID = /^[a-z0-9-]{1,60}$/;
@@ -364,10 +743,85 @@ export function esNumeroDePresupuesto(valor: unknown): valor is string {
   return typeof valor === 'string' && FORMATO_DEL_NUMERO.test(valor);
 }
 
-export function valoresDelTrabajo(
-  presupuesto: Money | null,
-  opciones: readonly OpcionDelTrabajo[],
-): ValoresDelPresupuesto | null {
+export function cobraEnLeido(valor: unknown): readonly Moneda[] | null {
+  if (!Array.isArray(valor)) return null;
+  const leido = valor as readonly unknown[];
+  return (
+    COBROS_POSIBLES.find(
+      (posible) =>
+        posible.length === leido.length &&
+        posible.every((moneda, lugar) => leido[lugar] === moneda),
+    ) ?? null
+  );
+}
+
+export function combinacionDeLaMoneda(
+  moneda: Moneda,
+  cobraEn: readonly Moneda[] | null,
+): CombinacionDeLaMoneda | null {
+  const enPesos = (cobraEn ?? [MONEDA_DEL_TALLER]).includes(MONEDA_DEL_TALLER);
+  const enDolares = (cobraEn ?? []).includes('USD');
+  if (moneda === MONEDA_DEL_TALLER) {
+    if (!enDolares) return null;
+    return enPesos ? 'pesosEnPesosODolares' : 'pesosEnDolares';
+  }
+  if (!enDolares) return 'dolaresEnPesos';
+  return enPesos ? 'dolaresEnPesosODolares' : 'dolaresEnDolares';
+}
+
+export function monedaDelDocumento(documento: DocumentoDelPresupuesto): Moneda {
+  return documento.forma === 2 ? documento.moneda : MONEDA_DEL_TALLER;
+}
+
+export function monedaDeLoAbonadoDelDocumento(documento: DocumentoDelPresupuesto): Moneda {
+  return documento.forma === 2 ? documento.monedaDeLoAbonado : MONEDA_DEL_TALLER;
+}
+
+export function monedaDeLoAbonado(
+  borrador: Pick<BorradorDelPresupuesto, 'monedaDeLoAbonado'>,
+  monedaDelTrabajo: Moneda,
+): Moneda {
+  if (monedaDelTrabajo === MONEDA_DEL_TALLER) return MONEDA_DEL_TALLER;
+  return borrador.monedaDeLoAbonado ?? monedaDelTrabajo;
+}
+
+export function abonadoEn(
+  pagos: Iterable<ImporteDeUnPago>,
+  monedaDelTrabajo: Moneda,
+  moneda: Moneda,
+): Money<Moneda> {
+  return moneda === monedaDelTrabajo
+    ? totalQueDescuenta(pagos, monedaDelTrabajo)
+    : totalEnPesos(pagos);
+}
+
+export function modificacionDelPresupuesto(
+  plantilla: Pick<PlantillaDelPresupuesto, 'valorDeUnaModificacion' | 'monedaDeLaModificacion'>,
+  borrador: Pick<BorradorDelPresupuesto, 'modificacion'> | null,
+): ModificacionDelBorrador {
+  return (
+    borrador?.modificacion ?? {
+      importe: plantilla.valorDeUnaModificacion,
+      moneda: plantilla.monedaDeLaModificacion,
+    }
+  );
+}
+
+export function clausulaDeLaMonedaDelTrabajo(
+  plantilla: Pick<PlantillaDelPresupuesto, 'clausulasDeLaMoneda'>,
+  borrador: Pick<BorradorDelPresupuesto, 'clausulaDeLaMoneda'>,
+  moneda: Moneda,
+  cobraEn: readonly Moneda[] | null,
+): string | null {
+  const combinacion = combinacionDeLaMoneda(moneda, cobraEn);
+  if (combinacion === null) return null;
+  return borrador.clausulaDeLaMoneda ?? plantilla.clausulasDeLaMoneda[combinacion];
+}
+
+export function valoresDelTrabajo<M extends Moneda = MonedaDelTaller>(
+  presupuesto: Money<M> | null,
+  opciones: readonly OpcionDelTrabajo<M>[],
+): ValoresDelPresupuesto<M> | null {
   if (opciones.length > 0) {
     const porId = [...opciones].sort((una, otra) => (una.id < otra.id ? -1 : 1));
     return {
@@ -420,6 +874,9 @@ export function borradorNuevo(entrada: EntradaDelBorradorNuevo): BorradorDelPres
     validezDias: entrada.validezDias,
     avisos: tildadasPorDefecto(plantilla.avisos),
     condiciones: tildadasPorDefecto(plantilla.condiciones),
+    clausulaDeLaMoneda: null,
+    modificacion: null,
+    monedaDeLoAbonado: null,
   };
 }
 
@@ -439,32 +896,46 @@ export function completarHuecos(
   });
 }
 
-function conSuPlural(cantidad: number, singular: string, plural: string): string {
-  return `${String(cantidad)} ${cantidad === 1 ? singular : plural}`;
-}
-
 export interface Formatos {
-  pesos: (importe: Money) => string;
+  plata: (importe: Money<Moneda>, moneda: Moneda) => string;
   porcentaje: (puntos: PuntosBasicos) => string;
+  modificaciones: (cantidad: number) => string;
+  meses: (cantidad: number) => string;
 }
 
-export interface EntradaDelDocumento {
+interface ComunDeLaEntrada {
   borrador: BorradorDelPresupuesto;
   plantilla: PlantillaDelPresupuesto;
   taller: DatosDelTaller;
   cliente: string;
-  valores: ValoresDelPresupuesto | null;
   senaBp: PuntosBasicos;
-  abonado: Money;
+  abonado: Money<Moneda>;
+  cobraEn: readonly Moneda[] | null;
 }
+
+export type EntradaDelDocumento =
+  | (ComunDeLaEntrada & {
+      moneda: MonedaDelTaller;
+      valores: ValoresDelPresupuesto | null;
+    })
+  | (ComunDeLaEntrada & {
+      moneda: 'USD';
+      valores: ValoresDelPresupuesto<'USD'> | null;
+      referencia: ReferenciaEnPesos | null;
+    });
 
 export interface EntradaDeLosHuecos {
   plazoDeFabricacion: number;
   plantilla: Pick<
     PlantillaDelPresupuesto,
-    'modificacionesIncluidas' | 'valorDeUnaModificacion' | 'garantiaMeses'
+    | 'modificacionesIncluidas'
+    | 'valorDeUnaModificacion'
+    | 'monedaDeLaModificacion'
+    | 'garantiaMeses'
   >;
-  abonado: Money;
+  modificacion: ModificacionDelBorrador | null;
+  abonado: Money<Moneda>;
+  monedaDeLoAbonado: Moneda;
   senaBp: PuntosBasicos;
 }
 
@@ -473,26 +944,22 @@ export function huecosDelPresupuesto(
   formatos: Formatos,
 ): Record<Hueco, string> {
   const { plantilla } = entrada;
+  const modificacion = modificacionDelPresupuesto(plantilla, entrada);
   return {
     plazo: String(entrada.plazoDeFabricacion),
-    modificaciones: conSuPlural(
-      plantilla.modificacionesIncluidas,
-      'modificación',
-      'modificaciones',
-    ),
-    valor_modificacion: formatos.pesos(plantilla.valorDeUnaModificacion),
-    relevamiento: formatos.pesos(entrada.abonado),
+    modificaciones: formatos.modificaciones(plantilla.modificacionesIncluidas),
+    valor_modificacion: formatos.plata(modificacion.importe, modificacion.moneda),
+    relevamiento: formatos.plata(entrada.abonado, entrada.monedaDeLoAbonado),
     sena: `${formatos.porcentaje(entrada.senaBp)}%`,
-    meses: conSuPlural(plantilla.garantiaMeses, 'mes', 'meses'),
+    meses: formatos.meses(plantilla.garantiaMeses),
   };
 }
 
 export function textoDeLaGarantia(
   plantilla: Pick<PlantillaDelPresupuesto, 'garantia' | 'garantiaMeses'>,
+  formatos: Pick<Formatos, 'meses'>,
 ): string {
-  return completarHuecos(plantilla.garantia, {
-    meses: conSuPlural(plantilla.garantiaMeses, 'mes', 'meses'),
-  });
+  return completarHuecos(plantilla.garantia, { meses: formatos.meses(plantilla.garantiaMeses) });
 }
 
 function limpio(texto: string): string {
@@ -526,11 +993,14 @@ export function documentoDelPresupuesto(
   formatos: Formatos,
 ): DocumentoDelPresupuesto {
   const { borrador, plantilla } = entrada;
+  const deLoAbonado = monedaDeLoAbonado(borrador, entrada.moneda);
   const huecos = huecosDelPresupuesto(
     {
       plazoDeFabricacion: borrador.plazoDeFabricacion,
       plantilla,
+      modificacion: borrador.modificacion,
       abonado: entrada.abonado,
+      monedaDeLoAbonado: deLoAbonado,
       senaBp: entrada.senaBp,
     },
     formatos,
@@ -544,9 +1014,14 @@ export function documentoDelPresupuesto(
   const soloTextos = (textos: readonly TextoConTitulo[]): string[] =>
     conTextos(textos).map(({ texto }) => texto);
   const forma = textoDeLaForma(plantilla, borrador.formaDePago);
+  const clausula = clausulaDeLaMonedaDelTrabajo(
+    plantilla,
+    borrador,
+    entrada.moneda,
+    entrada.cobraEn,
+  );
 
-  return {
-    forma: 1,
+  const comun: ComunDelDocumento = {
     taller: entrada.taller,
     cliente: recortado(limpio(entrada.cliente), LARGOS_DEL_DOCUMENTO.cliente),
     titulo: limpio(borrador.titulo),
@@ -563,10 +1038,11 @@ export function documentoDelPresupuesto(
       : [],
     aTenerEnCuenta: soloTextos(lasElegidas(plantilla.aTenerEnCuenta, borrador.aTenerEnCuenta)),
     incluye: soloTextos(lasElegidas(plantilla.incluye, borrador.incluye)),
-    valores: entrada.valores,
     senaBp: entrada.senaBp,
     abonado: entrada.abonado,
     formaDePago: forma === null ? null : completar(forma) || null,
+    clausulaDeLaMoneda: clausula === null ? null : completar(clausula) || null,
+    cobraEn: entrada.cobraEn ?? [MONEDA_DEL_TALLER],
     plazoDeFabricacion: borrador.plazoDeFabricacion,
     validezDias: borrador.validezDias,
     avisos: conTextos(lasElegidas(plantilla.avisos, borrador.avisos)),
@@ -574,30 +1050,42 @@ export function documentoDelPresupuesto(
     garantia: completar(plantilla.garantia),
     garantiaMeses: plantilla.garantiaMeses,
   };
+  if (entrada.moneda === MONEDA_DEL_TALLER) {
+    return { forma: 1, ...comun, valores: entrada.valores };
+  }
+  return {
+    forma: 2,
+    moneda: entrada.moneda,
+    ...comun,
+    valores: entrada.valores,
+    monedaDeLoAbonado: deLoAbonado,
+    referencia: entrada.referencia,
+  };
 }
 
-export interface CuentaDeUnValor {
+export interface CuentaDeUnValor<M extends Moneda = MonedaDelTaller> {
   id: string | null;
   letra: string | null;
   descripcion: string;
-  total: Money;
-  sena: Money;
-  pagado: Money;
-  faltaParaLaSena: Money;
-  saldo: Money;
+  total: Money<M>;
+  sena: Money<M>;
+  pagado: Money<M>;
+  faltaParaLaSena: Money<M>;
+  saldo: Money<M>;
 }
 
-export function cuentasDelPresupuesto(
-  valores: ValoresDelPresupuesto,
+export function cuentasDelPresupuesto<M extends Moneda = MonedaDelTaller>(
+  valores: ValoresDelPresupuesto<M>,
   senaBp: PuntosBasicos,
-  pagado: Money,
-): CuentaDeUnValor[] {
+  pagado: Money<M>,
+): CuentaDeUnValor<M>[] {
+  const cero = 0 as Money<M>;
   const unValor = (
     id: string | null,
     letra: string | null,
     descripcion: string,
-    total: Money,
-  ): CuentaDeUnValor => {
+    total: Money<M>,
+  ): CuentaDeUnValor<M> => {
     const esperada = aplicarPorcentaje(total, senaBp);
     return {
       id,
@@ -606,8 +1094,8 @@ export function cuentasDelPresupuesto(
       total,
       sena: esperada,
       pagado,
-      faltaParaLaSena: maximo(CERO, restar(esperada, pagado)),
-      saldo: maximo(CERO, restar(total, maximo(esperada, pagado))),
+      faltaParaLaSena: maximo(cero, restar(esperada, pagado)),
+      saldo: maximo(cero, restar(total, maximo(esperada, pagado))),
     };
   };
   if (valores.tipo === 'total') return [unValor(null, null, '', valores.total)];
@@ -616,10 +1104,10 @@ export function cuentasDelPresupuesto(
   );
 }
 
-export function soloLaAceptada(
-  documento: DocumentoDelPresupuesto,
+export function soloLaAceptada<D extends DocumentoDelPresupuesto>(
+  documento: D,
   opcionId: string | null,
-): DocumentoDelPresupuesto {
+): D {
   if (documento.valores?.tipo !== 'opciones' || opcionId === null) return documento;
   const opciones = documento.valores.opciones.filter(({ id }) => id === opcionId);
   return {
@@ -628,19 +1116,29 @@ export function soloLaAceptada(
   };
 }
 
-export function totalPropuesto(valores: ValoresDelPresupuesto | null): Money | null {
+export function totalPropuesto<M extends Moneda = MonedaDelTaller>(
+  valores: ValoresDelPresupuesto<M> | null,
+): Money<M> | null {
   if (valores === null) return null;
   if (valores.tipo === 'total') return valores.total;
   const [unica, ...otras] = valores.opciones;
   return unica === undefined || otras.length > 0 ? null : unica.total;
 }
 
-export function acordadoAlAprobar(
-  valores: ValoresDelPresupuesto | null,
-  precio: Money | null,
-): Money | null {
+export function acordadoAlAprobar<M extends Moneda = MonedaDelTaller>(
+  valores: ValoresDelPresupuesto<M> | null,
+  precio: Money<M> | null,
+): Money<M> | null {
   if (precio === null) return null;
   return totalPropuesto(valores) === precio ? null : precio;
+}
+
+export function acordadoConElDocumento(
+  documento: DocumentoDelPresupuesto,
+  precio: Plata | null,
+): Money<Moneda> | null {
+  if (precio === null || precio.moneda !== monedaDelDocumento(documento)) return null;
+  return acordadoAlAprobar<Moneda>(documento.valores, precio.importe);
 }
 
 export function plazoDelPresupuesto(
@@ -649,9 +1147,25 @@ export function plazoDelPresupuesto(
   return documento?.plazoDeFabricacion ?? DIAS_HABILES_DE_ENTREGA;
 }
 
-export function numeroVisible(numero: string | null, revision: number): string {
-  if (numero === null) return 'Sin número todavía';
-  return revision <= 1 ? `Nº ${numero}` : `Nº ${numero} · Rev. ${String(revision)}`;
+export interface FrasesConNumero {
+  numero: (numero: string) => string;
+  conRevision: (numero: string, revision: number) => string;
+}
+
+export interface FrasesDelNumero extends FrasesConNumero {
+  sinNumero: string;
+}
+
+function conElNumero(numero: string, revision: number, frases: FrasesConNumero): string {
+  return revision <= 1 ? frases.numero(numero) : frases.conRevision(numero, revision);
+}
+
+export function numeroVisible(
+  numero: string | null,
+  revision: number,
+  frases: FrasesDelNumero,
+): string {
+  return numero === null ? frases.sinNumero : conElNumero(numero, revision, frases);
 }
 
 const PROHIBIDOS_EN_UN_ARCHIVO = '/\\:*?"<>|';
@@ -666,52 +1180,56 @@ export function nombreDelArchivo(
   documento: Pick<DocumentoDelPresupuesto, 'cliente'>,
   numero: string | null,
   revision: number,
+  frases: FrasesDelNumero,
 ): string {
   const cliente = sinProhibidos(documento.cliente).replace(/\s+/g, ' ').trim();
-  const cabeza =
-    numero === null
-      ? 'Presupuesto (borrador)'
-      : revision <= 1
-        ? `Presupuesto ${numero}`
-        : `Presupuesto ${numero} Rev ${String(revision)}`;
+  const cabeza = numeroVisible(numero, revision, frases);
   return `${cliente === '' ? cabeza : `${cabeza} - ${cliente}`}.pdf`;
 }
 
-export function tituloDelArchivo(numero: string | null, revision: number): string {
-  if (numero === null) return 'Presupuesto (borrador)';
-  return revision <= 1
-    ? `Presupuesto ${numero}`
-    : `Presupuesto ${numero} · Rev. ${String(revision)}`;
+export function tituloDelArchivo(
+  numero: string | null,
+  revision: number,
+  frases: FrasesDelNumero,
+): string {
+  return numeroVisible(numero, revision, frases);
 }
 
-export function mensajeParaElTaller(numero: string, revision: number): string {
-  const cual = revision <= 1 ? `Nº ${numero}` : `Nº ${numero} Rev. ${String(revision)}`;
-  return `Hola, te escribo por el presupuesto ${cual}.`;
+export function mensajeParaElTaller(
+  numero: string,
+  revision: number,
+  frases: FrasesConNumero,
+): string {
+  return conElNumero(numero, revision, frases);
 }
 
 export const CAMPOS_QUE_FALTAN = ['titulo', 'muebles', 'valores', 'queCambio'] as const;
 
 export type CampoQueFalta = (typeof CAMPOS_QUE_FALTAN)[number];
 
+export const MOTIVOS_DE_LO_QUE_FALTA = [
+  'titulo',
+  'muebles',
+  'total',
+  'opciones',
+  'queCambio',
+  'queCambioLargo',
+] as const;
+
+export type MotivoDeLoQueFalta = (typeof MOTIVOS_DE_LO_QUE_FALTA)[number];
+
 export interface LoQueFalta {
   campo: CampoQueFalta;
-  texto: string;
+  motivo: MotivoDeLoQueFalta;
 }
 
-export const TEXTOS_DE_LO_QUE_FALTA = {
-  titulo: 'Ponele un título al trabajo.',
-  muebles: 'Describí por lo menos un mueble.',
-  total: 'Poné el total del presupuesto.',
-  opciones: 'Cada opción necesita su importe.',
-  queCambio: 'Contale a tu cliente qué cambió.',
-  queCambioLargo: 'Lo que cambió tiene que entrar en 280 caracteres.',
-} as const;
-
-function faltanLosValores(valores: ValoresDelPresupuesto | null): string | null {
-  if (valores === null) return TEXTOS_DE_LO_QUE_FALTA.total;
-  if (valores.tipo === 'total') return valores.total <= 0 ? TEXTOS_DE_LO_QUE_FALTA.total : null;
+function faltanLosValores(
+  valores: ValoresDelPresupuesto<Moneda> | null,
+): MotivoDeLoQueFalta | null {
+  if (valores === null) return 'total';
+  if (valores.tipo === 'total') return valores.total <= 0 ? 'total' : null;
   return valores.opciones.length === 0 || valores.opciones.some(({ total }) => total <= 0)
-    ? TEXTOS_DE_LO_QUE_FALTA.opciones
+    ? 'opciones'
     : null;
 }
 
@@ -721,36 +1239,31 @@ export function problemasParaMandar(
   queCambio: string,
 ): LoQueFalta[] {
   const falta: LoQueFalta[] = [];
-  if (!tieneTexto(documento.titulo)) {
-    falta.push({ campo: 'titulo', texto: TEXTOS_DE_LO_QUE_FALTA.titulo });
-  }
+  if (!tieneTexto(documento.titulo)) falta.push({ campo: 'titulo', motivo: 'titulo' });
   if (!documento.muebles.some(({ descripcion }) => tieneTexto(descripcion))) {
-    falta.push({ campo: 'muebles', texto: TEXTOS_DE_LO_QUE_FALTA.muebles });
+    falta.push({ campo: 'muebles', motivo: 'muebles' });
   }
   const deLosValores = faltanLosValores(documento.valores);
-  if (deLosValores !== null) falta.push({ campo: 'valores', texto: deLosValores });
+  if (deLosValores !== null) falta.push({ campo: 'valores', motivo: deLosValores });
   if (revisionQueSeManda > 1) {
     const escrito = sinBlancosEnLasPuntas(queCambio);
     if (escrito === '') {
-      falta.push({ campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambio });
+      falta.push({ campo: 'queCambio', motivo: 'queCambio' });
     } else if (largoDelTexto(escrito) > LARGOS_DEL_PRESUPUESTO.queCambio) {
-      falta.push({ campo: 'queCambio', texto: TEXTOS_DE_LO_QUE_FALTA.queCambioLargo });
+      falta.push({ campo: 'queCambio', motivo: 'queCambioLargo' });
     }
   }
   return falta;
 }
 
-export function totalDeLoPagado(pagos: readonly { monto: Money }[]): Money {
-  return sumarTodos(pagos.map(({ monto }) => monto));
-}
-
-export function resumenDeLosValores(
-  valores: ValoresDelPresupuesto | null,
-  pesos: (importe: Money) => string,
+export function resumenDeLosValores<M extends Moneda = MonedaDelTaller>(
+  valores: ValoresDelPresupuesto<M> | null,
+  plata: (importe: Money<M>) => string,
+  opcion: (letra: string, importe: string) => string,
 ): string | null {
   if (valores === null) return null;
-  if (valores.tipo === 'total') return pesos(valores.total);
-  return valores.opciones.map(({ letra, total }) => `Opción ${letra} ${pesos(total)}`).join(' · ');
+  if (valores.tipo === 'total') return plata(valores.total);
+  return valores.opciones.map(({ letra, total }) => opcion(letra, plata(total))).join(' · ');
 }
 
 function igualesEnProfundidad(una: unknown, otra: unknown): boolean {
@@ -766,16 +1279,26 @@ function igualesEnProfundidad(una: unknown, otra: unknown): boolean {
   return claves.every((clave) => igualesEnProfundidad(deUna[clave], deOtra[clave]));
 }
 
+function conLoDeLaUltima(
+  entrada: EntradaDelDocumento,
+  ultima: DocumentoDelPresupuesto,
+): EntradaDelDocumento {
+  const deLaUltima = { abonado: ultima.abonado, taller: ultima.taller };
+  if (entrada.moneda === MONEDA_DEL_TALLER) return { ...entrada, ...deLaUltima };
+  return {
+    ...entrada,
+    ...deLaUltima,
+    referencia: ultima.forma === 2 ? ultima.referencia : entrada.referencia,
+  };
+}
+
 export function hayCambiosSinMandar(
   entrada: EntradaDelDocumento,
   ultima: DocumentoDelPresupuesto | null,
   formatos: Formatos,
 ): boolean {
   if (ultima === null) return true;
-  const hoy = documentoDelPresupuesto(
-    { ...entrada, abonado: ultima.abonado, taller: ultima.taller },
-    formatos,
-  );
+  const hoy = documentoDelPresupuesto(conLoDeLaUltima(entrada, ultima), formatos);
   return !igualesEnProfundidad(hoy, ultima);
 }
 
@@ -798,11 +1321,6 @@ function textoLeido(valor: unknown): string {
 function textosLeidos(valor: unknown): string[] {
   if (!Array.isArray(valor)) return [];
   return valor.filter((uno): uno is string => typeof uno === 'string' && uno !== '');
-}
-
-function importeLeido(valor: unknown): Money | null {
-  const numero = entero(valor);
-  return numero === null ? null : centavos(numero);
 }
 
 function enteroEn(valor: unknown, rango: { desde: number; hasta: number }): number | null {
@@ -848,16 +1366,19 @@ function tallerLeido(valor: unknown): DatosDelTaller {
   };
 }
 
-function valoresLeidos(valor: unknown): ValoresDelPresupuesto | null {
+function valoresLeidos<M extends Moneda>(
+  moneda: M,
+  valor: unknown,
+): ValoresDelPresupuesto<M> | null {
   if (!esObjeto(valor)) return null;
   if (valor.tipo === 'total') {
-    const total = importeLeido(valor.total);
-    return total === null ? null : { tipo: 'total', total };
+    const total = entero(valor.total);
+    return total === null ? null : { tipo: 'total', total: centavosEn(moneda, total) };
   }
   if (valor.tipo !== 'opciones' || !Array.isArray(valor.opciones)) return null;
   const opciones = valor.opciones.flatMap((una: unknown, indice: number) => {
     if (!esObjeto(una) || typeof una.id !== 'string') return [];
-    const total = importeLeido(una.total);
+    const total = entero(una.total);
     if (total === null) return [];
     const letra = typeof una.letra === 'string' && una.letra !== '' ? una.letra : null;
     return [
@@ -865,20 +1386,34 @@ function valoresLeidos(valor: unknown): ValoresDelPresupuesto | null {
         id: una.id,
         letra: letra ?? letraDeLaOpcion(indice),
         descripcion: textoLeido(una.descripcion),
-        total,
+        total: centavosEn(moneda, total),
       },
     ];
   });
   return opciones.length === 0 ? null : { tipo: 'opciones', opciones };
 }
 
+function referenciaLeida(valor: unknown): ReferenciaEnPesos | null {
+  if (!esObjeto(valor)) return null;
+  const leida = cotizacionLeida(valor.cotizacion);
+  const fecha = valor.fecha;
+  if (leida === null || typeof fecha !== 'string' || !esFechaQueExiste(fecha)) return null;
+  return { cotizacion: leida, fecha };
+}
+
 export function leerDocumento(valor: unknown): DocumentoDelPresupuesto | null {
-  if (!esObjeto(valor) || valor.forma !== 1) return null;
+  if (!esObjeto(valor) || (valor.forma !== 1 && valor.forma !== 2)) return null;
   const sena = enteroEn(valor.senaBp, { desde: 0, hasta: BASE_PUNTOS_BASICOS });
   const forma = textoLeido(valor.formaDePago);
+  const clausula = textoLeido(valor.clausulaDeLaMoneda);
+  const deLoAbonado =
+    valor.forma === 1
+      ? MONEDA_DEL_TALLER
+      : esMoneda(valor.monedaDeLoAbonado)
+        ? valor.monedaDeLoAbonado
+        : 'USD';
   const rangos = RANGOS_DEL_PRESUPUESTO;
-  return {
-    forma: 1,
+  const comun: ComunDelDocumento = {
     taller: tallerLeido(valor.taller),
     cliente: textoLeido(valor.cliente),
     titulo: textoLeido(valor.titulo),
@@ -888,10 +1423,11 @@ export function leerDocumento(valor: unknown): DocumentoDelPresupuesto | null {
     herrajes: textosLeidos(valor.herrajes),
     aTenerEnCuenta: textosLeidos(valor.aTenerEnCuenta),
     incluye: textosLeidos(valor.incluye),
-    valores: valoresLeidos(valor.valores),
     senaBp: sena === null ? SENA_HABITUAL : puntosBasicos(sena),
-    abonado: importeLeido(valor.abonado) ?? CERO,
+    abonado: centavosEn(deLoAbonado, entero(valor.abonado) ?? 0),
     formaDePago: forma === '' ? null : forma,
+    clausulaDeLaMoneda: clausula === '' ? null : clausula,
+    cobraEn: cobraEnLeido(valor.cobraEn) ?? [MONEDA_DEL_TALLER],
     plazoDeFabricacion:
       enteroEn(valor.plazoDeFabricacion, rangos.plazoDeFabricacion) ??
       PLANTILLA_DE_SIEMPRE.plazoDeFabricacion,
@@ -901,6 +1437,19 @@ export function leerDocumento(valor: unknown): DocumentoDelPresupuesto | null {
     garantia: textoLeido(valor.garantia),
     garantiaMeses:
       enteroEn(valor.garantiaMeses, rangos.garantiaMeses) ?? PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  };
+  if (valor.forma === 1) {
+    return { forma: 1, ...comun, valores: valoresLeidos(MONEDA_DEL_TALLER, valor.valores) };
+  }
+  const referencia = referenciaLeida(valor.referencia);
+  if (valor.moneda !== 'USD' || referencia === null) return null;
+  return {
+    forma: 2,
+    moneda: 'USD',
+    ...comun,
+    valores: valoresLeidos('USD', valor.valores),
+    monedaDeLoAbonado: deLoAbonado,
+    referencia,
   };
 }
 
@@ -921,7 +1470,31 @@ export type ProblemaDeLaPlantilla =
   | 'nombre-vacio'
   | 'nombre-largo'
   | 'garantia-vacia'
-  | 'garantia-larga';
+  | 'garantia-larga'
+  | 'clausula-de-la-moneda-vacia'
+  | 'clausula-de-la-moneda-larga';
+
+function sonClausulasDeLaMoneda(valor: unknown): boolean {
+  if (valor === undefined) return true;
+  return (
+    esObjeto(valor) &&
+    COMBINACIONES_DE_LA_MONEDA.every((combinacion) => typeof valor[combinacion] === 'string')
+  );
+}
+
+function problemaDeLasClausulasDeLaMoneda(
+  valor: unknown,
+): 'clausula-de-la-moneda-vacia' | 'clausula-de-la-moneda-larga' | null {
+  if (valor === undefined) return null;
+  for (const combinacion of COMBINACIONES_DE_LA_MONEDA) {
+    const texto = (valor as ClausulasDeLaMoneda)[combinacion];
+    if (!tieneTexto(texto)) return 'clausula-de-la-moneda-vacia';
+    if (largoDelTexto(texto) > LARGOS_DEL_PRESUPUESTO.textoDeClausula) {
+      return 'clausula-de-la-moneda-larga';
+    }
+  }
+  return null;
+}
 
 function esClausula(valor: unknown): boolean {
   return (
@@ -1003,7 +1576,9 @@ export function problemaDeLaPlantilla(valor: unknown): ProblemaDeLaPlantilla | n
     meses === null ||
     !grupos.every((grupo) => esListaDe(grupo, esClausula)) ||
     !esListaDe(valor.formasDePago, esFormaDePago) ||
-    typeof valor.garantia !== 'string'
+    typeof valor.garantia !== 'string' ||
+    !(valor.monedaDeLaModificacion === undefined || esMoneda(valor.monedaDeLaModificacion)) ||
+    !sonClausulasDeLaMoneda(valor.clausulasDeLaMoneda)
   ) {
     return 'forma-invalida';
   }
@@ -1024,7 +1599,7 @@ export function problemaDeLaPlantilla(valor: unknown): ProblemaDeLaPlantilla | n
   if (largoDelTexto(valor.garantia) > LARGOS_DEL_PRESUPUESTO.textoDeClausula) {
     return 'garantia-larga';
   }
-  return null;
+  return problemaDeLasClausulasDeLaMoneda(valor.clausulasDeLaMoneda);
 }
 
 function clausulasDe(valor: unknown): Clausula[] {
@@ -1036,14 +1611,32 @@ function clausulasDe(valor: unknown): Clausula[] {
   }));
 }
 
-export function leerPlantilla(valor: unknown): PlantillaDelPresupuesto | null {
+export function leerPlantilla(valor: unknown, idioma: Idioma): PlantillaDelPresupuesto | null {
   if (problemaDeLaPlantilla(valor) !== null) return null;
   const leida = valor as Readonly<Record<string, unknown>>;
+  const monedaDeLaModificacion = esMoneda(leida.monedaDeLaModificacion)
+    ? leida.monedaDeLaModificacion
+    : MONEDA_DEL_TALLER;
+  const clausulas = leida.clausulasDeLaMoneda as ClausulasDeLaMoneda | undefined;
   return {
     forma: 1,
     plazoDeFabricacion: leida.plazoDeFabricacion as number,
     modificacionesIncluidas: leida.modificacionesIncluidas as number,
-    valorDeUnaModificacion: centavos(leida.valorDeUnaModificacion as number),
+    valorDeUnaModificacion: centavosEn(
+      monedaDeLaModificacion,
+      leida.valorDeUnaModificacion as number,
+    ),
+    monedaDeLaModificacion,
+    clausulasDeLaMoneda:
+      clausulas === undefined
+        ? plantillaDeSiempre(idioma).clausulasDeLaMoneda
+        : {
+            dolaresEnPesos: clausulas.dolaresEnPesos,
+            dolaresEnDolares: clausulas.dolaresEnDolares,
+            dolaresEnPesosODolares: clausulas.dolaresEnPesosODolares,
+            pesosEnDolares: clausulas.pesosEnDolares,
+            pesosEnPesosODolares: clausulas.pesosEnPesosODolares,
+          },
     garantiaMeses: leida.garantiaMeses as number,
     incluye: clausulasDe(leida.incluye),
     aTenerEnCuenta: clausulasDe(leida.aTenerEnCuenta),
@@ -1058,8 +1651,8 @@ export function leerPlantilla(valor: unknown): PlantillaDelPresupuesto | null {
   };
 }
 
-export function plantillaDelTaller(guardada: unknown): PlantillaDelPresupuesto {
-  return leerPlantilla(guardada) ?? PLANTILLA_DE_SIEMPRE;
+export function plantillaDelTaller(guardada: unknown, idioma: Idioma): PlantillaDelPresupuesto {
+  return leerPlantilla(guardada, idioma) ?? plantillaDeSiempre(idioma);
 }
 
 export type ProblemaDelPresupuesto =
@@ -1079,7 +1672,17 @@ export type ProblemaDelPresupuesto =
   | 'propia-larga'
   | 'forma-de-pago-larga'
   | 'plazo-fuera-de-rango'
-  | 'validez-fuera-de-rango';
+  | 'validez-fuera-de-rango'
+  | 'clausula-de-la-moneda-larga'
+  | 'modificacion-fuera-de-rango';
+
+function esModificacion(valor: unknown): boolean {
+  return (
+    valor === undefined ||
+    valor === null ||
+    (esObjeto(valor) && entero(valor.importe) !== null && esMoneda(valor.moneda))
+  );
+}
 
 function esMueble(valor: unknown): boolean {
   return (
@@ -1124,7 +1727,14 @@ function tieneLaFormaDeUnBorrador(valor: Readonly<Record<string, unknown>>): boo
     GRUPOS_DE_CLAUSULAS.every((grupo) => esSeleccion(valor[grupo])) &&
     esFormaElegida(valor.formaDePago) &&
     entero(valor.plazoDeFabricacion) !== null &&
-    (valor.validezDias === null || entero(valor.validezDias) !== null)
+    (valor.validezDias === null || entero(valor.validezDias) !== null) &&
+    (valor.clausulaDeLaMoneda === undefined ||
+      valor.clausulaDeLaMoneda === null ||
+      typeof valor.clausulaDeLaMoneda === 'string') &&
+    esModificacion(valor.modificacion) &&
+    (valor.monedaDeLoAbonado === undefined ||
+      valor.monedaDeLoAbonado === null ||
+      esMoneda(valor.monedaDeLoAbonado))
   );
 }
 
@@ -1205,6 +1815,14 @@ export function problemaDelBorrador(valor: unknown): ProblemaDelPresupuesto | nu
   if (borrador.validezDias !== null && !enRango(borrador.validezDias, rangos.validezDias)) {
     return 'validez-fuera-de-rango';
   }
+  const clausula = valor.clausulaDeLaMoneda;
+  if (typeof clausula === 'string' && largoDelTexto(clausula) > largos.textoDeClausula) {
+    return 'clausula-de-la-moneda-larga';
+  }
+  const modificacion = valor.modificacion;
+  if (esObjeto(modificacion) && importeFuera(modificacion.importe as number)) {
+    return 'modificacion-fuera-de-rango';
+  }
   return null;
 }
 
@@ -1274,7 +1892,19 @@ export function leerBorrador(
         : (enteroEn(valor.validezDias, rangos.validezDias) ?? DIAS_QUE_VALE_UN_PRESUPUESTO),
     avisos: seleccionLeida(valor.avisos, plantilla.avisos),
     condiciones: seleccionLeida(valor.condiciones, plantilla.condiciones),
+    clausulaDeLaMoneda:
+      typeof valor.clausulaDeLaMoneda === 'string' ? valor.clausulaDeLaMoneda : null,
+    modificacion: modificacionLeida(valor.modificacion),
+    monedaDeLoAbonado: esMoneda(valor.monedaDeLoAbonado) ? valor.monedaDeLoAbonado : null,
   };
+}
+
+function modificacionLeida(valor: unknown): ModificacionDelBorrador | null {
+  if (!esObjeto(valor) || !esMoneda(valor.moneda)) return null;
+  const importe = entero(valor.importe);
+  return importe === null
+    ? null
+    : { importe: centavosEn(valor.moneda, importe), moneda: valor.moneda };
 }
 
 export type ProblemaDelDocumento =
@@ -1289,7 +1919,8 @@ export type ProblemaDelDocumento =
   | 'demasiados-herrajes'
   | 'demasiadas-clausulas'
   | 'demasiadas-opciones'
-  | 'texto-largo';
+  | 'texto-largo'
+  | 'cotizacion-fuera-de-rango';
 
 function esTexto(valor: unknown): valor is string {
   return typeof valor === 'string';
@@ -1357,7 +1988,25 @@ function tieneLaFormaDeUnDocumento(valor: Readonly<Record<string, unknown>>): bo
     esListaDe(valor.avisos, esTextoConTitulo) &&
     esListaDe(valor.condiciones, esTextoConTitulo) &&
     esTexto(valor.garantia) &&
-    entero(valor.garantiaMeses) !== null
+    entero(valor.garantiaMeses) !== null &&
+    (valor.clausulaDeLaMoneda === undefined ||
+      valor.clausulaDeLaMoneda === null ||
+      esTexto(valor.clausulaDeLaMoneda)) &&
+    (valor.cobraEn === undefined || cobraEnLeido(valor.cobraEn) !== null) &&
+    (valor.forma === 1 || esLaMonedaDeUnDocumentoEnDolares(valor))
+  );
+}
+
+function esLaMonedaDeUnDocumentoEnDolares(valor: Readonly<Record<string, unknown>>): boolean {
+  const referencia = valor.referencia;
+  return (
+    esMoneda(valor.moneda) &&
+    valor.moneda !== MONEDA_DEL_TALLER &&
+    esMoneda(valor.monedaDeLoAbonado) &&
+    esObjeto(referencia) &&
+    entero(referencia.cotizacion) !== null &&
+    esTexto(referencia.fecha) &&
+    esFechaQueExiste(referencia.fecha)
   );
 }
 
@@ -1395,6 +2044,7 @@ function textosDelDocumento(documento: DocumentoDelPresupuesto): [string, number
       [descripcion, largos.descripcionDeLaOpcion],
     ]),
     [documento.formaDePago ?? '', derivado],
+    [documento.clausulaDeLaMoneda ?? '', LARGO_DE_LA_CLAUSULA_DEL_DOCUMENTO],
     ...clausulas.flatMap(({ titulo, texto }): [string, number][] => [
       [titulo ?? '', LARGOS_DEL_PRESUPUESTO.tituloDeClausula],
       [texto, derivado],
@@ -1408,13 +2058,20 @@ function importeFuera(importe: number): boolean {
 }
 
 export function problemaDelDocumento(valor: unknown): ProblemaDelDocumento | null {
-  if (!esObjeto(valor) || valor.forma !== 1 || !tieneLaFormaDeUnDocumento(valor)) {
+  if (
+    !esObjeto(valor) ||
+    (valor.forma !== 1 && valor.forma !== 2) ||
+    !tieneLaFormaDeUnDocumento(valor)
+  ) {
     return 'forma-invalida';
   }
   const documento = valor as unknown as DocumentoDelPresupuesto;
   const rangos = RANGOS_DEL_PRESUPUESTO;
   if (documento.senaBp < 0 || documento.senaBp > BASE_PUNTOS_BASICOS) return 'sena-fuera-de-rango';
   if (importeFuera(documento.abonado)) return 'abonado-fuera-de-rango';
+  if (documento.forma === 2 && !esCotizacion((valor.referencia as ReferenciaEnPesos).cotizacion)) {
+    return 'cotizacion-fuera-de-rango';
+  }
   if (!enRango(documento.plazoDeFabricacion, rangos.plazoDeFabricacion)) {
     return 'plazo-fuera-de-rango';
   }

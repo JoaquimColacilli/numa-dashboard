@@ -7,7 +7,8 @@ import { BUILD_A, BUILD_B, NOVEDAD_DE_LA_B, VERSION_DE_LA_B } from './arnes';
 
 const ARCHIVO_DE_NOVEDADES = '/src/features/ver-novedades/model/novedades.ts';
 
-const COMIENZO_DE_LAS_NOVEDADES = 'export const NOVEDADES: readonly Novedad[] = [';
+const COMIENZO_DE_LAS_NOVEDADES =
+  'export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [';
 
 function unaNovedadMas(): Plugin {
   return {
@@ -20,7 +21,7 @@ function unaNovedadMas(): Plugin {
       }
       return codigo.replace(
         COMIENZO_DE_LAS_NOVEDADES,
-        `${COMIENZO_DE_LAS_NOVEDADES}\n  { version: '${VERSION_DE_LA_B}', lineas: ['${NOVEDAD_DE_LA_B}'] },`,
+        `${COMIENZO_DE_LAS_NOVEDADES}\n  { version: '${VERSION_DE_LA_B}', lineas: { es: ['${NOVEDAD_DE_LA_B}'], en: ['${NOVEDAD_DE_LA_B}'], 'pt-BR': ['${NOVEDAD_DE_LA_B}'] } },`,
       );
     },
   };

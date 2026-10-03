@@ -7,6 +7,7 @@ import {
 } from '@maun/domain';
 
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
 export type TextosDeLasRedes = Record<RedDelTaller, string>;
 
@@ -18,38 +19,13 @@ const COLUMNA_DE_LA_RED: Readonly<Record<RedDelTaller, ColumnaDeLaRed>> = {
   tiktok: 'tiktok_link',
 };
 
-export const NOMBRE_DE_LA_RED: Readonly<Record<RedDelTaller, string>> = {
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  tiktok: 'TikTok',
-};
+export const NOMBRE_DE_LA_RED: Readonly<Record<RedDelTaller, string>> = textosDelIdioma(
+  () => mensajes().configurarTaller.redes.nombres,
+);
 
 export const MENSAJE_DE_LA_RED: Readonly<
   Record<RedDelTaller, Readonly<Record<MotivoDeLaRed, string>>>
-> = {
-  instagram: {
-    'otra-red':
-      'Ese enlace no es de Instagram. Pegá el de tu perfil, o escribí tu usuario con la @.',
-    'no-es-un-perfil':
-      'Ese enlace no es el de tu perfil: es de una publicación, un reel, una historia u otra parte de Instagram. Pegá el de tu perfil, o escribí tu usuario con la @.',
-    usuario:
-      'Escribí tu usuario de Instagram, con la @ o sin ella: letras, números, puntos y guiones bajos, sin espacios.',
-  },
-  facebook: {
-    'otra-red': 'Ese enlace no es de Facebook. Pegá el de la página o el perfil del taller.',
-    'no-es-un-perfil':
-      'Ese enlace no es el de tu página: es de una publicación, un grupo o algo para compartir. Entrá a la página del taller y copiá su dirección.',
-    usuario:
-      'Pegá la dirección de la página del taller, como facebook.com/tutaller: el nombre va sin espacios, con letras, números o puntos.',
-  },
-  tiktok: {
-    'otra-red': 'Ese enlace no es de TikTok. Pegá el de tu perfil, o escribí tu usuario con la @.',
-    'no-es-un-perfil':
-      'Ese enlace no es el de tu perfil: es de un video, un enlace corto u otra parte de TikTok. Pegá el de tu perfil, que lleva tu usuario con la @, o escribí tu usuario.',
-    usuario:
-      'Escribí tu usuario de TikTok, con la @ o sin ella: letras, números, puntos y guiones bajos, sin espacios.',
-  },
-};
+> = textosDelIdioma(() => mensajes().configurarTaller.redes.errores);
 
 export function redesDeLosAjustes(ajustes: FilaDe<'ajustes'>): TextosDeLasRedes {
   const guardadas = ajustes as Partial<FilaDe<'ajustes'>>;

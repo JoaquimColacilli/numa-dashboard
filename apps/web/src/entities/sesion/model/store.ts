@@ -22,6 +22,7 @@ function iguales(a: EstadoSesion, b: EstadoSesion): boolean {
       a.email === b.email &&
       a.nombre === b.nombre &&
       a.foto === b.foto &&
+      a.idioma === b.idioma &&
       a.porRecuperacion === b.porRecuperacion
     );
   }

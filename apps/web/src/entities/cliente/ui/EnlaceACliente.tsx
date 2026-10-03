@@ -14,6 +14,7 @@ export function EnlaceACliente({
   return (
     <Ir
       a={rutaDelCliente(id)}
+      translate="no"
       className={`underline decoration-hairline underline-offset-2 hover:decoration-ink ${className}`}
     >
       {nombre}

@@ -16,6 +16,18 @@ export interface ImporteEscrito {
   decimales: string | null;
 }
 
+export interface SeparadoresDelImporte {
+  miles: string;
+  decimal: string;
+  abrenLosDecimales: readonly string[];
+}
+
+export const SEPARADORES_DE_SIEMPRE: SeparadoresDelImporte = {
+  miles: '.',
+  decimal: ',',
+  abrenLosDecimales: [',', '.'],
+};
+
 const VACIO: ImporteEscrito = { enteros: '', decimales: null };
 
 const DIGITOS_MAXIMOS = 13;
@@ -41,15 +53,24 @@ export function centavosDelImporte(importe: ImporteEscrito): number | null {
   return pesos * 100 + resto;
 }
 
-export function textoDelImporte(importe: ImporteEscrito): string {
+export function textoDelImporte(
+  importe: ImporteEscrito,
+  separadores: SeparadoresDelImporte = SEPARADORES_DE_SIEMPRE,
+): string {
   const enteros =
     importe.enteros === '' && importe.decimales !== null
       ? '0'
-      : importe.enteros.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return importe.decimales === null ? enteros : `${enteros},${importe.decimales}`;
+      : importe.enteros.replace(/\B(?=(\d{3})+(?!\d))/g, separadores.miles);
+  return importe.decimales === null
+    ? enteros
+    : `${enteros}${separadores.decimal}${importe.decimales}`;
 }
 
-export function tipear(importe: ImporteEscrito, texto: string): ImporteEscrito {
+export function tipear(
+  importe: ImporteEscrito,
+  texto: string,
+  separadores: SeparadoresDelImporte = SEPARADORES_DE_SIEMPRE,
+): ImporteEscrito {
   let { enteros, decimales } = importe;
   for (const caracter of texto) {
     if (caracter >= '0' && caracter <= '9') {
@@ -58,7 +79,7 @@ export function tipear(importe: ImporteEscrito, texto: string): ImporteEscrito {
       } else if (decimales.length < 2) {
         decimales += caracter;
       }
-    } else if ((caracter === ',' || caracter === '.') && decimales === null) {
+    } else if (separadores.abrenLosDecimales.includes(caracter) && decimales === null) {
       decimales = '';
       if (enteros === '') enteros = '0';
     }
@@ -76,22 +97,31 @@ export function borrarUno(importe: ImporteEscrito): ImporteEscrito {
   };
 }
 
-export function leerImporte(texto: string): ImporteEscrito | null {
+function escapado(caracter: string): string {
+  return caracter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function leerImporte(
+  texto: string,
+  separadores: SeparadoresDelImporte = SEPARADORES_DE_SIEMPRE,
+): ImporteEscrito | null {
   const limpio = texto.replace(/[$\s]/g, '');
   if (limpio === '') return VACIO;
 
+  const miles = escapado(separadores.miles);
+  const decimal = escapado(separadores.decimal);
   let enteros: string;
   let decimales: string | null;
-  if (/^\d{1,3}(\.\d{3})+(,\d{0,2})?$/.test(limpio)) {
-    const [parte, fraccion] = limpio.split(',');
-    enteros = (parte ?? '').replace(/\./g, '');
+  if (new RegExp(`^\\d{1,3}(${miles}\\d{3})+(${decimal}\\d{0,2})?$`).test(limpio)) {
+    const [parte, fraccion] = limpio.split(separadores.decimal);
+    enteros = (parte ?? '').replaceAll(separadores.miles, '');
     decimales = fraccion ?? null;
-  } else if (/^\d+(,\d{0,2})?$/.test(limpio)) {
-    const [parte, fraccion] = limpio.split(',');
+  } else if (new RegExp(`^\\d+(${decimal}\\d{0,2})?$`).test(limpio)) {
+    const [parte, fraccion] = limpio.split(separadores.decimal);
     enteros = parte ?? '';
     decimales = fraccion ?? null;
-  } else if (/^\d+\.\d{1,2}$/.test(limpio)) {
-    const [parte, fraccion] = limpio.split('.');
+  } else if (new RegExp(`^\\d+${miles}\\d{1,2}$`).test(limpio)) {
+    const [parte, fraccion] = limpio.split(separadores.miles);
     enteros = parte ?? '';
     decimales = fraccion ?? null;
   } else {
@@ -112,12 +142,13 @@ function siguienteImporte(
   importe: ImporteEscrito,
   texto: string,
   evento: Event,
+  separadores: SeparadoresDelImporte,
 ): ImporteEscrito | null {
   const { tipo, dato } = datosDelEvento(evento);
   if (tipo.startsWith('delete')) return texto === '' ? VACIO : borrarUno(importe);
   const unCaracter = tipo === 'insertText' && dato !== null && dato.length === 1;
-  if (unCaracter && texto !== dato) return tipear(importe, dato);
-  return leerImporte(texto) ?? (unCaracter ? tipear(VACIO, dato) : null);
+  if (unCaracter && texto !== dato) return tipear(importe, dato, separadores);
+  return leerImporte(texto, separadores) ?? (unCaracter ? tipear(VACIO, dato, separadores) : null);
 }
 
 export interface MoneyInputProps extends Omit<
@@ -129,6 +160,7 @@ export interface MoneyInputProps extends Omit<
   etiqueta?: string;
   error?: string;
   ayuda?: string;
+  separadores?: SeparadoresDelImporte;
 }
 
 function asignar<T>(ref: Ref<T> | undefined, nodo: T | null): void {
@@ -142,6 +174,7 @@ export function MoneyInput({
   etiqueta,
   error,
   ayuda,
+  separadores = SEPARADORES_DE_SIEMPRE,
   ref,
   id,
   className = '',
@@ -152,7 +185,7 @@ export function MoneyInput({
 
   if (centavosDelImporte(importe) !== value) setImporte(importeDeCentavos(value));
 
-  const texto = textoDelImporte(importe);
+  const texto = textoDelImporte(importe, separadores);
 
   useLayoutEffect(() => {
     const elemento = campo.current;
@@ -179,11 +212,11 @@ export function MoneyInput({
     autoComplete: 'off',
     value: texto,
     onChange: (evento: ChangeEvent<HTMLInputElement>) => {
-      aplicar(siguienteImporte(importe, evento.target.value, evento.nativeEvent));
+      aplicar(siguienteImporte(importe, evento.target.value, evento.nativeEvent, separadores));
     },
     onPaste: (evento: ClipboardEvent<HTMLInputElement>) => {
       evento.preventDefault();
-      aplicar(leerImporte(evento.clipboardData.getData('text')));
+      aplicar(leerImporte(evento.clipboardData.getData('text'), separadores));
     },
     onSelect: (evento: SyntheticEvent<HTMLInputElement>) => {
       const elemento = evento.currentTarget;

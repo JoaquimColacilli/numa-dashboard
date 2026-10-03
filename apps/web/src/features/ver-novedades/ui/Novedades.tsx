@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef } from 'react';
 
+import { useIdioma, useMensajes } from '@/shared/idioma';
 import { useAnchoDePantalla, useHayAlgoEnCurso } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -9,6 +10,7 @@ import {
   useNovedadesAbiertas,
   type NovedadesAbiertas,
 } from '../model/abiertas';
+import { lineasDeLaNovedad, novedadesEnElIdioma } from '../model/novedades';
 import { etiquetaDeLaVersion } from '../model/version';
 import { tomarNovedadesSinVer } from '../model/vistas';
 
@@ -21,6 +23,8 @@ const EN_LA_PANTALLA_GRANDE =
 const AL_LADO_DE_LA_NAVEGACION = { tablet: 'left-[92px]', escritorio: 'left-[248px]' } as const;
 
 function Capa({ abiertas }: { abiertas: NovedadesAbiertas }) {
+  const textos = useMensajes().verNovedades;
+  const idioma = useIdioma();
   const ancho = useAnchoDePantalla();
   const idTitulo = useId();
   const capa = useRef<HTMLElement>(null);
@@ -64,25 +68,25 @@ function Capa({ abiertas }: { abiertas: NovedadesAbiertas }) {
     >
       <header className="flex flex-none items-center justify-between gap-3 border-b border-hairline py-2.5 pr-2.5 pl-5">
         <h2 id={idTitulo} className="text-body-lg leading-snug font-semibold">
-          Novedades de la app
+          {textos.titulo}
         </h2>
         <button
           type="button"
           onClick={cerrar}
-          aria-label="Cerrar las novedades"
+          aria-label={textos.cerrar}
           className="flex size-11 flex-none items-center justify-center rounded-pill text-text-2 hover:bg-surface"
         >
           <Icono nombre="x" tamano={20} />
         </button>
       </header>
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-        {abiertas.novedades.map((novedad) => (
+        {novedadesEnElIdioma(abiertas.novedades, idioma).map((novedad) => (
           <div key={novedad.version} className="flex flex-col gap-2">
             <h3 className="text-label font-semibold text-text-2">
               {etiquetaDeLaVersion(novedad.version)}
             </h3>
             <ul className="flex list-disc flex-col gap-2 pl-5 text-body leading-relaxed">
-              {novedad.lineas.map((linea) => (
+              {lineasDeLaNovedad(novedad, idioma).map((linea) => (
                 <li key={linea}>{linea}</li>
               ))}
             </ul>
@@ -94,6 +98,7 @@ function Capa({ abiertas }: { abiertas: NovedadesAbiertas }) {
 }
 
 export function Novedades() {
+  const idioma = useIdioma();
   const abiertas = useNovedadesAbiertas();
   const hayAlgoEnCurso = useHayAlgoEnCurso();
   const decidido = useRef(false);
@@ -101,9 +106,9 @@ export function Novedades() {
   useEffect(() => {
     if (decidido.current || hayAlgoEnCurso) return;
     decidido.current = true;
-    const sinVer = tomarNovedadesSinVer();
+    const sinVer = tomarNovedadesSinVer(undefined, idioma);
     if (sinVer.length > 0) abrirNovedades(sinVer, true);
-  }, [hayAlgoEnCurso]);
+  }, [hayAlgoEnCurso, idioma]);
 
   useEffect(
     () => () => {

@@ -1,9 +1,4 @@
-export {
-  CLAVE_DE_AJUSTES,
-  CLAVE_DEL_NOMBRE,
-  MUTACION_DE_AJUSTES,
-  MUTACION_DEL_NOMBRE,
-} from './api/mutacion';
+export { CLAVE_DEL_NOMBRE, MUTACION_DEL_NOMBRE } from './api/mutacion';
 export {
   CLAVE_DE_LA_PLANTILLA,
   MUTACION_DE_LA_PLANTILLA,
@@ -19,6 +14,7 @@ export {
 } from './ui/FormularioDeConfiguracion';
 export { FormularioDeRedes } from './ui/FormularioDeRedes';
 export { FormularioDeResena } from './ui/FormularioDeResena';
+export { IdiomaDeLosClientes } from './ui/IdiomaDeLosClientes';
 export {
   PantallaDelPresupuestoDelTaller,
   type PantallaDelPresupuestoDelTallerProps,

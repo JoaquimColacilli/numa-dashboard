@@ -1,31 +1,37 @@
 import {
   cuentasDelPresupuesto,
+  ETIQUETAS_DE_IDIOMA,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
+  type Moneda,
   type Money,
+  type ReferenciaEnPesos,
   type TextoConTitulo,
 } from '@maun/domain';
 import { Document, Page, Path, Svg, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
-
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
 
 import {
   casillasDelRotuloDelPdf,
   conQueCambio,
   deQuienEs,
   fechaDeCreacion,
-  LEMA_DEL_TALLER,
-  LEYENDA_DE_ARCA,
+  lineaDeLaReferencia,
+  lineaDeLaReferenciaConLaSena,
   lineaDelAceptado,
   lineasDelTaller,
+  pagadoDelDocumento,
   pieDelTaller,
+  plataDelDocumento,
+  referenciaDelDocumento,
   textoDeLaPagina,
   textoDeLaValidez,
   textoDelPlazo,
   tituloDelPdf,
 } from './armado';
 import { ESTILOS as s } from './estilos';
+import type { LenguaDelPdf } from './lengua';
+import { LETRA_DE_ARCA, LEYENDA_DE_ARCA } from './leyenda';
 import {
   CENTRO_DE_LA_MAYUSCULA,
   COLOR,
@@ -204,14 +210,16 @@ function piezasDelMueble(
   ];
 }
 
-function Encabezado({ p }: { p: PresupuestoEnPdf }) {
+function Encabezado({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) {
   const { taller } = p.documento;
+  const { rotulo } = l.m.ui;
+  const { lema, leyendaDeArca } = l.m.documento;
   const lineas = lineasDelTaller(taller);
   return (
     <View style={s.encabezado}>
       <View style={s.emisor}>
         <Text style={s.marca}>{taller.nombre}</Text>
-        <Text style={s.lema}>{LEMA_DEL_TALLER}</Text>
+        <Text style={s.lema}>{lema}</Text>
         {lineas.length > 0 && (
           <View style={s.datosDelTaller}>
             {lineas.map((linea) => (
@@ -225,23 +233,26 @@ function Encabezado({ p }: { p: PresupuestoEnPdf }) {
 
       <View style={s.centro}>
         <View style={s.equis}>
-          <Text style={s.equisLetra}>X</Text>
+          <Text style={s.equisLetra}>{LETRA_DE_ARCA}</Text>
         </View>
         <Text style={s.leyenda}>{LEYENDA_DE_ARCA}</Text>
+        {leyendaDeArca.aclarar && (
+          <Text style={s.aclaracionDeLaLeyenda}>{leyendaDeArca.aclaracion}</Text>
+        )}
       </View>
 
       <View style={s.derecha}>
         <View style={s.rotulo}>
           <View style={s.rotuloArriba}>
-            <Text style={s.rotuloTipo}>Presupuesto</Text>
+            <Text style={s.rotuloTipo}>{rotulo.presupuesto}</Text>
             {p.numero === null ? (
-              <Text style={s.numeroSinAsignar}>Sin número todavía</Text>
+              <Text style={s.numeroSinAsignar}>{rotulo.sinNumero}</Text>
             ) : (
-              <Text style={s.numero}>Nº {p.numero}</Text>
+              <Text style={s.numero}>{rotulo.numero(p.numero)}</Text>
             )}
           </View>
           <View style={s.rotuloAbajo}>
-            {casillasDelRotuloDelPdf(p).map((casilla, indice) => (
+            {casillasDelRotuloDelPdf(p, l).map((casilla, indice) => (
               <View
                 key={casilla.titulo}
                 style={[
@@ -263,11 +274,18 @@ function Encabezado({ p }: { p: PresupuestoEnPdf }) {
   );
 }
 
-function DatosDelTrabajo({ documento }: { documento: DocumentoDelPresupuesto }) {
+function DatosDelTrabajo({
+  documento,
+  l,
+}: {
+  documento: DocumentoDelPresupuesto;
+  l: LenguaDelPdf;
+}) {
+  const { datos: titulos } = l.m.pdf;
   const datos = [
-    { titulo: 'Cliente', valor: documento.cliente, peso: 1 },
-    { titulo: 'Obra', valor: documento.obra, peso: 1.35 },
-    { titulo: 'Trabajo', valor: documento.titulo, peso: 1.15 },
+    { titulo: titulos.cliente, valor: documento.cliente, peso: 1 },
+    { titulo: titulos.obra, valor: documento.obra, peso: 1.35 },
+    { titulo: titulos.trabajo, valor: documento.titulo, peso: 1.15 },
   ].filter(({ valor }) => valor !== '');
   return (
     <View style={s.datosDelTrabajo} wrap={false}>
@@ -288,58 +306,73 @@ function DatosDelTrabajo({ documento }: { documento: DocumentoDelPresupuesto }) 
   );
 }
 
-function menos(centavos: number): string {
-  return `− ${formatearPesos(centavos)}`;
+function Referencia({
+  importe,
+  referencia,
+  l,
+}: {
+  importe: number;
+  referencia: ReferenciaEnPesos | null;
+  l: LenguaDelPdf;
+}) {
+  const linea = referencia === null ? null : lineaDeLaReferencia(importe, referencia, l);
+  return linea === null ? null : <Text style={s.referencia}>{linea}</Text>;
 }
 
 function CajaDelTotal({
   cuenta,
   senaBp,
   acordado,
+  plata,
+  referencia,
+  l,
 }: {
-  cuenta: CuentaDeUnValor;
+  cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
+  plata: (importe: number) => string;
+  referencia: ReferenciaEnPesos | null;
+  l: LenguaDelPdf;
 }) {
+  const { valores } = l.m.presupuesto;
+  const delPdf = l.m.pdf.valores;
   const conAbonado = cuenta.pagado > 0;
   return (
     <View style={s.valores}>
       {cuenta.letra !== null && (
         <View style={s.opcionElegida}>
-          <Text style={s.marcoTitulo}>Opción {cuenta.letra}</Text>
+          <Text style={s.marcoTitulo}>{valores.opcion(cuenta.letra)}</Text>
           {cuenta.descripcion !== '' && <Text style={s.renglon}>{cuenta.descripcion}</Text>}
         </View>
       )}
       <View style={s.totalFila}>
-        <Text style={s.totalEtiqueta}>Total</Text>
-        <Text style={s.totalMonto}>{formatearPesos(cuenta.total)}</Text>
+        <Text style={s.totalEtiqueta}>{valores.total}</Text>
+        <Text style={s.totalMonto}>{plata(cuenta.total)}</Text>
       </View>
-      {acordado !== null && (
-        <Text style={s.acordado}>Acordado al aprobar: {formatearPesos(acordado)}</Text>
-      )}
+      <Referencia importe={cuenta.total} referencia={referencia} l={l} />
+      {acordado !== null && <Text style={s.acordado}>{valores.acordado(plata(acordado))}</Text>}
       <View style={s.desglose}>
         <LineaDePuntos
-          izquierda={`Seña (${formatearPorcentaje(senaBp)}%)`}
-          derecha={formatearPesos(cuenta.sena)}
+          izquierda={valores.sena(l.f.porcentaje(senaBp))}
+          derecha={plata(cuenta.sena)}
         />
+        <Referencia importe={cuenta.sena} referencia={referencia} l={l} />
         {conAbonado && (
           <LineaDePuntos
-            izquierda="Relevamiento técnico y diseño 3D ya abonado"
-            derecha={menos(cuenta.pagado)}
+            izquierda={delPdf.relevamientoAbonado}
+            derecha={`− ${plata(cuenta.pagado)}`}
           />
         )}
         {conAbonado && (
           <View style={s.cierre}>
             <LineaDePuntos
-              izquierda="Seña a abonar"
-              derecha={
-                cuenta.faltaParaLaSena > 0 ? formatearPesos(cuenta.faltaParaLaSena) : 'Cubierta'
-              }
+              izquierda={delPdf.senaAAbonar}
+              derecha={cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta}
               fuerte
             />
           </View>
         )}
-        <LineaDePuntos izquierda="Saldo" derecha={formatearPesos(cuenta.saldo)} />
+        <LineaDePuntos izquierda={delPdf.saldo} derecha={plata(cuenta.saldo)} />
       </View>
     </View>
   );
@@ -359,24 +392,33 @@ function TablaDeOpciones({
   cuentas,
   senaBp,
   abonado,
+  plata,
+  referencia,
+  l,
 }: {
-  cuentas: CuentaDeUnValor[];
+  cuentas: CuentaDeUnValor<Moneda>[];
   senaBp: number;
   abonado: number;
+  plata: (importe: number) => string;
+  referencia: ReferenciaEnPesos | null;
+  l: LenguaDelPdf;
 }) {
+  const { valores } = l.m.presupuesto;
+  const delPdf = l.m.pdf.valores;
+  const { rotulo } = l.m.ui;
   const conAbonado = abonado > 0;
-  const aAbonar = (cuenta: CuentaDeUnValor) =>
-    cuenta.faltaParaLaSena > 0 ? formatearPesos(cuenta.faltaParaLaSena) : 'Cubierta';
+  const aAbonar = (cuenta: CuentaDeUnValor<Moneda>) =>
+    cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta;
   const anchoTotal = {
     width: anchoDeColumna(
-      cuentas.map((cuenta) => formatearPesos(cuenta.total)),
+      cuentas.map((cuenta) => plata(cuenta.total)),
       12,
       80,
     ),
   };
   const anchoSena = {
     width: anchoDeColumna(
-      cuentas.map((cuenta) => formatearPesos(cuenta.sena)),
+      cuentas.map((cuenta) => plata(cuenta.sena)),
       CUERPO,
       76,
     ),
@@ -387,49 +429,65 @@ function TablaDeOpciones({
       <View style={s.tabla}>
         <View style={s.tablaFila}>
           <View style={s.colOpcion}>
-            <Text style={s.rotuloChico}>Opción</Text>
+            <Text style={s.rotuloChico}>{rotulo.opcion}</Text>
           </View>
           <View style={[s.colMonto, anchoTotal]}>
-            <Text style={s.rotuloChico}>Total</Text>
+            <Text style={s.rotuloChico}>{valores.total}</Text>
           </View>
           <View style={[s.colMonto, anchoSena]}>
-            <Text style={s.rotuloChico}>Seña ({formatearPorcentaje(senaBp)}%)</Text>
+            <Text style={s.rotuloChico}>{valores.sena(l.f.porcentaje(senaBp))}</Text>
           </View>
           {conAbonado && (
             <View style={[s.colMonto, anchoAAbonar]}>
-              <Text style={s.rotuloChico}>Seña a abonar</Text>
+              <Text style={s.rotuloChico}>{delPdf.senaAAbonar}</Text>
             </View>
           )}
         </View>
-        {cuentas.map((cuenta) => (
-          <View
-            key={cuenta.id ?? cuenta.letra}
-            style={[s.tablaFila, s.tablaFilaConFilete]}
-            wrap={false}
-          >
-            <View style={s.colOpcion}>
-              <Text style={s.marcoTitulo}>Opción {cuenta.letra}</Text>
-              {cuenta.descripcion !== '' && <Text style={s.renglon}>{cuenta.descripcion}</Text>}
-            </View>
-            <View style={[s.colMonto, anchoTotal]}>
-              <Text style={s.montoTotal}>{formatearPesos(cuenta.total)}</Text>
-            </View>
-            <View style={[s.colMonto, anchoSena]}>
-              <Text style={s.renglon}>{formatearPesos(cuenta.sena)}</Text>
-            </View>
-            {conAbonado && (
-              <View style={[s.colMonto, anchoAAbonar]}>
-                <Text style={[s.renglon, s.fuerte]}>{aAbonar(cuenta)}</Text>
+        {cuentas.map((cuenta) => {
+          const celdas = (
+            <>
+              <View style={s.colOpcion}>
+                <Text style={s.marcoTitulo}>{valores.opcion(cuenta.letra ?? '')}</Text>
+                {cuenta.descripcion !== '' && <Text style={s.renglon}>{cuenta.descripcion}</Text>}
               </View>
-            )}
-          </View>
-        ))}
+              <View style={[s.colMonto, anchoTotal]}>
+                <Text style={s.montoTotal}>{plata(cuenta.total)}</Text>
+              </View>
+              <View style={[s.colMonto, anchoSena]}>
+                <Text style={s.renglon}>{plata(cuenta.sena)}</Text>
+              </View>
+              {conAbonado && (
+                <View style={[s.colMonto, anchoAAbonar]}>
+                  <Text style={[s.renglon, s.fuerte]}>{aAbonar(cuenta)}</Text>
+                </View>
+              )}
+            </>
+          );
+          const linea =
+            referencia === null
+              ? null
+              : lineaDeLaReferenciaConLaSena(cuenta.total, cuenta.sena, referencia, l);
+          if (linea === null) {
+            return (
+              <View
+                key={cuenta.id ?? cuenta.letra}
+                style={[s.tablaFila, s.tablaFilaConFilete]}
+                wrap={false}
+              >
+                {celdas}
+              </View>
+            );
+          }
+          return (
+            <View key={cuenta.id ?? cuenta.letra} style={s.tablaFilaConFilete} wrap={false}>
+              <View style={s.tablaFila}>{celdas}</View>
+              <Text style={s.referenciaDeLaFila}>{linea}</Text>
+            </View>
+          );
+        })}
       </View>
       <Text style={s.notaAlPie}>
-        {conAbonado
-          ? `La seña a abonar descuenta los ${formatearPesos(abonado)} ya abonados por el relevamiento técnico y diseño 3D. `
-          : ''}
-        Elegí la opción que prefieras y avisale al taller.
+        {conAbonado ? delPdf.elegiConLoAbonado(plata(abonado)) : valores.elegiLaOpcion}
       </Text>
     </View>
   );
@@ -438,40 +496,68 @@ function TablaDeOpciones({
 function Valores({
   documento,
   acordado,
+  l,
 }: {
   documento: DocumentoDelPresupuesto;
-  acordado: Money | null;
+  acordado: Money<Moneda> | null;
+  l: LenguaDelPdf;
 }) {
-  const { valores, senaBp, abonado } = documento;
+  const { valores, senaBp } = documento;
   if (valores === null) return null;
-  const cuentas = cuentasDelPresupuesto(valores, senaBp, abonado);
+  const abonado = pagadoDelDocumento(documento);
+  const plata = plataDelDocumento(documento, l);
+  const referencia = referenciaDelDocumento(documento);
+  const deLaReferencia = referencia === null ? 0 : 2;
+  const cuentas = cuentasDelPresupuesto<Moneda>(valores, senaBp, abonado);
   const unica = cuentas.length === 1 ? cuentas[0] : undefined;
   const alto =
     unica === undefined
-      ? 3 + cuentas.reduce((suma, cuenta) => suma + 2 + renglones(cuenta.descripcion, 38), 0)
-      : 9 + (unica.letra === null ? 0 : 1 + renglones(unica.descripcion, 80));
+      ? 3 +
+        cuentas.reduce(
+          (suma, cuenta) => suma + 2 + deLaReferencia + renglones(cuenta.descripcion, 38),
+          0,
+        )
+      : 9 + 2 * deLaReferencia + (unica.letra === null ? 0 : 1 + renglones(unica.descripcion, 80));
   return (
     <Seccion
-      titulo="Valores"
+      titulo={l.m.presupuesto.secciones.valores}
       primeraEntera={alto < RENGLONES_POR_HOJA}
       presencia={5 * CUERPO * INTERLINEADO}
       piezas={[
         unica === undefined ? (
-          <TablaDeOpciones key="opciones" cuentas={cuentas} senaBp={senaBp} abonado={abonado} />
+          <TablaDeOpciones
+            key="opciones"
+            cuentas={cuentas}
+            senaBp={senaBp}
+            abonado={abonado}
+            plata={plata}
+            referencia={referencia}
+            l={l}
+          />
         ) : (
-          <CajaDelTotal key="total" cuenta={unica} senaBp={senaBp} acordado={acordado} />
+          <CajaDelTotal
+            key="total"
+            cuenta={unica}
+            senaBp={senaBp}
+            acordado={acordado}
+            plata={plata}
+            referencia={referencia}
+            l={l}
+          />
         ),
       ]}
     />
   );
 }
 
-function FormaPlazoYValidez({ p }: { p: PresupuestoEnPdf }) {
+function FormaPlazoYValidez({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) {
   const { documento } = p;
+  const { definiciones } = l.m.presupuesto;
   const filas = [
-    { termino: 'Forma de pago', valor: documento.formaDePago },
-    { termino: 'Plazo de fabricación', valor: textoDelPlazo(documento.plazoDeFabricacion) },
-    { termino: 'Validez', valor: textoDeLaValidez(p) },
+    { termino: definiciones.formaDePago, valor: documento.formaDePago },
+    { termino: definiciones.moneda, valor: documento.clausulaDeLaMoneda },
+    { termino: definiciones.plazo, valor: textoDelPlazo(documento.plazoDeFabricacion, l) },
+    { termino: definiciones.validez, valor: textoDeLaValidez(p, l) },
   ].filter((fila): fila is { termino: string; valor: string } => fila.valor !== null);
   return (
     <View style={s.definiciones} wrap={false}>
@@ -502,7 +588,7 @@ function notas(textos: readonly TextoConTitulo[]): ReactNode[] {
   ));
 }
 
-function ATenerEnCuenta({ textos }: { textos: readonly string[] }) {
+function ATenerEnCuenta({ textos, titulo }: { textos: readonly string[]; titulo: string }) {
   if (textos.length === 0) return null;
   return (
     <View
@@ -510,7 +596,7 @@ function ATenerEnCuenta({ textos }: { textos: readonly string[] }) {
       wrap={textos.reduce((suma, texto) => suma + renglones(texto, 60), 0) >= RENGLONES_POR_HOJA}
     >
       <View style={s.cajaRotulo}>
-        <Text style={s.rotuloChico}>A tener en cuenta</Text>
+        <Text style={s.rotuloChico}>{titulo}</Text>
       </View>
       <View style={{ flexGrow: 1, flexBasis: 0 }}>
         {textos.map((texto, indice) => (
@@ -523,35 +609,45 @@ function ATenerEnCuenta({ textos }: { textos: readonly string[] }) {
   );
 }
 
-function LineaDelAceptado({ el, letra }: { el: string | null; letra: string | null }) {
+function LineaDelAceptado({
+  el,
+  letra,
+  l,
+}: {
+  el: string | null;
+  letra: string | null;
+  l: LenguaDelPdf;
+}) {
   return (
     <View style={s.marco} wrap={false}>
       <View style={{ paddingTop: CENTRO_DE_LA_MAYUSCULA - 8 }}>
         <CirculoTildado />
       </View>
       <View style={s.marcoCuerpo}>
-        <Text style={s.marcoTitulo}>{lineaDelAceptado(el, letra)}</Text>
+        <Text style={s.marcoTitulo}>{lineaDelAceptado(el, letra, l)}</Text>
       </View>
     </View>
   );
 }
 
-export function PresupuestoPdf(p: PresupuestoEnPdf) {
+export function PresupuestoPdf(p: PresupuestoEnPdf, l: LenguaDelPdf) {
   const { documento } = p;
   const { taller } = documento;
-  const titulo = tituloDelPdf(p);
+  const { secciones } = l.m.presupuesto;
+  const titulo = tituloDelPdf(p, l);
   const deQuien = deQuienEs(documento);
+  const { palabrasClave } = l.m.pdf;
 
   return (
     <Document
       title={titulo}
       author={taller.nombre}
       subject={deQuien}
-      keywords={['Presupuesto', p.numero ?? 'borrador', documento.cliente]
+      keywords={[palabrasClave.presupuesto, p.numero ?? palabrasClave.borrador, documento.cliente]
         .filter(Boolean)
         .join(', ')}
       creator={taller.nombre}
-      language="es-AR"
+      language={ETIQUETAS_DE_IDIOMA[l.idioma]}
       creationDate={fechaDeCreacion(p)}
     >
       <Page size="A4" style={s.pagina}>
@@ -568,16 +664,18 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
           }
         />
 
-        <Encabezado p={p} />
-        <DatosDelTrabajo documento={documento} />
+        <Encabezado p={p} l={l} />
+        <DatosDelTrabajo documento={documento} l={l} />
 
-        {p.aceptado !== null && <LineaDelAceptado el={p.aceptado.el} letra={p.aceptado.letra} />}
+        {p.aceptado !== null && (
+          <LineaDelAceptado el={p.aceptado.el} letra={p.aceptado.letra} l={l} />
+        )}
 
         {conQueCambio(p) && (
           <View style={s.marco} wrap={false}>
             <MarcaDeRevision numero={p.revision} />
             <View style={s.marcoCuerpo}>
-              <Text style={s.marcoTitulo}>Qué cambió en la revisión {String(p.revision)}</Text>
+              <Text style={s.marcoTitulo}>{l.m.presupuesto.queCambio(p.revision)}</Text>
               <Text style={s.renglon}>{p.queCambio}</Text>
             </View>
           </View>
@@ -587,7 +685,7 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
 
         {documento.muebles.length > 0 && (
           <Seccion
-            titulo="Detalle"
+            titulo={secciones.detalle}
             primeraEntera={documento.muebles[0] === undefined || muebleEntero(documento.muebles[0])}
             piezas={documento.muebles.flatMap((mueble, indice) =>
               piezasDelMueble(mueble, indice, indice < documento.muebles.length - 1),
@@ -597,7 +695,7 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
 
         {documento.herrajes.length > 0 && (
           <Seccion
-            titulo="Herrajes"
+            titulo={secciones.herrajes}
             conElTitulo={2}
             piezas={documento.herrajes.map((herraje, indice) => (
               <View key={`${String(indice)}-${herraje}`} style={s.item} wrap={false}>
@@ -608,11 +706,11 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
           />
         )}
 
-        <ATenerEnCuenta textos={documento.aTenerEnCuenta} />
+        <ATenerEnCuenta textos={documento.aTenerEnCuenta} titulo={secciones.aTenerEnCuenta} />
 
         {documento.incluye.length > 0 && (
           <Seccion
-            titulo="Incluye"
+            titulo={secciones.incluye}
             conElTitulo={2}
             piezas={documento.incluye.map((texto, indice) => (
               <View key={`${String(indice)}-${texto}`} style={s.item} wrap={false}>
@@ -625,18 +723,18 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
           />
         )}
 
-        <Valores documento={documento} acordado={p.aceptado?.acordado ?? null} />
-        <FormaPlazoYValidez p={p} />
+        <Valores documento={documento} acordado={p.aceptado?.acordado ?? null} l={l} />
+        <FormaPlazoYValidez p={p} l={l} />
 
         {documento.avisos.length > 0 && (
-          <Seccion titulo="Avisos" piezas={notas(documento.avisos)} />
+          <Seccion titulo={secciones.avisos} piezas={notas(documento.avisos)} />
         )}
         {documento.condiciones.length > 0 && (
-          <Seccion titulo="Condiciones" piezas={notas(documento.condiciones)} />
+          <Seccion titulo={secciones.condiciones} piezas={notas(documento.condiciones)} />
         )}
         {documento.garantia !== '' && (
           <Seccion
-            titulo="Garantía"
+            titulo={secciones.garantia}
             piezas={[
               <Text key="garantia" style={s.parrafo}>
                 {documento.garantia}
@@ -649,13 +747,15 @@ export function PresupuestoPdf(p: PresupuestoEnPdf) {
           <Text style={s.pieTexto}>{pieDelTaller(taller)}</Text>
           <Text
             style={s.pieTexto}
-            render={({ pageNumber, totalPages }) => textoDeLaPagina(titulo, pageNumber, totalPages)}
+            render={({ pageNumber, totalPages }) =>
+              textoDeLaPagina(titulo, pageNumber, totalPages, l)
+            }
           />
         </View>
 
         {p.borrador && (
           <View fixed style={s.borrador}>
-            <Text style={s.borradorTexto}>BORRADOR</Text>
+            <Text style={s.borradorTexto}>{l.m.pdf.marcaDeAgua}</Text>
           </View>
         )}
       </Page>

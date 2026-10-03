@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 
 import type { FraseDelDiezmo } from '@/entities/movimiento';
 import { CantoDelTesoro, type TesoroDelTaller } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import {
-  formatearPesos,
+  formatearLaPlata,
   RUTA_DE_DIEZMO,
   rutaDeFinanzasDelTesoro,
   TINTA,
@@ -13,10 +14,6 @@ import {
 import { caracteresDe, Icono, MontoQueEntra, Tablero } from '@/shared/ui';
 
 import { detalleDeLaTarjeta, TESOROS_EN_UNA_FILA } from '../model/tesoros';
-
-function encabezado(frase: FraseDelDiezmo): string {
-  return frase.despues === '' ? frase.antes : `${frase.antes} ${frase.despues}`;
-}
 
 function Tarjeta({
   tesoro,
@@ -33,10 +30,12 @@ function Tarjeta({
   caracteres: number;
   alElegir: () => void;
 }) {
+  const m = useMensajes();
+  const textos = m.paginaInicio.tarjetas;
   const esElDiezmo = tesoro.clave === 'diezmo';
-  const enNegativo = tesoro.saldo < 0 && !esElDiezmo;
-  const detalle = enNegativo
-    ? 'gastó más de lo que entró'
+  const enNegativo = tesoro.saldo.importe < 0 && !esElDiezmo;
+  const { texto: detalle, delDueno } = enNegativo
+    ? { texto: textos.gastoMasDeLoQueEntro, delDueno: false }
     : detalleDeLaTarjeta(tesoro, diezmo, insumos);
 
   return (
@@ -52,6 +51,7 @@ function Tarjeta({
       <span className="flex w-full flex-col items-start gap-0.5 self-start pb-3">
         <span className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <span
+            translate="no"
             className={`flex min-w-0 items-center gap-2 text-label font-semibold ${
               enNegativo ? 'text-negativo-texto' : TINTA[tesoro.tinta].texto
             }`}
@@ -61,7 +61,7 @@ function Tarjeta({
           </span>
           {enNegativo && (
             <span className="rounded-control border border-current px-1.5 text-badge font-semibold whitespace-nowrap">
-              en negativo
+              {textos.enNegativo}
             </span>
           )}
         </span>
@@ -74,16 +74,19 @@ function Tarjeta({
           </span>
         )}
       </span>
-      <span className="@container flex min-w-0 flex-col justify-end gap-0.5">
+      <span
+        translate={esElDiezmo ? undefined : 'no'}
+        className="@container flex min-w-0 flex-col justify-end gap-0.5"
+      >
         {!esElDiezmo ? (
           <MontoQueEntra caracteres={caracteres} className="font-semibold">
-            {formatearPesos(tesoro.saldo)}
+            {formatearLaPlata(tesoro.saldo)}
           </MontoQueEntra>
         ) : diezmo.importe === null ? (
-          <span className="text-body-lg leading-tight font-semibold">{encabezado(diezmo)}</span>
+          <span className="text-body-lg leading-tight font-semibold">{diezmo.titulo}</span>
         ) : (
           <>
-            <span className="text-label leading-tight font-medium">{encabezado(diezmo)}</span>
+            <span className="text-label leading-tight font-medium">{diezmo.titulo}</span>
             <MontoQueEntra caracteres={caracteres} className="font-semibold">
               {diezmo.importe}
             </MontoQueEntra>
@@ -91,6 +94,7 @@ function Tarjeta({
         )}
       </span>
       <span
+        translate={delDueno ? 'no' : undefined}
         title={esElDiezmo ? undefined : detalle}
         className={`min-w-0 pt-0.5 text-meta ${esElDiezmo ? '' : 'line-clamp-1'} ${
           enNegativo ? 'text-negativo-texto/80' : 'text-text-2'
@@ -116,6 +120,7 @@ export function TarjetasDeLosTesoros({
   tipos,
   insumos = CERO,
 }: TarjetasDeLosTesorosProps) {
+  const m = useMensajes();
   const ir = useIr();
 
   const caracteres = caracteresDe(
@@ -124,7 +129,7 @@ export function TarjetasDeLosTesoros({
         ? diezmo.importe === null
           ? []
           : [diezmo.importe]
-        : [formatearPesos(tesoro.saldo)],
+        : [formatearLaPlata(tesoro.saldo)],
     ),
   );
 
@@ -145,7 +150,7 @@ export function TarjetasDeLosTesoros({
   const clases = '@container grid-cols-2 gap-3 md:gap-4';
 
   return tesoros.length <= TESOROS_EN_UNA_FILA ? (
-    <Tablero enUnaFila como="section" etiqueta="Tesoros" className={clases}>
+    <Tablero enUnaFila como="section" etiqueta={m.paginaInicio.tarjetas.titulo} className={clases}>
       {tarjetas}
     </Tablero>
   ) : (
@@ -153,7 +158,7 @@ export function TarjetasDeLosTesoros({
       tarjetaMinima="13.25rem"
       completar
       como="section"
-      etiqueta="Tesoros"
+      etiqueta={m.paginaInicio.tarjetas.titulo}
       className={clases}
     >
       {tarjetas}

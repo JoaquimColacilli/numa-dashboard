@@ -1,5 +1,5 @@
 import { asientosDelLibro, estadoDelDiezmo } from '@maun/domain';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 
 import {
@@ -15,6 +15,7 @@ import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesoroDeLaClave, tesorosDelTaller } from '@/entities/tesoro';
 import { datosDelLibro, filaDelTaller, sistemaDeLaReplica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
   formatearPesos,
@@ -30,7 +31,17 @@ import { obligacionDelDiezmo, todaviaSinDiezmo } from '../model/regla';
 
 const RUTA_DEL_PAGO = rutaDeMovimientoNuevo({ clase: 'pago_diezmo' });
 
+function ImporteDelDiezmo({ children }: { children: ReactNode }) {
+  if (typeof children !== 'string') return children;
+  return (
+    <MontoQueEntra tamano="destacado" className="leading-tight font-semibold">
+      {children}
+    </MontoQueEntra>
+  );
+}
+
 export function DiezmoPage() {
+  const m = useMensajes();
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const location = useLocation();
@@ -60,14 +71,16 @@ export function DiezmoPage() {
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Diezmo</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">
+          {m.paginaDiezmo.titulo}
+        </h1>
         <Ir
           a={RUTA_DEL_PAGO}
           state={conFondo(location)}
           className="flex h-button items-center gap-2 rounded-pill bg-diezmo px-[18px] text-body font-medium text-paper"
         >
           <Icono nombre="hand-coins" tamano={18} />
-          Registrar diezmo
+          {m.paginaDiezmo.registrarDiezmo}
         </Ir>
       </header>
 
@@ -78,26 +91,22 @@ export function DiezmoPage() {
         apoyo={
           <div className="flex min-w-0 flex-col gap-3 md:gap-4">
             <section
-              aria-label="Estado del diezmo"
+              aria-label={m.paginaDiezmo.estadoDelDiezmo}
               className="@container relative flex flex-col gap-1 overflow-hidden rounded-panel border border-hairline bg-paper px-4 pt-4 pb-5 md:px-5"
             >
               <span className="flex items-center gap-2 text-label font-semibold text-diezmo">
                 <Icono nombre="church" tamano={16} />
-                Diezmo
+                {m.paginaDiezmo.titulo}
               </span>
               {frase.importe === null ? (
                 <span className="text-h1 leading-tight font-semibold lg:text-h1-lg">
-                  {frase.antes}
+                  {frase.titulo}
                 </span>
               ) : (
-                <span className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="text-body-lg font-semibold">{frase.antes}</span>
-                  <MontoQueEntra tamano="destacado" className="leading-tight font-semibold">
-                    {frase.importe}
-                  </MontoQueEntra>
-                  {frase.despues !== '' && (
-                    <span className="text-body-lg font-semibold">{frase.despues}</span>
-                  )}
+                <span className="flex flex-wrap items-baseline gap-x-2 text-body-lg font-semibold">
+                  {frase.situacion === 'pago-de-mas'
+                    ? m.paginaDiezmo.pagasteElImporteDeMas(frase.importe, ImporteDelDiezmo)
+                    : m.paginaDiezmo.debesElImporte(frase.importe, ImporteDelDiezmo)}
                 </span>
               )}
               <span className="mt-1 text-label leading-relaxed text-text-2">{frase.detalle}</span>
@@ -105,26 +114,30 @@ export function DiezmoPage() {
             </section>
 
             <section
-              aria-label="Generado y pagado"
+              aria-label={m.paginaDiezmo.generadoYPagado}
               className="@container flex flex-col gap-2.5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
             >
               <div className="grid grid-cols-1 gap-3 tabular-nums @min-[22.5rem]:grid-cols-2">
                 <div>
-                  <span className="block text-meta text-text-2">Generado en total</span>
-                  <span className="block text-money-lg font-semibold">
+                  <span className="block text-meta text-text-2">
+                    {m.paginaDiezmo.generadoEnTotal}
+                  </span>
+                  <span translate="no" className="block text-money-lg font-semibold">
                     {formatearPesos(estado.generado)}
                   </span>
                 </div>
                 <div className="@min-[22.5rem]:text-right">
-                  <span className="block text-meta text-text-2">Pagado en total</span>
-                  <span className="block text-money-lg font-semibold text-diezmo">
+                  <span className="block text-meta text-text-2">
+                    {m.paginaDiezmo.pagadoEnTotal}
+                  </span>
+                  <span translate="no" className="block text-money-lg font-semibold text-diezmo">
                     {formatearPesos(estado.pagado)}
                   </span>
                 </div>
               </div>
               <div
                 role="progressbar"
-                aria-label="Pagado sobre lo generado"
+                aria-label={m.paginaDiezmo.pagadoSobreLoGenerado}
                 aria-valuenow={pagadoPct}
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -136,7 +149,7 @@ export function DiezmoPage() {
                 />
               </div>
               <span className="text-meta text-text-2">
-                {String(pagadoPct)}% de lo generado ya está pagado
+                {m.paginaDiezmo.yaEstaPagado(pagadoPct)}
               </span>
             </section>
           </div>
@@ -144,7 +157,7 @@ export function DiezmoPage() {
       >
         <section aria-labelledby="titulo-historial" className="flex min-w-0 flex-col gap-3">
           <h2 id="titulo-historial" className="px-1 text-section font-semibold">
-            Lo generado y lo pagado
+            {m.paginaDiezmo.loGeneradoYLoPagado}
           </h2>
           {dias.length === 0 ? (
             <p className="px-1 py-6 text-body leading-relaxed text-text-2">

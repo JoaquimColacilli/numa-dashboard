@@ -1,56 +1,101 @@
+import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 import { useEffect, useRef, useState } from 'react';
-import type { Control, FieldErrors, UseFieldArrayReturn, UseFormRegister } from 'react-hook-form';
+import type {
+  Control,
+  FieldErrors,
+  UseFieldArrayReturn,
+  UseFormRegister,
+  UseFormSetValue,
+} from 'react-hook-form';
 import { Controller, useWatch } from 'react-hook-form';
 
 import { CasillaDeLaApertura } from '@/entities/movimiento';
-import { filaVacia, totalDeLasFilas, type FormularioDeProyecto } from '@/entities/proyecto';
-import { formatearPesos, hoyEnElTaller, uuidv7 } from '@/shared/lib';
-import { Button, Icono, MoneyInput } from '@/shared/ui';
+import {
+  BotonDeLaMoneda,
+  conOtraMoneda,
+  DetalleDelPago,
+  dolarDelDiaParaUnPago,
+  filaVacia,
+  pagoVacio,
+  totalDeLasFilas,
+  totalesDeLosPagos,
+  type DolarDelDiaDelTaller,
+  type FilaDePago,
+  type FilaDinamica,
+  type FormularioDeProyecto,
+  type TesoroQueRecibeDolares,
+  type ValorDelPago,
+} from '@/entities/proyecto';
+import { useMensajes } from '@/shared/idioma';
+import { formatearPesos, formatearPlata, hoyEnElTaller, uuidv7 } from '@/shared/lib';
+import { AdornoDePlata, Button, Icono, MoneyInput } from '@/shared/ui';
 
 type Lista = 'pagos' | 'gastos';
 
+export interface LoDeLosPagos {
+  monedaDelTrabajo: Moneda;
+  monedaNueva: Moneda;
+  tesorosEnDolares: readonly TesoroQueRecibeDolares[];
+  dolarDelDia: DolarDelDiaDelTaller | null;
+  alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
+}
+
 export interface FilasDinamicasProps {
   lista: Lista;
-  titulo: string;
-  etiquetaDelDetalle: string;
-  placeholderDelDetalle: string;
-  textoDeAgregar: string;
-  ayuda: string;
-  vacio: string;
   control: Control<FormularioDeProyecto>;
   register: UseFormRegister<FormularioDeProyecto>;
+  setValue?: UseFormSetValue<FormularioDeProyecto>;
   errores: FieldErrors<FormularioDeProyecto>;
   campos: UseFieldArrayReturn<FormularioDeProyecto, Lista, 'clave'>;
   bloqueado: boolean;
   apertura?: string | null;
+  delPago?: LoDeLosPagos;
 }
 
 interface Deshacer {
   indice: number;
-  fila: FormularioDeProyecto['pagos'][number];
-  descripcion: string;
+  fila: FilaDinamica | FilaDePago;
+  descripcion: string | null;
+}
+
+function esPago(fila: FilaDinamica | FilaDePago | undefined): fila is FilaDePago {
+  return fila !== undefined && 'moneda' in fila;
+}
+
+function dolarDelDiaParaElPago(
+  pago: Pick<FilaDePago, 'moneda' | 'fecha'>,
+  delPago: LoDeLosPagos,
+): number | null {
+  return dolarDelDiaParaUnPago(pago, delPago.monedaDelTrabajo, delPago.dolarDelDia);
 }
 
 export function FilasDinamicas({
   lista,
-  titulo,
-  etiquetaDelDetalle,
-  placeholderDelDetalle,
-  textoDeAgregar,
-  ayuda,
-  vacio,
   control,
   register,
+  setValue,
   errores,
   campos,
   bloqueado,
   apertura = null,
+  delPago,
 }: FilasDinamicasProps) {
+  const filasDelFormulario = useMensajes().editarProyecto.filas;
+  const textosDelFormulario = useMensajes().proyecto.formulario;
+  const textos = filasDelFormulario[lista];
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
-  const filas = useWatch({ control, name: lista });
-  const total = totalDeLasFilas(filas);
+  const filas = useWatch({ control, name: lista }) as readonly (FilaDinamica | FilaDePago)[];
+  const pagos = lista === 'pagos' && delPago !== undefined ? delPago : null;
+  const total =
+    pagos === null
+      ? formatearPesos(totalDeLasFilas(filas))
+      : formatearPlata(
+          totalesDeLosPagos(filas.filter(esPago), pagos.monedaDelTrabajo).enSuMoneda,
+          pagos.monedaDelTrabajo,
+        );
+  const hayTotal = filas.some((fila) => (fila.monto ?? 0) > 0);
 
   useEffect(() => {
     if (deshacer === null) return;
@@ -63,7 +108,16 @@ export function FilasDinamicas({
   }, [deshacer]);
 
   function agregar(): void {
-    const nueva = filaVacia(uuidv7(), hoyEnElTaller());
+    const hoy = hoyEnElTaller();
+    const nueva =
+      pagos === null
+        ? filaVacia(uuidv7(), hoy)
+        : pagoVacio(
+            uuidv7(),
+            hoy,
+            pagos.monedaNueva,
+            dolarDelDiaParaElPago({ moneda: pagos.monedaNueva, fecha: hoy }, pagos),
+          );
     campos.append(nueva);
     requestAnimationFrame(() => {
       contenedor.current
@@ -83,31 +137,44 @@ export function FilasDinamicas({
         descripcion:
           fila.detalle.trim() === ''
             ? fila.monto === null
-              ? 'la fila'
-              : formatearPesos(fila.monto)
+              ? null
+              : formatearPlata(fila.monto, esPago(fila) ? fila.moneda : MONEDA_DEL_TALLER)
             : fila.detalle.trim(),
       });
     }
     campos.remove(indice);
   }
 
+  function cambiarElPago(indice: number, anterior: FilaDePago, valor: ValorDelPago): void {
+    if (setValue === undefined) return;
+    const opciones = { shouldDirty: true };
+    if (valor.moneda !== anterior.moneda)
+      setValue(`pagos.${indice}.moneda`, valor.moneda, opciones);
+    if (valor.cotizacion !== anterior.cotizacion) {
+      setValue(`pagos.${indice}.cotizacion`, valor.cotizacion, opciones);
+    }
+    if (valor.tesoroId !== anterior.tesoroId) {
+      setValue(`pagos.${indice}.tesoroId`, valor.tesoroId, opciones);
+    }
+  }
+
   const erroresDeLista = errores[lista];
 
   return (
     <section
-      aria-label={titulo}
+      aria-label={textos.titulo}
       className="@container/filas flex flex-col gap-2 rounded-panel border border-hairline bg-paper px-4 pb-4 md:px-5"
       ref={contenedor}
     >
       <div className="flex flex-col gap-2 bg-paper pt-4 md:sticky md:top-17 md:z-10 md:border-b md:border-hairline-soft md:pb-2.5">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-section font-semibold">{titulo}</h2>
-            <span role="status" className="text-label text-text-2 tabular-nums">
-              {total > 0 ? formatearPesos(total) : ''}
+            <h2 className="text-section font-semibold">{textos.titulo}</h2>
+            <span role="status" translate="no" className="text-label text-text-2 tabular-nums">
+              {hayTotal ? total : ''}
             </span>
           </div>
-          <p className="text-meta leading-normal text-text-3">{ayuda}</p>
+          <p className="text-meta leading-normal text-text-3">{textos.ayuda}</p>
         </div>
         <Button
           type="button"
@@ -118,15 +185,25 @@ export function FilasDinamicas({
           className="w-full border-dashed md:w-auto md:self-start"
         >
           <Icono nombre="plus" tamano={16} />
-          {textoDeAgregar}
+          {textos.agregar}
         </Button>
       </div>
 
-      {campos.fields.length === 0 && <p className="text-label text-text-2">{vacio}</p>}
+      {campos.fields.length === 0 && <p className="text-label text-text-2">{textos.vacio}</p>}
 
       <ul className="flex list-none flex-col">
         {campos.fields.map((campo, indice) => {
-          const errorDeFila = erroresDeLista?.[indice];
+          const errorDeFila = erroresDeLista?.[indice] as
+            (FieldErrors<FilaDePago> & FieldErrors<FilaDinamica>) | undefined;
+          const fila = filas[indice];
+          const pago = pagos !== null && esPago(fila) ? fila : null;
+          const moneda = pago?.moneda ?? MONEDA_DEL_TALLER;
+          const errorDelMonto =
+            errorDeFila?.monto === undefined
+              ? undefined
+              : moneda === MONEDA_DEL_TALLER
+                ? textosDelFormulario.sinMonto
+                : textosDelFormulario.sinMontoEnDolares;
           return (
             <li
               key={campo.clave}
@@ -135,8 +212,8 @@ export function FilasDinamicas({
             >
               <input
                 {...register(`${lista}.${indice}.detalle` as const)}
-                aria-label={`${etiquetaDelDetalle} ${String(indice + 1)}`}
-                placeholder={placeholderDelDetalle}
+                aria-label={textos.detalle(indice + 1)}
+                placeholder={textos.placeholder}
                 disabled={bloqueado}
                 className="col-span-2 h-11 min-w-0 rounded-field border border-border bg-paper px-3 text-body-lg text-ink @lg/filas:col-span-1"
               />
@@ -144,7 +221,7 @@ export function FilasDinamicas({
                 {...register(`${lista}.${indice}.fecha` as const)}
                 type="date"
                 max={lista === 'pagos' ? hoyEnElTaller() : undefined}
-                aria-label={`Fecha ${String(indice + 1)}`}
+                aria-label={filasDelFormulario.fecha(indice + 1)}
                 disabled={bloqueado}
                 className={`h-11 min-w-0 rounded-field border bg-paper px-2.5 text-body text-ink ${
                   errorDeFila?.fecha ? 'border-alerta' : 'border-border'
@@ -155,9 +232,21 @@ export function FilasDinamicas({
                   errorDeFila?.monto ? 'border-alerta' : 'border-border'
                 }`}
               >
-                <span aria-hidden className="text-text-3">
-                  $
-                </span>
+                {pago !== null && pagos !== null ? (
+                  <BotonDeLaMoneda
+                    moneda={pago.moneda}
+                    deshabilitado={bloqueado}
+                    alCambiar={(otra) => {
+                      cambiarElPago(
+                        indice,
+                        pago,
+                        conOtraMoneda(pago, otra, pagos.tesorosEnDolares),
+                      );
+                    }}
+                  />
+                ) : (
+                  <AdornoDePlata className="text-text-3" />
+                )}
                 <Controller
                   control={control}
                   name={`${lista}.${indice}.monto` as const}
@@ -168,7 +257,8 @@ export function FilasDinamicas({
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      aria-label={`Monto ${String(indice + 1)}`}
+                      moneda={moneda}
+                      aria-label={filasDelFormulario.monto(indice + 1)}
                       placeholder="0"
                       disabled={bloqueado}
                       className="min-w-0 flex-1 bg-transparent text-right text-body font-semibold outline-none"
@@ -182,18 +272,45 @@ export function FilasDinamicas({
                   quitar(indice);
                 }}
                 disabled={bloqueado}
-                aria-label={`Quitar ${etiquetaDelDetalle.toLowerCase()} ${String(indice + 1)}`}
+                aria-label={textos.quitar(indice + 1)}
                 className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta @lg/filas:col-start-auto @lg/filas:row-start-auto"
               >
                 <Icono nombre="trash-2" tamano={18} />
               </button>
-              {(errorDeFila?.monto ?? errorDeFila?.fecha) && (
+              {(errorDelMonto ?? errorDeFila?.fecha) && (
                 <span
                   role="alert"
                   className="col-span-3 text-label font-medium text-alerta @lg/filas:col-span-4"
                 >
-                  {errorDeFila.monto?.message ?? errorDeFila.fecha?.message}
+                  {errorDelMonto ?? errorDeFila?.fecha?.message}
                 </span>
+              )}
+              {pago !== null && pagos !== null && (
+                <div className="col-span-3 @lg/filas:col-span-4">
+                  <DetalleDelPago
+                    valor={pago}
+                    alCambiar={(valor) => {
+                      cambiarElPago(indice, pago, valor);
+                    }}
+                    monedaDelTrabajo={pagos.monedaDelTrabajo}
+                    tesorosEnDolares={pagos.tesorosEnDolares}
+                    dolarDelDia={dolarDelDiaParaElPago(pago, pagos)}
+                    alCrearUnTesoroEnDolares={
+                      pagos.alCrearUnTesoroEnDolares === undefined
+                        ? undefined
+                        : () => {
+                            pagos.alCrearUnTesoroEnDolares?.((tesoroId) => {
+                              cambiarElPago(indice, pago, { ...pago, tesoroId });
+                            });
+                          }
+                    }
+                    errores={{
+                      cotizacion: errorDeFila?.cotizacion?.message,
+                      tesoro: errorDeFila?.tesoroId?.message,
+                    }}
+                    deshabilitado={bloqueado}
+                  />
+                </div>
               )}
               {lista === 'pagos' && (
                 <Controller
@@ -221,7 +338,11 @@ export function FilasDinamicas({
           role="status"
           className="flex items-center justify-between gap-3 rounded-field bg-ink px-3 py-2 text-label text-paper"
         >
-          <span className="min-w-0 truncate">Quité {deshacer.descripcion}.</span>
+          <span className="min-w-0 truncate">
+            {deshacer.descripcion === null
+              ? filasDelFormulario.quiteLaFila
+              : filasDelFormulario.quite(deshacer.descripcion)}
+          </span>
           <button
             type="button"
             onClick={() => {
@@ -230,7 +351,7 @@ export function FilasDinamicas({
             }}
             className="min-h-tap flex-none px-2 font-semibold underline underline-offset-2"
           >
-            Deshacer
+            {filasDelFormulario.deshacer}
           </button>
         </div>
       )}

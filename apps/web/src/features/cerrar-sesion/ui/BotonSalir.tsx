@@ -1,6 +1,7 @@
+import { useMensajes } from '@/shared/idioma';
 import { Button, type ButtonSize } from '@/shared/ui';
 
-import { avisoDePendientes, useSalir } from './useSalir';
+import { useSalir } from './useSalir';
 
 export interface BotonSalirProps {
   size?: ButtonSize;
@@ -8,14 +9,17 @@ export interface BotonSalirProps {
 }
 
 export function BotonSalir({ size = 'chico', className }: BotonSalirProps) {
+  const m = useMensajes();
   const { pendientes, confirmando, saliendo, error, confirmar, cerrar } = useSalir();
 
   if (pendientes > 0 && !confirmando) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <p className="text-meta text-atencion">{avisoDePendientes(pendientes)}</p>
+        <p className="text-meta text-atencion">
+          {m.cerrarSesion.hayCambiosSinSincronizar({ cantidad: pendientes })}
+        </p>
         <Button variant="secundario" size={size} className={className} onClick={confirmar}>
-          Cerrar sesión igual
+          {m.cerrarSesion.cerrarSesionIgual}
         </Button>
       </div>
     );
@@ -32,7 +36,7 @@ export function BotonSalir({ size = 'chico', className }: BotonSalirProps) {
           void cerrar();
         }}
       >
-        {saliendo ? 'Cerrando…' : 'Cerrar sesión'}
+        {saliendo ? m.cerrarSesion.cerrando : m.cerrarSesion.cerrarSesion}
       </Button>
       {error !== '' && (
         <p role="alert" className="text-meta font-medium text-alerta">

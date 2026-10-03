@@ -8,7 +8,6 @@ import {
   type ResultadoDeResponder,
 } from '@/shared/api';
 
-import { MOTIVO_DE_LA_ENTREGA, NO_SE_PUDO_MANDAR, SIN_SENAL_AL_MANDAR } from '../model/textos';
 import type { MandarLaEntrega, ResultadoDeMandar } from '../model/mandar';
 import { claveDeLaVistaCompartida } from './consulta';
 
@@ -24,12 +23,8 @@ export function resultadoDeResponder(estado: ResultadoDeResponder): ResultadoDeM
 }
 
 export function resultadoDelError(error: unknown): ResultadoDeMandar {
-  if (esFalloDeRed(error)) return { tipo: 'error', texto: SIN_SENAL_AL_MANDAR };
-  const motivo = motivoDelRechazoDeLaEntrega(error);
-  return {
-    tipo: 'error',
-    texto: motivo === null ? NO_SE_PUDO_MANDAR : MOTIVO_DE_LA_ENTREGA[motivo],
-  };
+  if (esFalloDeRed(error)) return { tipo: 'error', motivo: 'sin-senal' };
+  return { tipo: 'error', motivo: motivoDelRechazoDeLaEntrega(error) ?? 'no-se-pudo' };
 }
 
 export function useMandarLaEntrega(token: string): MandarLaEntrega {

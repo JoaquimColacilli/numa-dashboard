@@ -7,6 +7,7 @@ import {
   loQueVeElCliente,
   type Archivo,
 } from '@/entities/archivo';
+import { useMensajes } from '@/shared/idioma';
 import { fechaLarga, hoyLocal } from '@/shared/lib';
 import { Icono, Interruptor } from '@/shared/ui';
 
@@ -17,22 +18,21 @@ export interface ArchivosQueVeElClienteProps {
 }
 
 export function ArchivosQueVeElCliente({ archivos }: ArchivosQueVeElClienteProps) {
+  const t = useMensajes().compartirConElCliente.archivos;
   const compartir = useMutation(MUTACION_DE_ARCHIVO_COMPARTIDO);
   const vistos = loQueVeElCliente(archivos);
   const hoy = hoyLocal();
 
   return (
     <section
-      aria-label="Qué archivos ve"
+      aria-label={t.titulo}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2.5">
-        <h2 className="text-section font-semibold">Qué archivos ve</h2>
+        <h2 className="text-section font-semibold">{t.titulo}</h2>
         <span className="text-label text-text-2">{cuantosVeElCliente(archivos)}</span>
       </div>
-      <p className="mt-1.5 mb-2.5 text-body leading-normal text-text-2">
-        Marcá uno por uno. Lo que no marques, no existe para él.
-      </p>
+      <p className="mt-1.5 mb-2.5 text-body leading-normal text-text-2">{t.marcaUnoPorUno}</p>
 
       {vistos.ninguno && (
         <p
@@ -41,20 +41,13 @@ export function ArchivosQueVeElCliente({ archivos }: ArchivosQueVeElClienteProps
         >
           <Icono nombre="eye-off" tamano={16} className="flex-none translate-y-0.5 text-text-2" />
           <span>
-            <span className="font-semibold">
-              {vistos.total === 1
-                ? 'Tenés un archivo y el cliente no lo ve.'
-                : `Tenés ${String(vistos.total)} archivos y el cliente no ve ninguno.`}
-            </span>{' '}
-            Prendé abajo los que quieras mostrarle.
+            <span className="font-semibold">{t.noVeNinguno(vistos.total)}</span> {t.prendeAbajo}
           </span>
         </p>
       )}
 
       {archivos.length === 0 ? (
-        <p className="border-t border-hairline py-3.5 text-body text-text-2">
-          Este trabajo todavía no tiene archivos. Se suben desde su ficha.
-        </p>
+        <p className="border-t border-hairline py-3.5 text-body text-text-2">{t.sinArchivos}</p>
       ) : (
         <ul className="list-none">
           {archivos.map((archivo) => (
@@ -72,18 +65,19 @@ export function ArchivosQueVeElCliente({ archivos }: ArchivosQueVeElClienteProps
               </span>
               <span className="min-w-0 flex-1">
                 <span
+                  translate="no"
                   className={`block truncate text-body leading-normal font-medium ${
                     archivo.visible_para_cliente ? '' : 'text-text-2'
                   }`}
                 >
                   {archivo.nombre}
                 </span>
-                <span className="block text-label text-text-3">
+                <span translate="no" className="block text-label text-text-3">
                   {pesoLegible(archivo.bytes)} · {fechaLarga(archivo.created_at.slice(0, 10), hoy)}
                 </span>
               </span>
               <Interruptor
-                etiqueta={`Compartir ${archivo.nombre}`}
+                etiqueta={t.compartir(archivo.nombre)}
                 activo={archivo.visible_para_cliente}
                 alCambiar={(visible) => {
                   compartir.mutate({ id: archivo.id, visible });

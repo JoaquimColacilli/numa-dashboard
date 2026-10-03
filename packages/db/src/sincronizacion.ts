@@ -4,6 +4,7 @@ import {
   type EstadoLiquidado,
   type EstadoProyecto,
   type Fila,
+  type Moneda,
   type Reparto,
 } from '@maun/domain';
 
@@ -23,6 +24,7 @@ export type MovimientoNuevo = Pick<
   | 'hacia_id'
   | 'cubre_el_mes'
   | 'monto_centavos'
+  | 'monto_destino_centavos'
   | 'categoria'
   | 'descripcion'
 > & { id: string };
@@ -51,6 +53,10 @@ export const COLUMNAS_DE_AJUSTES = [
   'cobro_titular',
   'cobro_cuit',
   'cobro_link',
+  'cobro_dolares_alias',
+  'cobro_dolares_cbu',
+  'dolar_del_dia_centavos',
+  'dolar_del_dia_el',
   'resena_link',
   'presupuesto_vale_dias',
   'instagram_link',
@@ -62,6 +68,7 @@ export const COLUMNAS_DE_AJUSTES = [
   'taller_domicilio',
   'taller_telefono',
   'taller_email',
+  'idioma_de_los_clientes',
 ] as const;
 
 export type ColumnaDeAjustes = (typeof COLUMNAS_DE_AJUSTES)[number];
@@ -125,7 +132,7 @@ export type ColumnaDeTesoro = (typeof COLUMNAS_DE_TESORO)[number];
 
 export type DatosDeTesoro = Pick<FilaDe<'tesoros'>, ColumnaDeTesoro>;
 
-export type TesoroNuevo = DatosDeTesoro & { id: string };
+export type TesoroNuevo = DatosDeTesoro & { id: string; moneda: Moneda };
 
 export type CambiosDeTesoro = Partial<DatosDeTesoro>;
 
@@ -193,6 +200,7 @@ export const COLUMNAS_DE_MOVIMIENTO = [
   'desde_id',
   'hacia_id',
   'monto_centavos',
+  'monto_destino_centavos',
   'categoria',
   'descripcion',
 ] as const;
@@ -290,6 +298,7 @@ export const COLUMNAS_DE_PROYECTO = [
   'descripcion',
   'estado',
   'presupuesto_centavos',
+  'moneda',
   'forma_pago',
   'comprobante',
   'fecha_visita',
@@ -327,7 +336,14 @@ export interface BajaDeFilaHija {
 }
 
 export type PagoParaGuardar =
-  (FilaHijaViva & { concepto: string; ya_en_la_apertura?: boolean }) | BajaDeFilaHija;
+  | (FilaHijaViva & {
+      concepto: string;
+      ya_en_la_apertura?: boolean;
+      moneda?: Moneda;
+      cotizacion_centavos?: number | null;
+      tesoro_id?: string | null;
+    })
+  | BajaDeFilaHija;
 
 export type GastoParaGuardar = (FilaHijaViva & { descripcion: string }) | BajaDeFilaHija;
 
@@ -490,6 +506,7 @@ export const COLUMNAS_DE_COSTOS = [
   'costo_herrajes_centavos',
   'costo_flete_centavos',
   'costo_ayudante_centavos',
+  'costos_cotizacion_centavos',
 ] as const;
 
 export type ColumnaDeCosto = (typeof COLUMNAS_DE_COSTOS)[number];
@@ -513,13 +530,13 @@ export async function guardarCostosEstimados(
   return data;
 }
 
-export const COLUMNAS_DE_FORMAS_DE_COBRO = ['cobro_sena', 'cobro_saldo'] as const;
+export const COLUMNAS_DE_FORMAS_DE_COBRO = ['cobro_sena', 'cobro_saldo', 'cobra_en'] as const;
 
 export type ColumnaDeFormaDeCobro = (typeof COLUMNAS_DE_FORMAS_DE_COBRO)[number];
 
 export type CambiosDeFormasDeCobro = Partial<Pick<FilaDe<'proyectos'>, ColumnaDeFormaDeCobro>>;
 
-// Cómo te paga tampoco entra por guardar_proyecto: es un update de sus dos columnas solas, como los
+// Cómo te paga tampoco entra por guardar_proyecto: es un update de sus columnas solas, como los
 // costos estimados y las marcas de la agenda (ADR 0053).
 export async function guardarFormasDeCobro(
   cliente: ClienteMaun,

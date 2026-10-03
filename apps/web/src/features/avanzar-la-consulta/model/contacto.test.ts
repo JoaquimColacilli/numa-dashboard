@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FilaDe } from '@/shared/api';
 
 import {
-  CONCEPTO_DE_LA_SENA,
+  conceptoDeLaSena,
   erroresDelContacto,
   hayQueGuardar,
   muestraLaVigencia,
@@ -25,6 +25,9 @@ function valores(extra: Partial<ValoresDelContacto> = {}): ValoresDelContacto {
     visitaHora: '',
     visitaHecha: false,
     sena: null,
+    monedaDeLaSena: 'ARS',
+    cotizacionDeLaSena: null,
+    tesoroDeLaSena: null,
     diaDeLaSena: null,
     senaEnLaApertura: true,
     notas: '',
@@ -33,6 +36,8 @@ function valores(extra: Partial<ValoresDelContacto> = {}): ValoresDelContacto {
     ...extra,
   };
 }
+
+const EN_PESOS = { moneda: 'ARS', cotizacion_centavos: null, tesoro_id: null } as const;
 
 function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'> {
   return {
@@ -51,6 +56,9 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: null,
     visita_hora: null,
@@ -118,9 +126,12 @@ function pago(extra: Partial<FilaDe<'pagos'>> = {}): FilaDe<'pagos'> {
     id: 'sena',
     proyecto_id: 'p',
     fecha: '2026-09-08',
-    concepto: CONCEPTO_DE_LA_SENA,
+    concepto: conceptoDeLaSena(),
     monto_centavos: 15_000_000,
     ya_en_la_apertura: false,
+    moneda: 'ARS',
+    cotizacion_centavos: null,
+    tesoro_id: null,
     ...extra,
   };
 }
@@ -166,9 +177,10 @@ describe('pedidoDelContacto', () => {
       {
         id: 'nueva',
         fecha: '2026-09-10',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 15_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
   });
@@ -215,9 +227,10 @@ describe('pedidoDelContacto', () => {
       {
         id: 'sena',
         fecha: '2026-09-05',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 15_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
   });
@@ -278,9 +291,10 @@ describe('pedidoDelContacto', () => {
       {
         id: 'sena',
         fecha: '2026-09-08',
-        concepto: CONCEPTO_DE_LA_SENA,
+        concepto: conceptoDeLaSena(),
         monto_centavos: 18_000_000,
         ya_en_la_apertura: false,
+        ...EN_PESOS,
       },
     ]);
   });
@@ -468,6 +482,136 @@ describe('erroresDelContacto', () => {
       diaDeLaSena: 'Poné el día en que entró la plata.',
     });
     expect(erroresDelContacto(valores({ sena: 1_000, visita: '2026-09-20' }), '', HOY)).toEqual({});
+  });
+});
+
+describe('la seña de un contacto en dólares', () => {
+  const DOLARES = { id: 'usd', nombre: 'Dólares' };
+  const enDolares = proyecto({ estado: 'a_presupuestar', moneda: 'USD', cobra_en: ['ARS'] });
+
+  it('una seña nueva arranca en la moneda en que paga, con el dólar del día si es el del día de la seña', () => {
+    const abiertos = valoresDelContacto(
+      enDolares,
+      undefined,
+      '',
+      { tesorosEnDolares: [DOLARES], dolarDelDia: { valor: 154_000, fecha: HOY } },
+      HOY,
+    );
+    expect(abiertos).toMatchObject({
+      sena: null,
+      monedaDeLaSena: 'ARS',
+      cotizacionDeLaSena: 154_000,
+      tesoroDeLaSena: null,
+    });
+
+    const deAyer = valoresDelContacto(
+      enDolares,
+      undefined,
+      '',
+      { tesorosEnDolares: [DOLARES], dolarDelDia: { valor: 154_000, fecha: '2026-09-11' } },
+      HOY,
+    );
+    expect(deAyer.cotizacionDeLaSena).toBeNull();
+  });
+
+  it('viaja con su moneda, su dólar y su tesoro', () => {
+    const pedido = pedidoDelContacto({
+      id: 'p',
+      proyecto: enDolares,
+      valores: valores({ sena: 18_480_000, cotizacionDeLaSena: 154_000 }),
+      sena: undefined,
+      idDeSenaNueva: 'nueva',
+      hoy: HOY,
+    });
+    expect(pedido.pagos).toEqual([
+      {
+        id: 'nueva',
+        fecha: HOY,
+        concepto: conceptoDeLaSena(),
+        monto_centavos: 18_480_000,
+        ya_en_la_apertura: false,
+        moneda: 'ARS',
+        cotizacion_centavos: 154_000,
+        tesoro_id: null,
+      },
+    ]);
+  });
+
+  it('una seña guardada en dólares abre con lo suyo, y cambiarle el dólar la vuelve a mandar', () => {
+    const guardada = pago({
+      monto_centavos: 10_000,
+      moneda: 'USD',
+      cotizacion_centavos: 150_000,
+      tesoro_id: 'usd',
+    });
+    const abiertos = valoresDelContacto(enDolares, guardada);
+    expect(abiertos).toMatchObject({
+      sena: 10_000,
+      monedaDeLaSena: 'USD',
+      cotizacionDeLaSena: 150_000,
+      tesoroDeLaSena: 'usd',
+    });
+
+    const pedido = (otros: Partial<ValoresDelContacto>) =>
+      pedidoDelContacto({
+        id: 'p',
+        proyecto: enDolares,
+        valores: { ...abiertos, ...otros },
+        sena: guardada,
+        idDeSenaNueva: 'x',
+        hoy: HOY,
+      }).pagos;
+    expect(pedido({})).toEqual([]);
+    expect(pedido({ cotizacionDeLaSena: 152_000 })).toEqual([
+      {
+        id: 'sena',
+        fecha: '2026-09-08',
+        concepto: conceptoDeLaSena(),
+        monto_centavos: 10_000,
+        ya_en_la_apertura: false,
+        moneda: 'USD',
+        cotizacion_centavos: 152_000,
+        tesoro_id: 'usd',
+      },
+    ]);
+  });
+
+  it('en un trabajo en pesos, una seña en pesos no guarda un dólar que no usa', () => {
+    const fila = proyecto({ estado: 'a_presupuestar' });
+    const conDolarDeMas = pago({ cotizacion_centavos: 150_000 });
+    const abiertos = valoresDelContacto(fila, conDolarDeMas);
+    const pedido = (otros: Partial<ValoresDelContacto>) =>
+      pedidoDelContacto({
+        id: 'p',
+        proyecto: fila,
+        valores: { ...abiertos, ...otros },
+        sena: conDolarDeMas,
+        idDeSenaNueva: 'x',
+        hoy: HOY,
+      }).pagos;
+
+    expect(pedido({})).toEqual([]);
+    expect(pedido({ sena: 16_000_000 })[0]).toMatchObject({
+      moneda: 'ARS',
+      cotizacion_centavos: null,
+      tesoro_id: null,
+    });
+  });
+
+  it('sin el dólar que necesita, o en dólares sin a qué tesoro entra, no se guarda', () => {
+    const delTrabajo = { monedaDelTrabajo: 'USD', tesorosEnDolares: [DOLARES] } as const;
+    expect(erroresDelContacto(valores({ sena: 18_480_000 }), '', HOY, delTrabajo)).toEqual({
+      cotizacionDeLaSena: '¿A cuánto se tomó?',
+    });
+    expect(
+      erroresDelContacto(
+        valores({ sena: 10_000, monedaDeLaSena: 'USD', cotizacionDeLaSena: 150_000 }),
+        '',
+        HOY,
+        delTrabajo,
+      ),
+    ).toEqual({ tesoroDeLaSena: 'Elegí a qué tesoro en dólares entra.' });
+    expect(erroresDelContacto(valores({ sena: 18_480_000 }), '', HOY)).toEqual({});
   });
 });
 

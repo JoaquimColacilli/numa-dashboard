@@ -1,4 +1,4 @@
-import { centavos, puntosBasicos, type Fila } from '@maun/domain';
+import { centavos, enPesos, puntosBasicos, type Fila } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import { tesoroDe } from '@/features/armar-la-fila';
@@ -23,14 +23,14 @@ const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 const IIBB = '01900000-0000-7000-8000-000000000009';
 
 const TESOROS = [
-  { id: HOGAR, clave: 'hogar' as const, meta: null },
-  { id: MAUN, clave: 'maun' as const, meta: null },
-  { id: DIEZMO, clave: 'diezmo' as const, meta: null },
-  { id: COCOS, clave: 'cocos' as const, meta: null },
-  { id: FIJOS, clave: null, meta: null },
-  { id: MATERIALES, clave: null, meta: null },
-  { id: HERRAMIENTAS, clave: null, meta: centavos(90_000_000) },
-  { id: IIBB, clave: null, meta: null },
+  { id: HOGAR, clave: 'hogar' as const, meta: null, moneda: 'ARS' as const },
+  { id: MAUN, clave: 'maun' as const, meta: null, moneda: 'ARS' as const },
+  { id: DIEZMO, clave: 'diezmo' as const, meta: null, moneda: 'ARS' as const },
+  { id: COCOS, clave: 'cocos' as const, meta: null, moneda: 'ARS' as const },
+  { id: FIJOS, clave: null, meta: null, moneda: 'ARS' as const },
+  { id: MATERIALES, clave: null, meta: null, moneda: 'ARS' as const },
+  { id: HERRAMIENTAS, clave: null, meta: enPesos(centavos(90_000_000)), moneda: 'ARS' as const },
+  { id: IIBB, clave: null, meta: null, moneda: 'ARS' as const },
 ];
 
 const FILA: Fila = {
@@ -231,6 +231,21 @@ describe('unir con la manija hasta el estante, con el tipo del grupo', () => {
       despuesDe: DIEZMO,
     });
     expect(union('reparto', 'nuevo')).toEqual({ tipo: 'nuevo', lugar: 'reparto', despuesDe: null });
+  });
+
+  it('un tesoro en dólares del estante no se une a la fila, y al pasar por encima dice por qué', () => {
+    const conDolares = [
+      ...TESOROS,
+      { id: 'dolares', clave: null, meta: null, moneda: 'USD' as const },
+    ];
+    expect(unionDe(FILA, conDolares, DIEZMO, `paso-${MATERIALES}`, 'estante-dolares')).toBeNull();
+    expect(unionDe(FILA, conDolares, DIEZMO, 'reparto', 'estante-dolares')).toBeNull();
+    expect(fraseDeLaUnion(FILA, conDolares, DIEZMO, nombreDe, null, true, 'estante-dolares')).toBe(
+      'La fila reparte pesos: un tesoro en dólares queda en el estante.',
+    );
+    expect(fraseDeLaUnion(FILA, conDolares, DIEZMO, nombreDe, null, true, `parte-${COCOS}`)).toBe(
+      'Ahí no se puede unir',
+    );
   });
 
   it('lo que no se puede unir lo dice', () => {

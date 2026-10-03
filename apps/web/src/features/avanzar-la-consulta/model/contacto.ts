@@ -1,7 +1,10 @@
 import {
+  CONCEPTOS_DE_SIEMPRE,
   esAnteriorALaApertura,
+  MONEDA_DEL_TALLER,
   vencimientoDelPresupuesto,
   type EstadoProyecto,
+  type Moneda,
 } from '@maun/domain';
 
 import {
@@ -14,6 +17,8 @@ import {
   yaSeRelevo,
   type Pago,
   type Proyecto,
+  type TesoroQueRecibeDolares,
+  type ValorDelPago,
 } from '@/entities/proyecto';
 import {
   horaDeLaVisita,
@@ -22,9 +27,23 @@ import {
   type PagoParaGuardar,
   type ProyectoParaGuardar,
 } from '@/shared/api';
-import { errorDeLaFechaDeLaPlata, fechaDelEnlace, hayCambios } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { errorDeLaFechaDeLaPlata, fechaDelEnlace, hayCambios, hoyEnElTaller } from '@/shared/lib';
 
-export const CONCEPTO_DE_LA_SENA = 'Seña de la visita';
+import {
+  clavesDelPago,
+  erroresDelPago,
+  mismasClaves,
+  monedaDeLaConsulta,
+  pagoNuevo,
+  SIN_DOLARES,
+  valorDelPagoGuardado,
+  type ParaLosPagos,
+} from './pagoDeLaConsulta';
+
+export function conceptoDeLaSena(): string {
+  return CONCEPTOS_DE_SIEMPRE.senaDeLaVisita;
+}
 
 export interface ValoresDelContacto {
   clienteId: string;
@@ -33,6 +52,9 @@ export interface ValoresDelContacto {
   visitaHora: string;
   visitaHecha: boolean;
   sena: number | null;
+  monedaDeLaSena: Moneda;
+  cotizacionDeLaSena: number | null;
+  tesoroDeLaSena: string | null;
   diaDeLaSena: string | null;
   senaEnLaApertura: boolean;
   notas: string;
@@ -45,6 +67,8 @@ export interface ErroresDelContacto {
   titulo?: string;
   telefono?: string;
   diaDeLaSena?: string;
+  cotizacionDeLaSena?: string;
+  tesoroDeLaSena?: string;
   notas?: string;
 }
 
@@ -52,18 +76,42 @@ export function senaEditable(pagos: readonly Pago[]): Pago | undefined {
   return pagos.length === 1 ? pagos[0] : undefined;
 }
 
+export function valorDeLaSena(valores: ValoresDelContacto): ValorDelPago {
+  return {
+    moneda: valores.monedaDeLaSena,
+    monto: valores.sena,
+    cotizacion: valores.cotizacionDeLaSena,
+    tesoroId: valores.tesoroDeLaSena,
+  };
+}
+
+export function conLaSena(valores: ValoresDelContacto, valor: ValorDelPago): ValoresDelContacto {
+  return {
+    ...valores,
+    sena: valor.monto,
+    monedaDeLaSena: valor.moneda,
+    cotizacionDeLaSena: valor.cotizacion,
+    tesoroDeLaSena: valor.tesoroId,
+  };
+}
+
 export function valoresDelContacto(
   proyecto: Proyecto | undefined,
   sena: Pago | undefined,
   visitaInicial = '',
+  para: ParaLosPagos = SIN_DOLARES,
+  hoy: string = hoyEnElTaller(),
 ): ValoresDelContacto {
-  return {
+  const valores: ValoresDelContacto = {
     clienteId: proyecto?.cliente_id ?? '',
     titulo: proyecto?.titulo ?? '',
     visita: proyecto?.fecha_visita ?? visitaInicial,
     visitaHora: proyecto === undefined ? '' : (horaDeLaVisita(proyecto) ?? ''),
     visitaHecha: proyecto === undefined ? false : visitaHecha(proyecto),
-    sena: sena === undefined ? null : sena.monto_centavos,
+    sena: null,
+    monedaDeLaSena: MONEDA_DEL_TALLER,
+    cotizacionDeLaSena: null,
+    tesoroDeLaSena: null,
     diaDeLaSena: sena === undefined ? null : sena.fecha,
     senaEnLaApertura:
       sena === undefined ? true : (sena as Partial<Pago>).ya_en_la_apertura === true,
@@ -71,6 +119,12 @@ export function valoresDelContacto(
     vencimiento: proyecto?.vencimiento_presupuesto ?? '',
     valeHasta: proyecto === undefined ? '' : (vigenciaDelPresupuesto(proyecto) ?? ''),
   };
+  return conLaSena(
+    valores,
+    sena === undefined
+      ? pagoNuevo(proyecto, diaDeLaSena(valores, hoy), para)
+      : valorDelPagoGuardado(sena),
+  );
 }
 
 function recortados(valores: ValoresDelContacto): ValoresDelContacto {
@@ -102,9 +156,8 @@ export function muestraLaVigencia(proyecto: Proyecto | undefined): boolean {
 }
 
 export function etiquetaDeLaVisita(proyecto: Proyecto | undefined, hoy: string): string {
-  return proyecto !== undefined && yaSeRelevo(proyecto, hoy)
-    ? 'Día que fuiste a relevar'
-    : 'Visita';
+  const { visita } = mensajes().avanzarLaConsulta.contacto;
+  return proyecto !== undefined && yaSeRelevo(proyecto, hoy) ? visita.relevada : visita.agendada;
 }
 
 export function ofreceMarcarLaVisita(
@@ -188,20 +241,30 @@ export function erroresDelContacto(
   valores: ValoresDelContacto,
   telefono: string,
   hoy: string,
+  delPago: { monedaDelTrabajo: Moneda; tesorosEnDolares: readonly TesoroQueRecibeDolares[] } = {
+    monedaDelTrabajo: MONEDA_DEL_TALLER,
+    tesorosEnDolares: [],
+  },
 ): ErroresDelContacto {
   const errores: ErroresDelContacto = {};
+  const textos = mensajes().avanzarLaConsulta.contacto.errores;
   const titulo = valores.titulo.trim();
 
-  if (valores.clienteId === '') {
-    errores.cliente = 'Elegí un cliente, o escribí su nombre para crearlo.';
-  }
-  if (titulo === '') errores.titulo = 'Contá qué pide, aunque sea en dos palabras.';
-  else if (titulo.length > 200) errores.titulo = 'No puede pasar de 200 caracteres.';
-  if (telefono.trim().length > 200) errores.telefono = 'No puede pasar de 200 caracteres.';
-  if (valores.notas.trim().length > 10_000) errores.notas = 'Las notas son demasiado largas.';
+  if (valores.clienteId === '') errores.cliente = textos.cliente;
+  if (titulo === '') errores.titulo = textos.titulo;
+  else if (titulo.length > 200) errores.titulo = textos.largo(200);
+  if (telefono.trim().length > 200) errores.telefono = textos.largo(200);
+  if (valores.notas.trim().length > 10_000) errores.notas = textos.notas;
   if ((valores.sena ?? 0) > 0) {
     const delDia = errorDeLaFechaDeLaPlata(diaDeLaSena(valores, hoy), hoy);
     if (delDia !== undefined) errores.diaDeLaSena = delDia;
+    const { cotizacion, tesoro } = erroresDelPago(
+      valorDeLaSena(valores),
+      delPago.monedaDelTrabajo,
+      delPago.tesorosEnDolares,
+    );
+    if (cotizacion !== undefined) errores.cotizacionDeLaSena = cotizacion;
+    if (tesoro !== undefined) errores.tesoroDeLaSena = tesoro;
   }
   return errores;
 }
@@ -212,6 +275,7 @@ const DATOS_DE_UN_CONTACTO_NUEVO: DatosDeProyecto = {
   descripcion: '',
   estado: 'contacto',
   presupuesto_centavos: null,
+  moneda: MONEDA_DEL_TALLER,
   sena_bp: null,
   forma_pago: null,
   comprobante: 'sin_comprobante',
@@ -236,17 +300,20 @@ function pagosDeLaSena(
   idDeSenaNueva: string,
   hoy: string,
   apertura: string | null,
+  delTrabajo: Moneda,
 ): PagoParaGuardar[] {
   const monto = valores.sena ?? 0;
   const fecha = valores.diaDeLaSena ?? sena?.fecha ?? diaDeLaSena(valores, hoy);
   const enLaApertura = valores.senaEnLaApertura && esAnteriorALaApertura(fecha, apertura);
+  const claves = clavesDelPago(valorDeLaSena(valores), delTrabajo);
 
   if (sena !== undefined) {
     if (monto === 0) return [{ id: sena.id, borrado: true }];
     const igual =
       monto === sena.monto_centavos &&
       fecha === sena.fecha &&
-      enLaApertura === ((sena as Partial<Pago>).ya_en_la_apertura === true);
+      enLaApertura === ((sena as Partial<Pago>).ya_en_la_apertura === true) &&
+      mismasClaves(claves, clavesDelPago(valorDelPagoGuardado(sena), delTrabajo));
     if (igual) return [];
     return [
       {
@@ -255,6 +322,7 @@ function pagosDeLaSena(
         concepto: sena.concepto,
         monto_centavos: monto,
         ya_en_la_apertura: enLaApertura,
+        ...claves,
       },
     ];
   }
@@ -264,9 +332,10 @@ function pagosDeLaSena(
     {
       id: idDeSenaNueva,
       fecha,
-      concepto: CONCEPTO_DE_LA_SENA,
+      concepto: conceptoDeLaSena(),
       monto_centavos: monto,
       ya_en_la_apertura: enLaApertura,
+      ...claves,
     },
   ];
 }
@@ -312,7 +381,7 @@ export function pedidoDelContacto({
       vencimiento_presupuesto: vencimientoDelContacto(proyecto, estado, valores, hoy),
       presupuesto_vale_hasta: vigenciaAlGuardar(proyecto, valores, base.presupuesto_vale_hasta),
     },
-    pagos: pagosDeLaSena(valores, sena, idDeSenaNueva, hoy, apertura),
+    pagos: pagosDeLaSena(valores, sena, idDeSenaNueva, hoy, apertura, monedaDeLaConsulta(proyecto)),
     gastos: [],
   };
 }

@@ -1,4 +1,5 @@
 import type { CambiosDeTareas, ColumnaDeTarea } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
@@ -8,15 +9,25 @@ export interface TareaDelPresupuesto {
   detalle: string | null;
 }
 
+function tarea(columna: ColumnaDeTarea): TareaDelPresupuesto {
+  return {
+    columna,
+    get etiqueta() {
+      return mensajes().proyecto.tareas.etiquetas[columna];
+    },
+    get detalle() {
+      return columna === 'presupuesto_cotizacion'
+        ? mensajes().proyecto.tareas.detalleDeCotizar
+        : null;
+    },
+  };
+}
+
 export const TAREAS_DEL_PRESUPUESTO: readonly TareaDelPresupuesto[] = [
-  { columna: 'presupuesto_diseno', etiqueta: 'Diseñar', detalle: null },
-  { columna: 'presupuesto_despiece', etiqueta: 'Despiezar', detalle: null },
-  {
-    columna: 'presupuesto_cotizacion',
-    etiqueta: 'Cotizar',
-    detalle: 'Madera y herrajes, flete, ayudante',
-  },
-  { columna: 'presupuesto_pdf', etiqueta: 'Armar el presupuesto', detalle: null },
+  tarea('presupuesto_diseno'),
+  tarea('presupuesto_despiece'),
+  tarea('presupuesto_cotizacion'),
+  tarea('presupuesto_pdf'),
 ];
 
 type FilaQuizasSinTareas = Partial<Pick<Proyecto, ColumnaDeTarea>>;

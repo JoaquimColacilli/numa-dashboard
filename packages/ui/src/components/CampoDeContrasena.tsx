@@ -3,7 +3,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Ref } f
 import { Campo, type CampoProps } from './Campo.tsx';
 import { Icono } from './Icono.tsx';
 
-export type CampoDeContrasenaProps = Omit<CampoProps, 'type' | 'sufijo'>;
+export interface CampoDeContrasenaProps extends Omit<CampoProps, 'type' | 'sufijo'> {
+  etiquetaDeMostrar: string;
+}
 
 function asignar<T>(ref: Ref<T> | undefined, valor: T | null): void {
   if (typeof ref === 'function') {
@@ -13,7 +15,7 @@ function asignar<T>(ref: Ref<T> | undefined, valor: T | null): void {
   if (ref) ref.current = valor;
 }
 
-export function CampoDeContrasena({ ref, ...props }: CampoDeContrasenaProps) {
+export function CampoDeContrasena({ ref, etiquetaDeMostrar, ...props }: CampoDeContrasenaProps) {
   const [visible, setVisible] = useState(false);
   const entrada = useRef<HTMLInputElement | null>(null);
   const seleccion = useRef<readonly [number | null, number | null] | null>(null);
@@ -72,7 +74,7 @@ export function CampoDeContrasena({ ref, ...props }: CampoDeContrasenaProps) {
           type="button"
           aria-controls={idDelInput}
           aria-pressed={visible}
-          aria-label="Mostrar la contraseña"
+          aria-label={etiquetaDeMostrar}
           onPointerDown={(evento) => {
             evento.preventDefault();
           }}

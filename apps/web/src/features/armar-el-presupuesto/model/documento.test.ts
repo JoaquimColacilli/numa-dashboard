@@ -1,4 +1,11 @@
-import { borradorNuevo, centavos, PLANTILLA_DE_SIEMPRE } from '@maun/domain';
+import {
+  borradorNuevo,
+  centavos,
+  CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
+  cotizacion,
+  PLANTILLA_DE_SIEMPRE,
+  problemaDelDocumento,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { FilaDelPresupuesto } from '@/entities/presupuesto';
@@ -10,7 +17,10 @@ import {
   borradorGuardado,
   datosDelTaller,
   documentoDeHoy,
+  dolarDeHoy,
+  entradaDeHoy,
   opcionesDeHoy,
+  precioDeHoy,
   senaDeHoy,
 } from './documento';
 import { comoLoVeElCliente } from './vistaPrevia';
@@ -160,27 +170,31 @@ describe('cómo lo ve tu cliente, mientras lo armás', () => {
 
   it('es la página del cliente con lo de hoy: sin número todavía, vale desde hoy y pide la seña', () => {
     const documento = documentoDeHoy({ replica: replica(), proyecto: PROYECTO, borrador });
-    const vista = comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0));
+    const vista = comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0), 'es');
     expect(vista).toMatchObject({
       etapa: 'mandado',
       numero: '',
-      numeroVisible: 'Sin número todavía',
+      idioma: 'es',
       mandadoEl: '2026-09-22',
       valeHasta: '2026-10-02',
       vencio: null,
       queCambio: null,
-      mensajeParaElTaller: '',
       pideLaSena: true,
-      nombreDelArchivo: 'Presupuesto (borrador).pdf',
     });
     expect(vista.cuentas).toHaveLength(1);
   });
 
   it('con número, el de la revisión que se va a mandar; con opciones o la seña cubierta, no pide la seña', () => {
     const documento = documentoDeHoy({ replica: replica(), proyecto: PROYECTO, borrador });
-    const segunda = comoLoVeElCliente(documento, '20260915-01', 2, '2026-09-22', centavos(800_000));
-    expect(segunda.numeroVisible).toBe('Nº 20260915-01 · Rev. 2');
-    expect(segunda.mensajeParaElTaller).not.toBe('');
+    const segunda = comoLoVeElCliente(
+      documento,
+      '20260915-01',
+      2,
+      '2026-09-22',
+      centavos(800_000),
+      'es',
+    );
+    expect(segunda).toMatchObject({ numero: '20260915-01', revision: 2 });
     expect(segunda.pideLaSena).toBe(false);
 
     const conOpciones = documentoDeHoy({
@@ -193,12 +207,221 @@ describe('cómo lo ve tu cliente, mientras lo armás', () => {
         { id: 'o2', descripcion: 'Laqueado', monto: centavos(900_000) },
       ],
     });
-    const vista = comoLoVeElCliente(conOpciones, null, 1, '2026-09-22', centavos(0));
+    const vista = comoLoVeElCliente(conOpciones, null, 1, '2026-09-22', centavos(0), 'es');
     expect(vista.cuentas).toHaveLength(2);
     expect(vista.pideLaSena).toBe(false);
     expect(
-      comoLoVeElCliente({ ...conOpciones, validezDias: null }, null, 1, '2026-09-22', centavos(0))
-        .valeHasta,
+      comoLoVeElCliente(
+        { ...conOpciones, validezDias: null },
+        null,
+        1,
+        '2026-09-22',
+        centavos(0),
+        'es',
+      ).valeHasta,
     ).toBeNull();
+  });
+});
+
+describe('el documento de un trabajo en dólares', () => {
+  const EN_DOLARES = {
+    ...PROYECTO,
+    moneda: 'USD',
+    cobra_en: null,
+    presupuesto_centavos: 240_000,
+  } as unknown as Proyecto;
+
+  const borrador = {
+    ...borradorNuevo({
+      titulo: 'Vanitory',
+      obra: '',
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      validezDias: 15,
+      idNuevo: () => 'm1',
+    }),
+    muebles: [{ id: 'm1', nombre: 'Vanitory', descripcion: 'Dos cajones.' }],
+  };
+
+  function taller(
+    proyecto: Proyecto,
+    dolar: { valor: number; el: string } | null = { valor: 154_000, el: '2026-10-01' },
+  ): Replica {
+    return replica({
+      ajustes: {
+        a: {
+          ...METADATOS,
+          id: 'a',
+          dolar_del_dia_centavos: dolar?.valor ?? null,
+          dolar_del_dia_el: dolar?.el ?? null,
+        },
+      },
+      proyectos: { p: proyecto },
+      pagos: {
+        visita: {
+          ...METADATOS,
+          id: 'visita',
+          proyecto_id: 'p',
+          fecha: '2026-09-10',
+          concepto: 'Visita',
+          monto_centavos: 12_000_000,
+          moneda: 'ARS',
+          cotizacion_centavos: 145_000,
+          tesoro_id: null,
+        },
+        sena: {
+          ...METADATOS,
+          id: 'sena',
+          proyecto_id: 'p',
+          fecha: '2026-09-20',
+          concepto: 'Seña',
+          monto_centavos: 50_000,
+          moneda: 'USD',
+          cotizacion_centavos: 154_000,
+          tesoro_id: 't',
+        },
+      },
+    });
+  }
+
+  it('es un documento en dólares, con la referencia del dólar del día y la cláusula de su combinación', () => {
+    const documento = documentoDeHoy({
+      replica: taller(EN_DOLARES),
+      proyecto: EN_DOLARES,
+      borrador,
+    });
+    expect(documento).toMatchObject({
+      forma: 2,
+      moneda: 'USD',
+      valores: { tipo: 'total', total: 240_000 },
+      referencia: { cotizacion: 154_000, fecha: '2026-10-01' },
+      cobraEn: ['ARS'],
+      clausulaDeLaMoneda: CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.dolaresEnPesos,
+      monedaDeLoAbonado: 'USD',
+      abonado: 8_276 + 50_000,
+    });
+    expect(documento.avisos.map(({ texto }) => texto.replace(/\s/g, ' '))).toContainEqual(
+      expect.stringContaining('(US$ 582,76)'),
+    );
+    expect(problemaDelDocumento(documento)).toBeNull();
+  });
+
+  it('lo abonado en pesos es lo que pagó por su valor en pesos, y lo que descuenta queda en dólares', () => {
+    const replica = taller(EN_DOLARES);
+    expect(abonadoDeHoy(replica, 'p')).toBe(58_276);
+    expect(abonadoDeHoy(replica, 'p', 'ARS')).toBe(12_000_000 + 77_000_000);
+
+    const documento = documentoDeHoy({
+      replica,
+      proyecto: EN_DOLARES,
+      borrador: { ...borrador, monedaDeLoAbonado: 'ARS' },
+    });
+    expect(documento).toMatchObject({ monedaDeLoAbonado: 'ARS', abonado: 89_000_000 });
+    expect(documento.avisos.map(({ texto }) => texto.replace(/\s/g, ' '))).toContainEqual(
+      expect.stringContaining('($ 890.000)'),
+    );
+  });
+
+  it('sin dólar del día va sin referencia; con otra referencia, esa', () => {
+    const sinDolar = taller(EN_DOLARES, null);
+    expect(documentoDeHoy({ replica: sinDolar, proyecto: EN_DOLARES, borrador })).toMatchObject({
+      forma: 2,
+      referencia: null,
+    });
+    const conLaDeHoy = entradaDeHoy({
+      replica: sinDolar,
+      proyecto: EN_DOLARES,
+      borrador,
+      referencia: { cotizacion: cotizacion(160_000), fecha: '2026-10-02' },
+    });
+    expect(conLaDeHoy).toMatchObject({
+      moneda: 'USD',
+      referencia: { cotizacion: 160_000, fecha: '2026-10-02' },
+    });
+  });
+
+  it('el dólar de hoy es el del día solo si es de hoy', () => {
+    const replica = taller(EN_DOLARES);
+    expect(dolarDeHoy(replica, '2026-10-01')).toBe(154_000);
+    expect(dolarDeHoy(replica, '2026-10-02')).toBeNull();
+    expect(dolarDeHoy(taller(EN_DOLARES, null), '2026-10-01')).toBeNull();
+  });
+
+  it('la cláusula sale de la combinación del trabajo, y la retocada pisa la de la plantilla', () => {
+    const enDolares = { ...EN_DOLARES, cobra_en: ['USD'] } as unknown as Proyecto;
+    const replica = taller(enDolares);
+    expect(documentoDeHoy({ replica, proyecto: enDolares, borrador }).clausulaDeLaMoneda).toBe(
+      CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.dolaresEnDolares,
+    );
+    expect(
+      documentoDeHoy({
+        replica,
+        proyecto: enDolares,
+        borrador: { ...borrador, clausulaDeLaMoneda: 'Se paga en dólares billete.' },
+      }).clausulaDeLaMoneda,
+    ).toBe('Se paga en dólares billete.');
+
+    const enPesosConDolares = {
+      ...PROYECTO,
+      cobra_en: ['ARS', 'USD'],
+    } as unknown as Proyecto;
+    const enPesos = documentoDeHoy({
+      replica: taller(enPesosConDolares),
+      proyecto: enPesosConDolares,
+      borrador,
+    });
+    expect(enPesos).toMatchObject({
+      forma: 1,
+      clausulaDeLaMoneda: CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE.pesosEnPesosODolares,
+    });
+  });
+
+  it('el precio de hoy va en la moneda del trabajo', () => {
+    expect(precioDeHoy(EN_DOLARES)).toEqual({ moneda: 'USD', importe: 240_000 });
+    expect(precioDeHoy(PROYECTO)).toEqual({ moneda: 'ARS', importe: 800_000 });
+    expect(precioDeHoy({ ...PROYECTO, presupuesto_centavos: null })).toBeNull();
+  });
+
+  it('cómo lo ve el cliente descuenta lo pagado en la moneda del trabajo', () => {
+    const replica = taller(EN_DOLARES);
+    const documento = documentoDeHoy({
+      replica,
+      proyecto: EN_DOLARES,
+      borrador: { ...borrador, monedaDeLoAbonado: 'ARS' },
+    });
+    const vista = comoLoVeElCliente(
+      documento,
+      null,
+      1,
+      '2026-10-01',
+      abonadoDeHoy(replica, 'p'),
+      'es',
+    );
+    expect(vista.cuentas[0]).toMatchObject({
+      total: 240_000,
+      sena: 120_000,
+      pagado: 58_276,
+      faltaParaLaSena: 120_000 - 58_276,
+    });
+  });
+});
+
+describe('el documento en el idioma de los clientes', () => {
+  const enIngles = replica({
+    ajustes: { a: { ...METADATOS, id: 'a', idioma_de_los_clientes: 'en' } },
+  });
+
+  it('sin plantilla propia, son los textos de siempre en su idioma, con los datos escritos como los lee', () => {
+    const borrador = borradorGuardado(enIngles, PROYECTO, null);
+    const documento = documentoDeHoy({ replica: enIngles, proyecto: PROYECTO, borrador });
+    expect(documento.garantia).toMatch(/^Warranty for 6 months from delivery/);
+    expect(documento.formaDePago).toBe(
+      '50% deposit to confirm the job, and the balance on delivery.',
+    );
+    expect(documento.avisos.map(({ texto }) => texto)).toContainEqual(
+      expect.stringContaining('up to 2 modifications'),
+    );
+    expect(comoLoVeElCliente(documento, null, 1, '2026-09-22', centavos(0), 'en').idioma).toBe(
+      'en',
+    );
   });
 });

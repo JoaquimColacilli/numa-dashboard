@@ -3,12 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
 
 import type { FotoEnLaVidriera } from '../api/mutacion';
-import {
-  DE_UN_TRABAJO,
-  fotosDeLaVidriera,
-  origenDeLaFoto,
-  SUBIDA_PARA_LA_VIDRIERA,
-} from './vidriera';
+import { deUnTrabajo, fotosDeLaVidriera, origenDeLaFoto, subidaParaLaVidriera } from './vidriera';
 
 function foto(id: string, extra: Partial<FotoEnLaVidriera> = {}): FotoEnLaVidriera {
   return {
@@ -55,9 +50,9 @@ describe('las fotos de la vidriera', () => {
     expect(origenDeLaFoto(replica, foto('f1', { archivo_de_origen: 'ar1' }))).toBe(
       'De «Placard de tres cuerpos»',
     );
-    expect(origenDeLaFoto(replica, foto('f2'))).toBe(SUBIDA_PARA_LA_VIDRIERA);
+    expect(origenDeLaFoto(replica, foto('f2'))).toBe(subidaParaLaVidriera());
     expect(origenDeLaFoto(replica, foto('f3', { archivo_de_origen: 'ya-no-esta' }))).toBe(
-      DE_UN_TRABAJO,
+      deUnTrabajo(),
     );
   });
 });

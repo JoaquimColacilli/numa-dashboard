@@ -19,16 +19,6 @@ export {
   type ElPresupuestoAceptadoProps,
   type ElPresupuestoProps,
 } from './ui/ElPresupuesto';
-export type { MandarLaEntrega, ResultadoDeMandar } from './model/mandar';
-export {
-  ACA_NO_SE_GUARDA_NADA,
-  COORDINEMOS_LA_ENTREGA,
-  EL_PAGO_SE_COORDINA,
-  LOS_PAGOS_LOS_ANOTA_EL_TALLER,
-  NO_QUEDA_NADA,
-  pieDeLosPagos,
-  SIN_PAGOS_APROBADO,
-  sinPagosTodavia,
-} from './model/textos';
+export type { MandarLaEntrega, MotivoDelError, ResultadoDeMandar } from './model/mandar';
 export { VistaDelCliente, type VistaDelClienteProps } from './ui/VistaDelCliente';
 export { PantallaDeLaVista, type PantallaDeLaVistaProps } from './ui/PantallaDeLaVista';

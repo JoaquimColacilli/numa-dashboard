@@ -9,6 +9,7 @@ export {
   type PruebaDeUnCobro,
 } from './model/fila';
 export {
+  entraEnLaFila,
   entraOtroPaso,
   LUGARES_EN_LA_FILA,
   lugaresParaSumar,
@@ -25,7 +26,6 @@ export {
   ahorradoEnLaFila,
   aPagarDe,
   BASE_EN_PALABRAS,
-  DESCRIPCION_DE_LOS_INSUMOS,
   DESCRIPCION_DEL_TIPO,
   ETIQUETA_DE_LA_BASE,
   GRUPOS_DE_LA_FILA,

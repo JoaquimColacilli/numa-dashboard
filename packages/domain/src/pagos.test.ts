@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { centavos, puntosBasicos, type Money } from './money.ts';
+import { centavos, centavosEn, puntosBasicos, type Money } from './money.ts';
 import {
   conLaForma,
   formasDeCobro,
@@ -196,6 +196,20 @@ describe('los pagos que le faltan al cliente, en orden', () => {
       pagosPorDelante(trabajo(100_000_000, 0))[0],
     );
     expect(pagoQueToca(trabajo(100_000_000, 100_000_000))).toBeNull();
+  });
+
+  it('en un trabajo en dólares es la misma cuenta, en dólares', () => {
+    const enDolares = {
+      presupuesto: centavosEn('USD', 200_000),
+      cobrado: centavosEn('USD', 8_276),
+      porcentajeDelTaller: SENA_HABITUAL,
+      porcentajeDelTrabajo: null,
+    };
+    expect(pagosPorDelante(enDolares)).toEqual([
+      { instancia: 'sena', monto: 91_724 },
+      { instancia: 'saldo', monto: 100_000 },
+    ]);
+    expect(montoParaPegar(centavosEn('USD', 91_724))).toBe('917,24');
   });
 });
 

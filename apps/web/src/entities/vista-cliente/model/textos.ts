@@ -3,7 +3,9 @@ import {
   type DiaElegido,
   type EntregaDelTrabajo,
   type FranjaDeEntrega,
-  type MotivoDeLaEntrega,
+  type LoQueSePagoEnOtraMoneda,
+  type Moneda,
+  type PrecioEnPesos,
   type PropuestaDeEntrega,
   type RespuestaDeEntregaParaMandar,
   type SenaDeLaVista,
@@ -12,240 +14,165 @@ import {
   type VistaDelCliente,
 } from '@maun/domain';
 
-import { fechaEnUnaFrase, fechaLarga, formatearPesos } from '@/shared/lib';
+import type { FormatosDelCliente, MensajesDelCliente } from '@/shared/idioma-del-cliente';
 
-export const SIN_PAGOS_APROBADO =
-  'Todavía no hay ningún pago registrado. Lo primero es la seña: apenas el taller la anote, la vas a ver acá.';
-
-export const LOS_PAGOS_LOS_ANOTA_EL_TALLER =
-  'Los pagos aparecen acá cuando el taller los anota, no en el momento en que transferís.';
-
-export const EL_PAGO_SE_COORDINA = 'Para pagar, escribile al taller y lo coordinan entre ustedes.';
-
-export const NO_QUEDA_NADA = 'Gracias. No queda nada pendiente.';
-
-export const A_CUENTA_DE_LA_SENA = 'A cuenta de la seña';
-
-export const QUEDA_A_CUENTA = 'Lo que pagaste queda a cuenta de la seña.';
-
-export const LA_SENA_YA_ESTA_CUBIERTA = 'Con lo que pagaste ya está cubierta la seña.';
-
-export const A_CONFIRMAR = 'A confirmar';
-
-export const A_COORDINAR = 'A coordinar';
-
-export const PODEMOS_ENTREGARLO = 'Podemos entregarlo.';
-
-export const SI_NECESITAS_CAMBIAR_EL_DIA = 'Si necesitás cambiar el día, escribile al taller.';
-
-const FRANJA: Readonly<Record<FranjaDeEntrega, string>> = {
-  manana: 'a la mañana',
-  tarde: 'a la tarde',
-};
-
-export function textoDeLaFranja(franja: FranjaDeEntrega): string {
-  return FRANJA[franja];
+export interface Escritura {
+  t: MensajesDelCliente['vista'];
+  f: FormatosDelCliente;
+  hoy: string;
 }
 
-export function fechaConFranja(fecha: string, franja: FranjaDeEntrega | null, hoy: string): string {
-  const dia = fechaLarga(fecha, hoy);
-  return franja === null ? dia : `${dia}, ${FRANJA[franja]}`;
-}
-
-export const COORDINEMOS_LA_ENTREGA = 'Coordinemos la entrega';
-
-export const ACA_NO_SE_GUARDA_NADA = 'Acá no se guarda nada: así lo ve tu cliente.';
-
-export const LOS_DIAS_MANDADOS =
-  'Nos pasaste estos días. Vamos a elegir uno y te lo confirmamos en esta página.';
-
-export const LA_NOTA_MANDADA =
-  'Nos dejaste una nota. Vamos a elegir el día y te lo confirmamos en esta página.';
-
-export const QUEDO_CONFIRMADA =
-  'Nos dijiste que te queda bien ese día: la entrega quedó confirmada.';
-
-export function loQueVeConElDiaAceptado(
+export function fechaConFranja(
   fecha: string,
   franja: FranjaDeEntrega | null,
-  hoy: string,
+  { t, f, hoy }: Escritura,
 ): string {
-  return `Con «Me queda bien», la entrega queda comprometida y tu cliente lee arriba: «¡Buenas noticias! Lo estamos entregando el ${fechaConFranja(fecha, franja, hoy)}.»`;
+  const dia = f.fechaLarga(fecha, hoy);
+  return franja === null ? dia : t.coordinar.conFranja[franja](dia);
 }
 
-export const SIN_SENAL_AL_MANDAR =
-  'No se pudo mandar: se cortó la conexión. Lo que marcaste sigue acá; probá de nuevo cuando vuelva la señal.';
-
-export const NO_SE_PUDO_MANDAR = 'No pudimos mandarlo. Probá de nuevo en un rato.';
-
-export const LLEGASTE_AL_MAXIMO = 'Llegaste a diez días, que es lo máximo.';
-
-export const MOTIVO_DE_LA_ENTREGA: Readonly<Record<MotivoDeLaEntrega, string>> = {
-  forma: 'La página mandó algo que no esperábamos. Recargala y probá de nuevo.',
-  propuesta: 'Ese día ya no se puede aceptar: el taller te pidió tus días. Recargá la página.',
-  vacia: 'Marcá al menos un día, o escribinos cuándo te queda bien.',
-  demasiados: 'Son más de diez días: sacá alguno.',
-  repetido: 'Vino dos veces el mismo día. Recargá la página y probá de nuevo.',
-  fuera: 'Un día quedó fuera de los que se pueden elegir. Recargá la página y elegí de nuevo.',
-  domingo: 'Los domingos no entregamos. Sacá ese día.',
-  franja: 'A un día le falta la mañana o la tarde.',
-  largo: 'La nota pasa de los 500 caracteres.',
-  tope: 'Ya nos contestaste muchas veces. Escribile al taller.',
-};
-
-export function textoDeLasFranjas(franjas: readonly FranjaDeEntrega[]): string {
-  const [una, otra] = franjas;
-  if (una === undefined) return '';
-  return otra === undefined ? FRANJA[una] : 'a la mañana o a la tarde';
-}
-
-export function textoDelDiaElegido(dia: DiaElegido, hoy: string): string {
-  return `${fechaLarga(dia.fecha, hoy)}, ${textoDeLasFranjas(dia.franjas)}`;
-}
-
-export function laQueLeProponemos(
-  fecha: string,
-  franja: FranjaDeEntrega | null,
-  hoy: string,
-): string {
-  const dia = fechaEnUnaFrase(fecha, hoy);
-  return franja === null ? dia : `${dia}, ${FRANJA[franja]}`;
+export function textoDelDiaElegido(dia: DiaElegido, { t, f, hoy }: Escritura): string {
+  const fecha = f.fechaLarga(dia.fecha, hoy);
+  const [una, otra] = dia.franjas;
+  if (una === undefined) return fecha;
+  return otra === undefined
+    ? t.coordinar.conFranja[una](fecha)
+    : t.coordinar.conLasDosFranjas(fecha);
 }
 
 export function anuncioDeLoMandado(
   respuesta: RespuestaDeEntregaParaMandar,
   propuesta: PropuestaDeEntrega,
-  hoy: string,
+  escritura: Escritura,
 ): string {
-  if (respuesta.respuesta === 'mis_dias') {
-    return 'Listo: le pasamos tus días al taller. Te va a confirmar uno.';
-  }
+  const { coordinar } = escritura.t;
+  if (respuesta.respuesta === 'mis_dias') return coordinar.listoTusDias;
   return propuesta.fecha === null
-    ? 'Listo: quedó confirmado el día de la entrega.'
-    : `Listo: te esperamos el ${fechaConFranja(propuesta.fecha, propuesta.franja, hoy)}.`;
+    ? coordinar.listoElDia
+    : coordinar.listoTeEsperamos(fechaConFranja(propuesta.fecha, propuesta.franja, escritura));
 }
 
-export const YA_ESTABA_CONFIRMADA = 'El taller ya confirmó el día de la entrega: lo ves arriba.';
-
-export const CAMBIO_EL_PEDIDO =
-  'Mientras elegías, el taller cambió lo que te pidió. Ya está al día: fijate lo nuevo.';
-
-export function textoDelTitular(titular: TitularDeLaVista, hoy: string): string {
+export function textoDelTitular(titular: TitularDeLaVista, escritura: Escritura): string {
   if (typeof titular === 'string') return titular;
   const { fecha, franja } = titular.comprometida;
-  return `¡Buenas noticias! Lo estamos entregando el ${fechaConFranja(fecha, franja, hoy)}.`;
+  return escritura.t.pagina.buenasNoticias(fechaConFranja(fecha, franja, escritura));
 }
 
-export function lineaDelValorDelRelevamiento(valor: number): string {
-  return `El valor del relevamiento es de ${formatearPesos(valor)} y, si decidís avanzar, se toma a cuenta como parte de la seña del proyecto.`;
-}
-
-export function sinPagosTodavia(vista: VistaDelCliente): string {
+export function sinPagosTodavia(vista: VistaDelCliente, { t }: Escritura): string {
   if (vista.pagos.length > 0) return '';
-  return estaAprobada(vista) ? SIN_PAGOS_APROBADO : '';
+  return estaAprobada(vista) ? t.pagina.pagos.sinPagosAprobado : '';
 }
 
-// El pie solo manda a hablar con el taller cuando arriba no quedó ninguna forma concreta de pagar:
-// con el bloque de cómo pagar a la vista, repetirlo sería decirle que coordine algo que ya sabe.
-export function pieDeLosPagos(vista: VistaDelCliente, hayComoPagar: boolean): string {
-  if (estaAprobada(vista) && vista.saldado) return NO_QUEDA_NADA;
-  if (hayComoPagar) return LOS_PAGOS_LOS_ANOTA_EL_TALLER;
-  return `${EL_PAGO_SE_COORDINA} ${LOS_PAGOS_LOS_ANOTA_EL_TALLER}`;
+export function pieDeLosPagos(
+  vista: VistaDelCliente,
+  hayComoPagar: boolean,
+  { t }: Escritura,
+): string {
+  const { pagos } = t.pagina;
+  if (estaAprobada(vista) && vista.saldado) return pagos.noQuedaNada;
+  if (hayComoPagar) return pagos.losAnotaElTaller;
+  return `${pagos.elPagoSeCoordina} ${pagos.losAnotaElTaller}`;
 }
 
-const CUALES: readonly string[] = [
-  '',
-  'la única',
-  'las dos',
-  'las tres',
-  'las cuatro',
-  'las cinco',
-  'las seis',
-];
-
-export function cifraDeLasOpciones(cantidad: number): string {
-  return cantidad === 1 ? '1 opción' : `${String(cantidad)} opciones`;
-}
-
-export function bajadaDeLasOpciones(cantidad: number): string {
-  const cuales = CUALES[cantidad] ?? 'todas';
-  return `Mirá ${cuales} en el presupuesto y avisale al taller cuál preferís.`;
-}
-
-export function lineaDelPresupuestoVencido(vencio: string, hoy: string): string {
-  return `El presupuesto venció el ${fechaLarga(vencio, hoy)}: escribile al taller para actualizarlo.`;
-}
-
-export function lineaDeLaSena(sena: SenaDeLaVista, pagado: number): string {
+export function lineaDeLaSena(
+  sena: SenaDeLaVista,
+  pagado: number,
+  moneda: Moneda,
+  { t, f }: Escritura,
+): string {
   switch (sena.situacion) {
     case 'falta':
-      return sena.aCuenta > 0
-        ? `Lo que pagaste queda a cuenta de la seña: te quedan ${formatearPesos(sena.falta)} para completarla.`
-        : '';
+      return sena.aCuenta > 0 ? t.pagina.teQuedanParaLaSena(f.plata(sena.falta, moneda)) : '';
     case 'cubierta':
-      return LA_SENA_YA_ESTA_CUBIERTA;
+      return t.pagina.laSenaYaEstaCubierta;
     case 'sin-presupuesto':
-      return pagado > 0 ? QUEDA_A_CUENTA : '';
+      return pagado > 0 ? t.pagina.quedaACuenta : '';
   }
 }
 
-export function textoDeLaSenaAcordada(sena: SenaDeLaVista): string {
+export function textoDeLaSenaAcordada(
+  sena: SenaDeLaVista,
+  moneda: Moneda,
+  { t, f }: Escritura,
+): string {
+  const { datos } = t.pagina;
   switch (sena.situacion) {
     case 'cubierta':
-      return `${formatearPesos(sena.sena)} · pagada`;
+      return datos.senaPagada(f.plata(sena.sena, moneda));
     case 'falta':
-      return `${formatearPesos(sena.sena)} · te faltan ${formatearPesos(sena.falta)}`;
+      return datos.senaQueFalta(f.plata(sena.sena, moneda), f.plata(sena.falta, moneda));
     case 'sin-presupuesto':
-      return A_CONFIRMAR;
+      return datos.aConfirmar;
   }
 }
 
-export function textoDelTotalPagado(vista: VistaAprobada): string | null {
+export function textoDelTotalPagado(vista: VistaAprobada, { t, f }: Escritura): string | null {
   if (!vista.saldado || vista.precio === null) return null;
-  return `${formatearPesos(vista.precio)} · pagado`;
+  return t.pagina.datos.totalPagado(f.plata(vista.precio, vista.moneda));
 }
 
-export function claveDeLaEntrega(entrega: EntregaDelTrabajo): string {
+export function textoDelPrecioEnPesos(
+  precio: PrecioEnPesos | null,
+  { t, f, hoy }: Escritura,
+): string | null {
+  if (precio === null) return null;
+  const pesos = f.pesos(precio.pesos);
+  const dolar = f.pesos(precio.cotizacion);
+  return precio.deHoy
+    ? t.pagina.precioEnPesos.deHoy(pesos, dolar)
+    : t.pagina.precioEnPesos.delDia(pesos, dolar, f.diaYMes(precio.fecha, hoy));
+}
+
+export function textoDeLoQueSePago(
+  enOtraMoneda: LoQueSePagoEnOtraMoneda,
+  { t, f }: Escritura,
+): string {
+  const { pagado, cotizacion } = enOtraMoneda;
+  return t.pagina.pagasteConElDolar(f.plata(pagado.importe, pagado.moneda), f.pesos(cotizacion));
+}
+
+export function claveDeLaEntrega(entrega: EntregaDelTrabajo, { t }: Escritura): string {
+  const textos = t.pagina.entrega;
   switch (entrega.situacion) {
     case 'estimada':
-      return 'Entrega estimada';
+      return textos.estimada;
     case 'confirmada':
-      return 'Entrega confirmada';
+      return textos.confirmada;
     case 'entregado':
-      return 'Entregado';
+      return textos.entregado;
     case 'a-coordinar':
     case 'a-confirmar':
-      return 'Entrega';
+      return textos.entrega;
   }
 }
 
-export function valorDeLaEntrega(entrega: EntregaDelTrabajo, hoy: string): string {
+export function valorDeLaEntrega(entrega: EntregaDelTrabajo, escritura: Escritura): string {
+  const { t, f, hoy } = escritura;
   switch (entrega.situacion) {
     case 'estimada':
-      return entrega.fecha === null ? A_CONFIRMAR : fechaLarga(entrega.fecha, hoy);
+      return entrega.fecha === null ? t.pagina.datos.aConfirmar : f.fechaLarga(entrega.fecha, hoy);
     case 'confirmada':
-      return fechaConFranja(entrega.fecha, entrega.franja, hoy);
+      return fechaConFranja(entrega.fecha, entrega.franja, escritura);
     case 'entregado':
-      return entrega.fecha === null ? '—' : fechaLarga(entrega.fecha, hoy);
+      return entrega.fecha === null ? '—' : f.fechaLarga(entrega.fecha, hoy);
     case 'a-coordinar':
-      return A_COORDINAR;
+      return t.pagina.entrega.aCoordinar;
     case 'a-confirmar':
-      return A_CONFIRMAR;
+      return t.pagina.datos.aConfirmar;
   }
 }
 
-export function bajadaDeLaEntrega(entrega: EntregaDelTrabajo, hoy: string): string {
+export function bajadaDeLaEntrega(entrega: EntregaDelTrabajo, { t, f, hoy }: Escritura): string {
+  const textos = t.pagina.entrega;
   switch (entrega.situacion) {
     case 'estimada':
-      return entrega.fecha === null
-        ? ''
-        : `Fecha estimada de entrega: ${fechaLarga(entrega.fecha, hoy)}`;
+      return entrega.fecha === null ? '' : textos.fechaEstimada(f.fechaLarga(entrega.fecha, hoy));
     case 'confirmada':
-      return SI_NECESITAS_CAMBIAR_EL_DIA;
+      return textos.siNecesitasCambiarElDia;
     case 'a-coordinar':
-      return PODEMOS_ENTREGARLO;
+      return textos.podemosEntregarlo;
     case 'entregado':
-      return entrega.fecha === null ? '' : `Entregado el ${fechaLarga(entrega.fecha, hoy)}`;
+      return entrega.fecha === null ? '' : textos.entregadoEl(f.fechaLarga(entrega.fecha, hoy));
     case 'a-confirmar':
       return '';
   }
@@ -257,9 +184,11 @@ export interface SaldoDeLaVista {
   tono: string;
 }
 
-export function saldoDeLaVista(vista: VistaAprobada): SaldoDeLaVista {
-  if (vista.saldo === null) return { etiqueta: 'Falta el presupuesto', texto: '—', tono: '' };
-  if (vista.saldado)
-    return { etiqueta: 'Está saldado', texto: formatearPesos(0), tono: 'text-hogar' };
-  return { etiqueta: 'Te falta pagar', texto: formatearPesos(vista.saldo), tono: '' };
+export function saldoDeLaVista(vista: VistaAprobada, { t, f }: Escritura): SaldoDeLaVista {
+  const { saldo } = t.pagina;
+  if (vista.saldo === null) return { etiqueta: saldo.faltaElPresupuesto, texto: '—', tono: '' };
+  if (vista.saldado) {
+    return { etiqueta: saldo.estaSaldado, texto: f.plata(0, vista.moneda), tono: 'text-hogar' };
+  }
+  return { etiqueta: saldo.teFaltaPagar, texto: f.plata(vista.saldo, vista.moneda), tono: '' };
 }

@@ -1,5 +1,6 @@
+import type { Idioma } from '@maun/domain';
 import { useMutationState } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import {
   ESPACIO_DEL_PLAN_BYTES,
@@ -24,10 +25,12 @@ import {
   FormularioDeRedes,
   FormularioDeResena,
   hayRedesCargadas,
+  IdiomaDeLosClientes,
   ResumenDelPresupuesto,
   type ParteDeLaConfiguracion,
 } from '@/features/configurar-taller';
 import { FormularioDePerfil } from '@/features/editar-perfil';
+import { SelectorDeIdioma } from '@/features/elegir-idioma';
 import { SelectorDeTema } from '@/features/elegir-tema';
 import { VersionDeLaApp } from '@/features/ver-novedades';
 import {
@@ -37,9 +40,12 @@ import {
   mensajeDeSincronizacion,
   saldosDeLaReplica,
 } from '@/shared/api';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   describirEstadoSync,
   esCelular,
+  etiquetaActual,
+  idiomaActual,
   RUTA_DE_AVISOS,
   RUTA_DE_TESOROS,
   useAvisos,
@@ -54,21 +60,28 @@ const SOLO_EL_REPARTO: readonly ParteDeLaConfiguracion[] = ['reparto'];
 
 const SOLO_EL_TALLER: readonly ParteDeLaConfiguracion[] = ['taller'];
 
-const FORMATO_DE_LA_SINCRONIZACION = new Intl.DateTimeFormat('es-AR', {
-  day: 'numeric',
-  month: 'long',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+const FORMATO_DE_LA_SINCRONIZACION: Readonly<Record<Idioma, Intl.DateTimeFormatOptions>> = {
+  es: { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h12' },
+  en: { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hourCycle: 'h12' },
+  'pt-BR': { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+};
 
-function ultimaSincronizacion(valor: string): string {
+function ultimaSincronizacion(valor: string, m: Mensajes): string {
   const marca = Date.parse(valor);
-  if (Number.isNaN(marca)) return 'Todavía no se sincronizó con el servidor.';
-  const cuando = FORMATO_DE_LA_SINCRONIZACION.format(new Date(marca));
-  return `Última sincronización: ${cuando}${cuando.endsWith('.') ? '' : '.'}`;
+  if (Number.isNaN(marca)) return m.paginaAjustes.nuncaSeSincronizo;
+  const cuando = new Intl.DateTimeFormat(
+    etiquetaActual(),
+    FORMATO_DE_LA_SINCRONIZACION[idiomaActual()],
+  ).format(new Date(marca));
+  return m.paginaAjustes.ultimaSincronizacion({ cuando: cuando.replace(/\.$/u, '') });
+}
+
+function Junto({ children }: { children: ReactNode }) {
+  return <span className="whitespace-nowrap">{children}</span>;
 }
 
 function SincronizarAhora() {
+  const m = useMensajes();
   const { usuarioId } = useSesionActiva();
   const sincronizarAhora = useSincronizarAhora(usuarioId);
   const [sincronizando, setSincronizando] = useState(false);
@@ -106,7 +119,7 @@ function SincronizarAhora() {
           tamano={16}
           className={sincronizando ? 'motion-safe:animate-maun-spin' : undefined}
         />
-        {sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
+        {sincronizando ? m.paginaAjustes.sincronizando : m.paginaAjustes.sincronizarAhora}
       </Button>
       <p aria-live="polite" className="flex items-start gap-1.5 text-label text-text-2">
         {descripcion && (
@@ -143,11 +156,12 @@ function RechazosDeLaCola() {
 }
 
 function Avisos() {
+  const m = useMensajes();
   const avisos = useAvisos();
   const rechazos = useMutationState({ filters: { status: 'error' }, select: () => true });
 
   if (avisos.length === 0 && rechazos.length === 0) {
-    return <p className="text-body text-text-2">No hay nada rechazado ni ajustado.</p>;
+    return <p className="text-body text-text-2">{m.paginaAjustes.nadaRechazado}</p>;
   }
 
   return (
@@ -159,7 +173,7 @@ function Avisos() {
               a={aviso.ruta}
               className="mt-1 inline-block text-label font-semibold underline underline-offset-3"
             >
-              Ver «{aviso.sujeto}»
+              {m.paginaAjustes.verElSujeto({ sujeto: aviso.sujeto })}
             </Ir>
           )
         }
@@ -170,6 +184,7 @@ function Avisos() {
 }
 
 export function AjustesPage() {
+  const m = useMensajes();
   const replica = useReplicaDelTaller();
   const estadoSync = useEstadoSync();
   const household = householdDe(replica);
@@ -180,52 +195,57 @@ export function AjustesPage() {
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex min-h-button flex-wrap items-end justify-between gap-3">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Ajustes</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">
+          {m.paginaAjustes.titulo}
+        </h1>
       </header>
 
       <SeccionesEnFilas>
-        <SeccionEnFila id="titulo-perfil" titulo="Tu perfil">
+        <SeccionEnFila id="titulo-perfil" titulo={m.paginaAjustes.tuPerfil}>
           <FormularioDePerfil />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-apariencia" titulo="Apariencia">
+        <SeccionEnFila id="titulo-apariencia" titulo={m.paginaAjustes.apariencia}>
           <SelectorDeTema />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-dispositivo" titulo="Este dispositivo">
+        <SeccionEnFila id="titulo-idioma" titulo={m.paginaAjustes.idioma}>
+          <SelectorDeIdioma />
+        </SeccionEnFila>
+
+        <SeccionEnFila id="titulo-dispositivo" titulo={m.paginaAjustes.esteDispositivo}>
           <p className="text-body text-text-2">{describirEstadoSync(estadoSync)}</p>
           <p className="text-label text-text-3 tabular-nums">
-            {ultimaSincronizacion(replica.cursor)}
+            {ultimaSincronizacion(replica.cursor, m)}
           </p>
           <SincronizarAhora />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-avisos-de-la-agenda" titulo="Avisos de la agenda">
+        <SeccionEnFila id="titulo-avisos-de-la-agenda" titulo={m.paginaAjustes.avisosDeLaAgenda}>
           <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-            Un recordatorio a la mañana con las entregas, las visitas, los presupuestos y los pagos
-            que vencen. Se activa en cada dispositivo.
+            {m.paginaAjustes.unRecordatorioALaManana}
           </p>
           <Ir
             a={RUTA_DE_AVISOS}
             className="inline-flex min-h-tap items-center gap-1.5 self-start rounded-field text-body font-semibold underline underline-offset-3"
           >
             <Icono nombre="bell" tamano={18} />
-            Configurar los avisos
+            {m.paginaAjustes.configurarLosAvisos}
           </Ir>
         </SeccionEnFila>
 
         {esCelular() && (
-          <SeccionEnFila id="titulo-huella" titulo="Entrar con la huella">
+          <SeccionEnFila id="titulo-huella" titulo={m.paginaAjustes.entrarConLaHuella}>
             <AjusteDeHuella />
           </SeccionEnFila>
         )}
 
         <SeccionEnFila
           id="titulo-rechazos"
-          titulo="Lo que la base rechazó o ajustó"
+          titulo={m.paginaAjustes.loQueLaBaseRechazo}
           bajada={
             <p className="text-label leading-relaxed text-text-2">
-              Queda acá hasta que lo descartes, aunque cierres la app.
+              {m.paginaAjustes.quedaAcaHastaQueLoDescartes}
             </p>
           }
         >
@@ -235,19 +255,18 @@ export function AjustesPage() {
         {household && ajustes && (
           <SeccionEnFila
             id="titulo-reparto"
-            titulo="Sueldo y costos fijos"
+            titulo={m.paginaAjustes.sueldoYCostosFijos}
             bajada={
               filaGuardada ? undefined : (
                 <p className="text-label leading-relaxed text-text-2">
-                  Con esto se arma la fila de cada cobro: primero el diezmo, después los compromisos
-                  (tu sueldo y los costos fijos), y lo que sobra queda en Maun.
+                  {m.paginaAjustes.conEstoSeArmaLaFila}
                 </p>
               )
             }
           >
             {filaGuardada ? (
               <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-                Tu sueldo y los compromisos se arman en la fila de Tesoros.
+                {m.paginaAjustes.seArmanEnLaFila}
               </p>
             ) : (
               <FormularioDeConfiguracion
@@ -261,29 +280,29 @@ export function AjustesPage() {
               className="inline-flex min-h-tap items-center gap-1.5 self-start rounded-field text-body font-semibold underline underline-offset-3"
             >
               <Icono nombre="gem" tamano={18} />
-              Ver la fila en Tesoros
+              {m.paginaAjustes.verLaFila}
             </Ir>
           </SeccionEnFila>
         )}
 
         {household && ajustes && (
-          <SeccionEnFila id="titulo-taller" titulo="Tu taller">
+          <SeccionEnFila id="titulo-taller" titulo={m.paginaAjustes.tuTaller}>
             <FormularioDeConfiguracion
               household={household}
               ajustes={ajustes}
               partes={SOLO_EL_TALLER}
             />
+            <IdiomaDeLosClientes ajustes={ajustes} />
           </SeccionEnFila>
         )}
 
         {household && ajustes && (
           <SeccionEnFila
             id="titulo-presupuesto"
-            titulo="Tu presupuesto"
+            titulo={m.paginaAjustes.tuPresupuesto}
             bajada={
               <p className="text-label leading-relaxed text-text-2">
-                Lo que va en cada presupuesto que armás: tus datos, los números y los textos de
-                siempre.
+                {m.paginaAjustes.loQueVaEnCadaPresupuesto}
               </p>
             }
           >
@@ -292,32 +311,21 @@ export function AjustesPage() {
         )}
 
         {ajustes && (
-          <SeccionEnFila id="titulo-cobro" titulo="Cómo te pagan">
+          <SeccionEnFila id="titulo-cobro" titulo={m.paginaAjustes.comoTePagan}>
             <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-              Es la cuenta a la que te transfiere tu cliente. Se cargan una vez y aparecen en la
-              página que le compartís, al lado de lo que tiene que pagarte, con un botón para copiar
-              cada uno. El titular y el CUIT le sirven para confirmar que es la cuenta correcta: su
-              banco le muestra a nombre de quién está antes de confirmar. Recibir una transferencia
-              no te cuesta comisión. Todos son opcionales: lo que dejes vacío, no se muestra.
+              {m.paginaAjustes.laCuentaALaQueTeTransfieren}
             </p>
             <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-              El link de Mercado Pago es aparte y es opcional. Sacalo de tu app, en Cobrar → Link de
-              pago → Link sin monto definido: se crea una sola vez y sirve para todos tus trabajos.
-              Si lo cargás, tu cliente ve en su página un botón que le abre Mercado Pago para
-              pagarte desde ahí, sin copiar nada: el monto se lo decimos arriba y lo escribe él. Va
-              después de tu alias, que es la forma que no te cuesta comisión.
+              {m.paginaAjustes.elLinkDeMercadoPago}
             </p>
             <FormularioDeCobro ajustes={ajustes} />
           </SeccionEnFila>
         )}
 
         {ajustes && (
-          <SeccionEnFila id="titulo-resenas" titulo="Reseñas en Google">
+          <SeccionEnFila id="titulo-resenas" titulo={m.paginaAjustes.resenasEnGoogle}>
             <p className="max-w-[42rem] text-body leading-relaxed text-text-2">
-              Cuando un cliente termina la encuesta, le pedimos que deje su opinión también en
-              Google. Se le pide a todos, contesten lo que contesten: pedírsela solo a los que
-              quedaron contentos va contra las reglas de Google, que pueden borrar las reseñas del
-              taller. Si no cargás el enlace, ese pedido no aparece.
+              {m.paginaAjustes.lePedimosLaResena}
             </p>
             <FormularioDeResena ajustes={ajustes} />
           </SeccionEnFila>
@@ -326,45 +334,49 @@ export function AjustesPage() {
         {ajustes && (
           <SeccionEnFila
             id="titulo-vidriera"
-            titulo="Tu vidriera"
+            titulo={m.paginaAjustes.tuVidriera}
             bajada={
               <p className="text-label leading-relaxed text-text-2">
-                Lo que ven tus clientes en su página: fotos de otros trabajos y tus redes.
+                {m.paginaAjustes.loQueVenTusClientes}
               </p>
             }
           >
             <FotosDeLaVidriera hayRedes={hayRedesCargadas(ajustes)} />
             <div className="flex flex-col gap-2 border-t border-hairline-soft pt-3.5">
-              <h3 className="text-body font-semibold">Redes</h3>
+              <h3 className="text-body font-semibold">{m.paginaAjustes.redes}</h3>
               <FormularioDeRedes ajustes={ajustes} />
             </div>
           </SeccionEnFila>
         )}
 
-        <SeccionEnFila id="titulo-cocos" titulo="Corregir el saldo de Cocos">
+        <SeccionEnFila id="titulo-cocos" titulo={m.paginaAjustes.corregirElSaldoDeCocos}>
           <AjusteDeCocos saldo={saldosDeLaReplica(replica).cocos} />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-espacio" titulo="Espacio para archivos">
+        <SeccionEnFila id="titulo-espacio" titulo={m.paginaAjustes.espacioParaArchivos}>
           <p className="text-body leading-relaxed text-text-2 tabular-nums">
-            Las fotos y los PDF de los trabajos, y las fotos de tu vidriera, ocupan{' '}
-            <span className="whitespace-nowrap">{pesoLegible(usado)}</span> de{' '}
-            <span className="whitespace-nowrap">{pesoLegible(ESPACIO_DEL_PLAN_BYTES)}</span>.
+            {m.paginaAjustes.espacioUsado({
+              usado: pesoLegible(usado),
+              total: pesoLegible(ESPACIO_DEL_PLAN_BYTES),
+              Junto,
+            })}
           </p>
           {usado >= ESPACIO_PARA_AVISAR_BYTES && (
             <p className="text-label leading-relaxed font-medium text-atencion">
-              Se está llenando. Cuando llegue a 1 GB no se van a poder subir más archivos, y pasado
-              ese límite la app entera puede dejar de andar. Avisale a quien te mantiene la app
-              antes de que se llene.
+              {m.paginaAjustes.seEstaLlenando}
             </p>
           )}
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-cuenta" titulo="Cuenta" cuerpo="items-start">
+        <SeccionEnFila id="titulo-cuenta" titulo={m.paginaAjustes.cuenta} cuerpo="items-start">
           <BotonSalir />
         </SeccionEnFila>
 
-        <SeccionEnFila id="titulo-version" titulo="Versión de la app" cuerpo="items-start">
+        <SeccionEnFila
+          id="titulo-version"
+          titulo={m.paginaAjustes.versionDeLaApp}
+          cuerpo="items-start"
+        >
           <VersionDeLaApp
             conInvitacion
             className="flex min-h-tap flex-col items-start justify-center gap-0.5 rounded-field text-left text-body text-text-2"

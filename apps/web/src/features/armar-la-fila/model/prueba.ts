@@ -1,5 +1,6 @@
 import { centavos, type Money } from '@maun/domain';
 
+import { mensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 
 export const ATAJOS_DE_LA_PRUEBA: readonly Money[] = [
@@ -10,19 +11,22 @@ export const ATAJOS_DE_LA_PRUEBA: readonly Money[] = [
 
 export const COBRO_DE_EJEMPLO: Money = centavos(200_000_000);
 
-export const LLEGO_A_LA_META = 'llegó a la meta';
+export function llegoALaMeta(): string {
+  return mensajes().armarLaFila.prueba.llegoALaMeta;
+}
 
 export function notaDelPasoEnLaPrueba(paso: {
   tope: Money;
   falta: Money;
   llegaALaMeta?: boolean;
 }): string {
-  if (paso.llegaALaMeta === true) return LLEGO_A_LA_META;
-  if (paso.tope <= 0) return 'ya estaba completo';
-  if (paso.falta <= 0) return 'completa el monto';
-  return `le faltan ${formatearPesos(paso.falta)}`;
+  const textos = mensajes().armarLaFila.prueba;
+  if (paso.llegaALaMeta === true) return textos.llegoALaMeta;
+  if (paso.tope <= 0) return textos.yaEstabaCompleto;
+  if (paso.falta <= 0) return textos.completaElMonto;
+  return textos.leFaltan(formatearPesos(paso.falta));
 }
 
 export function notaDeLaParteEnLaPrueba(parte: { llegaALaMeta: boolean }): string | null {
-  return parte.llegaALaMeta ? LLEGO_A_LA_META : null;
+  return parte.llegaALaMeta ? llegoALaMeta() : null;
 }

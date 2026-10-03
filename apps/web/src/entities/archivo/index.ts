@@ -32,8 +32,8 @@ export {
 } from './model/archivos';
 export {
   LO_QUE_SE_SUBE_A_UN_TRABAJO,
-  LOS_VIDEOS_NO_ENTRAN,
-  SIN_SENAL_PARA_ARCHIVOS,
+  losVideosNoEntran,
+  sinSenalParaArchivos,
   TIPOS_QUE_SE_ELIGEN,
   type LoQueSeSube,
 } from './model/eleccion';

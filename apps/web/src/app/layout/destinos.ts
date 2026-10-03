@@ -14,59 +14,27 @@ export type IdDeSeccion =
 
 export interface Destino {
   id: IdDeSeccion;
-  etiqueta: string;
   ruta: string;
   icono: NombreDeIcono;
   alternativa?: IdDeSeccion;
 }
 
 export const DESTINOS: Readonly<Record<IdDeSeccion, Destino>> = {
-  inicio: { id: 'inicio', etiqueta: 'Inicio', ruta: '/', icono: 'house' },
-  agenda: {
-    id: 'agenda',
-    etiqueta: 'Agenda',
-    ruta: '/agenda',
-    icono: 'calendar-days',
-    alternativa: 'inicio',
-  },
-  consultas: {
-    id: 'consultas',
-    etiqueta: 'Consultas',
-    ruta: '/consultas',
-    icono: 'route',
-    alternativa: 'proyectos',
-  },
-  proyectos: { id: 'proyectos', etiqueta: 'Proyectos', ruta: '/proyectos', icono: 'folder-kanban' },
-  clientes: { id: 'clientes', etiqueta: 'Clientes', ruta: '/clientes', icono: 'users' },
-  finanzas: { id: 'finanzas', etiqueta: 'Finanzas', ruta: '/finanzas', icono: 'wallet' },
-  tesoros: {
-    id: 'tesoros',
-    etiqueta: 'Tesoros',
-    ruta: '/tesoros',
-    icono: 'gem',
-    alternativa: 'inicio',
-  },
+  inicio: { id: 'inicio', ruta: '/', icono: 'house' },
+  agenda: { id: 'agenda', ruta: '/agenda', icono: 'calendar-days', alternativa: 'inicio' },
+  consultas: { id: 'consultas', ruta: '/consultas', icono: 'route', alternativa: 'proyectos' },
+  proyectos: { id: 'proyectos', ruta: '/proyectos', icono: 'folder-kanban' },
+  clientes: { id: 'clientes', ruta: '/clientes', icono: 'users' },
+  finanzas: { id: 'finanzas', ruta: '/finanzas', icono: 'wallet' },
+  tesoros: { id: 'tesoros', ruta: '/tesoros', icono: 'gem', alternativa: 'inicio' },
   opiniones: {
     id: 'opiniones',
-    etiqueta: 'Opiniones',
     ruta: '/opiniones',
     icono: 'message-square-quote',
     alternativa: 'inicio',
   },
-  diezmo: {
-    id: 'diezmo',
-    etiqueta: 'Diezmo',
-    ruta: '/diezmo',
-    icono: 'church',
-    alternativa: 'inicio',
-  },
-  ajustes: {
-    id: 'ajustes',
-    etiqueta: 'Ajustes',
-    ruta: '/ajustes',
-    icono: 'settings',
-    alternativa: 'inicio',
-  },
+  diezmo: { id: 'diezmo', ruta: '/diezmo', icono: 'church', alternativa: 'inicio' },
+  ajustes: { id: 'ajustes', ruta: '/ajustes', icono: 'settings', alternativa: 'inicio' },
 };
 
 export const NAV_MOVIL: readonly IdDeSeccion[] = ['inicio', 'proyectos', 'clientes', 'finanzas'];
@@ -95,18 +63,20 @@ export const NAV_ESCRITORIO: readonly IdDeSeccion[] = [
   'ajustes',
 ];
 
+export type IdDeAccion = 'anotar' | 'movimiento' | 'cobro' | 'proyectoNuevo' | 'consultaNueva';
+
 export interface AccionRapida {
-  etiqueta: string;
+  id: IdDeAccion;
   icono: NombreDeIcono;
   ruta: string;
 }
 
 export const ACCIONES_RAPIDAS: readonly AccionRapida[] = [
-  { etiqueta: 'Anotar algo', icono: 'pencil-line', ruta: '/agenda/anotar' },
-  { etiqueta: 'Movimiento', icono: 'arrow-left-right', ruta: '/finanzas/nuevo' },
-  { etiqueta: 'Cobro de proyecto', icono: 'hand-coins', ruta: '/proyectos' },
-  { etiqueta: 'Proyecto nuevo', icono: 'folder-plus', ruta: '/proyectos/nuevo' },
-  { etiqueta: 'Consulta nueva', icono: 'user-plus', ruta: '/consultas/nueva' },
+  { id: 'anotar', icono: 'pencil-line', ruta: '/agenda/anotar' },
+  { id: 'movimiento', icono: 'arrow-left-right', ruta: '/finanzas/nuevo' },
+  { id: 'cobro', icono: 'hand-coins', ruta: '/proyectos' },
+  { id: 'proyectoNuevo', icono: 'folder-plus', ruta: '/proyectos/nuevo' },
+  { id: 'consultaNueva', icono: 'user-plus', ruta: '/consultas/nueva' },
 ];
 
 export function seccionDeLaRuta(ruta: string): IdDeSeccion {

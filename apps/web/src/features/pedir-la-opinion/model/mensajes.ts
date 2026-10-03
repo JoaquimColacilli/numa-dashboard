@@ -1,22 +1,34 @@
-import { diasEntre, elMueble, enPalabras, primeraPalabra } from '@maun/domain';
+import { diasEntre, primeraPalabra } from '@maun/domain';
 
-function saludo(cliente: string): string {
+import type { MensajesDelCliente } from '@/shared/idioma-del-cliente';
+
+export type TextosDelWhatsapp = MensajesDelCliente['whatsappDeLaEncuesta'];
+
+export function nombreDelCliente(cliente: string): string | null {
   const nombre = primeraPalabra(cliente);
-  return nombre === '' ? 'Hola' : `Hola ${nombre}`;
+  return nombre === '' ? null : nombre;
 }
 
-export function mensajeDelPedido(cliente: string, trabajo: string, enlace: string): string {
-  return `${saludo(cliente)}, ya terminamos tu ${elMueble(trabajo)}. ¿Nos contás en un minuto cómo te fue? ${enlace}`;
+export function mensajeDelPedido(
+  textos: TextosDelWhatsapp,
+  cliente: string,
+  trabajo: string,
+  enlace: string,
+): string {
+  return textos.pedido(nombreDelCliente(cliente), trabajo, enlace);
 }
 
-export function mensajeDelRecordatorio(cliente: string, trabajo: string, enlace: string): string {
-  return `${saludo(cliente)}, te escribo de nuevo por si se te pasó: ¿nos contás cómo te fue con tu ${elMueble(trabajo)}? Es un minuto. ${enlace}`;
+export function mensajeDelRecordatorio(
+  textos: TextosDelWhatsapp,
+  cliente: string,
+  trabajo: string,
+  enlace: string,
+): string {
+  return textos.recordatorio(nombreDelCliente(cliente), trabajo, enlace);
 }
 
-export function despuesDeLaEntrega(entrega: string | null, contestada: string): string {
-  if (entrega === null) return '';
+export function diasDespuesDeLaEntrega(entrega: string | null, contestada: string): number | null {
+  if (entrega === null) return null;
   const dias = diasEntre(entrega, contestada);
-  if (dias < 0) return '';
-  if (dias === 0) return ', el mismo día de la entrega';
-  return `, ${enPalabras(dias, 'masculino')} ${dias === 1 ? 'día' : 'días'} después de la entrega`;
+  return dias < 0 ? null : dias;
 }

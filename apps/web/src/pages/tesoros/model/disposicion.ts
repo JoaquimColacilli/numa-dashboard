@@ -17,15 +17,7 @@ import {
 } from '@maun/domain';
 import type { Edge, Node } from '@xyflow/react';
 
-import {
-  BASE_EN_PALABRAS,
-  DESCRIPCION_DE_LOS_INSUMOS,
-  DESCRIPCION_DEL_TIPO,
-  modoEnPalabras,
-  NOMBRE_DEL_TIPO,
-  type LugarEnLaFila,
-  type ParteDeLaEscala,
-} from '@/entities/fila';
+import { DESCRIPCION_DEL_TIPO, type LugarEnLaFila, type ParteDeLaEscala } from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import {
   escalaDe,
@@ -44,7 +36,8 @@ import {
   tesoroDe,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
-import { formatearPesos, nombreDelMes } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { formatearLaPlata, formatearPesos, mesEnUnaFrase } from '@/shared/lib';
 
 export const ANCHO_DE_FICHA = 272;
 export const ANCHO_DE_PARTE = 216;
@@ -376,17 +369,16 @@ export function revisiones(
   numero: number,
   base?: Pick<Fila, 'obligaciones' | 'pasos'>,
 ): Map<string, Revision> {
+  const { eraEl } = mensajes().paginaTesoros.plano;
   const mapa = new Map<string, Revision>();
   for (const cambio of cambios) {
     let antes: string | null = null;
     if (cambio.tipo === 'cambia-el-tope') antes = formatearPesos(cambio.antes);
     if (cambio.tipo === 'cambia-el-porcentaje') antes = porciento(cambio.antes);
     if (cambio.tipo === 'cambia-el-porcentaje-de-la-obligacion') antes = porciento(cambio.antes);
-    if (cambio.tipo === 'cambia-de-lugar-la-obligacion') {
-      antes = `era el ${String(cambio.antes + 1)}`;
-    }
+    if (cambio.tipo === 'cambia-de-lugar-la-obligacion') antes = eraEl(cambio.antes + 1);
     if (cambio.tipo === 'cambia-de-lugar') {
-      antes = `era el ${String((base?.obligaciones.length ?? 0) + cambio.antes + 1)}`;
+      antes = eraEl((base?.obligaciones.length ?? 0) + cambio.antes + 1);
     }
     const previa = mapa.get(cambio.tesoro);
     mapa.set(cambio.tesoro, { numero, antes: previa?.antes ?? antes });
@@ -402,19 +394,31 @@ export function etiquetaDeLaObligacion(
   aPagar: Money,
   diezmo: boolean,
 ): string {
-  return `Obligación ${String(numero)} de ${String(cuantos)}: ${tesoro.nombre}, ${porciento(obligacion.porcentaje)} ${BASE_EN_PALABRAS[obligacion.base]}; a pagar ${formatearPesos(aPagar)}${diezmo ? '; no se puede sacar de la fila' : ''}`;
+  const textos = mensajes().paginaTesoros.plano;
+  const etiqueta = diezmo ? textos.etiquetaDelDiezmo : textos.etiquetaDeLaObligacion;
+  return etiqueta(
+    numero,
+    cuantos,
+    tesoro.nombre,
+    porciento(obligacion.porcentaje),
+    obligacion.base,
+    formatearPesos(aPagar),
+  );
 }
 
 function estadoEnPalabras(delMes: PasoDelMes, conDeuda: boolean): string {
-  if (delMes.modo === 'trabajo') {
-    return `en el mes ${formatearPesos(delMes.recibido)}`;
-  }
-  const tiene =
-    delMes.modo === 'saldo'
-      ? `${conDeuda ? 'a pagar' : 'tiene'} ${formatearPesos(delMes.lleva)}`
-      : `lleva ${formatearPesos(delMes.lleva)}`;
+  const textos = mensajes().paginaTesoros.plano;
+  if (delMes.modo === 'trabajo') return textos.enElMesRecibio(formatearPesos(delMes.recibido));
+  const lleva = formatearPesos(delMes.lleva);
   const falta = delMes.falta ?? 0;
-  return falta > 0 ? `${tiene}, faltan ${formatearPesos(falta)}` : `${tiene}, completo`;
+  const faltan = formatearPesos(falta);
+  if (delMes.modo === 'saldo' && conDeuda) {
+    return falta > 0 ? textos.aPagarYFaltan(lleva, faltan) : textos.aPagarCompleto(lleva);
+  }
+  if (delMes.modo === 'saldo') {
+    return falta > 0 ? textos.tieneYFaltan(lleva, faltan) : textos.tieneCompleto(lleva);
+  }
+  return falta > 0 ? textos.llevaYFaltan(lleva, faltan) : textos.llevaCompleto(lleva);
 }
 
 export function etiquetaDelPaso(
@@ -425,16 +429,20 @@ export function etiquetaDelPaso(
   delMes: PasoDelMes,
   conDeuda = false,
 ): string {
+  const textos = mensajes().paginaTesoros.plano;
   const tipo = tipoDelPaso(paso.clase);
-  const clase = paso.clase === 'sueldo' ? ', sueldo' : '';
-  const modo = modoEnPalabras(paso.modo, tipo);
+  const tope = formatearPesos(paso.tope);
+  const encabezado =
+    paso.clase === 'sueldo'
+      ? textos.encabezadoDelSueldo(tipo, numero, cuantos, tesoro.nombre)
+      : textos.encabezadoDelPaso(tipo, numero, cuantos, tesoro.nombre);
   const cifra =
     paso.modo === 'trabajo'
-      ? `${formatearPesos(paso.tope)} ${modo}`
+      ? textos.cifraPorTrabajo(tipo, tope)
       : paso.modo === 'saldo'
-        ? `hasta ${formatearPesos(paso.tope)}, ${modo}`
-        : `hasta ${formatearPesos(paso.tope)} ${modo}`;
-  return `${NOMBRE_DEL_TIPO[tipo]} ${String(numero)} de ${String(cuantos)}: ${tesoro.nombre}${clase}, ${cifra}; ${estadoEnPalabras(delMes, conDeuda)}`;
+        ? textos.cifraDelSaldo(tipo, tope)
+        : textos.cifraDelMes(tipo, tope);
+  return textos.etiquetaDelPaso(encabezado, cifra, estadoEnPalabras(delMes, conDeuda));
 }
 
 function etiquetaDeLaParte(
@@ -443,11 +451,17 @@ function etiquetaDeLaParte(
   hastaLaMeta: boolean,
   meta: MetaDelMes | null,
 ): string {
-  const deLaMeta =
-    meta === null
-      ? ''
-      : `; tiene ${formatearPesos(meta.saldo)} de su meta de ${formatearPesos(meta.meta)}`;
-  return `Ahorro: ${tesoro.nombre}, ${porciento(porcentaje)} de lo que sobra${hastaLaMeta && meta !== null ? ', hasta la meta' : ''}${deLaMeta}`;
+  const textos = mensajes().paginaTesoros.plano;
+  if (meta === null) return textos.etiquetaDeLaParte(tesoro.nombre, porciento(porcentaje));
+  const etiqueta = hastaLaMeta
+    ? textos.etiquetaDeLaParteHastaLaMeta
+    : textos.etiquetaDeLaParteConMeta;
+  return etiqueta(
+    tesoro.nombre,
+    porciento(porcentaje),
+    formatearPesos(meta.saldo),
+    formatearPesos(meta.meta),
+  );
 }
 
 export function textoDelIngreso(
@@ -455,15 +469,13 @@ export function textoDelIngreso(
   mes: string,
   prueba: Money | null,
 ): string {
-  if (prueba !== null) return `Prueba: un trabajo que deja ${formatearPesos(prueba)}`;
-  return `Ingreso de ${mes}: ${formatearPesos(delMes.ingreso)} en ${String(delMes.cobros)} ${delMes.cobros === 1 ? 'cobro' : 'cobros'}`;
+  const textos = mensajes().paginaTesoros.plano;
+  if (prueba !== null) return textos.pruebaDeUnTrabajo(formatearPesos(prueba));
+  return textos.ingresoDelMes(mes, formatearPesos(delMes.ingreso), delMes.cobros);
 }
 
 export function textoDeLosInsumos(insumos: InsumosEnElPlano): string {
-  if (insumos.trabajos === 0) return 'Sin trabajos en curso';
-  return insumos.trabajos === 1
-    ? '1 trabajo en curso'
-    : `${String(insumos.trabajos)} trabajos en curso`;
+  return mensajes().paginaTesoros.plano.trabajosEnCurso(insumos.trabajos);
 }
 
 function conMedidas(nodo: NodoDelPlano): NodoDelPlano {
@@ -506,7 +518,9 @@ export function armarElPlano({
   conNuevo = true,
 }: EntradaDelPlano): Plano {
   const { fila, delMes, armando, sistema } = vista;
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const m = mensajes();
+  const textos = m.paginaTesoros.plano;
+  const mes = mesEnUnaFrase(vista.mes);
   const comun = { armando, probando: prueba !== null, mes };
   const marcas = armando
     ? revisiones(vista.cambios, vista.revision, vista.base)
@@ -532,8 +546,8 @@ export function armarElPlano({
     selectable: false,
     focusable: false,
     data: comun,
-    ariaLabel: 'Seña de los trabajos en curso',
-    domAttributes: { 'aria-roledescription': 'entrada', 'aria-describedby': undefined },
+    ariaLabel: textos.senaDeLosTrabajos,
+    domAttributes: { 'aria-roledescription': textos.entrada, 'aria-describedby': undefined },
   });
   const yDeLosInsumos = (ALTO.sena - ALTO.insumos) / 2;
   nodos.push({
@@ -546,8 +560,8 @@ export function armarElPlano({
     selected: elegido === FICHA_DE_LOS_INSUMOS,
     data: { ...comun, total: insumos.total, trabajos: insumos.trabajos },
     ...accesible(
-      DESCRIPCION_DE_LOS_INSUMOS,
-      `Insumos: ${formatearPesos(insumos.total)}, ${textoDeLosInsumos(insumos).toLowerCase()}`,
+      m.fila.descripcionDeLosInsumos,
+      textos.etiquetaDeLosInsumos(formatearPesos(insumos.total), insumos.trabajos),
     ),
   });
   const sinMonto = {
@@ -583,7 +597,7 @@ export function armarElPlano({
     focusable: false,
     data: { ...comun, ingreso: delMes.ingreso, cobros: delMes.cobros, prueba: neta },
     ariaLabel: textoDelIngreso(delMes, mes, neta),
-    domAttributes: { 'aria-roledescription': 'entrada', 'aria-describedby': undefined },
+    domAttributes: { 'aria-roledescription': textos.entrada, 'aria-describedby': undefined },
   });
   aristas.push({
     id: 'se-cobra-el-trabajo',
@@ -792,10 +806,12 @@ export function armarElPlano({
     selected: elegido === FICHA_DEL_REPARTO,
     data: { ...comun, escala, aTesoros, prueba: prueba?.sobrante ?? null },
     ...accesible(
-      'reparto',
-      `Lo que sobra se reparte: ${escala
-        .map((parte) => `${tesoroDe(vista, parte.tesoro).nombre} ${porciento(parte.porcentaje)}`)
-        .join(', ')}`,
+      textos.rolDelReparto,
+      textos.etiquetaDelReparto(
+        escala.map((parte) =>
+          textos.parteDelReparto(tesoroDe(vista, parte.tesoro).nombre, porciento(parte.porcentaje)),
+        ),
+      ),
     ),
   });
   if (ultimo !== undefined) {
@@ -879,7 +895,7 @@ export function armarElPlano({
           ? DESCRIPCION_DEL_TIPO.superavit
           : DESCRIPCION_DEL_TIPO['ahorro-por-porcentaje'],
         parte.resto
-          ? `Superávit: ${tesoro.nombre} recibe el resto, ${porciento(parte.porcentaje)}, y los centavos`
+          ? textos.etiquetaDelResto(tesoro.nombre, porciento(parte.porcentaje))
           : etiquetaDeLaParte(tesoro, parte.porcentaje, hastaLaMeta, meta),
       ),
     });
@@ -899,7 +915,7 @@ export function armarElPlano({
         etiqueta:
           monto === null
             ? parte.resto
-              ? `resto ${porciento(parte.porcentaje)}`
+              ? textos.restoConPorcentaje(porciento(parte.porcentaje))
               : porciento(parte.porcentaje)
             : formatearPesos(monto),
         flujo: null,
@@ -953,8 +969,8 @@ export function armarElPlano({
     focusable: false,
     data: {
       ...comun,
-      texto: 'Estante',
-      bajada: estante.length === 0 ? 'Todos están en la fila' : 'No reciben de los cobros',
+      texto: textos.estante,
+      bajada: estante.length === 0 ? textos.todosEnLaFila : textos.noRecibenDeLosCobros,
     },
     ...SIN_TECLADO,
   });
@@ -971,8 +987,8 @@ export function armarElPlano({
       selected: elegido === id,
       data: { ...comun, tesoro: suelto },
       ...accesible(
-        'tesoro en el estante',
-        `${suelto.nombre}, en el estante, tiene ${formatearPesos(suelto.saldo)}`,
+        textos.rolDelEstante,
+        textos.etiquetaDelEstante(suelto.nombre, formatearLaPlata(suelto.saldo)),
       ),
     });
     yDelEstante += ALTO.estante + ENTRE_ESTANTES;
@@ -992,7 +1008,14 @@ export function armarElPlano({
     });
   }
 
-  return { nodos: nodos.map(conMedidas), aristas };
+  return {
+    nodos: nodos.map(conMedidas),
+    aristas: aristas.map((arista) => ({
+      ...arista,
+      ariaLabel: textos.flecha,
+      domAttributes: { 'aria-hidden': true },
+    })),
+  };
 }
 
 export interface CentroDeLaFicha {

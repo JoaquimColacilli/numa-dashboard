@@ -14,6 +14,17 @@
   presupuesto vencido deja de pedir la seña, la obra viaja adentro del presupuesto antes de aprobar y «Para
   cuándo» cuenta el plazo del presupuesto) y al [0011](0011-dominio-cascada-estados-y-cobro.md) (el día en
   que se aceptó lo anota el trigger de los cambios de estado).
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): cada revisión guarda el idioma
+  con que se armó su contenido (`mandar_el_presupuesto` lo recibe y, si no viene, toma el de los clientes), y
+  el presupuesto en `/v/` y su PDF van en ese idioma, con `<Document language>`, la partición en sílabas de su
+  idioma y la leyenda de ARCA en castellano con su traducción debajo. La plantilla de siempre tiene una
+  versión por idioma, y `null` en `ajustes.plantilla_del_presupuesto` quiere decir la de siempre en el idioma
+  de los clientes.
+- Enmendado el 2026-10-02 por el [ADR 0083](0083-los-trabajos-en-dolares.md): un documento en dólares es
+  `forma: 2`, con su referencia en pesos (la cotización y su fecha, congeladas al mandar); la plantilla suma
+  las cláusulas de la moneda (cinco, editables) y la moneda del valor de una modificación, y el borrador la
+  cláusula retocable y la moneda de lo abonado. `mandar_el_presupuesto` compara la moneda con la del trabajo y
+  calcula lo abonado con lo que descuenta cada pago.
 
 ## Contexto
 

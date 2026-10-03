@@ -1,4 +1,4 @@
-import { calcularPorLaFila, centavos, filaDelMes, type Fila } from '@maun/domain';
+import { calcularPorLaFila, centavos, filaDelMes, plata, type Fila } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -33,6 +33,7 @@ import {
   saldosPorIdDeLaReplica,
   sistemaDeLaReplica,
   tesorosDeLaReplica,
+  totalesDelProyecto,
 } from './vistas.ts';
 
 const TRABAJO = {
@@ -111,6 +112,7 @@ const FIJOS = '00000000-0000-7000-8000-000000000010';
 const MATERIALES = '00000000-0000-7000-8000-000000000011';
 const BRUTOS = '00000000-0000-7000-8000-000000000012';
 const SUPERAVIT = '00000000-0000-7000-8000-000000000013';
+const DOLARES = '00000000-0000-7000-8000-000000000014';
 
 function tesoro(id: string, clave: string | null, nombre: string, extra: object = {}) {
   return {
@@ -306,10 +308,23 @@ describe('los tesoros de la réplica', () => {
       'Gastos fijos',
       'Materiales',
     ]);
-    expect(tesoros[3]).toMatchObject({ meta: 1_000_000_000, rindeAnualBp: 4000 });
-    expect(tesoros[4]).toMatchObject({ meta: 5000, archivado: true });
+    expect(tesoros[3]).toMatchObject({ meta: plata('ARS', 1_000_000_000), rindeAnualBp: 4000 });
+    expect(tesoros[4]).toMatchObject({ meta: plata('ARS', 5000), archivado: true });
     expect(tesoros[0]).toMatchObject({ meta: null, rindeAnualBp: null });
     expect(idDeLaClave(replica, 'maun')).toBe(MAUN);
+  });
+
+  it('cada tesoro dice su moneda, y uno replicado antes de la columna está en pesos', () => {
+    const tesoros = tesorosDeLaReplica(
+      replicaCon({
+        tesoros: [
+          ...LOS_DE_SIEMPRE,
+          tesoro(FIJOS, null, 'Dólares', { orden: 1, moneda: 'USD', meta_centavos: 250_000 }),
+        ],
+      }),
+    );
+    expect(tesoros.map((uno) => uno.moneda)).toEqual(['ARS', 'ARS', 'ARS', 'ARS', 'USD']);
+    expect(tesoros[4]?.meta).toEqual(plata('USD', 250_000));
   });
 
   it('sin tesoros replicados, cada clave es su propio id', () => {
@@ -351,6 +366,17 @@ describe('los tesoros de la réplica', () => {
       tesoros: LOS_DE_SIEMPRE,
     });
     expect(metasDeLaReplica(sinMetaDeCocos).size).toBe(0);
+  });
+
+  it('la meta de un tesoro en dólares no entra en las metas de la fila, que son en pesos', () => {
+    const replica = replicaCon({
+      ajustes: [{ ...AJUSTES, meta_cocos_centavos: 0 }],
+      tesoros: [
+        ...LOS_DE_SIEMPRE,
+        tesoro(MATERIALES, null, 'Dólares', { meta_centavos: 500_000, moneda: 'USD' }),
+      ],
+    });
+    expect(metasDeLaReplica(replica).size).toBe(0);
   });
 });
 
@@ -883,17 +909,18 @@ describe('los insumos de los trabajos', () => {
   });
 
   it('cada trabajo vivo sin cobrar ni perder tiene lo que entró, lo gastado y lo que queda', () => {
+    const conPesos = (proyectoId: string, entro: number, gastado: number) => ({
+      proyectoId,
+      entro,
+      gastado,
+      queda: entro - gastado,
+      enDolares: [],
+    });
     expect(insumosPorTrabajo(replica)).toEqual(
       new Map([
-        ['consulta', { proyectoId: 'consulta', entro: 0, gastado: 0, queda: 0 }],
-        [
-          'curso',
-          { proyectoId: 'curso', entro: 100_000_000, gastado: 40_000_000, queda: 60_000_000 },
-        ],
-        [
-          'pasado',
-          { proyectoId: 'pasado', entro: 5_000_000, gastado: 8_000_000, queda: -3_000_000 },
-        ],
+        ['consulta', conPesos('consulta', 0, 0)],
+        ['curso', conPesos('curso', 100_000_000, 40_000_000)],
+        ['pasado', conPesos('pasado', 5_000_000, 8_000_000)],
       ]),
     );
     expect(insumosDelTrabajo(replica, 'curso')?.queda).toBe(60_000_000);
@@ -906,6 +933,110 @@ describe('los insumos de los trabajos', () => {
     expect(trabajos.map((uno) => uno.proyectoId)).toEqual(['curso', 'pasado']);
     expect(total).toBe(57_000_000);
     expect(insumosDelTaller(replicaVacia('u'))).toEqual({ total: 0, trabajos: [] });
+  });
+
+  it('solo cuentan lo que entró a Maun: un pago en dólares queda aparte, en su tesoro', () => {
+    const conDolares = replicaCon({
+      proyectos: [trabajo('dolares', 'en_curso')],
+      pagos: [
+        pago('d1', 'dolares', 50_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 145_000,
+          tesoro_id: DOLARES,
+        }),
+        pago('d2', 'dolares', 1_000_000),
+        pago('d3', 'dolares', 20_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 150_000,
+          tesoro_id: DOLARES,
+        }),
+      ],
+      gastos: [gasto('g4', 'dolares', 3_500_000)],
+    });
+    expect(insumosDelTrabajo(conDolares, 'dolares')).toEqual({
+      proyectoId: 'dolares',
+      entro: 1_000_000,
+      gastado: 3_500_000,
+      queda: -2_500_000,
+      enDolares: [{ tesoroId: DOLARES, monto: 70_000 }],
+    });
+  });
+});
+
+describe('los totales de un trabajo', () => {
+  const enDolares = (id: string): FilaDe<'proyectos'> => ({
+    ...trabajo(id, 'en_curso'),
+    moneda: 'USD',
+  });
+
+  it('en pesos y cobrando en pesos son los de siempre, con todo en Maun', () => {
+    const replica = replicaCon({
+      proyectos: [trabajo('p', 'en_curso')],
+      pagos: [pago('a', 'p', 30_000_000), pago('b', 'p', 12_000_000)],
+      gastos: [gasto('g', 'p', 5_000_000)],
+    });
+    expect(totalesDelProyecto(replica, 'p')).toEqual({
+      cobradoEnSuMoneda: { importe: 42_000_000, moneda: 'ARS' },
+      cobradoEnPesos: 42_000_000,
+      enMaun: 42_000_000,
+      enDolares: [],
+      gastos: 5_000_000,
+    });
+  });
+
+  it('en dólares, lo cobrado va en dólares y en pesos a la vez, sin sumar una moneda con la otra', () => {
+    const replica = replicaCon({
+      proyectos: [enDolares('d')],
+      pagos: [
+        pago('visita', 'd', 12_000_000, { cotizacion_centavos: 145_000 }),
+        pago('sena', 'd', 100_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 154_000,
+          tesoro_id: DOLARES,
+        }),
+      ],
+    });
+    expect(totalesDelProyecto(replica, 'd')).toEqual({
+      cobradoEnSuMoneda: { importe: 108_276, moneda: 'USD' },
+      cobradoEnPesos: 166_000_000,
+      enMaun: 12_000_000,
+      enDolares: [{ tesoroId: DOLARES, monto: 100_000 }],
+      gastos: 0,
+    });
+  });
+
+  it('en pesos, un pago en dólares descuenta pesos a su cotización', () => {
+    const replica = replicaCon({
+      proyectos: [trabajo('p', 'en_curso')],
+      pagos: [
+        pago('usd', 'p', 100_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 154_000,
+          tesoro_id: DOLARES,
+        }),
+      ],
+    });
+    expect(totalesDelProyecto(replica, 'p')).toMatchObject({
+      cobradoEnSuMoneda: { importe: 154_000_000, moneda: 'ARS' },
+      cobradoEnPesos: 154_000_000,
+      enMaun: 0,
+    });
+  });
+
+  it('un pago que no se puede convertir porque le falta su dólar no suma, en vez de romper la pantalla', () => {
+    const replica = replicaCon({
+      proyectos: [enDolares('d')],
+      pagos: [pago('sin', 'd', 12_000_000)],
+    });
+    expect(totalesDelProyecto(replica, 'd')).toMatchObject({
+      cobradoEnSuMoneda: { importe: 0, moneda: 'USD' },
+      cobradoEnPesos: 12_000_000,
+      enMaun: 12_000_000,
+    });
+    expect(totalesDelProyecto(replica, 'no-existe').cobradoEnSuMoneda).toEqual({
+      importe: 0,
+      moneda: 'ARS',
+    });
   });
 });
 

@@ -118,6 +118,62 @@ afterEach(() => {
 });
 
 describe('la hoja de un tesoro nuevo', () => {
+  it('pregunta la moneda: en dólares va solo al estante y la meta se escribe en dólares', () => {
+    const { encoladas, alCrear } = montar({ fila: FILA, lugarInicial: 'reparto' });
+    const moneda = screen.getByRole('radiogroup', { name: '¿En qué moneda?' });
+    expect(within(moneda).getByRole('radio', { name: 'Pesos' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(
+      screen.getByText(
+        'La moneda no se cambia después. Un tesoro en dólares va al estante: la fila reparte pesos.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^En el reparto/ })).toBeChecked();
+
+    fireEvent.click(within(moneda).getByRole('radio', { name: 'Dólares' }));
+    const lugares = screen.getByRole('group', { name: 'Dónde va' });
+    expect(
+      within(lugares)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.closest('label')?.textContent),
+    ).toEqual(['Al estanteLa fila reparte pesos: un tesoro en dólares queda en el estante.']);
+    expect(within(lugares).getByRole('radio')).toBeChecked();
+    expect(screen.getByRole('textbox', { name: 'Meta' })).toHaveAttribute('placeholder', 'US$ 0');
+    expect(screen.getByRole('radio', { name: 'Billetes' })).toBeChecked();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), {
+      target: { value: 'Dólares' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
+    expect(encoladas()[0]?.variables).toMatchObject({
+      nombre: 'Dólares',
+      moneda: 'USD',
+      icono: 'banknote',
+    });
+    expect(alCrear).toHaveBeenCalledWith(
+      expect.objectContaining({ moneda: 'USD' }),
+      { lugar: 'estante' },
+      undefined,
+    );
+  });
+
+  it('en pesos sigue como siempre y lo manda en pesos', () => {
+    const { encoladas } = montar();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), {
+      target: { value: 'Vacaciones' },
+    });
+    expect(screen.getByRole('textbox', { name: 'Meta' })).not.toHaveAttribute('placeholder');
+    expect(screen.getByRole('radio', { name: 'Caja fuerte' })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));
+    expect(encoladas()[0]?.variables).toMatchObject({
+      nombre: 'Vacaciones',
+      moneda: 'ARS',
+      icono: 'vault',
+    });
+  });
+
   it('sin nombre no crea nada y lo dice en el campo', () => {
     const { encoladas, alCrear } = montar();
     fireEvent.click(screen.getByRole('button', { name: 'Crear el tesoro' }));

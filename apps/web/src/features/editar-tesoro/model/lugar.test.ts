@@ -48,6 +48,19 @@ const FILA: Fila = {
 
 const PIDE: LoQueSePide = { monto: null, porcentaje: '', base: 'ingreso', antesDelDiezmo: false };
 
+describe('dónde va un tesoro nuevo en dólares', () => {
+  it('solo al estante, y dice por qué', () => {
+    expect(opcionesDeLugar(FILA, 'Maun', 'USD')).toEqual([
+      {
+        id: 'estante',
+        titulo: 'Al estante',
+        detalle: 'La fila reparte pesos: un tesoro en dólares queda en el estante.',
+        sePuede: true,
+      },
+    ]);
+  });
+});
+
 describe('dónde va un tesoro nuevo', () => {
   it('ofrece el estante y los cinco lugares de la fila, cada uno con lo que es', () => {
     const opciones = opcionesDeLugar(FILA, 'Maun');

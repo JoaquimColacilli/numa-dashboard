@@ -12,6 +12,7 @@ import {
   cambiosDeLaFila,
   columnasDeSiempre,
   conDesde,
+  esDeLaMonedaDelTaller,
   esDiaDePago,
   filaDelMes,
   filaDeSiempre,
@@ -1383,6 +1384,46 @@ describe('lo que no se puede guardar', () => {
       tesoro: DESCONOCIDO,
     });
     expect(primero({ superavit: ARCHIVADO })?.problema).toBe('tesoro-archivado');
+  });
+
+  it('un tesoro en otra moneda no entra a la fila: la fila reparte pesos', () => {
+    const DOLARES = '00000000-0000-7000-8000-000000000017';
+    const conDolares: TesoroDeLaFila[] = [
+      ...TESOROS,
+      { id: DOLARES, clave: null, archivado: false, meta: $(1_000), moneda: 'USD' },
+    ];
+    const primeroConDolares = (cambios: Partial<Fila>) =>
+      problemasDeLaFila(filaCon(cambios), conDolares)[0];
+    expect(primeroConDolares({ pasos: [prioridad(DOLARES, $(1))] })).toEqual({
+      problema: 'tesoro-en-otra-moneda',
+      tesoro: DOLARES,
+    });
+    expect(primeroConDolares({ reparto: [parte(DOLARES, 1)] })?.problema).toBe(
+      'tesoro-en-otra-moneda',
+    );
+    expect(
+      primeroConDolares({ obligaciones: [DEL_DIEZMO, { ...INGRESOS_BRUTOS, tesoro: DOLARES }] })
+        ?.problema,
+    ).toBe('tesoro-en-otra-moneda');
+    expect(primeroConDolares({ superavit: DOLARES })?.problema).toBe('tesoro-en-otra-moneda');
+    expect(primerProblemaDeLaFila(filaCon({ superavit: DOLARES }), conDolares)).toBe(
+      'tesoro-en-otra-moneda',
+    );
+  });
+
+  it('el archivado va antes que la moneda, y un tesoro sin moneda es de la moneda del taller', () => {
+    const conDolaresArchivado: TesoroDeLaFila[] = [
+      ...TESOROS.filter(({ id }) => id !== ARCHIVADO),
+      { id: ARCHIVADO, clave: null, archivado: true, meta: null, moneda: 'USD' },
+      { id: MATERIALES, clave: null, archivado: false, meta: null, moneda: 'ARS' },
+    ];
+    expect(
+      problemasDeLaFila(filaCon({ pasos: [prioridad(ARCHIVADO, $(1))] }), conDolaresArchivado)[0]
+        ?.problema,
+    ).toBe('tesoro-archivado');
+    expect(esDeLaMonedaDelTaller({})).toBe(true);
+    expect(esDeLaMonedaDelTaller({ moneda: 'ARS' })).toBe(true);
+    expect(esDeLaMonedaDelTaller({ moneda: 'USD' })).toBe(false);
   });
 
   it('las obligaciones: el diezmo va entre ellas, sin Hogar ni Maun, y cada una con su porcentaje', () => {

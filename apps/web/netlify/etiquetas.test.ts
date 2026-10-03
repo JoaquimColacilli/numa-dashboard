@@ -1,20 +1,26 @@
+import { ETIQUETAS_DE_IDIOMA, IDIOMAS, idiomaDeLaEtiqueta } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import FUENTE from '../index.html?raw';
 import {
   claseDelEnlace,
+  conElIdiomaDelTaller,
   conLasEtiquetas,
   DESCRIPCION_DE_LA_ENCUESTA,
   DESCRIPCION_DE_LA_VISTA,
   escapar,
+  ETIQUETA_DEL_IDIOMA,
   etiquetasGenericas,
   ICONO_DEL_TALLER_EN_LUGAR_DE,
   ICONOS_DEL_TALLER,
+  idiomaDelEnlace,
+  TEXTOS_DEL_ENLACE,
   tituloDeLaEncuesta,
   tituloDeLaVista,
   tokenDeLaRuta,
   TITULO_GENERICO,
   type EtiquetasDeLaVista,
+  type IdiomaDelEnlace,
 } from './etiquetas';
 
 const URL_DE_LA_VISTA = 'https://numa-dashboard.netlify.app/v/tZEFrYutatg5xhw1mcrUKIAFXk';
@@ -237,6 +243,97 @@ describe('el arranque del documento, cuando la función de borde no corre', () =
       ICONOS_DEL_TALLER.map((icono) => icono.href).sort(),
     );
     expect(FUENTE).toContain("icono.setAttribute('sizes', '48x48')");
+  });
+});
+
+async function laSeccionDelCliente(idioma: IdiomaDelEnlace): Promise<unknown> {
+  const modulo: unknown = await import(`../src/shared/idioma-del-cliente/${idioma}/enlace.ts`);
+  return typeof modulo === 'object' && modulo !== null ? Reflect.get(modulo, 'enlace') : null;
+}
+
+describe('los textos del enlace, en el idioma de los clientes del taller', () => {
+  it('son los de la sección del enlace que leen los clientes, en los tres idiomas', async () => {
+    for (const idioma of IDIOMAS) {
+      const textos = TEXTOS_DEL_ENLACE[idioma];
+      const seccion = await laSeccionDelCliente(idioma);
+      expect(seccion, idioma).toMatchObject({
+        descripcionDeLaVista: textos.descripcionDeLaVista,
+        descripcionDeLaEncuesta: textos.descripcionDeLaEncuesta,
+        unaEncuestaDelTaller: textos.unaEncuestaDelTaller,
+      });
+      const encuestaDe: unknown =
+        typeof seccion === 'object' && seccion !== null ? Reflect.get(seccion, 'encuestaDe') : null;
+      if (typeof encuestaDe !== 'function') throw new Error(`Falta encuestaDe en ${idioma}.`);
+      const titulo: unknown = Reflect.apply(encuestaDe, undefined, ['MAUN Muebles']);
+      expect(titulo, idioma).toBe(textos.encuestaDe('MAUN Muebles'));
+    }
+  });
+
+  it('la etiqueta de cada idioma es la de la app', () => {
+    expect(ETIQUETA_DEL_IDIOMA).toEqual(ETIQUETAS_DE_IDIOMA);
+  });
+
+  it('lo que no es uno de los tres idiomas se lee como castellano', () => {
+    for (const idioma of IDIOMAS) expect(idiomaDelEnlace(idioma)).toBe(idioma);
+    expect(idiomaDelEnlace('fr')).toBe('es');
+    expect(idiomaDelEnlace('pt')).toBe('es');
+    expect(idiomaDelEnlace(null)).toBe('es');
+    expect(idiomaDelEnlace(undefined)).toBe('es');
+  });
+
+  it('el título de la encuesta y las genéricas salen en inglés y en portugués', () => {
+    const URL_DE_LA_ENCUESTA = 'https://numa-dashboard.netlify.app/o/tZEFrYutatg5xhw1mcrUKIAFXk';
+    expect(tituloDeLaEncuesta('MAUN Muebles', 'en')).toBe('Survey from MAUN Muebles');
+    expect(tituloDeLaEncuesta('  ', 'en')).toBe('A survey from the shop');
+    expect(tituloDeLaEncuesta('MAUN Muebles', 'pt-BR')).toBe(
+      'Pesquisa de satisfação de MAUN Muebles',
+    );
+    expect(tituloDeLaEncuesta('', 'pt-BR')).toBe('Uma pesquisa de satisfação da marcenaria');
+    expect(etiquetasGenericas(URL_DE_LA_VISTA, IMAGEN, 'vista', 'en')).toEqual({
+      titulo: TITULO_GENERICO,
+      descripcion: TEXTOS_DEL_ENLACE.en.descripcionDeLaVista,
+      url: URL_DE_LA_VISTA,
+      imagen: IMAGEN,
+    });
+    expect(etiquetasGenericas(URL_DE_LA_ENCUESTA, IMAGEN, 'encuesta', 'pt-BR')).toEqual({
+      titulo: TITULO_GENERICO,
+      descripcion: TEXTOS_DEL_ENLACE['pt-BR'].descripcionDeLaEncuesta,
+      url: URL_DE_LA_ENCUESTA,
+      imagen: IMAGEN,
+    });
+  });
+
+  it('una descripción con apóstrofos sale escapada y entera', () => {
+    const reescrito = conLasEtiquetas(
+      HTML,
+      etiquetas({ descripcion: TEXTOS_DEL_ENLACE.en.descripcionDeLaVista }),
+    );
+    expect(contenido(reescrito, 'og:description')).toBe(
+      escapar(TEXTOS_DEL_ENLACE.en.descripcionDeLaVista),
+    );
+  });
+
+  it('el html dice el idioma del taller, con la marca que lee la app al arrancar', () => {
+    const enPortugues = conElIdiomaDelTaller(HTML, 'pt-BR');
+    expect(enPortugues).toContain(
+      '<html lang="pt-BR" data-idioma-del-taller="pt-BR" data-theme="system">',
+    );
+    expect(enPortugues.match(/<html[^>]*\slang=/g)).toHaveLength(1);
+    expect(idiomaDeLaEtiqueta(/<html lang="([^"]*)"/.exec(enPortugues)?.[1] ?? '')).toBe('pt-BR');
+    expect(enPortugues.replace(/<html[^>]*>/, '')).toBe(HTML.replace(/<html[^>]*>/, ''));
+  });
+
+  it('marcarlo de nuevo no duplica nada: queda el último idioma', () => {
+    const dosVeces = conElIdiomaDelTaller(conElIdiomaDelTaller(HTML, 'en'), 'es');
+    expect(/<html[^>]*>/.exec(dosVeces)?.[0]).toBe(
+      '<html lang="es-AR" data-idioma-del-taller="es" data-theme="system">',
+    );
+  });
+
+  it('un html sin la etiqueta html queda como vino', () => {
+    expect(conElIdiomaDelTaller('<head></head><body>hola</body>', 'en')).toBe(
+      '<head></head><body>hola</body>',
+    );
   });
 });
 

@@ -1,0 +1,43 @@
+import type { Mensajes } from '../es';
+
+export const registrarMovimiento = {
+  editar: 'Edit transaction',
+  cargar: 'Add a transaction',
+  tipo: 'Type',
+  detalleDelTipo: 'Type details',
+  cubreElMes: (mes) =>
+    `Covers what was missing for ${mes}'s fixed costs, so it stays a transfer between buckets.`,
+  saleDe: 'From',
+  entraA: 'To',
+  cuantaPlata: 'Amount',
+  categoria: 'Category',
+  queFue: 'What it was',
+  cuando: 'When',
+  hoy: 'Today',
+  ayer: 'Yesterday',
+  otraFecha: 'Another date',
+  faltanLosLados: 'Choose which bucket the money comes out of and which one it goes into.',
+  faltaElTesoro: 'Choose which bucket the money comes out of.',
+  faltaElMonto: 'Enter the amount, for example 12,500.',
+  seVaABorrar: (monto) =>
+    `This ${monto} transaction will be deleted and the balances will be recalculated without it.`,
+  borrarlo: 'Delete it',
+  dejarlo: 'Keep it',
+  quedaEnLaCola: "It's queued and will sync when you're back online.",
+  borrar: 'Delete',
+  guardarLosCambios: 'Save changes',
+  cargarElMovimiento: 'Add transaction',
+  cambio: {
+    salenDe: 'From',
+    entranA: 'To',
+    pagaste: 'You paid',
+    vendiste: 'You sold',
+    recibiste: 'You got',
+    queDolar: 'Which rate',
+    teQuedoA: (cotizacion) => `You paid ${cotizacion} per dollar.`,
+    teLoPagaronA: (cotizacion) => `You got ${cotizacion} per dollar.`,
+    faltaLoQuePagaste: 'Enter how much you paid.',
+    faltaLoQueVendiste: 'Enter how much you sold.',
+    faltaLoQueRecibiste: 'Enter how much you got.',
+  },
+} satisfies Mensajes['registrarMovimiento'];

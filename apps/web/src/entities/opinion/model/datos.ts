@@ -23,6 +23,7 @@ import {
 } from '@maun/domain';
 
 import { filaPorId, filasDe, type FilaDe, type Replica } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { diaLocal } from '@/shared/lib';
 
 export type FilaDePregunta = FilaDe<'preguntas'>;
@@ -153,7 +154,7 @@ export function datosDeLasOpiniones(replica: Replica): DatosDeLasOpiniones {
 }
 
 export function resumenDelTaller(replica: Replica, hoy: string): ResumenDeOpiniones {
-  return resumenDeOpiniones(datosDeLasOpiniones(replica), hoy);
+  return resumenDeOpiniones(datosDeLasOpiniones(replica), hoy, mensajes().opinion.escalas);
 }
 
 export interface UltimaSinLeer {
@@ -218,6 +219,7 @@ export function fichaDeLaRespuesta(
   const lineas = lineasDeLaRespuesta(
     fotoDeLaEncuesta(encuesta),
     renglonesPorRespuesta(replica).get(respuesta.id) ?? [],
+    mensajes().opinion.escalas,
   );
   const titular = lineas.find(
     (linea) => filaPorId(replica, 'preguntas', linea.pregunta.id)?.titular === true,

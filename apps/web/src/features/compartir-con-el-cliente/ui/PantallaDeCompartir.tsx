@@ -10,9 +10,11 @@ import {
   vecesQueLoAbrio,
 } from '@/entities/enlace';
 import { rutaDelProyecto, type ResumenDeProyecto } from '@/entities/proyecto';
-import { useReplicaDelTaller } from '@/entities/replica';
+import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
 import { ajustesDe, filasDe, householdDe, mensajeDeSincronizacion } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
+import { useMensajesDelClienteEn } from '@/shared/idioma-del-cliente';
 import {
   fechaLarga,
   hashDelToken,
@@ -54,10 +56,12 @@ export interface PantallaDeCompartirProps {
 const COPIADO_MS = 2_200;
 
 export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
+  const t = useMensajes().compartirConElCliente;
   const replica = useReplicaDelTaller();
+  const delCliente = useMensajesDelClienteEn(idiomaDeLosClientes(replica));
   const ir = useIr();
   const { proyecto, cliente } = resumen;
-  const vuelta = useVolver(rutaDelProyecto(proyecto.id), 'Volver al trabajo', { fija: true });
+  const vuelta = useVolver(rutaDelProyecto(proyecto.id), t.volverAlTrabajo, { fija: true });
   const hoy = hoyLocal();
   const sync = useEstadoSync();
   const sinSenal = sync.tipo === 'sin-conexion';
@@ -160,7 +164,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
       }}
     >
       <Icono nombre="eye" tamano={18} />
-      Ver cómo lo ve él
+      {t.verComoLoVeEl}
     </Button>
   );
 
@@ -176,17 +180,11 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
       </Ir>
 
       <header className="flex flex-col gap-1.5">
-        <span className="text-label text-text-2">
+        <span translate="no" className="text-label text-text-2">
           {resumen.nombreDelCliente} · {proyecto.titulo}
         </span>
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">
-          Compartir con el cliente
-        </h1>
-        <p className="mt-0.5 max-w-[520px] text-body leading-relaxed text-text-2">
-          Ve el precio, lo que pagó, lo que falta, cómo pagarte y en qué anda el mueble. No ve tus
-          costos, tu ganancia, el diezmo ni el despiece. El código QR abre el mismo enlace: quien lo
-          escanea ve exactamente lo mismo, y darlo de baja apaga los dos.
-        </p>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{t.titulo}</h1>
+        <p className="mt-0.5 max-w-[520px] text-body leading-relaxed text-text-2">{t.queVe}</p>
         <div className="mt-1.5">
           <AyudaDeLaVista conTexto />
         </div>
@@ -201,15 +199,13 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
               <section className="flex flex-col gap-3.5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
                 <span className="flex items-center gap-2.5 text-body-lg font-semibold">
                   <Icono nombre="link-2" tamano={20} />
-                  Todavía no compartiste este trabajo
+                  {t.sinEnlace.titulo}
                 </span>
                 <p className="max-w-[520px] text-body leading-relaxed text-text-2">
-                  Se crea un enlace propio de este trabajo. Quien lo tenga puede abrirlo sin cuenta
-                  ni contraseña, así que pasáselo solo a tu cliente. Lo podés dar de baja cuando
-                  quieras.
+                  {t.sinEnlace.texto}
                 </p>
                 <FilaDeAcciones>
-                  {botonDeCrear('Crear el enlace')}
+                  {botonDeCrear(t.sinEnlace.crear)}
                   {botonDeLaVista}
                 </FilaDeAcciones>
               </section>
@@ -219,14 +215,13 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
               <section className="flex flex-col gap-3.5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
                 <span className="flex items-center gap-2.5 text-body-lg font-semibold">
                   <Icono nombre="link-2-off" tamano={20} />
-                  El enlace está dado de baja
+                  {t.deBaja.titulo}
                 </span>
                 <p className="max-w-[520px] text-body leading-relaxed text-text-2">
-                  Si tu cliente lo abre, ve un aviso de que no funciona más y nada del trabajo.
-                  Podés crear uno nuevo cuando quieras; el anterior no vuelve.
+                  {t.deBaja.texto}
                 </p>
                 <FilaDeAcciones>
-                  {botonDeCrear('Crear un enlace nuevo')}
+                  {botonDeCrear(t.deBaja.crear)}
                   {botonDeLaVista}
                 </FilaDeAcciones>
               </section>
@@ -234,21 +229,24 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
 
             {activo !== undefined && (
               <section
-                aria-label="El enlace"
+                aria-label={t.activo.elEnlace}
                 className="flex flex-col gap-3 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
               >
                 <div className="flex flex-wrap items-center gap-2.5 text-body">
                   <span aria-hidden className="size-2 flex-none rounded-pill bg-hogar" />
-                  <span className="font-semibold">Enlace activo</span>
+                  <span className="font-semibold">{t.activo.enlaceActivo}</span>
                   <span className="text-text-2">
-                    creado el {fechaLarga(activo.created_at.slice(0, 10), hoy)} · no vence
+                    {t.activo.creadoEl(fechaLarga(activo.created_at.slice(0, 10), hoy))}
                   </span>
                 </div>
 
                 {vista.como === 'activo' ? (
                   <>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="h-12 min-w-[200px] flex-1 truncate rounded-field border border-border bg-surface px-3 font-mono text-label leading-12 @min-[52rem]/apoyo:h-auto @min-[52rem]/apoyo:basis-full @min-[52rem]/apoyo:py-2.5 @min-[52rem]/apoyo:leading-normal @min-[52rem]/apoyo:break-all @min-[52rem]/apoyo:whitespace-normal">
+                      <span
+                        translate="no"
+                        className="h-12 min-w-[200px] flex-1 truncate rounded-field border border-border bg-surface px-3 font-mono text-label leading-12 @min-[52rem]/apoyo:h-auto @min-[52rem]/apoyo:basis-full @min-[52rem]/apoyo:py-2.5 @min-[52rem]/apoyo:leading-normal @min-[52rem]/apoyo:break-all @min-[52rem]/apoyo:whitespace-normal"
+                      >
                         {vista.url}
                       </span>
                       <Button
@@ -262,34 +260,39 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                         ) : (
                           <Icono nombre="copy" tamano={18} />
                         )}
-                        {copiado ? 'Copiado' : 'Copiar'}
+                        {copiado ? t.activo.copiado : t.activo.copiar}
                       </Button>
                     </div>
 
                     <p className="flex flex-wrap items-baseline gap-x-2 text-label leading-normal text-text-3">
-                      <span>En WhatsApp va a decir:</span>
-                      <span className="font-semibold text-text-2">
+                      <span>{t.activo.enWhatsappVaADecir}</span>
+                      <span translate="no" className="font-semibold text-text-2">
                         {comoSeVeEnWhatsapp(proyecto.titulo, household?.nombre ?? '')}
                       </span>
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 @min-[52rem]/apoyo:flex-col @min-[52rem]/apoyo:items-stretch @min-[52rem]/apoyo:gap-3">
                       <a
-                        href={whatsappCon(
-                          cliente?.telefono ?? '',
-                          mensajeParaElCliente(
-                            resumen.nombreDelCliente,
-                            proyecto.titulo,
-                            vista.url,
-                            hayPagoPendiente,
-                          ),
-                        )}
+                        href={
+                          delCliente === undefined
+                            ? undefined
+                            : whatsappCon(
+                                cliente?.telefono ?? '',
+                                mensajeParaElCliente(
+                                  delCliente.whatsapp,
+                                  resumen.nombreDelCliente,
+                                  proyecto.titulo,
+                                  vista.url,
+                                  hayPagoPendiente,
+                                ),
+                              )
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex min-h-tap w-fit items-center gap-2 rounded-pill border border-border px-3 text-label font-medium hover:bg-surface @min-[52rem]/apoyo:w-full @min-[52rem]/apoyo:justify-center @min-[52rem]/apoyo:text-body"
                       >
                         <Icono nombre="message-circle" tamano={16} />
-                        Mandárselo por WhatsApp
+                        {t.activo.mandarseloPorWhatsapp}
                       </a>
                       <BotonDelQr
                         proyectoId={proyecto.id}
@@ -307,19 +310,17 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                         }}
                       >
                         <Icono nombre="link-2-off" tamano={18} />
-                        Dar de baja
+                        {t.activo.darDeBaja}
                       </Button>
                     </FilaDeAcciones>
                   </>
                 ) : (
                   <>
                     <p className="max-w-[520px] text-body leading-relaxed text-text-2">
-                      Este enlace se creó antes de que la dirección se guardara en tu taller, y la
-                      dirección quedó solo en la app de antes. El que tiene tu cliente ya no anda:
-                      creá uno nuevo y mandáselo.
+                      {t.activo.sinLaDireccion}
                     </p>
                     <FilaDeAcciones>
-                      {botonDeCrear('Crear uno nuevo')}
+                      {botonDeCrear(t.activo.crearUnoNuevo)}
                       {botonDeLaVista}
                       <Button
                         variant="secundario"
@@ -328,7 +329,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                         }}
                       >
                         <Icono nombre="link-2-off" tamano={18} />
-                        Dar de baja
+                        {t.activo.darDeBaja}
                       </Button>
                     </FilaDeAcciones>
                   </>
@@ -339,16 +340,18 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                     className={`text-label leading-normal ${vistos.ninguno ? 'font-medium text-alerta' : 'text-text-3'}`}
                   >
                     {vistos.ninguno
-                      ? `Con este enlace el cliente ve 0 de ${String(vistos.total)} archivos: elegí abajo cuáles le mostrás.`
-                      : `Con este enlace el cliente ve ${String(vistos.compartidos)} de ${String(vistos.total)} archivos.`}
+                      ? t.activo.noVeNingunArchivo(vistos.total)
+                      : t.activo.archivosQueVe(vistos.compartidos, vistos.total)}
                   </p>
                 )}
 
                 <p className="text-label leading-normal text-text-3">
-                  {vecesQueLoAbrio(activo)}
                   {activo.ultima_visita_at === null
-                    ? '.'
-                    : `. La última vez, el ${fechaLarga(activo.ultima_visita_at.slice(0, 10), hoy)}.`}
+                    ? t.activo.visitas(vecesQueLoAbrio(activo))
+                    : t.activo.visitasYLaUltima(
+                        vecesQueLoAbrio(activo),
+                        fechaLarga(activo.ultima_visita_at.slice(0, 10), hoy),
+                      )}
                 </p>
               </section>
             )}
@@ -356,7 +359,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
             {sinSenal && vista.como !== 'activo' && (
               <p className="mt-2 flex items-center gap-2 text-label font-medium text-text-2">
                 <Icono nombre="cloud-off" tamano={16} />
-                Para crear el enlace necesitás señal: se guarda en el momento y recién ahí funciona.
+                {t.sinSenal}
               </p>
             )}
 
@@ -372,7 +375,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
             <ConSalida valor={preguntandoLaBaja}>
               {() => (
                 <Hoja
-                  titulo="¿Damos de baja el enlace?"
+                  titulo={t.baja.titulo}
                   rol="alertdialog"
                   ancho="angosto"
                   alCerrar={() => {
@@ -380,10 +383,7 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                   }}
                 >
                   <div className="flex flex-col gap-3.5 px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
-                    <p className="text-label leading-relaxed text-text-2">
-                      Tu cliente va a dejar de ver el trabajo desde el enlace que le pasaste. Si
-                      después lo necesitás, creás uno nuevo.
-                    </p>
+                    <p className="text-label leading-relaxed text-text-2">{t.baja.texto}</p>
                     <FilaDeAcciones>
                       <Button
                         variant="secundario"
@@ -391,10 +391,10 @@ export function PantallaDeCompartir({ resumen }: PantallaDeCompartirProps) {
                           setPreguntandoLaBaja(false);
                         }}
                       >
-                        Dejarlo como está
+                        {t.baja.dejarloComoEsta}
                       </Button>
                       <Button variant="peligro" onClick={darLoDeBaja}>
-                        Darlo de baja
+                        {t.baja.darloDeBaja}
                       </Button>
                     </FilaDeAcciones>
                   </div>

@@ -1,3 +1,4 @@
+import { mensajes } from '@/shared/idioma';
 import { criterioPorId, ordenar, type Criterio } from '@/shared/lib';
 
 import { ORIGEN, ORIGENES_EN_ORDEN, type DatosDelOrigen } from './catalogos';
@@ -8,24 +9,31 @@ export type Orden = 'nombre' | 'ultimo' | 'facturado';
 export const ORDENES: readonly (Criterio<ResumenDeCliente> & { id: Orden })[] = [
   {
     id: 'nombre',
-    etiqueta: 'Nombre',
+    get etiqueta() {
+      return mensajes().cliente.ordenes.nombre;
+    },
     tipo: 'texto',
     leer: (resumen) => resumen.cliente.nombre,
     inicial: 'asc',
   },
   {
     id: 'ultimo',
-    etiqueta: 'Último trabajo',
+    get etiqueta() {
+      return mensajes().cliente.ordenes.ultimo;
+    },
     tipo: 'fecha',
     leer: (resumen) => resumen.fechaDelUltimo,
     inicial: 'desc',
   },
   {
     id: 'facturado',
-    etiqueta: 'Total facturado',
+    get etiqueta() {
+      return mensajes().cliente.ordenes.facturado;
+    },
     tipo: 'numero',
-    leer: (resumen) => resumen.facturado,
+    leer: (resumen) => resumen.facturado[0]?.importe,
     inicial: 'desc',
+    grupo: (resumen) => (resumen.facturado[0]?.moneda === 'USD' ? 1 : 0),
   },
 ];
 

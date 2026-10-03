@@ -8,7 +8,10 @@ import {
   type Replica,
   type Tesoro,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
+  etiquetaActual,
+  mesEnUnaFrase,
   nombreDelMes,
   TESORO,
   TESOROS_EN_ORDEN,
@@ -34,12 +37,6 @@ export interface CorteDelMes {
   partes: readonly ParteDelCorte[];
   gastos: Money;
 }
-
-const A_DONDE_VA: Readonly<Partial<Record<Tesoro, string>>> = {
-  hogar: 'al hogar',
-  maun: 'al taller',
-  diezmo: 'al diezmo',
-};
 
 interface DatosDeLaParte {
   clave: Tesoro | null;
@@ -70,7 +67,12 @@ function datosDeLasPartes(replica: Replica): (id: string) => DatosDeLaParte {
         lugar: TESOROS_EN_ORDEN.indexOf(clave),
       };
     }
-    return { clave: null, nombre: 'Tesoro', tinta: 'maun', lugar: Number.MAX_SAFE_INTEGER };
+    return {
+      clave: null,
+      nombre: mensajes().proyecto.tesoroSinNombre,
+      tinta: 'maun',
+      lugar: Number.MAX_SAFE_INTEGER,
+    };
   };
 }
 
@@ -133,7 +135,12 @@ export function piezasDelCorte(corte: CorteDelMes): PiezaDelTablero[] {
       nombre: parte.nombre,
       monto: parte.monto,
     })),
-    { id: 'gastos', tono: 'sobrante', nombre: 'Gastos', monto: corte.gastos },
+    {
+      id: 'gastos',
+      tono: 'sobrante',
+      nombre: mensajes().proyecto.corte.gastos,
+      monto: corte.gastos,
+    },
   ];
 
   return piezas
@@ -144,41 +151,39 @@ export function piezasDelCorte(corte: CorteDelMes): PiezaDelTablero[] {
     });
 }
 
-function enLista(partes: readonly string[]): string {
-  const ultima = partes.at(-1) ?? '';
-  if (partes.length < 2) return ultima;
-  return `${partes.slice(0, -1).join(', ')} y ${ultima}`;
-}
-
 function parteDelTablero(monto: Money, tablero: Money): string {
   const texto = porcentaje(monto / tablero);
-  return texto === '0%' ? 'menos del 1%' : texto;
+  return texto === '0%' ? mensajes().proyecto.corte.menosDelUno : texto;
 }
 
-function aDondeVa(parte: ParteDelCorte): string {
-  return (parte.clave === null ? undefined : A_DONDE_VA[parte.clave]) ?? `a ${parte.nombre}`;
+function aDondeVa(parte: ParteDelCorte, cuanto: string): string {
+  const textos = mensajes().proyecto.corte;
+  switch (parte.clave) {
+    case 'hogar':
+      return textos.alHogar(cuanto);
+    case 'maun':
+      return textos.alTaller(cuanto);
+    case 'diezmo':
+      return textos.alDiezmo(cuanto);
+    default:
+      return textos.aOtroTesoro(cuanto, parte.nombre);
+  }
 }
 
 export function fraseDelCorte(corte: CorteDelMes | null, mes: string): string {
-  const nombre = nombreDelMes(mes);
-  if (corte === null) {
-    return `${nombre} todavía no se cortó. Cuando cierres un trabajo, acá vas a ver a dónde va cada peso.`;
-  }
+  const textos = mensajes().proyecto.corte;
+  if (corte === null) return textos.sinCorte(nombreDelMes(mes));
 
-  const enElMes = nombre.toLowerCase();
-  const cerrados =
-    corte.trabajos === 1
-      ? `Un trabajo cerrado en ${enElMes}`
-      : `${String(corte.trabajos)} trabajos cerrados en ${enElMes}`;
-  if (corte.tablero === 0) return `${cerrados}, sin nada cobrado: no hubo nada para repartir.`;
+  const enElMes = mesEnUnaFrase(mes);
+  if (corte.tablero === 0) return textos.sinNadaCobrado(corte.trabajos, enElMes);
 
   const partes = corte.partes
     .filter((parte) => parte.monto > 0)
-    .map((parte) => `${parteDelTablero(parte.monto, corte.tablero)} ${aDondeVa(parte)}`);
-  if (partes.length === 0) {
-    return `${cerrados}, y los gastos se comieron lo cobrado: no quedó ingreso para repartir.`;
-  }
+    .map((parte) => aDondeVa(parte, parteDelTablero(parte.monto, corte.tablero)));
+  if (partes.length === 0) return textos.sinIngreso(corte.trabajos, enElMes);
 
-  const gastos = corte.gastos > 0 ? ' Lo demás fueron gastos.' : '';
-  return `${cerrados}: ${enLista(partes)}.${gastos}`;
+  const lista = new Intl.ListFormat(etiquetaActual(), { type: 'conjunction' }).format(partes);
+  return corte.gastos > 0
+    ? textos.repartidoConGastos(corte.trabajos, enElMes, lista)
+    : textos.repartido(corte.trabajos, enElMes, lista);
 }

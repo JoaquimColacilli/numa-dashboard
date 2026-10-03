@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { Button } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
 import { descartarAviso, type AvisoAnotado } from '@/shared/lib';
 
 const TONO: Readonly<Record<AvisoAnotado['tipo'], string>> = {
@@ -22,6 +23,7 @@ export interface PanelDeAvisosProps {
 }
 
 export function PanelDeAvisos({ avisos, anidado = false, children }: PanelDeAvisosProps) {
+  const { entendido } = useMensajes().ui.panelDeAvisos;
   const queryClient = useQueryClient();
   if (avisos.length === 0) return null;
 
@@ -50,7 +52,7 @@ export function PanelDeAvisos({ avisos, anidado = false, children }: PanelDeAvis
               void descartarAviso(queryClient, aviso.id);
             }}
           >
-            Entendido, sacalo de acá
+            {entendido}
           </Button>
         </li>
       ))}

@@ -1,10 +1,17 @@
-import type { TesoroDelTaller } from '@/entities/tesoro';
+import type { Money } from '@maun/domain';
+
+import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import type { MovimientoNuevo } from '@/shared/api';
-import { nombreDelMes } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { mesEnUnaFrase } from '@/shared/lib';
 
 export interface Fuente {
   id: string;
   monto: number | null;
+}
+
+export interface CandidatoParaCubrir extends Omit<TesoroDelTaller, 'saldo'> {
+  saldo: Money;
 }
 
 export const CATEGORIA_DE_LA_COBERTURA = 'Cubrir el mes';
@@ -12,10 +19,12 @@ export const CATEGORIA_DE_LA_COBERTURA = 'Cubrir el mes';
 export function candidatosParaCubrir(
   tesoros: readonly TesoroDelTaller[],
   pasoId: string,
-): TesoroDelTaller[] {
-  const posibles = tesoros.filter(
-    (tesoro) => !tesoro.archivado && tesoro.id !== pasoId && tesoro.clave !== 'diezmo',
-  );
+): CandidatoParaCubrir[] {
+  const posibles = tesoros.flatMap((tesoro) => {
+    if (tesoro.archivado || tesoro.id === pasoId || tesoro.clave === 'diezmo') return [];
+    const saldo = saldoEnPesos(tesoro);
+    return saldo === null ? [] : [{ ...tesoro, saldo }];
+  });
   return [
     ...posibles.filter((tesoro) => tesoro.clave === 'maun'),
     ...posibles.filter((tesoro) => tesoro.clave !== 'maun'),
@@ -23,13 +32,14 @@ export function candidatosParaCubrir(
 }
 
 export function notaDelCandidato(tesoro: Pick<TesoroDelTaller, 'clave'>): string | null {
-  if (tesoro.clave === 'cocos') return 'Es el ahorro invertido: si lo usás, la meta se atrasa.';
-  if (tesoro.clave === 'hogar') return 'Es la plata de la familia.';
+  const textos = mensajes().cubrirElFaltante;
+  if (tesoro.clave === 'cocos') return textos.notaDeCocos;
+  if (tesoro.clave === 'hogar') return textos.notaDelHogar;
   return null;
 }
 
 export function fuentesIniciales(
-  candidatos: readonly TesoroDelTaller[],
+  candidatos: readonly CandidatoParaCubrir[],
   faltante: number,
 ): Fuente[] {
   const maun = candidatos.find((tesoro) => tesoro.clave === 'maun');
@@ -48,7 +58,7 @@ export interface RevisionDeLaCobertura {
 
 export function revisarLaCobertura(
   fuentes: readonly Fuente[],
-  candidatos: readonly TesoroDelTaller[],
+  candidatos: readonly CandidatoParaCubrir[],
   faltante: number,
 ): RevisionDeLaCobertura {
   let cubierto = 0;
@@ -73,10 +83,6 @@ function idParaLaBase(tesoro: Pick<TesoroDelTaller, 'id' | 'clave'>): string | n
   return tesoro.id === tesoro.clave ? null : tesoro.id;
 }
 
-export function mesEnPalabras(mes: string): string {
-  return nombreDelMes(mes).toLowerCase();
-}
-
 export function movimientosParaCubrir({
   fuentes,
   candidatos,
@@ -86,8 +92,8 @@ export function movimientosParaCubrir({
   nuevoId,
 }: {
   fuentes: readonly Fuente[];
-  candidatos: readonly TesoroDelTaller[];
-  paso: TesoroDelTaller;
+  candidatos: readonly CandidatoParaCubrir[];
+  paso: Pick<TesoroDelTaller, 'id' | 'clave' | 'nombre'>;
   mes: string;
   hoy: string;
   nuevoId: () => string;
@@ -108,7 +114,7 @@ export function movimientosParaCubrir({
       cubre_el_mes: `${mes}-01`,
       monto_centavos: monto,
       categoria: CATEGORIA_DE_LA_COBERTURA,
-      descripcion: `Para cubrir ${paso.nombre} de ${mesEnPalabras(mes)}`,
+      descripcion: mensajes().cubrirElFaltante.paraCubrir(paso.nombre, mesEnUnaFrase(mes)),
     });
   }
   return movimientos;

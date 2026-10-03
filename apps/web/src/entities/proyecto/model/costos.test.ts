@@ -9,8 +9,10 @@ import {
   costosDelProyecto,
   costosGuardados,
   COSTOS_DEL_TRABAJO,
+  cotizacionDeLosCostos,
   hayCostosEstimados,
   margenDelTrabajo,
+  margenEnSuMoneda,
   totalEstimado,
 } from './costos';
 import { datosDelFormulario, valoresDelFormulario } from './formulario';
@@ -34,6 +36,9 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     forma_pago: null,
     cobro_sena: null,
     cobro_saldo: null,
+    moneda: 'ARS',
+    cobra_en: null,
+    costos_cotizacion_centavos: null,
     comprobante: 'sin_comprobante',
     fecha_visita: null,
     visita_hora: null,
@@ -201,5 +206,72 @@ describe('los costos estimados no tocan el presupuesto', () => {
     expect(cambiosDeCostos({ madera: 1, herrajes: 2, flete: 3, ayudante: 4 })).not.toHaveProperty(
       'presupuesto_centavos',
     );
+  });
+});
+
+describe('el margen de un trabajo en dólares', () => {
+  const EN_DOLARES = {
+    moneda: 'USD',
+    presupuesto_centavos: 300_000,
+    costo_madera_centavos: 154_000_000,
+  } as const;
+
+  it('pasa los costos en pesos a dólares con el dólar de los costos', () => {
+    expect(
+      margenEnSuMoneda(proyecto({ ...EN_DOLARES, costos_cotizacion_centavos: 154_000 })),
+    ).toEqual({
+      moneda: 'USD',
+      margen: {
+        situacion: 'con-margen',
+        estimado: 100_000,
+        cargadas: 1,
+        presupuesto: 300_000,
+        margen: 200_000,
+      },
+    });
+  });
+
+  it('sin el dólar de los costos no hay margen: muestra lo estimado en pesos y lo pide', () => {
+    expect(margenEnSuMoneda(proyecto(EN_DOLARES))).toEqual({
+      moneda: 'USD',
+      margen: { situacion: 'sin-cotizacion', estimado: 154_000_000, cargadas: 1 },
+    });
+  });
+
+  it('en pesos es el margen de siempre', () => {
+    const cargado = proyecto({ presupuesto_centavos: 62_800_000, costo_madera_centavos: 1 });
+    expect(margenEnSuMoneda(cargado)).toEqual({
+      moneda: 'ARS',
+      margen: margenDelTrabajo(cargado),
+    });
+  });
+
+  it('lee el dólar de los costos tolerante: sin la columna o fuera del rango no hay', () => {
+    const vieja = proyecto();
+    delete (vieja as Partial<FilaDe<'proyectos'>>).costos_cotizacion_centavos;
+    expect(cotizacionDeLosCostos(vieja)).toBeNull();
+    expect(cotizacionDeLosCostos(proyecto({ costos_cotizacion_centavos: 99 }))).toBeNull();
+    expect(cotizacionDeLosCostos(proyecto({ costos_cotizacion_centavos: 154_000 }))).toBe(154_000);
+  });
+
+  it('el pedido lleva el dólar solo cuando se lo pasan', () => {
+    const valores = { madera: 1, herrajes: null, flete: null, ayudante: null };
+    expect(cambiosDeCostos(valores)).not.toHaveProperty('costos_cotizacion_centavos');
+    expect(cambiosDeCostos(valores, null)).toMatchObject({ costos_cotizacion_centavos: null });
+    expect(cambiosDeCostos(valores, 154_000)).toMatchObject({
+      costo_madera_centavos: 1,
+      costos_cotizacion_centavos: 154_000,
+    });
+  });
+});
+
+describe('el dólar de los costos', () => {
+  it('va con los costos: cambiarlo es un cambio de los costos, y el mismo no', () => {
+    expect(cambiaAlgunCosto(proyecto(), { costos_cotizacion_centavos: 145_000 })).toBe(true);
+    expect(
+      cambiaAlgunCosto(proyecto({ costos_cotizacion_centavos: 145_000 }), {
+        costos_cotizacion_centavos: 145_000,
+      }),
+    ).toBe(false);
   });
 });

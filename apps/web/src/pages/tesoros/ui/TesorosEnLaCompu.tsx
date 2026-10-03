@@ -10,6 +10,7 @@ import {
   Probador,
   sePuedeEditar,
 } from '@/features/armar-la-fila';
+import { useMensajes } from '@/shared/idioma';
 import { Button, Icono } from '@/shared/ui';
 
 import type { PantallaDeTesoros } from '../model/pantalla';
@@ -28,6 +29,7 @@ const RELLENO_DE_LA_TABLET: RellenoDelLienzo = {
 };
 
 function Encabezado({ pantalla }: { pantalla: PantallaDeTesoros }) {
+  const textos = useMensajes().paginaTesoros.compu;
   const { vista } = pantalla;
   if (vista.armando) {
     return (
@@ -42,8 +44,8 @@ function Encabezado({ pantalla }: { pantalla: PantallaDeTesoros }) {
   return (
     <header className="flex h-18 flex-none items-center justify-between gap-4 px-5 md:px-7">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-label text-text-2">Cómo se reparte lo que deja cada trabajo</span>
-        <h1 className="font-display text-h1 leading-tight">Tesoros</h1>
+        <span className="text-label text-text-2">{textos.comoSeReparte}</span>
+        <h1 className="font-display text-h1 leading-tight">{textos.tesoros}</h1>
       </div>
       <div className="flex flex-none items-center gap-2">
         <Button
@@ -54,11 +56,11 @@ function Encabezado({ pantalla }: { pantalla: PantallaDeTesoros }) {
           }}
         >
           <Icono nombre="plus" tamano={18} />
-          Nuevo tesoro
+          {textos.nuevoTesoro}
         </Button>
         <Button disabled={!sePuedeEditar(vista)} onClick={pantalla.empezar}>
           <Icono nombre="pencil" tamano={17} />
-          Editar la fila
+          {textos.editarLaFila}
         </Button>
       </div>
     </header>
@@ -79,6 +81,7 @@ function PanelDeAbajo({
   pantalla: PantallaDeTesoros;
   panel: (elemento: HTMLElement | null) => void;
 }) {
+  const textos = useMensajes().paginaTesoros.compu;
   const { vista, elegido } = pantalla;
   const encabezado = encabezadoDeLaFicha(vista, elegido);
   const tesoro = encabezado.tesoro;
@@ -132,7 +135,7 @@ function PanelDeAbajo({
           )}
           <button
             type="button"
-            aria-label="Cerrar el detalle"
+            aria-label={textos.cerrarElDetalle}
             onClick={cerrar}
             className="flex size-11 flex-none items-center justify-center rounded-field text-text-2 hover:bg-surface"
           >
@@ -153,13 +156,15 @@ function PanelDeAbajo({
           }}
           alEditarTesoro={editar}
           alRegistrarElPago={pantalla.registrarElPago}
+          alCambiarDolares={pantalla.cambiarDolares}
+          ultimoCambio={pantalla.ultimoCambio}
           insumos={pantalla.insumos}
           enHoja
         />
       </div>
       <footer className="flex-none border-t border-hairline px-5 pt-3 pb-[calc(0.75rem+var(--holgura-inferior))]">
         <Button className="w-full" onClick={cerrar}>
-          Listo
+          {textos.listo}
         </Button>
       </footer>
     </section>
@@ -173,6 +178,7 @@ export function TesorosEnLaCompu({
   pantalla: PantallaDeTesoros;
   ancho: 'compu' | 'tablet-ancha' | 'tablet';
 }) {
+  const textos = useMensajes().paginaTesoros.compu;
   const { vista, elegido } = pantalla;
   const [pedido, setPedido] = useState<PedidoDeSumar | null>(null);
   const panelDeAbajo = useRef<HTMLElement | null>(null);
@@ -212,6 +218,8 @@ export function TesorosEnLaCompu({
         pantalla.abrir({ tipo: 'editar', tesoro });
       }}
       alRegistrarElPago={pantalla.registrarElPago}
+      alCambiarDolares={pantalla.cambiarDolares}
+      ultimoCambio={pantalla.ultimoCambio}
       insumos={pantalla.insumos}
       arriba={bienvenida(true)}
     />
@@ -252,7 +260,7 @@ export function TesorosEnLaCompu({
             >
               {bienvenida(false) ?? (
                 <section
-                  aria-label="Probar un cobro"
+                  aria-label={textos.probarUnCobro}
                   className="rounded-panel border border-border bg-paper px-4 py-3.5 shadow-float"
                 >
                   <Probador
@@ -269,7 +277,8 @@ export function TesorosEnLaCompu({
         </div>
         {conPanel && (
           <aside
-            aria-label="Detalle"
+            aria-label={textos.detalle}
+            data-reparto="detalle"
             className={`flex-none overflow-y-auto border-l border-hairline bg-paper px-5 pt-5 pb-8 ${
               ancho === 'compu' ? 'w-[380px]' : 'w-[340px]'
             }`}

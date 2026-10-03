@@ -1,10 +1,16 @@
-import type { CoordinacionDeLaEntrega, RespuestaDeEntregaParaMandar } from '@maun/domain';
+import type {
+  CoordinacionDeLaEntrega,
+  MotivoDeLaEntrega,
+  RespuestaDeEntregaParaMandar,
+} from '@maun/domain';
+
+export type MotivoDelError = MotivoDeLaEntrega | 'sin-senal' | 'no-se-pudo';
 
 export type ResultadoDeMandar =
   | { tipo: 'guardada' }
   | { tipo: 'ya-confirmada' }
   | { tipo: 'cambio' }
-  | { tipo: 'error'; texto: string };
+  | { tipo: 'error'; motivo: MotivoDelError };
 
 export type MandarLaEntrega = (
   respuesta: RespuestaDeEntregaParaMandar,

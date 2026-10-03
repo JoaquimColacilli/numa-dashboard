@@ -1,6 +1,8 @@
 import type { Tesoro } from '@/shared/api';
 import type { NombreDeIcono } from '@/shared/ui';
 
+import { tablaDeLib } from './textos';
+
 export interface DatosDelTesoro {
   id: Tesoro;
   nombre: string;
@@ -132,16 +134,9 @@ export const TINTA: Readonly<Record<TintaDeTesoro, ClasesDeLaTinta>> = {
   },
 };
 
-export const NOMBRE_DE_LA_TINTA: Readonly<Record<TintaDeTesoro, string>> = {
-  hogar: 'Verde',
-  maun: 'Madera',
-  diezmo: 'Violeta',
-  cocos: 'Azul',
-  grana: 'Grana',
-  mostaza: 'Mostaza',
-  petroleo: 'Petróleo',
-  ciruela: 'Ciruela',
-};
+export const NOMBRE_DE_LA_TINTA: Readonly<Record<TintaDeTesoro, string>> = tablaDeLib(
+  (textos) => textos.tintas,
+);
 
 export function tintaDelTesoro(valor: string): TintaDeTesoro {
   return (TINTAS_DE_TESORO as readonly string[]).includes(valor)
@@ -157,6 +152,7 @@ export const ICONOS_DE_TESORO: readonly NombreDeIcono[] = [
   'vault',
   'landmark',
   'coins',
+  'banknote',
   'trending-up',
   'piggy-bank',
   'car',

@@ -80,6 +80,7 @@ function tesoro(
     rinde_anual_bp: null,
     orden,
     archivado_at: null,
+    moneda: 'ARS',
   };
 }
 
@@ -164,6 +165,9 @@ function conPago(replica: Replica, proyectoId: string, monto: number, fecha = HO
       concepto: 'Pago',
       monto_centavos: monto,
       ya_en_la_apertura: false,
+      moneda: 'ARS',
+      cotizacion_centavos: null,
+      tesoro_id: null,
     },
   );
 }

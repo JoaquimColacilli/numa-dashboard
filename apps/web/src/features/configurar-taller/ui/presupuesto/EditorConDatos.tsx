@@ -168,6 +168,7 @@ export function EditorConDatos({
       aria-invalid={invalido || undefined}
       contentEditable
       spellCheck
+      translate="no"
       data-vacio={vacio ? '' : undefined}
       data-placeholder={placeholder}
       onInput={(evento) => {

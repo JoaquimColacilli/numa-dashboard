@@ -17,6 +17,7 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
   metaDeAvisos,
@@ -43,20 +44,16 @@ export interface LaEntregaDelTrabajoProps {
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 
-const YA_PASO: Readonly<Record<'estimada' | 'comprometida', string>> = {
-  estimada: 'La entrega estimada ya pasó: tu cliente no la ve. Movela a un día que venga.',
-  comprometida:
-    'La entrega comprometida ya pasó: tu cliente no la ve. Cambiala, o marcá en «Qué falta» que ya lo entregaste.',
-};
-
 function Renglon({
   clave,
   valor,
+  esDato = false,
   extra,
   children,
 }: {
   clave: string;
   valor: string;
+  esDato?: boolean;
   extra?: string;
   children?: ReactNode;
 }) {
@@ -64,7 +61,12 @@ function Renglon({
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-hairline-soft py-3 first:border-t-0">
       <div className="min-w-0 flex-1 basis-44">
         <dt className="text-meta text-text-2">{clave}</dt>
-        <dd className="mt-0.5 text-body-lg leading-snug font-medium">{valor}</dd>
+        <dd
+          translate={esDato ? 'no' : undefined}
+          className="mt-0.5 text-body-lg leading-snug font-medium"
+        >
+          {valor}
+        </dd>
         {extra !== undefined && (
           <dd className="mt-0.5 text-meta font-medium text-hogar">{extra}</dd>
         )}
@@ -83,6 +85,14 @@ function Aviso({ texto }: { texto: string }) {
   );
 }
 
+function BajadaDelTrabajo({ children }: { children: ReactNode }) {
+  return (
+    <span translate="no" className="truncate text-label text-text-2">
+      {children}
+    </span>
+  );
+}
+
 function LoQueContesto({
   coordinacion,
   cliente,
@@ -94,16 +104,20 @@ function LoQueContesto({
   hoy: string;
   alConfirmar: (fecha: string, franja: FranjaDeEntrega) => void;
 }) {
+  const textos = useMensajes().coordinarLaEntrega.respuesta;
   const { respuesta } = coordinacion;
   if (respuesta === null) return null;
-  const quien = cliente === '' ? 'Tu cliente' : cliente;
+  const titulo =
+    respuesta.dias.length === 0
+      ? cliente === ''
+        ? textos.tuClienteTeDejoUnaNota
+        : textos.teDejoUnaNota(cliente)
+      : cliente === ''
+        ? textos.tuClienteTePasoSusDias
+        : textos.tePasoSusDias(cliente);
   return (
     <div className="mt-3 flex flex-col gap-2">
-      <p className="text-body font-semibold">
-        {respuesta.dias.length === 0
-          ? `${quien} te dejó una nota`
-          : `${quien} te pasó sus días. Confirmá uno:`}
-      </p>
+      <p className="text-body font-semibold">{titulo}</p>
       {respuesta.dias.length > 0 && (
         <ul className="list-none">
           {respuesta.dias.map((dia) => {
@@ -114,6 +128,7 @@ function LoQueContesto({
                 className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-hairline-soft py-2.5"
               >
                 <span
+                  translate="no"
                   className={`min-w-0 flex-1 basis-32 text-body font-medium tabular-nums ${
                     opciones.length === 0 ? 'text-text-3 line-through' : ''
                   }`}
@@ -121,7 +136,7 @@ function LoQueContesto({
                   {fechaLarga(dia.fecha, hoy)}
                 </span>
                 {opciones.length === 0 ? (
-                  <span className="text-meta text-text-3">ya pasó</span>
+                  <span className="text-meta text-text-3">{textos.yaPaso}</span>
                 ) : (
                   <span className="flex flex-wrap gap-2">
                     {opciones.map((opcion) => (
@@ -129,7 +144,9 @@ function LoQueContesto({
                         key={opcion.franja}
                         size="chico"
                         variant="secundario"
-                        aria-label={`Confirmar el ${fechaConSuFranja(opcion.fecha, opcion.franja, hoy)}`}
+                        aria-label={textos.confirmarEl(
+                          fechaConSuFranja(opcion.fecha, opcion.franja, hoy),
+                        )}
                         onClick={() => {
                           alConfirmar(opcion.fecha, opcion.franja);
                         }}
@@ -145,7 +162,10 @@ function LoQueContesto({
         </ul>
       )}
       {respuesta.nota.trim() !== '' && (
-        <p className="rounded-field bg-surface-3 px-3.5 py-2.5 text-body leading-relaxed whitespace-pre-line">
+        <p
+          translate="no"
+          className="rounded-field bg-surface-3 px-3.5 py-2.5 text-body leading-relaxed whitespace-pre-line"
+        >
           {respuesta.nota}
         </p>
       )}
@@ -158,6 +178,7 @@ interface HojaAbierta {
 }
 
 export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrabajoProps) {
+  const textos = useMensajes().coordinarLaEntrega;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const sync = useEstadoSync();
@@ -190,7 +211,7 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
   const guardada = entregaGuardada(proyecto);
   const momento = momentoDeLaEntrega(proyecto);
   const pasadas = fechasQuePasaron(proyecto, hoy);
-  const quien = cliente === '' ? 'Tu cliente' : cliente;
+  const sinNombre = cliente === '';
   const { propuesta } = coordinacion;
 
   function comprometer(fecha: string | null, franja: FranjaDeEntrega | null): void {
@@ -220,17 +241,18 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
   return (
     <section aria-labelledby={`entrega-${proyecto.id}`} className={TARJETA}>
       <h2 id={`entrega-${proyecto.id}`} className="mb-1.5 text-section font-semibold">
-        La entrega
+        {textos.laEntrega}
       </h2>
 
       <dl>
         <Renglon
-          clave="Estimada"
+          clave={textos.estimada}
           valor={
             proyecto.entrega_estimada === null
-              ? 'Sin fecha'
+              ? textos.sinFecha
               : fechaLarga(proyecto.entrega_estimada, hoy)
           }
+          esDato={proyecto.entrega_estimada !== null}
         >
           <Button
             size="chico"
@@ -239,21 +261,28 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
               setHoja({ que: 'estimada' });
             }}
           >
-            {proyecto.entrega_estimada === null ? 'Ponerle fecha' : 'Cambiar'}
+            {proyecto.entrega_estimada === null ? textos.ponerleFecha : textos.cambiar}
           </Button>
         </Renglon>
         <Renglon
-          clave="Comprometida con el cliente"
+          clave={textos.comprometidaConElCliente}
           valor={
             guardada.entrega_comprometida === null
-              ? 'Todavía no'
+              ? textos.todaviaNo
               : fechaConSuFranja(
                   guardada.entrega_comprometida,
                   guardada.entrega_comprometida_franja,
                   hoy,
                 )
           }
-          extra={coordinacion.laAceptoElCliente ? `La aceptó ${quien}` : undefined}
+          esDato={guardada.entrega_comprometida !== null}
+          extra={
+            coordinacion.laAceptoElCliente
+              ? sinNombre
+                ? textos.laAceptoTuCliente
+                : textos.laAcepto(cliente)
+              : undefined
+          }
         >
           <Button
             size="chico"
@@ -262,7 +291,7 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
               setHoja({ que: 'comprometida' });
             }}
           >
-            {guardada.entrega_comprometida === null ? 'Comprometer un día' : 'Cambiar'}
+            {guardada.entrega_comprometida === null ? textos.comprometerUnDia : textos.cambiar}
           </Button>
           {guardada.entrega_comprometida !== null && (
             <Button
@@ -272,34 +301,29 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
                 comprometer(null, null);
               }}
             >
-              Sacar
+              {textos.sacar}
             </Button>
           )}
         </Renglon>
       </dl>
 
       {pasadas.map((pasada) => (
-        <Aviso key={pasada.cual} texto={YA_PASO[pasada.cual]} />
+        <Aviso key={pasada.cual} texto={textos.yaPaso[pasada.cual]} />
       ))}
 
       {momento === 'fabricando' && (
-        <p className="mt-2 text-label leading-relaxed text-text-2">
-          Tu cliente ve la estimada como «Fecha estimada de entrega». Cuando esté terminado, tocá
-          «Ya está listo» y coordinás el día con él.
-        </p>
+        <p className="mt-2 text-label leading-relaxed text-text-2">{textos.mientrasLoFabricas}</p>
       )}
 
       {momento === 'listo' && (
         <div className="mt-2 border-t border-hairline-soft pt-3">
           {propuesta === null ? (
-            <p className="text-body leading-relaxed text-text-2">
-              Proponele un día, o pedile que marque los días y horarios que le quedan bien.
-            </p>
+            <p className="text-body leading-relaxed text-text-2">{textos.proponeleUnDia}</p>
           ) : coordinacion.respuesta === null ? (
             <p className="text-body leading-relaxed text-text-2">
               {propuesta.forma === 'un_dia' && propuesta.fecha !== null
-                ? `Le propusiste el ${fechaConSuFranja(propuesta.fecha, propuesta.franja, hoy)}. Todavía no contestó.`
-                : 'Le pediste sus días. Todavía no contestó.'}
+                ? textos.lePropusisteEl(fechaConSuFranja(propuesta.fecha, propuesta.franja, hoy))
+                : textos.lePedisteSusDias}
             </p>
           ) : null}
 
@@ -321,7 +345,7 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
                 setHoja({ que: 'propuesta' });
               }}
             >
-              {propuesta?.forma === 'un_dia' ? 'Proponerle otro día' : 'Proponerle un día'}
+              {propuesta?.forma === 'un_dia' ? textos.proponerleOtroDia : textos.proponerleUnDia}
             </Button>
             <Button
               size="chico"
@@ -330,13 +354,13 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
               cargando={pedir.isPending && hoja === null}
               onClick={pedirSusDias}
             >
-              {propuesta?.forma === 'sus_dias' ? 'Pedirle otros días' : 'Pedirle sus días'}
+              {propuesta?.forma === 'sus_dias' ? textos.pedirleOtrosDias : textos.pedirleSusDias}
             </Button>
           </div>
           {sinSenal && (
             <p className="mt-2 flex items-center gap-2 text-label font-medium text-text-2">
               <Icono nombre="cloud-off" tamano={16} />
-              Para pedirle el día necesitás señal: tu cliente lo ve recién cuando llega.
+              {textos.sinSenal}
             </p>
           )}
         </div>
@@ -351,7 +375,7 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
             ir(rutaDeCompartir(proyecto.id));
           }}
         >
-          Ver cómo lo ve {cliente === '' ? 'tu cliente' : cliente}
+          {sinNombre ? textos.verComoLoVeTuCliente : textos.verComoLoVe(cliente)}
         </Button>
       </div>
 
@@ -360,10 +384,10 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
           abierta.que === 'estimada' ? (
             <HojaDeLaFecha
               que="estimada"
-              titulo="La entrega estimada"
-              bajada={proyecto.titulo}
-              ayuda="Tu cliente la ve como «Fecha estimada de entrega» mientras lo fabricás."
-              boton="Guardar"
+              titulo={textos.hojas.estimada.titulo}
+              bajada={<BajadaDelTrabajo>{proyecto.titulo}</BajadaDelTrabajo>}
+              ayuda={textos.hojas.estimada.ayuda}
+              boton={textos.hojas.estimada.boton}
               hoy={hoy}
               fecha={proyecto.entrega_estimada ?? ''}
               franja={null}
@@ -378,10 +402,10 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
           ) : abierta.que === 'comprometida' ? (
             <HojaDeLaFecha
               que="comprometida"
-              titulo="La entrega comprometida"
-              bajada={proyecto.titulo}
-              ayuda="Es el día que acordaste con tu cliente. Lo ve como una buena noticia en su enlace."
-              boton="Comprometer"
+              titulo={textos.hojas.comprometida.titulo}
+              bajada={<BajadaDelTrabajo>{proyecto.titulo}</BajadaDelTrabajo>}
+              ayuda={textos.hojas.comprometida.ayuda}
+              boton={textos.hojas.comprometida.boton}
               hoy={hoy}
               fecha={guardada.entrega_comprometida ?? ''}
               franja={guardada.entrega_comprometida_franja}
@@ -396,10 +420,16 @@ export function LaEntregaDelTrabajo({ proyecto, cliente, hoy }: LaEntregaDelTrab
           ) : (
             <HojaDeLaFecha
               que="propuesta"
-              titulo="Proponerle un día"
-              bajada={`${quien} · ${proyecto.titulo}`}
-              ayuda="Lo ve en su enlace con «Me queda bien». Si lo acepta, la entrega queda comprometida sola."
-              boton="Proponérselo"
+              titulo={textos.hojas.propuesta.titulo}
+              bajada={
+                sinNombre ? (
+                  textos.hojas.propuesta.tuCliente(proyecto.titulo)
+                ) : (
+                  <BajadaDelTrabajo>{`${cliente} · ${proyecto.titulo}`}</BajadaDelTrabajo>
+                )
+              }
+              ayuda={textos.hojas.propuesta.ayuda}
+              boton={textos.hojas.propuesta.boton}
               hoy={hoy}
               fecha={propuesta?.fecha ?? ''}
               franja={propuesta?.franja ?? null}

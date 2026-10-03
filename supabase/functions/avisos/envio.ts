@@ -1,8 +1,11 @@
 import {
   AVISOS_DE_LA_AGENDA,
   eventosParaAvisar,
+  IDIOMA_BASE,
+  idiomaLeido,
   PREFERENCIAS_INICIALES,
   sumarDias,
+  type Idioma,
   type PreferenciasDeAvisos,
   type RangoDeLaAgenda,
 } from '@maun/domain';
@@ -10,7 +13,7 @@ import {
 import { datosDeLaAgenda } from '../../../packages/db/src/agenda.ts';
 import type { AvisoPorMandar, Base, Suscripcion } from './base.ts';
 import type { ClavesVapid } from './entorno.ts';
-import { CARGA_DE_LA_PRUEBA, cargaDelAviso } from './texto.ts';
+import { cargaDeLaPrueba, cargaDelAviso } from './texto.ts';
 
 export type Enviador = (
   suscripcion: Suscripcion,
@@ -90,7 +93,7 @@ export async function mandarLosAvisos(
       await base.anotarAviso(aviso.id, aviso.dia, false);
       continue;
     }
-    const carga = JSON.stringify(cargaDelAviso(eventos, aviso.dia));
+    const carga = JSON.stringify(cargaDelAviso(eventos, aviso.dia, idiomaLeido(aviso.idioma)));
     if (await mandarUno(aviso, carga, base, enviar, vapid, resultado)) {
       await base.anotarAviso(aviso.id, aviso.dia, true);
     }
@@ -103,9 +106,10 @@ export async function mandarLaPrueba(
   base: Base,
   enviar: Enviador,
   vapid: ClavesVapid,
+  idioma: Idioma = IDIOMA_BASE,
 ): Promise<ResultadoDelEnvio> {
   const resultado = resultadoVacio();
-  const carga = JSON.stringify(CARGA_DE_LA_PRUEBA);
+  const carga = JSON.stringify(cargaDeLaPrueba(idioma));
   for (const suscripcion of suscripciones) {
     await mandarUno(suscripcion, carga, base, enviar, vapid, resultado);
   }

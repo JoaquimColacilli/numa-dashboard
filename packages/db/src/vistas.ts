@@ -1,16 +1,24 @@
 import {
   analisisDeEntregas,
   BASES_DE_OBLIGACION,
+  centavosEn,
+  cotizacionLeida,
+  esDeLaMoneda,
   estaLiquidado,
   fechaDeApertura,
   filaDeSiempre,
   leerLaFila,
+  loQueDescuenta,
   MODOS_DE_PASO,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  plata,
   restar,
   saldosDelLibro,
   saldosDelLibroPorId,
   sumar,
   sumarTodos,
+  valorEnPesos,
   type AnalisisDeEntregas,
   type AporteDelMes,
   type BaseDeLaObligacion,
@@ -22,10 +30,13 @@ import {
   type EstadoLiquidado,
   type Fila,
   type GastoDeUnTesoro,
+  type ImporteDeUnPago,
   type LiquidacionDelMes,
   type LiquidacionRegistrada,
   type ModoDePaso,
+  type Moneda,
   type Money,
+  type Plata,
   type SaldosPorId,
   type SaldosPorTesoro,
   type Tesoro,
@@ -42,11 +53,12 @@ const ORDEN_DE_LOS_DE_SIEMPRE: readonly Tesoro[] = ['hogar', 'maun', 'diezmo', '
 export interface TesoroDeLaReplica {
   id: string;
   clave: Tesoro | null;
+  moneda: Moneda;
   nombre: string;
   descripcion: string;
   tinta: string;
   icono: string;
-  meta: Money | null;
+  meta: Plata | null;
   rindeAnualBp: number | null;
   orden: number;
   archivado: boolean;
@@ -71,20 +83,22 @@ export function tesorosDeLaReplica(replica: Replica): TesoroDeLaReplica[] {
     .map((fila) => {
       const deCocos = fila.clave === 'cocos';
       const metaDeCocos = ajustes?.meta_cocos_centavos ?? 0;
+      const moneda = monedaDelTesoro(fila);
       return {
         id: fila.id,
         clave: fila.clave,
+        moneda,
         nombre: fila.nombre,
         descripcion: fila.descripcion,
         tinta: fila.tinta,
         icono: fila.icono,
         meta: deCocos
           ? metaDeCocos > 0
-            ? dinero(metaDeCocos)
+            ? plata(MONEDA_DEL_TALLER, metaDeCocos)
             : null
           : fila.meta_centavos === null
             ? null
-            : dinero(fila.meta_centavos),
+            : plata(moneda, fila.meta_centavos),
         rindeAnualBp: deCocos ? (ajustes?.tasa_cocos_anual_bp ?? 0) : fila.rinde_anual_bp,
         orden: fila.orden,
         archivado: fila.archivado_at !== null,
@@ -104,8 +118,10 @@ export function sistemaDeLaReplica(replica: Replica): TesorosDelSistema {
 
 export function metasDeLaReplica(replica: Replica): Map<string, Money> {
   const metas = new Map<string, Money>();
-  for (const tesoro of tesorosDeLaReplica(replica)) {
-    if (tesoro.meta !== null && tesoro.meta > 0) metas.set(tesoro.id, tesoro.meta);
+  for (const { id, meta } of tesorosDeLaReplica(replica)) {
+    if (meta !== null && esDeLaMoneda(meta, MONEDA_DEL_TALLER) && meta.importe > 0) {
+      metas.set(id, meta.importe);
+    }
   }
   return metas;
 }
@@ -122,6 +138,19 @@ function movimientoConIds(replica: Replica, movimiento: FilaDe<'movimientos'>) {
   };
 }
 
+export function importeDelPago(pago: FilaDe<'pagos'>): ImporteDeUnPago {
+  const quizas = pago as Partial<FilaDe<'pagos'>>;
+  const valor = cotizacionLeida(quizas.cotizacion_centavos ?? null);
+  return monedaLeida(quizas.moneda) === 'USD'
+    ? { moneda: 'USD', monto: centavosEn('USD', pago.monto_centavos), cotizacion: valor }
+    : { moneda: MONEDA_DEL_TALLER, monto: dinero(pago.monto_centavos), cotizacion: valor };
+}
+
+function montoDestinoDe(movimiento: FilaDe<'movimientos'>): Money<Moneda> | null {
+  const valor = (movimiento as Partial<FilaDe<'movimientos'>>).monto_destino_centavos;
+  return valor === undefined || valor === null ? null : dinero(valor);
+}
+
 export function datosDelLibro(replica: Replica): DatosDelLibro {
   return {
     tesoros: filasDe(replica, 'tesoros').map((tesoro) => ({ id: tesoro.id, clave: tesoro.clave })),
@@ -133,18 +162,25 @@ export function datosDelLibro(replica: Replica): DatosDelLibro {
       tesoroDestino: movimiento.tesoro_destino,
       ...movimientoConIds(replica, movimiento),
       monto: dinero(movimiento.monto_centavos),
+      montoDestino: montoDestinoDe(movimiento),
       categoria: movimiento.categoria,
       descripcion: movimiento.descripcion,
       proyectoId: movimiento.proyecto_id,
     })),
-    pagos: filasDe(replica, 'pagos').map((pago) => ({
-      id: pago.id,
-      proyectoId: pago.proyecto_id,
-      fecha: pago.fecha,
-      concepto: pago.concepto,
-      monto: dinero(pago.monto_centavos),
-      yaEnLaApertura: (pago as Partial<typeof pago>).ya_en_la_apertura === true,
-    })),
+    pagos: filasDe(replica, 'pagos').map((pago) => {
+      const importe = importeDelPago(pago);
+      return {
+        id: pago.id,
+        proyectoId: pago.proyecto_id,
+        fecha: pago.fecha,
+        concepto: pago.concepto,
+        monto: importe.monto,
+        moneda: importe.moneda,
+        cotizacion: importe.cotizacion,
+        tesoroId: (pago as Partial<typeof pago>).tesoro_id ?? null,
+        yaEnLaApertura: (pago as Partial<typeof pago>).ya_en_la_apertura === true,
+      };
+    }),
     gastos: filasDe(replica, 'gastos').map((gasto) => ({
       id: gasto.id,
       proyectoId: gasto.proyecto_id,
@@ -182,38 +218,131 @@ export function saldosPorIdDeLaReplica(replica: Replica): SaldosPorId {
   return saldosDelLibroPorId(datosDelLibro(replica));
 }
 
+export function monedaDelTesoro(fila: FilaDe<'tesoros'>): Moneda {
+  return monedaLeida((fila as Record<string, unknown>).moneda);
+}
+
+export function monedaDelTrabajo(fila: FilaDe<'proyectos'>): Moneda {
+  return monedaLeida((fila as Record<string, unknown>).moneda);
+}
+
+export function saldosEnLaMonedaDelTaller(replica: Replica): ReadonlyMap<string, Money> {
+  const monedas = new Map(
+    filasDe(replica, 'tesoros').map((tesoro) => [tesoro.id, monedaDelTesoro(tesoro)]),
+  );
+  const enPesos = new Map<string, Money>();
+  for (const [id, saldo] of saldosPorIdDeLaReplica(replica)) {
+    const suyo = plata(monedas.get(id) ?? MONEDA_DEL_TALLER, saldo);
+    if (suyo.moneda === MONEDA_DEL_TALLER) enPesos.set(id, suyo.importe);
+  }
+  return enPesos;
+}
+
 export function aperturaDeLaReplica(replica: Replica): string | null {
   return fechaDeApertura(datosDelLibro(replica).movimientos);
 }
 
+export interface EnUnTesoroEnDolares {
+  tesoroId: string;
+  monto: Money<'USD'>;
+}
+
 export interface TotalesDelProyecto {
-  cobrado: Money;
+  cobradoEnSuMoneda: Plata;
+  cobradoEnPesos: Money;
+  enMaun: Money;
+  enDolares: readonly EnUnTesoroEnDolares[];
   gastos: Money;
 }
 
+function sinTotales(moneda: Moneda): TotalesDelProyecto {
+  return {
+    cobradoEnSuMoneda: plata(moneda, 0),
+    cobradoEnPesos: dinero(0),
+    enMaun: dinero(0),
+    enDolares: [],
+    gastos: dinero(0),
+  };
+}
+
+function sinSuCotizacion(importe: ImporteDeUnPago, moneda: Moneda): boolean {
+  return importe.moneda !== moneda && importe.cotizacion === null;
+}
+
+export function valorEnPesosDelPago(importe: ImporteDeUnPago): Money {
+  return sinSuCotizacion(importe, MONEDA_DEL_TALLER) ? dinero(0) : valorEnPesos(importe);
+}
+
+export function loQueDescuentaElPago<M extends Moneda>(
+  importe: ImporteDeUnPago,
+  moneda: M,
+): Money<M> {
+  return sinSuCotizacion(importe, moneda) ? centavosEn(moneda, 0) : loQueDescuenta(importe, moneda);
+}
+
 export function totalesPorProyecto(replica: Replica): Map<string, TotalesDelProyecto> {
-  const cobrado = new Map<string, number>();
-  const gastos = new Map<string, number>();
+  const monedas = new Map(
+    filasDe(replica, 'proyectos').map((proyecto) => [proyecto.id, monedaDelTrabajo(proyecto)]),
+  );
+  const totales = new Map<string, TotalesDelProyecto>();
+  const deUno = (proyectoId: string): TotalesDelProyecto => {
+    const hallados = totales.get(proyectoId);
+    if (hallados !== undefined) return hallados;
+    const nuevos = sinTotales(monedas.get(proyectoId) ?? MONEDA_DEL_TALLER);
+    totales.set(proyectoId, nuevos);
+    return nuevos;
+  };
 
   for (const pago of filasDe(replica, 'pagos')) {
-    cobrado.set(pago.proyecto_id, (cobrado.get(pago.proyecto_id) ?? 0) + pago.monto_centavos);
-  }
-  for (const gasto of filasDe(replica, 'gastos')) {
-    gastos.set(gasto.proyecto_id, (gastos.get(gasto.proyecto_id) ?? 0) + gasto.monto_centavos);
-  }
-
-  const totales = new Map<string, TotalesDelProyecto>();
-  for (const proyecto of filasDe(replica, 'proyectos')) {
-    totales.set(proyecto.id, {
-      cobrado: dinero(cobrado.get(proyecto.id) ?? 0),
-      gastos: dinero(gastos.get(proyecto.id) ?? 0),
+    if (!monedas.has(pago.proyecto_id)) continue;
+    const anteriores = deUno(pago.proyecto_id);
+    const importe = importeDelPago(pago);
+    const { moneda } = anteriores.cobradoEnSuMoneda;
+    const tesoroId = (pago as Partial<typeof pago>).tesoro_id ?? null;
+    const enDolares =
+      importe.moneda === 'USD' && tesoroId !== null
+        ? sumarEnElTesoro(anteriores.enDolares, tesoroId, importe.monto)
+        : anteriores.enDolares;
+    totales.set(pago.proyecto_id, {
+      ...anteriores,
+      cobradoEnSuMoneda: plata(
+        moneda,
+        anteriores.cobradoEnSuMoneda.importe + loQueDescuentaElPago(importe, moneda),
+      ),
+      cobradoEnPesos: sumar(anteriores.cobradoEnPesos, valorEnPesosDelPago(importe)),
+      enMaun:
+        importe.moneda === MONEDA_DEL_TALLER
+          ? sumar(anteriores.enMaun, importe.monto)
+          : anteriores.enMaun,
+      enDolares,
     });
   }
+  for (const gasto of filasDe(replica, 'gastos')) {
+    if (!monedas.has(gasto.proyecto_id)) continue;
+    const anteriores = deUno(gasto.proyecto_id);
+    totales.set(gasto.proyecto_id, {
+      ...anteriores,
+      gastos: sumar(anteriores.gastos, dinero(gasto.monto_centavos)),
+    });
+  }
+  for (const proyectoId of monedas.keys()) deUno(proyectoId);
   return totales;
 }
 
+function sumarEnElTesoro(
+  anteriores: readonly EnUnTesoroEnDolares[],
+  tesoroId: string,
+  monto: Money<'USD'>,
+): readonly EnUnTesoroEnDolares[] {
+  const hallado = anteriores.find((uno) => uno.tesoroId === tesoroId);
+  if (hallado === undefined) return [...anteriores, { tesoroId, monto }];
+  return anteriores.map((uno) =>
+    uno.tesoroId === tesoroId ? { tesoroId, monto: sumar(uno.monto, monto) } : uno,
+  );
+}
+
 export function totalesDelProyecto(replica: Replica, proyectoId: string): TotalesDelProyecto {
-  return totalesPorProyecto(replica).get(proyectoId) ?? { cobrado: dinero(0), gastos: dinero(0) };
+  return totalesPorProyecto(replica).get(proyectoId) ?? sinTotales(MONEDA_DEL_TALLER);
 }
 
 export interface InsumosDelTrabajo {
@@ -221,6 +350,7 @@ export interface InsumosDelTrabajo {
   entro: Money;
   gastado: Money;
   queda: Money;
+  enDolares: readonly EnUnTesoroEnDolares[];
 }
 
 export function insumosPorTrabajo(replica: Replica): Map<string, InsumosDelTrabajo> {
@@ -228,15 +358,13 @@ export function insumosPorTrabajo(replica: Replica): Map<string, InsumosDelTraba
   const insumos = new Map<string, InsumosDelTrabajo>();
   for (const proyecto of filasDe(replica, 'proyectos')) {
     if (estaLiquidado(proyecto.estado)) continue;
-    const { cobrado, gastos } = totales.get(proyecto.id) ?? {
-      cobrado: dinero(0),
-      gastos: dinero(0),
-    };
+    const { enMaun, enDolares, gastos } = totales.get(proyecto.id) ?? sinTotales(MONEDA_DEL_TALLER);
     insumos.set(proyecto.id, {
       proyectoId: proyecto.id,
-      entro: cobrado,
+      entro: enMaun,
       gastado: gastos,
-      queda: restar(cobrado, gastos),
+      queda: restar(enMaun, gastos),
+      enDolares,
     });
   }
   return insumos;
@@ -410,7 +538,7 @@ export function datosDelMesDeLaReplica(replica: Replica): DatosDelMes {
   return {
     liquidaciones: liquidacionesDelMesDeLaReplica(replica),
     coberturas: coberturasDeLaReplica(replica),
-    saldos: saldosPorIdDeLaReplica(replica),
+    saldos: saldosEnLaMonedaDelTaller(replica),
     metas: metasDeLaReplica(replica),
     gastos: gastosDeLosTesorosDeLaReplica(replica),
   };
@@ -534,7 +662,7 @@ export function entradaDeLaLiquidacion(
     entrada: {
       destino,
       fecha,
-      cobrado: cobrado ?? totales.cobrado,
+      cobrado: cobrado ?? totales.cobradoEnPesos,
       gastos: gastos ?? totales.gastos,
       fila,
       sistema: sistemaDeLaReplica(replica),
@@ -544,7 +672,7 @@ export function entradaDeLaLiquidacion(
       },
       liquidaciones: liquidacionesDelMesDeLaReplica(replica, proyecto.id),
       coberturas: coberturasDeLaReplica(replica),
-      saldos: saldosPorIdDeLaReplica(replica),
+      saldos: saldosEnLaMonedaDelTaller(replica),
       metas: metasDeLaReplica(replica),
     },
     version,

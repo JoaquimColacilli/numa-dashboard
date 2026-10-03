@@ -16,6 +16,7 @@ vi.mock('@/shared/api', async (importar) => ({
 const COCOS = '01900000-0000-7000-8000-000000000004';
 const HOGAR = '01900000-0000-7000-8000-000000000001';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000006';
+const DOLARES = '01900000-0000-7000-8000-000000000007';
 
 function filaDeTesoro(
   id: string,
@@ -24,11 +25,13 @@ function filaDeTesoro(
   tinta: string,
   icono: string,
   meta: number | null = null,
+  moneda = 'ARS',
 ) {
   return {
     id,
     household_id: 'h',
     clave,
+    moneda,
     nombre,
     descripcion: clave === null ? 'Para la sierra nueva' : '',
     tinta,
@@ -44,7 +47,7 @@ function filaDeTesoro(
   };
 }
 
-function replicaDelTaller(): Replica {
+function replicaDelTaller(conDolares = false): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.households = { h: { id: 'h', nombre: 'Taller MAUN' } };
@@ -63,18 +66,21 @@ function replicaDelTaller(): Replica {
     filaDeTesoro('01900000-0000-7000-8000-000000000003', 'diezmo', 'Diezmo', 'diezmo', 'church'),
     filaDeTesoro(COCOS, 'cocos', 'Cocos', 'cocos', 'piggy-bank'),
     filaDeTesoro(HERRAMIENTAS, null, 'Herramientas', 'petroleo', 'wrench', 90_000_000),
+    ...(conDolares
+      ? [filaDeTesoro(DOLARES, null, 'Dólares', 'mostaza', 'vault', 200_000, 'USD')]
+      : []),
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((fila) => [fila.id, fila]));
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
-function montar(tesoroId: string) {
+function montar(tesoroId: string, conDolares = false) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
   const alGuardarLoDeCocos = vi.fn<(edicion: EdicionDeLoDeCocos) => void>();
   render(
     <QueryClientProvider client={queryClient}>
-      <ProveedorDeReplica replica={replicaDelTaller()}>
+      <ProveedorDeReplica replica={replicaDelTaller(conDolares)}>
         <HojaDeEditarTesoro
           tesoroId={tesoroId}
           alCerrar={alCerrar}
@@ -107,6 +113,25 @@ afterEach(() => {
 });
 
 describe('editar un tesoro', () => {
+  it('la moneda se ve y no se toca, y la meta de uno en dólares va en dólares', () => {
+    const { ediciones } = montar(DOLARES, true);
+    expect(screen.getByText('En dólares')).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: '¿En qué moneda?' })).toBeNull();
+    const meta = screen.getByRole('textbox', { name: 'Meta' });
+    expect(meta).toHaveValue('2.000');
+    expect(meta).toHaveAttribute('placeholder', 'US$ 0');
+    fireEvent.change(meta, { target: { value: '2.500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(ediciones()[0]).toMatchObject({ id: DOLARES, cambios: { meta_centavos: 250_000 } });
+    expect(ediciones()[0]?.cambios).not.toHaveProperty('moneda');
+  });
+
+  it('uno en pesos dice «En pesos»', () => {
+    montar(HERRAMIENTAS);
+    expect(screen.getByText('En pesos')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Meta' })).not.toHaveAttribute('placeholder');
+  });
+
   it('manda solo lo que cambió', () => {
     const { ediciones, alCerrar } = montar(HERRAMIENTAS);
     expect(screen.getByRole('heading', { name: 'Herramientas' })).toBeInTheDocument();

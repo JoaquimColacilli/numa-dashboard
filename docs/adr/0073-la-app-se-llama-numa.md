@@ -14,6 +14,9 @@
   [0020](0020-pulido-visual.md) (el nombre del logo, «NUMA, ir a Inicio») y al
   [0035](0035-un-service-worker-propio.md) (el título de respaldo y los íconos del push).
 - Lo sigue el [0074](0074-lo-que-responde-al-tocar.md), el movimiento, que vino en el mismo pedido.
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): la app ya no habla solo
+  castellano, como decía el punto 2: habla castellano, inglés y portugués. El logotipo sigue sin bajada,
+  porque una bajada en un idioma no serviría para los otros. NUMA y MAUN no se traducen.
 
 ## Contexto
 

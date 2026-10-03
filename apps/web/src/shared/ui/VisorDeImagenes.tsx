@@ -2,6 +2,8 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { Button, Icono } from '@maun/ui';
 
+import { useTextosDeLaUi } from '@/shared/idioma';
+
 import { Hoja } from './Hoja';
 
 export interface ImagenDelVisor {
@@ -29,6 +31,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
   detalle,
   acciones,
 }: VisorDeImagenesProps<T>) {
+  const { visor: textos } = useTextosDeLaUi();
   const [elegido, setElegido] = useState(inicial);
   const indice = Math.max(
     0,
@@ -49,7 +52,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
   }
 
   if (imagen === undefined) return null;
-  const cuenta = total > 1 ? `${String(indice + 1)} de ${String(total)}` : '';
+  const cuenta = total > 1 ? textos.cuenta(String(indice + 1), String(total)) : '';
   const aparte = detalle?.(imagen) ?? '';
 
   return (
@@ -68,7 +71,9 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-meta text-text-2 tabular-nums">
-            {[cuenta, aparte].filter((parte) => parte !== '').join(' · ')}
+            {cuenta}
+            {cuenta !== '' && aparte !== '' && ' · '}
+            {aparte !== '' && <span translate="no">{aparte}</span>}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {total > 1 && (
@@ -76,7 +81,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
                 <Button
                   variant="secundario"
                   size="chico"
-                  aria-label="Anterior"
+                  aria-label={textos.anterior}
                   onClick={() => {
                     mover(-1);
                   }}
@@ -86,7 +91,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
                 <Button
                   variant="secundario"
                   size="chico"
-                  aria-label="Siguiente"
+                  aria-label={textos.siguiente}
                   onClick={() => {
                     mover(1);
                   }}
@@ -102,7 +107,7 @@ export function VisorDeImagenes<T extends ImagenDelVisor>({
               className="flex min-h-tap items-center gap-1.5 rounded-pill px-2 text-label font-medium underline underline-offset-3"
             >
               <Icono nombre="maximize-2" tamano={15} />
-              Abrir en otra pestaña
+              {textos.abrirAparte}
             </a>
             {acciones?.(imagen)}
           </div>

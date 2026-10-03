@@ -1,6 +1,7 @@
 import { EdgeLabelRenderer, getSmoothStepPath, Position, type EdgeProps } from '@xyflow/react';
 import { useContext } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
 import { formatearPesos } from '@/shared/lib';
 import { Icono } from '@/shared/ui';
 
@@ -26,6 +27,7 @@ export function AristaDePlata({
   targetPosition,
   data,
 }: EdgeProps<AristaDelPlano>) {
+  const sumarUnTesoroAca = useMensajes().paginaTesoros.lienzo.sumarUnTesoroAca;
   const { sumarEn } = useContext(ContextoDeLasAristas);
   const deCostado = targetPosition === Position.Left;
   const [camino, xMedio, yMedio] = getSmoothStepPath({
@@ -96,6 +98,7 @@ export function AristaDePlata({
             </div>
             {montoAparte && data.monto !== null && (
               <div
+                translate="no"
                 className={`nodrag nopan absolute rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
                   data.vacia
                     ? 'border-hairline text-text-3'
@@ -113,6 +116,7 @@ export function AristaDePlata({
           data.etiqueta !== null && (
             <div
               aria-hidden
+              translate="no"
               className={`nodrag nopan absolute rounded-control border bg-paper px-1.5 py-px text-badge whitespace-nowrap tabular-nums ${
                 probando && data.vacia
                   ? 'border-hairline text-text-3'
@@ -131,8 +135,8 @@ export function AristaDePlata({
         {conBoton && (
           <button
             type="button"
-            aria-label="Sumar un tesoro acá"
-            title="Sumar un tesoro acá"
+            aria-label={sumarUnTesoroAca}
+            title={sumarUnTesoroAca}
             className="nodrag nopan pointer-events-auto absolute flex size-6 items-center justify-center rounded-pill border border-ink bg-paper text-ink before:absolute before:-inset-2.5 hover:bg-ink hover:text-paper"
             style={{
               transform: `translate(-50%, -50%) translate(${String(xDelBoton)}px, ${String(yMedio)}px)`,

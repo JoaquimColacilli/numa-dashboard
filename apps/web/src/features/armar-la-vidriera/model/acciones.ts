@@ -8,6 +8,7 @@ import {
   type FotoDeLaVidrieraNueva,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { avisarEnPantalla, claveDeTodaReplica, metaDeAvisos, type NuevoAviso } from '@/shared/lib';
 
 import {
@@ -106,12 +107,13 @@ export function sacarLaFoto(
     void opciones.quitarDelBucket(rutasEnLaVidriera(foto)).catch(() => undefined);
   }, ESPERA_ANTES_DE_QUITAR_DEL_BUCKET_MS);
 
+  const textos = mensajes().armarLaVidriera;
   opciones.avisar({
     clave: `foto-de-la-vidriera-sacada-${foto.id}`,
     tono: 'hecho',
-    texto: 'Sacaste una foto de tu vidriera.',
+    texto: textos.sacaste,
     accion: {
-      etiqueta: 'Deshacer',
+      etiqueta: textos.deshacer,
       alTocar: () => {
         deshecho = true;
         opciones.cancelar(reloj);

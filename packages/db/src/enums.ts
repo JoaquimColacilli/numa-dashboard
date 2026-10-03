@@ -12,4 +12,5 @@ export const TIPOS_DE_MOVIMIENTO: readonly TipoMovimiento[] = [
   'pago_diezmo',
   'aporte_cocos',
   'ajuste',
+  'cambio',
 ];

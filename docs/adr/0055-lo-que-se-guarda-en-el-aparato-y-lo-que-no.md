@@ -5,6 +5,11 @@ Estado: aceptada, 2026-09-20. Arregla una rotura en producción causada por el
 [0054](0054-el-link-de-cobro-de-mercado-pago.md). Acota el caché persistido del
 [0005](0005-offline-first.md) y del [0010](0010-sincronizacion-replica-completa.md).
 
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): el aparato suma `maun:idioma`,
+  una copia del idioma de la persona con su id, solo para pintar antes de React, que se borra al salir; lo que
+  manda es `user_metadata.idioma`, por la cola. `maun:seudoidioma` es una clave del aparato para los tests:
+  prende el seudoidioma y no se ofrece en ninguna pantalla.
+
 ## Qué pasó
 
 Después del deploy, el dueño abrió «lo que ve el cliente» desde la app y la pantalla se cayó

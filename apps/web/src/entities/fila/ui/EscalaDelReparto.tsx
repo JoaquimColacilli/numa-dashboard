@@ -1,4 +1,4 @@
-import { TINTA, type TintaDeTesoro } from '@/shared/lib';
+import { formatearPorcentaje, TINTA, type TintaDeTesoro } from '@/shared/lib';
 
 export interface ParteDeLaEscala {
   tesoro: string;
@@ -47,6 +47,7 @@ export function EscalaDelReparto({ partes, conNumeros = true }: EscalaDelReparto
             return (
               <span
                 key={marca}
+                translate="no"
                 className={`absolute top-0 flex flex-col gap-0.5 ${
                   alPrincipio
                     ? 'items-start'
@@ -57,7 +58,7 @@ export function EscalaDelReparto({ partes, conNumeros = true }: EscalaDelReparto
                 style={{ left: `${String(marca / 100)}%` }}
               >
                 <span className="h-1 w-px bg-ink" />
-                {String(marca / 100).replace('.', ',')}
+                {formatearPorcentaje(marca)}
               </span>
             );
           })}

@@ -13,7 +13,7 @@ const TONO: Readonly<Record<TonoDelPaso, string>> = {
 export interface PanelDePasoProps {
   titulo: string;
   paso: string;
-  detalle: string;
+  detalle: ReactNode;
   icono: NombreDeIcono;
   tono?: TonoDelPaso;
   children: ReactNode;

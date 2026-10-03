@@ -9,6 +9,8 @@ import {
 
 import { Icono, Tilde, type NombreDeIcono } from '@maun/ui';
 
+import { useMensajes } from '@/shared/idioma';
+
 export interface TextoQueCreceProps extends Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
   'value' | 'onChange' | 'rows'
@@ -49,6 +51,7 @@ export function TextoQueCrece({
     <div className="grid min-w-0">
       <span
         aria-hidden
+        translate="no"
         style={alto}
         className={`invisible col-start-1 row-start-1 min-h-11 border-transparent break-words whitespace-pre-wrap ${caja}`}
       >
@@ -250,6 +253,7 @@ export function BarraDeDeshacer({
   alDeshacer: () => void;
   alVencer: () => void;
 }) {
+  const { deshacer } = useMensajes().ui;
   const vencer = useRef(alVencer);
   useEffect(() => {
     vencer.current = alVencer;
@@ -274,7 +278,7 @@ export function BarraDeDeshacer({
         onClick={alDeshacer}
         className="min-h-tap flex-none px-2.5 font-semibold underline underline-offset-2"
       >
-        Deshacer
+        {deshacer}
       </button>
     </div>
   );

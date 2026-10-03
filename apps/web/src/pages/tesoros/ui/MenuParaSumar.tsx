@@ -1,14 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
-import { lugaresParaSumar, TITULO_DEL_LUGAR, type LugarEnLaFila } from '@/entities/fila';
-import { ChipDelTesoro } from '@/entities/tesoro';
+import {
+  entraEnLaFila,
+  lugaresParaSumar,
+  TITULO_DEL_LUGAR,
+  type LugarEnLaFila,
+} from '@/entities/fila';
+import { ChipDelTesoro, metaEnPesos } from '@/entities/tesoro';
 import {
   editarLaFila,
   fichaEnElLugar,
   sumarEnElLugar,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
-import { formatearPesos } from '@/shared/lib';
+import { useMensajes } from '@/shared/idioma';
+import { formatearLaPlata } from '@/shared/lib';
 import { ConSalida, Icono, RESPALDO_DE_LA_SALIDA_MS, useSalida } from '@/shared/ui';
 
 import type { LugarDelTramo } from '../model/disposicion';
@@ -37,6 +43,7 @@ function Menu({
   alElegir,
   alPedirNuevo,
 }: Omit<MenuParaSumarProps, 'pedido'> & { pedido: PedidoDeSumar }) {
+  const m = useMensajes();
   const salida = useSalida();
   const saliendo = salida?.saliendo ?? false;
   const alTerminar = salida?.alTerminar;
@@ -47,10 +54,11 @@ function Menu({
   const encabezado = encabezadoDelMenu(vista, elegido, pedido.tramo);
   const candidatos = vista.estante.filter(
     (suelto) =>
-      lugaresParaSumar(vista.fila, suelto.id, suelto.clave).find(
+      lugaresParaSumar(vista.fila, suelto.id, suelto.clave, suelto.moneda).find(
         (posible) => posible.lugar === elegido,
       )?.sePuede ?? false,
   );
+  const hayDeOtraMoneda = vista.estante.some((suelto) => !entraEnLaFila(suelto));
 
   useLayoutEffect(() => {
     const elemento = menu.current;
@@ -111,7 +119,7 @@ function Menu({
     <>
       <button
         type="button"
-        aria-label="Cerrar el menú"
+        aria-label={m.paginaTesoros.menu.cerrar}
         inert={saliendo}
         className={`fixed inset-0 z-40 cursor-default ${saliendo ? 'pointer-events-none' : ''}`}
         onClick={alCerrar}
@@ -119,7 +127,7 @@ function Menu({
       <div
         ref={menu}
         role="menu"
-        aria-label={`Sumar un tesoro: ${encabezado}`}
+        aria-label={m.paginaTesoros.menu.sumarUnTesoro(encabezado)}
         inert={saliendo}
         data-saliendo={saliendo ? '' : undefined}
         style={{
@@ -134,7 +142,11 @@ function Menu({
         <p className="px-3 pt-2 pb-1.5 text-meta text-paper/65">{encabezado}</p>
         {lugares.length > 1 && (
           <>
-            <div role="group" aria-label="Cómo entra" className="flex flex-col gap-0.5">
+            <div
+              role="group"
+              aria-label={m.paginaTesoros.menu.comoEntra}
+              className="flex flex-col gap-0.5"
+            >
               {lugares.map((uno, posicion) => (
                 <button
                   key={uno}
@@ -168,7 +180,7 @@ function Menu({
               editarLaFila(vista, (fila) =>
                 sumarEnElLugar(
                   fila,
-                  { id: suelto.id, clave: suelto.clave, meta: suelto.meta },
+                  { id: suelto.id, clave: suelto.clave, meta: metaEnPesos(suelto) },
                   elegido,
                   despuesDe,
                 ),
@@ -180,9 +192,11 @@ function Menu({
           >
             <ChipDelTesoro tesoro={suelto} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-medium">{suelto.nombre}</span>
+              <span translate="no" className="block truncate text-body font-medium">
+                {suelto.nombre}
+              </span>
               <span className="block text-meta text-paper/65">
-                tiene {formatearPesos(suelto.saldo)}
+                {m.paginaTesoros.menu.tiene(formatearLaPlata(suelto.saldo))}
               </span>
             </span>
           </button>
@@ -205,8 +219,13 @@ function Menu({
           >
             <Icono nombre="plus" tamano={16} />
           </span>
-          Un tesoro nuevo
+          {m.paginaTesoros.menu.unTesoroNuevo}
         </button>
+        {hayDeOtraMoneda && (
+          <p data-la-fila-reparte-pesos className="px-3 pt-1 pb-2 text-meta text-paper/65">
+            {m.fila.laFilaRepartePesos}
+          </p>
+        )}
       </div>
     </>
   );

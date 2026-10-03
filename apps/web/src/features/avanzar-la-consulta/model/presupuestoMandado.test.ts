@@ -1,6 +1,8 @@
 import {
   borradorNuevo,
   centavos,
+  centavosEn,
+  cotizacion,
   documentoDelPresupuesto,
   PLANTILLA_DE_SIEMPRE,
   puntosBasicos,
@@ -11,7 +13,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { TABLAS_REPLICADAS, type Json, type Replica, type TablaReplicada } from '@/shared/api';
-import { formatearPesos, formatearPorcentaje } from '@/shared/lib';
+import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
 
 import {
   avisoDelAcordado,
@@ -54,11 +56,13 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
         email: '',
       },
       cliente: 'Marcela Duarte',
+      moneda: 'ARS',
+      cobraEn: null,
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
     },
-    { pesos: formatearPesos, porcentaje: formatearPorcentaje },
+    formatosDelDocumento('es'),
   );
 }
 
@@ -175,5 +179,81 @@ describe('el aviso de lo acordado al aprobar', () => {
     expect(enUnRenglon(avisoDelAcordado(mandado(CON_TOTAL, ''), null, 1_200_000))).toBe(
       'En el presupuesto que le mandaste dice $ 10.000. Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: $ 12.000».',
     );
+  });
+});
+
+describe('lo acordado, solo contra un presupuesto de la misma moneda y la misma forma de cobrar', () => {
+  const EN_DOLARES = documentoDelPresupuesto(
+    {
+      borrador: borradorNuevo({
+        titulo: 'Placard de tres puertas',
+        obra: '',
+        plantilla: PLANTILLA_DE_SIEMPRE,
+        validezDias: 15,
+        idNuevo: () => 'm1',
+      }),
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      taller: {
+        nombre: 'Taller de prueba',
+        titular: '',
+        cuit: '',
+        condicionFiscal: null,
+        domicilio: '',
+        telefono: '',
+        email: '',
+      },
+      cliente: 'Marcela Duarte',
+      moneda: 'USD',
+      cobraEn: ['USD'],
+      valores: valoresDelTrabajo(centavosEn('USD', 100_000), []),
+      referencia: { cotizacion: cotizacion(154_000), fecha: '2026-09-14' },
+      senaBp: puntosBasicos(5000),
+      abonado: centavosEn('USD', 0),
+    },
+    formatosDelDocumento('es'),
+  );
+
+  it('un trabajo en dólares no compara con uno mandado en pesos, ni uno en pesos con uno en dólares', () => {
+    expect(
+      avisoDelAcordado(mandado(CON_TOTAL), null, 1_200_000, { moneda: 'USD', cobraEn: null }),
+    ).toBeNull();
+    expect(
+      avisoDelAcordado(mandado(EN_DOLARES), null, 120_000, { moneda: 'ARS', cobraEn: null }),
+    ).toBeNull();
+  });
+
+  it('tampoco con uno de su moneda que se mandó con otro «Te paga en»', () => {
+    expect(
+      avisoDelAcordado(mandado(CON_TOTAL), null, 1_200_000, {
+        moneda: 'ARS',
+        cobraEn: ['ARS', 'USD'],
+      }),
+    ).toBeNull();
+    expect(
+      avisoDelAcordado(mandado(EN_DOLARES), null, 120_000, { moneda: 'USD', cobraEn: ['ARS'] }),
+    ).toBeNull();
+  });
+
+  it('en pesos, sin elegir en qué paga es lo mismo que pagar en pesos', () => {
+    expect(
+      enUnRenglon(
+        avisoDelAcordado(mandado(CON_TOTAL), null, 1_200_000, { moneda: 'ARS', cobraEn: ['ARS'] }),
+      ),
+    ).toBe(
+      'En el presupuesto Nº 20260914-01 dice $ 10.000. Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: $ 12.000».',
+    );
+  });
+
+  it('con la misma moneda y la misma forma de cobrar, compara en dólares', () => {
+    expect(
+      enUnRenglon(
+        avisoDelAcordado(mandado(EN_DOLARES), null, 120_000, { moneda: 'USD', cobraEn: ['USD'] }),
+      ),
+    ).toBe(
+      'En el presupuesto Nº 20260914-01 dice US$ 1.000. Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: US$ 1.200».',
+    );
+    expect(
+      avisoDelAcordado(mandado(EN_DOLARES), null, 100_000, { moneda: 'USD', cobraEn: ['USD'] }),
+    ).toBeNull();
   });
 });

@@ -17,9 +17,12 @@ import {
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   relativa,
 } from './fechas';
+import { fijarElIdiomaEnUso } from './idioma';
+import { seudoTexto } from './seudo';
 
 describe('las fechas del presupuesto', () => {
   it('la del rótulo, en casillas: día, mes y los dos últimos del año', () => {
@@ -27,9 +30,38 @@ describe('las fechas del presupuesto', () => {
     expect(fechaDelRotulo('2030-01-02')).toBe('02/01/30');
   });
 
+  it('en portugués, el primer día del mes va con su ordinal: «1º de dezembro»', () => {
+    expect(fechaConAnio('2026-12-01', 'pt-BR')).toBe('1º de dezembro de 2026');
+    expect(fechaConAnio('2026-12-02', 'pt-BR')).toBe('2 de dezembro de 2026');
+    expect(fechaConAnio('2026-12-01', 'en')).toBe('December 1, 2026');
+  });
+
+  it('en inglés y en portugués, la del rótulo nombra el mes: nunca una fecha solo en números', () => {
+    expect(fechaDelRotulo('2026-09-17', 'en')).toBe('Sep 17, 2026');
+    expect(fechaDelRotulo('2026-09-17', 'pt-BR')).toBe('17 set. 2026');
+    expect(fechaDelRotulo('2030-01-02', 'pt-BR')).toBe('2 jan. 2030');
+  });
+
   it('la del PDF, con el año siempre', () => {
     expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
     expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');
+  });
+});
+
+describe('las fechas con el seudoidioma', () => {
+  it('salen marcadas como los textos del catálogo, una sola vez', () => {
+    try {
+      fijarElIdiomaEnUso('es', true);
+      expect(fechaLarga('2026-10-02', '2026-10-02')).toBe(seudoTexto('vie 2 oct'));
+      expect(relativa('2026-10-05', '2026-10-02')).toBe(seudoTexto('en 3 días'));
+      expect(haceCuanto('2026-08-20', '2026-09-21')).toBe(seudoTexto('hace 1 mes'));
+      expect(nombreDelMes('2026-10')).toBe(seudoTexto('Octubre'));
+      expect(mesEnUnaFrase('2026-10')).toBe(seudoTexto('Octubre').toLocaleLowerCase('es-AR'));
+      expect(fechaConAnio('2026-09-17')).toBe(seudoTexto('17 de septiembre de 2026'));
+    } finally {
+      fijarElIdiomaEnUso('es');
+    }
+    expect(fechaLarga('2026-10-02', '2026-10-02')).toBe('vie 2 oct');
   });
 });
 
@@ -152,5 +184,50 @@ describe('distancias', () => {
     expect(relativa('2026-07-01', '2026-09-11')).toBe('hace 2 meses');
     expect(relativa('2026-08-05', '2026-09-11')).toBe('hace 1 mes');
     expect(relativa('2026-12-31', '2026-09-11')).toBe('en 4 meses');
+  });
+});
+
+describe('las fechas en inglés y en portugués', () => {
+  const HOY = '2026-10-01';
+
+  it('usan lo que da Intl con la etiqueta del idioma, con el año solo si no es el de hoy', () => {
+    expect(fechaLarga('2026-10-01', HOY, 'en')).toBe('Thu, Oct 1');
+    expect(fechaLarga('2025-12-03', HOY, 'en')).toBe('Wed, Dec 3, 2025');
+    expect(fechaLarga('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1º de out.');
+    expect(fechaEnUnaFrase('2026-10-01', HOY, 'en')).toBe('Thu, October 1');
+    expect(fechaEnUnaFrase('2026-10-01', HOY, 'pt-BR')).toBe('qui., 1º de outubro');
+    expect(diaYMes('2025-12-03', HOY, 'en')).toBe('December 3, 2025');
+    expect(diaYMes('2026-10-01', HOY, 'pt-BR')).toBe('1º de outubro');
+    expect(fechaConAnio('2026-10-01', 'en')).toBe('October 1, 2026');
+    expect(fechaConAnio('2026-10-01', 'pt-BR')).toBe('1º de outubro de 2026');
+    expect(diaYMesCorto('2026-10-01', 'en')).toBe('Oct 1');
+    expect(diaYMesCorto('2026-10-01', 'pt-BR')).toBe('1º de out.');
+  });
+
+  it('el nombre del mes va con mayúscula, porque se muestra solo', () => {
+    expect(nombreDelMes('2026-10', 'en')).toBe('October');
+    expect(nombreDelMes('2026-10', 'pt-BR')).toBe('Outubro');
+    expect(nombreDelMes('2026-10', 'es')).toBe('Octubre');
+  });
+
+  it('adentro de una frase, el mes va en minúscula salvo en inglés', () => {
+    expect(mesEnUnaFrase('2026-10', 'es')).toBe('octubre');
+    expect(mesEnUnaFrase('2026-10', 'en')).toBe('October');
+    expect(mesEnUnaFrase('2026-10', 'pt-BR')).toBe('outubro');
+    expect(mesEnUnaFrase('2026-09')).toBe(nombreDelMes('2026-09').toLowerCase());
+  });
+
+  it('las distancias las dice Intl, con hoy, mañana y ayer en palabras', () => {
+    expect(relativa('2026-10-01', HOY, 'en')).toBe('today');
+    expect(relativa('2026-10-02', HOY, 'en')).toBe('tomorrow');
+    expect(relativa('2026-09-28', HOY, 'en')).toBe('3 days ago');
+    expect(relativa('2026-12-01', HOY, 'pt-BR')).toBe('em 2 meses');
+    expect(haceCuanto('2026-09-30', HOY, 'pt-BR')).toBe('ontem');
+    expect(haceCuanto('2026-08-01', HOY, 'en')).toBe('2 months ago');
+    expect(haceCuanto('2026-10-01', HOY, 'en')).toBe('today');
+  });
+
+  it('nunca se corren de día por la zona horaria', () => {
+    expect(fechaLarga('2026-01-01', '2026-01-01', 'en')).toBe('Thu, Jan 1');
   });
 });

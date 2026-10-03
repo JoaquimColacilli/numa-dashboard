@@ -13,21 +13,26 @@ import {
 } from '@/entities/cliente';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { HojaDeCliente } from '@/features/editar-cliente';
-import { formatearPesos, relativa, useIr } from '@/shared/lib';
+import { useMensajes, type Mensajes } from '@/shared/idioma';
+import { formatearCadaMoneda, relativa, useIr } from '@/shared/lib';
 import { Button, ConSalida, EstadoVacio, FondoDelElegido, Icono, Pagina } from '@/shared/ui';
 
-function detalleDe(resumen: ResumenDeCliente, hoy: string): string {
+function detalleDe(m: Mensajes, resumen: ResumenDeCliente, hoy: string): string {
   const partes: string[] = [];
   if (resumen.cliente.zona !== '') partes.push(resumen.cliente.zona);
   if (resumen.ultimo && resumen.fechaDelUltimo !== undefined) {
-    partes.push(`${resumen.ultimo.titulo}, ${relativa(resumen.fechaDelUltimo, hoy)}`);
+    partes.push(
+      m.paginaClientes.ultimoTrabajo(resumen.ultimo.titulo, relativa(resumen.fechaDelUltimo, hoy)),
+    );
   } else if (resumen.proyectos.length === 0) {
-    partes.push('Sin trabajos todavía');
+    partes.push(m.paginaClientes.sinTrabajosTodavia);
   }
   return partes.join(' · ');
 }
 
 function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
+  const m = useMensajes();
+  const textos = m.paginaClientes;
   const ir = useIr();
   const { cliente } = resumen;
 
@@ -40,26 +45,44 @@ function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
         }}
         className="grid min-h-[64px] w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-surface lg:grid-cols-[40px_minmax(0,2fr)_minmax(0,1.4fr)_140px_120px]"
       >
-        <span className="flex size-10 items-center justify-center rounded-pill bg-surface text-meta font-semibold">
+        <span
+          translate="no"
+          className="flex size-10 items-center justify-center rounded-pill bg-surface text-meta font-semibold"
+        >
           {iniciales(cliente.nombre)}
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-body-lg font-medium">{cliente.nombre}</span>
-          <span className="block truncate text-meta text-text-2">{detalleDe(resumen, hoy)}</span>
+          <span translate="no" className="block truncate text-body-lg font-medium">
+            {cliente.nombre}
+          </span>
+          <span className="block truncate text-meta text-text-2">{detalleDe(m, resumen, hoy)}</span>
         </span>
         <span className="hidden truncate text-meta text-text-2 lg:block">
           {resumen.fechaDelUltimo === undefined
-            ? 'Sin trabajos'
+            ? textos.sinTrabajos
             : relativa(resumen.fechaDelUltimo, hoy)}
         </span>
-        <span className="hidden text-right text-body font-medium tabular-nums lg:block">
-          {resumen.facturado > 0 ? formatearPesos(resumen.facturado) : '—'}
+        <span
+          translate="no"
+          className="hidden text-right text-body font-medium tabular-nums lg:block"
+        >
+          {resumen.facturado.length > 0
+            ? formatearCadaMoneda(resumen.facturado).map((monto) => (
+                <span key={monto} className="block">
+                  {monto}
+                </span>
+              ))
+            : '—'}
         </span>
         <span className="text-right whitespace-nowrap">
-          {resumen.saldo > 0 ? (
-            <span className="inline-block rounded-pill bg-atencion-tint px-2 py-0.5 text-badge font-semibold text-atencion tabular-nums">
-              debe {formatearPesos(resumen.saldo)}
-            </span>
+          {resumen.saldo.length > 0 ? (
+            formatearCadaMoneda(resumen.saldo).map((monto) => (
+              <span key={monto} className="block">
+                <span className="inline-block rounded-pill bg-atencion-tint px-2 py-0.5 text-badge font-semibold text-atencion tabular-nums">
+                  {textos.debe(monto)}
+                </span>
+              </span>
+            ))
           ) : (
             <Icono nombre="chevron-right" tamano={18} className="inline text-text-3" />
           )}
@@ -70,19 +93,20 @@ function Fila({ resumen, hoy }: { resumen: ResumenDeCliente; hoy: string }) {
 }
 
 function DeDondeVienen({ resumenes }: { resumenes: readonly ResumenDeCliente[] }) {
+  const textos = useMensajes().paginaClientes;
   const cortes = corteDeOrigenes(resumenes);
   const sinOrigen = resumenes.length - cortes.reduce((suma, corte) => suma + corte.cantidad, 0);
   if (cortes.length === 0) return null;
 
   return (
     <section
-      aria-label="De dónde vienen los trabajos"
+      aria-label={textos.deDondeVienen}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-label font-semibold">De dónde vienen los trabajos</span>
+        <span className="text-label font-semibold">{textos.deDondeVienen}</span>
         <span className="text-meta text-text-2 tabular-nums">
-          {resumenes.length} {resumenes.length === 1 ? 'cliente' : 'clientes'}
+          {textos.clientes(resumenes.length)}
         </span>
       </div>
       <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-control">
@@ -101,17 +125,14 @@ function DeDondeVienen({ resumenes }: { resumenes: readonly ResumenDeCliente[] }
             {corte.etiqueta} <strong className="text-ink tabular-nums">{corte.cantidad}</strong>
           </span>
         ))}
-        {sinOrigen > 0 && (
-          <span className="text-text-3">
-            {sinOrigen} sin anotar de dónde {sinOrigen === 1 ? 'vino' : 'vinieron'}
-          </span>
-        )}
+        {sinOrigen > 0 && <span className="text-text-3">{textos.sinOrigen(sinOrigen)}</span>}
       </div>
     </section>
   );
 }
 
 export function ClientesPage() {
+  const textos = useMensajes().paginaClientes;
   const replica = useReplicaDelTaller();
   const [consulta, setConsulta] = useState('');
   const [orden, setOrden] = useState<Orden>('nombre');
@@ -129,29 +150,29 @@ export function ClientesPage() {
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex items-end justify-between gap-3">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Clientes</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.titulo}</h1>
         <Button
           onClick={() => {
             setAbierta(true);
           }}
         >
           <Icono nombre="user-plus" tamano={18} />
-          Nuevo cliente
+          {textos.nuevoCliente}
         </Button>
       </header>
 
       {resumenes.length === 0 ? (
         <EstadoVacio
           ilustracion="sin-clientes"
-          titulo="La agenda del taller, todavía vacía"
-          detalle="Cargá a cada cliente una sola vez: dirección, teléfono y cómo facturarle. La próxima vez que te llame, todo ya está."
+          titulo={textos.vacioTitulo}
+          detalle={textos.vacioDetalle}
         >
           <Button
             onClick={() => {
               setAbierta(true);
             }}
           >
-            Cargá tu primer cliente
+            {textos.cargaTuPrimerCliente}
           </Button>
         </EstadoVacio>
       ) : (
@@ -164,8 +185,8 @@ export function ClientesPage() {
               onChange={(evento) => {
                 setConsulta(evento.target.value);
               }}
-              placeholder="Nombre, teléfono o dirección"
-              aria-label="Buscar cliente"
+              placeholder={textos.buscarPlaceholder}
+              aria-label={textos.buscarCliente}
               className="min-w-0 flex-1 bg-transparent text-body-lg outline-none"
             />
           </label>
@@ -176,12 +197,12 @@ export function ClientesPage() {
             <div className="flex flex-col items-stretch gap-1.5 px-1 @min-[22rem]:flex-row @min-[22rem]:items-center @min-[22rem]:justify-between @min-[22rem]:gap-3">
               <span className="text-meta text-text-2 tabular-nums">
                 {buscando
-                  ? `${String(filas.length)} de ${String(resumenes.length)}`
-                  : `${String(resumenes.length)} ${resumenes.length === 1 ? 'cliente' : 'clientes'}`}
+                  ? textos.deTantos(filas.length, resumenes.length)
+                  : textos.clientes(resumenes.length)}
               </span>
               <div
                 role="radiogroup"
-                aria-label="Ordenar por"
+                aria-label={textos.ordenarPor}
                 className="relative grid grid-cols-3 gap-0.5 rounded-pill bg-ink/6 p-1 @min-[22rem]:flex"
               >
                 <FondoDelElegido elegido={orden} />
@@ -208,13 +229,13 @@ export function ClientesPage() {
 
           {filas.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-panel border border-dashed border-border px-5 py-6 text-center">
-              <span className="text-body-lg text-text-2">Nadie coincide con «{consulta}».</span>
+              <span className="text-body-lg text-text-2">{textos.nadieCoincide(consulta)}</span>
               <Button
                 onClick={() => {
                   setAbierta(true);
                 }}
               >
-                Crear «{consulta.trim()}» como cliente nuevo
+                {textos.crearComoNuevo(consulta.trim())}
               </Button>
             </div>
           ) : (

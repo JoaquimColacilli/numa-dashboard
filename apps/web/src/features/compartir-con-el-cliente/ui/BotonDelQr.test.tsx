@@ -5,10 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Enlace } from '@/entities/enlace';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { CLAVE_DE_LOS_ENLACES, enlaceDelCliente } from '@/shared/lib';
 
-import { BotonDelQr, MOSTRAR_EL_QR } from './BotonDelQr';
-import { ESCANEALO, ES_EL_MISMO_ENLACE } from './HojaDelQr';
+import { BotonDelQr } from './BotonDelQr';
+
+const {
+  esElMismoEnlace: ES_EL_MISMO_ENLACE,
+  escanealo: ESCANEALO,
+  mostrarElQr: MOSTRAR_EL_QR,
+} = mensajes().compartirConElCliente.qr;
 
 const AHORA = '2026-09-19T12:00:00Z';
 const TOKEN = '0ZT7y-Qm4kVb2Rn8LpXsWd1A';

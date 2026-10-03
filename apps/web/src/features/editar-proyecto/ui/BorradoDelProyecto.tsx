@@ -3,20 +3,22 @@ import { useState } from 'react';
 
 import { hijosDelProyecto, MUTACION_DE_BAJA_DE_PROYECTO, type Proyecto } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
 import { metaDeAvisos } from '@/shared/lib';
 import { Button, ConSalida, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
 export interface BorradoDelProyectoProps {
   proyecto: Proyecto;
-  sustantivo: 'proyecto' | 'contacto';
+  variante: 'proyecto' | 'contacto';
   alBorrar: () => void;
 }
 
-export function BorradoDelProyecto({ proyecto, sustantivo, alBorrar }: BorradoDelProyectoProps) {
+export function BorradoDelProyecto({ proyecto, variante, alBorrar }: BorradoDelProyectoProps) {
   const replica = useReplicaDelTaller();
+  const textos = useMensajes().editarProyecto.borrado;
   const borrar = useMutation({
     ...MUTACION_DE_BAJA_DE_PROYECTO,
-    meta: metaDeAvisos(sustantivo === 'contacto' ? 'contactoBorrado' : 'proyectoBorrado', {
+    meta: metaDeAvisos(variante === 'contacto' ? 'contactoBorrado' : 'proyectoBorrado', {
       sujeto: proyecto.titulo,
     }),
   });
@@ -29,19 +31,19 @@ export function BorradoDelProyecto({ proyecto, sustantivo, alBorrar }: BorradoDe
         variant="herramienta"
         size="herramienta"
         className="sm:px-4"
-        aria-label="Borrar"
+        aria-label={textos.borrar}
         onClick={() => {
           setConfirmando(true);
         }}
       >
         <Icono nombre="trash-2" tamano={16} />
-        <span className="hidden sm:inline">Borrar</span>
+        <span className="hidden sm:inline">{textos.borrar}</span>
       </Button>
 
       <ConSalida valor={confirmando}>
         {() => (
           <Hoja
-            titulo={`¿Borrás «${proyecto.titulo}»?`}
+            titulo={textos.pregunta(proyecto.titulo)}
             rol="alertdialog"
             ancho="angosto"
             alCerrar={() => {
@@ -51,10 +53,10 @@ export function BorradoDelProyecto({ proyecto, sustantivo, alBorrar }: BorradoDe
             <div className="flex flex-col gap-3.5 px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
               <p className="text-label leading-relaxed text-text-2">
                 {pagos.length === 0 && gastos.length === 0
-                  ? sustantivo === 'contacto'
-                    ? 'No tiene seña ni gastos cargados, así que no se mueve plata.'
-                    : 'No tiene pagos ni gastos cargados, así que no se mueve plata.'
-                  : `Se va a llevar sus ${String(pagos.length)} pagos y sus ${String(gastos.length)} gastos, y con eso salen del libro mayor.`}
+                  ? variante === 'contacto'
+                    ? textos.sinPlataDelContacto
+                    : textos.sinPlataDelProyecto
+                  : textos.conPlata(pagos.length, gastos.length)}
               </p>
               <FilaDeAcciones>
                 <Button
@@ -63,7 +65,7 @@ export function BorradoDelProyecto({ proyecto, sustantivo, alBorrar }: BorradoDe
                     setConfirmando(false);
                   }}
                 >
-                  Cancelar
+                  {textos.cancelar}
                 </Button>
                 <Button
                   variant="peligro"
@@ -77,7 +79,7 @@ export function BorradoDelProyecto({ proyecto, sustantivo, alBorrar }: BorradoDe
                     alBorrar();
                   }}
                 >
-                  {sustantivo === 'contacto' ? 'Borrar el contacto' : 'Borrar el proyecto'}
+                  {variante === 'contacto' ? textos.borrarElContacto : textos.borrarElProyecto}
                 </Button>
               </FilaDeAcciones>
             </div>

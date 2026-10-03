@@ -7,6 +7,7 @@ import {
   type PedidoDeLiquidacion,
   type PedidoDeReversion,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 import type { Proyecto } from './catalogos';
 
@@ -155,6 +156,7 @@ export function ajusteDeLaLiquidacion(
     return undefined;
   }
 
+  const etiquetas = mensajes().proyecto.liquidacion.escalones;
   const escalones: readonly {
     id: 'sueldo' | 'fijos';
     etiqueta: string;
@@ -164,14 +166,14 @@ export function ajusteDeLaLiquidacion(
   }[] = [
     {
       id: 'sueldo',
-      etiqueta: 'Sueldo',
+      etiqueta: etiquetas.sueldo,
       esperado: pedido.sueldoCentavos,
       quedo: fila.dist_sueldo_centavos,
       previo: sueldoPrevio,
     },
     {
       id: 'fijos',
-      etiqueta: 'Costos fijos',
+      etiqueta: etiquetas.fijos,
       esperado: pedido.fijosCentavos,
       quedo: fila.dist_fijos_centavos,
       previo: fijosPrevio,

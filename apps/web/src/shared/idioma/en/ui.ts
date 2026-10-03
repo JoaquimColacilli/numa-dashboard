@@ -1,0 +1,80 @@
+import type { Mensajes } from '../es';
+
+export const ui = {
+  hoja: {
+    cerrar: 'Close',
+    cerrarSinGuardar: 'Close without saving?',
+    seVaAPerder: "What you added hasn't been saved yet, and if you close, it'll be lost.",
+    seguirEditando: 'Keep editing',
+    descartar: 'Discard',
+  },
+  deshacer: 'Undo',
+  comparacion: {
+    ocultarLosNumeros: 'Hide the numbers',
+    verLosNumeros: 'Show the numbers',
+    concepto: 'Item',
+    diferencia: 'Difference',
+  },
+  copiar: {
+    copiar: 'Copy',
+    copiado: 'Copied',
+    seleccionado: 'Selected: press and hold, then choose Copy',
+    noSePudo: "Couldn't copy. Select it with your finger and copy it from your phone's menu.",
+  },
+  guardado: {
+    sinGuardar: 'Not saved',
+    sinSenal: "Offline: it'll save when you're back online",
+    guardando: 'Saving…',
+    noSePudo: "Couldn't save",
+    guardado: 'Saved',
+  },
+  mail: {
+    loMandamosA: 'Sent to',
+    cambiar: 'Change',
+    mandandoDeNuevo: 'Sending it again…',
+    reenviarEn: (espera) => `Resend in ${espera}`,
+    reenviar: 'Resend email',
+    mandadoDeNuevo: (email) => `We sent it again to ${email}.`,
+  },
+  panelDeAvisos: {
+    entendido: 'Got it, remove it',
+  },
+  acceso: {
+    lema: "How much is left to collect, what's being delivered this week, and where every peso goes when a payment comes in.",
+    unTaller: 'One shop, four buckets.',
+  },
+  rotulo: {
+    etiqueta: 'Quote title block',
+    presupuesto: 'Quote',
+    numero: (numero) => `No. ${numero}`,
+    sinNumero: 'No number yet',
+    revision: 'Rev.',
+    emitido: 'Issued',
+    opcion: 'Option',
+    aceptado: 'Accepted',
+    valeHasta: 'Valid until',
+    sinVencimiento: 'No expiration',
+    vencio: 'Expired',
+  },
+  visor: {
+    anterior: 'Previous',
+    siguiente: 'Next',
+    abrirAparte: 'Open in a new tab',
+    cuenta: (actual, total) => `${actual} of ${total}`,
+  },
+  contrasena: {
+    mostrar: 'Show password',
+  },
+  dolar: {
+    etiqueta: 'Dollar rate',
+    delDia: 'Today',
+    mep: 'MEP',
+    blue: 'Blue',
+    usarElDelDia: (monto) => `Use today's dollar rate: ${monto}`,
+    usarLaCompra: (casa, monto) => `Use the ${casa} buy rate: ${monto}`,
+    usarLaVenta: (casa, monto) => `Use the ${casa} sell rate: ${monto}`,
+    sugerencias: 'Rates to choose from',
+    fueraDeRango: (desde, hasta) => `The rate goes from ${desde} to ${hasta}.`,
+    falta: 'What rate was it taken at?',
+  },
+} satisfies Mensajes['ui'];

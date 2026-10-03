@@ -9,6 +9,8 @@ const ANCHO = 1875;
 
 const ALTO = 485;
 
+const LA_MARCA = 'Mercado Pago';
+
 export function LogoDeMercadoPago({ decorativo = false, className = '' }: LogoDeMercadoPagoProps) {
   return (
     <span
@@ -17,7 +19,7 @@ export function LogoDeMercadoPago({ decorativo = false, className = '' }: LogoDe
     >
       <img
         src={logo}
-        alt={decorativo ? '' : 'Mercado Pago'}
+        alt={decorativo ? '' : LA_MARCA}
         width={ANCHO}
         height={ALTO}
         className="h-4.5 w-auto"

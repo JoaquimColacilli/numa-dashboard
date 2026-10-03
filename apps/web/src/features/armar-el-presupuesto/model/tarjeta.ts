@@ -1,5 +1,5 @@
 import {
-  acordadoAlAprobar,
+  acordadoConElDocumento,
   ESTADOS_DE_CONSULTA,
   EN_SEGUIMIENTO,
   hayCambiosSinMandar,
@@ -8,6 +8,8 @@ import {
   vencioElPresupuesto,
   type DocumentoDelPresupuesto,
   type EstadoProyecto,
+  type Idioma,
+  type Moneda,
   type Money,
   type OpcionDelDocumento,
 } from '@maun/domain';
@@ -24,14 +26,15 @@ import {
   vigenciaDelPresupuesto,
   type Proyecto,
 } from '@/entities/proyecto';
+import { idiomaDeLosClientes } from '@/entities/replica';
 import type { Replica } from '@/shared/api';
 
 import {
   borradorGuardado,
   documentoDeHoy,
   entradaDeHoy,
-  FORMATOS_DE_LA_APP,
-  totalDeHoy,
+  formatosDeLaReplica,
+  precioDeHoy,
 } from './documento';
 
 export interface RevisionLeida {
@@ -41,7 +44,12 @@ export interface RevisionLeida {
 
 export type EstadoDeLaTarjeta =
   | { cual: 'sin-borrador' }
-  | { cual: 'borrador'; presupuesto: FilaDelPresupuesto; documento: DocumentoDelPresupuesto }
+  | {
+      cual: 'borrador';
+      presupuesto: FilaDelPresupuesto;
+      documento: DocumentoDelPresupuesto;
+      idioma: Idioma;
+    }
   | {
       cual: 'mandado';
       presupuesto: FilaDelPresupuesto;
@@ -58,9 +66,9 @@ export type EstadoDeLaTarjeta =
       ultima: RevisionLeida;
       anteriores: RevisionLeida[];
       aceptadoEl: string | null;
-      opcion: OpcionDelDocumento | null;
+      opcion: OpcionDelDocumento<Moneda> | null;
       documento: DocumentoDelPresupuesto;
-      acordado: Money | null;
+      acordado: Money<Moneda> | null;
     };
 
 const SE_MANDA_OTRA: readonly EstadoProyecto[] = [...ESTADOS_DE_CONSULTA, EN_SEGUIMIENTO];
@@ -94,6 +102,7 @@ export function estadoDeLaTarjeta(
       cual: 'borrador',
       presupuesto,
       documento: documentoDeHoy({ replica, proyecto, borrador }),
+      idioma: idiomaDeLosClientes(replica),
     };
   }
 
@@ -111,7 +120,7 @@ export function estadoDeLaTarjeta(
         hayCambiosSinMandar(
           entradaDeHoy({ replica, proyecto, borrador }),
           ultima.documento,
-          FORMATOS_DE_LA_APP,
+          formatosDeLaReplica(replica),
         ),
       valeHasta,
       vencido: seMandaOtra && vencioElPresupuesto(valeHasta, hoy),
@@ -131,6 +140,6 @@ export function estadoDeLaTarjeta(
     aceptadoEl: presupuesto.aceptado_el,
     opcion,
     documento,
-    acordado: acordadoAlAprobar(documento.valores, totalDeHoy(proyecto)),
+    acordado: acordadoConElDocumento(documento, precioDeHoy(proyecto)),
   };
 }

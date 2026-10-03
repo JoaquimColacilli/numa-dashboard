@@ -129,10 +129,12 @@ select is(
   jsonb_build_object(
     'instancia', 'sena',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 50400000,
     'siguiente', jsonb_build_object(
       'instancia', 'saldo',
       'formas', jsonb_build_array('transferencia', 'efectivo'),
+      'formas_en_dolares', jsonb_build_array(),
       'monto_centavos', 62400000
     )
   ),
@@ -164,7 +166,8 @@ insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos)
 select is(
   tests.la_vista() -> 'pago',
   jsonb_build_object(
-    'instancia', null, 'formas', jsonb_build_array(), 'monto_centavos', null, 'siguiente', null
+    'instancia', null, 'formas', jsonb_build_array(), 'formas_en_dolares', jsonb_build_array(),
+    'monto_centavos', null, 'siguiente', null
   ),
   'con la seña cubierta y sin aprobar, no se le pide el saldo'
 );
@@ -262,6 +265,7 @@ select is(
   jsonb_build_object(
     'instancia', 'saldo',
     'formas', jsonb_build_array('transferencia', 'efectivo'),
+    'formas_en_dolares', jsonb_build_array(),
     'monto_centavos', 62400000,
     'siguiente', null
   ),
@@ -617,8 +621,8 @@ select tests.mandar_el_presupuesto(
 
 select is(
   array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
-  array['contenido', 'mandado_el', 'numero', 'que_cambio', 'revision'],
-  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió y el documento'
+  array['contenido', 'idioma', 'mandado_el', 'numero', 'que_cambio', 'revision'],
+  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió, el documento y su idioma'
 );
 
 select is(
@@ -679,7 +683,7 @@ update public.proyectos set estado = 'en_curso'
 
 select is(
   array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
-  array['aceptado_el', 'contenido', 'letra', 'mandado_el', 'numero', 'revision'],
+  array['aceptado_el', 'contenido', 'idioma', 'letra', 'mandado_el', 'numero', 'revision'],
   'aprobado, viaja sin lo que cambió y con el día en que se aceptó'
 );
 

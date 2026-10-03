@@ -1,6 +1,13 @@
-import { centavos, faseDe, type EstadoProyecto, type Money } from '@maun/domain';
+import { faseDe, plata, type EstadoProyecto, type Plata } from '@maun/domain';
 
-import { filasDe, type FilaDe, type Replica } from '@/shared/api';
+import {
+  filasDe,
+  monedaDelTrabajo,
+  totalesPorProyecto,
+  type FilaDe,
+  type Replica,
+} from '@/shared/api';
+import { porMoneda } from '@/shared/lib';
 
 import type { Cliente } from './catalogos';
 
@@ -15,8 +22,8 @@ export interface ResumenDeCliente {
   facturados: number;
   ultimo: Proyecto | undefined;
   fechaDelUltimo: string | undefined;
-  facturado: Money;
-  saldo: Money;
+  facturado: readonly Plata[];
+  saldo: readonly Plata[];
 }
 
 export function fechaDelProyecto(proyecto: Proyecto): string | undefined {
@@ -30,14 +37,6 @@ export function fechaDelProyecto(proyecto: Proyecto): string | undefined {
   );
 }
 
-export function cobradoDelProyecto(pagos: readonly FilaDe<'pagos'>[], proyectoId: string): number {
-  let total = 0;
-  for (const pago of pagos) {
-    if (pago.proyecto_id === proyectoId) total += pago.monto_centavos;
-  }
-  return total;
-}
-
 function masReciente(uno: Proyecto, otro: Proyecto): number {
   const a = fechaDelProyecto(otro) ?? '';
   const b = fechaDelProyecto(uno) ?? '';
@@ -46,7 +45,7 @@ function masReciente(uno: Proyecto, otro: Proyecto): number {
 }
 
 export function resumenesDeClientes(replica: Replica): ResumenDeCliente[] {
-  const pagos = filasDe(replica, 'pagos');
+  const totales = totalesPorProyecto(replica);
   const porCliente = new Map<string, Proyecto[]>();
   for (const proyecto of filasDe(replica, 'proyectos')) {
     const lista = porCliente.get(proyecto.cliente_id);
@@ -57,17 +56,19 @@ export function resumenesDeClientes(replica: Replica): ResumenDeCliente[] {
   return filasDe(replica, 'clientes').map((cliente) => {
     const proyectos = (porCliente.get(cliente.id) ?? []).sort(masReciente);
 
-    let facturado = 0;
-    let saldo = 0;
+    const facturado: Plata[] = [];
+    const saldo: Plata[] = [];
     let facturados = 0;
     for (const proyecto of proyectos) {
       if (faseDe(proyecto.estado) === 'consultas' || faseDe(proyecto.estado) === 'seguimiento')
         continue;
       facturados += 1;
-      facturado += proyecto.presupuesto_centavos ?? 0;
+      const moneda = monedaDelTrabajo(proyecto);
+      const precio = proyecto.presupuesto_centavos ?? 0;
+      facturado.push(plata(moneda, precio));
       if (!ESTADOS_CON_SALDO.includes(proyecto.estado)) continue;
-      const falta = (proyecto.presupuesto_centavos ?? 0) - cobradoDelProyecto(pagos, proyecto.id);
-      if (falta > 0) saldo += falta;
+      const cobrado = totales.get(proyecto.id)?.cobradoEnSuMoneda.importe ?? 0;
+      if (precio - cobrado > 0) saldo.push(plata(moneda, precio - cobrado));
     }
 
     const ultimo = proyectos[0];
@@ -78,8 +79,8 @@ export function resumenesDeClientes(replica: Replica): ResumenDeCliente[] {
       facturados,
       ultimo,
       fechaDelUltimo: ultimo ? fechaDelProyecto(ultimo) : undefined,
-      facturado: centavos(facturado),
-      saldo: centavos(saldo),
+      facturado: porMoneda(facturado),
+      saldo: porMoneda(saldo),
     };
   });
 }

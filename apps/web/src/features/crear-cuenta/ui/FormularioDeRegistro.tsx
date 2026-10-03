@@ -1,6 +1,8 @@
 import { useState, type SyntheticEvent } from 'react';
 
 import { crearCuenta, mensajeDeAcceso } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
+import { idiomaActual } from '@/shared/lib';
 import { Button, Campo, CampoDeContrasena } from '@/shared/ui';
 
 const MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -20,6 +22,7 @@ export function FormularioDeRegistro({
   emailInicial?: string;
   alCrear: (email: string) => void;
 }) {
+  const m = useMensajes();
   const [email, setEmail] = useState(emailInicial);
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<ErrorDelFormulario | undefined>(undefined);
@@ -28,16 +31,13 @@ export function FormularioDeRegistro({
   async function enviar(evento: SyntheticEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!MAIL.test(email)) {
-      setError({
-        campo: 'email',
-        mensaje: 'Escribí un mail válido: ahí te llega el enlace de confirmación.',
-      });
+      setError({ campo: 'email', mensaje: m.crearCuenta.escribiUnMailValido });
       return;
     }
     if (contrasena.length < LARGO_MINIMO) {
       setError({
         campo: 'contrasena',
-        mensaje: `La contraseña tiene que tener al menos ${String(LARGO_MINIMO)} caracteres.`,
+        mensaje: m.crearCuenta.contrasenaCorta({ minimo: LARGO_MINIMO }),
       });
       return;
     }
@@ -45,7 +45,12 @@ export function FormularioDeRegistro({
     setEnviando(true);
     setError(undefined);
     try {
-      await crearCuenta(email, contrasena, `${window.location.origin}${RUTA_DE_CONFIRMACION}`);
+      await crearCuenta(
+        email,
+        contrasena,
+        `${window.location.origin}${RUTA_DE_CONFIRMACION}`,
+        idiomaActual(),
+      );
       alCrear(email);
     } catch (fallo) {
       setError({ mensaje: mensajeDeAcceso(fallo) });
@@ -62,7 +67,7 @@ export function FormularioDeRegistro({
       }}
     >
       <Campo
-        etiqueta="Email"
+        etiqueta={m.crearCuenta.email}
         name="email"
         type="email"
         inputMode="email"
@@ -72,13 +77,13 @@ export function FormularioDeRegistro({
         onChange={(evento) => {
           setEmail(evento.target.value);
         }}
-        placeholder="vos@taller.com.ar"
+        placeholder={m.crearCuenta.ejemploDeMail}
       />
       <CampoDeContrasena
-        etiqueta="Contraseña"
+        etiqueta={m.crearCuenta.contrasena}
         name="new-password"
         autoComplete="new-password"
-        ayuda={`Al menos ${String(LARGO_MINIMO)} caracteres. Con el ojo ves lo que escribiste.`}
+        ayuda={m.crearCuenta.alMenos({ minimo: LARGO_MINIMO })}
         value={contrasena}
         error={error?.campo === 'contrasena' ? error.mensaje : undefined}
         onChange={(evento) => {
@@ -91,7 +96,7 @@ export function FormularioDeRegistro({
         </p>
       )}
       <Button type="submit" size="grande" cargando={enviando} className="mt-1 w-full">
-        {enviando ? 'Creando la cuenta…' : 'Crear la cuenta'}
+        {enviando ? m.crearCuenta.creandoLaCuenta : m.crearCuenta.crearLaCuenta}
       </Button>
     </form>
   );

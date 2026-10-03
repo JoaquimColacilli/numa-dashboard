@@ -11,7 +11,9 @@ import {
   type Proyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { avisarEnPantalla, formatearPesos, metaDeAvisos, useIr } from '@/shared/lib';
+import { monedaDelTrabajo } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
+import { avisarEnPantalla, formatearPlata, metaDeAvisos, useIr } from '@/shared/lib';
 import { Button, Icono } from '@/shared/ui';
 
 export interface OpcionesDelTrabajoProps {
@@ -25,6 +27,7 @@ export function OpcionesDelTrabajo({
 }: OpcionesDelTrabajoProps) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
+  const textos = useMensajes().editarProyecto.opcionesDelTrabajo;
   const opciones = opcionesDelProyecto(replica, proyecto.id);
 
   const ultimo = useRef({ proyecto, opciones });
@@ -41,14 +44,11 @@ export function OpcionesDelTrabajo({
     if (!ofreceCargarLaPrimera) return null;
     return (
       <section
-        aria-label="Opciones de presupuesto"
+        aria-label={textos.titulo}
         className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
       >
-        <h2 className="text-section font-semibold">Opciones de presupuesto</h2>
-        <p className="mt-1.5 text-meta leading-normal text-text-3">
-          Si le presentás más de una variante, cargá cada una con su importe. Cuando elija, tildás
-          la que aprobó.
-        </p>
+        <h2 className="text-section font-semibold">{textos.titulo}</h2>
+        <p className="mt-1.5 text-meta leading-normal text-text-3">{textos.cargarLaPrimera}</p>
         <Button
           variant="secundario"
           className="mt-2.5"
@@ -57,7 +57,7 @@ export function OpcionesDelTrabajo({
           }}
         >
           <Icono nombre="plus" tamano={16} />
-          Cargar las opciones
+          {textos.cargarLasOpciones}
         </Button>
       </section>
     );
@@ -72,16 +72,17 @@ export function OpcionesDelTrabajo({
 
   function alTildar(opcion: OpcionDePresupuesto, valor: boolean): void {
     const previo = opcionAprobada(ultimo.current.opciones);
+    const avisos = mensajes().editarProyecto.opcionesDelTrabajo;
     tildar(opcion.id, valor);
 
     avisarEnPantalla({
       clave: `opcion:${proyecto.id}`,
       tono: 'hecho',
       texto: valor
-        ? `Aprobaste ${formatearPesos(opcion.monto_centavos)}: es el presupuesto del trabajo.`
-        : 'Sacaste la aprobación: el trabajo queda sin presupuesto.',
+        ? avisos.aprobaste(formatearPlata(opcion.monto_centavos, monedaDelTrabajo(proyecto)))
+        : avisos.sacasteLaAprobacion,
       accion: {
-        etiqueta: 'Deshacer',
+        etiqueta: avisos.deshacer,
         alTocar: () => {
           if (previo === undefined) tildar(opcion.id, false);
           else tildar(previo.id, true);
@@ -92,24 +93,23 @@ export function OpcionesDelTrabajo({
 
   return (
     <section
-      aria-label="Opciones de presupuesto"
+      aria-label={textos.titulo}
       className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
-        <h2 className="text-section font-semibold">Opciones de presupuesto</h2>
+        <h2 className="text-section font-semibold">{textos.titulo}</h2>
         <span className="text-label text-text-2 tabular-nums">
-          {opciones.length === 1 ? '1 opción' : `${String(opciones.length)} opciones`}
+          {textos.cuantas(opciones.length)}
         </span>
       </div>
       <p className="mb-1 text-meta leading-normal text-text-3">
-        {aprobada === undefined
-          ? 'Tildá la que te aprobaron y ese importe pasa a ser el presupuesto del trabajo.'
-          : 'Las que no eligió quedan acá, para saber qué le ofreciste.'}
+        {aprobada === undefined ? textos.sinAprobar : textos.conAprobada}
       </p>
 
       <ul className="list-none">
         {opciones.map((opcion) => {
           const esLaAprobada = opcion.aprobada;
+          const sinDetalle = opcion.descripcion.trim() === '';
           return (
             <li
               key={opcion.id}
@@ -118,22 +118,26 @@ export function OpcionesDelTrabajo({
               }`}
             >
               <span className="min-w-0 flex-1 basis-[12rem]">
-                <span className="block text-body-lg leading-snug font-medium">
-                  {opcion.descripcion.trim() === '' ? 'Opción sin detalle' : opcion.descripcion}
+                <span
+                  translate={sinDetalle ? undefined : 'no'}
+                  className="block text-body-lg leading-snug font-medium"
+                >
+                  {sinDetalle ? textos.sinDetalle : opcion.descripcion}
                 </span>
                 {esLaAprobada && (
                   <span className="mt-0.5 flex items-center gap-1 text-meta font-semibold text-hogar">
                     <Icono nombre="check" tamano={14} />
-                    Aprobada: es el presupuesto del trabajo
+                    {textos.esElPresupuesto}
                   </span>
                 )}
               </span>
               <span
+                translate="no"
                 className={`flex-none text-money font-semibold tabular-nums ${
                   esLaAprobada ? 'text-hogar' : ''
                 }`}
               >
-                {formatearPesos(opcion.monto_centavos)}
+                {formatearPlata(opcion.monto_centavos, monedaDelTrabajo(proyecto))}
               </span>
               <button
                 type="button"
@@ -148,7 +152,7 @@ export function OpcionesDelTrabajo({
                 }`}
               >
                 <Icono nombre={esLaAprobada ? 'check' : 'plus'} tamano={16} />
-                {esLaAprobada ? 'Aprobada' : 'La aprobó'}
+                {esLaAprobada ? textos.estaAprobada : textos.laAprobo}
               </button>
             </li>
           );

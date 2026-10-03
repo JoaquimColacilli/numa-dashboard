@@ -1,4 +1,4 @@
-import { centavos, type Money, type OpcionDelTrabajo } from '@maun/domain';
+import { centavos, centavosEn, type Moneda, type Money, type OpcionDelTrabajo } from '@maun/domain';
 
 import {
   datosActualesDelProyecto,
@@ -6,17 +6,17 @@ import {
   type OpcionDePresupuesto,
   type Proyecto,
 } from '@/entities/proyecto';
-import type { OpcionParaGuardar } from '@/shared/api';
+import { monedaDelTrabajo, type OpcionParaGuardar } from '@/shared/api';
 
 export interface OpcionDelEditor {
   id: string;
   descripcion: string;
-  monto: Money | null;
+  monto: Money<Moneda> | null;
   aprobada: boolean;
 }
 
 export interface ValoresDelEditor {
-  total: Money | null;
+  total: Money<Moneda> | null;
   opciones: OpcionDelEditor[];
 }
 
@@ -24,25 +24,26 @@ export function valoresDelProyecto(
   proyecto: Proyecto,
   opciones: readonly OpcionDePresupuesto[],
 ): ValoresDelEditor {
+  const moneda = monedaDelTrabajo(proyecto);
   return {
     total:
       opciones.length > 0 || proyecto.presupuesto_centavos === null
         ? null
-        : centavos(proyecto.presupuesto_centavos),
+        : centavosEn(moneda, proyecto.presupuesto_centavos),
     opciones: opciones.map((opcion) => ({
       id: opcion.id,
       descripcion: opcion.descripcion,
-      monto: opcion.monto_centavos > 0 ? centavos(opcion.monto_centavos) : null,
+      monto: opcion.monto_centavos > 0 ? centavosEn(moneda, opcion.monto_centavos) : null,
       aprobada: opcion.aprobada,
     })),
   };
 }
 
-export function totalDelEditor(valores: ValoresDelEditor): Money | null {
+export function totalDelEditor(valores: ValoresDelEditor): Money<Moneda> | null {
   return valores.opciones.length > 0 ? null : valores.total;
 }
 
-export function opcionesDelEditor(valores: ValoresDelEditor): OpcionDelTrabajo[] {
+export function opcionesDelEditor(valores: ValoresDelEditor): OpcionDelTrabajo<Moneda>[] {
   return valores.opciones.map((opcion) => ({
     id: opcion.id,
     descripcion: opcion.descripcion.trim(),

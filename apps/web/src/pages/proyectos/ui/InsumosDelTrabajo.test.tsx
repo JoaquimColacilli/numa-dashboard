@@ -28,6 +28,7 @@ describe('los insumos en la ficha del trabajo', () => {
           entro: centavos(100_000_000),
           gastado: centavos(40_000_000),
           queda: centavos(60_000_000),
+          enDolares: [],
           tallerPuso: null,
         }}
       />,
@@ -57,6 +58,7 @@ describe('los insumos en la ficha del trabajo', () => {
           entro: centavos(10_000_000),
           gastado: centavos(25_000_000),
           queda: centavos(-15_000_000),
+          enDolares: [],
           tallerPuso: centavos(15_000_000),
         }}
       />,

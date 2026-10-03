@@ -65,6 +65,19 @@ describe('las novedades que aparecen solas', () => {
     expect(versiones(rota.tomarNovedadesSinVer(NOVEDADES))).toEqual(['2026-10-02']);
   });
 
+  it('en inglés y en portugués muestran solo las que tienen ese idioma', async () => {
+    localStorage.setItem('maun:novedades-vistas', '2026-09-15');
+    const conLasTres = [
+      {
+        version: '2026-10-03',
+        lineas: { es: ['La cuarta.'], en: ['The fourth.'], 'pt-BR': ['A quarta.'] },
+      },
+      ...NOVEDADES,
+    ];
+    const { tomarNovedadesSinVer } = await alAbrirLaApp(true);
+    expect(versiones(tomarNovedadesSinVer(conLasTres, 'pt-BR'))).toEqual(['2026-10-03']);
+  });
+
   it('sin almacenamiento del navegador no rompe nada', async () => {
     const { tomarNovedadesSinVer, versionVista } = await alAbrirLaApp(true);
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {

@@ -1,6 +1,10 @@
+import { mensajes, type Mensajes } from '@/shared/idioma';
+
+export type LugarDeLaZona = keyof Mensajes['recibirAvisos']['zonas'];
+
 export interface ZonaHoraria {
   id: string;
-  lugar: string;
+  lugar: LugarDeLaZona;
 }
 
 export interface OpcionDeZona {
@@ -9,12 +13,12 @@ export interface OpcionDeZona {
 }
 
 export const ZONAS_HORARIAS: readonly ZonaHoraria[] = [
-  { id: 'America/Argentina/Buenos_Aires', lugar: 'Argentina' },
-  { id: 'America/Argentina/Cordoba', lugar: 'Córdoba' },
-  { id: 'America/Montevideo', lugar: 'Uruguay' },
-  { id: 'America/Santiago', lugar: 'Chile' },
-  { id: 'America/La_Paz', lugar: 'Bolivia' },
-  { id: 'Europe/Madrid', lugar: 'España' },
+  { id: 'America/Argentina/Buenos_Aires', lugar: 'argentina' },
+  { id: 'America/Argentina/Cordoba', lugar: 'cordoba' },
+  { id: 'America/Montevideo', lugar: 'uruguay' },
+  { id: 'America/Santiago', lugar: 'chile' },
+  { id: 'America/La_Paz', lugar: 'bolivia' },
+  { id: 'Europe/Madrid', lugar: 'espana' },
 ];
 
 export function desfaseDeLaZona(zona: string, ahora: Date): string {
@@ -27,12 +31,20 @@ export function desfaseDeLaZona(zona: string, ahora: Date): string {
 }
 
 export function opcionesDeZona(guardada: string | null, ahora: Date): OpcionDeZona[] {
+  const textos = mensajes().recibirAvisos;
+  const conocidas = ZONAS_HORARIAS.map((zona) => ({
+    id: zona.id,
+    lugar: textos.zonas[zona.lugar],
+  }));
   const conocida = guardada === null || ZONAS_HORARIAS.some((zona) => zona.id === guardada);
   const zonas = conocida
-    ? ZONAS_HORARIAS
-    : [...ZONAS_HORARIAS, { id: guardada, lugar: guardada.replaceAll('_', ' ') }];
+    ? conocidas
+    : [...conocidas, { id: guardada, lugar: guardada.replaceAll('_', ' ') }];
   return zonas.map((zona) => ({
     id: zona.id,
-    etiqueta: `${zona.lugar} (${desfaseDeLaZona(zona.id, ahora)})`,
+    etiqueta: textos.zonaConDesfase({
+      lugar: zona.lugar,
+      desfase: desfaseDeLaZona(zona.id, ahora),
+    }),
   }));
 }

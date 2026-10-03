@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { cuantasRespuestas, preguntaGuardada, TIPO } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ajustesDe, householdDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { diaLocal, haceCuanto, rutaDeLaPregunta, rutaDelProyecto, Ir } from '@/shared/lib';
 import { ConSalida, FilaDeAcciones, Icono } from '@/shared/ui';
 
@@ -77,6 +78,7 @@ function FilaDeLaPregunta({
   alArchivar,
   children,
 }: FilaDeLaPreguntaProps) {
+  const textos = useMensajes().editarLaEncuesta;
   const unico = useId();
   const idDelTexto = `${unico}-texto`;
 
@@ -87,7 +89,7 @@ function FilaDeLaPregunta({
           <button
             type="button"
             data-foco={claveDe(id, 'subir')}
-            aria-label="Subir"
+            aria-label={textos.subir}
             aria-describedby={idDelTexto}
             disabled={primera}
             onClick={alSubir}
@@ -98,7 +100,7 @@ function FilaDeLaPregunta({
           <button
             type="button"
             data-foco={claveDe(id, 'bajar')}
-            aria-label="Bajar"
+            aria-label={textos.bajar}
             aria-describedby={idDelTexto}
             disabled={ultima}
             onClick={alBajar}
@@ -116,6 +118,7 @@ function FilaDeLaPregunta({
         >
           <span
             id={idDelTexto}
+            translate={sinEscribir ? undefined : 'no'}
             className={`text-body-lg leading-snug text-pretty ${sinEscribir ? 'text-text-3' : 'text-ink'}`}
           >
             {texto}
@@ -127,7 +130,7 @@ function FilaDeLaPregunta({
         <span className="flex flex-none gap-0.5">
           <button
             type="button"
-            aria-label="Editar"
+            aria-label={textos.editar}
             aria-describedby={idDelTexto}
             onClick={alAbrir}
             className={`${BOTON_CHICO} size-9.5 text-text-2 hover:text-ink`}
@@ -137,9 +140,9 @@ function FilaDeLaPregunta({
           {alArchivar !== null && (
             <button
               type="button"
-              aria-label="Dejar de preguntarla"
+              aria-label={textos.dejarDePreguntarla}
               aria-describedby={idDelTexto}
-              title="Dejar de preguntarla"
+              title={textos.dejarDePreguntarla}
               onClick={alArchivar}
               className={`${BOTON_CHICO} size-9.5 text-text-3 hover:text-alerta`}
             >
@@ -154,6 +157,7 @@ function FilaDeLaPregunta({
 }
 
 function MetaDeLaPregunta({ item }: { item: PreguntaDelEditor }) {
+  const textos = useMensajes().editarLaEncuesta;
   const { fila, uso, versionada } = item;
   return (
     <>
@@ -161,13 +165,13 @@ function MetaDeLaPregunta({ item }: { item: PreguntaDelEditor }) {
         <Icono nombre={TIPO[fila.tipo].icono} tamano={14} />
         {TIPO[fila.tipo].etiqueta}
       </span>
-      {fila.obligatoria && <span className="text-text-3">Obligatoria</span>}
+      {fila.obligatoria && <span className="text-text-3">{textos.obligatoria}</span>}
       {uso.respuestas > 0 && (
         <span className="text-text-3">{cuantasRespuestas(uso.respuestas)}</span>
       )}
       {versionada && (
         <span className="rounded-pill border border-border px-2 py-px font-semibold text-text-2">
-          versión {fila.numero}
+          {textos.version(fila.numero)}
         </span>
       )}
     </>
@@ -183,13 +187,14 @@ function Archivada({
   bloqueada: boolean;
   alVolver: () => void;
 }) {
+  const textos = useMensajes().editarLaEncuesta;
   const unico = useId();
   const idDelTexto = `${unico}-texto`;
   const { fila, uso } = item;
   const cuando =
     fila.archivada_at === null
       ? ''
-      : ` · dejaste de preguntarla ${haceCuanto(diaLocal(fila.archivada_at))}`;
+      : ` · ${textos.dejasteDePreguntarla(haceCuanto(diaLocal(fila.archivada_at)))}`;
 
   return (
     <li className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-hairline-soft py-3.5 first:border-t-0">
@@ -197,12 +202,12 @@ function Archivada({
         <Icono nombre="archive" tamano={17} />
       </span>
       <span className="min-w-0 flex-1 basis-24">
-        <span id={idDelTexto} className="block text-body leading-snug text-text-2">
+        <span id={idDelTexto} translate="no" className="block text-body leading-snug text-text-2">
           {fila.texto}
         </span>
         <span className="mt-0.75 block text-label text-text-3">
           {TIPO[fila.tipo].etiqueta} ·{' '}
-          {uso.respuestas > 0 ? cuantasRespuestas(uso.respuestas) : 'sin respuestas'}
+          {uso.respuestas > 0 ? cuantasRespuestas(uso.respuestas) : textos.sinRespuestas}
           {cuando}
         </span>
       </span>
@@ -213,18 +218,14 @@ function Archivada({
             aria-describedby={idDelTexto}
             className="flex h-9.5 items-center rounded-pill border border-border bg-paper px-2.75 text-label font-medium no-underline hover:bg-surface"
           >
-            Ver respuestas
+            {textos.verRespuestas}
           </Ir>
         )}
         <button
           type="button"
-          aria-label="Volver a preguntarla"
+          aria-label={textos.volverAPreguntarla}
           aria-describedby={idDelTexto}
-          title={
-            bloqueada
-              ? `Ya preguntás ${String(TOPE_PREGUNTAS)}: para volver a preguntarla, sacá otra.`
-              : 'Volver a preguntarla'
-          }
+          title={bloqueada ? textos.yaPreguntasElTope(TOPE_PREGUNTAS) : textos.volverAPreguntarla}
           disabled={bloqueada}
           onClick={alVolver}
           className={`${BOTON_CHICO} size-9.5 text-text-3 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent`}
@@ -237,6 +238,7 @@ function Archivada({
 }
 
 export function EditorDeLaEncuesta() {
+  const textos = useMensajes().editarLaEncuesta;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const [abierta, setAbierta] = useState<string | null>(null);
@@ -308,29 +310,28 @@ export function EditorDeLaEncuesta() {
 
   return (
     <div ref={raiz} className="flex flex-col gap-3 md:gap-4">
-      <p className="max-w-[560px] text-body leading-relaxed text-text-2">
-        Esto es lo que se le pregunta a todos los clientes cuando terminás un trabajo. Ya está
-        escrita: cambiá lo que quieras o dejala como está.
-      </p>
+      <p className="max-w-[560px] text-body leading-relaxed text-text-2">{textos.intro}</p>
 
       <div
         className={`flex flex-wrap items-center gap-3 rounded-panel border px-4 py-4 md:px-5 ${FONDO_DEL_LARGO[largo.tono]}`}
       >
         <span className="flex flex-none items-center gap-2.25">
           <Icono nombre="clock" tamano={18} />
-          <span className="text-subtitulo font-semibold tabular-nums">{largo.texto}</span>
+          <span translate="no" className="text-subtitulo font-semibold tabular-nums">
+            {largo.texto}
+          </span>
         </span>
         <span className="min-w-[180px] flex-1 text-label leading-normal text-text-2">
-          {largo.nota}
+          {textos.notasDelLargo[largo.tono]}
         </span>
         <span className="flex-none text-label text-text-2 tabular-nums">
-          {vigentes.length} de {TOPE_PREGUNTAS}
+          {textos.deTantas(vigentes.length, TOPE_PREGUNTAS)}
         </span>
       </div>
 
       <div>
         <ul
-          aria-label="Lo que se pregunta"
+          aria-label={textos.loQueSePregunta}
           className={
             conRenglones
               ? 'list-none rounded-panel border border-hairline bg-paper px-4'
@@ -390,7 +391,7 @@ export function EditorDeLaEncuesta() {
           {abierta === NUEVA && (
             <FilaDeLaPregunta
               id={NUEVA}
-              texto="Pregunta nueva, sin escribir"
+              texto={textos.preguntaNueva}
               sinEscribir
               meta={
                 <span className="inline-flex items-center gap-1.5">
@@ -426,8 +427,7 @@ export function EditorDeLaEncuesta() {
 
         {!conRenglones && (
           <p className="rounded-panel border border-hairline bg-paper px-4 py-4 text-body leading-relaxed text-text-2 md:px-5">
-            Por ahora no le preguntás nada a nadie. Agregá una pregunta o volvé a preguntar una de
-            las de abajo.
+            {textos.noPreguntasNada}
           </p>
         )}
       </div>
@@ -446,7 +446,7 @@ export function EditorDeLaEncuesta() {
             }`}
           >
             <Icono nombre="plus" tamano={18} />
-            Agregar una pregunta
+            {textos.agregarUnaPregunta}
           </button>
           <button
             type="button"
@@ -457,13 +457,12 @@ export function EditorDeLaEncuesta() {
             className="flex h-12 items-center justify-center gap-2 rounded-pill border border-border bg-paper px-4 text-body font-medium hover:bg-ink/5 disabled:text-text-3 disabled:hover:bg-paper"
           >
             <Icono nombre="eye" tamano={18} />
-            Verla como la ve el cliente
+            {textos.verlaComoElCliente}
           </button>
         </FilaDeAcciones>
         {enElTope && (
           <p className="mt-2.5 max-w-[520px] text-label leading-relaxed text-text-2">
-            Llegaste a {TOPE_PREGUNTAS} preguntas. Es el largo hasta donde la gente contesta sin
-            abandonar: para agregar una, sacá otra.
+            {textos.llegasteAlTope(TOPE_PREGUNTAS)}
           </p>
         )}
       </div>
@@ -472,12 +471,9 @@ export function EditorDeLaEncuesta() {
         <section aria-labelledby="las-que-ya-no" className="flex flex-col gap-2">
           <div className="px-1">
             <h2 id="las-que-ya-no" className="mb-1 text-body-lg font-semibold">
-              Las que ya no preguntás
+              {textos.lasQueYaNo}
             </h2>
-            <p className="text-label leading-relaxed text-text-3">
-              No se preguntan más, pero lo que contestaron queda guardado y se puede ver en
-              Resultados.
-            </p>
+            <p className="text-label leading-relaxed text-text-3">{textos.lasQueYaNoDetalle}</p>
           </div>
           <ul className="list-none rounded-panel border border-hairline bg-paper px-4">
             {archivadas.map((item) => (
@@ -498,11 +494,10 @@ export function EditorDeLaEncuesta() {
       <section aria-labelledby="de-un-trabajo" className="flex flex-col gap-2">
         <div className="px-1">
           <h2 id="de-un-trabajo" className="mb-1 text-body-lg font-semibold">
-            Preguntas de un trabajo puntual
+            {textos.deUnTrabajo}
           </h2>
           <p className="max-w-[560px] text-label leading-relaxed text-text-3">
-            Se agregan desde el trabajo, no desde acá, y se suman solo a esa encuesta. No entran en
-            el promedio general: una pregunta que contestó una persona no es una estadística.
+            {textos.deUnTrabajoDetalle}
           </p>
         </div>
         {propias.length > 0 && (
@@ -513,7 +508,7 @@ export function EditorDeLaEncuesta() {
                   a={rutaDelProyecto(trabajo.proyectoId)}
                   className="flex min-h-15 w-full items-center gap-3 py-3 text-left no-underline hover:bg-surface"
                 >
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1" translate="no">
                     <span className="block text-body leading-snug">{fila.texto}</span>
                     <span className="mt-0.5 block text-label text-text-3">
                       {trabajo.cliente === ''

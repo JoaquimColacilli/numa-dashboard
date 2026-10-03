@@ -11,6 +11,8 @@ import { useReplicaDelTaller } from '@/entities/replica';
 import { PantallaDePasaje } from '@/features/avanzar-la-consulta';
 import { hoyLocal } from '@/shared/lib';
 
+import { ConTesoroEnDolaresNuevo } from './ConTesoroEnDolaresNuevo';
+
 export function ProyectoPasajePage() {
   const replica = useReplicaDelTaller();
   const { id = '' } = useParams();
@@ -20,5 +22,15 @@ export function ProyectoPasajePage() {
   if (!resumen) return <Navigate to={RUTA_DE_CONSULTAS} replace />;
   if (!enConsultasAlEntrar) return <Navigate to={rutaDelProyecto(id)} replace />;
 
-  return <PantallaDePasaje resumen={resumen} opciones={opcionesDelProyecto(replica, id)} />;
+  return (
+    <ConTesoroEnDolaresNuevo>
+      {(pedir) => (
+        <PantallaDePasaje
+          resumen={resumen}
+          opciones={opcionesDelProyecto(replica, id)}
+          alCrearUnTesoroEnDolares={pedir}
+        />
+      )}
+    </ConTesoroEnDolaresNuevo>
+  );
 }

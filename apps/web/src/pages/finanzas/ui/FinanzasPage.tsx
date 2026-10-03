@@ -16,6 +16,7 @@ import {
   TODOS_LOS_MESES,
   TODOS_LOS_TESOROS,
   useMovimientosEnVuelo,
+  valoresEnPesosDeLosPagos,
   type FiltroDelLibro,
   type LineaDelTaller,
   type SentidoDeLinea,
@@ -24,11 +25,13 @@ import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosDelTaller } from '@/entities/tesoro';
 import { datosDelLibro } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
   hoyLocal,
   mesAnterior,
   mesDeLaFecha,
+  mesEnUnaFrase,
   nombreDelMes,
   PARAMETRO_DE_TESORO,
   parametroDelTesoro,
@@ -50,27 +53,25 @@ import {
 
 import { tesorosDeLosChips } from '../model/chips';
 
-const SENTIDOS: readonly { id: SentidoDeLinea | 'todos'; etiqueta: string }[] = [
-  { id: 'todos', etiqueta: 'Todo' },
-  { id: 'entra', etiqueta: 'Entradas' },
-  { id: 'sale', etiqueta: 'Salidas' },
-  { id: 'mueve', etiqueta: 'Entre tesoros' },
-];
+const SENTIDOS: readonly (SentidoDeLinea | 'todos')[] = ['todos', 'entra', 'sale', 'mueve'];
 
 function Chip({
   activo,
   etiqueta,
   punto,
+  talCual = false,
   alElegir,
 }: {
   activo: boolean;
   etiqueta: string;
   punto?: string;
+  talCual?: boolean;
   alElegir: () => void;
 }) {
   return (
     <button
       type="button"
+      translate={talCual ? 'no' : undefined}
       aria-pressed={activo}
       onClick={alElegir}
       className={`apretable flex min-h-tap items-center gap-2 rounded-pill border px-3 text-label font-medium ${
@@ -86,6 +87,8 @@ function Chip({
 }
 
 export function FinanzasPage() {
+  const m = useMensajes();
+  const textos = m.paginaFinanzas;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const location = useLocation();
@@ -122,8 +125,9 @@ export function FinanzasPage() {
   );
 
   const asientos = useMemo(() => asientosDelLibro(datosDelLibro(replica)), [replica]);
-  const actual = resumenMensual(asientos, mes);
-  const previo = resumenMensual(asientos, mesAnterior(mes));
+  const valoresDeLosPagos = useMemo(() => valoresEnPesosDeLosPagos(replica), [replica]);
+  const actual = resumenMensual(asientos, mes, valoresDeLosPagos);
+  const previo = resumenMensual(asientos, mesAnterior(mes), valoresDeLosPagos);
 
   const conFiltro = hayFiltroPuesto(filtro, mes);
   const cambiar = ({ tesoro, ...otros }: Partial<FiltroDelLibro>) => {
@@ -158,14 +162,14 @@ export function FinanzasPage() {
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Finanzas</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.titulo}</h1>
         <Button
           onClick={() => {
             abrirHoja(RUTA_DE_MOVIMIENTO_NUEVO);
           }}
         >
           <Icono nombre="plus" tamano={18} />
-          Cargar movimiento
+          {textos.cargarMovimiento}
         </Button>
       </header>
 
@@ -175,20 +179,20 @@ export function FinanzasPage() {
         separacion="gap-y-3 @min-[40rem]/apoyo:gap-y-4"
         apoyo={
           <ComparacionMensual
-            titulo={`${nombreDelMes(mes)} contra ${nombreDelMes(mesAnterior(mes)).toLowerCase()}`}
-            etiquetaPrevia={nombreDelMes(mesAnterior(mes)).toLowerCase()}
-            etiquetaActual={nombreDelMes(mes).toLowerCase()}
+            titulo={textos.contra(nombreDelMes(mes), mesEnUnaFrase(mesAnterior(mes)))}
+            etiquetaPrevia={mesEnUnaFrase(mesAnterior(mes))}
+            etiquetaActual={mesEnUnaFrase(mes)}
             barras={[
               {
                 id: 'entro-hogar',
-                etiqueta: 'Entró al hogar',
+                etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
                 previo: previo.entroHogar,
                 actual: actual.entroHogar,
                 tono: 'text-hogar',
               },
               {
                 id: 'gasto-hogar',
-                etiqueta: 'Gastó el hogar',
+                etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
                 previo: previo.gastoHogar,
                 actual: actual.gastoHogar,
                 tono: 'text-ink',
@@ -196,7 +200,7 @@ export function FinanzasPage() {
               },
               {
                 id: 'facturo-taller',
-                etiqueta: 'Facturó el taller',
+                etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
                 previo: previo.facturoTaller,
                 actual: actual.facturoTaller,
                 tono: 'text-maun',
@@ -211,7 +215,7 @@ export function FinanzasPage() {
               <div className="contents @min-[52rem]/apoyo:flex @min-[52rem]/apoyo:flex-wrap @min-[52rem]/apoyo:items-center @min-[52rem]/apoyo:gap-2">
                 <Chip
                   activo={filtro.tesoro === TODOS_LOS_TESOROS}
-                  etiqueta="Todos"
+                  etiqueta={textos.todos}
                   alElegir={() => {
                     cambiar({ tesoro: TODOS_LOS_TESOROS });
                   }}
@@ -222,6 +226,7 @@ export function FinanzasPage() {
                     activo={filtro.tesoro === tesoro.id}
                     etiqueta={tesoro.nombre}
                     punto={TINTA[tesoro.tinta].fondo}
+                    talCual
                     alElegir={() => {
                       cambiar({ tesoro: tesoro.id });
                     }}
@@ -232,11 +237,11 @@ export function FinanzasPage() {
               <div className="contents @min-[52rem]/apoyo:flex @min-[52rem]/apoyo:flex-wrap @min-[52rem]/apoyo:items-center @min-[52rem]/apoyo:gap-2">
                 {SENTIDOS.map((sentido) => (
                   <Chip
-                    key={sentido.id}
-                    activo={filtro.sentido === sentido.id}
-                    etiqueta={sentido.etiqueta}
+                    key={sentido}
+                    activo={filtro.sentido === sentido}
+                    etiqueta={textos.sentidos[sentido]}
                     alElegir={() => {
-                      cambiar({ sentido: sentido.id });
+                      cambiar({ sentido });
                     }}
                   />
                 ))}
@@ -250,8 +255,8 @@ export function FinanzasPage() {
                 </span>
                 <input
                   value={filtro.texto}
-                  aria-label="Buscar en el libro"
-                  placeholder="Buscar por lo que anotaste"
+                  aria-label={textos.buscarEnElLibro}
+                  placeholder={textos.buscarPorLoQueAnotaste}
                   onChange={(evento) => {
                     cambiar({ texto: evento.target.value });
                   }}
@@ -260,7 +265,7 @@ export function FinanzasPage() {
               </label>
               <select
                 value={filtro.mes}
-                aria-label="Mes"
+                aria-label={textos.mes}
                 onChange={(evento) => {
                   cambiar({ mes: evento.target.value });
                 }}
@@ -268,10 +273,10 @@ export function FinanzasPage() {
               >
                 {meses.map((opcion) => (
                   <option key={opcion} value={opcion}>
-                    {nombreDelMes(opcion)} {opcion.slice(0, 4)}
+                    {textos.mesYAnio(nombreDelMes(opcion), opcion.slice(0, 4))}
                   </option>
                 ))}
-                <option value={TODOS_LOS_MESES}>Todos los meses</option>
+                <option value={TODOS_LOS_MESES}>{textos.todosLosMeses}</option>
               </select>
             </div>
           </div>
@@ -279,31 +284,29 @@ export function FinanzasPage() {
           {visibles.length === 0 ? (
             conFiltro ? (
               <div className="flex flex-col items-center gap-3 rounded-panel border border-dashed border-border px-5 py-6 text-center">
-                <h2 className="text-section font-semibold">Nada con esos filtros</h2>
-                <p className="text-body leading-relaxed text-text-2">
-                  Probá con otro mes o sacá los filtros.
-                </p>
+                <h2 className="text-section font-semibold">{textos.nadaConEsosFiltros}</h2>
+                <p className="text-body leading-relaxed text-text-2">{textos.probaConOtroMes}</p>
                 <Button
                   variant="secundario"
                   onClick={() => {
                     cambiar(filtroInicial(mes));
                   }}
                 >
-                  Limpiar los filtros
+                  {textos.limpiarLosFiltros}
                 </Button>
               </div>
             ) : (
               <EstadoVacio
                 ilustracion="sin-movimientos"
-                titulo="Todavía no hay movimientos"
-                detalle="Cargá el primer gasto o ingreso. Los cobros y las compras de cada trabajo se anotan solos desde el trabajo."
+                titulo={textos.todaviaNoHayMovimientos}
+                detalle={textos.cargaElPrimerGasto}
               >
                 <Button
                   onClick={() => {
                     abrirHoja(RUTA_DE_MOVIMIENTO_NUEVO);
                   }}
                 >
-                  Cargar el primero
+                  {textos.cargarElPrimero}
                 </Button>
               </EstadoVacio>
             )

@@ -1,4 +1,4 @@
-import { centavos, type LineaDelLibro } from '@maun/domain';
+import { centavos, enPesos, type LineaDelLibro } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { Replica } from '@/shared/api';
@@ -25,6 +25,7 @@ const HERRAMIENTAS_ID = '0192aaaa-0000-7000-8000-000000000006';
 const HOGAR: TesoroDeLaLinea = {
   id: HOGAR_ID,
   clave: 'hogar',
+  moneda: 'ARS',
   nombre: 'Hogar',
   tinta: 'hogar',
   icono: 'house',
@@ -32,6 +33,7 @@ const HOGAR: TesoroDeLaLinea = {
 const MAUN: TesoroDeLaLinea = {
   id: MAUN_ID,
   clave: 'maun',
+  moneda: 'ARS',
   nombre: 'Maun',
   tinta: 'maun',
   icono: 'hammer',
@@ -39,12 +41,34 @@ const MAUN: TesoroDeLaLinea = {
 const TESOROS: readonly TesoroDeLaLinea[] = [
   HOGAR,
   MAUN,
-  { id: DIEZMO_ID, clave: 'diezmo', nombre: 'Diezmo', tinta: 'diezmo', icono: 'church' },
-  { id: COCOS_ID, clave: 'cocos', nombre: 'Cocos', tinta: 'cocos', icono: 'piggy-bank' },
-  { id: MATERIALES_ID, clave: null, nombre: 'Materiales', tinta: 'mostaza', icono: 'package' },
+  {
+    id: DIEZMO_ID,
+    clave: 'diezmo',
+    moneda: 'ARS',
+    nombre: 'Diezmo',
+    tinta: 'diezmo',
+    icono: 'church',
+  },
+  {
+    id: COCOS_ID,
+    clave: 'cocos',
+    moneda: 'ARS',
+    nombre: 'Cocos',
+    tinta: 'cocos',
+    icono: 'piggy-bank',
+  },
+  {
+    id: MATERIALES_ID,
+    clave: null,
+    moneda: 'ARS',
+    nombre: 'Materiales',
+    tinta: 'mostaza',
+    icono: 'package',
+  },
   {
     id: HERRAMIENTAS_ID,
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     tinta: 'grana',
     icono: 'wrench',
@@ -62,6 +86,7 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     desdeId: MAUN_ID,
     haciaId: HOGAR_ID,
     monto: centavos(50_000_000),
+    montoHacia: centavos(50_000_000),
     categoria: '',
     descripcion: '',
     proyectoId: 'p',
@@ -78,7 +103,9 @@ function linea(extra: Partial<LineaDelTaller> = {}): LineaDelTaller {
     tesoroHacia: HOGAR,
     tesoroPrincipal: HOGAR,
     bloqueo: 'del-proyecto',
+    cotizacionDelPago: null,
     ...extra,
+    montoHacia: extra.montoHacia ?? extra.monto ?? base.montoHacia,
   };
 }
 
@@ -161,7 +188,7 @@ describe('efectoDeLaLinea', () => {
       [linea({ yaEnLaApertura: true }), linea({ clave: 'otra', monto: centavos(1_000) })],
       HOGAR_ID,
     );
-    expect(dia?.neto).toBe(1_000);
+    expect(dia?.netos).toEqual([enPesos(centavos(1_000))]);
   });
 });
 
@@ -221,6 +248,63 @@ describe('las líneas del taller con los tesoros del dueño', () => {
     expect(ingreso?.etiqueta).toBe('Ingreso al taller');
   });
 
+  it('un pago en dólares es una línea de su tesoro en dólares, con su dólar; uno en pesos entra a Maun', () => {
+    const DOLARES_ID = '0192aaaa-0000-7000-8000-000000000007';
+    const DOLARES: TesoroDeLaLinea = {
+      id: DOLARES_ID,
+      clave: null,
+      moneda: 'USD',
+      nombre: 'Dólares',
+      tinta: 'cocos',
+      icono: 'vault',
+    };
+    const replica = replicaCon([]);
+    const pago = {
+      proyecto_id: 'p',
+      fecha: '2026-09-20',
+      concepto: 'Seña',
+      ya_en_la_apertura: false,
+    };
+    const conPagos = {
+      ...replica,
+      tablas: {
+        ...replica.tablas,
+        proyectos: { p: { id: 'p', titulo: 'Placard', estado: 'en_curso' } },
+        pagos: {
+          dolares: {
+            ...pago,
+            id: 'dolares',
+            monto_centavos: 100_000,
+            moneda: 'USD',
+            cotizacion_centavos: 154_000,
+            tesoro_id: DOLARES_ID,
+          },
+          pesos: {
+            ...pago,
+            id: 'pesos',
+            monto_centavos: 5_000_000,
+            moneda: 'ARS',
+            cotizacion_centavos: null,
+            tesoro_id: null,
+          },
+        },
+      },
+    } as unknown as Replica;
+
+    const lineas = lineasDelTaller(conPagos, [...TESOROS, DOLARES]);
+    expect(lineas.find((una) => una.asientoId === 'dolares')).toMatchObject({
+      sentido: 'entra',
+      tesoroHacia: DOLARES,
+      monto: 100_000,
+      cotizacionDelPago: 154_000,
+    });
+    expect(lineas.find((una) => una.asientoId === 'pesos')).toMatchObject({
+      tesoroHacia: MAUN,
+      monto: 5_000_000,
+      cotizacionDelPago: null,
+    });
+  });
+
   it('un tesoro que la réplica no conoce igual tiene un nombre', () => {
     const [pase] = lineasDelTaller(
       replicaCon([
@@ -259,7 +343,7 @@ describe('las líneas del taller con los tesoros del dueño', () => {
       filtrarLineas(lineas, { ...filtro, tesoro: MATERIALES_ID }),
       MATERIALES_ID,
     );
-    expect(dia?.neto).toBe(1_000_000);
+    expect(dia?.netos).toEqual([enPesos(centavos(1_000_000))]);
   });
 
   it('los tesoros con movimiento en el período son los de los dos lados de cada línea del mes', () => {

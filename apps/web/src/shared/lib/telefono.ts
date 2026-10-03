@@ -28,13 +28,24 @@ export function whatsappCon(telefono: string, texto: string): string {
     : `https://wa.me/${numero}?text=${mensaje}`;
 }
 
+export interface UnMensajeAlCliente {
+  conNombre: (nombre: string, trabajo: string, url: string) => string;
+  sinNombre: (trabajo: string, url: string) => string;
+}
+
+export interface TextosDelMensajeAlCliente {
+  comoVa: UnMensajeAlCliente;
+  comoVaYComoPagarlo: UnMensajeAlCliente;
+}
+
 export function mensajeParaElCliente(
+  textos: TextosDelMensajeAlCliente,
   cliente: string,
   trabajo: string,
   url: string,
   hayPagoPendiente = false,
 ): string {
-  const nombre = cliente.trim() === '' ? 'Hola' : `Hola ${cliente.split(' ')[0] ?? cliente}`;
-  const que = hayPagoPendiente ? 'cómo va y cómo pagarlo' : 'cómo va';
-  return `${nombre}, acá podés ver ${que} tu ${trabajo.toLocaleLowerCase('es-AR')}: ${url}`;
+  const mensaje = hayPagoPendiente ? textos.comoVaYComoPagarlo : textos.comoVa;
+  if (cliente.trim() === '') return mensaje.sinNombre(trabajo, url);
+  return mensaje.conNombre(cliente.split(' ')[0] ?? cliente, trabajo, url);
 }

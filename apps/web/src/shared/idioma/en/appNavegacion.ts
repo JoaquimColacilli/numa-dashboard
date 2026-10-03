@@ -1,0 +1,29 @@
+import type { Mensajes } from '../es';
+
+export const appNavegacion = {
+  pantallas: {
+    inicio: 'Home',
+    agenda: 'Calendar',
+    consultas: 'Inquiries',
+    seguimiento: 'Follow-up',
+    proyectos: 'Jobs',
+    historial: 'History',
+    proyectoNuevo: 'New job',
+    analitico: 'Delivery insights',
+    editarProyecto: 'Edit job',
+    presupuesto: 'Quote',
+    aprobar: 'Approve',
+    mostrarleAlCliente: 'Show the client',
+    loQueVeElCliente: 'What the client sees',
+    cobrar: 'Get paid',
+    darPorPerdido: 'Mark as lost',
+    clientes: 'Clients',
+    finanzas: 'Finances',
+    tesoros: 'Buckets',
+    opiniones: 'Feedback',
+    diezmo: 'Tithe',
+    ajustes: 'Settings',
+    avisos: 'Notifications',
+    tuPresupuesto: 'Your quote',
+  },
+} satisfies Mensajes['appNavegacion'];

@@ -1,10 +1,12 @@
-import { centavos } from '@maun/domain';
+import { centavos, enPesos, plata } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
 
 import {
+  cambioParaArchivar,
+  comoQuedaElDestino,
   destinosDelArchivo,
   porQueEnPalabras,
   porQueNoSeArchiva,
@@ -17,6 +19,7 @@ const MATERIALES = '01900000-0000-7000-8000-000000000007';
 function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>): TesoroDelTaller {
   return {
     clave: null,
+    moneda: 'ARS',
     nombre: 'Herramientas',
     descripcion: '',
     tinta: 'petroleo',
@@ -25,7 +28,7 @@ function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>)
     rindeAnualBp: null,
     orden: 0,
     archivado: false,
-    saldo: centavos(0),
+    saldo: enPesos(centavos(0)),
     ...parcial,
   };
 }
@@ -91,10 +94,15 @@ describe('cuándo no se archiva', () => {
 });
 
 describe('a dónde va la plata del archivado', () => {
-  const maun = tesoro({ id: 'maun', clave: 'maun', nombre: 'Maun', saldo: centavos(124_800_000) });
+  const maun = tesoro({
+    id: 'maun',
+    clave: 'maun',
+    nombre: 'Maun',
+    saldo: enPesos(centavos(124_800_000)),
+  });
   const hogar = tesoro({ id: 'hogar', clave: 'hogar', nombre: 'Hogar' });
   const diezmo = tesoro({ id: 'diezmo', clave: 'diezmo', nombre: 'Diezmo' });
-  const herramientas = tesoro({ id: HERRAMIENTAS, saldo: centavos(15_000_000) });
+  const herramientas = tesoro({ id: HERRAMIENTAS, saldo: enPesos(centavos(15_000_000)) });
   const viejo = tesoro({ id: 'v', nombre: 'Viejo', archivado: true });
 
   it('Maun primero, sin el diezmo, sin él y sin los archivados', () => {
@@ -127,7 +135,7 @@ describe('a dónde va la plata del archivado', () => {
       descripcion: 'Lo que tenía Herramientas al archivarlo',
     });
 
-    const debe = { ...herramientas, saldo: centavos(-500_000) };
+    const debe = { ...herramientas, saldo: enPesos(centavos(-500_000)) };
     expect(
       transferenciaDelArchivo({ id: 't', archivado: debe, destino: maun, hoy: '2026-09-27' }),
     ).toMatchObject({
@@ -138,10 +146,41 @@ describe('a dónde va la plata del archivado', () => {
       descripcion: 'Lo que le faltaba a Herramientas para archivarlo',
     });
 
-    const sinPlata = { ...herramientas, saldo: centavos(0) };
+    const sinPlata = { ...herramientas, saldo: enPesos(centavos(0)) };
     expect(
       transferenciaDelArchivo({ id: 't', archivado: sinPlata, destino: maun, hoy: '2026-09-27' }),
     ).toBeNull();
+  });
+
+  it('por moneda: el destino es de la misma moneda, y nunca hay un pase entre monedas', () => {
+    const dolares = tesoro({
+      id: 'usd',
+      nombre: 'Dólares',
+      moneda: 'USD',
+      saldo: plata('USD', 50_000),
+    });
+    const ahorro = tesoro({ id: 'usd-2', nombre: 'Ahorro', moneda: 'USD', saldo: plata('USD', 0) });
+    expect(
+      destinosDelArchivo([hogar, maun, herramientas, dolares], herramientas).map((uno) => uno.id),
+    ).toEqual(['maun', 'hogar']);
+    expect(destinosDelArchivo([hogar, maun, dolares], dolares)).toEqual([]);
+    expect(destinosDelArchivo([maun, dolares, ahorro], dolares).map((uno) => uno.id)).toEqual([
+      'usd-2',
+    ]);
+    expect(comoQuedaElDestino(ahorro, dolares)).toEqual(plata('USD', 50_000));
+    expect(comoQuedaElDestino(maun, dolares)).toBeNull();
+    expect(
+      transferenciaDelArchivo({ id: 't', archivado: dolares, destino: maun, hoy: '2026-09-27' }),
+    ).toBeNull();
+  });
+
+  it('uno en dólares sin a dónde ir pide vender, o comprar si debe; uno en pesos, nunca', () => {
+    const dolares = tesoro({ id: 'usd', moneda: 'USD', saldo: plata('USD', 50_000) });
+    expect(cambioParaArchivar(dolares, [])).toBe('vender');
+    expect(cambioParaArchivar({ ...dolares, saldo: plata('USD', -100) }, [])).toBe('comprar');
+    expect(cambioParaArchivar({ ...dolares, saldo: plata('USD', 0) }, [])).toBeNull();
+    expect(cambioParaArchivar(dolares, [maun])).toBeNull();
+    expect(cambioParaArchivar(herramientas, [])).toBeNull();
   });
 
   it('manda el id de los de siempre cuando la réplica ya los trae', () => {

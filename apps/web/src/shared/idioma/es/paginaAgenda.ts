@@ -1,0 +1,25 @@
+export const paginaAgenda = {
+  titulo: 'Agenda',
+  hoyEs: (dia: string): string => `hoy es ${dia}`,
+  hoy: 'Hoy',
+  mesAnterior: 'Mes anterior',
+  mesSiguiente: 'Mes siguiente',
+  anotarAlgo: 'Anotar algo',
+  queMostrar: 'Qué mostrar',
+  todo: 'Todo',
+  marcado: 'Marcado',
+  marcadoAMano: 'marcado a mano',
+  mesVacio:
+    'Las visitas y las entregas aparecen solas cuando cargás un contacto o un proyecto, y los vencimientos cuando le ponés día de pago a un compromiso en Tesoros. Lo que comprás o hacés en el taller lo anotás vos.',
+  elMesEstaVacio: 'El mes está vacío',
+  nadaEnElMes: 'Todavía no hay nada en el mes',
+  anotarLoPrimero: 'Anotar lo primero',
+  diasAnteriores: 'Días anteriores',
+  anotarAlgoPara: (dia: string): string => `Anotar algo para el ${dia}`,
+  anotar: 'Anotar',
+  verElDia: (dia: string): string => `Ver el ${dia}`,
+  nadaAnotado: 'Nada anotado para este día',
+  hastaAca: (mes: string): string =>
+    `Hasta acá ${mes}. Con las flechas de arriba pasás al mes que viene.`,
+  elDia: (dia: string): string => `El ${dia}`,
+} as const;

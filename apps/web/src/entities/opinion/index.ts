@@ -53,13 +53,6 @@ export {
   ICONO_DE_LA_CARA,
   TEXTO_DEL_POLO,
 } from './model/polos';
-export {
-  AVISO_DE_FIRMA,
-  AYUDA_DEL_COMENTARIO,
-  bajadaDeLaEncuesta,
-  faltanPreguntas,
-  tituloDeLaEncuesta,
-} from './model/textos';
 export { cuantasRespuestas, TIPO, type DatosDelTipo } from './model/tipos';
 export { Carita, type CaritaProps } from './ui/Carita';
 export {

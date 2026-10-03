@@ -4,7 +4,7 @@ import {
   rutaDeLaMiniatura,
   rutaDelArchivo,
   rutaEnLaVidriera,
-  SIN_SENAL_PARA_ARCHIVOS,
+  sinSenalParaArchivos,
   subirUnArchivo,
   type Archivo,
   type DependenciasDeLaSubida,
@@ -19,16 +19,26 @@ import {
   type FotoDeLaVidrieraNueva,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { ImagenIlegible } from '@/shared/lib';
 
-export const LOS_VIDEOS_NO_VAN_A_LA_VIDRIERA =
-  'Los videos no se pueden subir: uno del celular pesa entre 50 y 200 MB, y el espacio para los archivos de todo el taller es de 1 GB. Subí una foto o una captura del video.';
+function textos() {
+  return mensajes().armarLaVidriera;
+}
+
+export function losVideosNoVanALaVidriera(): string {
+  return textos().losVideosNoVan;
+}
 
 export const LO_QUE_SE_SUBE_A_LA_VIDRIERA: LoQueSeSube = {
   acepta: 'image/*,video/*',
   conPdf: false,
-  videos: LOS_VIDEOS_NO_VAN_A_LA_VIDRIERA,
-  queSeSube: 'fotos y capturas',
+  get videos() {
+    return losVideosNoVanALaVidriera();
+  },
+  get queSeSube() {
+    return textos().queSeSube;
+  },
 };
 
 export function destinoDeLaVidriera(householdId: string): DestinoDeLaSubida {
@@ -112,21 +122,16 @@ export function conLaFotoElegida(
 }
 
 export function textoDelBotonDeSumar(cantidad: number): string {
-  if (cantidad === 0) return 'Sumar fotos';
-  return cantidad === 1 ? 'Sumar 1 foto' : `Sumar ${String(cantidad)} fotos`;
+  return textos().botonDeSumar(cantidad);
 }
 
 export function avisoSinCompartir(cantidad: number): string {
-  return cantidad === 1
-    ? 'Una de las fotos que elegiste está sin compartir: el cliente de ese trabajo todavía no la vio. En tu vidriera la ven todos tus clientes, también él.'
-    : `${String(cantidad)} de las fotos que elegiste están sin compartir: los clientes de esos trabajos todavía no las vieron. En tu vidriera las ven todos tus clientes, también ellos.`;
+  return textos().sinCompartir(cantidad);
 }
 
 export function avisoDelExceso(elegidas: number, libres: number): string | null {
   if (elegidas <= libres) return null;
-  const entran = libres === 1 ? 'entra 1' : `entran ${String(libres)}`;
-  const primeras = libres === 1 ? 'la primera' : `las primeras ${String(libres)}`;
-  return `Elegiste ${String(elegidas)} fotos y en tu vidriera ${entran} más: se suben ${primeras}.`;
+  return textos().exceso(elegidas, libres);
 }
 
 export function avisoDelCorte(
@@ -134,11 +139,9 @@ export function avisoDelCorte(
   total: number,
   verbo: 'sumaron' | 'subieron',
 ): string {
-  const cuantas =
-    hechas === 0
-      ? `No se ${verbo === 'sumaron' ? 'sumó' : 'subió'} ninguna`
-      : `Se ${verbo} ${hechas === 1 ? 'la primera' : `las primeras ${String(hechas)}`} de las ${String(total)}`;
-  return `${cuantas}: se cortó la señal. Probá con las demás cuando vuelva.`;
+  return verbo === 'sumaron'
+    ? textos().corteAlSumar(hechas, total)
+    : textos().corteAlSubir(hechas, total);
 }
 
 export interface Avance {
@@ -177,7 +180,7 @@ export async function sumarDeLosTrabajos(
       if (esFalloDeRed(fallo)) {
         return { hechas, problemas: [avisoDelCorte(hechas, archivos.length, 'sumaron')] };
       }
-      problemas.push(`Una de las fotos no se pudo copiar. ${mensajeDeAcceso(fallo)}`);
+      problemas.push(textos().noSePudoCopiar(mensajeDeAcceso(fallo)));
       continue;
     }
     dependencias.sumar({
@@ -195,10 +198,11 @@ export async function sumarDeLosTrabajos(
 }
 
 function motivoDelFallo(nombre: string, fallo: unknown): string {
+  const deArchivos = mensajes().archivo;
   if (fallo instanceof ArchivoRechazado) return fallo.message;
-  if (fallo instanceof ImagenIlegible) return `«${nombre}»: ${fallo.message}`;
-  if (esFalloDeRed(fallo)) return SIN_SENAL_PARA_ARCHIVOS;
-  return `«${nombre}» no se pudo subir. ${mensajeDeAcceso(fallo)}`;
+  if (fallo instanceof ImagenIlegible) return deArchivos.conElNombre(nombre, fallo.message);
+  if (esFalloDeRed(fallo)) return sinSenalParaArchivos();
+  return deArchivos.noSeSubio(nombre, mensajeDeAcceso(fallo));
 }
 
 export async function subirALaVidriera(

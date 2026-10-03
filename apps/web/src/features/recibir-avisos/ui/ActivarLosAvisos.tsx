@@ -1,10 +1,11 @@
 import { useId, useRef, useState } from 'react';
 
 import { MarcaDeCategoria } from '@/entities/agenda';
+import { useMensajes } from '@/shared/idioma';
 import { pedirPermisoDeAvisos } from '@/shared/lib';
 import { Button } from '@/shared/ui';
 
-import { FALTA_LA_ZONA } from '../model/textos';
+import { horaEnPantalla } from '../model/textos';
 import { OpcionesDeZona } from './OpcionesDeZona';
 
 export interface ActivarLosAvisosProps {
@@ -22,6 +23,7 @@ export function ActivarLosAvisos({
   mensaje,
   alActivar,
 }: ActivarLosAvisosProps) {
+  const m = useMensajes();
   const id = useId();
   const idTitulo = `${id}-titulo`;
   const idAyuda = `${id}-ayuda`;
@@ -52,22 +54,20 @@ export function ActivarLosAvisos({
         </span>
         <div className="min-w-0 flex-1">
           <h2 id={idTitulo} className="text-section leading-tight font-semibold">
-            Que te avise a la mañana
+            {m.recibirAvisos.queTeAviseALaManana}
           </h2>
           <p className="mt-1.5 text-body leading-relaxed text-text-2">
-            A las {hora} te llega un aviso con las entregas, las visitas y los presupuestos que
-            vencen. Podés elegir qué te avisa y con cuánta anticipación después de activarlo.
+            {m.recibirAvisos.aLasTeLlega({ hora: horaEnPantalla(hora) })}
           </p>
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={id} className="text-body font-semibold">
-          ¿Dónde vivís?
+          {m.recibirAvisos.dondeVivis}
         </label>
         <p id={idAyuda} className="text-label leading-relaxed text-text-2">
-          El aviso lo manda un servidor, no tu teléfono, así que necesita saber en qué zona horaria
-          estás para mandarlo a la hora que elegiste.
+          {m.recibirAvisos.elAvisoLoMandaUnServidor}
         </p>
         <select
           ref={selector}
@@ -85,25 +85,24 @@ export function ActivarLosAvisos({
         >
           {zona === '' && (
             <option value="" disabled>
-              Elegí tu zona horaria
+              {m.recibirAvisos.eligeTuZonaHoraria}
             </option>
           )}
           <OpcionesDeZona guardada={zonaGuardada} />
         </select>
         {faltaLaZona && (
           <span id={idError} role="alert" className="text-label font-medium text-alerta">
-            {FALTA_LA_ZONA}
+            {m.recibirAvisos.eligeDondeVivis}
           </span>
         )}
       </div>
 
       <div className="flex flex-col items-start gap-2">
         <Button size="grande" cargando={activando} onClick={activar}>
-          {activando ? 'Activando…' : 'Activar los avisos'}
+          {activando ? m.recibirAvisos.activando : m.recibirAvisos.activarLosAvisos}
         </Button>
         <p className="max-w-[320px] text-label leading-relaxed text-text-3">
-          El sistema te va a preguntar si los permitís. Si decís que no, después hay que habilitarlo
-          a mano.
+          {m.recibirAvisos.elSistemaTeVaAPreguntar}
         </p>
       </div>
 

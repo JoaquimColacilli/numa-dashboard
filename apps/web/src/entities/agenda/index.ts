@@ -43,16 +43,7 @@ export {
   type TonoDeUrgencia,
   type UrgenciaDelEvento,
 } from './model/calendario';
-export {
-  AYUDA_DE_LA_PROPIA,
-  CATEGORIA,
-  DERIVADA,
-  VENCIMIENTO,
-  type DatosDeLaCategoria,
-  type DatosDeLaDerivada,
-  type DatosDelVencimiento,
-  type FormaDeLaMarca,
-} from './model/categorias';
+export { CATEGORIA, type DatosDeLaCategoria, type FormaDeLaMarca } from './model/categorias';
 export {
   fechaDelPagoPropuesta,
   rutaDelVencimiento,

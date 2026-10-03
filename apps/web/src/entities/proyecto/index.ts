@@ -48,13 +48,17 @@ export {
 export {
   cambiaAlgunaForma,
   cambioDeFormas,
+  cobraEnDolares,
+  cobraEnPesos,
   cobroDelTaller,
   COLUMNA_DE_LA_INSTANCIA,
+  elTallerRecibeDolares,
   elTallerRecibeTransferencias,
   ETIQUETA_DE_LA_FORMA,
   formasComoEstan,
   formasDelTrabajo,
   formasGuardadas,
+  monedasGuardadas,
   NOMBRE_DE_LA_INSTANCIA,
 } from './model/cobro';
 export { cambiaAlgunaMarca, marcaDeImportante, marcaPuesta } from './model/marcas';
@@ -147,9 +151,12 @@ export {
   type OpcionesDelCobro,
 } from './model/por-la-fila';
 export {
+  enOtrosTesoros,
   fraseDeLosInsumos,
+  frasesDeOtrosTesoros,
   insumosDeLosTrabajos,
   insumosDelProyecto,
+  type EnOtroTesoro,
   type InsumosDeLosTrabajos,
   type InsumosDeUnTrabajo,
 } from './model/insumos';
@@ -186,15 +193,20 @@ export {
   esquemaDeProyecto,
   estadosDisponibles,
   filaVacia,
+  importeDeLaFila,
   opcionVacia,
+  pagoVacio,
   pedidoDeGuardado,
   presupuestoDeLasOpciones,
   totalDeLasFilas,
+  totalesDeLosPagos,
   valoresDelFormulario,
   versionDelGuardado,
   type FilaDeOpcion,
+  type FilaDePago,
   type FilaDinamica,
   type FormularioDeProyecto,
+  type TotalesDeLosPagos,
 } from './model/formulario';
 export {
   opcionAprobada,
@@ -260,11 +272,41 @@ export {
   type TareaDelPresupuesto,
 } from './model/tareas';
 export {
+  ayudaDelDolarDelPago,
+  conOtraMoneda,
+  dolarDelDiaDelTaller,
+  dolarDelDiaParaUnPago,
+  efectoDelPago,
+  erroresDelValorDelPago,
+  importeDelValor,
+  importeParaElSaldo,
+  loQueHaceElPago,
+  loQueHizoElPago,
+  monedaDeUnPagoNuevo,
+  plataDelPago,
+  tesorosQueRecibenDolares,
+  type DolarDelDiaDelTaller,
+  type EfectoDelPago,
+  type ErroresDelPago,
+  type TesoroQueRecibeDolares,
+  type ValorDelPago,
+} from './model/pago';
+export {
+  BotonDeLaMoneda,
+  CamposDelPago,
+  DetalleDelPago,
+  type BotonDeLaMonedaProps,
+  type CamposDelPagoProps,
+  type DetalleDelPagoProps,
+} from './ui/CamposDelPago';
+export {
   gastosDelProyecto,
+  loCobradoEnPalabras,
   metricasDeProyectos,
   pagosDelProyecto,
   resumenDeProyecto,
   resumenesDeProyectos,
+  saldoDelPrecio,
   type MetricasDeProyectos,
   type ResumenDeProyecto,
 } from './model/resumen';

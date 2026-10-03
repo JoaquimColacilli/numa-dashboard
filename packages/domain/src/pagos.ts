@@ -1,4 +1,4 @@
-import { restar, type Money } from './money.ts';
+import { restar, type Moneda, type MonedaDelTaller, type Money } from './money.ts';
 import { calcularSena, type EntradaDeLaSena } from './sena.ts';
 
 export const FORMAS_DE_COBRO = ['transferencia', 'efectivo'] as const;
@@ -9,9 +9,9 @@ export const INSTANCIAS_DE_PAGO = ['sena', 'saldo'] as const;
 
 export type InstanciaDePago = (typeof INSTANCIAS_DE_PAGO)[number];
 
-export interface PagoPorDelante {
+export interface PagoPorDelante<M extends Moneda = MonedaDelTaller> {
   instancia: InstanciaDePago;
-  monto: Money | null;
+  monto: Money<M> | null;
 }
 
 export function formasDeCobro(
@@ -42,7 +42,9 @@ export function unaSolaForma(formas: readonly FormaDeCobro[]): FormaDeCobro | nu
   return primera !== undefined && otras.length === 0 ? primera : null;
 }
 
-export function pagosPorDelante(entrada: EntradaDeLaSena): readonly PagoPorDelante[] {
+export function pagosPorDelante<M extends Moneda = MonedaDelTaller>(
+  entrada: EntradaDeLaSena<M>,
+): readonly PagoPorDelante<M>[] {
   if (entrada.presupuesto === null) {
     return [
       { instancia: 'sena', monto: null },
@@ -64,15 +66,19 @@ export function pagosPorDelante(entrada: EntradaDeLaSena): readonly PagoPorDelan
   ];
 }
 
-export function pagoQueToca(entrada: EntradaDeLaSena): PagoPorDelante | null {
+export function pagoQueToca<M extends Moneda = MonedaDelTaller>(
+  entrada: EntradaDeLaSena<M>,
+): PagoPorDelante<M> | null {
   return pagosPorDelante(entrada)[0] ?? null;
 }
 
-export function instanciasPendientes(entrada: EntradaDeLaSena): readonly InstanciaDePago[] {
+export function instanciasPendientes<M extends Moneda = MonedaDelTaller>(
+  entrada: EntradaDeLaSena<M>,
+): readonly InstanciaDePago[] {
   return pagosPorDelante(entrada).map((pago) => pago.instancia);
 }
 
-export function montoParaPegar(monto: Money): string {
+export function montoParaPegar(monto: Money<Moneda>): string {
   const pesos = Math.trunc(monto / 100);
   const resto = Math.abs(monto % 100);
   return resto === 0 ? String(pesos) : `${String(pesos)},${String(resto).padStart(2, '0')}`;

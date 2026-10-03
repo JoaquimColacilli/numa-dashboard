@@ -4,12 +4,15 @@ import { useState, type ReactNode } from 'react';
 
 import { pruebaDeUnCobro } from '@/entities/fila';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { useMensajes } from '@/shared/idioma';
 import {
   formatearPesos,
+  mesEnUnaFrase,
   metaDeAvisos,
-  nombreDelMes,
   TINTA,
   useAnchoDePantalla,
+  type Envoltorio,
+  type TintaDeTesoro,
 } from '@/shared/lib';
 import { Ayuda, Button, FilaDeAcciones, Hoja, Icono, type NombreDeIcono } from '@/shared/ui';
 
@@ -28,10 +31,26 @@ export interface HojaDeGuardarLaFilaProps {
   alGuardar?: () => void;
 }
 
-function Nombre({ vista, tesoro }: { vista: VistaDeLaFila; tesoro: string }) {
-  const datos = tesoroDe(vista, tesoro);
-  return <span className={`font-semibold ${TINTA[datos.tinta].texto}`}>{datos.nombre}</span>;
+function nombreEnLaTinta(tinta: TintaDeTesoro): Envoltorio {
+  return function NombreEnLaTinta({ children }: { children: ReactNode }) {
+    return (
+      <span translate="no" className={`font-semibold ${TINTA[tinta].texto}`}>
+        {children}
+      </span>
+    );
+  };
 }
+
+const NOMBRE_EN_LA_TINTA: Readonly<Record<TintaDeTesoro, Envoltorio>> = {
+  hogar: nombreEnLaTinta('hogar'),
+  maun: nombreEnLaTinta('maun'),
+  diezmo: nombreEnLaTinta('diezmo'),
+  cocos: nombreEnLaTinta('cocos'),
+  grana: nombreEnLaTinta('grana'),
+  mostaza: nombreEnLaTinta('mostaza'),
+  petroleo: nombreEnLaTinta('petroleo'),
+  ciruela: nombreEnLaTinta('ciruela'),
+};
 
 function RenglonDelCambio({ icono, children }: { icono: NombreDeIcono; children: ReactNode }) {
   return (
@@ -54,13 +73,15 @@ export function HojaDeGuardarLaFila({
   alCerrar,
   alGuardar,
 }: HojaDeGuardarLaFilaProps) {
+  const m = useMensajes().armarLaFila;
+  const textos = m.guardar;
   const replica = useReplicaDelTaller();
   const [vista] = useState(laDeAhora);
   const enCelular = useAnchoDePantalla() === 'movil';
   const guardar = useMutation({ ...MUTACION_DE_LA_FILA, meta: metaDeAvisos('filaGuardada') });
   const borrador = vista.borrador;
   const cobro = monto !== null && monto > 0 ? monto : COBRO_DE_EJEMPLO;
-  const mes = nombreDelMes(vista.mes).toLowerCase();
+  const mes = mesEnUnaFrase(vista.mes);
 
   const comparacion = (() => {
     if (borrador === null) return [];
@@ -103,8 +124,8 @@ export function HojaDeGuardarLaFila({
 
   return (
     <Hoja
-      titulo="Guardar la fila"
-      bajada={`Pasa a ser la revisión ${String(vista.revision)}`}
+      titulo={textos.titulo}
+      bajada={textos.revision(vista.revision)}
       alCerrar={alCerrar}
       desdeAbajo={enCelular}
     >
@@ -116,21 +137,17 @@ export function HojaDeGuardarLaFila({
             </h3>
             <ul className="flex flex-col gap-2">
               {borrador?.pasadoAMensual === true && (
-                <RenglonDelCambio icono="calendar">
-                  El sueldo pasa a contarse por mes: los cobros del mes lo van cubriendo hasta el
-                  tope.
-                </RenglonDelCambio>
+                <RenglonDelCambio icono="calendar">{textos.sueldoPorMes}</RenglonDelCambio>
               )}
               {vista.cambios.map((cambio) => {
-                const { icono, despuesDelNombre } = renglonDelCambio(cambio, {
+                const { icono, frase } = renglonDelCambio(cambio, {
                   antes: vista.base,
                   despues: vista.fila,
                   nombreDe: (tesoro) => tesoroDe(vista, tesoro).nombre,
                 });
                 return (
                   <RenglonDelCambio key={`${cambio.tipo}-${cambio.tesoro}`} icono={icono}>
-                    <Nombre vista={vista} tesoro={cambio.tesoro} />
-                    {despuesDelNombre}
+                    {frase(NOMBRE_EN_LA_TINTA[tesoroDe(vista, cambio.tesoro).tinta])}
                   </RenglonDelCambio>
                 );
               })}
@@ -145,26 +162,23 @@ export function HojaDeGuardarLaFila({
               id="la-comparacion"
               className="flex items-center gap-1.5 text-label font-medium text-text-2"
             >
-              Con un cobro de {formatearPesos(cobro)}
-              <Ayuda que="De dónde sale la comparación">
-                Es el mismo cobro repartido con la fila de hoy y con la que estás por guardar,
-                teniendo en cuenta lo que ya entró en {mes}.
-              </Ayuda>
+              {textos.conUnCobroDe(formatearPesos(cobro))}
+              <Ayuda que={textos.deDondeSale}>{textos.comparacion(mes)}</Ayuda>
             </h3>
             {comparacion.length === 0 ? (
-              <p className="text-label text-text-2">Ese cobro se reparte igual que hoy.</p>
+              <p className="text-label text-text-2">{textos.igualQueHoy}</p>
             ) : (
               <table className="w-full text-label tabular-nums">
                 <thead>
                   <tr className="text-meta text-text-3">
                     <th scope="col" className="pb-1 text-left font-normal">
-                      Tesoro
+                      {textos.tesoro}
                     </th>
                     <th scope="col" className="pb-1 text-right font-normal">
-                      Hoy
+                      {textos.hoy}
                     </th>
                     <th scope="col" className="pb-1 text-right font-normal">
-                      Con los cambios
+                      {textos.conLosCambios}
                     </th>
                   </tr>
                 </thead>
@@ -174,7 +188,7 @@ export function HojaDeGuardarLaFila({
                     return (
                       <tr key={renglon.tesoro} className="border-t border-hairline">
                         <th scope="row" className="py-1.5 text-left font-normal">
-                          <span className="flex items-center gap-2">
+                          <span translate="no" className="flex items-center gap-2">
                             <span
                               aria-hidden
                               className={`size-2 flex-none rounded-pill ${TINTA[tesoro.tinta].fondo}`}
@@ -182,10 +196,10 @@ export function HojaDeGuardarLaFila({
                             {tesoro.nombre}
                           </span>
                         </th>
-                        <td className="py-1.5 text-right text-text-2">
+                        <td translate="no" className="py-1.5 text-right text-text-2">
                           {formatearPesos(renglon.hoy)}
                         </td>
-                        <td className="py-1.5 text-right font-semibold">
+                        <td translate="no" className="py-1.5 text-right font-semibold">
                           {formatearPesos(renglon.conLosCambios)}
                         </td>
                       </tr>
@@ -196,33 +210,38 @@ export function HojaDeGuardarLaFila({
             )}
           </section>
 
-          {enCero.map((paso) => (
-            <p
-              key={paso.tesoro}
-              className="flex items-start gap-2.5 text-label leading-relaxed text-text-2"
-            >
-              <Icono nombre="triangle-alert" tamano={16} className="mt-0.5 flex-none" />
-              <span>
-                <Nombre vista={vista} tesoro={paso.tesoro} /> queda con monto {formatearPesos(0)}:
-                no recibe nada hasta que le pongas uno.
-              </span>
-            </p>
-          ))}
+          {enCero.map((paso) => {
+            const tesoro = tesoroDe(vista, paso.tesoro);
+            return (
+              <p
+                key={paso.tesoro}
+                className="flex items-start gap-2.5 text-label leading-relaxed text-text-2"
+              >
+                <Icono nombre="triangle-alert" tamano={16} className="mt-0.5 flex-none" />
+                <span>
+                  {textos.quedaEnCero(
+                    NOMBRE_EN_LA_TINTA[tesoro.tinta],
+                    tesoro.nombre,
+                    formatearPesos(0),
+                  )}
+                </span>
+              </p>
+            );
+          })}
 
           <p className="flex items-start gap-2.5 text-label leading-relaxed text-text-2">
             <Icono nombre="info" tamano={16} className="mt-0.5 flex-none" />
-            Los cambios valen desde el próximo cobro. Los repartos que ya hiciste no cambian, y lo
-            que ya entró en {mes} sigue contando.
+            {textos.cuandoValen(mes)}
           </p>
         </div>
 
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
           <FilaDeAcciones>
             <Button variant="secundario" onClick={alCerrar}>
-              Seguir editando
+              {textos.seguirEditando}
             </Button>
             <Button disabled={!sePuede} onClick={guardarLaFila}>
-              Guardar la fila
+              {m.barra.guardarLaFila}
             </Button>
           </FilaDeAcciones>
         </footer>

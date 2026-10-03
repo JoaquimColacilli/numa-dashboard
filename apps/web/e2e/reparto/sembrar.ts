@@ -12,6 +12,7 @@ import {
   fotoALaVidrieraPorRest,
   guardarProyectoPorRpc,
   movimientosPorRest,
+  tesoroPorRest,
   vaciarTaller,
   type AjustesDePrueba,
   type SesionDePrueba,
@@ -19,6 +20,7 @@ import {
 
 export interface TallerSembrado {
   obra: string;
+  enDolares: string;
   entregado: string;
   contacto: string;
   enviado: string;
@@ -172,6 +174,52 @@ async function obra(
             cantidad: indice % 2 === 0 ? indice + 1 : null,
             listo: indice % 3 === 0,
           })),
+  });
+  return id;
+}
+
+async function enDolares(sesion: SesionDePrueba, cliente: string, titulo: string): Promise<string> {
+  const dolares = await tesoroPorRest(sesion, {
+    nombre: 'Dólares',
+    moneda: 'USD',
+    tinta: 'grana',
+  });
+  const id = crypto.randomUUID();
+  await guardarProyectoPorRpc(sesion, {
+    proyecto: {
+      id,
+      version: null,
+      cliente_id: cliente,
+      titulo,
+      estado: 'en_curso',
+      moneda: 'USD',
+      presupuesto_centavos: 240_000,
+      comprobante: 'sin_comprobante',
+      direccion_entrega: 'Olazábal 1240, Ituzaingó',
+      notas: '',
+      fecha_inicio: dia(-20),
+      entrega_estimada: dia(15),
+    },
+    pagos: [
+      {
+        id: crypto.randomUUID(),
+        fecha: dia(-30),
+        concepto: 'Seña de la visita',
+        monto_centavos: 12_000_000,
+        moneda: 'ARS',
+        cotizacion_centavos: 145_000,
+      },
+      {
+        id: crypto.randomUUID(),
+        fecha: dia(-20),
+        concepto: 'Seña',
+        monto_centavos: 100_000,
+        moneda: 'USD',
+        cotizacion_centavos: 145_000,
+        tesoro_id: dolares.id,
+      },
+    ],
+    gastos: [],
   });
   return id;
 }
@@ -355,6 +403,7 @@ export async function sembrarPocos(sesion: SesionDePrueba): Promise<TallerSembra
     necesidades: 3,
   });
   await formasDeCobroPorRest(sesion, obraId, { saldo: ['transferencia'] });
+  const trabajoEnDolares = await enDolares(sesion, segundo, 'Vestidor en dólares');
   const entregado = await obra(sesion, {
     cliente: segundo,
     titulo: 'Mesada de cocina',
@@ -406,6 +455,7 @@ export async function sembrarPocos(sesion: SesionDePrueba): Promise<TallerSembra
 
   return {
     obra: obraId,
+    enDolares: trabajoEnDolares,
     entregado,
     contacto,
     enviado,
@@ -445,6 +495,11 @@ export async function sembrarMuchos(sesion: SesionDePrueba): Promise<TallerSembr
     sena: ['transferencia', 'efectivo'],
     saldo: ['transferencia', 'efectivo'],
   });
+  const trabajoEnDolares = await enDolares(
+    sesion,
+    clientes[1] ?? cliente,
+    'Vestidor en dólares con puertas corredizas y cajonera interna',
+  );
   const entregado = await obra(sesion, {
     cliente,
     titulo: 'Mesada de cocina con bacha y alacena',
@@ -549,6 +604,7 @@ export async function sembrarMuchos(sesion: SesionDePrueba): Promise<TallerSembr
 
   return {
     obra: obraId,
+    enDolares: trabajoEnDolares,
     entregado,
     contacto,
     enviado,

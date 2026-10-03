@@ -10,6 +10,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { preguntaGuardada, TIPO } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { filasDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { useAlgoEnCurso } from '@/shared/lib';
 import { Button, FilaDeAcciones, Icono } from '@/shared/ui';
 
@@ -18,14 +19,7 @@ import { siguienteOrdenDePropia } from '../model/encuesta';
 
 export type SituacionDeLasPropias = 'abiertas' | 'mandada' | 'contestada';
 
-const MENSAJE_DEL_TEXTO = {
-  'sin-texto': 'Escribí la pregunta.',
-  'texto-largo': 'La pregunta es muy larga: tiene que entrar en 300 letras.',
-} as const;
-
-function cuantas(n: number): string {
-  return n === 0 ? 'ninguna todavía' : `${String(n)} de ${String(TOPE_PROPIAS)}`;
-}
+type ProblemaDelTexto = 'sin-texto' | 'texto-largo';
 
 export function PreguntasDelTrabajo({
   proyectoId,
@@ -33,16 +27,17 @@ export function PreguntasDelTrabajo({
   situacion,
 }: {
   proyectoId: string;
-  nombre: string;
+  nombre: string | null;
   situacion: SituacionDeLasPropias;
 }) {
+  const textos = useMensajes().pedirLaOpinion.propias;
   const replica = useReplicaDelTaller();
   const cliente = useQueryClient();
   const id = useId();
   const [agregando, setAgregando] = useState(false);
   const [texto, setTexto] = useState('');
   const [tipo, setTipo] = useState<TipoDePreguntaPropia>('escala5');
-  const [problema, setProblema] = useState<keyof typeof MENSAJE_DEL_TEXTO | null>(null);
+  const [problema, setProblema] = useState<ProblemaDelTexto | null>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
   useAlgoEnCurso(agregando && texto.trim() !== '');
 
@@ -91,12 +86,14 @@ export function PreguntasDelTrabajo({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2.5">
         <h2 id={`${id}-titulo`} className="text-body-lg font-semibold">
-          Algo puntual de este trabajo
+          {textos.titulo}
         </h2>
-        <span className="text-label text-text-3">{cuantas(propias.length)}</span>
+        <span className="text-label text-text-3">
+          {textos.cuantas(propias.length, TOPE_PROPIAS)}
+        </span>
       </div>
       <p className="mt-1.5 mb-3 max-w-[560px] text-body-sm leading-relaxed text-text-2">
-        Se suma solo a la encuesta de este cliente. No entra en el promedio general.
+        {textos.detalle}
       </p>
 
       {propias.length > 0 && (
@@ -110,7 +107,9 @@ export function PreguntasDelTrabajo({
                 <Icono nombre={TIPO[propia.tipo].icono} tamano={16} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-body leading-snug">{propia.texto}</span>
+                <span translate="no" className="block text-body leading-snug">
+                  {propia.texto}
+                </span>
                 <span className="mt-0.5 block text-label text-text-3">
                   {TIPO[propia.tipo].etiqueta}
                 </span>
@@ -118,7 +117,7 @@ export function PreguntasDelTrabajo({
               {abiertas && (
                 <button
                   type="button"
-                  aria-label={`Sacar la pregunta «${propia.texto}»`}
+                  aria-label={textos.sacar(propia.texto)}
                   onClick={() => {
                     sacarPropia(cliente, propia);
                   }}
@@ -135,13 +134,13 @@ export function PreguntasDelTrabajo({
       {abiertas && agregando && (
         <div className="mt-3.5 flex flex-col gap-3.5 rounded-field border border-border p-4">
           <div className="flex flex-col gap-1.75 text-label text-text-2">
-            <label htmlFor={`${id}-texto`}>Qué le querés preguntar a {nombre}</label>
+            <label htmlFor={`${id}-texto`}>{textos.queLePreguntas(nombre)}</label>
             <textarea
               ref={campo}
               id={`${id}-texto`}
               value={texto}
               rows={2}
-              placeholder="¿La altura de la alacena te quedó cómoda?"
+              placeholder={textos.ejemplo}
               aria-invalid={problema !== null || undefined}
               aria-describedby={problema === null ? undefined : `${id}-error`}
               onChange={(evento) => {
@@ -154,12 +153,12 @@ export function PreguntasDelTrabajo({
             />
             {problema !== null && (
               <span id={`${id}-error`} role="alert" className="font-medium text-alerta">
-                {MENSAJE_DEL_TEXTO[problema]}
+                {textos.problemas[problema]}
               </span>
             )}
           </div>
           <fieldset className="m-0 flex min-w-0 flex-col gap-1.75 border-0 p-0">
-            <legend className="mb-1.75 p-0 text-label text-text-2">Cómo contesta</legend>
+            <legend className="mb-1.75 p-0 text-label text-text-2">{textos.comoContesta}</legend>
             <div className="flex flex-wrap gap-2">
               {TIPOS_DE_PREGUNTA_PROPIA.map((opcion) => {
                 const elegida = tipo === opcion;
@@ -190,9 +189,9 @@ export function PreguntasDelTrabajo({
             </div>
           </fieldset>
           <FilaDeAcciones>
-            <Button onClick={agregar}>Agregarla a esta encuesta</Button>
+            <Button onClick={agregar}>{textos.agregarla}</Button>
             <Button variant="secundario" onClick={cerrar}>
-              Cancelar
+              {textos.cancelar}
             </Button>
           </FilaDeAcciones>
         </div>
@@ -207,14 +206,13 @@ export function PreguntasDelTrabajo({
           className="mt-3.5 flex h-12 items-center gap-2 rounded-pill border border-dashed border-border bg-transparent px-4 text-body font-medium hover:bg-surface"
         >
           <Icono nombre="plus" tamano={18} />
-          Agregar una pregunta para este trabajo
+          {textos.agregarUna}
         </button>
       )}
 
       {situacion === 'contestada' && (
         <p className="mt-3.5 max-w-[520px] text-label leading-relaxed text-text-2">
-          {nombre} ya contestó, así que estas preguntas quedan como están. Para preguntarle algo
-          nuevo, escribile.
+          {textos.yaContesto(nombre)}
         </p>
       )}
     </section>

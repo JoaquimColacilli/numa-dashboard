@@ -10,6 +10,11 @@ lleva su foto» vale también para el presupuesto. Cada envío congela una revis
 (los textos con sus datos completados, los importes y los datos del taller y del cliente), que nadie edita
 después: el cliente ve lo que se le mandó aunque el dueño siga armando o cambie sus textos de siempre.
 
+- Enmendado el 2026-10-02 por el [ADR 0082](0082-la-app-en-tres-idiomas.md): las preguntas de la encuesta son
+  datos, también las de fábrica, sembradas en castellano: no se traducen. La encuesta, su escala y sus
+  mensajes salen en el idioma de los clientes del taller, y si ese idioma no es el castellano, Ajustes avisa
+  que las preguntas siguen como se escribieron.
+
 ## Contexto
 
 Cuando entrega un trabajo, el dueño quiere saber cómo le fue a su cliente: mandarle una encuesta por

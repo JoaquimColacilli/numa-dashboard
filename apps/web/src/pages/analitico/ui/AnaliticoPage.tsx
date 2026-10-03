@@ -1,7 +1,5 @@
 import {
   DIAS_DE_ACIERTO,
-  fraseDeLasCumplidas,
-  fraseDeLosAciertos,
   UMBRAL_MEDIANA,
   type AnalisisDeEntregas,
   type FilaDelAnalisis,
@@ -11,6 +9,7 @@ import { useId, useMemo, useState, type ReactNode } from 'react';
 
 import { useReplicaDelTaller } from '@/entities/replica';
 import { analisisDeLaReplica } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import {
   fechaLarga,
   hoyLocal,
@@ -25,7 +24,11 @@ import {
   cuantosTrabajos,
   desvioEnPalabras,
   enDias,
+  fraseDeLasCumplidas,
+  fraseDeLosAciertos,
+  fraseDelDesvio,
   hayAlgoPorCarga,
+  nombreDeLaCarga,
   resumenDeLosDias,
   resumenDelDesvio,
 } from '../model/textos';
@@ -65,25 +68,25 @@ function Dato({ clave, valor }: { clave: string; valor: string }) {
 }
 
 function Precision({ analisis }: { analisis: AnalisisDeEntregas }) {
+  const textos = useMensajes().paginaAnalitico.precision;
   const { precision } = analisis;
   return (
-    <Seccion
-      titulo="Qué tan preciso sos estimando"
-      bajada="La primera fecha estimada de cada trabajo contra el día en que lo entregaste."
-    >
-      <p className="text-body-lg leading-snug font-medium text-pretty">{precision.frase}</p>
+    <Seccion titulo={textos.titulo} bajada={textos.bajada}>
+      <p className="text-body-lg leading-snug font-medium text-pretty">
+        {fraseDelDesvio(precision.desvio)}
+      </p>
       {precision.desvio.modo === 'mediana' && (
         <p className="mt-1.5 text-label leading-relaxed text-text-2">
-          El más adelantado, {desvioEnPalabras(precision.desvio.minimo)}; el más atrasado,{' '}
-          {desvioEnPalabras(precision.desvio.maximo)}.
+          {textos.extremos(
+            desvioEnPalabras(precision.desvio.minimo),
+            desvioEnPalabras(precision.desvio.maximo),
+          )}
         </p>
       )}
       {precision.aciertos !== null && (
         <p className="mt-2 text-body leading-relaxed">
           {fraseDeLosAciertos(precision.aciertos)}{' '}
-          <span className="text-text-2">
-            Acertar es entregar hasta {String(DIAS_DE_ACIERTO)} días antes o después.
-          </span>
+          <span className="text-text-2">{textos.acertarEs(DIAS_DE_ACIERTO)}</span>
         </p>
       )}
       {precision.cumplidas !== null && (
@@ -91,9 +94,7 @@ function Precision({ analisis }: { analisis: AnalisisDeEntregas }) {
       )}
       {precision.importadas > 0 && (
         <p className="mt-2 text-label leading-relaxed text-text-3">
-          En {cuantosTrabajos(precision.importadas)} la estimada es la que tenían cargada el día en
-          que la app empezó a guardar la historia de las fechas, no necesariamente la primera que
-          diste.
+          {textos.importadas(precision.importadas)}
         </p>
       )}
     </Seccion>
@@ -101,23 +102,26 @@ function Precision({ analisis }: { analisis: AnalisisDeEntregas }) {
 }
 
 function Grupo({ grupo }: { grupo: GrupoPorTipo }) {
+  const textos = useMensajes().paginaAnalitico.porTipo;
   return (
     <li className="border-t border-hairline-soft py-3 first:border-t-0 first:pt-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-body-lg font-semibold">{grupo.nombre}</span>
+        <span translate="no" className="text-body-lg font-semibold">
+          {grupo.nombre}
+        </span>
         <span className="text-label text-text-2 tabular-nums">
           {cuantosTrabajos(grupo.trabajos)}
         </span>
       </div>
       <dl className="mt-1">
         {grupo.demora.n > 0 && (
-          <Dato clave="Del arranque a la entrega" valor={resumenDeLosDias(grupo.demora)} />
+          <Dato clave={textos.delArranqueALaEntrega} valor={resumenDeLosDias(grupo.demora)} />
         )}
         {grupo.fabricacion.n > 0 && (
-          <Dato clave="Del arranque a listo" valor={resumenDeLosDias(grupo.fabricacion)} />
+          <Dato clave={textos.delArranqueAListo} valor={resumenDeLosDias(grupo.fabricacion)} />
         )}
         {grupo.desvio.n > 0 && (
-          <Dato clave="Contra lo estimado" valor={resumenDelDesvio(grupo.desvio)} />
+          <Dato clave={textos.contraLoEstimado} valor={resumenDelDesvio(grupo.desvio)} />
         )}
       </dl>
     </li>
@@ -125,17 +129,12 @@ function Grupo({ grupo }: { grupo: GrupoPorTipo }) {
 }
 
 function PorTipo({ analisis }: { analisis: AnalisisDeEntregas }) {
+  const textos = useMensajes().paginaAnalitico.porTipo;
   const { porTipo, sinTipo } = analisis;
   return (
-    <Seccion
-      titulo="Cuánto tardás por tipo de proyecto"
-      bajada={`Con menos de ${String(UMBRAL_MEDIANA)} trabajos de un tipo ves cada caso; desde ahí, la mediana.`}
-    >
+    <Seccion titulo={textos.titulo} bajada={textos.bajada(UMBRAL_MEDIANA)}>
       {porTipo.length === 0 ? (
-        <p className="text-body leading-relaxed text-text-2">
-          Ningún trabajo entregado tiene el tipo de proyecto. Ponéselo en la ficha, con «Editar», y
-          acá los vas a ver agrupados.
-        </p>
+        <p className="text-body leading-relaxed text-text-2">{textos.ninguno}</p>
       ) : (
         <ul className="list-none">
           {porTipo.map((grupo) => (
@@ -145,7 +144,7 @@ function PorTipo({ analisis }: { analisis: AnalisisDeEntregas }) {
       )}
       {sinTipo !== null && porTipo.length > 0 && (
         <p className="mt-3 text-label leading-relaxed text-text-2">
-          {cuantosTrabajos(sinTipo.trabajos)} sin tipo: ponéselo en su ficha para que cuenten acá.
+          {textos.sinTipo(sinTipo.trabajos)}
         </p>
       )}
     </Seccion>
@@ -153,19 +152,17 @@ function PorTipo({ analisis }: { analisis: AnalisisDeEntregas }) {
 }
 
 function PorCarga({ analisis }: { analisis: AnalisisDeEntregas }) {
+  const textos = useMensajes().paginaAnalitico.porCarga;
   if (!hayAlgoPorCarga(analisis.porCarga)) return null;
   return (
-    <Seccion
-      titulo="Según cuántos trabajos tenías en curso"
-      bajada="Del arranque a la entrega, según cuántos otros trabajos había en el taller cuando lo aprobaste."
-    >
+    <Seccion titulo={textos.titulo} bajada={textos.bajada}>
       <dl>
         {analisis.porCarga
           .filter((grupo) => grupo.demora.n > 0)
           .map((grupo) => (
             <Dato
               key={grupo.nombre}
-              clave={`${grupo.nombre} en curso`}
+              clave={nombreDeLaCarga(grupo)}
               valor={resumenDeLosDias(grupo.demora)}
             />
           ))}
@@ -175,40 +172,62 @@ function PorCarga({ analisis }: { analisis: AnalisisDeEntregas }) {
 }
 
 function FilaDelTrabajo({ fila, hoy }: { fila: FilaDelAnalisis; hoy: string }) {
+  const textos = useMensajes().paginaAnalitico.trabajoPorTrabajo;
   return (
     <li className="border-t border-hairline-soft py-3 first:border-t-0 first:pt-0">
       <Ir
         a={rutaDelProyecto(fila.id)}
+        translate="no"
         className="text-body font-semibold underline decoration-hairline underline-offset-2 hover:decoration-ink"
       >
         {fila.titulo}
       </Ir>
-      <span className="ml-2 text-label text-text-3">{fila.tipo ?? 'Sin tipo'}</span>
+      {fila.tipo === null ? (
+        <span className="ml-2 text-label text-text-3">{textos.sinTipo}</span>
+      ) : (
+        <span translate="no" className="ml-2 text-label text-text-3">
+          {fila.tipo}
+        </span>
+      )}
       <dl className="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 text-label @md:grid-cols-2">
         <div className="flex gap-1.5">
-          <dt className="text-text-2">Estimada</dt>
-          <dd className="font-medium tabular-nums">
-            {fila.primeraEstimada === null ? 'Sin fecha' : fechaLarga(fila.primeraEstimada, hoy)}
-          </dd>
+          <dt className="text-text-2">{textos.estimada}</dt>
+          {fila.primeraEstimada === null ? (
+            <dd className="font-medium tabular-nums">{textos.sinFecha}</dd>
+          ) : (
+            <dd translate="no" className="font-medium tabular-nums">
+              {fechaLarga(fila.primeraEstimada, hoy)}
+            </dd>
+          )}
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-text-2">Entregado</dt>
-          <dd className="font-medium tabular-nums">
-            {fechaLarga(fila.entregado, hoy)}
-            {fila.desvio !== null && `, ${desvioEnPalabras(fila.desvio)}`}
-          </dd>
+          <dt className="text-text-2">{textos.entregado}</dt>
+          {fila.desvio === null ? (
+            <dd translate="no" className="font-medium tabular-nums">
+              {fechaLarga(fila.entregado, hoy)}
+            </dd>
+          ) : (
+            <dd className="font-medium tabular-nums">
+              {textos.entregadoConDesvio(
+                fechaLarga(fila.entregado, hoy),
+                desvioEnPalabras(fila.desvio),
+              )}
+            </dd>
+          )}
         </div>
         {fila.comprometida !== null && (
           <div className="flex gap-1.5">
-            <dt className="text-text-2">Comprometida</dt>
+            <dt className="text-text-2">{textos.comprometida}</dt>
             <dd className="font-medium tabular-nums">
-              {fechaLarga(fila.comprometida, hoy)}, {fila.cumplida === true ? 'cumplida' : 'no'}
+              {fila.cumplida === true
+                ? textos.cumplida(fechaLarga(fila.comprometida, hoy))
+                : textos.noCumplida(fechaLarga(fila.comprometida, hoy))}
             </dd>
           </div>
         )}
         {fila.demora !== null && (
           <div className="flex gap-1.5">
-            <dt className="text-text-2">Tardó</dt>
+            <dt className="text-text-2">{textos.tardo}</dt>
             <dd className="font-medium tabular-nums">{enDias(fila.demora)}</dd>
           </div>
         )}
@@ -218,15 +237,13 @@ function FilaDelTrabajo({ fila, hoy }: { fila: FilaDelAnalisis; hoy: string }) {
 }
 
 function TrabajoPorTrabajo({ analisis, hoy }: { analisis: AnalisisDeEntregas; hoy: string }) {
+  const textos = useMensajes().paginaAnalitico.trabajoPorTrabajo;
   const pocos = analisis.trabajos.length < UMBRAL_MEDIANA;
   const [elegido, setElegido] = useState<boolean | null>(null);
   const abierto = pocos || (elegido ?? false);
   const id = useId();
   return (
-    <Seccion
-      titulo="Trabajo por trabajo"
-      bajada={`${cuantosTrabajos(analisis.trabajos.length)} entregados, del más nuevo al más viejo.`}
-    >
+    <Seccion titulo={textos.titulo} bajada={textos.bajada(analisis.trabajos.length)}>
       {!pocos && (
         <Button
           variant="secundario"
@@ -238,7 +255,7 @@ function TrabajoPorTrabajo({ analisis, hoy }: { analisis: AnalisisDeEntregas; ho
           }}
         >
           <Icono nombre={abierto ? 'chevron-up' : 'chevron-down'} tamano={16} />
-          {abierto ? 'Esconder los números' : 'Ver los números'}
+          {abierto ? textos.esconder : textos.ver}
         </Button>
       )}
       <div id={id} hidden={!abierto} className={`@container ${pocos ? '' : 'mt-3'}`}>
@@ -249,8 +266,7 @@ function TrabajoPorTrabajo({ analisis, hoy }: { analisis: AnalisisDeEntregas; ho
         </ul>
         {analisis.sinFecha > 0 && (
           <p className="mt-3 text-label leading-relaxed text-text-3">
-            {cuantosTrabajos(analisis.sinFecha)} entregados sin el día de la entrega cargado no
-            entran en la cuenta.
+            {textos.sinDiaDeEntrega(analisis.sinFecha)}
           </p>
         )}
       </div>
@@ -259,10 +275,11 @@ function TrabajoPorTrabajo({ analisis, hoy }: { analisis: AnalisisDeEntregas; ho
 }
 
 export function AnaliticoPage() {
+  const textos = useMensajes().paginaAnalitico;
   const replica = useReplicaDelTaller();
   const hoy = hoyLocal();
   const analisis = useMemo(() => analisisDeLaReplica(replica), [replica]);
-  const vuelta = useVolver(RUTA_DEL_HISTORIAL, 'Historial');
+  const vuelta = useVolver(RUTA_DEL_HISTORIAL, textos.volver);
 
   return (
     <Pagina className="gap-3 md:gap-4">
@@ -275,18 +292,15 @@ export function AnaliticoPage() {
         {vuelta.etiqueta}
       </Ir>
       <header className="flex flex-col gap-1">
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Analítico de entregas</h1>
-        <p className="max-w-[60ch] text-body leading-relaxed text-text-2">
-          Qué tan cerca quedás de la fecha que estimás y cuánto tardás en cada tipo de mueble. No te
-          muestra cuentas que los datos todavía no sostienen.
-        </p>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">{textos.titulo}</h1>
+        <p className="max-w-[60ch] text-body leading-relaxed text-text-2">{textos.bajada}</p>
       </header>
 
       {analisis.trabajos.length === 0 ? (
         <EstadoVacio
           ilustracion="sin-historial"
-          titulo="Todavía no hay entregas para comparar"
-          detalle="Cuando entregues un trabajo con su fecha estimada, acá vas a ver qué tan cerca quedaste y cuánto tardás en cada tipo de proyecto."
+          titulo={textos.vacio.titulo}
+          detalle={textos.vacio.detalle}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2 lg:items-start">

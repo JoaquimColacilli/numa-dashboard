@@ -10,6 +10,7 @@ import {
   type PreferenciasDeLaPersona,
   type ServidorDeAvisos,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import {
   abiertaComoApp,
   avisarEnPantalla,
@@ -25,7 +26,7 @@ import {
   terminarDeActivar,
 } from '../model/activacion';
 import type { EsteDispositivo } from '../model/fase';
-import { avisoDeLaPrueba, TODAVIA_BLOQUEADO } from '../model/textos';
+import { avisoDeLaPrueba } from '../model/textos';
 
 export type CargaDeLosAvisos =
   | { tipo: 'cargando' }
@@ -137,7 +138,7 @@ export function useAvisosDelDispositivo() {
           avisarEnPantalla({
             clave: CLAVE_DEL_DISPOSITIVO,
             tono: 'hecho',
-            texto: 'Avisos activados en este dispositivo.',
+            texto: mensajes().recibirAvisos.activados,
           });
           return;
         }
@@ -181,7 +182,7 @@ export function useAvisosDelDispositivo() {
       avisarEnPantalla({
         clave: CLAVE_DEL_DISPOSITIVO,
         tono: 'hecho',
-        texto: 'Este dispositivo ya no recibe avisos.',
+        texto: mensajes().recibirAvisos.yaNoRecibe,
       });
     });
   }, [carga]);
@@ -207,7 +208,7 @@ export function useAvisosDelDispositivo() {
         avisarEnPantalla({
           clave: CLAVE_DE_LAS_PREFERENCIAS,
           tono: 'hecho',
-          texto: 'Cambios de los avisos guardados.',
+          texto: mensajes().recibirAvisos.cambiosGuardados,
           reemplaza: CLAVE_DE_LAS_PREFERENCIAS,
         });
       } catch (error) {
@@ -220,8 +221,8 @@ export function useAvisosDelDispositivo() {
           clave: CLAVE_DE_LAS_PREFERENCIAS,
           tono: 'error',
           texto: esFalloDeRed(error)
-            ? 'Sin señal no se guardan los avisos: el cambio no quedó. Probá cuando vuelva.'
-            : 'No se guardó el cambio de los avisos. Probá de nuevo.',
+            ? mensajes().recibirAvisos.sinSenalNoSeGuardan
+            : mensajes().recibirAvisos.noSeGuardoElCambio,
           reemplaza: CLAVE_DE_LAS_PREFERENCIAS,
         });
       }
@@ -244,8 +245,8 @@ export function useAvisosDelDispositivo() {
             clave: CLAVE_DE_LA_PRUEBA,
             tono: 'error',
             texto: esFalloDeRed(error)
-              ? 'Sin señal no se puede mandar la prueba.'
-              : 'No se pudo mandar la prueba. Probá de nuevo en un rato.',
+              ? mensajes().recibirAvisos.sinSenalParaLaPrueba
+              : mensajes().recibirAvisos.noSePudoMandarLaPrueba,
           });
         },
       )
@@ -256,7 +257,7 @@ export function useAvisosDelDispositivo() {
 
   const revisarElPermiso = useCallback(() => {
     if (permisoDeAvisos() === 'denied') {
-      setMensaje(TODAVIA_BLOQUEADO);
+      setMensaje(mensajes().recibirAvisos.todaviaFiguraBloqueado);
       return;
     }
     setMensaje(null);

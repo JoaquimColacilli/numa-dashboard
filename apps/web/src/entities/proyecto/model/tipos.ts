@@ -1,17 +1,24 @@
 import { claveDelNombre } from '@maun/domain';
 
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
+import { compararTextos } from '@/shared/lib';
+
 import type { Proyecto } from './catalogos';
 import { tipoDelTrabajo } from './entrega';
 
-export const TIPOS_DE_ARRANQUE = [
-  'Cocina',
-  'Placard',
-  'Vestidor',
-  'Vanitory',
-  'Mueble de TV',
-  'Biblioteca',
-  'Escritorio',
+const DE_ARRANQUE = [
+  'cocina',
+  'placard',
+  'vestidor',
+  'vanitory',
+  'muebleDeTv',
+  'biblioteca',
+  'escritorio',
 ] as const;
+
+export const TIPOS_DE_ARRANQUE: readonly string[] = textosDelIdioma(() =>
+  DE_ARRANQUE.map((tipo) => mensajes().proyecto.tiposDeArranque[tipo]),
+);
 
 export function tiposParaSugerir(proyectos: readonly Proyecto[]): string[] {
   const cuantos = new Map<string, { nombre: string; veces: number }>();
@@ -23,7 +30,7 @@ export function tiposParaSugerir(proyectos: readonly Proyecto[]): string[] {
     cuantos.set(clave, { nombre: previo?.nombre ?? tipo, veces: (previo?.veces ?? 0) + 1 });
   }
   const usados = [...cuantos.values()]
-    .sort((uno, otro) => otro.veces - uno.veces || uno.nombre.localeCompare(otro.nombre, 'es'))
+    .sort((uno, otro) => otro.veces - uno.veces || compararTextos(uno.nombre, otro.nombre))
     .map((tipo) => tipo.nombre);
   const deArranque = TIPOS_DE_ARRANQUE.filter((tipo) => !cuantos.has(claveDelNombre(tipo)));
   return [...usados, ...deArranque];

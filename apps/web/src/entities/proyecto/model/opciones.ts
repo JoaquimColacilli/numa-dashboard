@@ -1,9 +1,10 @@
 import {
   calcularSena,
-  centavos,
+  centavosEn,
   puntosBasicos,
   SENA_HABITUAL,
-  type Money,
+  type Moneda,
+  type Plata,
   type PuntosBasicos,
   type SenaDelTrabajo,
 } from '@maun/domain';
@@ -41,12 +42,14 @@ export function opcionAprobada(
 export function senaDelTrabajo(
   replica: Replica,
   proyecto: Proyecto,
-  cobrado: Money,
-): SenaDelTrabajo {
-  return calcularSena({
+  cobrado: Plata,
+): SenaDelTrabajo<Moneda> {
+  return calcularSena<Moneda>({
     presupuesto:
-      proyecto.presupuesto_centavos === null ? null : centavos(proyecto.presupuesto_centavos),
-    cobrado,
+      proyecto.presupuesto_centavos === null
+        ? null
+        : centavosEn(cobrado.moneda, proyecto.presupuesto_centavos),
+    cobrado: cobrado.importe,
     porcentajeDelTaller: senaDelTaller(ajustesDe(replica)),
     porcentajeDelTrabajo: senaDelProyecto(proyecto),
   });

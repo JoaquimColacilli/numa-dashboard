@@ -1,6 +1,7 @@
 import type {
   BorradorDelPresupuesto,
   DocumentoDelPresupuesto,
+  Idioma,
   PlantillaDelPresupuesto,
 } from '@maun/domain';
 
@@ -20,6 +21,7 @@ export interface PresupuestoParaMandar {
   revisionId: string;
   version: number;
   documento: DocumentoDelPresupuesto;
+  idioma: Idioma;
   queCambio: string | null;
   mandadoEl: string;
   valeHasta: string | null;
@@ -92,6 +94,7 @@ export async function mandarElPresupuesto(
     p_que_cambio: pedido.queCambio ?? '',
     p_mandado_el: pedido.mandadoEl,
     p_vale_hasta: pedido.valeHasta as string,
+    p_idioma: pedido.idioma,
   });
   if (error) throw error;
   return leerPresupuestoMandado(data);

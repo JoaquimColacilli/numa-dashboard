@@ -2,18 +2,38 @@ import { esAnteriorALaApertura } from '@maun/domain';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 import { CasillaDeLaApertura } from '@/entities/movimiento';
-import type { Proyecto } from '@/entities/proyecto';
+import {
+  CamposDelPago,
+  dolarDelDiaParaUnPago,
+  type ErroresDelPago,
+  type Proyecto,
+  type ValorDelPago,
+} from '@/entities/proyecto';
+import { useReplicaDelTaller } from '@/entities/replica';
 import type { CambiosDeProyecto, PagoParaGuardar } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { errorDeLaFechaDeLaPlata, hoyEnElTaller, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, MoneyInput } from '@/shared/ui';
 
 import {
+  erroresDelPago,
+  hayErroresEnElPago,
+  monedaDeLaConsulta,
+  pagoNuevo,
+  paraLosPagos,
+} from '../model/pagoDeLaConsulta';
+import {
+  conElPagoDeLaVisita,
   conOtroDia,
   conOtroVencimiento,
   errorDelDia,
+  erroresDelPagoDeLaVisita,
   pasoDelRelevamiento,
+  valorDelPagoDeLaVisita,
   valoresDelRelevamiento,
 } from '../model/relevamiento';
+
+type AlCrearUnTesoroEnDolares = (alCrear: (tesoroId: string) => void) => void;
 
 export interface FormularioDelRelevamientoProps {
   proyecto: Proyecto;
@@ -21,6 +41,7 @@ export interface FormularioDelRelevamientoProps {
   apertura: string | null;
   alListo: (cambios: CambiosDeProyecto, dia: string, pagos: PagoParaGuardar[]) => void;
   alCancelar: () => void;
+  alCrearUnTesoroEnDolares?: AlCrearUnTesoroEnDolares;
 }
 
 export function FormularioDelRelevamiento({
@@ -29,10 +50,16 @@ export function FormularioDelRelevamiento({
   apertura,
   alListo,
   alCancelar,
+  alCrearUnTesoroEnDolares,
 }: FormularioDelRelevamientoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
+  const replica = useReplicaDelTaller();
   const hoy = hoyEnElTaller();
-  const [valores, setValores] = useState(() => valoresDelRelevamiento(proyecto, hoy));
+  const delTrabajo = monedaDeLaConsulta(proyecto);
+  const para = paraLosPagos(replica);
+  const [valores, setValores] = useState(() => valoresDelRelevamiento(proyecto, hoy, para));
   const [error, setError] = useState<string | undefined>(undefined);
+  const [erroresDelPagoEscrito, setErroresDelPagoEscrito] = useState<ErroresDelPago>({});
   const campoDelDia = useRef<HTMLInputElement>(null);
   const idDelPago = useRef(uuidv7());
 
@@ -40,12 +67,26 @@ export function FormularioDelRelevamiento({
     campoDelDia.current?.focus();
   }, []);
 
+  function cambiarElPago(valor: ValorDelPago): void {
+    setValores((previos) => conElPagoDeLaVisita(previos, valor));
+    setErroresDelPagoEscrito({});
+  }
+
   function enviar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
     const encontrado = errorDelDia(valores, hoy);
     setError(encontrado);
-    if (encontrado !== undefined) return;
-    const { cambios, pagos } = pasoDelRelevamiento(valores, idDelPago.current, apertura);
+    const delPago = conPago
+      ? erroresDelPagoDeLaVisita(valores, delTrabajo, para.tesorosEnDolares)
+      : {};
+    setErroresDelPagoEscrito(delPago);
+    if (encontrado !== undefined || hayErroresEnElPago(delPago)) return;
+    const { cambios, pagos } = pasoDelRelevamiento(
+      valores,
+      idDelPago.current,
+      apertura,
+      delTrabajo,
+    );
     alListo(cambios, valores.dia, pagos);
   }
 
@@ -53,7 +94,7 @@ export function FormularioDelRelevamiento({
     <form noValidate onSubmit={enviar} className="mt-3 flex flex-col gap-3">
       <Campo
         ref={campoDelDia}
-        etiqueta="Qué día fuiste"
+        etiqueta={textos.queDiaFuiste}
         type="date"
         max={hoy}
         value={valores.dia}
@@ -65,24 +106,40 @@ export function FormularioDelRelevamiento({
         error={error}
       />
       <Campo
-        etiqueta="Entregar el presupuesto antes del"
+        etiqueta={textos.entregarElPresupuestoAntesDel}
         type="date"
         value={valores.vencimiento}
         onChange={(evento) => {
           const vencimiento = evento.target.value;
           setValores((previos) => conOtroVencimiento(previos, vencimiento));
         }}
-        ayuda="Una semana de trabajo desde la visita. Cambiala si lo prometiste para otro día."
+        ayuda={textos.ayudaDelVencimiento}
       />
       {conPago && (
-        <MoneyInput
-          etiqueta="Cuánto te pagó la visita"
-          placeholder="Opcional"
-          value={valores.pago}
-          onChange={(pago) => {
-            setValores((previos) => ({ ...previos, pago }));
-          }}
-          ayuda="Si no te la pagó, lo que sigue es un estimativo. Igual podés presupuestar."
+        <CamposDelPago
+          etiqueta={textos.cuantoTePagoLaVisita}
+          placeholder={textos.opcional}
+          valor={valorDelPagoDeLaVisita(valores)}
+          alCambiar={cambiarElPago}
+          monedaDelTrabajo={delTrabajo}
+          tesorosEnDolares={para.tesorosEnDolares}
+          dolarDelDia={dolarDelDiaParaUnPago(
+            { moneda: valores.monedaDelPago, fecha: valores.dia },
+            delTrabajo,
+            para.dolarDelDia,
+          )}
+          alCrearUnTesoroEnDolares={
+            alCrearUnTesoroEnDolares === undefined
+              ? undefined
+              : () => {
+                  alCrearUnTesoroEnDolares((tesoroId) => {
+                    setValores((previos) => ({ ...previos, tesoroDelPago: tesoroId }));
+                    setErroresDelPagoEscrito({});
+                  });
+                }
+          }
+          errores={erroresDelPagoEscrito}
+          ayudaDelMonto={textos.ayudaDelPagoDeLaVisita}
         />
       )}
       {conPago && (valores.pago ?? 0) > 0 && (
@@ -96,9 +153,9 @@ export function FormularioDelRelevamiento({
         />
       )}
       <FilaDeAcciones>
-        <Button type="submit">Anotar el relevamiento</Button>
+        <Button type="submit">{textos.anotarElRelevamiento}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>
@@ -117,6 +174,7 @@ function FormularioDeUnMonto({
   alListo,
   alCancelar,
 }: FormularioDeUnMontoProps & { etiqueta: string; ayuda: string; enviar: string }) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   const [monto, setMonto] = useState<number | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
@@ -136,7 +194,7 @@ function FormularioDeUnMonto({
       <MoneyInput
         ref={campo}
         etiqueta={etiqueta}
-        placeholder="Opcional"
+        placeholder={textos.opcional}
         value={monto}
         onChange={setMonto}
         ayuda={ayuda}
@@ -144,7 +202,7 @@ function FormularioDeUnMonto({
       <FilaDeAcciones>
         <Button type="submit">{enviar}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>
@@ -152,33 +210,47 @@ function FormularioDeUnMonto({
 }
 
 export function FormularioDelPresupuesto(props: FormularioDeUnMontoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
   return (
     <FormularioDeUnMonto
       {...props}
-      etiqueta="Cuánto presupuestaste"
-      ayuda="Si lo dejás vacío, lo cargás cuando lo apruebe."
-      enviar="Marcar como enviado"
+      etiqueta={textos.cuantoPresupuestaste}
+      ayuda={textos.ayudaDelPresupuesto}
+      enviar={textos.marcarComoEnviado}
     />
   );
 }
 
 export interface FormularioDelPagoProps {
+  proyecto: Proyecto;
   apertura: string | null;
-  alListo: (monto: number | null, dia: string, yaEnLaApertura: boolean) => void;
+  alListo: (pago: ValorDelPago, dia: string, yaEnLaApertura: boolean) => void;
   alCancelar: () => void;
+  alCrearUnTesoroEnDolares?: AlCrearUnTesoroEnDolares;
 }
 
-export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioDelPagoProps) {
+export function FormularioDelPago({
+  proyecto,
+  apertura,
+  alListo,
+  alCancelar,
+  alCrearUnTesoroEnDolares,
+}: FormularioDelPagoProps) {
+  const textos = useMensajes().avanzarLaConsulta.paso;
+  const replica = useReplicaDelTaller();
   const hoy = hoyEnElTaller();
-  const [monto, setMonto] = useState<number | null>(null);
+  const delTrabajo = monedaDeLaConsulta(proyecto);
+  const para = paraLosPagos(replica);
+  const [pago, setPago] = useState<ValorDelPago>(() => pagoNuevo(proyecto, hoy, para));
   const [dia, setDia] = useState(hoy);
   const [marcada, setMarcada] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
-  const campo = useRef<HTMLInputElement>(null);
-  const hayPago = monto !== null && monto > 0;
+  const [erroresDelPagoEscrito, setErroresDelPagoEscrito] = useState<ErroresDelPago>({});
+  const campos = useRef<HTMLDivElement>(null);
+  const hayPago = pago.monto !== null && pago.monto > 0;
 
   useEffect(() => {
-    campo.current?.focus();
+    campos.current?.querySelector('input')?.focus();
   }, []);
 
   return (
@@ -187,24 +259,48 @@ export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioD
       onSubmit={(evento) => {
         evento.preventDefault();
         const encontrado = hayPago ? errorDeLaFechaDeLaPlata(dia, hoy) : undefined;
+        const delPago = erroresDelPago(pago, delTrabajo, para.tesorosEnDolares);
         setError(encontrado);
-        if (encontrado !== undefined) return;
-        alListo(monto, dia, marcada && esAnteriorALaApertura(dia, apertura));
+        setErroresDelPagoEscrito(delPago);
+        if (encontrado !== undefined || hayErroresEnElPago(delPago)) return;
+        alListo(pago, dia, marcada && esAnteriorALaApertura(dia, apertura));
       }}
       className="mt-3 flex flex-col gap-2.5"
     >
-      <MoneyInput
-        ref={campo}
-        etiqueta="Cuánto te pagó"
-        placeholder="Opcional"
-        value={monto}
-        onChange={setMonto}
-        ayuda="Si todavía no te pagó y vas a presupuestar igual, dejalo vacío."
-      />
+      <div ref={campos}>
+        <CamposDelPago
+          etiqueta={textos.cuantoTePago}
+          placeholder={textos.opcional}
+          valor={pago}
+          alCambiar={(valor) => {
+            setPago(valor);
+            setErroresDelPagoEscrito({});
+          }}
+          monedaDelTrabajo={delTrabajo}
+          tesorosEnDolares={para.tesorosEnDolares}
+          dolarDelDia={dolarDelDiaParaUnPago(
+            { moneda: pago.moneda, fecha: dia },
+            delTrabajo,
+            para.dolarDelDia,
+          )}
+          alCrearUnTesoroEnDolares={
+            alCrearUnTesoroEnDolares === undefined
+              ? undefined
+              : () => {
+                  alCrearUnTesoroEnDolares((tesoroId) => {
+                    setPago((previo) => ({ ...previo, tesoroId }));
+                    setErroresDelPagoEscrito({});
+                  });
+                }
+          }
+          errores={erroresDelPagoEscrito}
+          ayudaDelMonto={textos.ayudaDelPago}
+        />
+      </div>
       {hayPago && (
         <>
           <Campo
-            etiqueta="Qué día te pagó"
+            etiqueta={textos.queDiaTePago}
             type="date"
             max={hoy}
             value={dia}
@@ -223,9 +319,9 @@ export function FormularioDelPago({ apertura, alListo, alCancelar }: FormularioD
         </>
       )}
       <FilaDeAcciones>
-        <Button type="submit">Pasar a presupuestar</Button>
+        <Button type="submit">{textos.pasarAPresupuestar}</Button>
         <Button variant="secundario" onClick={alCancelar}>
-          Todavía no
+          {textos.todaviaNo}
         </Button>
       </FilaDeAcciones>
     </form>

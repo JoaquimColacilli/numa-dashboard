@@ -1,4 +1,4 @@
-import { nombreDelMes } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
 
 import { NOVEDADES, type Novedad } from './novedades';
 
@@ -37,13 +37,10 @@ export function versionActual(novedades: readonly Novedad[] = NOVEDADES): string
 }
 
 export function etiquetaDeLaVersion(version: string): string {
+  const textos = mensajes().verNovedades;
   const partes = partesDeLaVersion(version);
-  if (partes === null) return 'Versión sin fecha';
-  const dia = Number(partes.fecha.slice(8, 10));
-  const mes = nombreDelMes(partes.fecha).toLowerCase();
-  const anio = partes.fecha.slice(0, 4);
-  const vez = partes.vez > 1 ? ` (${String(partes.vez)})` : '';
-  return `Versión del ${String(dia)} de ${mes} de ${anio}${vez}`;
+  if (partes === null) return textos.sinFecha;
+  return textos.version(partes.fecha, partes.vez);
 }
 
 export function novedadesSinVer(

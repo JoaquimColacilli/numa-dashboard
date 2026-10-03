@@ -1,0 +1,70 @@
+export const coordinarLaEntrega = {
+  franjas: {
+    manana: 'A la mañana',
+    tarde: 'A la tarde',
+  },
+  sinHorario: 'Sin horario',
+  dia: 'Día',
+  horario: 'Horario',
+  cancelar: 'Cancelar',
+  errores: {
+    sinDia: 'Elegí el día.',
+    propuestaDesdeManana: 'El día que le proponés tiene que ser desde mañana.',
+    fechaQuePaso: 'Esa fecha ya pasó y tu cliente no la vería: elegí una desde hoy.',
+  },
+  laEntrega: 'La entrega',
+  estimada: 'Estimada',
+  sinFecha: 'Sin fecha',
+  ponerleFecha: 'Ponerle fecha',
+  cambiar: 'Cambiar',
+  comprometidaConElCliente: 'Comprometida con el cliente',
+  todaviaNo: 'Todavía no',
+  laAceptoTuCliente: 'La aceptó Tu cliente',
+  laAcepto: (cliente: string) => `La aceptó ${cliente}`,
+  comprometerUnDia: 'Comprometer un día',
+  sacar: 'Sacar',
+  yaPaso: {
+    estimada: 'La entrega estimada ya pasó: tu cliente no la ve. Movela a un día que venga.',
+    comprometida:
+      'La entrega comprometida ya pasó: tu cliente no la ve. Cambiala, o marcá en «Qué falta» que ya lo entregaste.',
+  },
+  mientrasLoFabricas:
+    'Tu cliente ve la estimada como «Fecha estimada de entrega». Cuando esté terminado, tocá «Ya está listo» y coordinás el día con él.',
+  proponeleUnDia: 'Proponele un día, o pedile que marque los días y horarios que le quedan bien.',
+  lePropusisteEl: (fecha: string) => `Le propusiste el ${fecha}. Todavía no contestó.`,
+  lePedisteSusDias: 'Le pediste sus días. Todavía no contestó.',
+  proponerleOtroDia: 'Proponerle otro día',
+  proponerleUnDia: 'Proponerle un día',
+  pedirleOtrosDias: 'Pedirle otros días',
+  pedirleSusDias: 'Pedirle sus días',
+  sinSenal: 'Para pedirle el día necesitás señal: tu cliente lo ve recién cuando llega.',
+  verComoLoVeTuCliente: 'Ver cómo lo ve tu cliente',
+  verComoLoVe: (cliente: string) => `Ver cómo lo ve ${cliente}`,
+  respuesta: {
+    tuClienteTeDejoUnaNota: 'Tu cliente te dejó una nota',
+    teDejoUnaNota: (cliente: string) => `${cliente} te dejó una nota`,
+    tuClienteTePasoSusDias: 'Tu cliente te pasó sus días. Confirmá uno:',
+    tePasoSusDias: (cliente: string) => `${cliente} te pasó sus días. Confirmá uno:`,
+    yaPaso: 'ya pasó',
+    confirmarEl: (fecha: string) => `Confirmar el ${fecha}`,
+  },
+  hojas: {
+    estimada: {
+      titulo: 'La entrega estimada',
+      ayuda: 'Tu cliente la ve como «Fecha estimada de entrega» mientras lo fabricás.',
+      boton: 'Guardar',
+    },
+    comprometida: {
+      titulo: 'La entrega comprometida',
+      ayuda: 'Es el día que acordaste con tu cliente. Lo ve como una buena noticia en su enlace.',
+      boton: 'Comprometer',
+    },
+    propuesta: {
+      titulo: 'Proponerle un día',
+      ayuda:
+        'Lo ve en su enlace con «Me queda bien». Si lo acepta, la entrega queda comprometida sola.',
+      boton: 'Proponérselo',
+      tuCliente: (trabajo: string) => `Tu cliente · ${trabajo}`,
+    },
+  },
+} as const;

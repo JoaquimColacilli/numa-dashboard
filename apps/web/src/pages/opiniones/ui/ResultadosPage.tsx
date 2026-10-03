@@ -5,6 +5,7 @@ import { useLocation, useSearchParams } from 'react-router';
 import { resumenDelTaller, trabajosParaPedir } from '@/entities/opinion';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { FichaDeLaRespuesta } from '@/features/leer-las-opiniones';
+import { useMensajes } from '@/shared/idioma';
 import {
   haceCuanto,
   hoyLocal,
@@ -29,6 +30,7 @@ import {
 const PREFIJO_DE_PREGUNTA = '#pregunta-';
 
 function SinEnviar() {
+  const textos = useMensajes().paginaOpiniones.sinEnviar;
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { terminados, sinPedir } = useMemo(() => trabajosParaPedir(replica), [replica]);
@@ -36,12 +38,8 @@ function SinEnviar() {
   return (
     <EstadoVacio
       ilustracion="sin-opiniones"
-      titulo="Todavía no le preguntaste a nadie"
-      detalle={
-        terminados === 0
-          ? 'Cuando marques un trabajo como entregado, te va a aparecer ahí mismo el botón para pedirle la opinión al cliente. Lo que contesten se junta acá.'
-          : `Tenés ${String(terminados)} ${terminados === 1 ? 'trabajo terminado' : 'trabajos terminados'}. Cuando marcás uno como entregado, te va a aparecer ahí mismo el botón para pedirle la opinión al cliente. Lo que contesten se junta acá.`
-      }
+      titulo={textos.titulo}
+      detalle={terminados === 0 ? textos.detalle : textos.detalleConTerminados(terminados)}
     >
       <FilaDeAcciones>
         {terminados > 0 && (
@@ -50,7 +48,7 @@ function SinEnviar() {
               ir(sinPedir === null ? RUTA_DE_PROYECTOS : rutaDelProyecto(sinPedir));
             }}
           >
-            Pedirle la opinión a un cliente
+            {textos.pedirle}
           </Button>
         )}
         <Button
@@ -59,7 +57,7 @@ function SinEnviar() {
             ir(RUTA_DE_PREGUNTAS);
           }}
         >
-          Ver qué se pregunta
+          {textos.verQueSePregunta}
         </Button>
       </FilaDeAcciones>
     </EstadoVacio>
@@ -75,6 +73,7 @@ function SinRespuestas({
   hoy: string;
   alAbrir: (respuestaId: string) => void;
 }) {
+  const textos = useMensajes().paginaOpiniones.sinRespuestas;
   const [conLista, setConLista] = useState(false);
   const idDeLaLista = useId();
   const { enviadas, desde } = resumen;
@@ -84,18 +83,9 @@ function SinRespuestas({
     <>
       <div className="rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
         <div className="flex max-w-[560px] flex-col items-start gap-3">
-          <span className="text-body text-text-2">
-            {enviadas === 1
-              ? `Le preguntaste a un cliente ${cuando}`
-              : `Les preguntaste a ${String(enviadas)} clientes, el más viejo ${cuando}`}
-          </span>
-          <h2 className="font-display text-lema leading-tight text-pretty">
-            Todavía no contestó ninguno
-          </h2>
-          <p className="text-body leading-relaxed text-text-2">
-            Es normal los primeros días. De cada diez personas a las que se les pide, suelen
-            contestar entre tres y cinco, y casi siempre en la primera semana.
-          </p>
+          <span className="text-body text-text-2">{textos.preguntaste(enviadas, cuando)}</span>
+          <h2 className="font-display text-lema leading-tight text-pretty">{textos.titulo}</h2>
+          <p className="text-body leading-relaxed text-text-2">{textos.esNormal}</p>
           <Button
             variant="secundario"
             aria-expanded={conLista}
@@ -104,7 +94,7 @@ function SinRespuestas({
               setConLista((actual) => !actual);
             }}
           >
-            Ver a quién le mandaste
+            {textos.verAQuien}
           </Button>
         </div>
       </div>
@@ -121,6 +111,7 @@ function SinRespuestas({
 }
 
 export function ResultadosPage() {
+  const textos = useMensajes().paginaOpiniones;
   const replica = useReplicaDelTaller();
   const estadoSync = useEstadoSync();
   const ir = useIr();
@@ -155,7 +146,7 @@ export function ResultadosPage() {
       {estadoSync.tipo === 'sin-conexion' && (
         <div className="flex items-center gap-2 rounded-panel bg-ink px-3 py-2.25 text-label leading-snug text-paper">
           <Icono nombre="cloud-off" tamano={14} />
-          Sin conexión. Estás viendo lo último que se sincronizó.
+          {textos.sinConexion}
         </div>
       )}
 

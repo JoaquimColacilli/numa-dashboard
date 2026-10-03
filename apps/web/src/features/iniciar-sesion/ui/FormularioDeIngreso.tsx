@@ -8,13 +8,15 @@ import {
   mensajeDeAcceso,
   reenviarConfirmacion,
 } from '@/shared/api';
+import { mensajes, useMensajes } from '@/shared/idioma';
 import { anotarIngresoConContrasena } from '@/shared/lib';
 import { Button, Campo, CampoDeContrasena } from '@/shared/ui';
 
 const MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-const SIN_SENAL_PARA_ENTRAR =
-  'Sin señal no se puede entrar: la cuenta se verifica contra el servidor. Una vez adentro, la app anda aunque no haya señal.';
+function mensajeDelIngreso(fallo: unknown): string {
+  return esFalloDeRed(fallo) ? mensajes().iniciarSesion.sinSenalParaEntrar : mensajeDeAcceso(fallo);
+}
 
 interface ErrorDelFormulario {
   campo?: 'email' | 'contrasena';
@@ -22,6 +24,7 @@ interface ErrorDelFormulario {
 }
 
 function ReenvioDeConfirmacion({ email }: { email: string }) {
+  const m = useMensajes();
   const [mandando, setMandando] = useState(false);
   const [resultado, setResultado] = useState<{ error: boolean; texto: string } | undefined>(
     undefined,
@@ -32,7 +35,10 @@ function ReenvioDeConfirmacion({ email }: { email: string }) {
     setResultado(undefined);
     try {
       await reenviarConfirmacion(email, `${window.location.origin}/acceso`);
-      setResultado({ error: false, texto: `Te mandamos el enlace de nuevo a ${email}.` });
+      setResultado({
+        error: false,
+        texto: mensajes().iniciarSesion.teMandamosElEnlaceDeNuevo({ email }),
+      });
     } catch (fallo) {
       setResultado({ error: true, texto: mensajeDeAcceso(fallo) });
     } finally {
@@ -50,7 +56,7 @@ function ReenvioDeConfirmacion({ email }: { email: string }) {
           void mandar();
         }}
       >
-        {mandando ? 'Mandándolo…' : 'Mandarme el enlace de nuevo'}
+        {mandando ? m.iniciarSesion.mandandolo : m.iniciarSesion.mandarmeElEnlaceDeNuevo}
       </Button>
       {resultado !== undefined && (
         <p
@@ -65,6 +71,7 @@ function ReenvioDeConfirmacion({ email }: { email: string }) {
 }
 
 export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
+  const m = useMensajes();
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<ErrorDelFormulario | undefined>(undefined);
@@ -75,7 +82,7 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
     const control = new AbortController();
     esperarHuellaDelAutocompletado(control.signal).catch((fallo: unknown) => {
       if (control.signal.aborted) return;
-      setError({ mensaje: esFalloDeRed(fallo) ? SIN_SENAL_PARA_ENTRAR : mensajeDeAcceso(fallo) });
+      setError({ mensaje: mensajeDelIngreso(fallo) });
     });
     return () => {
       control.abort();
@@ -86,11 +93,11 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
     evento.preventDefault();
     setSinConfirmar(false);
     if (!MAIL.test(email)) {
-      setError({ campo: 'email', mensaje: 'Escribí un mail válido.' });
+      setError({ campo: 'email', mensaje: m.iniciarSesion.escribiUnMailValido });
       return;
     }
     if (contrasena === '') {
-      setError({ campo: 'contrasena', mensaje: 'Escribí tu contraseña.' });
+      setError({ campo: 'contrasena', mensaje: m.iniciarSesion.escribiTuContrasena });
       return;
     }
 
@@ -100,7 +107,7 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
       await entrar(email, contrasena);
       anotarIngresoConContrasena();
     } catch (fallo) {
-      setError({ mensaje: esFalloDeRed(fallo) ? SIN_SENAL_PARA_ENTRAR : mensajeDeAcceso(fallo) });
+      setError({ mensaje: mensajeDelIngreso(fallo) });
       setSinConfirmar(codigoDeAcceso(fallo) === 'email_not_confirmed');
     } finally {
       setEntrando(false);
@@ -116,7 +123,7 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
       }}
     >
       <Campo
-        etiqueta="Email"
+        etiqueta={m.iniciarSesion.email}
         name="email"
         type="email"
         inputMode="email"
@@ -126,10 +133,10 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
         onChange={(evento) => {
           setEmail(evento.target.value);
         }}
-        placeholder="vos@taller.com.ar"
+        placeholder={m.iniciarSesion.ejemploDeMail}
       />
       <CampoDeContrasena
-        etiqueta="Contraseña"
+        etiqueta={m.iniciarSesion.contrasena}
         name="password"
         autoComplete="current-password"
         accesorio={olvido}
@@ -148,7 +155,7 @@ export function FormularioDeIngreso({ olvido }: { olvido?: ReactNode }) {
         </div>
       )}
       <Button type="submit" size="grande" cargando={entrando} className="mt-1 w-full">
-        {entrando ? 'Entrando…' : 'Entrar'}
+        {entrando ? m.iniciarSesion.entrando : m.iniciarSesion.entrar}
       </Button>
     </form>
   );

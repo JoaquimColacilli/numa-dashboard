@@ -1,4 +1,4 @@
-import { CERO, type Money } from '@maun/domain';
+import { MONEDA_DEL_TALLER, plata, type Plata } from '@maun/domain';
 
 import {
   saldosPorIdDeLaReplica,
@@ -19,7 +19,7 @@ import type { NombreDeIcono } from '@/shared/ui';
 export interface TesoroDelTaller extends Omit<TesoroDeLaReplica, 'tinta' | 'icono'> {
   tinta: TintaDeTesoro;
   icono: NombreDeIcono;
-  saldo: Money;
+  saldo: Plata;
 }
 
 function deSiempre(clave: Tesoro): TesoroDeLaReplica {
@@ -27,6 +27,7 @@ function deSiempre(clave: Tesoro): TesoroDeLaReplica {
   return {
     id: clave,
     clave,
+    moneda: MONEDA_DEL_TALLER,
     nombre: datos.nombre,
     descripcion: datos.descripcion,
     tinta: clave,
@@ -50,7 +51,7 @@ export function tesorosDelTaller(replica: Replica): TesoroDelTaller[] {
     ...tesoro,
     tinta: tintaDelTesoro(tesoro.tinta),
     icono: iconoDelTesoro(tesoro.icono),
-    saldo: saldos.get(tesoro.id) ?? CERO,
+    saldo: plata(tesoro.moneda, saldos.get(tesoro.id) ?? 0),
   }));
 }
 

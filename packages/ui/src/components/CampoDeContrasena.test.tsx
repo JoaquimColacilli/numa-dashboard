@@ -13,7 +13,13 @@ function boton(): HTMLButtonElement {
 
 describe('CampoDeContrasena', () => {
   it('arranca oculta, con el botón presente y sin apretar', () => {
-    render(<CampoDeContrasena etiqueta="Contraseña" autoComplete="current-password" />);
+    render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        autoComplete="current-password"
+      />,
+    );
 
     expect(campo()).toHaveAttribute('type', 'password');
     expect(campo()).toHaveAttribute('autocomplete', 'current-password');
@@ -22,7 +28,13 @@ describe('CampoDeContrasena', () => {
   });
 
   it('muestra y oculta la contraseña con el mismo botón, que dice si está apretado', () => {
-    render(<CampoDeContrasena etiqueta="Contraseña" defaultValue="secreto" />);
+    render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        defaultValue="secreto"
+      />,
+    );
 
     fireEvent.click(boton());
     expect(campo()).toHaveAttribute('type', 'text');
@@ -34,15 +46,35 @@ describe('CampoDeContrasena', () => {
   });
 
   it('el botón sigue ahí con un valor puesto desde afuera, como lo deja el autocompletado', () => {
-    const { rerender } = render(<CampoDeContrasena etiqueta="Contraseña" value="" readOnly />);
-    rerender(<CampoDeContrasena etiqueta="Contraseña" value="autocompletada" readOnly />);
+    const { rerender } = render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        value=""
+        readOnly
+      />,
+    );
+    rerender(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        value="autocompletada"
+        readOnly
+      />,
+    );
 
     campo().blur();
     expect(boton()).toBeVisible();
   });
 
   it('no le saca el foco al campo: el teclado del celular no se cierra', () => {
-    render(<CampoDeContrasena etiqueta="Contraseña" defaultValue="secreto" />);
+    render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        defaultValue="secreto"
+      />,
+    );
     campo().focus();
 
     const toque = createEvent.pointerDown(boton());
@@ -53,7 +85,13 @@ describe('CampoDeContrasena', () => {
   });
 
   it('conserva la posición del cursor al mostrarla', () => {
-    render(<CampoDeContrasena etiqueta="Contraseña" defaultValue="secreto" />);
+    render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        defaultValue="secreto"
+      />,
+    );
     campo().focus();
     campo().setSelectionRange(3, 3);
 
@@ -70,7 +108,11 @@ describe('CampoDeContrasena', () => {
           evento.preventDefault();
         }}
       >
-        <CampoDeContrasena etiqueta="Contraseña" defaultValue="secreto" />
+        <CampoDeContrasena
+          etiqueta="Contraseña"
+          etiquetaDeMostrar="Mostrar la contraseña"
+          defaultValue="secreto"
+        />
         <button type="submit">Entrar</button>
       </form>,
     );
@@ -83,7 +125,13 @@ describe('CampoDeContrasena', () => {
   });
 
   it('anuncia el error como cualquier campo', () => {
-    render(<CampoDeContrasena etiqueta="Contraseña" error="Escribí tu contraseña." />);
+    render(
+      <CampoDeContrasena
+        etiqueta="Contraseña"
+        etiquetaDeMostrar="Mostrar la contraseña"
+        error="Escribí tu contraseña."
+      />,
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Escribí tu contraseña.');
     expect(campo()).toHaveAttribute('aria-invalid', 'true');

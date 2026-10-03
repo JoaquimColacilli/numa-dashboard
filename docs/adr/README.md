@@ -84,3 +84,6 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0078](0078-los-tesoros-configurables-y-la-fila.md)                         | Los tesoros configurables y la fila, por tipos de tesoro            | Aceptada, corregida  |
 | [0079](0079-las-correcciones-del-tablero.md)                                | Las correcciones del tablero: fotos, relevamiento, reabierto, plano | Aceptada             |
 | [0080](0080-el-presupuesto-adentro-de-la-ficha.md)                          | El presupuesto adentro de la ficha: borrador, revisiones y PDF      | Aceptada             |
+| [0081](0081-los-tesoros-en-dolares.md)                                      | Los tesoros en dólares: una moneda por tesoro y la fila en pesos    | Aceptada             |
+| [0082](0082-la-app-en-tres-idiomas.md)                                      | La app en tres idiomas: catálogos a mano, la persona y los clientes | Aceptada             |
+| [0083](0083-los-trabajos-en-dolares.md)                                     | Los trabajos en dólares: dos cuentas por pago y el cobro en pesos   | Aceptada             |

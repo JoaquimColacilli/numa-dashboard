@@ -1,6 +1,10 @@
-import { tesorosDeLaFila } from '@maun/domain';
+import { tesorosDeLaFila, type Plata } from '@maun/domain';
 
-import type { TesoroDelTaller } from '@/entities/tesoro';
+import {
+  esDeLaMonedaDelTaller,
+  sumaEnLaMismaMoneda,
+  type TesoroDelTaller,
+} from '@/entities/tesoro';
 import {
   filaDelTaller,
   filasDe,
@@ -8,14 +12,12 @@ import {
   type MovimientoNuevo,
   type Replica,
 } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 
 export type PorQueNoSeArchiva =
   | { motivo: 'de-siempre' }
   | { motivo: 'en-la-fila' }
   | { motivo: 'en-un-cobro-reabierto'; trabajo: string };
-
-export const QUE_HACER_PARA_ARCHIVAR =
-  'Sacalo de la fila, cobrá el trabajo reabierto que lo usa y pasá su plata a otro tesoro. Después archivalo.';
 
 export function porQueNoSeArchiva(
   replica: Replica,
@@ -36,27 +38,50 @@ export function porQueNoSeArchiva(
 }
 
 export function porQueEnPalabras(nombre: string, razon: PorQueNoSeArchiva): string {
+  const textos = mensajes().editarTesoro.archivar;
   switch (razon.motivo) {
     case 'de-siempre':
-      return `${nombre} es uno de los tesoros de siempre: no se archiva.`;
+      return textos.deSiempre(nombre);
     case 'en-la-fila':
-      return `${nombre} está en la fila: cada cobro le pasa plata.`;
+      return textos.enLaFila(nombre);
     case 'en-un-cobro-reabierto':
-      return `${nombre} está en el reparto de «${razon.trabajo}», que reabriste: al volver a cobrarlo le pasa plata.`;
+      return textos.enUnCobroReabierto(nombre, razon.trabajo);
   }
 }
 
 export function destinosDelArchivo(
   tesoros: readonly TesoroDelTaller[],
-  archivado: Pick<TesoroDelTaller, 'id'>,
+  archivado: Pick<TesoroDelTaller, 'id' | 'moneda'>,
 ): TesoroDelTaller[] {
   const posibles = tesoros.filter(
-    (tesoro) => !tesoro.archivado && tesoro.id !== archivado.id && tesoro.clave !== 'diezmo',
+    (tesoro) =>
+      !tesoro.archivado &&
+      tesoro.id !== archivado.id &&
+      tesoro.clave !== 'diezmo' &&
+      tesoro.moneda === archivado.moneda,
   );
   return [
     ...posibles.filter((tesoro) => tesoro.clave === 'maun'),
     ...posibles.filter((tesoro) => tesoro.clave !== 'maun'),
   ];
+}
+
+export type CambioParaArchivar = 'vender' | 'comprar';
+
+export function cambioParaArchivar(
+  archivado: Pick<TesoroDelTaller, 'moneda' | 'saldo'>,
+  destinos: readonly unknown[],
+): CambioParaArchivar | null {
+  if (esDeLaMonedaDelTaller(archivado) || destinos.length > 0) return null;
+  if (archivado.saldo.importe === 0) return null;
+  return archivado.saldo.importe > 0 ? 'vender' : 'comprar';
+}
+
+export function comoQuedaElDestino(
+  destino: Pick<TesoroDelTaller, 'saldo'>,
+  archivado: Pick<TesoroDelTaller, 'saldo'>,
+): Plata | null {
+  return sumaEnLaMismaMoneda(destino.saldo, archivado.saldo);
 }
 
 function idParaLaBase(tesoro: Pick<TesoroDelTaller, 'id' | 'clave'>): string | null {
@@ -76,8 +101,8 @@ export function transferenciaDelArchivo({
   destino: TesoroDelTaller;
   hoy: string;
 }): MovimientoNuevo | null {
-  if (archivado.saldo === 0) return null;
-  const tienePlata = archivado.saldo > 0;
+  if (archivado.saldo.importe === 0 || destino.moneda !== archivado.moneda) return null;
+  const tienePlata = archivado.saldo.importe > 0;
   const desde = tienePlata ? archivado : destino;
   const hacia = tienePlata ? destino : archivado;
   return {
@@ -89,10 +114,10 @@ export function transferenciaDelArchivo({
     desde_id: idParaLaBase(desde),
     hacia_id: idParaLaBase(hacia),
     cubre_el_mes: null,
-    monto_centavos: Math.abs(archivado.saldo),
+    monto_centavos: Math.abs(archivado.saldo.importe),
     categoria: CATEGORIA_DEL_ARCHIVO,
     descripcion: tienePlata
-      ? `Lo que tenía ${archivado.nombre} al archivarlo`
-      : `Lo que le faltaba a ${archivado.nombre} para archivarlo`,
+      ? mensajes().editarTesoro.archivar.loQueTenia(archivado.nombre)
+      : mensajes().editarTesoro.archivar.loQueLeFaltaba(archivado.nombre),
   };
 }

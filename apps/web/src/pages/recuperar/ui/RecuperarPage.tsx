@@ -1,20 +1,30 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { ConfirmacionDelPedido, FormularioDePedido } from '@/features/recuperar-acceso';
+import { useMensajes } from '@/shared/idioma';
 import { Ir } from '@/shared/lib';
 import { ENLACE_DE_ACCESO, PantallaDeAcceso } from '@/shared/ui';
 
+function Entra({ children }: { children: ReactNode }) {
+  return (
+    <Ir a="/acceso" className={ENLACE_DE_ACCESO}>
+      {children}
+    </Ir>
+  );
+}
+
 export function RecuperarPage() {
+  const m = useMensajes();
   const [email, setEmail] = useState('');
   const [enviado, setEnviado] = useState(false);
 
   if (enviado) {
     return (
       <PantallaDeAcceso
-        titulo="Revisá tu correo"
+        titulo={m.paginaRecuperar.revisaTuCorreo}
         pose="saludando"
-        bajada="El enlace te lleva a poner una contraseña nueva."
-        nota="El servidor de mails manda pocos por hora. Si pediste varios seguidos, esperá un rato antes de volver a intentar."
+        bajada={m.paginaRecuperar.elEnlaceTeLleva}
+        nota={m.paginaRecuperar.pocosMailsPorHora}
       >
         <ConfirmacionDelPedido
           email={email}
@@ -28,17 +38,10 @@ export function RecuperarPage() {
 
   return (
     <PantallaDeAcceso
-      titulo="Recuperá el acceso"
+      titulo={m.paginaRecuperar.recuperaElAcceso}
       pose="pensando"
-      bajada="Te mandamos un enlace para poner una contraseña nueva."
-      pie={
-        <p>
-          ¿Te acordaste?{' '}
-          <Ir a="/acceso" className={ENLACE_DE_ACCESO}>
-            Entrá
-          </Ir>
-        </p>
-      }
+      bajada={m.paginaRecuperar.teMandamosUnEnlace}
+      pie={<p>{m.paginaRecuperar.teAcordaste({ Enlace: Entra })}</p>}
     >
       <FormularioDePedido
         emailInicial={email}

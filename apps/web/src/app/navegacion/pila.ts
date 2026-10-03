@@ -1,6 +1,6 @@
 import type { OpcionesDeIr } from '@/shared/lib';
 
-import { direccionDe, pantallaDe, sonPestanasDelMismoGrupo } from './catalogo';
+import { direccionDe, nombreDeLaPantalla, pantallaDe, sonPestanasDelMismoGrupo } from './catalogo';
 import type { EntradaDelHistorial } from './historial';
 
 export const INICIO = '/';
@@ -142,5 +142,5 @@ export function etiquetaDeVolver(
   if (!anterior) return etiqueta;
   const previa = pantallaDe(anterior.url);
   if (!previa || previa.id === pantallaDe(padre)?.id) return etiqueta;
-  return previa.nombre;
+  return nombreDeLaPantalla(previa);
 }

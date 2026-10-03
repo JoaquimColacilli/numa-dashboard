@@ -7,8 +7,17 @@ const MAXIMO: Record<TamanoDelMonto, string> = {
   destacado: 'var(--text-money-xl)',
 };
 
+const LO_QUE_OCUPA_UNA_LETRA = 1.25;
+
+function largoDe(monto: string): number {
+  return Array.from(monto).reduce(
+    (largo, caracter) => largo + (/\p{Lu}/u.test(caracter) ? LO_QUE_OCUPA_UNA_LETRA : 1),
+    0,
+  );
+}
+
 export function caracteresDe(...montos: readonly string[]): number {
-  return Math.max(1, ...montos.map((monto) => Array.from(monto).length));
+  return Math.max(1, ...montos.map(largoDe));
 }
 
 export interface MontoQueEntraProps {

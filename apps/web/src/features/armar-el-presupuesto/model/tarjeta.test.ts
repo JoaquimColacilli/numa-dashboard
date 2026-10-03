@@ -1,10 +1,17 @@
-import { borradorNuevo, PLANTILLA_DE_SIEMPRE, type BorradorDelPresupuesto } from '@maun/domain';
+import {
+  borradorNuevo,
+  cotizacion,
+  PLANTILLA_DE_SIEMPRE,
+  type BorradorDelPresupuesto,
+  type ReferenciaEnPesos,
+} from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { Proyecto } from '@/entities/proyecto';
 import {
   aplicarFilaLocal,
   TABLAS_REPLICADAS,
+  type FilaDe,
   type Json,
   type Replica,
   type TablaReplicada,
@@ -87,6 +94,7 @@ function conLaRevision(
     vale_hasta: '2026-09-30',
     que_cambio: queCambio,
     contenido: documentoDeHoy({ replica, proyecto: uno, borrador: BORRADOR }) as unknown as Json,
+    idioma: 'es',
   });
 }
 
@@ -209,6 +217,88 @@ describe('la tarjeta del presupuesto en la ficha', () => {
   });
 });
 
+describe('la tarjeta de un trabajo en dólares', () => {
+  const REFERENCIA: ReferenciaEnPesos = { cotizacion: cotizacion(154_000), fecha: '2026-09-15' };
+
+  function enDolares(cambios: Record<string, unknown> = {}): Proyecto {
+    return proyecto({
+      estado: 'presupuesto_enviado',
+      moneda: 'USD',
+      cobra_en: null,
+      presupuesto_centavos: 240_000,
+      ...cambios,
+    });
+  }
+
+  function conElDolarDelDia(replica: Replica, valor: number, el: string): Replica {
+    return aplicarFilaLocal(replica, 'ajustes', {
+      ...METADATOS,
+      id: 'a',
+      dolar_del_dia_centavos: valor,
+      dolar_del_dia_el: el,
+    } as unknown as FilaDe<'ajustes'>);
+  }
+
+  function mandadoEnDolares(uno: Proyecto): Replica {
+    const replica = conElBorrador(vacia());
+    return aplicarFilaLocal(replica, 'revisiones_del_presupuesto', {
+      ...METADATOS,
+      id: 'r1',
+      presupuesto_id: 'b1',
+      proyecto_id: 'p',
+      revision: 1,
+      numero: '20260915-01',
+      mandado_el: '2026-09-15',
+      vale_hasta: '2026-09-30',
+      que_cambio: null,
+      contenido: documentoDeHoy({
+        replica,
+        proyecto: uno,
+        borrador: BORRADOR,
+        referencia: REFERENCIA,
+      }) as unknown as Json,
+      idioma: 'es',
+    });
+  }
+
+  it('un dólar del día nuevo no es un cambio sin mandar: la referencia queda la que se mandó', () => {
+    const uno = enDolares();
+    const mandado = mandadoEnDolares(uno);
+    const otroDia = conElDolarDelDia(mandado, 160_000, HOY);
+    const estado = estadoDeLaTarjeta(otroDia, uno, HOY);
+    expect(estado.cual).toBe('mandado');
+    if (estado.cual !== 'mandado') return;
+    expect(estado.ultima.documento).toMatchObject({ forma: 2, referencia: REFERENCIA });
+    expect(estado.cambiosSinMandar).toBe(false);
+  });
+
+  it('cambiar en qué te paga o la moneda del trabajo sí es un cambio sin mandar', () => {
+    const mandado = mandadoEnDolares(enDolares());
+    const enQuePaga = estadoDeLaTarjeta(mandado, enDolares({ cobra_en: ['USD'] }), HOY);
+    expect(enQuePaga.cual === 'mandado' && enQuePaga.cambiosSinMandar).toBe(true);
+    const enPesos = estadoDeLaTarjeta(mandado, enDolares({ moneda: 'ARS' }), HOY);
+    expect(enPesos.cual === 'mandado' && enPesos.cambiosSinMandar).toBe(true);
+  });
+
+  it('lo acordado al aprobar se compara solo con una revisión de la misma moneda', () => {
+    const mandado = mandadoEnDolares(enDolares());
+    const otroPrecio = estadoDeLaTarjeta(
+      mandado,
+      enDolares({ estado: 'en_curso', presupuesto_centavos: 250_000 }),
+      HOY,
+    );
+    expect(otroPrecio.cual === 'aceptado' && otroPrecio.acordado).toBe(250_000);
+    const elMismo = estadoDeLaTarjeta(mandado, enDolares({ estado: 'en_curso' }), HOY);
+    expect(elMismo.cual === 'aceptado' && elMismo.acordado).toBeNull();
+    const enOtraMoneda = estadoDeLaTarjeta(
+      mandado,
+      enDolares({ estado: 'en_curso', moneda: 'ARS', presupuesto_centavos: 250_000 }),
+      HOY,
+    );
+    expect(enOtraMoneda.cual === 'aceptado' && enOtraMoneda.acordado).toBeNull();
+  });
+});
+
 describe('el PDF de la tarjeta', () => {
   it('es el borrador, la última revisión o el aceptado, según el estado', () => {
     expect(pdfDeLaTarjeta({ cual: 'sin-borrador' })).toBeNull();
@@ -217,7 +307,7 @@ describe('el PDF de la tarjeta', () => {
     const conBorrador = estadoDeLaTarjeta(conElBorrador(vacia()), uno, HOY);
     if (conBorrador.cual !== 'borrador') throw new Error('Se esperaba un borrador.');
     expect(pdfDeLaTarjeta(conBorrador)).toEqual(
-      pdfDelBorrador(conBorrador.documento, '20260915-01', 1),
+      pdfDelBorrador(conBorrador.documento, '20260915-01', 1, 'es'),
     );
     expect(pdfDeLaTarjeta(conBorrador)?.borrador).toBe(true);
 
@@ -258,5 +348,34 @@ describe('el PDF de la tarjeta', () => {
       aceptado: { el: '2026-09-25', letra: null, acordado: null },
       borrador: false,
     });
+  });
+
+  it('una revisión sale en el idioma en que se mandó, y el borrador en el de los clientes', () => {
+    const uno = proyecto({ estado: 'presupuesto_enviado' });
+    const mandado = estadoDeLaTarjeta(
+      conLaRevision(conElBorrador(vacia()), uno, 1, null),
+      uno,
+      HOY,
+    );
+    if (mandado.cual !== 'mandado') throw new Error('Se esperaba un mandado.');
+    const enIngles = { ...mandado.ultima, fila: { ...mandado.ultima.fila, idioma: 'en' } };
+    expect(pdfDeLaTarjeta(mandado)?.idioma).toBe('es');
+    expect(pdfDeLaRevision(enIngles, null).idioma).toBe('en');
+    expect(pdfDelAceptado(enIngles, enIngles.documento, null, null, null).idioma).toBe('en');
+    const desconocido = { ...mandado.ultima, fila: { ...mandado.ultima.fila, idioma: 'fr' } };
+    expect(pdfDeLaRevision(desconocido, null).idioma).toBe('es');
+
+    const base = conElBorrador(vacia());
+    const enPortugues = {
+      ...base,
+      tablas: {
+        ...base.tablas,
+        ajustes: { a: { ...METADATOS, id: 'a', idioma_de_los_clientes: 'pt-BR' } },
+      },
+    } as unknown as Replica;
+    const borrador = estadoDeLaTarjeta(enPortugues, uno, HOY);
+    if (borrador.cual !== 'borrador') throw new Error('Se esperaba un borrador.');
+    expect(pdfDeLaTarjeta(borrador)?.idioma).toBe('pt-BR');
+    expect(borrador.documento.garantia).toMatch(/^Garantia de 6 meses/);
   });
 });

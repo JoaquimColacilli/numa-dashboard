@@ -1,5 +1,6 @@
 import type { TipoDePregunta } from '@maun/domain';
 
+import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import type { NombreDeIcono } from '@/shared/ui';
 
 export interface DatosDelTipo {
@@ -8,22 +9,19 @@ export interface DatosDelTipo {
   icono: NombreDeIcono;
 }
 
-export const TIPO: Readonly<Record<TipoDePregunta, DatosDelTipo>> = {
-  escala5: {
-    etiqueta: 'Escala de cinco',
-    descripcion: 'Cinco caritas con su palabra',
-    icono: 'smile',
-  },
-  sitalvezno: { etiqueta: 'Sí / tal vez / no', descripcion: 'Tres botones', icono: 'circle-check' },
-  una: { etiqueta: 'Una sola opción', descripcion: 'Elige una entre varias', icono: 'circle-dot' },
-  varias: {
-    etiqueta: 'Varias opciones',
-    descripcion: 'Puede elegir más de una',
-    icono: 'list-checks',
-  },
-  texto: { etiqueta: 'Texto libre', descripcion: 'Escribe lo que quiera', icono: 'pencil-line' },
-};
+function tiposDelIdioma(): Readonly<Record<TipoDePregunta, DatosDelTipo>> {
+  const { tipos } = mensajes().opinion;
+  return {
+    escala5: { ...tipos.escala5, icono: 'smile' },
+    sitalvezno: { ...tipos.sitalvezno, icono: 'circle-check' },
+    una: { ...tipos.una, icono: 'circle-dot' },
+    varias: { ...tipos.varias, icono: 'list-checks' },
+    texto: { ...tipos.texto, icono: 'pencil-line' },
+  };
+}
+
+export const TIPO: Readonly<Record<TipoDePregunta, DatosDelTipo>> = textosDelIdioma(tiposDelIdioma);
 
 export function cuantasRespuestas(cantidad: number): string {
-  return cantidad === 1 ? '1 respuesta' : `${String(cantidad)} respuestas`;
+  return mensajes().opinion.cuantasRespuestas(cantidad);
 }

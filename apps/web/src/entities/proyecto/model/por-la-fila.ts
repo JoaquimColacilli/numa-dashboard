@@ -48,11 +48,11 @@ export function cobroPorLaFila(
   fecha: string,
   { destino = 'cobrado', pagoExtra = dinero(0) }: OpcionesDelCobro = {},
 ): CobroPorLaFila {
-  const { cobrado } = totalesDelProyecto(replica, proyecto.id);
+  const { cobradoEnPesos } = totalesDelProyecto(replica, proyecto.id);
   const { entrada, version } = entradaDeLaLiquidacion(replica, proyecto, {
     destino,
     fecha,
-    cobrado: sumar(cobrado, pagoExtra),
+    cobrado: sumar(cobradoEnPesos, pagoExtra),
   });
   return { liquidacion: calcularPorLaFila(entrada), fila: entrada.fila, version };
 }

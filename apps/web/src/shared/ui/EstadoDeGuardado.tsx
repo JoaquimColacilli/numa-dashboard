@@ -1,5 +1,7 @@
 import { Icono, type NombreDeIcono } from '@maun/ui';
 
+import { useMensajes, type Mensajes } from '@/shared/idioma';
+
 export interface EstadoDeGuardadoProps {
   enPausa: boolean;
   enVuelo: boolean;
@@ -14,26 +16,21 @@ interface Aspecto {
   tono: string;
 }
 
-function aspectoDe({
-  enPausa,
-  enVuelo,
-  conError,
-  guardado,
-  sinGuardar,
-}: EstadoDeGuardadoProps): Aspecto | undefined {
-  if (sinGuardar === true) return { texto: 'Sin guardar', icono: 'clock', tono: 'text-text-2' };
-  if (enPausa) {
-    return { texto: 'Sin señal: se guarda cuando vuelva', icono: 'cloud-off', tono: 'text-text-2' };
-  }
-  if (enVuelo) return { texto: 'Guardando…', icono: 'arrow-up-down', tono: 'text-text-2' };
-  if (conError)
-    return { texto: 'No se pudo guardar', icono: 'triangle-alert', tono: 'text-alerta' };
-  if (guardado) return { texto: 'Guardado', icono: 'check', tono: 'text-hogar' };
+function aspectoDe(
+  { enPausa, enVuelo, conError, guardado, sinGuardar }: EstadoDeGuardadoProps,
+  textos: Mensajes['ui']['guardado'],
+): Aspecto | undefined {
+  if (sinGuardar === true) return { texto: textos.sinGuardar, icono: 'clock', tono: 'text-text-2' };
+  if (enPausa) return { texto: textos.sinSenal, icono: 'cloud-off', tono: 'text-text-2' };
+  if (enVuelo) return { texto: textos.guardando, icono: 'arrow-up-down', tono: 'text-text-2' };
+  if (conError) return { texto: textos.noSePudo, icono: 'triangle-alert', tono: 'text-alerta' };
+  if (guardado) return { texto: textos.guardado, icono: 'check', tono: 'text-hogar' };
   return undefined;
 }
 
 export function EstadoDeGuardado(props: EstadoDeGuardadoProps) {
-  const aspecto = aspectoDe(props);
+  const { guardado: textos } = useMensajes().ui;
+  const aspecto = aspectoDe(props, textos);
   if (aspecto === undefined) return null;
 
   return (

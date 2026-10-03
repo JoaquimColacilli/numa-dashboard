@@ -1,4 +1,5 @@
 import { mensajeDeSincronizacion } from '@/shared/api';
+import { mensajes } from '@/shared/idioma';
 import { describirEstadoSync, type EstadoSync } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
@@ -28,12 +29,12 @@ export function describirDesenlace(
     case 'fallo':
       return {
         icono: 'triangle-alert',
-        texto: `No se pudo sincronizar. ${mensajeDeSincronizacion(desenlace.error)}`,
+        texto: mensajes().replica.noSeSincronizo(mensajeDeSincronizacion(desenlace.error)),
       };
     case 'sin-respuesta':
       return {
         icono: 'clock',
-        texto: 'El servidor tarda en responder. Sigue intentando solo.',
+        texto: mensajes().replica.sinRespuesta,
       };
   }
 }

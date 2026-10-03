@@ -1,8 +1,9 @@
-import { fechaDelRotulo } from '@/shared/lib';
+import type { Idioma } from '@maun/domain';
+
+import { mensajes, type TextosDeLaUiQueVeElCliente } from '@/shared/idioma';
+import { fechaDelRotulo, idiomaActual } from '@/shared/lib';
 
 import type { CasillaDelRotulo } from './plano';
-
-export const SIN_NUMERO_TODAVIA = 'Sin número todavía';
 
 export interface AceptacionDelRotulo {
   el: string | null;
@@ -18,33 +19,42 @@ export interface DatosDelRotulo {
   aceptado?: AceptacionDelRotulo | null;
 }
 
-export function casillasDelPresupuesto({
-  numero,
-  revision,
-  emitido,
-  valeHasta,
-  vencido = false,
-  aceptado = null,
-}: DatosDelRotulo): CasillaDelRotulo[] {
+export function casillasDelPresupuesto(
+  { numero, revision, emitido, valeHasta, vencido = false, aceptado = null }: DatosDelRotulo,
+  textos: TextosDeLaUiQueVeElCliente['rotulo'] = mensajes().ui.rotulo,
+  idioma: Idioma = idiomaActual(),
+): CasillaDelRotulo[] {
   const casillas: CasillaDelRotulo[] = [
-    { titulo: 'Presupuesto', valor: numero === null ? SIN_NUMERO_TODAVIA : `Nº ${numero}` },
-    { titulo: 'Rev.', valor: String(revision) },
+    {
+      titulo: textos.presupuesto,
+      valor: numero === null ? textos.sinNumero : textos.numero(numero),
+    },
+    { titulo: textos.revision, valor: String(revision) },
   ];
-  if (emitido !== null) casillas.push({ titulo: 'Emitido', valor: fechaDelRotulo(emitido) });
+  if (emitido !== null)
+    casillas.push({ titulo: textos.emitido, valor: fechaDelRotulo(emitido, idioma) });
   if (aceptado !== null) {
-    if (aceptado.letra !== null) casillas.push({ titulo: 'Opción', valor: aceptado.letra });
+    if (aceptado.letra !== null) casillas.push({ titulo: textos.opcion, valor: aceptado.letra });
     if (aceptado.el !== null) {
-      casillas.push({ titulo: 'Aceptado', valor: fechaDelRotulo(aceptado.el), tono: 'hecho' });
+      casillas.push({
+        titulo: textos.aceptado,
+        valor: fechaDelRotulo(aceptado.el, idioma),
+        tono: 'hecho',
+      });
     }
     return casillas;
   }
   if (valeHasta === undefined) return casillas;
   if (valeHasta === null) {
-    casillas.push({ titulo: 'Vale hasta', valor: 'Sin vencimiento' });
+    casillas.push({ titulo: textos.valeHasta, valor: textos.sinVencimiento });
   } else if (vencido) {
-    casillas.push({ titulo: 'Venció', valor: fechaDelRotulo(valeHasta), tono: 'atencion' });
+    casillas.push({
+      titulo: textos.vencio,
+      valor: fechaDelRotulo(valeHasta, idioma),
+      tono: 'atencion',
+    });
   } else {
-    casillas.push({ titulo: 'Vale hasta', valor: fechaDelRotulo(valeHasta) });
+    casillas.push({ titulo: textos.valeHasta, valor: fechaDelRotulo(valeHasta, idioma) });
   }
   return casillas;
 }

@@ -2,11 +2,12 @@ import { REDES_DEL_TALLER, type RedDelTaller } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 
+import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import { mensajeDeSincronizacion, type FilaDe } from '@/shared/api';
+import { useMensajes } from '@/shared/idioma';
 import { useEstadoSync } from '@/shared/lib';
 import { Button, Campo, CamposJuntos } from '@/shared/ui';
 
-import { MUTACION_DE_AJUSTES } from '../api/mutacion';
 import {
   cambiosDeLasRedes,
   comoSeEscriben,
@@ -15,16 +16,9 @@ import {
   type TextosDeLasRedes,
 } from '../model/redes';
 
-const EJEMPLO: Readonly<Record<RedDelTaller, string>> = {
-  instagram: '@tutaller',
-  facebook: 'facebook.com/tutaller',
-  tiktok: '@tutaller',
-};
-
-export const AYUDA_DE_LAS_REDES =
-  'Opcionales. Pegá el enlace de tu perfil, o escribí tu usuario con la @. Lo que dejes vacío no aparece.';
-
 export function FormularioDeRedes({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
+  const { configurarTaller } = useMensajes();
+  const m = configurarTaller.redes;
   const [textos, setTextos] = useState<TextosDeLasRedes>(() =>
     comoSeEscriben(redesDeLosAjustes(ajustes)),
   );
@@ -48,7 +42,7 @@ export function FormularioDeRedes({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
 
   return (
     <form noValidate className="flex flex-col gap-3" onSubmit={enviar}>
-      <p className="text-label leading-relaxed text-text-2">{AYUDA_DE_LAS_REDES}</p>
+      <p className="text-label leading-relaxed text-text-2">{m.ayuda}</p>
       <CamposJuntos columnas={3} campoMinimo="12rem">
         {REDES_DEL_TALLER.map((red) => (
           <Campo
@@ -58,7 +52,7 @@ export function FormularioDeRedes({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder={EJEMPLO[red]}
+            placeholder={m.ejemplos[red]}
             value={textos[red]}
             error={errores[red]}
             onChange={(evento) => {
@@ -76,14 +70,12 @@ export function FormularioDeRedes({ ajustes }: { ajustes: FilaDe<'ajustes'> }) {
         </p>
       )}
       {guardando && estadoSync.tipo === 'sin-conexion' && (
-        <p className="text-label text-atencion">
-          Quedó en la cola: se guarda cuando vuelva la señal.
-        </p>
+        <p className="text-label text-atencion">{configurarTaller.enLaCola}</p>
       )}
-      {guardado && <p className="text-label text-hogar">Guardado.</p>}
+      {guardado && <p className="text-label text-hogar">{configurarTaller.guardado}</p>}
 
       <Button type="submit" cargando={guardando} className="mt-1 self-start">
-        Guardar las redes
+        {m.guardar}
       </Button>
     </form>
   );

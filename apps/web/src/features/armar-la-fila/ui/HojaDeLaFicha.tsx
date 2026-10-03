@@ -1,4 +1,5 @@
 import { ChipDelTesoro } from '@/entities/tesoro';
+import { useMensajes } from '@/shared/idioma';
 import { Button, FilaDeAcciones, Hoja, Icono } from '@/shared/ui';
 
 import { FICHA_DE_LOS_INSUMOS } from '../model/fichas';
@@ -13,6 +14,7 @@ export interface HojaDeLaFichaProps extends Omit<
 }
 
 export function HojaDeLaFicha({ alCerrar, ...props }: HojaDeLaFichaProps) {
+  const m = useMensajes().armarLaFila;
   const encabezado = encabezadoDeLaFicha(props.vista, props.elegido, false);
   const tesoro = encabezado.tesoro;
   return (
@@ -51,10 +53,10 @@ export function HojaDeLaFicha({ alCerrar, ...props }: HojaDeLaFichaProps) {
                 }}
               >
                 <Icono nombre="pencil" tamano={17} />
-                Editar {tesoro.nombre}
+                {m.editar(tesoro.nombre)}
               </Button>
             )}
-            <Button onClick={alCerrar}>Listo</Button>
+            <Button onClick={alCerrar}>{m.listo}</Button>
           </FilaDeAcciones>
         </footer>
       </div>

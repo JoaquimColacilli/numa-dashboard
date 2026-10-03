@@ -10,6 +10,7 @@ export function Lamina({ children, className = '', deLaMarca = false }: LaminaPr
   return (
     <div
       aria-hidden="true"
+      translate="no"
       data-lamina=""
       className={['lamina', deLaMarca ? 'lamina-de-la-marca' : '', className]
         .filter((clase) => clase !== '')

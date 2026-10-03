@@ -1,6 +1,8 @@
 import type { EventoDeLaAgenda } from '@maun/domain';
 import { useId } from 'react';
 
+import { useMensajes } from '@/shared/idioma';
+
 import {
   DIAS_DE_LA_SEMANA,
   conLoHechoAlFinal,
@@ -43,6 +45,8 @@ export function GrillaDelMes({
   idDeLaCapa,
   arrastre,
 }: GrillaDelMesProps) {
+  const m = useMensajes();
+  const textos = m.agenda.grilla;
   const semanas = semanasDelMes(mes);
   const idDeLaAyuda = useId();
   const agarrado = arrastre?.arrastre ?? null;
@@ -58,14 +62,12 @@ export function GrillaDelMes({
     >
       {arrastre !== undefined && (
         <p id={idDeLaAyuda} className="sr-only">
-          Se mueve a otro día arrastrándolo, o agarrándolo con la barra espaciadora, moviéndolo con
-          las flechas y soltándolo con Enter. Escape lo deja donde estaba. También se cambia la
-          fecha abriéndolo.
+          {textos.ayudaDelArrastre}
         </p>
       )}
       <div aria-hidden className="grid grid-cols-7 border-b border-hairline bg-surface">
         {DIAS_DE_LA_SEMANA.map((dia) => (
-          <div key={dia} className="px-2.5 py-2 text-meta font-semibold text-text-2">
+          <div key={dia} translate="no" className="px-2.5 py-2 text-meta font-semibold text-text-2">
             {dia}
           </div>
         ))}
@@ -82,6 +84,15 @@ export function GrillaDelMes({
           const esElegido = fecha === elegido;
           const sobran = Math.max(0, delDia.length - maximo);
           const marcado = hayImportante(delDia);
+          const dia = diaEnPalabras(fecha);
+          const cuenta = cuentaDelDia(delDia);
+          const nombreDeLaCelda = esHoy
+            ? marcado
+              ? textos.celdaDeHoyMarcada(dia, cuenta)
+              : textos.celdaDeHoy(dia, cuenta)
+            : marcado
+              ? textos.celdaMarcada(dia, cuenta)
+              : textos.celda(dia, cuenta);
           const numero = esHoy
             ? 'bg-ink text-paper'
             : fuera
@@ -100,9 +111,7 @@ export function GrillaDelMes({
             >
               <button
                 type="button"
-                aria-label={`${diaEnPalabras(fecha)}${esHoy ? ', hoy' : ''}: ${cuentaDelDia(delDia)}${
-                  marcado ? ', con algo marcado' : ''
-                }`}
+                aria-label={nombreDeLaCelda}
                 aria-pressed={esElegido}
                 {...abreLaCapa}
                 onClick={() => {
@@ -117,7 +126,7 @@ export function GrillaDelMes({
                 </span>
                 {esHoy && (
                   <span aria-hidden className="text-badge font-semibold">
-                    hoy
+                    {m.agenda.etiquetasDelDia.hoy}
                   </span>
                 )}
               </button>
@@ -131,6 +140,7 @@ export function GrillaDelMes({
                     type="button"
                     data-evento={evento.id}
                     title={nombreDelEvento(evento)}
+                    translate={evento.clase === 'propia' ? 'no' : undefined}
                     aria-describedby={propiasDelArrastre === undefined ? undefined : idDeLaAyuda}
                     {...(evento.clase === 'derivada' ? {} : abreLaCapa)}
                     {...propiasDelArrastre}
@@ -156,6 +166,7 @@ export function GrillaDelMes({
                       <MarcaDeCategoria categoria={evento.categoria} />
                     </span>
                     <span
+                      translate={evento.clase === 'propia' ? 'no' : undefined}
                       className={`min-w-0 flex-1 truncate text-meta leading-snug ${
                         evento.clase === 'propia' ? '' : 'font-semibold'
                       } ${hecha ? 'text-text-3 line-through' : 'text-ink'}`}
@@ -169,14 +180,14 @@ export function GrillaDelMes({
               {sobran > 0 && (
                 <button
                   type="button"
-                  aria-label={`Ver las ${String(delDia.length)} cosas del ${diaEnPalabras(fecha)}`}
+                  aria-label={textos.verTodas(delDia.length, dia)}
                   {...abreLaCapa}
                   onClick={() => {
                     alVerElDia(fecha);
                   }}
                   className="flex h-[22px] items-center self-start rounded-[3px] px-1.5 text-meta font-semibold text-text-2 hover:bg-surface-2 hover:text-ink"
                 >
-                  +{sobran} más
+                  {textos.mas(sobran)}
                 </button>
               )}
             </div>

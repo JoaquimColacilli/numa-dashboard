@@ -7,7 +7,8 @@ import {
   type VencimientoDeLaAgenda,
 } from '@maun/domain';
 
-import { formatearPesos, nombreDelMes } from '@/shared/lib';
+import { mensajes } from '@/shared/idioma';
+import { formatearPesos, mesEnUnaFrase } from '@/shared/lib';
 
 export const DIAS_QUE_MIRA_EL_FALTANTE = 7;
 
@@ -58,42 +59,6 @@ export function faltantesDeLosCompromisos(
   return faltantes;
 }
 
-const EXCEPCIONES_MASCULINAS: ReadonlySet<string> = new Set([
-  'gas',
-  'mes',
-  'agua',
-  'dia',
-  'mapa',
-  'sistema',
-  'tema',
-  'programa',
-  'clima',
-]);
-
-function sinTildes(texto: string): string {
-  return texto.normalize('NFD').replace(/\p{Diacritic}/gu, '');
-}
-
-function articuloDe(palabra: string): string {
-  const base = sinTildes(palabra.toLowerCase());
-  if (EXCEPCIONES_MASCULINAS.has(base)) return 'el';
-  if (/(ion|dad|tad|tud)es$/.test(base) || base.endsWith('as')) return 'las';
-  if (base.endsWith('os') || base.endsWith('es')) return 'los';
-  if (/(a|ion|dad|tad|tud|z)$/.test(base)) return 'la';
-  return 'el';
-}
-
-export function conArticulo(nombre: string): string {
-  const limpio = nombre.trim();
-  const [primera = ''] = limpio.split(/\s+/);
-  const segunda = limpio.charAt(1);
-  const enMinuscula =
-    segunda !== '' && segunda !== segunda.toLowerCase()
-      ? limpio
-      : `${limpio.charAt(0).toLowerCase()}${limpio.slice(1)}`;
-  return `${articuloDe(primera)} ${enMinuscula}`;
-}
-
 export interface FaltanteEnPalabras {
   nombre: string;
   modo: ModoDePaso;
@@ -102,11 +67,12 @@ export interface FaltanteEnPalabras {
 }
 
 export function fraseDelFaltante(faltante: FaltanteEnPalabras, mes: string): string {
+  const textos = mensajes().cubrirElFaltante;
   const falta = formatearPesos(faltante.falta);
   if (faltante.vence !== null) {
     const dia = Number(faltante.vence.fecha.slice(8, 10));
-    return `Vence ${conArticulo(faltante.vence.renglon)} el ${String(dia)} y faltan ${falta}.`;
+    return textos.vence(faltante.vence.renglon, dia, falta);
   }
-  if (faltante.modo === 'saldo') return `Faltan ${falta} para ${faltante.nombre}.`;
-  return `Faltan ${falta} para ${faltante.nombre} de ${nombreDelMes(mes).toLowerCase()}.`;
+  if (faltante.modo === 'saldo') return textos.faltanParaElSaldo(falta, faltante.nombre);
+  return textos.faltanParaElMes(falta, faltante.nombre, mesEnUnaFrase(mes));
 }

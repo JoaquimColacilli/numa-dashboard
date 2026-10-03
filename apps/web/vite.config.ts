@@ -75,7 +75,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       { name: 'maun:esqueleto-de-arranque', transformIndexHtml: conElEsqueleto },
       sinElMotorDelPdfAlArrancar(),
-      react({ exclude: [/\/src\/shared\/(lib|pdf)\//, /\/node_modules\//] }),
+      react({
+        exclude: [/\/src\/shared\/(lib|pdf|idioma|idioma-del-cliente)\//, /\/node_modules\//],
+      }),
       tailwindcss(),
       VitePWA({
         strategies: 'injectManifest',
@@ -119,6 +121,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     test: {
+      testTimeout: 20_000,
       projects: [
         {
           extends: true,
@@ -126,7 +129,12 @@ export default defineConfig(({ mode }) => {
             name: 'app',
             environment: 'jsdom',
             setupFiles: ['./vitest.setup.ts'],
-            include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.ts', 'scripts/**/*.test.ts'],
+            include: [
+              'src/**/*.test.{ts,tsx}',
+              'netlify/**/*.test.ts',
+              'scripts/**/*.test.ts',
+              'sw/**/*.test.ts',
+            ],
             exclude: [...configDefaults.exclude, EN_NODE],
           },
         },

@@ -1,9 +1,11 @@
 import { AvisosDelDispositivo } from '@/features/recibir-avisos';
+import { useMensajes } from '@/shared/idioma';
 import { Ir, RUTA_DE_AJUSTES, useVolver } from '@/shared/lib';
 import { Icono, Pagina } from '@/shared/ui';
 
 export function AvisosPage() {
-  const vuelta = useVolver(RUTA_DE_AJUSTES, 'Ajustes');
+  const m = useMensajes();
+  const vuelta = useVolver(RUTA_DE_AJUSTES, m.paginaAjustes.titulo);
   return (
     <Pagina className="gap-3 md:gap-4">
       <header className="flex flex-col items-start gap-1.5">
@@ -15,10 +17,11 @@ export function AvisosPage() {
           <Icono nombre="chevron-left" tamano={20} />
           {vuelta.etiqueta}
         </Ir>
-        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">Avisos</h1>
+        <h1 className="font-display text-h1 leading-tight lg:text-h1-lg">
+          {m.paginaAjustes.avisos}
+        </h1>
         <p className="max-w-[520px] text-body leading-relaxed text-text-2">
-          Un recordatorio a la mañana con lo que tenés ese día. Nada de esto reemplaza a la agenda:
-          lo que manda es lo que ves en la pantalla.
+          {m.paginaAjustes.unRecordatorioConLoQueTenes}
         </p>
       </header>
       <AvisosDelDispositivo />

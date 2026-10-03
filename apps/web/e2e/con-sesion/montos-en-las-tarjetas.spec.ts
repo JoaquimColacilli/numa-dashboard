@@ -13,6 +13,7 @@ import {
 } from '../apoyo/taller';
 
 const CARGA = { timeout: 30_000 };
+const DOLAR_DEL_PAGO = 145_000;
 const TESOROS = ['hogar', 'maun', 'diezmo', 'cocos'] as const;
 const ANCHOS_DEL_CELULAR = [320, 360, 390] as const;
 const TEMAS = ['light', 'dark'] as const;
@@ -39,6 +40,7 @@ interface Taller {
   proyectoId: string;
   clienteId: string;
   contactoId: string;
+  enDolaresId: string;
 }
 
 interface Pantalla {
@@ -75,6 +77,15 @@ const PANTALLAS: readonly Pantalla[] = [
     listo: async (page) => {
       await expect(
         page.getByRole('heading', { level: 1, name: 'E2E Trabajo con montos largos' }),
+      ).toBeVisible(CARGA);
+    },
+  },
+  {
+    nombre: 'Ficha del trabajo en dólares',
+    ruta: ({ enDolaresId }) => `/proyectos/${enDolaresId}`,
+    listo: async (page) => {
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'E2E Trabajo en dólares con montos largos' }),
       ).toBeVisible(CARGA);
     },
   },
@@ -284,7 +295,35 @@ async function sembrar(escenario: Escenario): Promise<Taller> {
   });
   expect(costos.ok).toBe(true);
 
-  return { proyectoId, clienteId, contactoId };
+  const dolares = await tesoroPorRest(sesion, { nombre: 'Dólares', moneda: 'USD' });
+  const enDolaresId = crypto.randomUUID();
+  const precioEnDolares = Math.round((centavos * 100) / DOLAR_DEL_PAGO);
+  await guardarProyectoPorRpc(sesion, {
+    proyecto: {
+      id: enDolaresId,
+      version: null,
+      cliente_id: clienteId,
+      titulo: 'E2E Trabajo en dólares con montos largos',
+      estado: 'entregado',
+      moneda: 'USD',
+      presupuesto_centavos: precioEnDolares,
+      comprobante: 'sin_comprobante',
+    },
+    pagos: [
+      {
+        id: crypto.randomUUID(),
+        fecha: hoy,
+        concepto: 'Seña',
+        monto_centavos: Math.floor(precioEnDolares / 2),
+        moneda: 'USD',
+        cotizacion_centavos: DOLAR_DEL_PAGO,
+        tesoro_id: dolares.id,
+      },
+    ],
+    gastos: [],
+  });
+
+  return { proyectoId, clienteId, contactoId, enDolaresId };
 }
 
 interface Medida {
