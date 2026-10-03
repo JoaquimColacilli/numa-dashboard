@@ -55,6 +55,7 @@ export {
   TEXTO_DEL_POLO,
 } from './model/polos';
 export { cuantasRespuestas, TIPO, type DatosDelTipo } from './model/tipos';
+export { BarraDivergente } from './ui/BarraDivergente';
 export { Carita, type CaritaProps } from './ui/Carita';
 export {
   FormularioDeLaEncuesta,
