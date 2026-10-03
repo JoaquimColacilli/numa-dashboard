@@ -5,6 +5,7 @@ import { plataCompacta } from '@/shared/lib';
 
 import { Columnas, type ColumnaDelGrafico } from './Columnas';
 import { useEleccion } from './eleccion';
+import { anchoDelTexto } from './lienzo';
 
 const MESES = ['jul', 'ago', 'sept', 'oct', 'nov', 'dic', 'ene', 'feb', 'mar', 'abr', 'may', 'jun'];
 const PESOS = [2.9, 3.4, 2.1, 3.9, 4.2, 3.1, 2.6, 3.5, 4.3, 4.1, 5.2, 3.2];
@@ -38,9 +39,11 @@ function conAncho(ancho: number) {
 function Arnes({
   columnas = HISTORIA,
   alAbrir,
+  idioma = 'es',
 }: {
   columnas?: ColumnaDelGrafico[];
   alAbrir?: (clave: string) => void;
+  idioma?: 'es' | 'en';
 }) {
   const eleccion = useEleccion();
   return (
@@ -49,7 +52,7 @@ function Arnes({
         nombre="Lo que te dejaron, mes por mes"
         columnas={columnas}
         eleccion={eleccion}
-        formatoDelEje={(valor) => plataCompacta(valor, 'es')}
+        formatoDelEje={(valor) => plataCompacta(valor, idioma)}
         sinRegistro="sin registro"
         nota="* junio, hasta hoy."
         alAbrir={alAbrir}
@@ -179,6 +182,27 @@ describe('las columnas de lo que te dejaron', () => {
     expect(container.querySelector('svg')).toHaveAttribute('height', '202');
     expect(screen.getAllByRole('option')).toHaveLength(9);
     expect(screen.getAllByRole('option')[0]).toHaveAccessibleName('oct: $ 3.9 M');
+  });
+
+  it('el eje se ensancha con su rótulo más largo y el valor de la más alta no se mete en él', () => {
+    cleanup();
+    vi.restoreAllMocks();
+    conAncho(254);
+    const primeraAlta = HISTORIA.map((columna, indice) =>
+      indice === 4 ? { ...columna, valor: 590_000_000, valorTexto: 'ARS 5.9 M' } : columna,
+    );
+    const { container } = render(<Arnes columnas={primeraAlta} idioma="en" />);
+    const rotulos = [...container.querySelectorAll('svg > g > text')].map((t) => t.textContent);
+    expect(rotulos.slice(0, 3)).toEqual(['0', 'ARS 3 M', 'ARS 6 M']);
+    const inicio = Number(container.querySelector('svg > g > line')?.getAttribute('x1'));
+    expect(inicio).toBeGreaterThanOrEqual(anchoDelTexto('ARS 6 M') + 4);
+    const opciones = screen.getAllByRole('option');
+    expect(opciones).toHaveLength(8);
+    expect(opciones[0]).toHaveAccessibleName('nov: $ 4.2 M');
+    const valor = screen.getByText('ARS 5.9 M');
+    expect(Number(valor.getAttribute('x')) - anchoDelTexto('ARS 5.9 M') / 2).toBeGreaterThan(
+      inicio,
+    );
   });
 
   it('los meses sin registro no se dibujan ni se eligen: una línea de puntos lo dice', () => {

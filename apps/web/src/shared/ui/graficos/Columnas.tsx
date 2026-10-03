@@ -37,6 +37,24 @@ export interface ColumnasProps {
 const ARRIBA = 22;
 const ABAJO = 30;
 const RADIO = 4;
+const AIRE_DEL_EJE = 4;
+
+function ejeDeLasColumnas(
+  columnas: readonly ColumnaDelGrafico[],
+  formatoDelEje: (valor: number) => string,
+) {
+  const conDato = columnas.filter((columna) => !columna.sinRegistro);
+  const techo = techoRedondo(Math.max(1, ...conDato.map((columna) => columna.valor)));
+  const menor = Math.min(0, ...conDato.map((columna) => columna.valor));
+  const piso = menor < 0 ? -techoRedondo(-menor) : 0;
+  const marcas = piso < 0 ? [piso, 0, techo / 2, techo] : [0, techo / 2, techo];
+  const rotulos = marcas.map((marca) => ({ marca, texto: formatoDelEje(marca) }));
+  const canaleta = Math.max(
+    CANALETA_DEL_EJE,
+    ...rotulos.map(({ texto }) => anchoDelTexto(texto) + AIRE_DEL_EJE),
+  );
+  return { conDato, techo, piso, rotulos, canaleta };
+}
 
 export function Columnas({ nota = null, ...props }: ColumnasProps) {
   const [medirAl, ancho] = useAnchoDelLienzo();
@@ -65,27 +83,26 @@ function DibujoDeLasColumnas({
   alAbrir,
   ancho,
 }: DibujoProps) {
-  const columnas = todas.slice(
-    todas.length - lugaresQueEntran(ancho - CANALETA_DEL_EJE, todas.length),
-  );
+  const queEntran = (canaleta: number) =>
+    todas.slice(todas.length - lugaresQueEntran(ancho - canaleta, todas.length));
+  const primerEje = ejeDeLasColumnas(queEntran(CANALETA_DEL_EJE), formatoDelEje);
+  const columnas = queEntran(primerEje.canaleta);
+  const eje = ejeDeLasColumnas(columnas, formatoDelEje);
+  const { conDato, techo, piso, rotulos } = eje;
+  const canaleta = Math.max(primerEje.canaleta, eje.canaleta);
   const cantidad = columnas.length;
   const altoUtil = altoUtilDeLasColumnas(ancho);
   const alto = ARRIBA + altoUtil + ABAJO;
-  const conDato = columnas.filter((columna) => !columna.sinRegistro);
-  const techo = techoRedondo(Math.max(1, ...conDato.map((columna) => columna.valor)));
-  const menor = Math.min(0, ...conDato.map((columna) => columna.valor));
-  const piso = menor < 0 ? -techoRedondo(-menor) : 0;
-  const banda = (ancho - CANALETA_DEL_EJE) / Math.max(1, cantidad);
+  const banda = (ancho - canaleta) / Math.max(1, cantidad);
   const anchoDeColumna = anchoDeLaColumna(banda);
   const y = (valor: number) => ARRIBA + ((techo - valor) / (techo - piso)) * altoUtil;
   const base = y(0);
-  const centro = (indice: number) => CANALETA_DEL_EJE + banda * indice + banda / 2;
+  const centro = (indice: number) => canaleta + banda * indice + banda / 2;
   const primeraConDato = columnas.findIndex((columna) => !columna.sinRegistro);
   const mayor = conDato.reduce<ColumnaDelGrafico | null>(
     (hasta, columna) => (columna.valor > (hasta?.valor ?? 0) ? columna : hasta),
     null,
   );
-  const marcasDelEje = piso < 0 ? [piso, 0, techo / 2, techo] : [0, techo / 2, techo];
 
   const marcas: MarcaExplorable[] = columnas.flatMap((columna, indice) =>
     columna.sinRegistro
@@ -94,7 +111,7 @@ function DibujoDeLasColumnas({
           {
             clave: columna.clave,
             nombre: columna.nombre,
-            izquierda: CANALETA_DEL_EJE + banda * indice,
+            izquierda: canaleta + banda * indice,
             arriba: 0,
             ancho: banda,
             alto,
@@ -102,8 +119,8 @@ function DibujoDeLasColumnas({
         ],
   );
 
-  const finDelVacio = CANALETA_DEL_EJE + primeraConDato * banda - 4;
-  const inicioDelVacio = CANALETA_DEL_EJE + 2;
+  const finDelVacio = canaleta + primeraConDato * banda - 4;
+  const inicioDelVacio = canaleta + 2;
   const conTextoDelVacio = finDelVacio - inicioDelVacio >= anchoDelTexto(sinRegistro) + 8;
 
   return (
@@ -115,10 +132,10 @@ function DibujoDeLasColumnas({
         height={alto}
         className="block overflow-visible"
       >
-        {marcasDelEje.map((marca) => (
+        {rotulos.map(({ marca, texto }) => (
           <g key={marca}>
             <line
-              x1={CANALETA_DEL_EJE}
+              x1={canaleta}
               x2={ancho}
               y1={y(marca)}
               y2={y(marca)}
@@ -126,7 +143,7 @@ function DibujoDeLasColumnas({
               className={marca === 0 ? 'stroke-border' : 'stroke-hairline'}
             />
             <text x={0} y={y(marca) + 4} className="fill-text-3 text-meta tabular-nums">
-              {formatoDelEje(marca)}
+              {texto}
             </text>
           </g>
         ))}
@@ -181,6 +198,11 @@ function DibujoDeLasColumnas({
             negativo,
           );
           const conValor = mostrada || columna.clave === mayor?.clave;
+          const mitadDelValor = anchoDelTexto(columna.valorTexto) / 2;
+          const xDelValor = Math.min(
+            Math.max(cx, canaleta + 2 + mitadDelValor),
+            ancho - mitadDelValor,
+          );
           return (
             <g key={columna.clave} data-columna={columna.clave}>
               {mostrada && (
@@ -238,7 +260,7 @@ function DibujoDeLasColumnas({
               )}
               {conValor && columna.valor !== 0 && (
                 <text
-                  x={cx}
+                  x={xDelValor}
                   y={negativo ? base + altoDeLaColumna + 14 : y(columna.valor) - 6}
                   textAnchor="middle"
                   className="fill-ink text-meta font-semibold tabular-nums"
