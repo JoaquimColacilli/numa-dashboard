@@ -99,7 +99,7 @@ test.describe('los ocho destinos del sidebar, en el celular', () => {
     const loQueNoEntra = page
       .getByRole('dialog')
       .getByRole('navigation', { name: 'Lo que no entra en la barra' });
-    const enOrden = ['Opiniones', 'Tesoros', 'Diezmo', 'Agenda'];
+    const enOrden = ['Opiniones', 'Estadísticas', 'Tesoros', 'Diezmo', 'Agenda'];
     const filas = await loQueNoEntra.getByRole('link').allTextContents();
     expect(filas.map((fila) => enOrden.find((nombre) => fila.trim().startsWith(nombre)))).toEqual(
       enOrden,
@@ -107,6 +107,23 @@ test.describe('los ocho destinos del sidebar, en el celular', () => {
     await loQueNoEntra.getByRole('link', { name: /^Tesoros/ }).click();
     await expect(page).toHaveURL(/\/tesoros$/);
     await expect(titulo(page, 'Tesoros')).toBeVisible();
+
+    await aInicio(page);
+    await page.getByRole('button', { name: /^Tu cuenta/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('link', { name: /^Estadísticas/ })
+      .click();
+    await expect(page).toHaveURL(/\/estadisticas$/);
+    await expect(titulo(page, 'Estadísticas')).toBeVisible();
+    await expect(barra(page).getByRole('button', { name: 'Inicio' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    await aInicio(page);
+    await page.getByRole('link', { name: /^Cómo viene el taller/ }).click();
+    await expect(titulo(page, 'Estadísticas')).toBeVisible();
 
     await aInicio(page);
     await page
@@ -234,6 +251,35 @@ test.describe('en escritorio', () => {
       'aria-current',
       'page',
     );
+  });
+
+  test('Estadísticas está en la barra lateral entre Diezmo y Ajustes, y Finanzas lleva a ella', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(titulo(page, 'Inicio')).toBeVisible(CARGA);
+
+    const destinos = await barra(page)
+      .getByRole('button')
+      .evaluateAll((todos) => todos.map((boton) => boton.textContent.trim()));
+    expect(destinos.slice(destinos.indexOf('Diezmo'), destinos.indexOf('Diezmo') + 3)).toEqual([
+      'Diezmo',
+      'Estadísticas',
+      'Ajustes',
+    ]);
+
+    await barra(page).getByRole('button', { name: 'Estadísticas' }).click();
+    await expect(page).toHaveURL(/\/estadisticas$/);
+    await expect(titulo(page, 'Estadísticas')).toBeVisible();
+    await expect(barra(page).getByRole('button', { name: 'Estadísticas' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    await barra(page).getByRole('button', { name: 'Finanzas' }).click();
+    await expect(titulo(page, 'Finanzas')).toBeVisible();
+    await page.getByRole('link', { name: 'Ver más en Estadísticas' }).click();
+    await expect(titulo(page, 'Estadísticas')).toBeVisible();
   });
 
   test('la Agenda está en la barra lateral y no suma un bloque en Inicio', async ({ page }) => {

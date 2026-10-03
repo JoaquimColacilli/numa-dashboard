@@ -362,6 +362,7 @@ test('al final del scroll nada del contenido queda debajo de lo que flota abajo,
     { ruta: '/tesoros', nombre: '/tesoros editando la fila', preparar: editarLaFila },
     ...[
       '/diezmo',
+      '/estadisticas',
       '/ajustes',
       `/proyectos/${taller.obraId}`,
       `/proyectos/${taller.contactoId}`,
