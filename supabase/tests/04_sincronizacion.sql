@@ -15,13 +15,13 @@ update public.movimientos set deleted_at = now() where id = 'aaaaaaaa-0000-7000-
 
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.bootstrap()) as k),
-  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_estado', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'presupuestos', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'revisiones_del_presupuesto', 'tesoros'],
-  'bootstrap() trae el cursor y todas las tablas sincronizables, los tesoros, los repartos, el presupuesto y las etapas incluidos'
+  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_estado', 'cambios_de_fecha', 'clientes', 'comprobantes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'presupuestos', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'revisiones_del_presupuesto', 'tesoros'],
+  'bootstrap() trae el cursor y todas las tablas sincronizables, los tesoros, los repartos, el presupuesto, las etapas y los comprobantes incluidos'
 );
 
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.delta(now())) as k),
-  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_estado', 'cambios_de_fecha', 'clientes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'presupuestos', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'revisiones_del_presupuesto', 'tesoros'],
+  array['ajustes', 'anotaciones', 'archivos', 'cambios_de_estado', 'cambios_de_fecha', 'clientes', 'comprobantes', 'cursor', 'encuestas_enviadas', 'enlaces_publicos', 'fotos_de_la_vidriera', 'gastos', 'household_members', 'households', 'movimientos', 'necesidades', 'opciones_de_presupuesto', 'pagos', 'preguntas', 'presupuestos', 'propuestas_de_entrega', 'proximos_contactos', 'proyectos', 'renglones_de_respuesta', 'repartos', 'respuestas', 'respuestas_de_entrega', 'revisiones_del_presupuesto', 'tesoros'],
   'delta() trae las mismas claves que bootstrap()'
 );
 

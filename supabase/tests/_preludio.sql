@@ -274,6 +274,58 @@ begin
 end;
 $$;
 
+-- Un comprobante (ADR 0085), insertado como dueño de la base: la app no tiene grant para escribir la tabla
+-- y las funciones que la escriben piden la conexión con ARCA. Arranca como una Factura C de prueba,
+-- pedida, a un consumidor final, y p_fila pisa lo que haga falta; el taller, el trabajo y el pago van
+-- siempre en p_fila. Es plpgsql y security definer: la tabla se resuelve al llamarlo, y escribe con los
+-- permisos del dueño aunque el test esté con la sesión de un usuario.
+create function tests.un_comprobante(p_fila jsonb)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  insert into public.comprobantes
+  select *
+  from jsonb_populate_record(
+    null::public.comprobantes,
+    jsonb_build_object(
+      'id', private.uuidv7(),
+      'tipo', 'factura_c',
+      'ambiente', 'homologacion',
+      'estado', 'pedida',
+      'cuit_emisor', '20-11111111-2',
+      'punto_de_venta', 1,
+      'concepto', 1,
+      'importe_centavos', 45000000,
+      'moneda', 'ARS',
+      'doc_tipo', 99,
+      'doc_nro', '0',
+      'condicion_iva_receptor', 5,
+      'receptor_condicion', 'consumidor_final',
+      'receptor_nombre', 'Lucía Gómez',
+      'receptor_domicilio', '',
+      'emisor', jsonb_build_object(
+        'razonSocial', 'RIVAS MARTIN', 'nombreDelTaller', 'Taller de prueba',
+        'domicilio', 'Pasaje Los Robles 450', 'cuit', '20-11111111-2',
+        'ingresosBrutos', '20-11111111-2', 'inicioDeActividades', '2019-03-01'
+      ),
+      'detalle', 'Seña — Placard de prueba',
+      'intentos', 0,
+      'pedida_at', now(),
+      'created_at', now(),
+      'updated_at', now(),
+      'version', 1
+    ) || p_fila
+  )
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
 -- Los tests cambian de rol: que los helpers anden aunque el proyecto haya tocado el execute por
 -- defecto de public.
 grant execute on all functions in schema tests to anon, authenticated;
