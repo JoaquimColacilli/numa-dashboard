@@ -133,7 +133,7 @@ export function EstadisticasPage({ indice = IPC }: EstadisticasPageProps) {
         </>
       ) : (
         <EstadoVacio
-          ilustracion="sin-historial"
+          ilustracion="sin-estadisticas"
           titulo={textos.vacio.titulo}
           detalle={textos.vacio.detalle}
         />
