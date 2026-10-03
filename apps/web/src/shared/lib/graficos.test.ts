@@ -16,6 +16,8 @@ import {
   techoDeDias,
   techoRedondo,
 } from './graficos';
+import { fijarElIdiomaEnUso } from './idioma';
+import { seudoTexto } from './seudo';
 
 const MARGENES_DE_LA_PAGINA_Y_EL_PAPEL = 66;
 
@@ -155,5 +157,18 @@ describe('la plata compacta de los ejes', () => {
     expect(plataCompacta(123_450_000_000, 'en')).toBe('ARS 1,234.5 M');
     expect(plataCompacta(95_000_000, 'pt-BR')).toBe('ARS 950 k');
     expect(plataCompacta(520_000_000, 'pt-BR')).toBe('ARS 5,2 M');
+  });
+
+  it('con el seudoidioma sale marcada, como las fechas, y el cero queda solo', () => {
+    try {
+      fijarElIdiomaEnUso('es', true);
+      expect(plataCompacta(95_000_000)).toBe(seudoTexto('$ 950 k'));
+      expect(plataCompacta(520_000_000)).toBe(seudoTexto('$ 5,2 M'));
+      expect(plataCompacta(50_000)).toBe(seudoTexto('$ 500'));
+      expect(plataCompacta(0)).toBe('0');
+    } finally {
+      fijarElIdiomaEnUso('es');
+    }
+    expect(plataCompacta(95_000_000)).toBe('$ 950 k');
   });
 });

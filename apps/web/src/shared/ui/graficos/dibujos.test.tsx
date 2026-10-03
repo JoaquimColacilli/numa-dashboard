@@ -58,6 +58,16 @@ describe('las columnas chicas del resumen', () => {
     expect(screen.getByText('jul 2026')).toBeInTheDocument();
   });
 
+  it('si el primer mes con datos es el último, su rótulo termina en el borde y no se sale', () => {
+    conAncho(254);
+    const seis = DOCE.slice(6).map((columna, indice) => ({ ...columna, sinRegistro: indice < 5 }));
+    render(
+      <ColumnasChicas columnas={seis} primerRotulo="oct 2026" rotuloDelPeriodo="el período" />,
+    );
+    const rotulo = screen.getByText('oct 2026');
+    expect(Number(rotulo.getAttribute('x')) + 'oct 2026'.length * 12 * 0.56).toBeCloseTo(254);
+  });
+
   it('sin rótulo del período, como con «Todo», no hay llave', () => {
     conAncho(320);
     const todas = DOCE.map((columna) => ({ ...columna, enPeriodo: true }));
@@ -109,10 +119,12 @@ describe('lo que estimaste y lo que te quedó', () => {
     expect(rotulos).toEqual(['$ 30', '$ 40', '$ 50', '$ 60', '$ 70']);
   });
 
-  it('el dibujo está escondido y una lista lo dice con palabras', () => {
+  it('el dibujo está escondido, no se traduce, y una lista lo dice con palabras', () => {
     conAncho(600);
     const { container } = render(<Pesas filas={PESAS} formatoDelEje={String} />);
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('[translate="no"] > svg')).not.toBeNull();
+    expect(screen.getByRole('list').closest('[translate="no"]')).toBeNull();
     expect(screen.getByRole('list')).toHaveClass('sr-only');
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(
       PESAS.map((pesa) => pesa.descripcion),

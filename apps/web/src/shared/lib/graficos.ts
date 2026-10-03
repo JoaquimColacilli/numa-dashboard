@@ -1,7 +1,8 @@
 import { MONEDA_DEL_TALLER, type Idioma } from '@maun/domain';
 
-import { idiomaActual } from './idioma';
+import { idiomaActual, idiomaEnUso } from './idioma';
 import { adornosDelCampo, separadoresDelCampo } from './plata';
+import { seudoTexto } from './seudo';
 
 export const BANDA_MINIMA = 24;
 
@@ -123,18 +124,24 @@ function conMiles(entero: number, miles: string): string {
   return String(entero).replace(/\B(?=(\d{3})+(?!\d))/gu, miles);
 }
 
+function marcada(texto: string): string {
+  return idiomaEnUso().seudo ? seudoTexto(texto) : texto;
+}
+
 export function plataCompacta(centavos: number, idioma: Idioma = idiomaActual()): string {
   const pesos = Math.abs(centavos) / 100;
   const enPesos = Math.round(pesos);
   if (enPesos === 0) return '0';
   const { antes } = adornosDelCampo(MONEDA_DEL_TALLER, idioma);
   const signo = centavos < 0 ? '−' : '';
-  if (enPesos < 1000) return `${signo}${antes} ${String(enPesos)}`;
+  if (enPesos < 1000) return marcada(`${signo}${antes} ${String(enPesos)}`);
   const enMiles = Math.round(pesos / 1000);
-  if (enMiles < 1000) return `${signo}${antes} ${String(enMiles)} k`;
+  if (enMiles < 1000) return marcada(`${signo}${antes} ${String(enMiles)} k`);
   const { miles, decimal } = separadoresDelCampo(idioma);
   const decimas = Math.round(pesos / 100_000);
   const entero = conMiles(Math.trunc(decimas / 10), miles);
   const decimo = decimas % 10;
-  return `${signo}${antes} ${decimo === 0 ? entero : `${entero}${decimal}${String(decimo)}`} M`;
+  return marcada(
+    `${signo}${antes} ${decimo === 0 ? entero : `${entero}${decimal}${String(decimo)}`} M`,
+  );
 }

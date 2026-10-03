@@ -22,7 +22,9 @@ export function Pesas({ filas, formatoDelEje }: PesasProps) {
   return (
     <div ref={medirAl} className="w-full min-w-0">
       {ancho > 0 && filas.length > 0 && (
-        <DibujoDeLasPesas filas={filas} formatoDelEje={formatoDelEje} ancho={ancho} />
+        <div translate="no">
+          <DibujoDeLasPesas filas={filas} formatoDelEje={formatoDelEje} ancho={ancho} />
+        </div>
       )}
       <ul className="sr-only">
         {filas.map((fila) => (

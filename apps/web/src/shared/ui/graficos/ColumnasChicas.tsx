@@ -51,8 +51,9 @@ function DibujoChico({
   const delPeriodo = columnas.flatMap((columna, indice) => (columna.enPeriodo ? [indice] : []));
   const desde = delPeriodo[0];
   const hasta = delPeriodo[delPeriodo.length - 1];
-  const xPrimerRotulo = izquierdaDe(primera);
-  const finDelPrimerRotulo = xPrimerRotulo + anchoDelTexto(primerRotulo);
+  const anchoDelPrimerRotulo = anchoDelTexto(primerRotulo);
+  const xPrimerRotulo = Math.max(0, Math.min(izquierdaDe(primera), ancho - anchoDelPrimerRotulo));
+  const finDelPrimerRotulo = xPrimerRotulo + anchoDelPrimerRotulo;
   const llave =
     rotuloDelPeriodo === null || desde === undefined || hasta === undefined
       ? null

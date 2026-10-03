@@ -62,7 +62,7 @@ describe('el ranking de barras', () => {
     expect(screen.getByText('En el taller').parentElement).toHaveTextContent('$ 1.100.000');
   });
 
-  it('la columna de los montos crece con el más largo, para que ninguno se salga a 320 px', () => {
+  it('la columna de los montos crece con el más largo, y angosto el monto sube al lado del nombre', () => {
     const { container } = render(
       <RankingDeBarras
         forma="en-una-linea"
@@ -80,8 +80,10 @@ describe('el ranking de barras', () => {
     );
     const lista = container.querySelector('ul');
     expect(lista?.style.getPropertyValue('--ancho-del-valor')).toBe('15ch');
-    expect(container.querySelector('li')?.className).toContain(
-      'grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))]',
+    const renglon = container.querySelector('li')?.className;
+    expect(renglon).toContain('[grid-template-areas:"nombre_valor"_"barra_barra"]');
+    expect(renglon).toContain(
+      '@min-[20rem]/ranking:grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))]',
     );
   });
 });

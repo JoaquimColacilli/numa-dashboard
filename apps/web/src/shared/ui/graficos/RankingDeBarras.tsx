@@ -25,7 +25,7 @@ export interface RankingDeBarrasProps {
 
 const RENGLON: Readonly<Record<FormaDelRanking, string>> = {
   'en-una-linea':
-    'grid grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))] items-center gap-x-2.5 [grid-template-areas:"nombre_barra_valor"]',
+    'grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 [grid-template-areas:"nombre_valor"_"barra_barra"] @min-[20rem]/ranking:grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))] @min-[20rem]/ranking:items-center @min-[20rem]/ranking:[grid-template-areas:"nombre_barra_valor"]',
   'nombre-arriba':
     'grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 [grid-template-areas:"nombre_valor"_"barra_barra"] @min-[30rem]/ranking:grid-cols-[8.5rem_minmax(0,1fr)_6.5rem] @min-[30rem]/ranking:items-center @min-[30rem]/ranking:[grid-template-areas:"nombre_barra_valor"]',
 };
