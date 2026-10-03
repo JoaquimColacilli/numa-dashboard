@@ -15,19 +15,13 @@ import {
 import { useId, useState, type ReactNode } from 'react';
 
 import { iniciales } from '@/entities/cliente';
-import { BORDE_DEL_POLO, Carita, cuantasRespuestas } from '@/entities/opinion';
+import { BORDE_DEL_POLO, Carita, cuantasRespuestas, PuntosPorPersona } from '@/entities/opinion';
 import { useMensajes, type Mensajes } from '@/shared/idioma';
 import { diaYMes, haceCuanto, rutaDelProyecto, Ir } from '@/shared/lib';
 import { Icono, Tablero } from '@/shared/ui';
 
 import { porcentajeConLaCuenta, promedioLegible } from '../model/numeros';
-import {
-  BarraDivergente,
-  PuntosDeLaTasa,
-  PuntosPorPersona,
-  TablaDeNumeros,
-  TiraEnElTiempo,
-} from './Graficos';
+import { BarraDivergente, PuntosDeLaTasa, TablaDeNumeros, TiraEnElTiempo } from './Graficos';
 
 type AlAbrir = (respuestaId: string) => void;
 

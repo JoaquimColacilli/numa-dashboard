@@ -204,6 +204,12 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Es el trazo SVG de cada cuadradito del código QR, no un texto.',
   },
   {
+    archivo: 'src/shared/lib/graficos.ts',
+    texto: /^(M V Q H Q V Z|M v10M v10M H|M l -3v6zM l- -3v6z)$/u,
+    motivo:
+      'Son los trazos SVG de la columna con su punta redondeada y de la cota con sus flechas, no textos.',
+  },
+  {
     archivo: 'src/shared/lib/telefono.ts',
     texto: 'https://wa.me/ ?text=',
     motivo: 'Es la dirección de WhatsApp con el número y el mensaje: no la lee nadie.',

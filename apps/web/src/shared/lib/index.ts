@@ -270,6 +270,27 @@ export {
 } from './tesoros';
 export { formatearPorcentaje, parsearPorcentaje, SENA_MAXIMA_BP } from './porcentaje';
 export {
+  anchoDeLaColumna,
+  AREA_DE_UN_PUNTO,
+  BANDA_CON_TODOS_LOS_ROTULOS,
+  BANDA_MINIMA,
+  caminoDeLaColumna,
+  CANALETA_DEL_EJE,
+  cota,
+  ejeDeDecenas,
+  escalaLineal,
+  LUGARES_MINIMOS,
+  lugaresQueEntran,
+  marcasCada,
+  pisosDeLosPuntos,
+  plataCompacta,
+  rotuloVisible,
+  techoDeDias,
+  techoRedondo,
+  type Cota,
+  type Escala,
+} from './graficos';
+export {
   anotarAviso,
   avisosAnotados,
   CLAVE_DE_AVISOS,
