@@ -92,7 +92,9 @@ select set_eq(
 -- Los datos del taller para el presupuesto y sus textos de siempre (ADR 0080) no viajan como columnas:
 -- llegan solo adentro de la foto de cada revisión que se le mandó, ya resueltos. El idioma de los
 -- clientes (ADR 0082) viaja: es en el que le habla la página. La cuenta en dólares y el dólar del día
--- (ADR 0081) viajan, cada uno solo cuando toca.
+-- (ADR 0081) viajan, cada uno solo cuando toca. La facturación con ARCA (ADR 0085) no viaja como columnas:
+-- la conexión, los datos para facturar y las alertas son del taller; lo que el cliente ve de sus facturas
+-- sale congelado de cada comprobante, y el ambiente solo decide si se le muestran las de prueba.
 select set_eq(
   $$
     select a.attname::text
@@ -112,7 +114,10 @@ select set_eq(
     'sena_bp', 'resena_link', 'presupuesto_vale_dias',
     'fila', 'fila_version', 'fila_guardada_at',
     'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
-    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version'
+    'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version',
+    'facturacion_ambiente', 'facturacion_cuit', 'facturacion_punto_de_venta', 'facturacion_desde',
+    'facturacion_concepto', 'facturacion_categoria', 'facturacion_ingresos_brutos',
+    'facturacion_inicio_de_actividades', 'facturacion_alertas'
   ],
   'toda columna de ajustes está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );

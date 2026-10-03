@@ -136,7 +136,8 @@ select set_eq(
   'toda columna de proyectos está clasificada para la encuesta: viaja el título y nada más'
 );
 
--- Del cliente viaja la primera palabra del nombre, para darle las gracias. Nada más.
+-- Del cliente viaja la primera palabra del nombre, para darle las gracias. Nada más: tampoco el DNI, que
+-- es para facturarle (ADR 0085).
 select set_eq(
   $$ select a.attname::text from pg_attribute a where a.attrelid = 'public.clientes'::regclass and a.attnum > 0 and not a.attisdropped $$,
   array[
@@ -145,7 +146,7 @@ select set_eq(
     -- No viajan
     'id', 'household_id', 'zona', 'telefono', 'email', 'direccion', 'origen_contacto',
     'origen_detalle', 'condicion_fiscal', 'cuit', 'razon_social', 'domicilio_fiscal', 'notas',
-    'created_at', 'updated_at', 'deleted_at', 'version'
+    'created_at', 'updated_at', 'deleted_at', 'version', 'dni'
   ],
   'toda columna de clientes está clasificada para la encuesta'
 );
@@ -164,7 +165,8 @@ select set_eq(
 -- De los ajustes viajan el enlace de reseña y el idioma de los clientes, en el que les habla la
 -- encuesta (ADR 0082). Los datos para transferir, las redes del taller y el valor del relevamiento
 -- viajan por la vista del cliente, no por acá (ADR 0076 y 0079). Los datos del taller y los textos del
--- presupuesto tampoco: llegan solo adentro de la foto de cada revisión (ADR 0080).
+-- presupuesto tampoco: llegan solo adentro de la foto de cada revisión (ADR 0080). La facturación con ARCA
+-- (ADR 0085) no tiene nada que ver con la encuesta: no viaja.
 select set_eq(
   $$ select a.attname::text from pg_attribute a where a.attrelid = 'public.ajustes'::regclass and a.attnum > 0 and not a.attisdropped $$,
   array[
@@ -179,7 +181,10 @@ select set_eq(
     'fila', 'fila_version', 'fila_guardada_at', 'relevamiento_centavos',
     'taller_titular', 'taller_cuit', 'taller_condicion_fiscal', 'taller_domicilio', 'taller_telefono',
     'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version',
-    'cobro_dolares_cbu', 'cobro_dolares_alias', 'dolar_del_dia_centavos', 'dolar_del_dia_el'
+    'cobro_dolares_cbu', 'cobro_dolares_alias', 'dolar_del_dia_centavos', 'dolar_del_dia_el',
+    'facturacion_ambiente', 'facturacion_cuit', 'facturacion_punto_de_venta', 'facturacion_desde',
+    'facturacion_concepto', 'facturacion_categoria', 'facturacion_ingresos_brutos',
+    'facturacion_inicio_de_actividades', 'facturacion_alertas'
   ],
   'toda columna de ajustes está clasificada para la encuesta'
 );
