@@ -102,6 +102,8 @@ export const editarProyecto = {
       agregar: 'Adicionar uma despesa',
       ayuda: 'Materiais e compras deste móvel. São descontados da receita do projeto.',
       vacio: 'Você ainda não registrou despesas para este móvel.',
+      categoria: (fila) => `Categoria da despesa ${String(fila)}`,
+      sinElegir: 'Não escolhida',
     },
     fecha: (fila) => `Data ${String(fila)}`,
     monto: (fila) => `Valor ${String(fila)}`,

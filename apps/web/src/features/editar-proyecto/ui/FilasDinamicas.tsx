@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
+import { CATEGORIAS_DE_GASTO, MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 import { useEffect, useRef, useState } from 'react';
 import type {
   Control,
@@ -15,13 +15,14 @@ import {
   conOtraMoneda,
   DetalleDelPago,
   dolarDelDiaParaUnPago,
-  filaVacia,
+  gastoVacio,
+  nombreDeLaCategoria,
   pagoVacio,
   totalDeLasFilas,
   totalesDeLosPagos,
   type DolarDelDiaDelTaller,
+  type FilaDeGasto,
   type FilaDePago,
-  type FilaDinamica,
   type FormularioDeProyecto,
   type TesoroQueRecibeDolares,
   type ValorDelPago,
@@ -52,14 +53,20 @@ export interface FilasDinamicasProps {
   delPago?: LoDeLosPagos;
 }
 
+type FilaDeLaLista = FilaDeGasto | FilaDePago;
+
 interface Deshacer {
   indice: number;
-  fila: FilaDinamica | FilaDePago;
+  fila: FilaDeLaLista;
   descripcion: string | null;
 }
 
-function esPago(fila: FilaDinamica | FilaDePago | undefined): fila is FilaDePago {
+function esPago(fila: FilaDeLaLista | undefined): fila is FilaDePago {
   return fila !== undefined && 'moneda' in fila;
+}
+
+function sinCategoria(fila: FilaDeLaLista | undefined): boolean {
+  return fila !== undefined && 'categoria' in fila && fila.categoria === '';
 }
 
 function dolarDelDiaParaElPago(
@@ -86,8 +93,9 @@ export function FilasDinamicas({
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
-  const filas = useWatch({ control, name: lista }) as readonly (FilaDinamica | FilaDePago)[];
+  const filas = useWatch({ control, name: lista }) as readonly FilaDeLaLista[];
   const pagos = lista === 'pagos' && delPago !== undefined ? delPago : null;
+  const deGastos = lista === 'gastos';
   const total =
     pagos === null
       ? formatearPesos(totalDeLasFilas(filas))
@@ -109,15 +117,15 @@ export function FilasDinamicas({
 
   function agregar(): void {
     const hoy = hoyEnElTaller();
-    const nueva =
-      pagos === null
-        ? filaVacia(uuidv7(), hoy)
-        : pagoVacio(
-            uuidv7(),
-            hoy,
-            pagos.monedaNueva,
-            dolarDelDiaParaElPago({ moneda: pagos.monedaNueva, fecha: hoy }, pagos),
-          );
+    const moneda = pagos?.monedaNueva ?? MONEDA_DEL_TALLER;
+    const nueva = deGastos
+      ? gastoVacio(uuidv7(), hoy)
+      : pagoVacio(
+          uuidv7(),
+          hoy,
+          moneda,
+          pagos === null ? null : dolarDelDiaParaElPago({ moneda, fecha: hoy }, pagos),
+        );
     campos.append(nueva);
     requestAnimationFrame(() => {
       contenedor.current
@@ -194,7 +202,7 @@ export function FilasDinamicas({
       <ul className="flex list-none flex-col">
         {campos.fields.map((campo, indice) => {
           const errorDeFila = erroresDeLista?.[indice] as
-            (FieldErrors<FilaDePago> & FieldErrors<FilaDinamica>) | undefined;
+            (FieldErrors<FilaDePago> & FieldErrors<FilaDeGasto>) | undefined;
           const fila = filas[indice];
           const pago = pagos !== null && esPago(fila) ? fila : null;
           const moneda = pago?.moneda ?? MONEDA_DEL_TALLER;
@@ -208,7 +216,9 @@ export function FilasDinamicas({
             <li
               key={campo.clave}
               data-fila={campo.id}
-              className="grid grid-cols-[minmax(8rem,1fr)_minmax(0,1fr)_44px] items-center gap-2 border-t border-hairline-soft py-2.5 @lg/filas:grid-cols-[minmax(0,1fr)_10.5rem_9rem_44px]"
+              className={`grid grid-cols-[minmax(8rem,1fr)_minmax(0,1fr)_44px] items-center gap-2 border-t border-hairline-soft py-2.5 @lg/filas:grid-cols-[minmax(0,1fr)_10.5rem_9rem_44px] ${
+                deGastos ? '@2xl/filas:grid-cols-[minmax(0,1fr)_10.5rem_9rem_9.5rem_44px]' : ''
+              }`}
             >
               <input
                 {...register(`${lista}.${indice}.detalle` as const)}
@@ -266,6 +276,23 @@ export function FilasDinamicas({
                   )}
                 />
               </div>
+              {deGastos && (
+                <select
+                  {...register(`gastos.${indice}.categoria` as const)}
+                  aria-label={filasDelFormulario.gastos.categoria(indice + 1)}
+                  disabled={bloqueado}
+                  className={`col-span-2 h-11 min-w-0 rounded-field border border-border bg-paper px-2.5 text-body @lg/filas:col-span-1 @lg/filas:col-start-1 @2xl/filas:col-start-auto ${
+                    sinCategoria(fila) ? 'text-text-3' : 'text-ink'
+                  }`}
+                >
+                  <option value="">{filasDelFormulario.gastos.sinElegir}</option>
+                  {CATEGORIAS_DE_GASTO.map((categoria) => (
+                    <option key={categoria} value={categoria}>
+                      {nombreDeLaCategoria(categoria)}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -273,14 +300,20 @@ export function FilasDinamicas({
                 }}
                 disabled={bloqueado}
                 aria-label={textos.quitar(indice + 1)}
-                className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta @lg/filas:col-start-auto @lg/filas:row-start-auto"
+                className={`col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta ${
+                  deGastos
+                    ? '@lg/filas:col-start-4 @lg/filas:row-start-auto @2xl/filas:col-start-5'
+                    : '@lg/filas:col-start-auto @lg/filas:row-start-auto'
+                }`}
               >
                 <Icono nombre="trash-2" tamano={18} />
               </button>
               {(errorDelMonto ?? errorDeFila?.fecha) && (
                 <span
                   role="alert"
-                  className="col-span-3 text-label font-medium text-alerta @lg/filas:col-span-4"
+                  className={`col-span-3 text-label font-medium text-alerta @lg/filas:col-span-4 ${
+                    deGastos ? '@2xl/filas:col-span-5' : ''
+                  }`}
                 >
                   {errorDelMonto ?? errorDeFila?.fecha?.message}
                 </span>

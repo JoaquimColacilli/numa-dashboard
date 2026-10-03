@@ -101,6 +101,8 @@ export const editarProyecto = {
       agregar: 'Add an expense',
       ayuda: "Materials and purchases for this piece. They're deducted from the job's income.",
       vacio: "You haven't added any expenses for this piece yet.",
+      categoria: (fila) => `Category of expense ${String(fila)}`,
+      sinElegir: 'Not chosen',
     },
     fecha: (fila) => `Date ${String(fila)}`,
     monto: (fila) => `Amount ${String(fila)}`,

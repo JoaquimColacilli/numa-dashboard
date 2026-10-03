@@ -21,6 +21,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.editarProyecto.filas.gastos.quitar(7),
     tieneQueDecir: ['7'],
   },
+  'editarProyecto.filas.gastos.categoria': {
+    llamar: (m) => m.editarProyecto.filas.gastos.categoria(7),
+    tieneQueDecir: ['7'],
+  },
   'editarProyecto.filas.fecha': {
     llamar: (m) => m.editarProyecto.filas.fecha(7),
     tieneQueDecir: ['7'],

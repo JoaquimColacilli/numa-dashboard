@@ -97,6 +97,8 @@ export const editarProyecto = {
       agregar: 'Agregar un gasto',
       ayuda: 'Materiales y compras de este mueble. Se descuentan del ingreso del trabajo.',
       vacio: 'Todavía no cargaste gastos para este mueble.',
+      categoria: (fila: number) => `Categoría ${String(fila)}`,
+      sinElegir: 'Sin elegir',
     },
     fecha: (fila: number) => `Fecha ${String(fila)}`,
     monto: (fila: number) => `Monto ${String(fila)}`,

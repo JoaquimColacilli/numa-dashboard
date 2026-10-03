@@ -123,8 +123,9 @@ const EXCEPCIONES: readonly Excepcion[] = [
   },
   {
     archivo: 'src/features/editar-proyecto/ui/FilasDinamicas.tsx',
-    texto: /^pagos\. \.(moneda|cotizacion|tesoroId)$/u,
-    motivo: 'Son rutas de campos de react-hook-form (pagos.N.moneda), no textos.',
+    texto: /^(pagos\. \.(moneda|cotizacion|tesoroId)|gastos\. \.categoria)$/u,
+    motivo:
+      'Son rutas de campos de react-hook-form (pagos.N.moneda, gastos.N.categoria), no textos.',
   },
   {
     archivo: 'src/features/editar-proyecto/ui/FilasDeOpciones.tsx',

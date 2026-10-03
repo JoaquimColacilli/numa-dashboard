@@ -235,6 +235,7 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Entradas / Salidas | Money in / Money out | Entradas / Saídas | Finanzas |
 | Entró al hogar / Gastó el hogar / Facturó el taller | Household income / Household spending / Shop revenue | Receita da casa / Gastos da casa / Faturamento da marcenaria | Inicio y Finanzas |
 | insumos | supplies | insumos | Inicio, la fila |
+| Categoría (de un gasto): Madera, Herrajes, Flete, Ayudante, Otro / Sin elegir | Category: Wood, Hardware, Freight, Helper, Other / Not chosen | Categoria: Madeira, Ferragens, Frete, Ajudante, Outro / Não escolhida | El formulario y la ficha del trabajo |
 | Panorama / Accesos | Overview / Shortcuts | Panorama / Atalhos | Inicio |
 | Pendiente de cobro | Awaiting payment | A receber | Inicio |
 | paso (de la fila) / renglón / ficha | step / item / card | etapa / item / cartão | La fila y Tesoros |

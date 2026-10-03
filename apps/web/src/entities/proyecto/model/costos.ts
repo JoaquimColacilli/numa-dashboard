@@ -9,6 +9,7 @@ import {
   cotizacionLeida,
   MONEDA_DEL_TALLER,
   type CategoriaDeCosto,
+  type CategoriaDeGasto,
   type CostosEstimados,
   type Cotizacion,
   type MargenDelTrabajo,
@@ -47,6 +48,10 @@ function costo(categoria: CategoriaDeCosto, columna: ColumnaDeCosto): CostoDelTr
       return mensajes().proyecto.costos[categoria];
     },
   };
+}
+
+export function nombreDeLaCategoria(categoria: CategoriaDeGasto): string {
+  return mensajes().proyecto.costos[categoria];
 }
 
 export const COSTOS_DEL_TRABAJO: readonly CostoDelTrabajo[] = [

@@ -1,4 +1,5 @@
 import {
+  categoriaDeGastoLeida,
   conceptoDeSiempre,
   conceptoEnPantalla,
   estaLiquidado,
@@ -30,6 +31,7 @@ import {
   loQueHizoElPago,
   MarcaDeLiquidacion,
   MarcaDeListo,
+  nombreDeLaCategoria,
   pagosDelProyecto,
   plataDelPago,
   RUTA_DE_PROYECTOS,
@@ -543,28 +545,38 @@ export function ProyectoFichaPage() {
             ) : (
               <>
                 <ul className="list-none">
-                  {gastos.map((gasto) => (
-                    <li
-                      key={gasto.id}
-                      className="flex min-h-12 items-center gap-2.5 border-t border-hairline-soft text-body"
-                    >
-                      <span
-                        translate="no"
-                        className="w-16 flex-none text-meta text-text-3 tabular-nums"
+                  {gastos.map((gasto) => {
+                    const categoria = categoriaDeGastoLeida(
+                      (gasto as Partial<typeof gasto>).categoria,
+                    );
+                    return (
+                      <li
+                        key={gasto.id}
+                        className="flex min-h-12 items-center gap-2.5 border-t border-hairline-soft text-body"
                       >
-                        {fechaLarga(gasto.fecha, hoy)}
-                      </span>
-                      <span
-                        translate={gasto.descripcion.trim() === '' ? undefined : 'no'}
-                        className="min-w-0 flex-1 truncate"
-                      >
-                        {gasto.descripcion.trim() === '' ? textos.insumo : gasto.descripcion}
-                      </span>
-                      <span translate="no" className="flex-none font-medium tabular-nums">
-                        {formatearPesos(gasto.monto_centavos)}
-                      </span>
-                    </li>
-                  ))}
+                        <span
+                          translate="no"
+                          className="w-16 flex-none text-meta text-text-3 tabular-nums"
+                        >
+                          {fechaLarga(gasto.fecha, hoy)}
+                        </span>
+                        <span
+                          translate={gasto.descripcion.trim() === '' ? undefined : 'no'}
+                          className="min-w-0 flex-1 truncate"
+                        >
+                          {gasto.descripcion.trim() === '' ? textos.insumo : gasto.descripcion}
+                        </span>
+                        {categoria !== null && (
+                          <span className="flex-none text-meta text-text-3">
+                            {nombreDeLaCategoria(categoria)}
+                          </span>
+                        )}
+                        <span translate="no" className="flex-none font-medium tabular-nums">
+                          {formatearPesos(gasto.monto_centavos)}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <div className="flex min-h-11 items-center justify-between border-t border-ink text-body font-semibold">
                   <span>{textos.totalDeGastos}</span>
