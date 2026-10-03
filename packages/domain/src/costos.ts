@@ -5,6 +5,14 @@ export const CATEGORIAS_DE_COSTO = ['madera', 'herrajes', 'flete', 'ayudante'] a
 
 export type CategoriaDeCosto = (typeof CATEGORIAS_DE_COSTO)[number];
 
+export const CATEGORIAS_DE_GASTO = [...CATEGORIAS_DE_COSTO, 'otro'] as const;
+
+export type CategoriaDeGasto = (typeof CATEGORIAS_DE_GASTO)[number];
+
+export function categoriaDeGastoLeida(valor: unknown): CategoriaDeGasto | null {
+  return CATEGORIAS_DE_GASTO.find((categoria) => categoria === valor) ?? null;
+}
+
 export type CostosEstimados<M extends Moneda = MonedaDelTaller> = Readonly<
   Record<CategoriaDeCosto, Money<M> | null>
 >;

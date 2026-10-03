@@ -4,9 +4,11 @@ import {
   analisisDeEntregas,
   cuentaDe,
   DIAS_DE_ACIERTO,
+  filasDeEntregas,
   fraseDeLasCumplidas,
   fraseDeLosAciertos,
   fraseDelDesvio,
+  resumenDeEntregas,
   resumirDias,
   SIN_TIPO,
   UMBRAL_CUENTAS,
@@ -60,6 +62,17 @@ function conDesvios(desvios: readonly number[]): {
     ),
   };
 }
+
+describe('las filas y el resumen, por separado', () => {
+  it('armar las filas una vez y resumirlas da lo mismo que el análisis entero', () => {
+    const { trabajos, cambios } = conDesvios([3, -1, 8, 0, 2, 5]);
+    const conUnoSinFecha = [...trabajos, trabajo('sin', { entregado: null })];
+    const filas = filasDeEntregas(conUnoSinFecha, cambios);
+    expect(filas.sinFecha).toBe(1);
+    expect(filas.filas).toHaveLength(6);
+    expect(resumenDeEntregas(filas)).toEqual(analisisDeEntregas(conUnoSinFecha, cambios));
+  });
+});
 
 describe('los umbrales', () => {
   it('son los del pedido: casos sueltos hasta 4, mediana desde 5, cuentas desde 10 y porcentajes desde 20', () => {

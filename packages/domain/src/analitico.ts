@@ -237,10 +237,15 @@ export function fraseDeLasCumplidas(cuenta: Cuenta): string {
   return `Cumpliste ${String(cuenta.k)} de ${String(cuenta.n)} fechas comprometidas${conPorcentaje(cuenta)}.`;
 }
 
-export function analisisDeEntregas(
+export interface FilasDeEntregas {
+  filas: readonly FilaDelAnalisis[];
+  sinFecha: number;
+}
+
+export function filasDeEntregas(
   trabajos: readonly TrabajoParaElAnalisis[],
   cambios: readonly CambioDeFechaParaElAnalisis[],
-): AnalisisDeEntregas {
+): FilasDeEntregas {
   const porTrabajo = new Map<string, CambioDeFechaParaElAnalisis[]>();
   for (const cambio of enOrden(cambios)) {
     porTrabajo.set(cambio.proyectoId, [...(porTrabajo.get(cambio.proyectoId) ?? []), cambio]);
@@ -261,7 +266,17 @@ export function analisisDeEntregas(
           ],
     )
     .sort(masReciente);
+  return { filas, sinFecha: cerrados.length - filas.length };
+}
 
+export function analisisDeEntregas(
+  trabajos: readonly TrabajoParaElAnalisis[],
+  cambios: readonly CambioDeFechaParaElAnalisis[],
+): AnalisisDeEntregas {
+  return resumenDeEntregas(filasDeEntregas(trabajos, cambios));
+}
+
+export function resumenDeEntregas({ filas, sinFecha }: FilasDeEntregas): AnalisisDeEntregas {
   const conDesvio = filas.filter((fila) => fila.desvio !== null);
   const conComprometida = filas.filter((fila) => fila.cumplida !== null);
   const desvio = resumirDias(valoresDe(filas, 'desvio'));
@@ -278,7 +293,7 @@ export function analisisDeEntregas(
 
   return {
     trabajos: filas,
-    sinFecha: cerrados.length - filas.length,
+    sinFecha,
     precision: {
       desvio,
       importadas: conDesvio.filter((fila) => fila.importada).length,

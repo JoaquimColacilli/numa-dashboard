@@ -5,6 +5,8 @@ import {
   calcularMargen,
   calcularMargenEnDolares,
   CATEGORIAS_DE_COSTO,
+  CATEGORIAS_DE_GASTO,
+  categoriaDeGastoLeida,
   categoriasEstimadas,
   costoEstimado,
   costosEnDolares,
@@ -22,6 +24,19 @@ function costos(parcial: Partial<Record<(typeof CATEGORIAS_DE_COSTO)[number], nu
 describe('las cuatro categorías', () => {
   it('son las que nombró el dueño, en el orden en que las nombró', () => {
     expect(CATEGORIAS_DE_COSTO).toEqual(['madera', 'herrajes', 'flete', 'ayudante']);
+  });
+
+  it('los gastos de verdad usan las mismas cuatro más «otro», al final', () => {
+    expect(CATEGORIAS_DE_GASTO).toEqual(['madera', 'herrajes', 'flete', 'ayudante', 'otro']);
+  });
+
+  it('una categoría de gasto se lee si es una de las cinco; si no, es «sin categoría»', () => {
+    for (const categoria of CATEGORIAS_DE_GASTO) {
+      expect(categoriaDeGastoLeida(categoria)).toBe(categoria);
+    }
+    for (const valor of [null, undefined, '', 'Madera', 'materiales', 3]) {
+      expect(categoriaDeGastoLeida(valor)).toBeNull();
+    }
   });
 
   it('arrancan las cuatro sin estimar, que no es lo mismo que en cero', () => {
