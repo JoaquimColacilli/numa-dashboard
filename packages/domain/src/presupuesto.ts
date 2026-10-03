@@ -1170,7 +1170,7 @@ export function numeroVisible(
 
 const PROHIBIDOS_EN_UN_ARCHIVO = '/\\:*?"<>|';
 
-function sinProhibidos(texto: string): string {
+export function sinProhibidos(texto: string): string {
   return Array.from(texto, (letra) =>
     letra.charCodeAt(0) < 32 || PROHIBIDOS_EN_UN_ARCHIVO.includes(letra) ? ' ' : letra,
   ).join('');
