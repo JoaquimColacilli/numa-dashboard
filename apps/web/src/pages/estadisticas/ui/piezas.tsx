@@ -235,7 +235,7 @@ export function Lista({
 }
 
 const RENGLON =
-  'relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 rounded-field border-t border-hairline-soft py-2.5 first:border-t-0';
+  'relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-t border-hairline-soft py-2.5 first:border-t-0';
 
 export function RenglonConEnlace({
   proyectoId,
@@ -254,7 +254,7 @@ export function RenglonConEnlace({
 }) {
   return (
     <li
-      className={`${RENGLON} has-[a[data-renglon]:focus-visible]:outline-2 has-[a[data-renglon]:focus-visible]:outline-offset-2 has-[a[data-renglon]:focus-visible]:outline-ink`}
+      className={`${RENGLON} has-[a[data-renglon]:focus-visible]:rounded-field has-[a[data-renglon]:focus-visible]:outline-2 has-[a[data-renglon]:focus-visible]:outline-offset-2 has-[a[data-renglon]:focus-visible]:outline-ink`}
     >
       {arriba !== null && (
         <div className="relative z-10 col-span-2 min-w-0 text-meta text-text-2">{arriba}</div>
