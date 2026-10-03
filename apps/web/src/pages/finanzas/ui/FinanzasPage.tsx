@@ -29,6 +29,7 @@ import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
   hoyLocal,
+  Ir,
   mesAnterior,
   mesDeLaFecha,
   mesEnUnaFrase,
@@ -36,6 +37,7 @@ import {
   PARAMETRO_DE_TESORO,
   parametroDelTesoro,
   rutaDelMovimiento,
+  RUTA_DE_LAS_ESTADISTICAS,
   RUTA_DE_MOVIMIENTO_NUEVO,
   tesoroDelParametro,
   TINTA,
@@ -178,35 +180,44 @@ export function FinanzasPage() {
         amplio
         separacion="gap-y-3 @min-[40rem]/apoyo:gap-y-4"
         apoyo={
-          <ComparacionMensual
-            titulo={textos.contra(nombreDelMes(mes), mesEnUnaFrase(mesAnterior(mes)))}
-            etiquetaPrevia={mesEnUnaFrase(mesAnterior(mes))}
-            etiquetaActual={mesEnUnaFrase(mes)}
-            barras={[
-              {
-                id: 'entro-hogar',
-                etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
-                previo: previo.entroHogar,
-                actual: actual.entroHogar,
-                tono: 'text-hogar',
-              },
-              {
-                id: 'gasto-hogar',
-                etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
-                previo: previo.gastoHogar,
-                actual: actual.gastoHogar,
-                tono: 'text-ink',
-                mejorSiBaja: true,
-              },
-              {
-                id: 'facturo-taller',
-                etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
-                previo: previo.facturoTaller,
-                actual: actual.facturoTaller,
-                tono: 'text-maun',
-              },
-            ]}
-          />
+          <div className="flex flex-col gap-1">
+            <ComparacionMensual
+              titulo={textos.contra(nombreDelMes(mes), mesEnUnaFrase(mesAnterior(mes)))}
+              etiquetaPrevia={mesEnUnaFrase(mesAnterior(mes))}
+              etiquetaActual={mesEnUnaFrase(mes)}
+              barras={[
+                {
+                  id: 'entro-hogar',
+                  etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
+                  previo: previo.entroHogar,
+                  actual: actual.entroHogar,
+                  tono: 'text-hogar',
+                },
+                {
+                  id: 'gasto-hogar',
+                  etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
+                  previo: previo.gastoHogar,
+                  actual: actual.gastoHogar,
+                  tono: 'text-ink',
+                  mejorSiBaja: true,
+                },
+                {
+                  id: 'facturo-taller',
+                  etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
+                  previo: previo.facturoTaller,
+                  actual: actual.facturoTaller,
+                  tono: 'text-maun',
+                },
+              ]}
+            />
+            <Ir
+              a={RUTA_DE_LAS_ESTADISTICAS}
+              className="inline-flex min-h-tap w-fit items-center gap-1 px-1 text-label font-semibold text-ink"
+            >
+              {textos.verMasEnEstadisticas}
+              <Icono nombre="chevron-right" tamano={16} grosor={2} className="text-text-2" />
+            </Ir>
+          </div>
         }
       >
         <div className="flex flex-col gap-3 md:gap-4">

@@ -208,9 +208,34 @@ describe('en la tablet', () => {
     expect(logo.querySelector('svg')).toHaveAttribute('viewBox', '0 0 158 200');
     expect(logo.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('Estadísticas es el noveno destino del riel, después de Diezmo, y se marca en su página', () => {
+    pantallaDe(900);
+    montar('/estadisticas');
+
+    const estadisticas = screen.getByRole('button', { name: 'Estadísticas' });
+    expect(estadisticas).toHaveAttribute('aria-current', 'page');
+    const destinos = screen
+      .getAllByRole('button')
+      .map((boton) => boton.getAttribute('aria-label') ?? boton.textContent);
+    expect(destinos.indexOf('Estadísticas')).toBe(destinos.indexOf('Diezmo') + 1);
+  });
 });
 
 describe('en el escritorio', () => {
+  it('Estadísticas va entre Diezmo y Ajustes, y se marca en su página', () => {
+    pantallaDe(1440);
+    montar('/estadisticas');
+
+    const nombres = screen.getAllByRole('button').map((boton) => boton.textContent);
+    const diezmo = nombres.indexOf('Diezmo');
+    expect(nombres.slice(diezmo, diezmo + 3)).toEqual(['Diezmo', 'Estadísticas', 'Ajustes']);
+    expect(screen.getByRole('button', { name: 'Estadísticas' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('Consultas, Diezmo y Ajustes son destinos propios', () => {
     pantallaDe(1440);
     montar('/consultas');

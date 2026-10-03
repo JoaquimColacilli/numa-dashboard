@@ -190,6 +190,8 @@ export const paginaInicio = {
     opino: (cliente: string) => `${cliente} opinó`,
     opinaron: (clientes: string) => `${clientes} opinaron`,
     yMas: (mas: number) => `${String(mas)} más`,
+    estadisticas: 'Estadísticas',
+    comoVieneElTaller: 'Cómo viene el taller',
     tesoros: 'Tesoros',
     comoSeReparte: 'Cómo se reparte cada cobro',
     diezmo: 'Diezmo',
@@ -197,6 +199,10 @@ export const paginaInicio = {
     laApp: 'La app',
     ajustes: 'Ajustes',
     tuTaller: 'Tu taller, cómo te pagan y la vidriera',
+  },
+  estadisticas: {
+    comoVieneElTaller: 'Cómo viene el taller',
+    verLasEstadisticas: 'Ver las estadísticas',
   },
   hoyEnLaAgenda: {
     titulo: 'Hoy en la agenda',

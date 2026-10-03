@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 describe('la hoja del perfil', () => {
-  it('lleva a Opiniones, Tesoros, Diezmo, Agenda y Ajustes, y deja cerrar la sesión', () => {
+  it('lleva a Opiniones, Estadísticas, Tesoros, Diezmo, Agenda y Ajustes, y deja cerrar la sesión', () => {
     const hoja = montar(SIN_NOVEDADES);
 
     expect(within(hoja).getByText('taller@maun.com.ar')).toBeInTheDocument();
@@ -60,6 +60,9 @@ describe('la hoja del perfil', () => {
       'href',
       '/opiniones',
     );
+    const estadisticas = within(hoja).getByRole('link', { name: /^Estadísticas/ });
+    expect(estadisticas).toHaveAttribute('href', '/estadisticas');
+    expect(within(estadisticas).getByText('Cómo viene el taller')).toBeInTheDocument();
     const tesoros = within(hoja).getByRole('link', { name: /^Tesoros/ });
     expect(tesoros).toHaveAttribute('href', '/tesoros');
     expect(within(tesoros).getByText('Cómo se reparte cada cobro')).toBeInTheDocument();
@@ -68,7 +71,7 @@ describe('la hoja del perfil', () => {
       within(within(hoja).getByRole('navigation'))
         .getAllByRole('link')
         .map((enlace) => enlace.getAttribute('href')),
-    ).toEqual(['/opiniones', '/tesoros', '/diezmo', '/agenda']);
+    ).toEqual(['/opiniones', '/estadisticas', '/tesoros', '/diezmo', '/agenda']);
     expect(within(hoja).queryByText(/metas/i)).toBeNull();
     expect(within(hoja).getByRole('link', { name: /^Agenda/ })).toHaveAttribute('href', '/agenda');
     expect(within(hoja).getByRole('link', { name: /^Ajustes/ })).toHaveAttribute(

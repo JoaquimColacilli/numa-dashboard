@@ -28,6 +28,7 @@ export const appLayout = {
     tesoros: 'Buckets',
     opiniones: 'Feedback',
     diezmo: 'Tithe',
+    estadisticas: 'Stats',
     ajustes: 'Settings',
   },
   accionesRapidas: {

@@ -1,3 +1,4 @@
+import { RUTA_DE_LAS_ESTADISTICAS } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
 export type IdDeSeccion =
@@ -10,6 +11,7 @@ export type IdDeSeccion =
   | 'tesoros'
   | 'opiniones'
   | 'diezmo'
+  | 'estadisticas'
   | 'ajustes';
 
 export interface Destino {
@@ -34,6 +36,12 @@ export const DESTINOS: Readonly<Record<IdDeSeccion, Destino>> = {
     alternativa: 'inicio',
   },
   diezmo: { id: 'diezmo', ruta: '/diezmo', icono: 'church', alternativa: 'inicio' },
+  estadisticas: {
+    id: 'estadisticas',
+    ruta: RUTA_DE_LAS_ESTADISTICAS,
+    icono: 'chart-no-axes-column',
+    alternativa: 'inicio',
+  },
   ajustes: { id: 'ajustes', ruta: '/ajustes', icono: 'settings', alternativa: 'inicio' },
 };
 
@@ -48,6 +56,7 @@ export const NAV_TABLET: readonly IdDeSeccion[] = [
   'tesoros',
   'opiniones',
   'diezmo',
+  'estadisticas',
 ];
 
 export const NAV_ESCRITORIO: readonly IdDeSeccion[] = [
@@ -60,6 +69,7 @@ export const NAV_ESCRITORIO: readonly IdDeSeccion[] = [
   'tesoros',
   'opiniones',
   'diezmo',
+  'estadisticas',
   'ajustes',
 ];
 

@@ -196,6 +196,8 @@ export const paginaInicio = {
     opino: (cliente) => `${cliente} left feedback`,
     opinaron: (clientes) => `${clientes} left feedback`,
     yMas: (mas) => plural(mas, { one: '# other', other: '# others' }),
+    estadisticas: 'Stats',
+    comoVieneElTaller: 'How the shop is doing',
     tesoros: 'Buckets',
     comoSeReparte: 'How each payment is split',
     diezmo: 'Tithe',
@@ -203,6 +205,10 @@ export const paginaInicio = {
     laApp: 'The app',
     ajustes: 'Settings',
     tuTaller: 'Your shop, how clients pay you, and your showcase',
+  },
+  estadisticas: {
+    comoVieneElTaller: 'How the shop is doing',
+    verLasEstadisticas: 'See your stats',
   },
   hoyEnLaAgenda: {
     titulo: 'Today on the calendar',

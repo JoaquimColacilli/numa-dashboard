@@ -2,6 +2,7 @@ export const paginaFinanzas = {
   titulo: 'Finanzas',
   cargarMovimiento: 'Cargar movimiento',
   contra: (actual: string, previo: string) => `${actual} contra ${previo}`,
+  verMasEnEstadisticas: 'Ver más en Estadísticas',
   todos: 'Todos',
   sentidos: {
     todos: 'Todo',
