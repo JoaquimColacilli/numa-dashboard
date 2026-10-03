@@ -59,7 +59,7 @@ export function ComparacionMensual({
         <span className="text-label font-semibold">{titulo}</span>
         <span className="flex gap-3 text-meta text-text-2">
           <span translate="no" className="flex items-center gap-1.5">
-            <span aria-hidden className="size-2 rounded-[2px] bg-border" />
+            <span aria-hidden className="size-2 rounded-[2px] bg-contexto" />
             {etiquetaPrevia}
           </span>
           <span translate="no" className="flex items-center gap-1.5">
@@ -90,7 +90,7 @@ export function ComparacionMensual({
                 width={ANCHO_BARRA}
                 height={altoPrevio}
                 rx="1"
-                className="fill-border"
+                className="fill-contexto"
               />
               <rect
                 x={centro + 3}

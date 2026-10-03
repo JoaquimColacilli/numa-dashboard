@@ -21,6 +21,11 @@
   --color-hairline: #e6e4df;
   --color-hairline-soft: #efede9;
   --color-border: #d9d9d9;
+
+  /* El gris de contexto de los gráficos: lo que acompaña a lo que importa, que va en tinta (los meses
+     fuera del período, el mes anterior de la comparación). Con 3:1 o más contra el papel en los dos
+     temas, que el borde no llega a dar (ADR 0084). */
+  --color-contexto: #8f8f8f;
   --color-surface: #f4f4f4;
   --color-surface-2: #f0f0f0;
   --color-surface-3: #fafafa;
@@ -606,6 +611,7 @@
     --color-hairline: #2a2a2a;
     --color-hairline-soft: #222222;
     --color-border: #3f3f3f;
+    --color-contexto: #707070;
     --color-surface: #1f1f1f;
     --color-surface-2: #262626;
     --color-surface-3: #1b1b1b;
