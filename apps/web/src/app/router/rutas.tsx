@@ -6,6 +6,7 @@ import { AjustesPage, AvisosPage, PresupuestoDelTallerPage } from '@/pages/ajust
 import { AnaliticoPage } from '@/pages/analitico';
 import { ClienteFichaPage, ClientesPage } from '@/pages/clientes';
 import { DiezmoPage } from '@/pages/diezmo';
+import { EstadisticasPage } from '@/pages/estadisticas';
 import { FinanzasPage, MovimientoEdicionPage, MovimientoNuevoPage } from '@/pages/finanzas';
 import { InicioPage } from '@/pages/inicio';
 import { PreguntasPage, ResultadosPage } from '@/pages/opiniones';
@@ -26,6 +27,7 @@ import {
   HOJAS_POR_RUTA,
   RUTA_DE_CONSULTAS,
   RUTA_DE_CONTACTO_NUEVO,
+  RUTA_DE_LAS_ESTADISTICAS,
   RUTA_DE_TESOROS,
   RUTA_DEL_ANALITICO,
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
@@ -58,6 +60,7 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/opiniones', element: <ResultadosPage /> },
   { path: '/opiniones/preguntas', element: <PreguntasPage /> },
   { path: '/diezmo', element: <DiezmoPage /> },
+  { path: RUTA_DE_LAS_ESTADISTICAS, element: <EstadisticasPage /> },
   { path: '/ajustes', element: <AjustesPage /> },
   { path: '/ajustes/avisos', element: <AvisosPage /> },
   { path: RUTA_DEL_PRESUPUESTO_EN_AJUSTES, element: <PresupuestoDelTallerPage /> },

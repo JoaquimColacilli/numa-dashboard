@@ -57,6 +57,16 @@ describe('las columnas chicas del resumen', () => {
     expect(container.querySelector('[data-llave]')).toBeNull();
     expect(screen.getByText('jul 2026')).toBeInTheDocument();
   });
+
+  it('sin rótulo del período, como con «Todo», no hay llave', () => {
+    conAncho(320);
+    const todas = DOCE.map((columna) => ({ ...columna, enPeriodo: true }));
+    const { container } = render(
+      <ColumnasChicas columnas={todas} primerRotulo="jul 2026" rotuloDelPeriodo={null} />,
+    );
+    expect(container.querySelector('[data-llave]')).toBeNull();
+    expect(screen.getByText('jul 2026')).toBeInTheDocument();
+  });
 });
 
 const PESAS: PesaDelGrafico[] = [

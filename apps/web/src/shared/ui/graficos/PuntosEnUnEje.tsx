@@ -44,6 +44,7 @@ export interface PuntosEnUnEjeProps {
 
 const SEPARACION = RADIO_DEL_PUNTO * 2 + 2;
 const MARGEN = 8;
+const FLECHA_DE_LA_COTA = 12;
 
 export function PuntosEnUnEje(props: PuntosEnUnEjeProps) {
   const [medirAl, ancho] = useAnchoDelLienzo();
@@ -68,7 +69,6 @@ function DibujoDeLosPuntos({
   const xs = puntos.map((punto) => x(punto.dias));
   const pisos = pisosDeLosPuntos(xs, SEPARACION);
   const lineaBase = lineaBaseDelEje(Math.max(0, ...pisos));
-  const alto = lineaBase + (laCota === null ? 26 : 58);
   const ubicados = puntos.map((punto, indice) => ({
     ...punto,
     cx: xs[indice] ?? 0,
@@ -90,7 +90,16 @@ function DibujoDeLosPuntos({
   const yCota = lineaBase + 36;
   const caminos = laCota === null ? null : cota(x(laCota.desde), x(laCota.hasta), yCota);
   const anchoDelRotulo = laCota === null ? 0 : anchoDelTexto(laCota.texto) + 12;
-  const medioDeLaCota = laCota === null ? 0 : (x(laCota.desde) + x(laCota.hasta)) / 2;
+  const largoDeLaCota = laCota === null ? 0 : x(laCota.hasta) - x(laCota.desde);
+  const rotuloAdentro = anchoDelRotulo + 2 * FLECHA_DE_LA_COTA <= largoDeLaCota;
+  const medioDeLaCota =
+    laCota === null
+      ? 0
+      : Math.min(
+          Math.max((x(laCota.desde) + x(laCota.hasta)) / 2, anchoDelRotulo / 2),
+          ancho - anchoDelRotulo / 2,
+        );
+  const alto = lineaBase + (laCota === null ? 26 : rotuloAdentro ? 58 : 72);
 
   return (
     <div className="relative" style={{ height: alto }}>
@@ -206,16 +215,18 @@ function DibujoDeLosPuntos({
           <g data-cota>
             <path d={caminos.lineas} fill="none" strokeWidth={0.9} className="stroke-text-2" />
             <path d={caminos.flechas} className="fill-text-2" />
-            <rect
-              x={medioDeLaCota - anchoDelRotulo / 2}
-              y={yCota - 8}
-              width={anchoDelRotulo}
-              height={16}
-              className="fill-paper"
-            />
+            {rotuloAdentro && (
+              <rect
+                x={medioDeLaCota - anchoDelRotulo / 2}
+                y={yCota - 8}
+                width={anchoDelRotulo}
+                height={16}
+                className="fill-paper"
+              />
+            )}
             <text
               x={medioDeLaCota}
-              y={yCota + 4}
+              y={rotuloAdentro ? yCota + 4 : yCota + 20}
               textAnchor="middle"
               className="fill-text-2 text-meta"
             >

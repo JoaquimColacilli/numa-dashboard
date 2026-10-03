@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react';
 
+export interface AccionDeLaLectura {
+  texto: string;
+  alTocar: () => void;
+  abierta?: boolean;
+  controla?: string;
+}
+
 export interface LecturaProps {
   children: ReactNode;
-  accion?: { texto: string; alTocar: () => void } | null;
+  accion?: AccionDeLaLectura | null;
 }
 
 export function Lectura({ children, accion = null }: LecturaProps) {
@@ -15,6 +22,8 @@ export function Lectura({ children, accion = null }: LecturaProps) {
         <button
           type="button"
           onClick={accion.alTocar}
+          aria-expanded={accion.abierta}
+          aria-controls={accion.controla}
           className="inline-flex min-h-tap items-center gap-1 rounded-pill border border-hairline bg-paper px-3 text-label font-semibold"
         >
           {accion.texto}

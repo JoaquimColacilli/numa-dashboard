@@ -299,6 +299,15 @@ export const CATALOGO: readonly Pantalla[] = [
     forma: 'pantalla',
   },
   {
+    id: 'estadisticas',
+    patron: '/estadisticas',
+    nombre: 'estadisticas',
+    seccion: 'inicio',
+    raiz: false,
+    profundidad: 1,
+    forma: 'pantalla',
+  },
+  {
     id: 'ajustes',
     patron: '/ajustes',
     nombre: 'ajustes',

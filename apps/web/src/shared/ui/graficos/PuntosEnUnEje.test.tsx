@@ -103,6 +103,23 @@ describe('los puntos sobre el eje de días', () => {
     expect(container.querySelector('[data-cota] path')?.getAttribute('d')).toMatch(/v10.*v10.*H/u);
   });
 
+  it('si el rótulo no entra entre las flechas de la cota, va debajo y la cota se ve entera', () => {
+    const { container } = render(
+      <Arnes cota={{ desde: 30, hasta: 36, texto: 'de 30 a 36 días' }} />,
+    );
+    const yDeLaCota = 66 + 36;
+    expect(container.querySelector('[data-cota] rect')).toBeNull();
+    expect(screen.getByText('de 30 a 36 días')).toHaveAttribute('y', String(yDeLaCota + 20));
+    expect(container.querySelector('svg')).toHaveAttribute('height', String(66 + 72));
+  });
+
+  it('con lugar, el rótulo va sobre la cota, tapando su tramo del medio', () => {
+    const { container } = render(<Arnes />);
+    expect(container.querySelector('[data-cota] rect')).not.toBeNull();
+    expect(screen.getByText('de 14 a 45 días')).toHaveAttribute('y', String(66 + 36 + 4));
+    expect(container.querySelector('svg')).toHaveAttribute('height', String(66 + 58));
+  });
+
   it('sin mediana ni cota, el dibujo es más bajo y no las muestra', () => {
     const { container } = render(<Arnes mediana={null} cota={null} />);
     expect(container.querySelector('[data-mediana]')).toBeNull();

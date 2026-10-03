@@ -180,6 +180,7 @@ export {
   datosDeLaAgenda,
   datosDeLaAgendaDeLaReplica,
   datosDelAnalisis,
+  datosDeLasEstadisticas,
   datosDelLibro,
   entregaComprometida,
   franjaDeLaEntrega,

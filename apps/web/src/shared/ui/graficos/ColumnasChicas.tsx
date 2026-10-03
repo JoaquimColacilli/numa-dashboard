@@ -13,7 +13,7 @@ export interface ColumnaChica {
 export interface ColumnasChicasProps {
   columnas: readonly ColumnaChica[];
   primerRotulo: string;
-  rotuloDelPeriodo: string;
+  rotuloDelPeriodo: string | null;
 }
 
 const ARRIBA = 4;
@@ -54,13 +54,15 @@ function DibujoChico({
   const xPrimerRotulo = izquierdaDe(primera);
   const finDelPrimerRotulo = xPrimerRotulo + anchoDelTexto(primerRotulo);
   const llave =
-    desde === undefined || hasta === undefined
+    rotuloDelPeriodo === null || desde === undefined || hasta === undefined
       ? null
-      : { a: izquierdaDe(desde), b: izquierdaDe(hasta) + anchoDeColumna };
+      : {
+          a: izquierdaDe(desde),
+          b: izquierdaDe(hasta) + anchoDeColumna,
+          rotulo: rotuloDelPeriodo,
+        };
   const llaveQueEntra =
-    llave !== null && llave.b - anchoDelTexto(rotuloDelPeriodo) > finDelPrimerRotulo + 6
-      ? llave
-      : null;
+    llave !== null && llave.b - anchoDelTexto(llave.rotulo) > finDelPrimerRotulo + 6 ? llave : null;
 
   return (
     <svg
@@ -130,7 +132,7 @@ function DibujoChico({
             className="stroke-text-3"
           />
           <text x={llaveQueEntra.b} y={ALTO - 1} textAnchor="end" className="fill-text-2 text-meta">
-            {rotuloDelPeriodo}
+            {llaveQueEntra.rotulo}
           </text>
         </g>
       )}

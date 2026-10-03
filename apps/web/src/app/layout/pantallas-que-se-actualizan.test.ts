@@ -15,6 +15,7 @@ describe('seActualizaTirando', () => {
       '/tesoros',
       '/opiniones',
       '/diezmo',
+      '/estadisticas',
     ]) {
       expect(seActualizaTirando(ruta), ruta).toBe(true);
     }

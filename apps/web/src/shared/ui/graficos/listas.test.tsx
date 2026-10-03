@@ -61,6 +61,29 @@ describe('el ranking de barras', () => {
     expect(screen.getByText('Herramientas')).toHaveAttribute('translate', 'no');
     expect(screen.getByText('En el taller').parentElement).toHaveTextContent('$ 1.100.000');
   });
+
+  it('la columna de los montos crece con el más largo, para que ninguno se salga a 320 px', () => {
+    const { container } = render(
+      <RankingDeBarras
+        forma="en-una-linea"
+        grupos={[
+          {
+            clave: 'trabajos',
+            nombre: null,
+            renglones: [
+              { clave: 'madera', nombre: 'Madera', valor: 1, valorTexto: '$ 12.345.678,90' },
+              { clave: 'flete', nombre: 'Flete', valor: 1, valorTexto: '$ 900' },
+            ],
+          },
+        ]}
+      />,
+    );
+    const lista = container.querySelector('ul');
+    expect(lista?.style.getPropertyValue('--ancho-del-valor')).toBe('15ch');
+    expect(container.querySelector('li')?.className).toContain(
+      'grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))]',
+    );
+  });
 });
 
 describe('el embudo', () => {
@@ -162,6 +185,19 @@ describe('la lectura de lo elegido', () => {
     expect(alTocar).toHaveBeenCalledOnce();
     expect(screen.getByText('$ 5.200.000')).toBeInTheDocument();
   });
+
+  it('si el botón abre una lista en el lugar, dice si está abierta y cuál controla', () => {
+    render(
+      <Lectura
+        accion={{ texto: 'Esconder la lista', alTocar: vi.fn(), abierta: true, controla: 'lista' }}
+      >
+        <b>$ 5.200.000</b> en mayo · 3 trabajos
+      </Lectura>,
+    );
+    const boton = screen.getByRole('button', { name: 'Esconder la lista' });
+    expect(boton).toHaveAttribute('aria-expanded', 'true');
+    expect(boton).toHaveAttribute('aria-controls', 'lista');
+  });
 });
 
 describe('ver los números', () => {
@@ -182,7 +218,7 @@ describe('ver los números', () => {
     render(
       <VerLosNumeros
         textos={{ ver: 'Ver los números', ocultar: 'Ocultar los números' }}
-        tabla={TABLA}
+        tablas={[TABLA]}
       >
         <a href="#trabajos">Ver los 8 trabajos</a>
       </VerLosNumeros>,

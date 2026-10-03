@@ -2,7 +2,7 @@ export { Columnas, type ColumnaDelGrafico, type ColumnasProps } from './Columnas
 export { ColumnasChicas, type ColumnaChica, type ColumnasChicasProps } from './ColumnasChicas';
 export { useEleccion, type Eleccion } from './eleccion';
 export { Embudo, type EmbudoProps, type PasoDelEmbudo } from './Embudo';
-export { Lectura, type LecturaProps } from './Lectura';
+export { Lectura, type AccionDeLaLectura, type LecturaProps } from './Lectura';
 export { anchoDelTexto, useAnchoDelLienzo } from './lienzo';
 export { MarcasExplorables, type MarcasExplorablesProps } from './MarcasExplorables';
 export {

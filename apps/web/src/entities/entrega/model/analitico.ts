@@ -29,6 +29,15 @@ export function enDias(valor: number): string {
   return mensajes().paginaAnalitico.dias(redondeado(valor), numero(valor));
 }
 
+export interface DiasEnPartes {
+  cantidad: number;
+  numero: string;
+}
+
+export function diasEnPartes(valor: number): DiasEnPartes {
+  return { cantidad: redondeado(valor), numero: numero(valor) };
+}
+
 export function desvioEnPalabras(desvio: number): string {
   const textos = mensajes().paginaAnalitico;
   if (desvio === 0) return textos.elMismoDia;

@@ -9,6 +9,7 @@ export {
 export {
   cuantosTrabajos,
   desvioEnPalabras,
+  diasEnPartes,
   enDias,
   fraseDeLasCumplidas,
   fraseDeLosAciertos,
@@ -17,6 +18,7 @@ export {
   nombreDeLaCarga,
   resumenDeLosDias,
   resumenDelDesvio,
+  type DiasEnPartes,
 } from './model/analitico';
 export {
   avisosDeEntregas,

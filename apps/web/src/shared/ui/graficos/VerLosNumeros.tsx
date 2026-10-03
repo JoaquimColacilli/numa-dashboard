@@ -4,7 +4,7 @@ import { Icono } from '@maun/ui';
 
 export interface ColumnaDeLaTabla {
   clave: string;
-  titulo: string;
+  titulo: ReactNode;
   alineacion?: 'inicio' | 'fin';
   enElCelular?: boolean;
 }
@@ -71,11 +71,11 @@ export function TablaGemela({ titulo, columnas, filas }: TablaGemelaProps) {
 
 export interface VerLosNumerosProps {
   textos: { ver: string; ocultar: string };
-  tabla: TablaGemelaProps;
+  tablas: readonly TablaGemelaProps[];
   children?: ReactNode;
 }
 
-export function VerLosNumeros({ textos, tabla, children }: VerLosNumerosProps) {
+export function VerLosNumeros({ textos, tablas, children }: VerLosNumerosProps) {
   const [abiertos, setAbiertos] = useState(false);
   const id = useId();
   return (
@@ -95,8 +95,10 @@ export function VerLosNumeros({ textos, tabla, children }: VerLosNumerosProps) {
         </button>
         {children}
       </div>
-      <div id={id} hidden={!abiertos}>
-        <TablaGemela {...tabla} />
+      <div id={id} hidden={!abiertos} className="flex flex-col gap-4">
+        {tablas.map((tabla) => (
+          <TablaGemela key={tabla.titulo} {...tabla} />
+        ))}
       </div>
     </>
   );

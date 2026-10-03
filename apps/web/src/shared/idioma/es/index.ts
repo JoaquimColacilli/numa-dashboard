@@ -47,6 +47,7 @@ import { paginaAnalitico } from './paginaAnalitico';
 import { paginaClientes } from './paginaClientes';
 import { paginaCrearCuenta } from './paginaCrearCuenta';
 import { paginaDiezmo } from './paginaDiezmo';
+import { paginaEstadisticas } from './paginaEstadisticas';
 import { paginaFinanzas } from './paginaFinanzas';
 import { paginaInicio } from './paginaInicio';
 import { paginaNuevaContrasena } from './paginaNuevaContrasena';
@@ -113,6 +114,7 @@ export const es = {
   paginaClientes,
   paginaCrearCuenta,
   paginaDiezmo,
+  paginaEstadisticas,
   paginaFinanzas,
   paginaInicio,
   paginaNuevaContrasena,

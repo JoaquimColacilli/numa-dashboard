@@ -92,9 +92,9 @@ export function PuntosDeCasos({ nombre, grupos, maximoDePuntos, sinCasos }: Punt
     <ul aria-label={nombre} className="flex list-none flex-wrap gap-4.5 p-0">
       {grupos.map((grupo) => (
         <li key={grupo.clave} className="flex flex-col gap-1.5">
-          <span aria-hidden className="flex min-h-3 flex-wrap items-center gap-1">
+          <span aria-hidden className="flex min-h-4 flex-wrap items-center gap-1">
             {grupo.cantidad === 0 ? (
-              <span className="text-meta text-text-3">{sinCasos}</span>
+              <span className="text-meta leading-none text-text-3">{sinCasos}</span>
             ) : (
               Array.from({ length: grupo.cantidad }, (_, indice) => (
                 <Forma key={indice} forma={grupo.forma} />

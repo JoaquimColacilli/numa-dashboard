@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 export interface RenglonDelRanking {
   clave: string;
@@ -25,18 +25,31 @@ export interface RankingDeBarrasProps {
 
 const RENGLON: Readonly<Record<FormaDelRanking, string>> = {
   'en-una-linea':
-    'grid grid-cols-[6.5rem_minmax(0,1fr)_6.25rem] items-center gap-x-2.5 [grid-template-areas:"nombre_barra_valor"]',
+    'grid grid-cols-[6.5rem_minmax(0,1fr)_max(6.25rem,var(--ancho-del-valor,0px))] items-center gap-x-2.5 [grid-template-areas:"nombre_barra_valor"]',
   'nombre-arriba':
     'grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 [grid-template-areas:"nombre_valor"_"barra_barra"] @min-[30rem]/ranking:grid-cols-[8.5rem_minmax(0,1fr)_6.5rem] @min-[30rem]/ranking:items-center @min-[30rem]/ranking:[grid-template-areas:"nombre_barra_valor"]',
 };
+
+function largoDelTexto(texto: ReactNode): number {
+  return typeof texto === 'string' ? texto.length : 0;
+}
 
 export function RankingDeBarras({ grupos, forma }: RankingDeBarrasProps) {
   const tope = Math.max(
     1,
     ...grupos.flatMap((grupo) => grupo.renglones.map((renglon) => Math.abs(renglon.valor))),
   );
+  const largo = Math.max(
+    0,
+    ...grupos.flatMap((grupo) =>
+      grupo.renglones.map((renglon) => largoDelTexto(renglon.valorTexto)),
+    ),
+  );
+  const ancho: CSSProperties & Record<'--ancho-del-valor', string> = {
+    '--ancho-del-valor': `${String(largo)}ch`,
+  };
   return (
-    <ul className="@container/ranking flex list-none flex-col gap-2.5 p-0">
+    <ul style={ancho} className="@container/ranking flex list-none flex-col gap-2.5 p-0">
       {grupos.map((grupo) => [
         grupo.nombre === null ? null : (
           <li
