@@ -8,6 +8,7 @@ import {
   cambiaLaFila,
   datosDelFormulario,
   esquemaDeProyecto,
+  gastoVacio,
   pagoVacio,
   pedidoDeGuardado,
   totalesDeLosPagos,
@@ -378,5 +379,76 @@ describe('versionDelGuardado', () => {
     expect(versionDelGuardado(fila, { notas: 'medir la pared' })).toBe(4);
     expect(versionDelGuardado(fila, { notas: 'medir la pared del fondo' })).toBe(5);
     expect(cambiaLaFila(fila, {})).toBe(false);
+  });
+});
+
+describe('la categoría de los gastos en el formulario grande', () => {
+  const HOY = '2026-10-03';
+
+  function gasto(extra: Partial<FilaDe<'gastos'>> = {}): FilaDe<'gastos'> {
+    return {
+      id: 'x1',
+      household_id: 'h',
+      proyecto_id: 'p',
+      fecha: '2026-10-01',
+      descripcion: 'Placas de melamina',
+      monto_centavos: 8_000_000,
+      categoria: 'madera',
+      created_at: '',
+      updated_at: '',
+      deleted_at: null,
+      version: 1,
+      ...extra,
+    };
+  }
+
+  it('va y vuelve por el formulario, y «Sin elegir» se guarda como null, nunca como texto vacío', () => {
+    const valores = valoresDelFormulario(
+      proyecto(),
+      [],
+      [gasto(), gasto({ id: 'x2', categoria: null })],
+      [],
+      { hoy: HOY },
+    );
+    expect(valores.gastos.map((fila) => fila.categoria)).toEqual(['madera', '']);
+
+    const pedido = pedidoDeGuardado('p', 1, valores, {
+      pagos: [],
+      gastos: ['x1', 'x2', 'x3'],
+      opciones: [],
+    });
+    expect(pedido.gastos).toEqual([
+      expect.objectContaining({ id: 'x1', categoria: 'madera' }),
+      expect.objectContaining({ id: 'x2', categoria: null }),
+      { id: 'x3', borrado: true },
+    ]);
+  });
+
+  it('un gasto nuevo arranca sin elegir, y uno guardado antes de la columna, o con otra cosa, también', () => {
+    expect(gastoVacio('n', HOY).categoria).toBe('');
+    const viejo: Partial<FilaDe<'gastos'>> = gasto();
+    delete viejo.categoria;
+    const [deAntes, conOtra] = valoresDelFormulario(
+      proyecto(),
+      [],
+      [viejo as FilaDe<'gastos'>, gasto({ id: 'x3', categoria: 'Madera' })],
+      [],
+      { hoy: HOY },
+    ).gastos;
+    expect(deAntes?.categoria).toBe('');
+    expect(conOtra?.categoria).toBe('');
+  });
+
+  it('el formulario no deja guardar una categoría que no es de las cinco', () => {
+    const valores = valoresDelFormulario(proyecto(), [], [gasto()], [], { hoy: HOY });
+    const [primero] = valores.gastos;
+    const resultado = esquemaDeProyecto.safeParse({
+      ...valores,
+      gastos: [{ ...primero, categoria: 'pintura' }],
+    });
+    expect(resultado.success).toBe(false);
+    expect(resultado.error?.issues.map((problema) => problema.path.join('.'))).toContain(
+      'gastos.0.categoria',
+    );
   });
 });

@@ -22,6 +22,7 @@ export const appNavegacion = {
     tesoros: 'Buckets',
     opiniones: 'Feedback',
     diezmo: 'Tithe',
+    estadisticas: 'Stats',
     ajustes: 'Settings',
     avisos: 'Notifications',
     tuPresupuesto: 'Your quote',

@@ -133,6 +133,17 @@ function mesDesdeNumero(numero: number): string {
   return `${anio}-${mes}`;
 }
 
+export function mesesEntre(desde: string, hasta: string): number {
+  return mesDesdeEpoca(hasta) - mesDesdeEpoca(desde);
+}
+
+export function correrMes(mes: string, cantidad: number): string {
+  if (!Number.isInteger(cantidad)) {
+    throw new RangeError(`La cantidad de meses es un entero: ${String(cantidad)} no.`);
+  }
+  return mesDesdeNumero(mesDesdeEpoca(mes) + cantidad);
+}
+
 export function mesesDelRango(desde: string, hasta: string): string[] {
   const inicio = mesDesdeEpoca(desde);
   const fin = mesDesdeEpoca(hasta);

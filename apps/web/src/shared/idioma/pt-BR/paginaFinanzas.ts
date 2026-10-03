@@ -4,6 +4,7 @@ export const paginaFinanzas = {
   titulo: 'Finanças',
   cargarMovimiento: 'Registrar movimentação',
   contra: (actual, previo) => `${actual} vs. ${previo}`,
+  verMasEnEstadisticas: 'Ver mais em Estatísticas',
   todos: 'Todas',
   sentidos: {
     todos: 'Tudo',

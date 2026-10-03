@@ -77,6 +77,7 @@ import { comparacionConElMesAnterior } from '../model/comparacion';
 import { faltaParaLosTopes, faltantesEnInicio } from '../model/la-fila';
 import { panoramaDelTaller } from '../model/panorama';
 import { conLaMetaDeCocos, tiposEnLasTarjetas } from '../model/tesoros';
+import { AccesoALasEstadisticas } from './AccesoALasEstadisticas';
 import { FaltanteDelMes } from './FaltanteDelMes';
 import { HojaDelPerfil } from './HojaDelPerfil';
 import { HoyEnLaAgenda } from './HoyEnLaAgenda';
@@ -543,6 +544,8 @@ export function InicioPage() {
                 })}
               </dl>
             </section>
+
+            <AccesoALasEstadisticas />
 
             <Metas tesoros={tesoros} diezmo={diezmo} tintaDelDiezmo={tintaDelDiezmo} />
           </div>

@@ -307,6 +307,7 @@ describe('cobrar por la fila', () => {
       fecha: DIA_DEL_PAGO,
       descripcion: 'Placas',
       monto_centavos: 700_000,
+      categoria: null,
     });
     replica = aplicarFilaLocal(replica, 'proyectos', {
       ...PROYECTO,

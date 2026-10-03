@@ -33,3 +33,7 @@ export const BORDE_DEL_POLO: Readonly<Record<Polo, string>> = {
 export function colorDelPaso(paso: Paso | null): string {
   return paso?.polo ? TEXTO_DEL_POLO[paso.polo] : 'text-text-3';
 }
+
+export function fondoDelPaso(paso: Paso): string {
+  return paso.polo === null ? 'bg-ink' : FONDO_DEL_POLO[paso.polo];
+}

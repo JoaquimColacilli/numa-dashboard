@@ -60,6 +60,7 @@ const VACIAS = [
   'tesoros',
   'opiniones',
   'agenda',
+  'estadisticas',
 ] as const;
 
 const UN_SOLO_TITULO = new Set<string>([

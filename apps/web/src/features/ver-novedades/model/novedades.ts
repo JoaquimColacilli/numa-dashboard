@@ -16,6 +16,29 @@ export type Novedad = NovedadEnLosTresIdiomas | NovedadDeAntes;
 
 export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [
   {
+    version: '2026-10-03',
+    lineas: {
+      es: [
+        'Hay una página nueva, Estadísticas: cuánto te dejaron los trabajos, en qué se va la plata, cuánto tardás, cuántos presupuestos te aprueban y qué opinan tus clientes.',
+        'Elegís de a 3, 6 o 12 meses, y la app los compara con los meses anteriores ya contando la inflación.',
+        'Al cargar un gasto en un trabajo ahora podés elegir si fue madera, herrajes, flete, ayudante u otro.',
+        'En el celular la encontrás tocando tu foto en Inicio; en la tablet y en la compu, en el menú.',
+      ],
+      en: [
+        'There is a new page, Stats: what your jobs left you, where the money goes, how long you take, how many quotes get approved and what your clients think.',
+        'You pick 3, 6 or 12 months at a time, and the app compares them with the months before, counting inflation.',
+        'When you add an expense to a job, you can now choose whether it was wood, hardware, freight, a helper or other.',
+        'On your phone, tap your photo on Home to find it; on a tablet or computer, it is in the menu.',
+      ],
+      'pt-BR': [
+        'Tem uma página nova, Estatísticas: o que os projetos te deixaram, para onde vai o dinheiro, quanto tempo você leva, quantos orçamentos são aprovados e o que seus clientes acham.',
+        'Você escolhe de 3, 6 ou 12 meses, e o app compara com os meses anteriores, já contando a inflação.',
+        'Ao registrar uma despesa num projeto, agora você pode escolher se foi madeira, ferragens, frete, ajudante ou outro.',
+        'No celular, você encontra tocando na sua foto no Início; no tablet e no computador, no menu.',
+      ],
+    },
+  },
+  {
     version: '2026-10-02',
     lineas: {
       es: [

@@ -20,6 +20,7 @@ export const appNavegacion = {
     tesoros: 'Tesoros',
     opiniones: 'Opiniones',
     diezmo: 'Diezmo',
+    estadisticas: 'Estadísticas',
     ajustes: 'Ajustes',
     avisos: 'Avisos',
     tuPresupuesto: 'Tu presupuesto',

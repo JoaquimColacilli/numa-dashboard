@@ -363,6 +363,10 @@ la tarjeta de la primera vez en Tesoros, con la escena `la-fila` (la última fil
 única lámina de esa pantalla; el lienzo y el plano vertical van sobre la cuadrícula, que no es una
 lámina.
 
+**Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md)**: se suma Estadísticas
+vacía, con la escena `sin-estadisticas` (la fila después de Opiniones). Los gráficos de Estadísticas no son
+láminas ni usan la clase `ilustracion`: son tarjetas de contenido.
+
 | Dónde                            | Escena                            | Qué dibuja                                                                 | Por qué                                                                 |
 | -------------------------------- | --------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Proyectos, Activos vacío         | `sin-proyectos`                   | el mueble en plano, de trazos, con su cota                                 | un trabajo activo empieza siendo un plano que todavía no se construyó   |
@@ -372,6 +376,7 @@ lámina.
 | Clientes vacía                   | `sin-clientes`                    | la agenda del taller, cerrada, con su etiqueta y sus pestañas              | es lo que dice el título: «La agenda del taller, todavía vacía»         |
 | Finanzas sin movimientos         | `sin-movimientos`                 | la pila de tableros, sin tocar                                             | la plata del taller todavía no se movió                                 |
 | Opiniones, Resultados sin enviar | `sin-opiniones`                   | el mueble terminado con una etiqueta de tres circulitos sin marcar         | reemplaza los tres circulitos que ya estaban ahí, ahora con su mueble   |
+| Estadísticas vacía               | `sin-estadisticas`                | tres columnas de trazos con su cota, sin número                            | el gráfico ya tiene su lugar, pero todavía no hay nada que medir        |
 | Agenda vacía, en el celular      | `agenda-vacia`                    | la hoja del mes vacía, con un día rodeado a mano                           | es la agenda de papel del taller; la grilla de la compu ya es el dibujo |
 | Enlace muerto, «no está»         | `anulado`                         | la hoja con el plano tachado a mano                                        | lo que había ahí se dio de baja                                         |
 | Sin señal                        | `sin-senal`                       | la hoja con el plano de trazos                                             | el trabajo está, pero no llega: se ve el contorno y no el mueble        |

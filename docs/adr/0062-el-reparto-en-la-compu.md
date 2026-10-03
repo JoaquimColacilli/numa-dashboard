@@ -14,6 +14,11 @@
 - Enmendado el 2026-09-28 por el [ADR 0078](0078-los-tesoros-configurables-y-la-fila.md): `/tesoros`
   es la única pantalla del marco sin `Pagina` en la tablet y la compu. Ver la nota en «Cómo quedó cada
   pantalla».
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): Estadísticas usa el
+  reparto de Finanzas (`PrincipalYApoyo` con `apoyoPrimero` y `amplio`). Sus gráficos no son un reparto:
+  cada uno es su propio `@container` y decide por su ancho en todos los anchos, como `con-lamina`. El test
+  del reparto suma una excepción con su motivo: en un ranking angosto la barra, que es un dibujo
+  `aria-hidden`, baja a su renglón debajo del nombre y del monto.
 
 ## Contexto
 

@@ -96,7 +96,19 @@ async function sembrar(cliente: pg.Client, filas: number): Promise<string> {
     [householdId],
   );
   await cliente.query(
-    'analyze public.clientes, public.proyectos, public.pagos, public.gastos, public.movimientos',
+    `insert into public.cambios_de_estado (household_id, proyecto_id, desde, hacia, ocurrio_el)
+     select $1, p.id, e.desde::public.estado_proyecto, e.hacia::public.estado_proyecto, date '2026-01-01'
+     from public.proyectos p
+     cross join (values
+       ('contacto', 'relevamiento'), ('relevamiento', 'a_presupuestar'),
+       ('a_presupuestar', 'presupuesto_enviado'), ('presupuesto_enviado', 'en_curso'),
+       ('en_curso', 'entregado')
+     ) as e (desde, hacia)
+     where p.household_id = $1`,
+    [householdId],
+  );
+  await cliente.query(
+    'analyze public.clientes, public.proyectos, public.pagos, public.gastos, public.movimientos, public.cambios_de_estado',
   );
   return userId;
 }

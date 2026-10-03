@@ -539,6 +539,14 @@ src/
 - **`GraciasPorContestar` recibe el enlace de la reseña y nada de lo que se contestó**, a propósito: pedirle la reseña solo a los que quedaron contentos va contra las políticas de Google. No le pases las respuestas.
 - **Una línea en Inicio cuando hay algo sin leer** (`UltimaOpinion`), en todos los anchos; en el celular la foto lleva además un punto. Se va cuando se lee: abrir la ficha de la respuesta la marca.
 
+## Estadísticas (ADR 0084)
+
+- **El período vive en la dirección** (`?meses=` y `?hasta=`): cambiarlo reemplaza la entrada del historial y no mueve el scroll (`usePeriodoDeLaUrl`), y lo que no se entiende se ignora.
+- **Lo que pasó va como pasó; lo que compara meses va en pesos de hoy**, con `IPC` del dominio. Una cifra nueva que compare meses sigue esa regla, y si el índice está viejo dice «en pesos de cada mes».
+- **Los gráficos viven en `shared/ui/graficos`**: reciben datos y textos ya armados, no leen la réplica ni el catálogo, se dibujan al ancho que mide `useAnchoDelLienzo` y deciden por su propio `@container`. La geometría está en `shared/lib/graficos.ts`, con sus tests. Un gráfico que se explora es un `listbox` con una sola parada de Tab (`MarcasExplorables`).
+- **Lo de antes del período va en el gris de contexto** (`fill-contexto`, `bg-contexto`); lo que importa, en tinta. Nunca solo por color.
+- **En un SVG no vale `translate="no"`**: el texto con datos (títulos de trabajos) va dentro de un HTML con `translate="no"`, y lo que escribe un formateador con letras (`plataCompacta`) se marca él solo con el seudoidioma, como las fechas.
+
 ## Agenda (ADR 0034)
 
 - **Lo que sale de un trabajo no se guarda.** Visitas, vencimientos de presupuesto y entregas los arma `eventosDeLaAgenda` (`@maun/domain`) desde la réplica (`datosDeLaAgendaDeLaReplica`), para el rango que se muestra. La misma función alimenta la grilla, la lista, el día y lo que se avisa. No agregues una tabla ni una columna de eventos.

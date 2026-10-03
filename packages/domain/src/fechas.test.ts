@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  correrMes,
   DIAS_HABILES_DE_ENTREGA,
   DIAS_HABILES_PARA_PRESUPUESTAR,
   diaDeLaSemana,
@@ -10,6 +11,7 @@ import {
   esFechaQueExiste,
   mesDe,
   mesesDelRango,
+  mesesEntre,
   sumarDias,
   sumarDiasHabiles,
   vencimientoDelPresupuesto,
@@ -30,6 +32,32 @@ describe('mesesDelRango', () => {
     expect(() => mesesDelRango('2026-10', '2026-09')).toThrow(RangeError);
     expect(() => mesesDelRango('2026-9', '2026-10')).toThrow(RangeError);
     expect(() => mesesDelRango('2026-09', '2026-13')).toThrow(RangeError);
+  });
+});
+
+describe('correrMes', () => {
+  it('corre un mes para adelante o para atrás, cruzando el año', () => {
+    expect(correrMes('2026-11', 2)).toBe('2027-01');
+    expect(correrMes('2027-01', -1)).toBe('2026-12');
+    expect(correrMes('2026-06', -11)).toBe('2025-07');
+    expect(correrMes('2026-06', 0)).toBe('2026-06');
+  });
+
+  it('rechaza un mes mal escrito o una cantidad con decimales', () => {
+    expect(() => correrMes('2026-6', 1)).toThrow(RangeError);
+    expect(() => correrMes('2026-06', 0.5)).toThrow(RangeError);
+  });
+});
+
+describe('mesesEntre', () => {
+  it('cuenta los meses de uno a otro, con signo', () => {
+    expect(mesesEntre('2016-12', '2026-08')).toBe(116);
+    expect(mesesEntre('2026-08', '2026-06')).toBe(-2);
+    expect(mesesEntre('2026-08', '2026-08')).toBe(0);
+  });
+
+  it('rechaza un mes mal escrito', () => {
+    expect(() => mesesEntre('2026-8', '2026-09')).toThrow(RangeError);
   });
 });
 

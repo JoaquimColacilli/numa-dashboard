@@ -13,6 +13,7 @@ import {
   RUTA_DE_AGENDA,
   RUTA_DE_AJUSTES,
   RUTA_DE_DIEZMO,
+  RUTA_DE_LAS_ESTADISTICAS,
   RUTA_DE_OPINIONES,
   RUTA_DE_TESOROS,
   useEstadoSync,
@@ -145,6 +146,12 @@ export function HojaDelPerfil({
                 </span>
               )
             }
+          />
+          <Fila
+            ruta={RUTA_DE_LAS_ESTADISTICAS}
+            icono="chart-no-axes-column"
+            etiqueta={textos.estadisticas}
+            bajada={textos.comoVieneElTaller}
           />
           <Fila
             ruta={RUTA_DE_TESOROS}

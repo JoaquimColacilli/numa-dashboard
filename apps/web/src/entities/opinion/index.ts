@@ -50,10 +50,12 @@ export {
   BORDE_DEL_POLO,
   colorDelPaso,
   FONDO_DEL_POLO,
+  fondoDelPaso,
   ICONO_DE_LA_CARA,
   TEXTO_DEL_POLO,
 } from './model/polos';
 export { cuantasRespuestas, TIPO, type DatosDelTipo } from './model/tipos';
+export { BarraDivergente } from './ui/BarraDivergente';
 export { Carita, type CaritaProps } from './ui/Carita';
 export {
   FormularioDeLaEncuesta,
@@ -68,3 +70,4 @@ export {
   type LineasDeLaRespuestaProps,
   type LoQueContestasteProps,
 } from './ui/LineasDeLaRespuesta';
+export { PuntosPorPersona } from './ui/PuntosPorPersona';

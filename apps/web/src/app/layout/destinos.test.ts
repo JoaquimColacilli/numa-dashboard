@@ -74,6 +74,16 @@ describe('destinoResaltado', () => {
     expect(destinoResaltado('opiniones', NAV_MOVIL)).toBe('inicio');
   });
 
+  it('Estadísticas va entre Diezmo y Ajustes en la compu, es el noveno de la tablet y en el celular resalta Inicio', () => {
+    expect(seccionDeLaRuta('/estadisticas')).toBe('estadisticas');
+    expect(NAV_ESCRITORIO.slice(8, 11)).toEqual(['diezmo', 'estadisticas', 'ajustes']);
+    expect(NAV_TABLET[8]).toBe('estadisticas');
+    expect(NAV_TABLET).toHaveLength(9);
+    expect(destinoResaltado('estadisticas', NAV_ESCRITORIO)).toBe('estadisticas');
+    expect(destinoResaltado('estadisticas', NAV_TABLET)).toBe('estadisticas');
+    expect(destinoResaltado('estadisticas', NAV_MOVIL)).toBe('inicio');
+  });
+
   it('Tesoros va después de Finanzas en tablet y escritorio, y en el celular resalta Inicio', () => {
     expect(seccionDeLaRuta('/tesoros')).toBe('tesoros');
     expect(destinoResaltado('tesoros', NAV_ESCRITORIO)).toBe('tesoros');

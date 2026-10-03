@@ -28,6 +28,7 @@ export const appLayout = {
     tesoros: 'Tesoros',
     opiniones: 'Opiniones',
     diezmo: 'Diezmo',
+    estadisticas: 'Estadísticas',
     ajustes: 'Ajustes',
   },
   accionesRapidas: {

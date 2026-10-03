@@ -245,6 +245,7 @@ export {
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
   RUTA_DE_CONTACTO_NUEVO,
   RUTA_DE_DIEZMO,
+  RUTA_DE_LAS_ESTADISTICAS,
   RUTA_DE_TESOROS,
   RUTA_DE_FINANZAS,
   RUTA_DE_MOVIMIENTO_NUEVO,
@@ -269,6 +270,27 @@ export {
   type TintaDeTesoro,
 } from './tesoros';
 export { formatearPorcentaje, parsearPorcentaje, SENA_MAXIMA_BP } from './porcentaje';
+export {
+  anchoDeLaColumna,
+  AREA_DE_UN_PUNTO,
+  BANDA_CON_TODOS_LOS_ROTULOS,
+  BANDA_MINIMA,
+  caminoDeLaColumna,
+  CANALETA_DEL_EJE,
+  cota,
+  ejeDeDecenas,
+  escalaLineal,
+  LUGARES_MINIMOS,
+  lugaresQueEntran,
+  marcasCada,
+  pisosDeLosPuntos,
+  plataCompacta,
+  rotuloVisible,
+  techoDeDias,
+  techoRedondo,
+  type Cota,
+  type Escala,
+} from './graficos';
 export {
   anotarAviso,
   avisosAnotados,

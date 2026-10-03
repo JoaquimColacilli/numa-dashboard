@@ -1,6 +1,7 @@
 import {
   previoQueVio,
   repartosDelCobro,
+  type CategoriaDeGasto,
   type EstadoLiquidado,
   type EstadoProyecto,
   type Fila,
@@ -345,7 +346,8 @@ export type PagoParaGuardar =
     })
   | BajaDeFilaHija;
 
-export type GastoParaGuardar = (FilaHijaViva & { descripcion: string }) | BajaDeFilaHija;
+export type GastoParaGuardar =
+  (FilaHijaViva & { descripcion: string; categoria?: CategoriaDeGasto | null }) | BajaDeFilaHija;
 
 export type OpcionParaGuardar =
   | {

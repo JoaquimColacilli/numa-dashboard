@@ -121,6 +121,38 @@ export function SinOpiniones() {
   );
 }
 
+const COLUMNAS = { largo: 18, ancho: 18, paso: 32, altos: [30, 50, 40] } as const;
+
+export function SinEstadisticas() {
+  const { largo, ancho, paso, altos } = COLUMNAS;
+  const total = paso * (altos.length - 1) + largo;
+  return (
+    <Escena
+      volumenes={[
+        ...altos.map((alto, indice) => ({ x: indice * paso, y: 0, z: 0, largo, ancho, alto })),
+        { x: 0, y: ancho, z: -12, largo: total, ancho: 0, alto: 12 },
+      ]}
+    >
+      {altos.map((alto, indice) => (
+        <Caja
+          key={indice}
+          x={indice * paso}
+          y={0}
+          z={0}
+          largo={largo}
+          ancho={ancho}
+          alto={alto}
+          derecha="cara"
+          linea="trazos"
+        />
+      ))}
+      <EnElPlano transform={planoDeFrente(ancho)}>
+        <Cota desde={0} hasta={total} borde={0} separacion={-9} />
+      </EnElPlano>
+    </Escena>
+  );
+}
+
 const TARJETA = { largo: 80, pie: 19, alto: 46 } as const;
 const FIRMA =
   'M2 18c4-10 9-19 13-17c4 2-4 14-8 16c6-7 12-9 15-6c2 2-1 5 2 5c4 0 8-7 12-9c-3 7-6 11-4 12c3 1 9-4 12-6c-10 8-26 11-44 12';

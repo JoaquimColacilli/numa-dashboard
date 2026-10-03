@@ -133,6 +133,7 @@ export const proyecto = {
     herrajes: 'Herrajes',
     flete: 'Flete',
     ayudante: 'Ayudante',
+    otro: 'Otro',
   },
   despiece: {
     clases: {

@@ -171,6 +171,7 @@ export const PANTALLAS: readonly Pantalla[] = [
     ruta: () => '/opiniones/preguntas',
     listo: enElMarco,
   },
+  { clave: 'estadisticas', nombre: 'Estadísticas', ruta: () => '/estadisticas', listo: enElMarco },
   { clave: 'ajustes', nombre: 'Ajustes', ruta: () => '/ajustes', listo: enElMarco },
   {
     clave: 'avisos',
@@ -247,6 +248,11 @@ export const EXCEPCIONES: readonly Excepcion[] = [
     selector: 'div:has(> aside[data-reparto="detalle"])',
     motivo:
       'El plano de Tesoros y su panel de detalle: el lienzo ocupa todo el alto y el panel mide lo que tiene y scrollea solo. No son dos columnas de contenido que tengan que terminar juntas.',
+  },
+  {
+    selector: 'li:has(> span[aria-hidden] > [data-barra])',
+    motivo:
+      'Un renglón de un ranking de Estadísticas: el nombre y el monto se leen en orden en los dos repartos. La barra es un dibujo `aria-hidden`, sin texto ni foco, que en un contenedor angosto baja a su propio renglón, debajo de los dos.',
   },
   {
     selector: '[data-pantalla-de-acceso] aside',

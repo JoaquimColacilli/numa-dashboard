@@ -67,7 +67,6 @@ export interface PrecisionDeLasEntregas {
   importadas: number;
   aciertos: Cuenta | null;
   cumplidas: Cuenta | null;
-  frase: string;
 }
 
 export interface GrupoPorTipo {
@@ -208,39 +207,15 @@ function grupoDe(clave: string, { filas, nombres }: FilasDelTipo): GrupoPorTipo 
   };
 }
 
-function enDias(dias: number): string {
-  const texto = String(dias).replace('.', ',');
-  return dias === 1 ? '1 día' : `${texto} días`;
+export interface FilasDeEntregas {
+  filas: readonly FilaDelAnalisis[];
+  sinFecha: number;
 }
 
-export function fraseDelDesvio(desvio: ResumenDeDias): string {
-  if (desvio.n === 0)
-    return 'Todavía no entregaste ningún trabajo con una fecha estimada para comparar.';
-  if (desvio.modo === 'casos') {
-    const cuantos = desvio.n === 1 ? 'un trabajo' : `${String(desvio.n)} trabajos`;
-    return `Con ${cuantos} todavía son pocos para sacar una cuenta: miralos uno por uno.`;
-  }
-  if (desvio.mediana === 0) return 'Entregás, en la mediana, el mismo día que estimaste.';
-  const sentido = desvio.mediana > 0 ? 'después' : 'antes';
-  return `Entregás, en la mediana, ${enDias(Math.abs(desvio.mediana))} ${sentido} de lo estimado.`;
-}
-
-function conPorcentaje(cuenta: Cuenta): string {
-  return cuenta.porcentaje === null ? '' : ` (${String(cuenta.porcentaje)}%)`;
-}
-
-export function fraseDeLosAciertos(cuenta: Cuenta): string {
-  return `Acertaste ${String(cuenta.k)} de ${String(cuenta.n)}${conPorcentaje(cuenta)}.`;
-}
-
-export function fraseDeLasCumplidas(cuenta: Cuenta): string {
-  return `Cumpliste ${String(cuenta.k)} de ${String(cuenta.n)} fechas comprometidas${conPorcentaje(cuenta)}.`;
-}
-
-export function analisisDeEntregas(
+export function filasDeEntregas(
   trabajos: readonly TrabajoParaElAnalisis[],
   cambios: readonly CambioDeFechaParaElAnalisis[],
-): AnalisisDeEntregas {
+): FilasDeEntregas {
   const porTrabajo = new Map<string, CambioDeFechaParaElAnalisis[]>();
   for (const cambio of enOrden(cambios)) {
     porTrabajo.set(cambio.proyectoId, [...(porTrabajo.get(cambio.proyectoId) ?? []), cambio]);
@@ -261,7 +236,17 @@ export function analisisDeEntregas(
           ],
     )
     .sort(masReciente);
+  return { filas, sinFecha: cerrados.length - filas.length };
+}
 
+export function analisisDeEntregas(
+  trabajos: readonly TrabajoParaElAnalisis[],
+  cambios: readonly CambioDeFechaParaElAnalisis[],
+): AnalisisDeEntregas {
+  return resumenDeEntregas(filasDeEntregas(trabajos, cambios));
+}
+
+export function resumenDeEntregas({ filas, sinFecha }: FilasDeEntregas): AnalisisDeEntregas {
   const conDesvio = filas.filter((fila) => fila.desvio !== null);
   const conComprometida = filas.filter((fila) => fila.cumplida !== null);
   const desvio = resumirDias(valoresDe(filas, 'desvio'));
@@ -278,7 +263,7 @@ export function analisisDeEntregas(
 
   return {
     trabajos: filas,
-    sinFecha: cerrados.length - filas.length,
+    sinFecha,
     precision: {
       desvio,
       importadas: conDesvio.filter((fila) => fila.importada).length,
@@ -293,7 +278,6 @@ export function analisisDeEntregas(
               conComprometida.length,
             )
           : null,
-      frase: fraseDelDesvio(desvio),
     },
     porTipo: grupos
       .filter((grupo) => grupo.clave !== '')

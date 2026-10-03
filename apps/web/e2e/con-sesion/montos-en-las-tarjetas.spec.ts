@@ -72,6 +72,15 @@ const PANTALLAS: readonly Pantalla[] = [
     },
   },
   {
+    nombre: 'Estadísticas',
+    ruta: () => '/estadisticas',
+    listo: async (page) => {
+      await expect(page.getByRole('navigation', { name: 'Las cifras del período' })).toBeVisible(
+        CARGA,
+      );
+    },
+  },
+  {
     nombre: 'Ficha del trabajo',
     ruta: ({ proyectoId }) => `/proyectos/${proyectoId}`,
     listo: async (page) => {
@@ -479,6 +488,8 @@ const TARJETAS_DE_PLATA = [
   'section[aria-label^="La fila de "]',
   'section[aria-label="Metas"]',
   'section[aria-label^="Falta para "]',
+  'section:has(+ nav[aria-label="Las cifras del período"])',
+  'nav[aria-label="Las cifras del período"] li:first-child > button',
 ].join(', ');
 
 interface TextoQueSeSale {

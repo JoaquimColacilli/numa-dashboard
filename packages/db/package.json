@@ -24,6 +24,7 @@
     "db:medir": "node scripts/medir.ts",
     "db:migrar": "node --conditions=@maun/source scripts/migrar.ts",
     "db:household": "node scripts/household.ts",
+    "db:ipc": "node scripts/ipc.ts",
     "db:seed": "node scripts/seed.ts",
     "db:seed:borrar": "node scripts/seed.ts --borrar"
   },

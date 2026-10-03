@@ -16,6 +16,7 @@ export {
   type BarraComparada,
   type ComparacionMensualProps,
 } from './ComparacionMensual';
+export * from './graficos';
 export { EnConstruccion } from './EnConstruccion';
 export { EstadoDeGuardado, type EstadoDeGuardadoProps } from './EstadoDeGuardado';
 export { ESCENA_EN_LA_LAMINA, TITULO_DE_LAMINA } from './lamina';

@@ -199,6 +199,8 @@ export const paginaInicio = {
     opino: (cliente) => `${cliente} opinou`,
     opinaron: (clientes) => `${clientes} opinaram`,
     yMas: (mas) => plural(mas, { other: 'mais #' }),
+    estadisticas: 'Estatísticas',
+    comoVieneElTaller: 'Como vai a marcenaria',
     tesoros: 'Caixinhas',
     comoSeReparte: 'Como cada recebimento é dividido',
     diezmo: 'Dízimo',
@@ -206,6 +208,10 @@ export const paginaInicio = {
     laApp: 'O app',
     ajustes: 'Configurações',
     tuTaller: 'Sua marcenaria, como você recebe e a vitrine',
+  },
+  estadisticas: {
+    comoVieneElTaller: 'Como vai a marcenaria',
+    verLasEstadisticas: 'Ver as estatísticas',
   },
   hoyEnLaAgenda: {
     titulo: 'Hoje na agenda',

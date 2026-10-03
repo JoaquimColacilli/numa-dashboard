@@ -1,4 +1,6 @@
 import {
+  CATEGORIAS_DE_GASTO,
+  categoriaDeGastoLeida,
   conceptoEnPantalla,
   conceptoParaGuardar,
   esAnteriorALaApertura,
@@ -98,6 +100,12 @@ const filaDePago = filaDinamica
     });
   });
 
+export const CATEGORIAS_EN_EL_FORMULARIO = ['', ...CATEGORIAS_DE_GASTO] as const;
+
+const filaDeGasto = filaDinamica.extend({
+  categoria: z.enum(CATEGORIAS_EN_EL_FORMULARIO),
+});
+
 const filaDeOpcion = z.object({
   id: z.string(),
   detalle: texto(500),
@@ -139,7 +147,7 @@ export const esquemaDeProyecto = z
     presupuesto_vale_hasta: z.string(),
     tipo_de_proyecto: texto(60),
     pagos: z.array(filaDePago),
-    gastos: z.array(filaDinamica),
+    gastos: z.array(filaDeGasto),
     opciones: z.array(filaDeOpcion),
   })
   .superRefine((valores, contexto) => {
@@ -154,6 +162,7 @@ export const esquemaDeProyecto = z
 export type FormularioDeProyecto = z.infer<typeof esquemaDeProyecto>;
 export type FilaDinamica = z.infer<typeof filaDinamica>;
 export type FilaDePago = z.infer<typeof filaDePago>;
+export type FilaDeGasto = z.infer<typeof filaDeGasto>;
 export type FilaDeOpcion = z.infer<typeof filaDeOpcion>;
 
 function fecha(valor: string | null): string {
@@ -185,6 +194,10 @@ export function pagoVacio(
   cotizacion: number | null = null,
 ): FilaDePago {
   return { ...filaVacia(id, hoy), moneda, cotizacion, tesoroId: null };
+}
+
+export function gastoVacio(id: string, hoy: string = hoyEnElTaller()): FilaDeGasto {
+  return { ...filaVacia(id, hoy), categoria: '' };
 }
 
 export function importeDeLaFila(
@@ -317,6 +330,7 @@ export function valoresDelFormulario(
       detalle: gasto.descripcion,
       monto: gasto.monto_centavos,
       enLaApertura: false,
+      categoria: categoriaDeGastoLeida((gasto as Partial<Gasto>).categoria) ?? '',
     })),
     opciones: opciones.map((opcion) => ({
       id: opcion.id,
@@ -397,6 +411,7 @@ export function pedidoDeGuardado(
     fecha: fila.fecha,
     descripcion: fila.detalle.trim(),
     monto_centavos: monto(fila.monto),
+    categoria: fila.categoria === '' ? null : fila.categoria,
   }));
 
   const opciones: OpcionParaGuardar[] = valores.opciones.map((fila) => ({

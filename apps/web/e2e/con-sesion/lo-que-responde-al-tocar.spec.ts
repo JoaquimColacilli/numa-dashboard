@@ -302,6 +302,96 @@ test('el fondo del segmentado viaja estirándose y termina debajo del elegido, c
   expect(await debajo()).toBeLessThanOrEqual(1);
 });
 
+test('el período de Estadísticas es el mismo segmentado: viaja, termina debajo del elegido y se mueve con las flechas', async ({
+  page,
+}, testInfo) => {
+  const clienteId = await crearCliente(sesion, 'E2E Cliente de las estadísticas');
+  await guardarProyectoPorRpc(sesion, {
+    proyecto: {
+      id: crypto.randomUUID(),
+      version: null,
+      cliente_id: clienteId,
+      titulo: 'E2E Placard en curso',
+      estado: 'en_curso',
+      presupuesto_centavos: 90_000_000,
+      comprobante: 'sin_comprobante',
+      fecha_inicio: hoyEnElTaller(),
+    },
+    pagos: [],
+    gastos: [],
+  });
+  await page.goto('/estadisticas');
+  const grupo = page.getByRole('group', { name: 'Período' });
+  await expect(grupo).toBeVisible(CARGA);
+  const pista = grupo.locator('div:has(> [data-fondo-del-elegido])');
+  await hastaQueQuede(page);
+
+  const debajo = async () =>
+    pista.evaluate((nodo) => {
+      const fondo = nodo.querySelector('[data-fondo-del-elegido]');
+      const elegido = nodo.querySelector('label:has(input:checked)');
+      if (fondo === null || elegido === null) return null;
+      const a = fondo.getBoundingClientRect();
+      const b = elegido.getBoundingClientRect();
+      return Math.max(
+        Math.abs(a.left - b.left),
+        Math.abs(a.right - b.right),
+        Math.abs(a.top - b.top),
+        Math.abs(a.bottom - b.bottom),
+      );
+    });
+  expect(await debajo()).toBeLessThanOrEqual(1);
+
+  const viaje = await pista.evaluate(async (nodo) => {
+    const fondo = nodo.querySelector('[data-fondo-del-elegido]');
+    const destino = [...nodo.querySelectorAll('label')].at(-1);
+    if (fondo === null || destino === undefined) throw new Error('sin fondo o sin destino');
+    const anchos: number[] = [];
+    destino.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    destino.click();
+    const desde = performance.now();
+    await new Promise<void>((listo) => {
+      const paso = () => {
+        anchos.push(fondo.getBoundingClientRect().width);
+        if (performance.now() - desde < 500) requestAnimationFrame(paso);
+        else listo();
+      };
+      requestAnimationFrame(paso);
+    });
+    return { final: anchos.at(-1) ?? 0, mayor: Math.max(...anchos) };
+  });
+  console.log(
+    `${testInfo.project.name}, el fondo del período: ${viaje.final.toFixed(1)} px al final, ${viaje.mayor.toFixed(1)} px estirado`,
+  );
+  expect(viaje.mayor).toBeGreaterThan(viaje.final * 1.3);
+  await expect(page).toHaveURL(/\/estadisticas\?meses=todo$/);
+  await hastaQueQuede(page);
+  expect(await debajo()).toBeLessThanOrEqual(1);
+  const sinElFoco = () =>
+    page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    });
+  await sinElFoco();
+  const alTerminar = await pista.screenshot();
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pista.locator('label').first().click();
+  await pista.locator('label').last().click();
+  await hastaQueQuede(page);
+  await sinElFoco();
+  await igualA(page, 'periodo', alTerminar, await pista.screenshot(), testInfo);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+  await grupo.getByRole('radio', { name: 'Todo' }).focus();
+  await arbol(grupo, 'el período con el foco en Todo', testInfo);
+  await page.keyboard.press('ArrowLeft');
+  await expect(grupo.getByRole('radio', { name: '12 meses' })).toBeChecked();
+  await expect(grupo.getByRole('radio', { name: '12 meses' })).toBeFocused();
+  await expect(page).toHaveURL(/\/estadisticas\?meses=12$/);
+  await hastaQueQuede(page);
+  expect(await debajo()).toBeLessThanOrEqual(1);
+});
+
 test('el menú del más crece desde el botón con las acciones escalonadas, sale hacia él y al elegir se va en el acto', async ({
   page,
   isMobile,

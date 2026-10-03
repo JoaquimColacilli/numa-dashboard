@@ -1,6 +1,8 @@
 import {
   analisisDeEntregas,
   BASES_DE_OBLIGACION,
+  CATEGORIAS_DE_COSTO,
+  categoriaDeGastoLeida,
   centavosEn,
   cotizacionLeida,
   esDeLaMoneda,
@@ -22,26 +24,35 @@ import {
   type AnalisisDeEntregas,
   type AporteDelMes,
   type BaseDeLaObligacion,
+  type CambioDeEstadoParaLasEstadisticas,
   type CambioDeFechaParaElAnalisis,
+  type CategoriaDeCosto,
   type Cobertura,
+  type CostosEstimados,
+  type DatosDeLasEstadisticas,
   type DatosDelLibro,
   type DatosDelMes,
   type EntradaDeLaLiquidacion,
   type EstadoLiquidado,
   type Fila,
+  type GastoDelTaller,
   type GastoDeUnTesoro,
+  type GastoDeUnTrabajo,
   type ImporteDeUnPago,
   type LiquidacionDelMes,
+  type LiquidacionParaLasEstadisticas,
   type LiquidacionRegistrada,
   type ModoDePaso,
   type Moneda,
   type Money,
+  type NecesidadParaLasEstadisticas,
   type Plata,
   type SaldosPorId,
   type SaldosPorTesoro,
   type Tesoro,
   type TesorosDelSistema,
   type TrabajoParaElAnalisis,
+  type TrabajoParaLasEstadisticas,
 } from '@maun/domain';
 
 import { gastosDeLosTesoros } from './agenda.ts';
@@ -684,29 +695,167 @@ export interface DatosDelAnalisis {
   cambios: CambioDeFechaParaElAnalisis[];
 }
 
+function trabajoParaElAnalisis(proyecto: FilaDe<'proyectos'>): TrabajoParaElAnalisis {
+  const quizas = proyecto as Partial<typeof proyecto>;
+  return {
+    id: proyecto.id,
+    titulo: proyecto.titulo,
+    tipo: quizas.tipo_de_proyecto ?? null,
+    estado: proyecto.estado,
+    inicio: proyecto.fecha_inicio,
+    listo: quizas.listo_el ?? null,
+    entregado: proyecto.fecha_entrega,
+  };
+}
+
+function cambioDeFechaParaElAnalisis(
+  cambio: FilaDe<'cambios_de_fecha'>,
+): CambioDeFechaParaElAnalisis {
+  return {
+    id: cambio.id,
+    proyectoId: cambio.proyecto_id,
+    tipo: cambio.tipo,
+    fecha: cambio.fecha,
+    origen: cambio.origen,
+    creadoEn: cambio.created_at,
+    trabajosEnCurso: cambio.trabajos_en_curso,
+  };
+}
+
 export function datosDelAnalisis(replica: Replica): DatosDelAnalisis {
   return {
-    trabajos: filasDe(replica, 'proyectos').map((proyecto) => {
-      const quizas = proyecto as Partial<typeof proyecto>;
-      return {
-        id: proyecto.id,
-        titulo: proyecto.titulo,
-        tipo: quizas.tipo_de_proyecto ?? null,
-        estado: proyecto.estado,
-        inicio: proyecto.fecha_inicio,
-        listo: quizas.listo_el ?? null,
-        entregado: proyecto.fecha_entrega,
-      };
-    }),
-    cambios: filasDe(replica, 'cambios_de_fecha').map((cambio) => ({
-      id: cambio.id,
-      proyectoId: cambio.proyecto_id,
-      tipo: cambio.tipo,
-      fecha: cambio.fecha,
-      origen: cambio.origen,
-      creadoEn: cambio.created_at,
-      trabajosEnCurso: cambio.trabajos_en_curso,
-    })),
+    trabajos: filasDe(replica, 'proyectos').map(trabajoParaElAnalisis),
+    cambios: filasDe(replica, 'cambios_de_fecha').map(cambioDeFechaParaElAnalisis),
+  };
+}
+
+function precioDelTrabajo(proyecto: FilaDe<'proyectos'>, moneda: Moneda): Money<Moneda> | null {
+  return proyecto.presupuesto_centavos === null
+    ? null
+    : centavosEn(moneda, proyecto.presupuesto_centavos);
+}
+
+function costosEstimadosDe(proyecto: FilaDe<'proyectos'>): CostosEstimados {
+  const quizas = proyecto as Partial<FilaDe<'proyectos'>>;
+  const costos = {} as Record<CategoriaDeCosto, Money | null>;
+  for (const categoria of CATEGORIAS_DE_COSTO) {
+    const guardado = quizas[`costo_${categoria}_centavos`] ?? null;
+    costos[categoria] = guardado === null ? null : dinero(guardado);
+  }
+  return costos;
+}
+
+function liquidacionParaLasEstadisticas(
+  proyecto: FilaDe<'proyectos'>,
+): LiquidacionParaLasEstadisticas[] {
+  const { estado, fecha_cobro: fecha, dist_cobrado_centavos: cobrado } = proyecto;
+  if (estado !== 'cobrado' && estado !== 'perdido') return [];
+  if (fecha === null || cobrado === null) return [];
+  const moneda = monedaDelTrabajo(proyecto);
+  const quizas = proyecto as Partial<FilaDe<'proyectos'>>;
+  return [
+    {
+      id: proyecto.id,
+      titulo: proyecto.titulo,
+      estado,
+      fecha,
+      cobrado: dinero(cobrado),
+      gastos: dinero(proyecto.dist_gastos_centavos ?? 0),
+      moneda,
+      precio: precioDelTrabajo(proyecto, moneda),
+      costos: costosEstimadosDe(proyecto),
+      cotizacionDeLosCostos: cotizacionLeida(quizas.costos_cotizacion_centavos ?? null),
+    },
+  ];
+}
+
+export function datosDeLasEstadisticas(replica: Replica): DatosDeLasEstadisticas {
+  const proyectos = filasDe(replica, 'proyectos');
+  const vivos = new Set(proyectos.map((proyecto) => proyecto.id));
+  const totales = totalesPorProyecto(replica);
+  const maun = idDeLaClave(replica, 'maun');
+
+  const gastosDeLosTrabajos: GastoDeUnTrabajo[] = filasDe(replica, 'gastos').flatMap((gasto) =>
+    vivos.has(gasto.proyecto_id)
+      ? [
+          {
+            id: gasto.id,
+            proyectoId: gasto.proyecto_id,
+            fecha: gasto.fecha,
+            monto: dinero(gasto.monto_centavos),
+            categoria: categoriaDeGastoLeida((gasto as Partial<FilaDe<'gastos'>>).categoria),
+          },
+        ]
+      : [],
+  );
+
+  const gastosDelTaller: GastoDelTaller[] = filasDe(replica, 'movimientos').flatMap((movimiento) =>
+    movimiento.tipo === 'gasto' && movimientoConIds(replica, movimiento).desdeId === maun
+      ? [
+          {
+            id: movimiento.id,
+            fecha: movimiento.fecha,
+            monto: dinero(movimiento.monto_centavos),
+            categoria: movimiento.categoria,
+          },
+        ]
+      : [],
+  );
+
+  const necesidades: NecesidadParaLasEstadisticas[] = filasDe(replica, 'necesidades').flatMap(
+    (necesidad) =>
+      vivos.has(necesidad.proyecto_id)
+        ? [
+            {
+              proyectoId: necesidad.proyecto_id,
+              tipo: necesidad.tipo,
+              nombre: necesidad.nombre,
+              alta: necesidad.created_at,
+            },
+          ]
+        : [],
+  );
+
+  const trabajos: TrabajoParaLasEstadisticas[] = proyectos.map((proyecto) => {
+    const quizas = proyecto as Partial<FilaDe<'proyectos'>>;
+    const moneda = monedaDelTrabajo(proyecto);
+    return {
+      ...trabajoParaElAnalisis(proyecto),
+      clienteId: proyecto.cliente_id,
+      moneda,
+      precio: precioDelTrabajo(proyecto, moneda),
+      descontado: totales.get(proyecto.id)?.cobradoEnSuMoneda.importe ?? centavosEn(moneda, 0),
+      entregaEstimada: quizas.entrega_estimada ?? null,
+      entregaComprometida: quizas.entrega_comprometida ?? null,
+    };
+  });
+
+  const cambiosDeEstado: CambioDeEstadoParaLasEstadisticas[] = filasDe(
+    replica,
+    'cambios_de_estado',
+  ).flatMap((cambio) =>
+    vivos.has(cambio.proyecto_id)
+      ? [
+          {
+            id: cambio.id,
+            proyectoId: cambio.proyecto_id,
+            desde: cambio.desde,
+            hacia: cambio.hacia,
+            ocurrioEl: cambio.ocurrio_el,
+            anotadoEn: cambio.updated_at,
+          },
+        ]
+      : [],
+  );
+
+  return {
+    liquidaciones: proyectos.flatMap(liquidacionParaLasEstadisticas),
+    gastosDeLosTrabajos,
+    gastosDelTaller,
+    necesidades,
+    trabajos,
+    cambiosDeEstado,
+    cambiosDeFecha: filasDe(replica, 'cambios_de_fecha').map(cambioDeFechaParaElAnalisis),
   };
 }
 

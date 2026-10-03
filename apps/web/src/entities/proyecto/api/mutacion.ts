@@ -24,6 +24,7 @@ import {
   type CambiosDeProyecto,
   type CambiosDeTareas,
   type FilaDe,
+  type GastoParaGuardar,
   type NecesidadParaGuardar,
   type PagoParaGuardar,
   type ProyectoGuardado,
@@ -244,6 +245,28 @@ export function filaDelPagoGuardado(
   };
 }
 
+type GastoVivo = Extract<GastoParaGuardar, { descripcion: string }>;
+
+export function filaDelGastoGuardado(
+  gasto: GastoVivo,
+  previo: FilaDe<'gastos'> | undefined,
+  { householdId, proyectoId, ahora }: { householdId: string; proyectoId: string; ahora: string },
+): FilaDe<'gastos'> {
+  return {
+    id: gasto.id,
+    household_id: householdId,
+    proyecto_id: proyectoId,
+    fecha: gasto.fecha,
+    descripcion: gasto.descripcion,
+    monto_centavos: gasto.monto_centavos,
+    categoria: gasto.categoria === undefined ? (previo?.categoria ?? null) : gasto.categoria,
+    created_at: previo?.created_at ?? ahora,
+    updated_at: ahora,
+    deleted_at: null,
+    version: previo?.version ?? 1,
+  };
+}
+
 function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
   const household = householdDe(replica);
   if (!household) return replica;
@@ -336,19 +359,15 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
       siguiente = quitarFilaLocal(siguiente, 'gastos', gasto.id);
       continue;
     }
-    const previo = filaPorId(siguiente, 'gastos', gasto.id);
-    siguiente = aplicarFilaLocal(siguiente, 'gastos', {
-      id: gasto.id,
-      household_id: household.id,
-      proyecto_id: pedido.id,
-      fecha: gasto.fecha,
-      descripcion: gasto.descripcion,
-      monto_centavos: gasto.monto_centavos,
-      created_at: previo?.created_at ?? ahora,
-      updated_at: ahora,
-      deleted_at: null,
-      version: previo?.version ?? 1,
-    });
+    siguiente = aplicarFilaLocal(
+      siguiente,
+      'gastos',
+      filaDelGastoGuardado(gasto, filaPorId(siguiente, 'gastos', gasto.id), {
+        householdId: household.id,
+        proyectoId: pedido.id,
+        ahora,
+      }),
+    );
   }
 
   for (const opcion of pedido.opciones ?? []) {

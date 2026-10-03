@@ -139,6 +139,8 @@ export function rutaDelMovimiento(id: string): string {
 
 export const RUTA_DE_DIEZMO = '/diezmo';
 
+export const RUTA_DE_LAS_ESTADISTICAS = '/estadisticas';
+
 export const RUTA_DE_TESOROS = '/tesoros';
 
 export const RUTA_DE_AJUSTES = '/ajustes';

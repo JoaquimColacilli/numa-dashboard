@@ -87,3 +87,4 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0081](0081-los-tesoros-en-dolares.md)                                      | Los tesoros en dólares: una moneda por tesoro y la fila en pesos    | Aceptada             |
 | [0082](0082-la-app-en-tres-idiomas.md)                                      | La app en tres idiomas: catálogos a mano, la persona y los clientes | Aceptada             |
 | [0083](0083-los-trabajos-en-dolares.md)                                     | Los trabajos en dólares: dos cuentas por pago y el cobro en pesos   | Aceptada             |
+| [0084](0084-las-estadisticas-del-taller.md)                                 | Las estadísticas del taller: seis preguntas y pesos de hoy          | Aceptada             |

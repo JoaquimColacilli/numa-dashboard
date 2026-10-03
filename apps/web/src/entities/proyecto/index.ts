@@ -72,6 +72,7 @@ export {
   COSTOS_DEL_TRABAJO,
   hayCostosEstimados,
   margenDelTrabajo,
+  nombreDeLaCategoria,
   totalEstimado,
   type CostoDelTrabajo,
 } from './model/costos';
@@ -187,12 +188,14 @@ export {
   type Urgencia,
 } from './model/entrega';
 export {
+  CATEGORIAS_EN_EL_FORMULARIO,
   cambiaLaFila,
   conLaOpcionAprobada,
   datosDelFormulario,
   esquemaDeProyecto,
   estadosDisponibles,
   filaVacia,
+  gastoVacio,
   importeDeLaFila,
   opcionVacia,
   pagoVacio,
@@ -202,6 +205,7 @@ export {
   totalesDeLosPagos,
   valoresDelFormulario,
   versionDelGuardado,
+  type FilaDeGasto,
   type FilaDeOpcion,
   type FilaDePago,
   type FilaDinamica,

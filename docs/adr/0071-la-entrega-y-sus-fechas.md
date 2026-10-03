@@ -19,6 +19,10 @@
   lo dice («Calculada a 30 días hábiles del inicio, el plazo del presupuesto.»); sin presupuesto mandado,
   siguen los 21 días hábiles. Si se aprueba otro importe que el mandado, el pasaje lo avisa antes de
   confirmar. La primera estimada del analítico es la que quede guardada al aprobar, como hasta ahora.
+- Enmendado el 2026-10-03 por el [ADR 0084](0084-las-estadisticas-del-taller.md): la tarjeta del
+  analítico en Historial arma su frase con el catálogo, en el idioma de la app: el dominio devuelve los
+  números y ya no escribe la frase (en inglés y en portugués salía en castellano). La sección ③ de
+  Estadísticas usa las mismas definiciones del analítico, y en «Todo» da sus mismos números.
 
 ## Contexto
 

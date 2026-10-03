@@ -235,6 +235,7 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Entradas / Salidas | Money in / Money out | Entradas / Saídas | Finanzas |
 | Entró al hogar / Gastó el hogar / Facturó el taller | Household income / Household spending / Shop revenue | Receita da casa / Gastos da casa / Faturamento da marcenaria | Inicio y Finanzas |
 | insumos | supplies | insumos | Inicio, la fila |
+| Categoría (de un gasto): Madera, Herrajes, Flete, Ayudante, Otro / Sin elegir | Category: Wood, Hardware, Freight, Helper, Other / Not chosen | Categoria: Madeira, Ferragens, Frete, Ajudante, Outro / Não escolhida | El formulario y la ficha del trabajo |
 | Panorama / Accesos | Overview / Shortcuts | Panorama / Atalhos | Inicio |
 | Pendiente de cobro | Awaiting payment | A receber | Inicio |
 | paso (de la fila) / renglón / ficha | step / item / card | etapa / item / cartão | La fila y Tesoros |
@@ -326,6 +327,18 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Lo que te dejó en la visita. | What they left you at the visit. | O que o cliente deixou na visita. | La hoja del contacto, una seña en dólares |
 | Poné el presupuesto que aprobó, en dólares. | Enter the quote they approved, in dollars. | Informe o orçamento que o cliente aprovou, em dólares. | El pase a aprobado |
 | Flecha de la fila | Waterfall arrow | Seta da fila | El lienzo de Tesoros, para el lector de pantalla |
+| Estadísticas / Cómo viene el taller | Stats / How the shop is doing | Estatísticas / Como vai a marcenaria | Estadísticas, la navegación y la hoja del perfil |
+| Lo que te dejaron los trabajos | What your jobs left you | O que os projetos te deixaram | Estadísticas |
+| pesos de hoy / en pesos de cada mes / ya contando la inflación | today's pesos / in each month's pesos / counting inflation | pesos de hoje / em pesos de cada mês / já contando a inflação | Estadísticas |
+| Período: 3 meses, 6 meses, 12 meses, Todo / contra … hasta el mismo día | Period: 3 months, 6 months, 12 months, All / vs. … up to the same day | Período: 3 meses, 6 meses, 12 meses, Tudo / vs. … até o mesmo dia | Estadísticas |
+| Trimestre (T1 a T4) / sin registro | Quarter (Q1 to Q4) / no records | Trimestre (T1 a T4) / sem registro | Las columnas de Estadísticas |
+| Gastaste / Tiempo de entrega / Te aprobaron / Conformes (las tarjetas) | You spent / Delivery time / Approved / Satisfied | Você gastou / Tempo de entrega / Aprovados / Gostaram | Estadísticas |
+| Sin categoría / En los trabajos / En el taller (lo gastado) | Uncategorized / On jobs / On the shop | Sem categoria / Nos projetos / Na marcenaria | Estadísticas |
+| Lo que más usás | What you use most | O que você mais usa | Estadísticas |
+| a tiempo / tarde / sin fecha prometida / la mitad, en menos de … | on time / late / no promised date / half, in under … | no prazo / atrasado / sem data prometida / metade, em menos de … | Estadísticas |
+| Presupuestos mandados / Se volvieron trabajo / Sigue abierta / Perdida | Quotes sent / Became jobs / Still open / Lost | Orçamentos enviados / Viraram projetos / Em aberto / Perdida | Estadísticas |
+| Los tiempos / El trato (las preguntas de la encuesta, en corto) | Timing / Service | Prazos / Atendimento | Estadísticas |
+| Por cobrar / Te deben / Pasó los N días / Atrasado N días | Awaiting payment / You're owed / Over N days / N days late | A receber / Falta receber / Passou de N dias / N dias de atraso | Estadísticas |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del
@@ -341,4 +354,7 @@ media» / «Siga a gente nas redes»; la conformidad en portugués con «Gostei�
 «Instalação de eletrodomésticos não inclusa»; «When dollars are involved»; «at the (date) dollar rate of»; «Informamos o
 valor…», en primera persona del plural; «dollar clause» para «cláusula de la moneda»; «the rate for payments made on» y «a
 cotação válida para pagamentos feitos em»; «Valid for (day)» cuando ese día ya pasó, que dice para qué día vale y no si
-todavía vale; «Vale para o dia 1º de outubro»; «Waterfall arrow».
+todavía vale; «Vale para o dia 1º de outubro»; «Waterfall arrow»; «Stats», más corto que «Statistics»; «What your jobs left
+you» y «O que os projetos te deixaram», con el *te* de Brasil; «Gostaram» para la tarjeta «Conformes», que sigue a «Gostei» de
+la encuesta; «Satisfied» con la escala de la encuesta; «Timing» y «Service» para los tiempos y el trato; «Over N days» y
+«Passou de N dias» para «Pasó los N días»; «Q1» en inglés y «T1» en portugués para el trimestre.

@@ -14,6 +14,7 @@ const LEEN_DE_LA_REPLICA = [
   '/tesoros',
   '/opiniones',
   '/diezmo',
+  '/estadisticas',
 ];
 
 const RUTAS = [...LEEN_DE_LA_REPLICA, RUTA_DE_PROYECTO_NUEVO].map((path) => ({ path }));

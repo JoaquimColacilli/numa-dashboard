@@ -311,12 +311,13 @@ create table public.cambios_de_estado (
   constraint cambios_de_estado_pkey PRIMARY KEY (id),
   constraint cambios_de_estado_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id)
 );
-comment on table public.cambios_de_estado is 'Cuándo el trabajo pasó de una etapa a otra. Lo escribe un trigger sobre proyectos y nadie más: no hay grant de insert ni de update para la app. Hoy no lo muestra ninguna pantalla; se guarda desde ahora porque la línea de tiempo que el cliente va a ver necesita fechas que no se pueden reconstruir después (ADR 0046).';
+comment on table public.cambios_de_estado is 'Cuándo el trabajo pasó de una etapa a otra. Lo escribe un trigger sobre proyectos y nadie más: no hay grant de insert ni de update para la app. Viaja en la réplica y avisa sus cambios como las demás tablas del delta: la página de Estadísticas arma con ella el embudo de las consultas (ADR 0084), y la vista del cliente saca de acá las fechas que no se pueden reconstruir después (ADR 0046). Como no tiene borrado lógico, bootstrap() trae solo las filas de los trabajos vivos.';
 comment on column public.cambios_de_estado.desde is 'La etapa de la que salió. Null en el alta del trabajo.';
 comment on column public.cambios_de_estado.ocurrio_el is 'El día del cambio, en la hora del taller. El taller está en Argentina y un cambio guardado a las diez de la noche no puede quedar anotado al día siguiente.';
 comment on column public.cambios_de_estado.deleted_at is 'Sin uso: el registro no se borra. La columna está porque toda tabla del household la tiene.';
 CREATE INDEX cambios_de_estado_household_actualizado ON public.cambios_de_estado USING btree (household_id, updated_at);
 CREATE INDEX cambios_de_estado_household_proyecto ON public.cambios_de_estado USING btree (household_id, proyecto_id, ocurrio_el);
+CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON cambios_de_estado FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON cambios_de_estado FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
 alter table public.cambios_de_estado enable row level security;
 create policy cambios_de_estado_lectura on public.cambios_de_estado as permissive
@@ -348,7 +349,7 @@ create table public.cambios_de_fecha (
   constraint cambios_de_fecha_pkey PRIMARY KEY (id),
   constraint cambios_de_fecha_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id)
 );
-comment on table public.cambios_de_fecha is 'La historia de las fechas prometidas de cada trabajo: cada entrega estimada que se fija con el trabajo en curso y cada entrega comprometida, con quién la fijó, el día en el taller y cuántos otros trabajos había en curso ese día. La escribe un trigger sobre proyectos y nadie más: el dueño solo tiene select. La primera de cada trabajo y tipo es la línea de base contra la que el analítico mide la entrega real. Está en la réplica, al revés que cambios_de_estado: son pocas filas y el analítico la lee en el aparato (ADR 0071).';
+comment on table public.cambios_de_fecha is 'La historia de las fechas prometidas de cada trabajo: cada entrega estimada que se fija con el trabajo en curso y cada entrega comprometida, con quién la fijó, el día en el taller y cuántos otros trabajos había en curso ese día. La escribe un trigger sobre proyectos y nadie más: el dueño solo tiene select. La primera de cada trabajo y tipo es la línea de base contra la que el analítico mide la entrega real. Está en la réplica, como cambios_de_estado: el analítico la lee en el aparato (ADR 0071 y 0084).';
 comment on column public.cambios_de_fecha.fecha is 'La fecha que quedó, o null si se sacó.';
 comment on column public.cambios_de_fecha.fecha_anterior is 'La fecha de la fila anterior del mismo trabajo y tipo, o null si es la primera.';
 comment on column public.cambios_de_fecha.franja is 'La franja de la comprometida, si la tiene.';
@@ -591,6 +592,8 @@ create table public.gastos (
   updated_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone,
   version integer not null default 1,
+  categoria text,
+  constraint gastos_categoria_valida CHECK (categoria = ANY (ARRAY['madera'::text, 'herrajes'::text, 'flete'::text, 'ayudante'::text, 'otro'::text])),
   constraint gastos_descripcion_largo CHECK (char_length(descripcion) <= 500),
   constraint gastos_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
   constraint gastos_monto_positivo CHECK (monto_centavos > 0),
@@ -600,6 +603,7 @@ create table public.gastos (
 comment on table public.gastos is 'Gastos imputados a un proyecto: materiales, herrajes, flete. Salen de MAUN y restan de la ganancia neta.';
 comment on column public.gastos.monto_centavos is 'Importe gastado, en centavos. Siempre positivo.';
 comment on column public.gastos.deleted_at is 'Borrado lógico. No se puede tocar un gasto de un proyecto cobrado.';
+comment on column public.gastos.categoria is 'En qué se gastó: madera, herrajes, flete, ayudante u otro, las cuatro de los costos estimados más «otro» (ADR 0084). Null es «sin categoría»: lo cargado antes de la columna y lo que se carga sin elegir. La escribe guardar_proyecto solo si el pedido trae la clave.';
 CREATE INDEX gastos_household_actualizado ON public.gastos USING btree (household_id, updated_at);
 CREATE INDEX gastos_household_proyecto ON public.gastos USING btree (household_id, proyecto_id);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON gastos FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
@@ -618,8 +622,8 @@ create policy gastos_lectura on public.gastos as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.gastos to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.gastos to service_role;
-grant insert (id, proyecto_id, fecha, descripcion, monto_centavos, deleted_at) on public.gastos to authenticated;
-grant update (id, proyecto_id, fecha, descripcion, monto_centavos, deleted_at) on public.gastos to authenticated;
+grant insert (id, proyecto_id, fecha, descripcion, monto_centavos, deleted_at, categoria) on public.gastos to authenticated;
+grant update (id, proyecto_id, fecha, descripcion, monto_centavos, deleted_at, categoria) on public.gastos to authenticated;
 
 create table public.household_members (
   id uuid not null default private.uuidv7(),
@@ -1907,6 +1911,14 @@ AS $function$
     'cambios_de_fecha', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_fecha t where t.deleted_at is null
     ),
+    'cambios_de_estado', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_estado t
+      where t.deleted_at is null
+        and exists (
+          select 1 from public.proyectos p
+          where p.household_id = t.household_id and p.id = t.proyecto_id and p.deleted_at is null
+        )
+    ),
     'fotos_de_la_vidriera', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.deleted_at is null
     ),
@@ -2182,6 +2194,9 @@ begin
     ),
     'cambios_de_fecha', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_fecha t where t.updated_at >= v_desde
+    ),
+    'cambios_de_estado', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.cambios_de_estado t where t.updated_at >= v_desde
     ),
     'fotos_de_la_vidriera', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.fotos_de_la_vidriera t where t.updated_at >= v_desde
@@ -2854,17 +2869,28 @@ begin
     cotizacion_centavos = excluded.cotizacion_centavos,
     tesoro_id = excluded.tesoro_id;
 
-  insert into public.gastos (id, proyecto_id, fecha, descripcion, monto_centavos)
-  select r.id, v_fila.id, r.fecha::date, coalesce(r.descripcion, ''), r.monto_centavos
-  from jsonb_to_recordset(p_gastos) as r (
-    id uuid, fecha text, descripcion text, monto_centavos bigint, borrado boolean
+  -- La categoría de un gasto usa el patrón de la clave presente, como la moneda de un pago: sin la
+  -- clave (un bundle viejo) queda la que tenía el gasto, y un gasto nuevo nace sin categoría. Se lee
+  -- como texto y una vacía es null: un '' rechazado por el check sería un rechazo definitivo que tapa
+  -- la cola (ADR 0084).
+  insert into public.gastos (id, proyecto_id, fecha, descripcion, monto_centavos, categoria)
+  select r.id, v_fila.id, r.fecha::date, coalesce(r.descripcion, ''), r.monto_centavos,
+         case
+           when e ? 'categoria' then nullif(btrim(r.categoria), '')
+           else g.categoria
+         end
+  from jsonb_array_elements(p_gastos) as e
+  cross join lateral jsonb_to_record(e) as r (
+    id uuid, fecha text, descripcion text, monto_centavos bigint, categoria text, borrado boolean
   )
+  left join public.gastos g on g.id = r.id
   where not coalesce(r.borrado, false)
   on conflict (id) do update set
     proyecto_id = excluded.proyecto_id,
     fecha = excluded.fecha,
     descripcion = excluded.descripcion,
-    monto_centavos = excluded.monto_centavos;
+    monto_centavos = excluded.monto_centavos,
+    categoria = excluded.categoria;
 
   -- Las opciones solo se tocan si el pedido las trae: p_opciones en null es un bundle viejo, que no
   -- las conoce y no tiene por qué borrarlas.
@@ -3074,7 +3100,7 @@ begin
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function guardar_proyecto(jsonb,jsonb,jsonb,jsonb,jsonb,jsonb) is 'Guarda un proyecto con sus pagos, sus gastos, sus opciones de presupuesto, lo que hace falta para el trabajo y su próximo contacto en una sola transacción, idempotente por el id del proyecto. El alta es un upsert; la edición manda la version que vio el cliente y se rechaza con MN006 si la fila cambió. Las bajas de las filas hijas vienen marcadas con borrado en su propio array. Un pago sin fecha se rechaza con MN016: la fecha la manda la app (ADR 0063); la guarda de la tabla rechaza además una fecha que todavía no llegó y una marca de la apertura que no corresponde. Con opciones vivas, el presupuesto del proyecto sale de la opción aprobada y no de lo que manda el cliente. Entrar en seguimiento, cambiar la fecha y registrar el contacto viajan en p_proximos junto con el estado, y la guarda diferida exige que el trabajo en seguimiento tenga su contacto pendiente (MN019, ADR 0064); al entrar, la etapa a la que vuelve la pone la base. Hasta cuándo vale el presupuesto (presupuesto_vale_hasta), el día en que quedó listo (listo_el), la entrega comprometida con su franja y el tipo de proyecto se escriben solo si la clave viene en el pedido, como el vencimiento (ADR 0067 y 0071); con el trabajo en curso la entrega real va en null, y antes de aprobar el listo y la comprometida también. p_opciones, p_necesidades y p_proximos en null quieren decir "no toques eso", para que un bundle viejo no lo borre; lo mismo la clave ya_en_la_apertura de cada pago. La moneda del trabajo y la moneda, la cotización y el tesoro de cada pago usan el mismo patrón de la clave presente; sin la clave de la moneda (una app sin actualizar), cambiar el presupuesto o una opción de un trabajo en dólares, o el importe de un pago en dólares, rebota con MN038 (ADR 0081). Los cuatro costos estimados, su dólar y lo que te paga en no los escribe esta función: van por un update de sus columnas solas.';
+comment on function guardar_proyecto(jsonb,jsonb,jsonb,jsonb,jsonb,jsonb) is 'Guarda un proyecto con sus pagos, sus gastos, sus opciones de presupuesto, lo que hace falta para el trabajo y su próximo contacto en una sola transacción, idempotente por el id del proyecto. El alta es un upsert; la edición manda la version que vio el cliente y se rechaza con MN006 si la fila cambió. Las bajas de las filas hijas vienen marcadas con borrado en su propio array. Un pago sin fecha se rechaza con MN016: la fecha la manda la app (ADR 0063); la guarda de la tabla rechaza además una fecha que todavía no llegó y una marca de la apertura que no corresponde. Con opciones vivas, el presupuesto del proyecto sale de la opción aprobada y no de lo que manda el cliente. Entrar en seguimiento, cambiar la fecha y registrar el contacto viajan en p_proximos junto con el estado, y la guarda diferida exige que el trabajo en seguimiento tenga su contacto pendiente (MN019, ADR 0064); al entrar, la etapa a la que vuelve la pone la base. Hasta cuándo vale el presupuesto (presupuesto_vale_hasta), el día en que quedó listo (listo_el), la entrega comprometida con su franja y el tipo de proyecto se escriben solo si la clave viene en el pedido, como el vencimiento (ADR 0067 y 0071); con el trabajo en curso la entrega real va en null, y antes de aprobar el listo y la comprometida también. p_opciones, p_necesidades y p_proximos en null quieren decir "no toques eso", para que un bundle viejo no lo borre; lo mismo la clave ya_en_la_apertura de cada pago. La moneda del trabajo y la moneda, la cotización y el tesoro de cada pago usan el mismo patrón de la clave presente, y también la categoría de cada gasto (ADR 0084); sin la clave de la moneda (una app sin actualizar), cambiar el presupuesto o una opción de un trabajo en dólares, o el importe de un pago en dólares, rebota con MN038 (ADR 0081). Los cuatro costos estimados, su dólar y lo que te paga en no los escribe esta función: van por un update de sus columnas solas.';
 
 CREATE OR REPLACE FUNCTION public.mandar_el_presupuesto(p_presupuesto_id uuid, p_revision_id uuid, p_version integer, p_documento jsonb, p_que_cambio text, p_mandado_el date, p_vale_hasta date, p_idioma text DEFAULT NULL::text)
  RETURNS jsonb

@@ -13,6 +13,7 @@ import {
   analisisDeLaReplica,
   baseDelReparto,
   coberturasDeLaReplica,
+  datosDeLasEstadisticas,
   datosDelAnalisis,
   datosDelMesDeLaReplica,
   entradaDeLaLiquidacion,
@@ -1238,4 +1239,262 @@ describe('volver a cobrar el cobro del 25/9 de MAUN, que se había congelado por
       });
     },
   );
+});
+
+describe('los datos de las estadísticas', () => {
+  const CLIENTE = 'c1';
+
+  function etapa(id: string, proyecto: string, desde: string | null, hacia: string, dia: string) {
+    return {
+      id,
+      proyecto_id: proyecto,
+      desde,
+      hacia,
+      ocurrio_el: dia,
+      updated_at: `${dia}T15:00:00Z`,
+      version: 1,
+      deleted_at: null,
+    };
+  }
+
+  function necesidad(id: string, proyecto: string, tipo: string, nombre: string, alta: string) {
+    return {
+      id,
+      proyecto_id: proyecto,
+      tipo,
+      nombre,
+      created_at: alta,
+      version: 1,
+      deleted_at: null,
+    };
+  }
+
+  const PROYECTOS = [
+    liquidado('cobrado', {
+      titulo: 'Placard de pasillo',
+      cliente_id: CLIENTE,
+      fecha_cobro: '2026-09-25',
+      dist_cobrado_centavos: 100_000_000,
+      dist_gastos_centavos: 30_000_000,
+      presupuesto_centavos: 120_000_000,
+      costo_madera_centavos: 20_000_000,
+      costo_herrajes_centavos: null,
+      costo_flete_centavos: 0,
+      costo_ayudante_centavos: null,
+      costos_cotizacion_centavos: null,
+      moneda: 'ARS',
+      fecha_inicio: '2026-09-01',
+      fecha_entrega: '2026-09-20',
+      entrega_estimada: '2026-09-18',
+      entrega_comprometida: '2026-09-19',
+    }),
+    liquidado('perdido', {
+      titulo: 'Rack del living',
+      estado: 'perdido',
+      cliente_id: CLIENTE,
+      dist_cobrado_centavos: 5_000_000,
+      dist_gastos_centavos: null,
+      presupuesto_centavos: null,
+    }),
+    liquidado('sin-cobro', { cliente_id: CLIENTE, fecha_cobro: null, presupuesto_centavos: null }),
+    {
+      ...trabajo('dolares', 'en_curso'),
+      cliente_id: CLIENTE,
+      moneda: 'USD',
+      presupuesto_centavos: 150_000,
+      fecha_inicio: '2026-09-15',
+      fecha_entrega: null,
+      entrega_estimada: '2026-10-20',
+      entrega_comprometida: null,
+    },
+  ];
+
+  const MOVIMIENTOS = [
+    movimiento('m1', {
+      tesoro_origen: 'maun',
+      desde_id: MAUN,
+      categoria: 'Herramientas',
+      monto_centavos: 2_000_000,
+      fecha: '2026-09-12',
+    }),
+    movimiento('m2', { desde_id: MAUN, categoria: 'Otro', monto_centavos: 300_000 }),
+    movimiento('m3', { tesoro_origen: 'maun', categoria: 'Luz', monto_centavos: 400_000 }),
+    movimiento('m4', { tesoro_origen: 'hogar', desde_id: HOGAR, categoria: 'Supermercado' }),
+    movimiento('m5', { tipo: 'ingreso', tesoro_destino: 'maun', hacia_id: MAUN }),
+    movimiento('m6', {
+      tipo: 'transferencia',
+      tesoro_origen: 'maun',
+      desde_id: MAUN,
+      tesoro_destino: 'cocos',
+      hacia_id: COCOS,
+    }),
+    movimiento('m7', { desde_id: FIJOS, categoria: 'Alquiler' }),
+    movimiento('m8', {
+      tipo: 'ajuste',
+      tesoro_origen: 'maun',
+      desde_id: MAUN,
+      categoria: 'Apertura',
+    }),
+  ];
+
+  function conTodo(): Replica {
+    return replicaCon({
+      ajustes: [AJUSTES],
+      tesoros: [...LOS_DE_SIEMPRE, tesoro(FIJOS, null, 'Gastos fijos')],
+      proyectos: PROYECTOS,
+      pagos: [
+        pago('pa1', 'dolares', 50_000, {
+          moneda: 'USD',
+          cotizacion_centavos: 140_000,
+          tesoro_id: DOLARES,
+        }),
+      ],
+      gastos: [
+        { ...gasto('g1', 'cobrado', 30_000_000), categoria: 'madera' },
+        gasto('g2', 'dolares', 1_000_000),
+        { ...gasto('g3', 'dolares', 500_000), categoria: 'Madera' },
+        gasto('g9', 'de-otro-lado', 700_000),
+      ],
+      movimientos: MOVIMIENTOS,
+      necesidades: [
+        necesidad('n1', 'cobrado', 'material', 'Melamina blanca', '2026-09-02T23:30:00Z'),
+        necesidad('n9', 'de-otro-lado', 'herraje', 'Bisagra', '2026-09-02T12:00:00Z'),
+      ],
+      cambios_de_estado: [
+        etapa('e1', 'cobrado', null, 'contacto', '2026-08-20'),
+        etapa('e2', 'cobrado', 'contacto', 'en_curso', '2026-09-01'),
+        etapa('e9', 'de-otro-lado', null, 'contacto', '2026-09-03'),
+      ],
+      cambios_de_fecha: [{ ...ESTIMADA, proyecto_id: 'cobrado' }],
+    });
+  }
+
+  it('salen de la réplica: lo liquidado, los gastos con su categoría, los de Maun, lo que se usó, los trabajos y sus etapas', () => {
+    const datos = datosDeLasEstadisticas(conTodo());
+
+    expect(datos.liquidaciones).toEqual([
+      {
+        id: 'cobrado',
+        titulo: 'Placard de pasillo',
+        estado: 'cobrado',
+        fecha: '2026-09-25',
+        cobrado: 100_000_000,
+        gastos: 30_000_000,
+        moneda: 'ARS',
+        precio: 120_000_000,
+        costos: { madera: 20_000_000, herrajes: null, flete: 0, ayudante: null },
+        cotizacionDeLosCostos: null,
+      },
+      {
+        id: 'perdido',
+        titulo: 'Rack del living',
+        estado: 'perdido',
+        fecha: '2026-09-10',
+        cobrado: 5_000_000,
+        gastos: 0,
+        moneda: 'ARS',
+        precio: null,
+        costos: { madera: null, herrajes: null, flete: null, ayudante: null },
+        cotizacionDeLosCostos: null,
+      },
+    ]);
+    expect(datos.gastosDeLosTrabajos).toEqual([
+      {
+        id: 'g1',
+        proyectoId: 'cobrado',
+        fecha: '2026-09-05',
+        monto: 30_000_000,
+        categoria: 'madera',
+      },
+      { id: 'g2', proyectoId: 'dolares', fecha: '2026-09-05', monto: 1_000_000, categoria: null },
+      { id: 'g3', proyectoId: 'dolares', fecha: '2026-09-05', monto: 500_000, categoria: null },
+    ]);
+    expect(datos.gastosDelTaller).toEqual([
+      { id: 'm1', fecha: '2026-09-12', monto: 2_000_000, categoria: 'Herramientas' },
+      { id: 'm2', fecha: '2026-09-15', monto: 300_000, categoria: 'Otro' },
+      { id: 'm3', fecha: '2026-09-15', monto: 400_000, categoria: 'Luz' },
+    ]);
+    expect(datos.necesidades).toEqual([
+      {
+        proyectoId: 'cobrado',
+        tipo: 'material',
+        nombre: 'Melamina blanca',
+        alta: '2026-09-02T23:30:00Z',
+      },
+    ]);
+    expect(datos.trabajos.map((uno) => uno.id)).toEqual([
+      'cobrado',
+      'dolares',
+      'perdido',
+      'sin-cobro',
+    ]);
+    expect(datos.trabajos[0]).toEqual({
+      id: 'cobrado',
+      titulo: 'Placard de pasillo',
+      tipo: null,
+      estado: 'cobrado',
+      inicio: '2026-09-01',
+      listo: null,
+      entregado: '2026-09-20',
+      clienteId: CLIENTE,
+      moneda: 'ARS',
+      precio: 120_000_000,
+      descontado: 0,
+      entregaEstimada: '2026-09-18',
+      entregaComprometida: '2026-09-19',
+    });
+    expect(datos.trabajos[1]).toMatchObject({
+      id: 'dolares',
+      estado: 'en_curso',
+      moneda: 'USD',
+      precio: 150_000,
+      descontado: 50_000,
+      entregaEstimada: '2026-10-20',
+      entregaComprometida: null,
+    });
+    expect(datos.cambiosDeEstado).toEqual([
+      {
+        id: 'e1',
+        proyectoId: 'cobrado',
+        desde: null,
+        hacia: 'contacto',
+        ocurrioEl: '2026-08-20',
+        anotadoEn: '2026-08-20T15:00:00Z',
+      },
+      {
+        id: 'e2',
+        proyectoId: 'cobrado',
+        desde: 'contacto',
+        hacia: 'en_curso',
+        ocurrioEl: '2026-09-01',
+        anotadoEn: '2026-09-01T15:00:00Z',
+      },
+    ]);
+    expect(datos.cambiosDeFecha).toEqual(datosDelAnalisis(conTodo()).cambios);
+    expect(datos.cambiosDeFecha).toMatchObject([{ id: 'f1', proyectoId: 'cobrado' }]);
+  });
+
+  it('una réplica guardada antes de los cambios de etapa y de la categoría de los gastos se lee sin ellos', () => {
+    const completa = conTodo();
+    const { cambios_de_estado: _etapas, ...sinEtapas } = completa.tablas;
+    const guardada = { ...completa, tablas: sinEtapas } as unknown as Replica;
+
+    const datos = datosDeLasEstadisticas(guardada);
+    expect(datos.cambiosDeEstado).toEqual([]);
+    expect(datos.gastosDeLosTrabajos.find((uno) => uno.id === 'g2')?.categoria).toBeNull();
+    expect(datos.liquidaciones).toHaveLength(2);
+  });
+
+  it('lo liquidado es lo mismo que suma el mes: cada neta es la de liquidacionesDelMesDeLaReplica', () => {
+    const replica = conTodo();
+    const deLasEstadisticas = datosDeLasEstadisticas(replica)
+      .liquidaciones.map((uno) => `${uno.fecha} ${String(uno.cobrado - uno.gastos)}`)
+      .sort();
+    const delMes = liquidacionesDelMesDeLaReplica(replica)
+      .map((uno) => `${uno.fecha} ${String(uno.neta)}`)
+      .sort();
+
+    expect(deLasEstadisticas).toEqual(delMes);
+    expect(delMes).toEqual(['2026-09-10 5000000', '2026-09-25 70000000']);
+  });
 });
