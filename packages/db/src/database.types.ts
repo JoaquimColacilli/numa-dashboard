@@ -653,6 +653,7 @@ export type Database = {
       };
       gastos: {
         Row: {
+          categoria: string | null;
           created_at: string;
           deleted_at: string | null;
           descripcion: string;
@@ -665,6 +666,7 @@ export type Database = {
           version: number;
         };
         Insert: {
+          categoria?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           descripcion?: string;
@@ -677,6 +679,7 @@ export type Database = {
           version?: number;
         };
         Update: {
+          categoria?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           descripcion?: string;

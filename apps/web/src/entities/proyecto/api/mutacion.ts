@@ -344,6 +344,7 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
       fecha: gasto.fecha,
       descripcion: gasto.descripcion,
       monto_centavos: gasto.monto_centavos,
+      categoria: previo?.categoria ?? null,
       created_at: previo?.created_at ?? ahora,
       updated_at: ahora,
       deleted_at: null,
