@@ -18,6 +18,7 @@ export const TABLAS_REPLICADAS = [
   'propuestas_de_entrega',
   'respuestas_de_entrega',
   'cambios_de_fecha',
+  'cambios_de_estado',
   'movimientos',
   'anotaciones',
   'archivos',
@@ -124,6 +125,7 @@ export function aplicarLote(
   const tablas: TablasMutables = {};
 
   for (const tabla of TABLAS_REPLICADAS) {
+    if (modo === 'delta' && !(tabla in replica.tablas)) continue;
     const filas =
       modo === 'reconcile'
         ? new Map<string, FilaSincronizable>()

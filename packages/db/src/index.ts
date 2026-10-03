@@ -94,6 +94,7 @@ export {
   aperturaDeLaReplica,
   baseDelReparto,
   coberturasDeLaReplica,
+  datosDeLasEstadisticas,
   datosDelAnalisis,
   datosDelLibro,
   datosDelMesDeLaReplica,

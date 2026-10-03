@@ -85,6 +85,12 @@ describe('leerLote', () => {
     expect(() => leerLote({ cursor: 'x', clientes: [] })).toThrow(/households/);
   });
 
+  it('rechaza la respuesta de una base sin los cambios de etapa: la migración sale antes que la app que los lee', () => {
+    const cuerpo: Record<string, unknown> = { cursor: 'x' };
+    for (const tabla of TABLAS_REPLICADAS) if (tabla !== 'cambios_de_estado') cuerpo[tabla] = [];
+    expect(() => leerLote(cuerpo)).toThrow(/cambios_de_estado/);
+  });
+
   it('rechaza una fila sin los campos que la sincronización necesita', () => {
     expect(() => lote('x', { clientes: [{ id: 'c1', version: 1 }] })).toThrow(/deleted_at/);
     expect(() => lote('x', { clientes: [{ id: 'c1', version: 1.5, deleted_at: null }] })).toThrow(
@@ -237,7 +243,7 @@ describe('lecturas de la réplica', () => {
     expect(ajustesDe(replica)).toMatchObject({ sueldo_mensual_centavos: 180000000 });
   });
 
-  it('una réplica guardada sin una tabla nueva se lee como vacía en esa tabla y se completa con un delta', () => {
+  it('una réplica guardada sin una tabla nueva se lee como vacía en esa tabla, y un delta no la crea: la trae el reconcile', () => {
     const vieja = conClientes('t1', [cruda('c1', 1)]);
     const { anotaciones: _anotaciones, ...sinAnotaciones } = vieja.tablas;
     const guardada = { ...vieja, tablas: sinAnotaciones } as unknown as Replica;
@@ -249,12 +255,16 @@ describe('lecturas de la réplica', () => {
 
     const siguiente = aplicarLote(
       guardada,
-      lote('t2', { anotaciones: [cruda('n1', 1, { texto: 'Comprar melamina' })] }),
+      lote('t2', {
+        clientes: [cruda('c2', 1)],
+        anotaciones: [cruda('n1', 1, { texto: 'Comprar melamina' })],
+      }),
       'delta',
       AHORA,
     );
-    expect(ids(siguiente, 'anotaciones')).toEqual(['n1']);
-    expect(ids(siguiente, 'clientes')).toEqual(['c1']);
+    expect(ids(siguiente, 'clientes')).toEqual(['c1', 'c2']);
+    expect('anotaciones' in siguiente.tablas).toBe(false);
+    expect(necesitaReconcile(siguiente, AHORA)).toBe(true);
   });
 
   it('filaPorId encuentra la fila y no inventa una que no está', () => {
@@ -346,6 +356,29 @@ describe('necesitaReconcile', () => {
     expect(filasDe(guardada, 'presupuestos')).toEqual([]);
     expect(filasDe(guardada, 'revisiones_del_presupuesto')).toEqual([]);
     expect(necesitaReconcile(guardada, AHORA)).toBe(true);
+  });
+
+  it('una réplica guardada antes de que viajaran los cambios de etapa se lee sin ellos y pide el reconcile que los trae', () => {
+    const vieja = conClientes('t1', [cruda('c1', 1)], 'reconcile', AHORA);
+    const { cambios_de_estado: _etapas, ...sinEtapas } = vieja.tablas;
+    const guardada = { ...vieja, tablas: sinEtapas } as unknown as Replica;
+
+    expect(filasDe(guardada, 'cambios_de_estado')).toEqual([]);
+    expect(necesitaReconcile(guardada, AHORA)).toBe(true);
+
+    const completa = aplicarLote(
+      replicaVacia(USUARIO),
+      lote('t2', {
+        cambios_de_estado: [
+          cruda('e1', 1, { proyecto_id: 'p1', desde: null, hacia: 'contacto' }),
+          cruda('e2', 1, { proyecto_id: 'p1', desde: 'contacto', hacia: 'relevamiento' }),
+        ],
+      }),
+      'reconcile',
+      AHORA,
+    );
+    expect(ids(completa, 'cambios_de_estado')).toEqual(['e1', 'e2']);
+    expect(necesitaReconcile(completa, AHORA)).toBe(false);
   });
 
   it('el bootstrap trae el borrador y las revisiones, y un borrado los saca', () => {
