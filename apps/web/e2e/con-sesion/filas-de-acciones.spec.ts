@@ -1,5 +1,6 @@
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import {
   contactoPorRpc,
   crearCliente,

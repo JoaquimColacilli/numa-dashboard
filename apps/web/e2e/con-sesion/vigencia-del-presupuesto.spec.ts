@@ -1,5 +1,6 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { listoParaCortar } from '../apoyo/pantalla';
 import {
   ajustarTaller,

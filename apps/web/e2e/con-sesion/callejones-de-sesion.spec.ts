@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { listoParaCortar } from '../apoyo/pantalla';
 
 const REFRESCO_DEL_TOKEN = /\/auth\/v1\/token\?grant_type=refresh_token/;

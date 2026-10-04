@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { indicadorDeSync } from '../apoyo/pantalla';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import { iniciarSesionDePrueba, type SesionDePrueba } from '../apoyo/taller';

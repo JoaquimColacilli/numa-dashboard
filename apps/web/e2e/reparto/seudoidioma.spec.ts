@@ -1,13 +1,13 @@
 import {
   devices,
   expect,
-  test,
   type Browser,
   type BrowserContext,
   type Page,
   type TestInfo,
 } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { textosCortados, textosFueraDelCatalogo } from '../apoyo/seudoidioma';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import {

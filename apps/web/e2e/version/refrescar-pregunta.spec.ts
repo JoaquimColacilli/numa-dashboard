@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { apoyar, dedo, levantar, mover, tirarYSoltar } from '../apoyo/dedo';
 import { indicadorDeSync, listoParaCortar } from '../apoyo/pantalla';
 import { sinTransicionEnCurso } from '../apoyo/transiciones';

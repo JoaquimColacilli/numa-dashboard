@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { ajustarTaller, iniciarSesionDePrueba, vaciarTaller } from '../apoyo/taller';
 
 test.skip(({ isMobile }) => !isMobile, 'Inicio scrollea en el ancho del celular');

@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { RAIZ_DE_LA_APP } from '../apoyo/entorno';
 import { dedo, tirarYSoltar } from '../apoyo/dedo';
 import {

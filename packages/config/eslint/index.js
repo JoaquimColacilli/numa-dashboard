@@ -221,6 +221,15 @@ const LO_QUE_VE_EL_CLIENTE = [
   'src/shared/pdf/**/*.{ts,tsx}',
 ];
 
+const LA_TRABA_DE_LA_FACTURACION = {
+  name: '@playwright/test',
+  importNames: ['test'],
+  message:
+    'Un spec con sesión toma test de e2e/apoyo/prueba, que lleva la traba de las rutas de la facturación (ADR 0085): ningún e2e le pide nada a ARCA.',
+};
+
+const LOS_SPECS_CON_SESION = 'e2e/{con-sesion,reparto,transiciones,version}/**/*.spec.ts';
+
 const EL_ESCENARIO_DEL_COORDINADOR = 'src/app/navegacion/escenario.ts';
 
 const LA_PUERTA_Y_EL_COORDINADOR = [
@@ -363,6 +372,10 @@ export function web(dir, { zonasQueFaltan = [] } = {}) {
     {
       files: ['src/shared/api/**/*.test.{ts,tsx}'],
       rules: prohibirImportsYNombres([SISTEMA_DE_DISENO], [TRANSICIONES_DEL_ROUTER]),
+    },
+    {
+      files: [LOS_SPECS_CON_SESION],
+      rules: prohibirImportsYNombres([], [LA_TRABA_DE_LA_FACTURACION]),
     },
     {
       files: ['src/**/*.tsx'],

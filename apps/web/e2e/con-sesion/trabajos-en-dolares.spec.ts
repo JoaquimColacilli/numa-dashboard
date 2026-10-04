@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
-import { expect, test, type Download, type Locator, type Page } from '@playwright/test';
+import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { listoParaCortar } from '../apoyo/pantalla';
 import {
   ajustarCobroDelTaller,

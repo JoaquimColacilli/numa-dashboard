@@ -1,5 +1,6 @@
-import { devices, expect, test, type Browser, type Page, type TestInfo } from '@playwright/test';
+import { devices, expect, type Browser, type Page, type TestInfo } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { listoParaCortar } from '../apoyo/pantalla';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import {

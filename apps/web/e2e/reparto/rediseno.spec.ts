@@ -4,7 +4,6 @@ import path from 'node:path';
 import {
   devices,
   expect,
-  test,
   type Browser,
   type BrowserContext,
   type Locator,
@@ -12,6 +11,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import {
   crearCliente,

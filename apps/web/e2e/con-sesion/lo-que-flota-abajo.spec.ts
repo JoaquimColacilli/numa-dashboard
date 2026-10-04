@@ -1,5 +1,6 @@
-import { expect, test, type CDPSession, type Page } from '@playwright/test';
+import { expect, type CDPSession, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import {
   ajustarTaller,
   contactoPorRpc,

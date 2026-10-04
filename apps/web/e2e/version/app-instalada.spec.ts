@@ -2,8 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { chromium, expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { chromium, expect, type BrowserContext, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import {
   abrirLaVersionA,
   aviso,

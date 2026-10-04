@@ -1,5 +1,6 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { listoParaCortar } from '../apoyo/pantalla';
 import {
   contactoPorRpc,
