@@ -52,6 +52,8 @@ export const cliente = {
     cuitConOtroPrefijo:
       'Os CUIT começam com 20, 23, 24, 27, 30, 33 ou 34. Salve assim mesmo se foi o que passaram para você.',
     cuitQueNoCierra: 'O dígito verificador não bate. Confira, mas dá para salvar assim mesmo.',
+    dniInvalido:
+      'Um DNI (documento de identidade argentino) tem 7 ou 8 números. Deixe vazio se não tiver à mão.',
   },
   contacto: {
     llamar: 'Ligar',

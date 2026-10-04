@@ -19,6 +19,11 @@ export const editarCliente = {
   condicionFrenteAlIva: 'Condición frente al IVA',
   condicionYComprobante: (condicion: string, comprobante: string): string =>
     `${condicion}. Emite ${comprobante}.`,
+  dni: 'DNI',
+  dniParaFacturar: (umbral: string): string =>
+    `Hace falta para facturar trabajos de ${umbral} o más.`,
+  cuit: 'CUIT',
+  cuitParaFacturar: 'Si te pide la factura con su CUIT.',
   razonSocial: 'Razón social',
   siFacturaAUnaEmpresa: 'Si factura a una empresa',
   domicilioFiscal: 'Domicilio fiscal',

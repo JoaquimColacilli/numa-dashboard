@@ -5,4 +5,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.editarCliente.condicionYComprobante('«CONDICIÓN»', '«COMPROBANTE»'),
     tieneQueDecir: ['«CONDICIÓN»', '«COMPROBANTE»'],
   },
+  'editarCliente.dniParaFacturar': {
+    llamar: (m) => m.editarCliente.dniParaFacturar('«UMBRAL»'),
+    tieneQueDecir: ['«UMBRAL»'],
+  },
 };

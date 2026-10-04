@@ -1,4 +1,4 @@
-import { formatearCuit, LARGO_DE_CUIT, revisarCuit } from '@maun/domain';
+import { formatearCuit, LARGO_DE_CUIT, revisarCuit, revisarDni } from '@maun/domain';
 import { z } from 'zod';
 
 import { COLUMNAS_DE_CLIENTE, type DatosDeCliente } from '@/shared/api';
@@ -17,6 +17,15 @@ function largoDeCuitAceptable(cuit: string): boolean {
   return revision.estado !== 'invalido' || revision.motivo !== 'largo';
 }
 
+function dniAceptable(dni: string): boolean {
+  return revisarDni(dni).estado !== 'invalido';
+}
+
+function dniParaGuardar(dni: string): string {
+  const revision = revisarDni(dni);
+  return revision.estado === 'valido' ? revision.dni : '';
+}
+
 export const CLIENTE_EN_BLANCO: DatosDeCliente = {
   nombre: '',
   zona: '',
@@ -27,6 +36,7 @@ export const CLIENTE_EN_BLANCO: DatosDeCliente = {
   origen_detalle: '',
   condicion_fiscal: 'consumidor_final',
   cuit: '',
+  dni: '',
   razon_social: '',
   domicilio_fiscal: '',
   notas: '',
@@ -53,6 +63,7 @@ export const esquemaDeCliente = z.object({
   cuit: texto(20).refine(largoDeCuitAceptable, {
     error: () => textos().cuitIncompleto(LARGO_DE_CUIT),
   }),
+  dni: texto(20).refine(dniAceptable, { error: () => textos().dniInvalido }),
   razon_social: texto(200),
   domicilio_fiscal: texto(500),
   notas: texto(10_000),
@@ -84,6 +95,7 @@ export function valoresDelFormulario(cliente: Cliente | undefined): FormularioDe
     origen_detalle: datos.origen_detalle,
     condicion_fiscal: datos.condicion_fiscal,
     cuit: datos.cuit,
+    dni: (datos as Partial<DatosDeCliente>).dni ?? '',
     razon_social: datos.razon_social,
     domicilio_fiscal: datos.domicilio_fiscal,
     notas: datos.notas,
@@ -91,7 +103,7 @@ export function valoresDelFormulario(cliente: Cliente | undefined): FormularioDe
 }
 
 export function datosDelFormulario(valores: FormularioDeCliente): DatosDeCliente {
-  return { ...valores, cuit: formatearCuit(valores.cuit) };
+  return { ...valores, cuit: formatearCuit(valores.cuit), dni: dniParaGuardar(valores.dni) };
 }
 
 export function cambiosDeCliente(

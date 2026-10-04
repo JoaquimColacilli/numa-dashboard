@@ -1,4 +1,4 @@
-import { formatearCuit } from '@maun/domain';
+import { formatearCuit, UMBRAL_DE_IDENTIFICACION_CENTAVOS } from '@maun/domain';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef } from 'react';
@@ -23,7 +23,7 @@ import {
 } from '@/entities/cliente';
 import { mensajeDeSincronizacion, type DatosDeCliente } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
-import { metaDeAvisos, uuidv7 } from '@/shared/lib';
+import { formatearPesos, metaDeAvisos, uuidv7 } from '@/shared/lib';
 import { Button, Campo, FilaDeAcciones, FondoDelElegido, Hoja } from '@/shared/ui';
 
 export interface HojaDeClienteProps {
@@ -216,6 +216,41 @@ export function HojaDeCliente({ cliente, nombreInicial, alCerrar, alGuardar }: H
                 )}
               </span>
             </fieldset>
+
+            {!pideDatosFiscales(condicion) && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Campo
+                  {...register('dni')}
+                  etiqueta={textos.dni}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="tabular-nums"
+                  error={errors.dni?.message}
+                  ayuda={
+                    errors.dni?.message === undefined
+                      ? textos.dniParaFacturar(formatearPesos(UMBRAL_DE_IDENTIFICACION_CENTAVOS))
+                      : undefined
+                  }
+                />
+                <Campo
+                  {...register('cuit', {
+                    onBlur: (evento: { target: { value: string } }) => {
+                      setValue('cuit', formatearCuit(evento.target.value));
+                    },
+                  })}
+                  etiqueta={textos.cuit}
+                  inputMode="numeric"
+                  placeholder="20-12345678-9"
+                  className="tabular-nums"
+                  error={errors.cuit?.message}
+                  ayuda={
+                    errors.cuit?.message === undefined
+                      ? (advertencia ?? textos.cuitParaFacturar)
+                      : undefined
+                  }
+                />
+              </div>
+            )}
 
             {pideDatosFiscales(condicion) && (
               <>

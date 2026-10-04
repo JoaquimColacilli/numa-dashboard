@@ -45,6 +45,7 @@ export const paginaClientes = {
     comprobante: 'Document',
     cuit: 'CUIT',
     cuitOCuil: 'CUIT / CUIL',
+    dni: 'DNI',
     razonSocial: 'Legal name',
     domicilioFiscal: 'Tax address',
     historial: 'History',

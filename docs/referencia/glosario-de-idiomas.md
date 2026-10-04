@@ -344,6 +344,7 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Facturación (la sección de Ajustes) / datos de facturación | Invoicing / invoicing details | Faturamento / dados de faturamento | Ajustes y los rechazos |
 | inicio de actividades | business start date | início das atividades | Los datos de facturación |
 | alerta / «Ya lo revisé» | alert / checked | alerta / revisado | Inicio |
+| DNI (no se traduce; donde se explica) | DNI (Argentine national ID) | DNI (documento de identidade argentino) | La hoja del cliente |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del

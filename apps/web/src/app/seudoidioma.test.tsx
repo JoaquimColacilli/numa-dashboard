@@ -125,6 +125,15 @@ const AJUSTES = {
   plantilla_del_presupuesto: null,
   plantilla_del_presupuesto_version: 0,
   idioma_de_los_clientes: 'es',
+  facturacion_ambiente: null,
+  facturacion_cuit: '',
+  facturacion_punto_de_venta: null,
+  facturacion_desde: null,
+  facturacion_alertas: [],
+  facturacion_concepto: 1,
+  facturacion_categoria: null,
+  facturacion_ingresos_brutos: '',
+  facturacion_inicio_de_actividades: null,
 } satisfies FilaDe<'ajustes'>;
 
 const CLIENTE = {
@@ -137,6 +146,7 @@ const CLIENTE = {
   zona: 'Palermo',
   notas: '',
   cuit: '',
+  dni: '',
   razon_social: '',
   domicilio_fiscal: '',
   condicion_fiscal: 'consumidor_final',
