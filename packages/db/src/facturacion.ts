@@ -56,6 +56,7 @@ export interface ErrorDeArca {
 
 export interface RechazoDeArca {
   errores: readonly ErrorDeArca[];
+  observaciones: readonly ErrorDeArca[];
   motivo: string | null;
 }
 
@@ -250,12 +251,19 @@ function leerError(valor: unknown): ErrorDeArca | null {
   };
 }
 
-export function leerRechazoDeArca(valor: Json | null | undefined): RechazoDeArca {
-  if (!esObjeto(valor)) return { errores: [], motivo: null };
-  const errores = Array.isArray(valor.errores)
-    ? valor.errores.map(leerError).filter((error): error is ErrorDeArca => error !== null)
+function mensajesDeArca(valor: unknown): ErrorDeArca[] {
+  return Array.isArray(valor)
+    ? valor.map(leerError).filter((error): error is ErrorDeArca => error !== null)
     : [];
-  return { errores, motivo: textoONada(valor.motivo) };
+}
+
+export function leerRechazoDeArca(valor: Json | null | undefined): RechazoDeArca {
+  if (!esObjeto(valor)) return { errores: [], observaciones: [], motivo: null };
+  return {
+    errores: mensajesDeArca(valor.errores),
+    observaciones: mensajesDeArca(valor.observaciones),
+    motivo: textoONada(valor.motivo),
+  };
 }
 
 function leerCertificado(valor: unknown): CertificadoDelTaller | null {

@@ -169,15 +169,39 @@ describe('lo que contestó ARCA al rechazar', () => {
   it('lee los errores con su código y el motivo de una a revisar', () => {
     expect(
       leerRechazoDeArca({ errores: [{ codigo: 10015, mensaje: 'El documento no es válido' }] }),
-    ).toEqual({ errores: [{ codigo: 10015, mensaje: 'El documento no es válido' }], motivo: null });
+    ).toEqual({
+      errores: [{ codigo: 10015, mensaje: 'El documento no es válido' }],
+      observaciones: [],
+      motivo: null,
+    });
     expect(leerRechazoDeArca({ motivo: 'datos distintos' })).toEqual({
       errores: [],
+      observaciones: [],
       motivo: 'datos distintos',
     });
     expect(
       leerRechazoDeArca({ errores: [{ codigo: '10016', mensaje: 'x' }] }).errores[0]?.codigo,
     ).toBe(10016);
-    expect(leerRechazoDeArca(null)).toEqual({ errores: [], motivo: null });
+    expect(leerRechazoDeArca(null)).toEqual({ errores: [], observaciones: [], motivo: null });
+  });
+
+  it('lee también las observaciones, que es donde vienen los motivos de una factura rechazada', () => {
+    expect(
+      leerRechazoDeArca({
+        errores: [],
+        observaciones: [
+          { codigo: 10243, mensaje: 'La condición frente al IVA no corresponde' },
+          { codigo: 'x', mensaje: 'sin código' },
+        ],
+      }),
+    ).toEqual({
+      errores: [],
+      observaciones: [
+        { codigo: 10243, mensaje: 'La condición frente al IVA no corresponde' },
+        { codigo: null, mensaje: 'sin código' },
+      ],
+      motivo: null,
+    });
   });
 });
 
