@@ -30,6 +30,7 @@ export {
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,
+  mesCortoConAnio,
   mesDeLaFecha,
   mesEnUnaFrase,
   nombreDelMes,

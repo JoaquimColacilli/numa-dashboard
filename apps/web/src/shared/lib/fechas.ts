@@ -151,6 +151,14 @@ export function nombreDelMes(mes: string, idioma: Idioma = idiomaActual()): stri
   return marcada(escribirElMes(mes, idioma));
 }
 
+export function mesCortoConAnio(mes: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es') {
+    return marcada(conIntl(`${mes}-01`, idioma, { month: 'short', year: 'numeric' }));
+  }
+  const numero = Number(mes.slice(5, 7));
+  return marcada(`${MESES_CORTOS[numero - 1] ?? ''}. ${mes.slice(0, 4)}`);
+}
+
 export function mesEnUnaFrase(mes: string, idioma: Idioma = idiomaActual()): string {
   const nombre = nombreDelMes(mes, idioma);
   return idioma === 'en' ? nombre : nombre.toLocaleLowerCase(ETIQUETAS_DE_IDIOMA[idioma]);

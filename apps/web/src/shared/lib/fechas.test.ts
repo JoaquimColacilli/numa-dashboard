@@ -18,6 +18,7 @@ import {
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,
+  mesCortoConAnio,
   mesDeLaFecha,
   mesEnUnaFrase,
   nombreDelMes,
@@ -59,6 +60,13 @@ describe('la fecha corta de la facturación', () => {
   it('en inglés y en portugués nombra el mes', () => {
     expect(fechaCorta('2028-10-02', 'en')).toBe('Oct 2, 2028');
     expect(fechaCorta('2028-10-02', 'pt-BR')).toBe('2 de out. de 2028');
+  });
+
+  it('el mes corto con su año, para el rango de lo facturado', () => {
+    expect(mesCortoConAnio('2025-11')).toBe('nov. 2025');
+    expect(mesCortoConAnio('2026-05')).toBe('may. 2026');
+    expect(mesCortoConAnio('2025-11', 'en')).toBe('Nov 2025');
+    expect(mesCortoConAnio('2025-11', 'pt-BR')).toBe('nov. de 2025');
   });
 
   it('sin el año, el día y el mes en números, con el orden de cada idioma', () => {

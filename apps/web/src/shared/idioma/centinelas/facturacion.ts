@@ -137,6 +137,70 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.facturacion.cobro.aNombreDe('«NOMBRE»', '«CONDICIÓN»'),
     tieneQueDecir: ['«NOMBRE»', '«CONDICIÓN»'],
   },
+  'facturacion.monotributo.categoriaDe': {
+    llamar: (m) => m.facturacion.monotributo.categoriaDe('«LETRA»'),
+    tieneQueDecir: ['«LETRA»'],
+  },
+  'facturacion.monotributo.rango': {
+    llamar: (m) => m.facturacion.monotributo.rango('«DESDE»'),
+    tieneQueDecir: ['«DESDE»'],
+  },
+  'facturacion.monotributo.barra': {
+    llamar: (m) => m.facturacion.monotributo.barra('«POR»', '«LETRA»', '«TOPE»'),
+    tieneQueDecir: ['«POR»', '«LETRA»', '«TOPE»'],
+  },
+  'facturacion.monotributo.deTope': {
+    llamar: (m) => m.facturacion.monotributo.deTope('«POR»', '«TOPE»'),
+    tieneQueDecir: ['«POR»', '«TOPE»'],
+  },
+  'facturacion.monotributo.topeDeLa': {
+    llamar: (m) => m.facturacion.monotributo.topeDeLa('«LETRA»'),
+    tieneQueDecir: ['«LETRA»'],
+  },
+  'facturacion.monotributo.hasta': {
+    llamar: (m) => m.facturacion.monotributo.hasta('«DÍA»'),
+    tieneQueDecir: ['«DÍA»'],
+  },
+  'facturacion.monotributo.cobros': {
+    llamar: (m) => m.facturacion.monotributo.cobros(7),
+    tieneQueDecir: ['7'],
+  },
+  'facturacion.monotributo.cobrosSinFacturarEnPalabras': {
+    llamar: (m) => m.facturacion.monotributo.cobrosSinFacturarEnPalabras(7),
+    tieneQueDecir: ['7'],
+  },
+  'facturacion.monotributo.todosConFactura': {
+    llamar: (m) => m.facturacion.monotributo.todosConFactura('«DESDE»'),
+    tieneQueDecir: ['«DESDE»'],
+  },
+  'facturacion.cobrosSinFacturar.bajada': {
+    llamar: (m) => m.facturacion.cobrosSinFacturar.bajada('«DESDE»'),
+    tieneQueDecir: ['«DESDE»'],
+  },
+  'facturacion.cobrosSinFacturar.vacia': {
+    llamar: (m) => m.facturacion.cobrosSinFacturar.vacia('«DESDE»'),
+    tieneQueDecir: ['«DESDE»'],
+  },
+  'facturacion.cobrosSinFacturar.detalle': {
+    llamar: (m) => m.facturacion.cobrosSinFacturar.detalle('«TRABAJO»', '«DÍA»'),
+    tieneQueDecir: ['«TRABAJO»', '«DÍA»'],
+  },
+  'facturacion.alertas.fueraDeNuma.texto': {
+    llamar: (m) => m.facturacion.alertas.fueraDeNuma.texto('«DOC»', '«PV»', '«ARCA»', '«NUMA»'),
+    tieneQueDecir: ['«DOC»', '«PV»', '«ARCA»', '«NUMA»', 'ARCA'],
+  },
+  'facturacion.alertas.fueraDeNuma.sinNinguna': {
+    llamar: (m) => m.facturacion.alertas.fueraDeNuma.sinNinguna('«DOC»', '«PV»', '«ARCA»'),
+    tieneQueDecir: ['«DOC»', '«PV»', '«ARCA»'],
+  },
+  'facturacion.alertas.aRevisar.texto': {
+    llamar: (m) => m.facturacion.alertas.aRevisar.texto('«DOC»', '«NÚMERO»', '«CLIENTE»'),
+    tieneQueDecir: ['«DOC»', '«NÚMERO»', '«CLIENTE»', 'NUMA'],
+  },
+  'facturacion.alertas.certificado.titulo': {
+    llamar: (m) => m.facturacion.alertas.certificado.titulo('«FECHA»'),
+    tieneQueDecir: ['«FECHA»', 'ARCA'],
+  },
   'facturacion.monotributo.cerca': {
     llamar: (m) => m.facturacion.monotributo.cerca('«LETRA»'),
     tieneQueDecir: ['«LETRA»'],

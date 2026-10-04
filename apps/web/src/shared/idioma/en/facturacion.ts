@@ -330,9 +330,64 @@ export const facturacion = {
       "This job has ARCA invoices and can't be deleted. If it isn't going ahead, mark it as lost.",
   },
   monotributo: {
+    titulo: 'Monotributo',
+    sinCategoria: 'No category',
+    categoriaDe: (letra) => `Category ${letra}`,
+    facturados: 'invoiced in the last 12 months',
+    rango: (desde) => `from ${desde} to today`,
+    barra: (porcentaje, letra, tope) => `${porcentaje}% of the category ${letra} cap, ${tope}`,
+    deTope: (porcentaje, tope) => `${porcentaje}% of ${tope}`,
+    topeDeLa: (letra) => `${letra} cap`,
     cerca: (letra) => `You're getting close to the ${letra} cap.`,
     pasado: (letra) =>
       `You went over the ${letra} cap. At the next category review you'll move to another one: talk to your accountant.`,
     fuera: 'You went over the monotributo cap. Talk to your accountant right away.',
+    proxima: 'Next category review',
+    hasta: (dia) => `by ${dia}`,
+    cobrosSinFacturar: 'Payments not invoiced',
+    cobros: (cuantos) => (cuantos === 1 ? '1 payment' : `${String(cuantos)} payments`),
+    cobrosSinFacturarEnPalabras: (cuantos) =>
+      cuantos === 1 ? '1 payment not invoiced' : `${String(cuantos)} payments not invoiced`,
+    todosConFactura: (desde) => `All your payments since ${desde} have an invoice.`,
+    pie: "It counts what you invoiced with NUMA. If you also invoice elsewhere, check ARCA's Monitor de Facturación too.",
+    elegiTuCategoria: 'Choose your category in Settings to see how far you are from the cap.',
+    elegirLaCategoria: 'Choose the category',
+    enPrueba: "In test mode nothing counts: test invoices aren't real.",
+  },
+  cobrosSinFacturar: {
+    titulo: 'Payments not invoiced',
+    bajada: (desde) => `What you collected in pesos since ${desde} that has no invoice yet.`,
+    vacia: (desde) => `Everything you collected since ${desde} has its invoice.`,
+    detalle: (trabajo, dia) => `${trabajo} · ${dia}`,
+  },
+  alertas: {
+    laFactura: 'Factura C',
+    laNota: 'Nota de crédito C',
+    fueraDeNuma: {
+      tituloDeLaFactura: "ARCA has an invoice NUMA didn't make",
+      tituloDeLaNota: "ARCA has a credit note NUMA didn't make",
+      texto: (documento, puntoDeVenta, deArca, deNuma) =>
+        `At point of sale ${puntoDeVenta}, ARCA is at ${documento} ${deArca} and NUMA made up to ${deNuma}. If you issued it elsewhere, all good; if not, check it on ARCA.`,
+      sinNinguna: (documento, puntoDeVenta, deArca) =>
+        `At point of sale ${puntoDeVenta}, ARCA is at ${documento} ${deArca} and NUMA hasn't made any yet. If you issued it elsewhere, all good; if not, check it on ARCA.`,
+      yaLoRevise: 'Checked',
+    },
+    aRevisar: {
+      tituloDeLaFactura: "There's an invoice to check on ARCA",
+      tituloDeLaNota: "There's a credit note to check on ARCA",
+      texto: (documento, numero, cliente) =>
+        `NUMA requested ${documento} ${numero} for ${cliente} and doesn't know whether it was authorized.`,
+      verElTrabajo: 'See the job',
+    },
+    certificado: {
+      titulo: (fecha) => `The ARCA certificate expires on ${fecha}`,
+      texto: "Without a certificate, NUMA can't invoice. Renew it before that date.",
+      renovar: 'Renew the certificate',
+    },
+    sinAcceso: {
+      titulo: "NUMA couldn't log in to ARCA",
+      texto: 'Requested invoices are waiting. Check the connection in Settings.',
+      probar: 'Check the connection',
+    },
   },
 } satisfies Mensajes['facturacion'];

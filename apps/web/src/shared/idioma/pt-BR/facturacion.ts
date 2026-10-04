@@ -334,9 +334,66 @@ export const facturacion = {
       'Este projeto tem notas fiscais da ARCA e não pode ser excluído. Se não for adiante, marque como perdido.',
   },
   monotributo: {
+    titulo: 'Monotributo',
+    sinCategoria: 'Sem categoria',
+    categoriaDe: (letra) => `Categoria ${letra}`,
+    facturados: 'faturados nos últimos 12 meses',
+    rango: (desde) => `de ${desde} até hoje`,
+    barra: (porcentaje, letra, tope) => `${porcentaje} % do teto da categoria ${letra}, ${tope}`,
+    deTope: (porcentaje, tope) => `${porcentaje} % de ${tope}`,
+    topeDeLa: (letra) => `teto da ${letra}`,
     cerca: (letra) => `Você está chegando ao teto da categoria ${letra}.`,
     pasado: (letra) =>
       `Você passou do teto da categoria ${letra}. Na próxima recategorização você vai para outra: fale com o seu contador.`,
     fuera: 'Você passou do teto do monotributo. Fale com o seu contador já.',
+    proxima: 'Próxima recategorização',
+    hasta: (dia) => `até ${dia}`,
+    cobrosSinFacturar: 'Recebimentos sem nota fiscal',
+    cobros: (cuantos) => (cuantos === 1 ? '1 recebimento' : `${String(cuantos)} recebimentos`),
+    cobrosSinFacturarEnPalabras: (cuantos) =>
+      cuantos === 1
+        ? '1 recebimento sem nota fiscal'
+        : `${String(cuantos)} recebimentos sem nota fiscal`,
+    todosConFactura: (desde) => `Todos os seus recebimentos desde ${desde} têm nota fiscal.`,
+    pie: 'Conta o que você faturou com o NUMA. Se você também fatura por fora, confira no Monitor de Facturación da ARCA.',
+    elegiTuCategoria: 'Escolha sua categoria em Configurações para ver quanto falta para o teto.',
+    elegirLaCategoria: 'Escolher a categoria',
+    enPrueba: 'No modo teste nada conta: as notas fiscais de teste não são de verdade.',
+  },
+  cobrosSinFacturar: {
+    titulo: 'Recebimentos sem nota fiscal',
+    bajada: (desde) => `O que você recebeu em pesos desde ${desde} e ainda não tem nota fiscal.`,
+    vacia: (desde) => `Tudo o que você recebeu desde ${desde} tem nota fiscal.`,
+    detalle: (trabajo, dia) => `${trabajo} · ${dia}`,
+  },
+  alertas: {
+    laFactura: 'a Factura C',
+    laNota: 'a Nota de crédito C',
+    fueraDeNuma: {
+      tituloDeLaFactura: 'A ARCA tem uma nota fiscal que o NUMA não fez',
+      tituloDeLaNota: 'A ARCA tem uma nota de crédito que o NUMA não fez',
+      texto: (documento, puntoDeVenta, deArca, deNuma) =>
+        `No ponto de venda ${puntoDeVenta}, a ARCA está n${documento} ${deArca} e o NUMA fez até a ${deNuma}. Se você fez por fora, está tudo certo; se não, confira na ARCA.`,
+      sinNinguna: (documento, puntoDeVenta, deArca) =>
+        `No ponto de venda ${puntoDeVenta}, a ARCA está n${documento} ${deArca} e o NUMA ainda não fez nenhuma. Se você fez por fora, está tudo certo; se não, confira na ARCA.`,
+      yaLoRevise: 'Revisado',
+    },
+    aRevisar: {
+      tituloDeLaFactura: 'Há uma nota fiscal para conferir na ARCA',
+      tituloDeLaNota: 'Há uma nota de crédito para conferir na ARCA',
+      texto: (documento, numero, cliente) =>
+        `O NUMA solicitou ${documento} ${numero} de ${cliente} e não sabe se ela foi autorizada.`,
+      verElTrabajo: 'Ver o projeto',
+    },
+    certificado: {
+      titulo: (fecha) => `O certificado da ARCA vence em ${fecha}`,
+      texto: 'Sem certificado, o NUMA não consegue emitir notas fiscais. Renove antes dessa data.',
+      renovar: 'Renovar o certificado',
+    },
+    sinAcceso: {
+      titulo: 'O NUMA não conseguiu entrar na ARCA',
+      texto: 'As notas fiscais solicitadas estão esperando. Verifique a conexão em Configurações.',
+      probar: 'Verificar a conexão',
+    },
   },
 } satisfies Mensajes['facturacion'];

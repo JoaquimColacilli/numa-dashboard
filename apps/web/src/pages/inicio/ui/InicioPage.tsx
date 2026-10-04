@@ -38,6 +38,7 @@ import {
   tesorosVivos,
 } from '@/entities/tesoro';
 import { rangoDelFaltante } from '@/features/cubrir-el-faltante';
+import { AlertasDeLaFacturacion } from '@/features/facturar-con-arca';
 import {
   ajustesDe,
   datosDelLibro,
@@ -398,6 +399,8 @@ export function InicioPage() {
       {ancho === 'movil' && <HoyEnLaAgenda replica={replica} hoy={hoy} />}
 
       <LiquidacionesSinConfirmar replica={replica} />
+
+      <AlertasDeLaFacturacion />
 
       {!arranque && (
         <PrincipalYApoyo

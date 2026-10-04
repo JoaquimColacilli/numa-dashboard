@@ -327,9 +327,66 @@ export const facturacion = {
       'Este trabajo tiene facturas de ARCA y no se puede borrar. Si no sigue, dalo por perdido.',
   },
   monotributo: {
+    titulo: 'Monotributo',
+    sinCategoria: 'Sin categoría',
+    categoriaDe: (letra: string) => `Categoría ${letra}`,
+    facturados: 'facturados en los últimos 12 meses',
+    rango: (desde: string) => `de ${desde} a hoy`,
+    barra: (porcentaje: string, letra: string, tope: string) =>
+      `${porcentaje} % del tope de la categoría ${letra}, ${tope}`,
+    deTope: (porcentaje: string, tope: string) => `${porcentaje} % de ${tope}`,
+    topeDeLa: (letra: string) => `tope de la ${letra}`,
     cerca: (letra: string) => `Te acercás al tope de la ${letra}.`,
     pasado: (letra: string) =>
       `Pasaste el tope de la ${letra}. En la próxima recategorización te toca otra: hablalo con tu contador.`,
     fuera: 'Pasaste el tope del monotributo. Hablalo ya con tu contador.',
+    proxima: 'Próxima recategorización',
+    hasta: (dia: string) => `hasta el ${dia}`,
+    cobrosSinFacturar: 'Cobros sin facturar',
+    cobros: (cuantos: number) => (cuantos === 1 ? '1 cobro' : `${String(cuantos)} cobros`),
+    cobrosSinFacturarEnPalabras: (cuantos: number) =>
+      cuantos === 1 ? '1 cobro sin facturar' : `${String(cuantos)} cobros sin facturar`,
+    todosConFactura: (desde: string) => `Todos tus cobros desde el ${desde} tienen factura.`,
+    pie: 'Cuenta lo que facturaste con NUMA. Si facturás por otro lado, miralo también en el Monitor de Facturación de ARCA.',
+    elegiTuCategoria: 'Elegí tu categoría en Ajustes para ver cuánto te falta para el tope.',
+    elegirLaCategoria: 'Elegir la categoría',
+    enPrueba: 'En modo prueba no cuenta nada: las facturas de prueba no son de verdad.',
+  },
+  cobrosSinFacturar: {
+    titulo: 'Cobros sin facturar',
+    bajada: (desde: string) =>
+      `Lo que cobraste en pesos desde el ${desde} y todavía no tiene factura.`,
+    vacia: (desde: string) => `Todo lo que cobraste desde el ${desde} tiene su factura.`,
+    detalle: (trabajo: string, dia: string) => `${trabajo} · ${dia}`,
+  },
+  alertas: {
+    laFactura: 'la factura C',
+    laNota: 'la nota de crédito C',
+    fueraDeNuma: {
+      tituloDeLaFactura: 'ARCA tiene una factura que NUMA no hizo',
+      tituloDeLaNota: 'ARCA tiene una nota de crédito que NUMA no hizo',
+      texto: (documento: string, puntoDeVenta: string, deArca: string, deNuma: string) =>
+        `En el punto de venta ${puntoDeVenta}, ARCA va por ${documento} ${deArca} y NUMA hizo hasta la ${deNuma}. Si la hiciste por otro lado, está todo bien; si no, revisala en ARCA.`,
+      sinNinguna: (documento: string, puntoDeVenta: string, deArca: string) =>
+        `En el punto de venta ${puntoDeVenta}, ARCA va por ${documento} ${deArca} y NUMA todavía no hizo ninguna. Si la hiciste por otro lado, está todo bien; si no, revisala en ARCA.`,
+      yaLoRevise: 'Ya lo revisé',
+    },
+    aRevisar: {
+      tituloDeLaFactura: 'Hay una factura para revisar en ARCA',
+      tituloDeLaNota: 'Hay una nota de crédito para revisar en ARCA',
+      texto: (documento: string, numero: string, cliente: string) =>
+        `NUMA pidió ${documento} ${numero} de ${cliente} y no sabe si quedó autorizada.`,
+      verElTrabajo: 'Ver el trabajo',
+    },
+    certificado: {
+      titulo: (fecha: string) => `El certificado de ARCA vence el ${fecha}`,
+      texto: 'Sin certificado, NUMA no puede facturar. Renovalo antes de esa fecha.',
+      renovar: 'Renovar el certificado',
+    },
+    sinAcceso: {
+      titulo: 'NUMA no pudo entrar a ARCA',
+      texto: 'Las facturas pedidas esperan. Probá la conexión en Ajustes.',
+      probar: 'Probar la conexión',
+    },
   },
 } as const;
