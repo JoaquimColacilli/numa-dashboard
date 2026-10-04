@@ -31,6 +31,7 @@ import { editarTesoro } from './editarTesoro';
 import { elegirIdioma } from './elegirIdioma';
 import { elegirTema } from './elegirTema';
 import { enlace } from './enlace';
+import { facturacion } from './facturacion';
 import { fila } from './fila';
 import { hacerElSeguimiento } from './hacerElSeguimiento';
 import { iniciarSesion } from './iniciarSesion';
@@ -98,6 +99,7 @@ export const es = {
   elegirIdioma,
   elegirTema,
   enlace,
+  facturacion,
   fila,
   hacerElSeguimiento,
   iniciarSesion,

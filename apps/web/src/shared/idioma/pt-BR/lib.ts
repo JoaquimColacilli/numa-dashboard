@@ -287,6 +287,11 @@ export const lib = {
       enCola: `Nota de crédito solicitada sem internet: sai ${QUANDO_VOLTAR}`,
       error: 'Não foi possível solicitar a nota de crédito.',
     },
+    datosDeFacturacion: {
+      hecho: 'Dados de faturamento salvos.',
+      enCola: `Dados de faturamento anotados sem internet: serão salvos automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível salvar os dados de faturamento.',
+    },
     alertaRevisada: {
       hecho: 'Pronto, o alerta ficou como revisado.',
       enCola: `Anotado sem internet: o alerta sai ${QUANDO_VOLTAR}`,

@@ -69,6 +69,7 @@ const OPERACION: Readonly<Record<QueSeGuarda, OperacionRechazada>> = {
   facturaPedida: 'factura',
   notaDeCreditoPedida: 'nota-de-credito',
   alertaRevisada: 'guardado',
+  datosDeFacturacion: 'guardado',
 };
 
 const CLAVE_DE_LO_ANOTADO = 'anotado-sin-senal';

@@ -26,5 +26,7 @@ export const appNavegacion = {
     ajustes: 'Settings',
     avisos: 'Notifications',
     tuPresupuesto: 'Your quote',
+    facturacion: 'Invoicing',
+    conectarConArca: 'Connect to ARCA',
   },
 } satisfies Mensajes['appNavegacion'];

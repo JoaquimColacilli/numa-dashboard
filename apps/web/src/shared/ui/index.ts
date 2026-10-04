@@ -47,6 +47,7 @@ export {
   RotuloEnCasillas,
   type CasillaDelRotulo,
 } from './plano';
+export { Recuadro, type RecuadroProps, type TonoDelRecuadro } from './Recuadro';
 export { RotuloDelPresupuesto, type RotuloDelPresupuestoProps } from './RotuloDelPresupuesto';
 export { casillasDelPresupuesto, type AceptacionDelRotulo, type DatosDelRotulo } from './rotulo';
 export { VisorDeImagenes, type ImagenDelVisor, type VisorDeImagenesProps } from './VisorDeImagenes';

@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { ProveedorDeReplica } from '@/entities/replica';
 import { ProveedorDeSesion } from '@/entities/sesion';
-import { AjustesPage } from '@/pages/ajustes';
+import { AjustesPage, ConectarConArcaPage, FacturacionPage } from '@/pages/ajustes';
 import { FinanzasPage } from '@/pages/finanzas';
 import { InicioPage } from '@/pages/inicio';
 import { ProyectoFichaPage } from '@/pages/proyectos';
@@ -19,6 +19,11 @@ import {
 } from '@/shared/api';
 import { usarIdioma } from '@/shared/idioma';
 import { CLAVE_DEL_SEUDOIDIOMA } from '@/shared/lib';
+
+vi.mock('@/shared/api', async (importar) => ({
+  ...(await importar<typeof import('@/shared/api')>()),
+  estadoDeLaFacturacion: () => new Promise(() => undefined),
+}));
 
 const HOY = '2026-10-02';
 
@@ -125,13 +130,13 @@ const AJUSTES = {
   plantilla_del_presupuesto: null,
   plantilla_del_presupuesto_version: 0,
   idioma_de_los_clientes: 'es',
-  facturacion_ambiente: null,
-  facturacion_cuit: '',
-  facturacion_punto_de_venta: null,
-  facturacion_desde: null,
+  facturacion_ambiente: 'homologacion',
+  facturacion_cuit: '20-11111111-2',
+  facturacion_punto_de_venta: 1,
+  facturacion_desde: '2026-09-03',
   facturacion_alertas: [],
   facturacion_concepto: 1,
-  facturacion_categoria: null,
+  facturacion_categoria: 'D',
   facturacion_ingresos_brutos: '',
   facturacion_inicio_de_actividades: null,
 } satisfies FilaDe<'ajustes'>;
@@ -337,6 +342,8 @@ function montar(ruta: string) {
               <Route path="/" element={<InicioPage />} />
               <Route path="/finanzas" element={<FinanzasPage />} />
               <Route path="/ajustes" element={<AjustesPage />} />
+              <Route path="/ajustes/facturacion" element={<FacturacionPage />} />
+              <Route path="/ajustes/facturacion/conectar" element={<ConectarConArcaPage />} />
               <Route path="/proyectos/:id" element={<ProyectoFichaPage />} />
             </Routes>
           </ProveedorDeReplica>
@@ -378,6 +385,8 @@ describe('con el seudoidioma, las pantallas principales', () => {
     ['Inicio', '/'],
     ['Finanzas', '/finanzas'],
     ['Ajustes', '/ajustes'],
+    ['Ajustes › Facturación', '/ajustes/facturacion'],
+    ['el asistente para conectar con ARCA', '/ajustes/facturacion/conectar'],
     ['la ficha de un trabajo en dólares', '/proyectos/p'],
   ])('%s no tiene texto fuera del catálogo', (_pantalla, ruta) => {
     const raiz = montar(ruta);

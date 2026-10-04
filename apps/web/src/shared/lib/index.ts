@@ -20,6 +20,7 @@ export {
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
+  fechaCorta,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -248,6 +249,8 @@ export {
   RUTA_DE_ANOTAR,
   RUTA_DE_AVISOS,
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
+  RUTA_DE_LA_FACTURACION,
+  RUTA_DEL_ASISTENTE_DE_ARCA,
   RUTA_DE_CONTACTO_NUEVO,
   RUTA_DE_DIEZMO,
   RUTA_DE_LAS_ESTADISTICAS,
@@ -331,5 +334,5 @@ export {
   useTema,
   type PreferenciaDeTema,
 } from './tema';
-export { useEstadoSync } from './sync/useEstadoSync';
+export { useEstadoSync, useHaySenal } from './sync/useEstadoSync';
 export { uuidv7 } from './uuid';

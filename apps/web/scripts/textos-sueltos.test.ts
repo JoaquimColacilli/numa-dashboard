@@ -29,6 +29,12 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Corta el build: solo lo ve quien arma la app.',
   },
   {
+    archivo: 'src/features/configurar-taller/model/asistente.ts',
+    texto: '-----BEGIN CERTIFICATE-----',
+    motivo:
+      'Es el encabezado de un certificado en PEM, para saber si el archivo vino en texto o en binario: no lo lee nadie.',
+  },
+  {
     archivo: 'src/shared/idioma/nombres.ts',
     texto: /^(Español|English|Português)$/u,
     motivo: 'Cada idioma se nombra en su propio idioma, y es igual en los tres catálogos.',

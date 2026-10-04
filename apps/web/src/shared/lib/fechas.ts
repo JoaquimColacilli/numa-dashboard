@@ -264,6 +264,14 @@ function escribirElRotulo(fecha: string, idioma: Idioma): string {
   return `${dia}/${mes}/${anio.slice(-2)}`;
 }
 
+export function fechaCorta(fecha: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { dateStyle: 'medium' }));
+  const dia = comoUtc(fecha);
+  return marcada(
+    `${String(dia.getUTCDate())}/${String(dia.getUTCMonth() + 1)}/${String(dia.getUTCFullYear())}`,
+  );
+}
+
 export function fechaConAnio(fecha: string, idioma: Idioma = idiomaActual()): string {
   if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { dateStyle: 'long' }));
   const dia = comoUtc(fecha);

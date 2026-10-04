@@ -1,5 +1,5 @@
 export { lineaDeLaReferencia, referenciaDelDocumento } from './armado';
-export { sePuedenCompartirArchivos } from './entregar';
+export { descargarElArchivo, sePuedenCompartirArchivos } from './entregar';
 export { IDIOMA_DE_LA_LEYENDA, LETRA_DE_ARCA, LEYENDA_DE_ARCA_EN_UNA_FRASE } from './leyenda';
 export { useTextosDelPdf, type TextosDelPdf } from './textos';
 export type {

@@ -9,6 +9,7 @@ import {
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
+  fechaCorta,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -45,6 +46,18 @@ describe('las fechas del presupuesto', () => {
   it('la del PDF, con el año siempre', () => {
     expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
     expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');
+  });
+});
+
+describe('la fecha corta de la facturación', () => {
+  it('en castellano, día, mes y año en números, sin ceros', () => {
+    expect(fechaCorta('2026-09-03')).toBe('3/9/2026');
+    expect(fechaCorta('2028-10-02')).toBe('2/10/2028');
+  });
+
+  it('en inglés y en portugués nombra el mes', () => {
+    expect(fechaCorta('2028-10-02', 'en')).toBe('Oct 2, 2028');
+    expect(fechaCorta('2028-10-02', 'pt-BR')).toBe('2 de out. de 2028');
   });
 });
 

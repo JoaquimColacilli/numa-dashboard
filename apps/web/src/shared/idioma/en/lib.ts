@@ -293,6 +293,12 @@ export const lib = {
       enCola: "Credit note requested while offline: it'll go out when you're back online.",
       error: "Couldn't request the credit note.",
     },
+    datosDeFacturacion: {
+      hecho: 'Invoicing details saved.',
+      enCola:
+        "Invoicing details saved offline: they'll save automatically when you're back online.",
+      error: "Couldn't save the invoicing details.",
+    },
     alertaRevisada: {
       hecho: 'Done, the alert is marked as checked.',
       enCola: "Saved offline: the alert will go away when you're back online.",

@@ -10,3 +10,4 @@ export {
   type PedidoDeLaNotaDeCredito,
 } from './api/mutacion';
 export { alertasDeLaFacturacion, conLaAlertaRevisada } from './model/alertas';
+export { CapsulaDePrueba } from './ui/CapsulaDePrueba';

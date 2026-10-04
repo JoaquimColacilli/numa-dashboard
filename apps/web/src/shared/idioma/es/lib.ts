@@ -280,6 +280,11 @@ export const lib = {
       enCola: 'Nota de crédito pedida sin señal: sale cuando vuelva.',
       error: 'No se pidió la nota de crédito.',
     },
+    datosDeFacturacion: {
+      hecho: 'Datos de facturación guardados.',
+      enCola: 'Datos de facturación anotados sin señal: se guardan solo cuando vuelva.',
+      error: 'No se guardaron los datos de facturación.',
+    },
     alertaRevisada: {
       hecho: 'Listo, la alerta quedó revisada.',
       enCola: 'Anotado sin señal: la alerta se va cuando vuelva.',
