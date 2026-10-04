@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@maun/domain": "../../../packages/domain/src/index.ts",
+    "fast-xml-parser": "npm:fast-xml-parser@5.11.2",
+    "node-forge": "npm:node-forge@1.4.0"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  }
+}

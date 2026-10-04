@@ -18,6 +18,7 @@
     "test": "vitest run",
     "gen:types": "node scripts/gen-tipos.ts",
     "sb": "node scripts/supabase.ts",
+    "arca:probar": "node scripts/arca.ts",
     "db:ca": "node scripts/ca.ts",
     "db:ensayo": "node --conditions=@maun/source scripts/ensayo.ts",
     "db:esquema": "node scripts/esquema.ts",

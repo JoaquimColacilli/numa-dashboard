@@ -388,6 +388,14 @@ verify_jwt = false
 entrypoint = "./functions/avisos/index.ts"
 import_map = "./functions/avisos/deno.json"
 
+[functions.facturar]
+# La única que habla con ARCA, y valida por su cuenta como la de los avisos: el disparo de la base y
+# los trabajos programados traen el secreto propio, y Ajustes trae la sesión del dueño, que se
+# verifica contra Auth. El ensayo.ts de la carpeta no lo importa index.ts y no se despliega.
+verify_jwt = false
+entrypoint = "./functions/facturar/index.ts"
+import_map = "./functions/facturar/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
