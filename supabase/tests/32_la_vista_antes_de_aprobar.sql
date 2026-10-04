@@ -4,7 +4,7 @@
 -- el presupuesto viaja solo mientras espera la seña, y guardar_proyecto la escribe solo si viene la
 -- clave.
 
-select plan(76);
+select plan(78);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -706,6 +706,41 @@ select is(
   array[tests.el_presupuesto() ->> 'revision', tests.el_presupuesto() ->> 'aceptado_el'],
   array['2', null],
   'si vuelve a presupuesto, vuelve a viajar la revisión que espera la seña, sin el día en que se había aceptado'
+);
+
+
+-- Las facturas, desde la primera etapa (ADR 0085) ----------------------------------------------------------
+
+-- Lo que pagó para el relevamiento se factura el día que entra la plata: su factura existe con el trabajo
+-- todavía en contacto, y el cliente la ve desde ahí.
+insert into public.proyectos (id, cliente_id, titulo, estado)
+  values ('bbbbbbbb-0000-7000-8000-000000000050', 'bbbbbbbb-0000-7000-8000-000000000001', 'Biblioteca', 'contacto');
+insert into public.pagos (id, proyecto_id, fecha, concepto, monto_centavos)
+  values ('bbbbbbbb-0000-7000-8000-000000000150', 'bbbbbbbb-0000-7000-8000-000000000050', '2026-08-13', 'Relevamiento', 12000000);
+
+select is(
+  public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000050') -> 'facturas',
+  '[]'::jsonb,
+  'sin facturas, la clave va vacía desde la primera etapa'
+);
+
+select tests.salir();
+select tests.un_comprobante(jsonb_build_object(
+  'id', 'bbbbbbbb-0000-7000-8000-0000000001f1', 'household_id', tests.id('household_a'),
+  'proyecto_id', 'bbbbbbbb-0000-7000-8000-000000000050', 'pago_id', 'bbbbbbbb-0000-7000-8000-000000000150',
+  'ambiente', 'produccion', 'cuit_emisor', '20-30123456-3', 'punto_de_venta', 3, 'importe_centavos', 12000000,
+  'estado', 'autorizada', 'numero', 1, 'fecha', '2026-08-13', 'cae', '76398765432109', 'cae_vence', '2026-08-23',
+  'autorizada_at', now(), 'detalle', 'Relevamiento — Biblioteca'
+));
+select tests.entrar_como(tests.id('ana'));
+
+select is(
+  (
+    select array_agg(e ->> 'detalle')
+    from jsonb_array_elements(public.vista_del_cliente('bbbbbbbb-0000-7000-8000-000000000050') -> 'facturas') as e
+  ),
+  array['Relevamiento — Biblioteca'],
+  'y la factura de lo que pagó viaja con el trabajo en contacto, antes de mandar el presupuesto'
 );
 
 select * from finish();

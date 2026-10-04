@@ -2,8 +2,8 @@
 -- (ADR 0052), el registro de los cambios de etapa, los datos para transferir (ADR 0048), el título
 -- que alimenta la vista previa del enlace (ADR 0049), cómo te paga, la forma de cobro por trabajo y
 -- por instancia de pago (ADR 0053), el estimativo y la visita para medir (ADR 0058), el listo y la
--- entrega que se coordina con el cliente (ADR 0071), la vidriera del taller (ADR 0076) y el presupuesto
--- que se le mandó desde la app (ADR 0080).
+-- entrega que se coordina con el cliente (ADR 0071), la vidriera del taller (ADR 0076), el presupuesto
+-- que se le mandó desde la app (ADR 0080) y sus facturas con ARCA (ADR 0085).
 --
 -- Los dos tests que importan son los primeros: toda columna de proyectos y toda columna de ajustes
 -- están clasificadas, y agregar una columna a cualquiera de las dos rompe este archivo hasta que
@@ -12,7 +12,7 @@
 -- mirado. Ajustes entró a la lista con los datos para transferir: desde que uno de sus campos viaja
 -- a la superficie pública, la tabla entera necesita la misma vigilancia que proyectos.
 
-select plan(153);
+select plan(159);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -226,6 +226,33 @@ select set_eq(
 );
 
 
+-- Toda columna de los comprobantes está clasificada (ADR 0085) -------------------------------------------
+
+-- De cada factura y nota de crédito viaja lo que lleva su PDF: el número, la fecha, el importe, el detalle,
+-- el CAE, el emisor (clave por clave, con el CUIT adentro) y el receptor como lo dice la factura, que es el
+-- propio cliente. El ambiente viaja como «prueba»; el estado y la factura asociada deciden qué viaja y
+-- arman anulada_por y anula_a. Lo de la emisión (el rechazo, los intentos, la toma, el último error) y lo
+-- que es del taller (el pago, el concepto, la condición en el código de ARCA) no viaja.
+select set_eq(
+  $$
+    select a.attname::text
+    from pg_attribute a
+    where a.attrelid = 'public.comprobantes'::regclass and a.attnum > 0 and not a.attisdropped
+  $$,
+  array[
+    -- Viajan
+    'id', 'tipo', 'ambiente', 'punto_de_venta', 'numero', 'fecha', 'importe_centavos', 'detalle', 'cae',
+    'cae_vence', 'emisor', 'receptor_nombre', 'receptor_domicilio', 'receptor_condicion', 'doc_tipo', 'doc_nro',
+    -- Deciden qué viaja, sin viajar
+    'household_id', 'proyecto_id', 'estado', 'asociado_id', 'deleted_at',
+    -- No viajan
+    'pago_id', 'cuit_emisor', 'concepto', 'moneda', 'condicion_iva_receptor', 'rechazo', 'intentos',
+    'emitiendo_hasta', 'ultimo_error', 'pedida_at', 'autorizada_at', 'created_at', 'updated_at', 'version'
+  ],
+  'toda columna de los comprobantes está clasificada'
+);
+
+
 -- Un trabajo con todo lo que el cliente no tiene que ver -----------------------------------------------------
 
 select tests.entrar_como(tests.id('ana'));
@@ -302,12 +329,68 @@ update public.ajustes set
   cobro_cuit = '27-30123456-4'
 where household_id = tests.id('household_a');
 
+-- Sus facturas con ARCA (ADR 0085), de producción: una autorizada con lo de la emisión puesto a propósito
+-- (un rechazo, un último error y la toma), otra anulada con su nota, y una rechazada y una pedida, que no
+-- viajan. Y una de prueba anulada, que viaja solo mientras el taller sigue en homologación.
+select tests.salir();
+
+create function tests.factura_de_ana(p_fila jsonb)
+returns jsonb
+language sql
+as $$
+  select jsonb_build_object(
+    'household_id', tests.id('household_a'), 'proyecto_id', 'aaaaaaaa-0000-7000-8000-000000000010',
+    'ambiente', 'produccion', 'cuit_emisor', '27-30123456-4', 'punto_de_venta', 3, 'importe_centavos', 40000000,
+    'receptor_nombre', 'Marcela Duarte', 'receptor_domicilio', 'Olazábal 1240, Ituzaingó',
+    'emisor', jsonb_build_object(
+      'razonSocial', 'GUTIERREZ ANA', 'nombreDelTaller', 'Taller de Ana', 'domicilio', 'Pasaje Los Robles 450',
+      'cuit', '27-30123456-4', 'ingresosBrutos', '27-30123456-4', 'inicioDeActividades', '2019-03-01'
+    ),
+    'detalle', 'Seña — Placard 3 puertas'
+  ) || p_fila
+$$;
+
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000301', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000100',
+  'estado', 'autorizada', 'numero', 42, 'fecha', '2026-08-04', 'cae', '70417052929009', 'cae_vence', '2026-08-14',
+  'autorizada_at', now(), 'rechazo', jsonb_build_object('motivo', 'AGUJA-DEL-RECHAZO'),
+  'ultimo_error', 'AGUJA-DEL-ULTIMO-ERROR', 'emitiendo_hasta', '2031-02-03 04:05:06+00', 'intentos', 7
+)));
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000302', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000101',
+  'estado', 'anulada', 'numero', 41, 'fecha', '2026-08-03', 'cae', '70417052929008', 'cae_vence', '2026-08-13',
+  'autorizada_at', now(), 'detalle', 'Adelanto — Placard 3 puertas'
+)));
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000303', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000101',
+  'tipo', 'nota_de_credito_c', 'asociado_id', 'aaaaaaaa-0000-7000-8000-000000000302',
+  'estado', 'autorizada', 'numero', 7, 'fecha', '2026-08-05', 'cae', '70417052929007', 'cae_vence', '2026-08-15',
+  'autorizada_at', now(), 'detalle', 'Anula la factura C 00003-00000041'
+)));
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000304', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000100',
+  'estado', 'rechazada', 'detalle', 'AGUJA-RECHAZADA',
+  'rechazo', jsonb_build_object('errores', jsonb_build_array(jsonb_build_object('codigo', 10015, 'mensaje', 'x')))
+)));
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000305', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000101',
+  'detalle', 'AGUJA-PEDIDA'
+)));
+select tests.un_comprobante(tests.factura_de_ana(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000306', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000100',
+  'ambiente', 'homologacion', 'cuit_emisor', '20-11111111-2', 'punto_de_venta', 1,
+  'estado', 'anulada', 'numero', 1, 'fecha', '2026-08-06', 'cae', '70417052929006', 'cae_vence', '2026-08-16',
+  'autorizada_at', now(), 'detalle', 'AGUJA-DE-PRUEBA'
+)));
+
+select tests.entrar_como(tests.id('ana'));
+
 
 -- Los campos que devuelve, uno por uno -------------------------------------------------------------------------
 
 select set_eq(
   $$ select jsonb_object_keys(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010')) $$,
-  array['taller', 'cliente', 'trabajo', 'idioma', 'direccion', 'estado', 'precio_centavos', 'moneda', 'cobra_en', 'sena_centavos', 'pago', 'cobro', 'cobro_en_dolares', 'dolar_del_dia', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto'],
+  array['taller', 'cliente', 'trabajo', 'idioma', 'direccion', 'estado', 'precio_centavos', 'moneda', 'cobra_en', 'sena_centavos', 'pago', 'cobro', 'cobro_en_dolares', 'dolar_del_dia', 'fechas', 'visita', 'entrega', 'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto', 'facturas'],
   'la vista devuelve exactamente estos campos y ninguno más'
 );
 
@@ -374,6 +457,80 @@ select set_eq(
   'de cada archivo viaja lo justo para mostrarlo y traerlo del bucket'
 );
 
+select set_eq(
+  $$
+    select jsonb_object_keys(e)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'facturas') as e
+  $$,
+  array[
+    'id', 'tipo', 'punto_de_venta', 'numero', 'fecha', 'importe_centavos', 'detalle', 'cae', 'cae_vence', 'prueba',
+    'emisor', 'receptor', 'anulada_por', 'anula_a'
+  ],
+  'de cada factura viaja lo que lleva su PDF y nada de la emisión (ADR 0085)'
+);
+
+select set_eq(
+  $$
+    select jsonb_object_keys(e -> 'emisor')
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'facturas') as e
+  $$,
+  array['razonSocial', 'nombreDelTaller', 'domicilio', 'cuit', 'ingresosBrutos', 'inicioDeActividades'],
+  'el emisor viaja clave por clave, nunca el jsonb entero'
+);
+
+select set_eq(
+  $$
+    select jsonb_object_keys(e -> 'receptor')
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'facturas') as e
+  $$,
+  array['nombre', 'domicilio', 'condicion', 'doc_tipo', 'doc_nro'],
+  'y del receptor, lo que dice la factura: son los datos del propio cliente'
+);
+
+select is(
+  (
+    select jsonb_agg(jsonb_build_array(e ->> 'id', e -> 'anulada_por', e -> 'anula_a') order by n)
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'facturas')
+      with ordinality as t (e, n)
+  ),
+  jsonb_build_array(
+    jsonb_build_array(
+      'aaaaaaaa-0000-7000-8000-000000000302',
+      jsonb_build_object('punto_de_venta', 3, 'numero', 7, 'fecha', '2026-08-05'),
+      null
+    ),
+    jsonb_build_array('aaaaaaaa-0000-7000-8000-000000000301', null, null),
+    jsonb_build_array(
+      'aaaaaaaa-0000-7000-8000-000000000303',
+      null,
+      jsonb_build_object('punto_de_venta', 3, 'numero', 41, 'fecha', '2026-08-03')
+    )
+  ),
+  'viajan la autorizada, la anulada con la nota que la anula y la nota con la factura que anula, por fecha; la rechazada, la pedida y la de prueba, no'
+);
+
+-- Con el taller en homologación, la de prueba viaja marcada como prueba. Después vuelve a como estaba.
+select tests.salir();
+update public.ajustes set facturacion_ambiente = 'homologacion', facturacion_cuit = '20-11111111-2',
+  facturacion_punto_de_venta = 1, facturacion_desde = '2026-08-01'
+where household_id = tests.id('household_a');
+select tests.entrar_como(tests.id('ana'));
+
+select is(
+  (
+    select array_agg(e ->> 'prueba' order by e ->> 'id')
+    from jsonb_array_elements(public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') -> 'facturas') as e
+  ),
+  array['false', 'false', 'false', 'true'],
+  'la de prueba viaja solo mientras el taller sigue en homologación, y dice que es de prueba'
+);
+
+select tests.salir();
+update public.ajustes set facturacion_ambiente = null, facturacion_cuit = '', facturacion_punto_de_venta = null,
+  facturacion_desde = null
+where household_id = tests.id('household_a');
+select tests.entrar_como(tests.id('ana'));
+
 
 -- Y lo que no devuelve ------------------------------------------------------------------------------------------
 
@@ -405,13 +562,15 @@ select is_empty(
         'factura_b', 'cuotas',
         '2026-07-13', '2026-07-27', '4321',
         '777777', '888888', '999999', '6543', '1717',
-        'Placard de pasillo'
+        'Placard de pasillo',
+        'AGUJA-DEL-RECHAZO', 'AGUJA-DEL-ULTIMO-ERROR', '2031-02-03', 'AGUJA-RECHAZADA', 'AGUJA-PEDIDA',
+        'AGUJA-DE-PRUEBA'
       ]) as v (aguja)
       where %L like '%%' || v.aguja || '%%'
     $$,
     (public.vista_del_cliente('aaaaaaaa-0000-7000-8000-000000000010') #- '{presupuesto,contenido,senaBp}')::text
   ),
-  'en el JSON entero no aparece ni un costo, ni un gasto, ni un herraje, ni las notas, ni la opción que no aprobó (tampoco adentro del presupuesto que se le mandó), ni un dato del cliente que no sea su nombre, ni el último contacto, ni el vencimiento del presupuesto, ni el tipo de proyecto, ni nada de los ajustes que no sea el cobro'
+  'en el JSON entero no aparece ni un costo, ni un gasto, ni un herraje, ni las notas, ni la opción que no aprobó (tampoco adentro del presupuesto que se le mandó), ni un dato del cliente que no sea su nombre, ni el último contacto, ni el vencimiento del presupuesto, ni el tipo de proyecto, ni nada de los ajustes que no sea el cobro, ni lo de la emisión de sus facturas, ni las que no están autorizadas'
 );
 
 
