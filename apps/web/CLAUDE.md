@@ -27,9 +27,9 @@ src/
                avanzar-la-consulta, hacer-el-seguimiento, llevar-la-agenda, recibir-avisos,
                adjuntar-archivos, compartir-con-el-cliente, coordinar-la-entrega,
                pedir-la-opinion, editar-la-encuesta, leer-las-opiniones, ver-novedades,
-               armar-la-fila, editar-tesoro, cubrir-el-faltante)
+               armar-la-fila, editar-tesoro, cubrir-el-faltante, facturar-con-arca)
   entities/    sesion, replica (la copia del household y su contexto), tesoro, fila, cliente,
-               proyecto, movimiento, agenda, entrega, archivo, enlace, opinion y
+               proyecto, movimiento, agenda, entrega, archivo, enlace, opinion, factura y
                vista-cliente
   shared/      api (Supabase), config, lib (cache, claves, plata, fechas, orden, tesoros,
                uuid, sync, huella, teclado, push, versión nueva) y ui
@@ -546,6 +546,15 @@ src/
 - **Los gráficos viven en `shared/ui/graficos`**: reciben datos y textos ya armados, no leen la réplica ni el catálogo, se dibujan al ancho que mide `useAnchoDelLienzo` y deciden por su propio `@container`. La geometría está en `shared/lib/graficos.ts`, con sus tests. Un gráfico que se explora es un `listbox` con una sola parada de Tab (`MarcasExplorables`).
 - **Lo de antes del período va en el gris de contexto** (`fill-contexto`, `bg-contexto`); lo que importa, en tinta. Nunca solo por color.
 - **En un SVG no vale `translate="no"`**: el texto con datos (títulos de trabajos) va dentro de un HTML con `translate="no"`, y lo que escribe un formateador con letras (`plataCompacta`) se marca él solo con el seudoidioma, como las fechas.
+
+## La facturación con ARCA (ADR 0085)
+
+- **El renglón del pago es `LineaDeLaFactura` (`entities/factura`)**, con la situación que da `situacionDelPago` desde la réplica y lo que espera en la cola (`usePedidosEnLaCola`). Las tres fichas lo usan por `ListaDePagos` y `CobrosYFacturas` (`features/facturar-con-arca`): una pantalla nueva que muestre un pago con su factura usa esas piezas.
+- **La hoja de facturar es la confirmación**: no hay otro «¿Estás seguro?». Lo que falta se dice antes de tocar (`faltasParaFacturar`, las mismas reglas que la base) y el botón queda apagado. Anular sí pregunta, en un `alertdialog`.
+- **Las tres mutaciones van por la cola** (`MUTACION_DE_LA_FACTURA`, `MUTACION_DE_LA_NOTA_DE_CREDITO` y `MUTACION_DE_LA_ALERTA_REVISADA`), con el id generado al tocar y sin fila optimista: los datos de la factura los arma la base. «Probar la conexión» y los pasos del asistente necesitan señal y no van por la cola.
+- **Sin conexión no se ve nada de esto**, salvo Ajustes, el DNI y el CUIT del cliente y las facturas de producción que ya existen. `facturacionDelTaller(ajustes)` dice si el taller está conectado y si es de prueba, y lo de prueba lleva siempre la cápsula «Prueba» (`CapsulaDePrueba`), nunca «homologación».
+- **Ajustes › Facturación** tiene el molde de «Tu presupuesto». El asistente es una columna angosta con `sinMarco` en `PANTALLAS`; sus capturas de ARCA van a `src/assets/arca/` en WebP, las toma `import.meta.glob` y quedan fuera del precache. Un paso sin captura sale igual.
+- **La traba de los e2e:** todo spec con sesión toma `test` de `e2e/apoyo/prueba` (ESLint lo exige), que lo hace fallar si sale un pedido a la facturación que nadie respondió. Se responden con `servidorDeLaFacturacion`, que cuenta los pedidos; en los arneses, `entrarConLaSesion` contesta el `GET /estado` como la función real. Ningún spec toca la conexión del taller de prueba, que tiene que estar en homologación (`facturar.spec.ts` dice cómo conectarlo), y `vaciarTaller` devuelve a fábrica las cuatro columnas que edita la app.
 
 ## Agenda (ADR 0034)
 

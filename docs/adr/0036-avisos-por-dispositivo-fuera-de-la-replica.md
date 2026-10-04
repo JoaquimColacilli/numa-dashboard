@@ -13,6 +13,13 @@
   castellano dice exactamente lo de antes. La carga suma `lang` solo fuera del castellano, y el service worker
   lo usa para la notificación y para su texto de respaldo. El aviso de prueba sale en el idioma de quien lo
   pide.
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): una segunda función de borde, `facturar`, sigue el
+  molde de esta (`fetch` sin supabase-js, la clave de la plataforma, su propio secreto comparado en tiempo
+  constante y `verify_jwt = false`) y lo amplía: la despierta un trigger de la base con pg_net
+  (`pedir_la_emision`), la llaman dos trabajos de pg_cron (`facturacion-pendientes`, cada cinco minutos, y
+  `facturacion-control`, a las 6:15 de la Argentina) y su URL y su secreto van en Vault (`facturar_url` y
+  `facturar_secreto`). Los secretos de las funciones son del proyecto: ninguna que no sea `facturar` lee
+  `ARCA_*`.
 
 ## Contexto
 

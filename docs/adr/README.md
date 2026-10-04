@@ -88,3 +88,4 @@ Formato: contexto, decisión, alternativas descartadas y consecuencias. Una pág
 | [0082](0082-la-app-en-tres-idiomas.md)                                      | La app en tres idiomas: catálogos a mano, la persona y los clientes | Aceptada             |
 | [0083](0083-los-trabajos-en-dolares.md)                                     | Los trabajos en dólares: dos cuentas por pago y el cobro en pesos   | Aceptada             |
 | [0084](0084-las-estadisticas-del-taller.md)                                 | Las estadísticas del taller: seis preguntas y pesos de hoy          | Aceptada             |
+| [0085](0085-la-factura-con-arca.md)                                         | La factura con ARCA: una Factura C por pago, la emite el servidor   | Aceptada             |

@@ -18,6 +18,13 @@ Estado: aceptada, 2026-09-11. La base (ids, metadatos, bootstrap, delta, guardas
   [0083](0083-los-trabajos-en-dolares.md): la tabla de códigos suma `MN034` a `MN039`, las columnas nuevas de
   los dólares viajan solas en `bootstrap()` y `delta()` sin subir `VERSION_CACHE`, y los locks suman una
   espera. Ver la nota después de la tabla.
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): la réplica suma `comprobantes`, la cola suma tres
+  mutaciones (pedir la factura, pedir la nota de crédito y marcar una alerta como revisada) y la tabla de
+  códigos suma `MN040` a `MN043`. `comprobantes` es la primera tabla de la réplica que también escribe el
+  servidor: la función `facturar`, solo por funciones elevadas que suben la versión y avisan el cambio, y la
+  app la lee por el delta como cualquier otra. Los locks suman tres esperas, con sus pruebas en
+  `tests/concurrencia.test.ts`: la segunda toma de una secuencia espera a la primera en `ajustes`,
+  `guardar_proyecto` espera a `pedir_la_factura` en el trabajo y un cambio del pago espera en el pago.
 
 ## Contexto
 
@@ -118,6 +125,10 @@ La alternativa de un contador asignado en el commit es más exacta, pero pide un
 | `MN037` | El tesoro de un pago en dólares no es en dólares, no es de este taller o está archivado (ADR 0083).                                                                                                                                                    |
 | `MN038` | Lo armó una app sin actualizar que toma un importe en dólares por pesos: un pedido sin `moneda` que cambia un importe de un trabajo o de un pago en dólares, un cobro con la suma cruda o un documento `forma: 1` de un trabajo en dólares (ADR 0083). |
 | `MN039` | A un pago vivo en pesos de un trabajo en dólares le falta su dólar. Lo exige un trigger diferido, al commitear (ADR 0083).                                                                                                                             |
+| `MN040` | La facturación con ARCA no está conectada en este taller (ADR 0085).                                                                                                                                                                                   |
+| `MN041` | Le falta algo al pago, al cliente o al taller para facturar; los códigos de lo que falta van en el `hint` (ADR 0085).                                                                                                                                  |
+| `MN042` | Ese pago ya tiene su factura, o esa factura no se puede anular: ya está anulada o todavía no está autorizada (ADR 0085).                                                                                                                               |
+| `MN043` | Lo de una factura de verdad no cambia: su pago, su trabajo o la factura misma; qué se quiso tocar va en el `detail` (ADR 0085).                                                                                                                        |
 | `42501` | El usuario no tiene household asignado, o no tiene permiso.                                                                                                                                                                                            |
 
 **Completado el 2026-09-26 por el [ADR 0076](0076-la-vidriera-del-taller.md).** La tabla llegaba hasta `MN015`: de `MN016` a `MN021` estaban solo en sus ADR (0063, 0064 y 0071). Se suman acá, con `MN022`, el tope de la vidriera.

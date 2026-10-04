@@ -14,6 +14,12 @@ Sigue sin usarse ninguna API de Mercado Pago, así que los niveles 2 y 3 siguen 
 porcentajes de la tabla del QR son los de Buenos Aires; el 0054 tiene los de la página general,
 que difieren en el débito y en el crédito porque cambian con los impuestos provinciales.
 
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): la primera escritura de la réplica que no hace el dueño
+  desde la app existe, y es la de la factura, porque el CAE lo consigue solo un servidor que tiene el
+  certificado. Escribe por funciones elevadas que exigen su toma y suben la versión, y la app se entera por el
+  delta. Lo que acá frenaba al nivel 3 (una superficie que escribe sin que nadie la mire) se resolvió así para
+  la factura; para Mercado Pago no cambia nada.
+
 ## Contexto
 
 El dueño preguntó, sobre la vista del cliente:
