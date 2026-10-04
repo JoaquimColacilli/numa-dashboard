@@ -236,7 +236,7 @@ async function compararConLoPedido(
     console.log(`Consulta de la ${numero}: ARCA no la tiene.`);
     return;
   }
-  const igual = coincide(consulta.comprobante, { tipo, ...comprobante });
+  const igual = coincide(consulta.comprobante, { ...comprobante, tipo });
   console.log(
     `Consulta de la ${numero}: ${igual ? 'coincide con lo pedido' : 'NO coincide con lo pedido'} (importe ${consulta.comprobante.importe}, documento ${String(consulta.comprobante.docTipo)} ${consulta.comprobante.docNro}, CAE ${consulta.comprobante.cae}).`,
   );
