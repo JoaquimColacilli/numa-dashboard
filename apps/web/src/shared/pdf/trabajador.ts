@@ -4,7 +4,8 @@ import youngSerif from '@fontsource/young-serif/files/young-serif-latin-400-norm
 import { pdf } from '@react-pdf/renderer';
 
 import { presupuestoEnSuIdioma } from './enSuIdioma';
-import { registrarLasFuentes } from './fuentes';
+import { FacturaPdf } from './factura/Factura';
+import { partirEnElIdioma, registrarLasFuentes } from './fuentes';
 import type { PedidoAlTrabajador, RespuestaDelTrabajador } from './tipos';
 
 registrarLasFuentes({ plex400, plex600, youngSerif });
@@ -13,9 +14,18 @@ function responder(respuesta: RespuestaDelTrabajador, transferir: Transferable[]
   self.postMessage(respuesta, { transfer: transferir });
 }
 
-async function generar({ id, presupuesto }: PedidoAlTrabajador): Promise<void> {
+async function documentoDe(pedido: PedidoAlTrabajador) {
+  if ('factura' in pedido) {
+    partirEnElIdioma('es');
+    return FacturaPdf(pedido.factura);
+  }
+  return presupuestoEnSuIdioma(pedido.presupuesto);
+}
+
+async function generar(pedido: PedidoAlTrabajador): Promise<void> {
+  const { id } = pedido;
   try {
-    const archivo = await pdf(await presupuestoEnSuIdioma(presupuesto)).toBlob();
+    const archivo = await pdf(await documentoDe(pedido)).toBlob();
     const bytes = await archivo.arrayBuffer();
     responder({ id, listo: true, bytes }, [bytes]);
   } catch (error) {

@@ -1,4 +1,9 @@
-import type { PedidoAlTrabajador, PresupuestoEnPdf, RespuestaDelTrabajador } from './tipos';
+import type {
+  FacturaEnPdf,
+  PedidoAlTrabajador,
+  PresupuestoEnPdf,
+  RespuestaDelTrabajador,
+} from './tipos';
 
 interface Espera {
   resolver: (archivo: Blob) => void;
@@ -40,11 +45,19 @@ function elTrabajador(): Worker {
   return nuevo;
 }
 
-export function generarEnElTrabajador(presupuesto: PresupuestoEnPdf): Promise<Blob> {
+function pedirAlTrabajador(armar: (id: number) => PedidoAlTrabajador): Promise<Blob> {
   return new Promise((resolver, rechazar) => {
     ultimo += 1;
-    const pedido: PedidoAlTrabajador = { id: ultimo, presupuesto };
+    const pedido = armar(ultimo);
     esperando.set(pedido.id, { resolver, rechazar });
     elTrabajador().postMessage(pedido);
   });
+}
+
+export function generarEnElTrabajador(presupuesto: PresupuestoEnPdf): Promise<Blob> {
+  return pedirAlTrabajador((id) => ({ id, presupuesto }));
+}
+
+export function generarLaFacturaEnElTrabajador(factura: FacturaEnPdf): Promise<Blob> {
+  return pedirAlTrabajador((id) => ({ id, factura }));
 }

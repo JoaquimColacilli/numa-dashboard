@@ -88,6 +88,17 @@ const EXCEPCIONES: readonly Excepcion[] = [
       'La leyenda de ARCA va en castellano en los tres idiomas (glosario); en inglés y en portugués la aclaración sale del catálogo.',
   },
   {
+    archivo: 'src/shared/pdf/factura/textos.ts',
+    texto: /./su,
+    motivo:
+      'El PDF de la factura va siempre en castellano en los tres idiomas: es un documento fiscal argentino (ADR 0085, como la leyenda de ARCA).',
+  },
+  {
+    archivo: 'src/shared/pdf/factura/qr.ts',
+    texto: 'M h1v1h-1z',
+    motivo: 'Es el trazo de cada cuadradito del QR de ARCA en el PDF, no un texto.',
+  },
+  {
     archivo: 'src/shared/ui/LogoDeMercadoPago.tsx',
     texto: 'Mercado Pago',
     motivo: 'Una marca: no se traduce (glosario).',
