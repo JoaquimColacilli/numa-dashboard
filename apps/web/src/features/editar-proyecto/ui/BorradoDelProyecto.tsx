@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { trabajoConFacturasDeVerdad } from '@/entities/factura';
 import { hijosDelProyecto, MUTACION_DE_BAJA_DE_PROYECTO, type Proyecto } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { useMensajes } from '@/shared/idioma';
@@ -15,7 +16,9 @@ export interface BorradoDelProyectoProps {
 
 export function BorradoDelProyecto({ proyecto, variante, alBorrar }: BorradoDelProyectoProps) {
   const replica = useReplicaDelTaller();
-  const textos = useMensajes().editarProyecto.borrado;
+  const m = useMensajes();
+  const textos = m.editarProyecto.borrado;
+  const conFacturas = trabajoConFacturasDeVerdad(replica, proyecto.id);
   const borrar = useMutation({
     ...MUTACION_DE_BAJA_DE_PROYECTO,
     meta: metaDeAvisos(variante === 'contacto' ? 'contactoBorrado' : 'proyectoBorrado', {
@@ -52,11 +55,13 @@ export function BorradoDelProyecto({ proyecto, variante, alBorrar }: BorradoDelP
           >
             <div className="flex flex-col gap-3.5 px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
               <p className="text-label leading-relaxed text-text-2">
-                {pagos.length === 0 && gastos.length === 0
-                  ? variante === 'contacto'
-                    ? textos.sinPlataDelContacto
-                    : textos.sinPlataDelProyecto
-                  : textos.conPlata(pagos.length, gastos.length)}
+                {conFacturas
+                  ? m.facturacion.bloqueos.trabajoConFacturas
+                  : pagos.length === 0 && gastos.length === 0
+                    ? variante === 'contacto'
+                      ? textos.sinPlataDelContacto
+                      : textos.sinPlataDelProyecto
+                    : textos.conPlata(pagos.length, gastos.length)}
               </p>
               <FilaDeAcciones>
                 <Button
@@ -67,20 +72,22 @@ export function BorradoDelProyecto({ proyecto, variante, alBorrar }: BorradoDelP
                 >
                   {textos.cancelar}
                 </Button>
-                <Button
-                  variant="peligro"
-                  onClick={() => {
-                    borrar.mutate({
-                      id: proyecto.id,
-                      borradoEn: new Date().toISOString(),
-                      previos: { proyecto, pagos, gastos, opciones, necesidades },
-                    });
-                    setConfirmando(false);
-                    alBorrar();
-                  }}
-                >
-                  {variante === 'contacto' ? textos.borrarElContacto : textos.borrarElProyecto}
-                </Button>
+                {!conFacturas && (
+                  <Button
+                    variant="peligro"
+                    onClick={() => {
+                      borrar.mutate({
+                        id: proyecto.id,
+                        borradoEn: new Date().toISOString(),
+                        previos: { proyecto, pagos, gastos, opciones, necesidades },
+                      });
+                      setConfirmando(false);
+                      alBorrar();
+                    }}
+                  >
+                    {variante === 'contacto' ? textos.borrarElContacto : textos.borrarElProyecto}
+                  </Button>
+                )}
               </FilaDeAcciones>
             </div>
           </Hoja>

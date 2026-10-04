@@ -14,6 +14,13 @@ Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuán
   la réplica, porque Estadísticas la lee (el embudo de las consultas): está en `bootstrap()`, solo con las
   filas de trabajos vivos, y en `delta()`, y avisa con `avisar_los_cambios`. La vista del cliente no cambia:
   sigue leyendo esas dos fechas y nada más, y `gastos.categoria`, la columna nueva de los gastos, no viaja.
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): la lista blanca suma `facturas`, armada campo por
+  campo: las facturas autorizadas o anuladas y las notas de crédito autorizadas del trabajo, desde cualquier
+  etapa; las de producción siempre y las de prueba solo mientras el taller siga en homologación. Por primera
+  vez viajan datos del cliente además de su nombre: la condición, el documento y el domicilio que dice cada
+  factura, porque son del propio cliente y el PDF los necesita. Lo de la emisión (el rechazo, los intentos,
+  la toma y el último error) no viaja, y `25_vista_del_cliente.sql` clasifica cada columna de
+  `comprobantes`.
 
 ## Contexto
 

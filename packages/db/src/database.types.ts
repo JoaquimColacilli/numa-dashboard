@@ -23,6 +23,15 @@ export type Database = {
           dolar_del_dia_centavos: number | null;
           dolar_del_dia_el: string | null;
           facebook_link: string;
+          facturacion_alertas: Json;
+          facturacion_ambiente: string | null;
+          facturacion_categoria: string | null;
+          facturacion_concepto: number;
+          facturacion_cuit: string;
+          facturacion_desde: string | null;
+          facturacion_ingresos_brutos: string;
+          facturacion_inicio_de_actividades: string | null;
+          facturacion_punto_de_venta: number | null;
           fila: Json | null;
           fila_guardada_at: string | null;
           fila_version: number;
@@ -66,6 +75,15 @@ export type Database = {
           dolar_del_dia_centavos?: number | null;
           dolar_del_dia_el?: string | null;
           facebook_link?: string;
+          facturacion_alertas?: Json;
+          facturacion_ambiente?: string | null;
+          facturacion_categoria?: string | null;
+          facturacion_concepto?: number;
+          facturacion_cuit?: string;
+          facturacion_desde?: string | null;
+          facturacion_ingresos_brutos?: string;
+          facturacion_inicio_de_actividades?: string | null;
+          facturacion_punto_de_venta?: number | null;
           fila?: Json | null;
           fila_guardada_at?: string | null;
           fila_version?: number;
@@ -109,6 +127,15 @@ export type Database = {
           dolar_del_dia_centavos?: number | null;
           dolar_del_dia_el?: string | null;
           facebook_link?: string;
+          facturacion_alertas?: Json;
+          facturacion_ambiente?: string | null;
+          facturacion_categoria?: string | null;
+          facturacion_concepto?: number;
+          facturacion_cuit?: string;
+          facturacion_desde?: string | null;
+          facturacion_ingresos_brutos?: string;
+          facturacion_inicio_de_actividades?: string | null;
+          facturacion_punto_de_venta?: number | null;
           fila?: Json | null;
           fila_guardada_at?: string | null;
           fila_version?: number;
@@ -404,6 +431,7 @@ export type Database = {
           cuit: string;
           deleted_at: string | null;
           direccion: string;
+          dni: string;
           domicilio_fiscal: string;
           email: string;
           household_id: string;
@@ -424,6 +452,7 @@ export type Database = {
           cuit?: string;
           deleted_at?: string | null;
           direccion?: string;
+          dni?: string;
           domicilio_fiscal?: string;
           email?: string;
           household_id?: string;
@@ -444,6 +473,7 @@ export type Database = {
           cuit?: string;
           deleted_at?: string | null;
           direccion?: string;
+          dni?: string;
           domicilio_fiscal?: string;
           email?: string;
           household_id?: string;
@@ -465,6 +495,149 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'households';
             referencedColumns: ['id'];
+          },
+        ];
+      };
+      comprobantes: {
+        Row: {
+          ambiente: string;
+          asociado_id: string | null;
+          autorizada_at: string | null;
+          cae: string | null;
+          cae_vence: string | null;
+          concepto: number;
+          condicion_iva_receptor: number;
+          created_at: string;
+          cuit_emisor: string;
+          deleted_at: string | null;
+          detalle: string;
+          doc_nro: string;
+          doc_tipo: number;
+          emisor: Json;
+          emitiendo_hasta: string | null;
+          estado: string;
+          fecha: string | null;
+          household_id: string;
+          id: string;
+          importe_centavos: number;
+          intentos: number;
+          moneda: string;
+          numero: number | null;
+          pago_id: string;
+          pedida_at: string;
+          proyecto_id: string;
+          punto_de_venta: number;
+          receptor_condicion: Database['public']['Enums']['condicion_fiscal'];
+          receptor_domicilio: string;
+          receptor_nombre: string;
+          rechazo: Json | null;
+          tipo: string;
+          ultimo_error: string | null;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          ambiente: string;
+          asociado_id?: string | null;
+          autorizada_at?: string | null;
+          cae?: string | null;
+          cae_vence?: string | null;
+          concepto: number;
+          condicion_iva_receptor: number;
+          created_at?: string;
+          cuit_emisor: string;
+          deleted_at?: string | null;
+          detalle: string;
+          doc_nro: string;
+          doc_tipo: number;
+          emisor: Json;
+          emitiendo_hasta?: string | null;
+          estado?: string;
+          fecha?: string | null;
+          household_id?: string;
+          id?: string;
+          importe_centavos: number;
+          intentos?: number;
+          moneda?: string;
+          numero?: number | null;
+          pago_id: string;
+          pedida_at?: string;
+          proyecto_id: string;
+          punto_de_venta: number;
+          receptor_condicion: Database['public']['Enums']['condicion_fiscal'];
+          receptor_domicilio?: string;
+          receptor_nombre: string;
+          rechazo?: Json | null;
+          tipo: string;
+          ultimo_error?: string | null;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          ambiente?: string;
+          asociado_id?: string | null;
+          autorizada_at?: string | null;
+          cae?: string | null;
+          cae_vence?: string | null;
+          concepto?: number;
+          condicion_iva_receptor?: number;
+          created_at?: string;
+          cuit_emisor?: string;
+          deleted_at?: string | null;
+          detalle?: string;
+          doc_nro?: string;
+          doc_tipo?: number;
+          emisor?: Json;
+          emitiendo_hasta?: string | null;
+          estado?: string;
+          fecha?: string | null;
+          household_id?: string;
+          id?: string;
+          importe_centavos?: number;
+          intentos?: number;
+          moneda?: string;
+          numero?: number | null;
+          pago_id?: string;
+          pedida_at?: string;
+          proyecto_id?: string;
+          punto_de_venta?: number;
+          receptor_condicion?: Database['public']['Enums']['condicion_fiscal'];
+          receptor_domicilio?: string;
+          receptor_nombre?: string;
+          rechazo?: Json | null;
+          tipo?: string;
+          ultimo_error?: string | null;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'comprobantes_asociado_fk';
+            columns: ['household_id', 'asociado_id'];
+            isOneToOne: false;
+            referencedRelation: 'comprobantes';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'comprobantes_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'comprobantes_pago_fk';
+            columns: ['household_id', 'pago_id'];
+            isOneToOne: false;
+            referencedRelation: 'pagos';
+            referencedColumns: ['household_id', 'id'];
+          },
+          {
+            foreignKeyName: 'comprobantes_proyecto_fk';
+            columns: ['household_id', 'proyecto_id'];
+            isOneToOne: false;
+            referencedRelation: 'proyectos';
+            referencedColumns: ['household_id', 'id'];
           },
         ];
       };
@@ -2212,8 +2385,137 @@ export type Database = {
         Returns: boolean;
       };
       delta: { Args: { p_desde: string }; Returns: Json };
+      descartar_la_alerta_de_facturacion: {
+        Args: { p_codigo: string; p_numero: number };
+        Returns: {
+          cobro_alias: string;
+          cobro_cbu: string;
+          cobro_cuit: string;
+          cobro_dolares_alias: string;
+          cobro_dolares_cbu: string;
+          cobro_link: string;
+          cobro_titular: string;
+          costos_fijos_centavos: number;
+          created_at: string;
+          deleted_at: string | null;
+          dolar_del_dia_centavos: number | null;
+          dolar_del_dia_el: string | null;
+          facebook_link: string;
+          facturacion_alertas: Json;
+          facturacion_ambiente: string | null;
+          facturacion_categoria: string | null;
+          facturacion_concepto: number;
+          facturacion_cuit: string;
+          facturacion_desde: string | null;
+          facturacion_ingresos_brutos: string;
+          facturacion_inicio_de_actividades: string | null;
+          facturacion_punto_de_venta: number | null;
+          fila: Json | null;
+          fila_guardada_at: string | null;
+          fila_version: number;
+          household_id: string;
+          id: string;
+          idioma_de_los_clientes: string;
+          instagram_link: string;
+          meta_cocos_centavos: number;
+          perdido_con_diezmo: boolean;
+          perdido_con_sueldo: boolean;
+          plantilla_del_presupuesto: Json | null;
+          plantilla_del_presupuesto_version: number;
+          presupuesto_vale_dias: number;
+          relevamiento_centavos: number | null;
+          resena_link: string;
+          sena_bp: number;
+          sueldo_mensual_centavos: number;
+          sueldo_tope_mensual: boolean;
+          taller_condicion_fiscal: string | null;
+          taller_cuit: string;
+          taller_domicilio: string;
+          taller_email: string;
+          taller_telefono: string;
+          taller_titular: string;
+          tasa_cocos_anual_bp: number;
+          tiktok_link: string;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'ajustes';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       encuesta_compartida: { Args: { p_token: string }; Returns: Json };
       estado_de_mis_avisos: { Args: { p_endpoint?: string }; Returns: Json };
+      facturacion_anotar: {
+        Args: { p_id: string; p_paso: Json };
+        Returns: Json;
+      };
+      facturacion_anotar_el_acceso: {
+        Args: { p_ambiente: string; p_household_id: string; p_ok: boolean };
+        Returns: number;
+      };
+      facturacion_anotar_el_intercambio: {
+        Args: { p_intercambio: Json };
+        Returns: string;
+      };
+      facturacion_anotar_las_alertas: {
+        Args: { p_alertas: Json; p_household_id: string };
+        Returns: Json;
+      };
+      facturacion_certificados: {
+        Args: { p_household_id: string };
+        Returns: Json;
+      };
+      facturacion_conectar: {
+        Args: {
+          p_certificado_id: string;
+          p_household_id: string;
+          p_punto_de_venta: number;
+        };
+        Returns: Json;
+      };
+      facturacion_del_usuario: { Args: { p_user_id: string }; Returns: Json };
+      facturacion_guardar_el_certificado: {
+        Args: {
+          p_certificado: string;
+          p_huella: string;
+          p_id: string;
+          p_vence: string;
+        };
+        Returns: Json;
+      };
+      facturacion_guardar_el_pedido: {
+        Args: {
+          p_clave_cifrada: string;
+          p_clave_iv: string;
+          p_cuit: string;
+          p_household_id: string;
+          p_pedido: string;
+        };
+        Returns: Json;
+      };
+      facturacion_guardar_el_ticket: {
+        Args: { p_certificado: string; p_ticket: Json };
+        Returns: boolean;
+      };
+      facturacion_para_controlar: {
+        Args: { p_ambientes: string[] };
+        Returns: Json;
+      };
+      facturacion_pendientes: {
+        Args: { p_ambientes: string[] };
+        Returns: string[];
+      };
+      facturacion_tomar: {
+        Args: { p_id: string; p_segundos: number };
+        Returns: Json;
+      };
+      facturacion_tomar_el_login: {
+        Args: { p_certificado: string; p_segundos: number };
+        Returns: Json;
+      };
       guardar_el_presupuesto: {
         Args: {
           p_contenido: Json;
@@ -2257,6 +2559,15 @@ export type Database = {
           dolar_del_dia_centavos: number | null;
           dolar_del_dia_el: string | null;
           facebook_link: string;
+          facturacion_alertas: Json;
+          facturacion_ambiente: string | null;
+          facturacion_categoria: string | null;
+          facturacion_concepto: number;
+          facturacion_cuit: string;
+          facturacion_desde: string | null;
+          facturacion_ingresos_brutos: string;
+          facturacion_inicio_de_actividades: string | null;
+          facturacion_punto_de_venta: number | null;
           fila: Json | null;
           fila_guardada_at: string | null;
           fila_version: number;
@@ -2309,6 +2620,15 @@ export type Database = {
           dolar_del_dia_centavos: number | null;
           dolar_del_dia_el: string | null;
           facebook_link: string;
+          facturacion_alertas: Json;
+          facturacion_ambiente: string | null;
+          facturacion_categoria: string | null;
+          facturacion_concepto: number;
+          facturacion_cuit: string;
+          facturacion_desde: string | null;
+          facturacion_ingresos_brutos: string;
+          facturacion_inicio_de_actividades: string | null;
+          facturacion_punto_de_venta: number | null;
           fila: Json | null;
           fila_guardada_at: string | null;
           fila_version: number;
@@ -2372,6 +2692,98 @@ export type Database = {
           p_version: number;
         };
         Returns: Json;
+      };
+      pedir_la_factura: {
+        Args: { p_detalle: string; p_id: string; p_pago_id: string };
+        Returns: {
+          ambiente: string;
+          asociado_id: string | null;
+          autorizada_at: string | null;
+          cae: string | null;
+          cae_vence: string | null;
+          concepto: number;
+          condicion_iva_receptor: number;
+          created_at: string;
+          cuit_emisor: string;
+          deleted_at: string | null;
+          detalle: string;
+          doc_nro: string;
+          doc_tipo: number;
+          emisor: Json;
+          emitiendo_hasta: string | null;
+          estado: string;
+          fecha: string | null;
+          household_id: string;
+          id: string;
+          importe_centavos: number;
+          intentos: number;
+          moneda: string;
+          numero: number | null;
+          pago_id: string;
+          pedida_at: string;
+          proyecto_id: string;
+          punto_de_venta: number;
+          receptor_condicion: Database['public']['Enums']['condicion_fiscal'];
+          receptor_domicilio: string;
+          receptor_nombre: string;
+          rechazo: Json | null;
+          tipo: string;
+          ultimo_error: string | null;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'comprobantes';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      pedir_la_nota_de_credito: {
+        Args: { p_factura_id: string; p_id: string };
+        Returns: {
+          ambiente: string;
+          asociado_id: string | null;
+          autorizada_at: string | null;
+          cae: string | null;
+          cae_vence: string | null;
+          concepto: number;
+          condicion_iva_receptor: number;
+          created_at: string;
+          cuit_emisor: string;
+          deleted_at: string | null;
+          detalle: string;
+          doc_nro: string;
+          doc_tipo: number;
+          emisor: Json;
+          emitiendo_hasta: string | null;
+          estado: string;
+          fecha: string | null;
+          household_id: string;
+          id: string;
+          importe_centavos: number;
+          intentos: number;
+          moneda: string;
+          numero: number | null;
+          pago_id: string;
+          pedida_at: string;
+          proyecto_id: string;
+          punto_de_venta: number;
+          receptor_condicion: Database['public']['Enums']['condicion_fiscal'];
+          receptor_domicilio: string;
+          receptor_nombre: string;
+          rechazo: Json | null;
+          tipo: string;
+          ultimo_error: string | null;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'comprobantes';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       proponer_la_entrega: {
         Args: { p_propuesta: Json; p_proyecto_id: string };

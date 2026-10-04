@@ -2,12 +2,14 @@ import {
   centavosEn,
   cobraEnLeido,
   cotizacionLeida,
+  esCondicionDelReceptor,
   esFechaQueExiste,
   esFranja,
   esLinkDeLaRed,
   esLinkDeMercadoPago,
   esMoneda,
   esNumeroDePresupuesto,
+  esTipoDeComprobante,
   FORMAS_DE_COBRO,
   FORMAS_DE_COORDINAR,
   idiomaLeido,
@@ -20,13 +22,16 @@ import {
 } from '@maun/domain';
 import type {
   CobroDelTaller,
+  ComprobanteAsociado,
   ComprometidaDelTrabajo,
   Cotizacion,
   CuentaParaTransferir,
   DiaQueLeQuedaBien,
+  EmisorDeLaFactura,
   EntregaQueSeCoordina,
   ArchivoDelCliente,
   EstadoProyecto,
+  FacturaDelCliente,
   FechasDelTrabajo,
   FormaDeCobro,
   FotoDeLaVidriera,
@@ -39,11 +44,13 @@ import type {
   PagoPendiente,
   PresupuestoDelTrabajo,
   PropuestaDeEntrega,
+  ReceptorDeLaFactura,
   RedDelTaller,
   RedesDelTaller,
   ReferenciaEnPesos,
   RespuestaDelCliente,
   FranjaDeEntrega,
+  TipoDeDocumento,
   TrabajoDelCliente,
   VidrieraDelTaller,
   VisitaDelTrabajo,
@@ -423,6 +430,120 @@ function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
   };
 }
 
+function crudoONada(valor: unknown): Record<string, unknown> | null {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
+    ? (valor as Record<string, unknown>)
+    : null;
+}
+
+function esEnteroPositivo(valor: unknown): valor is number {
+  return typeof valor === 'number' && Number.isSafeInteger(valor) && valor > 0;
+}
+
+function esDocumento(valor: unknown): valor is TipoDeDocumento {
+  return valor === 80 || valor === 96 || valor === 99;
+}
+
+function comprobanteAsociado(valor: unknown): ComprobanteAsociado | null {
+  const crudo = crudoONada(valor);
+  if (crudo === null) return null;
+  const { punto_de_venta: puntoDeVenta, numero: suNumero, fecha } = crudo;
+  if (!esEnteroPositivo(puntoDeVenta) || !esEnteroPositivo(suNumero)) return null;
+  if (typeof fecha !== 'string' || !esFechaQueExiste(fecha)) return null;
+  return { puntoDeVenta, numero: suNumero, fecha };
+}
+
+function emisorDeLaFactura(valor: unknown): EmisorDeLaFactura | null {
+  const crudo = crudoONada(valor);
+  if (crudo === null) return null;
+  const { nombreDelTaller, razonSocial, domicilio, cuit, ingresosBrutos, inicioDeActividades } =
+    crudo;
+  if (
+    typeof nombreDelTaller !== 'string' ||
+    typeof razonSocial !== 'string' ||
+    typeof domicilio !== 'string' ||
+    typeof cuit !== 'string' ||
+    typeof ingresosBrutos !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    nombreDelTaller,
+    razonSocial,
+    domicilio,
+    cuit,
+    ingresosBrutos,
+    inicioDeActividades:
+      typeof inicioDeActividades === 'string' && esFechaQueExiste(inicioDeActividades)
+        ? inicioDeActividades
+        : null,
+  };
+}
+
+function receptorDeLaFactura(valor: unknown): ReceptorDeLaFactura | null {
+  const crudo = crudoONada(valor);
+  if (crudo === null) return null;
+  const { nombre, domicilio, condicion, doc_tipo: docTipo, doc_nro: docNro } = crudo;
+  if (
+    typeof nombre !== 'string' ||
+    typeof domicilio !== 'string' ||
+    !esCondicionDelReceptor(condicion) ||
+    !esDocumento(docTipo) ||
+    typeof docNro !== 'string'
+  ) {
+    return null;
+  }
+  return { nombre, condicion, docTipo, docNro, domicilio };
+}
+
+function facturaDelCliente(valor: unknown): FacturaDelCliente | null {
+  const crudo = crudoONada(valor);
+  if (crudo === null) return null;
+  const { id, tipo, punto_de_venta: puntoDeVenta, numero: suNumero, fecha, detalle } = crudo;
+  const { importe_centavos: importe, cae, cae_vence: caeVence, prueba } = crudo;
+  const emisor = emisorDeLaFactura(crudo.emisor);
+  const receptor = receptorDeLaFactura(crudo.receptor);
+  if (
+    typeof id !== 'string' ||
+    !esTipoDeComprobante(tipo) ||
+    !esEnteroPositivo(puntoDeVenta) ||
+    !esEnteroPositivo(suNumero) ||
+    typeof fecha !== 'string' ||
+    !esFechaQueExiste(fecha) ||
+    !esEnteroPositivo(importe) ||
+    typeof detalle !== 'string' ||
+    typeof cae !== 'string' ||
+    typeof caeVence !== 'string' ||
+    !esFechaQueExiste(caeVence) ||
+    typeof prueba !== 'boolean' ||
+    emisor === null ||
+    receptor === null
+  ) {
+    return null;
+  }
+  return {
+    id,
+    tipo,
+    puntoDeVenta,
+    numero: suNumero,
+    fecha,
+    importe: dinero(importe),
+    detalle,
+    cae,
+    caeVence,
+    prueba,
+    emisor,
+    receptor,
+    anuladaPor: tipo === 'factura_c' ? comprobanteAsociado(crudo.anulada_por) : null,
+    anulaA: tipo === 'nota_de_credito_c' ? comprobanteAsociado(crudo.anula_a) : null,
+  };
+}
+
+function facturas(valor: unknown): FacturaDelCliente[] {
+  if (!Array.isArray(valor)) return [];
+  return valor.map(facturaDelCliente).filter((factura) => factura !== null);
+}
+
 export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
   const cuerpo = objeto(valor, 'el trabajo');
   const moneda = monedaONada(cuerpo.moneda) ?? MONEDA_DEL_TALLER;
@@ -449,6 +570,7 @@ export function leerVistaDelCliente(valor: unknown): TrabajoDelCliente {
     vidriera: vidriera(cuerpo.vidriera),
     valorDelRelevamiento: importeONada(cuerpo.relevamiento_centavos, 'el valor del relevamiento'),
     presupuesto: presupuesto(cuerpo.presupuesto),
+    facturas: facturas(cuerpo.facturas),
   };
 }
 

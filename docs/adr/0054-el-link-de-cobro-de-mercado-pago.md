@@ -10,6 +10,11 @@ por pedido explícito del dueño y con el costo sobre la mesa. Amplía la lista 
 solo cuando la cuenta es de Mercado Pago sino siempre que el pago sea por transferencia (ver la
 corrección al final del [0046](0046-la-vista-del-cliente-una-lista-blanca-en-la-base.md)).
 
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): la superficie que escribe sin pasar por la cola de salida,
+  que acá se descartó para Mercado Pago, existe para la factura con ARCA, con funciones elevadas que exigen su
+  toma y suben la versión (ver la enmienda del [0051](0051-cobrar-con-mercado-pago.md)). La integración con
+  Mercado Pago sigue descartada.
+
 ## Contexto
 
 El PR del 0053 entregó un QR que lleva a la página del cliente. El dueño lo aceptó y pidió otra

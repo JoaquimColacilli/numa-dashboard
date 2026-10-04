@@ -112,6 +112,15 @@ create table public.ajustes (
   dolar_del_dia_el date,
   cobro_dolares_cbu text not null default ''::text,
   cobro_dolares_alias text not null default ''::text,
+  facturacion_ambiente text,
+  facturacion_cuit text not null default ''::text,
+  facturacion_punto_de_venta integer,
+  facturacion_desde date,
+  facturacion_concepto smallint not null default 1,
+  facturacion_categoria text,
+  facturacion_ingresos_brutos text not null default ''::text,
+  facturacion_inicio_de_actividades date,
+  facturacion_alertas jsonb not null default '[]'::jsonb,
   constraint ajustes_cobro_alias_formato CHECK (cobro_alias = ''::text OR cobro_alias ~ '^[A-Za-z0-9.-]{6,20}$'::text),
   constraint ajustes_cobro_cbu_formato CHECK (cobro_cbu = ''::text OR cobro_cbu ~ '^[0-9]{22}$'::text),
   constraint ajustes_cobro_cuit_formato CHECK (cobro_cuit = ''::text OR cobro_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
@@ -122,6 +131,18 @@ create table public.ajustes (
   constraint ajustes_dolar_del_dia_con_su_fecha CHECK ((dolar_del_dia_centavos IS NULL) = (dolar_del_dia_el IS NULL)),
   constraint ajustes_dolar_del_dia_en_rango CHECK (dolar_del_dia_centavos IS NULL OR dolar_del_dia_centavos >= 100 AND dolar_del_dia_centavos <= 10000000),
   constraint ajustes_facebook_link_formato CHECK (facebook_link = ''::text OR facebook_link ~ '^https://www\.facebook\.com/profile\.php\?id=[0-9]{5,20}$'::text OR facebook_link ~ '^https://www\.facebook\.com/[a-z0-9.]{5,50}$'::text AND (split_part(facebook_link, '/'::text, 4) <> ALL (ARRAY['share'::text, 'sharer.php'::text, 'people'::text, 'story.php'::text, 'photo.php'::text, 'permalink.php'::text, 'groups'::text, 'events'::text, 'watch'::text, 'marketplace'::text, 'login'::text, 'profile.php'::text]))),
+  constraint ajustes_facturacion_alertas_es_un_arreglo CHECK (jsonb_typeof(facturacion_alertas) = 'array'::text),
+  constraint ajustes_facturacion_ambiente_valido CHECK (facturacion_ambiente IS NULL OR (facturacion_ambiente = ANY (ARRAY['homologacion'::text, 'produccion'::text]))),
+  constraint ajustes_facturacion_categoria_valida CHECK (facturacion_categoria IS NULL OR (facturacion_categoria = ANY (ARRAY['A'::text, 'B'::text, 'C'::text, 'D'::text, 'E'::text, 'F'::text, 'G'::text, 'H'::text, 'I'::text, 'J'::text, 'K'::text]))),
+  constraint ajustes_facturacion_completa CHECK (
+CASE
+    WHEN facturacion_ambiente IS NULL THEN facturacion_cuit = ''::text AND facturacion_punto_de_venta IS NULL AND facturacion_desde IS NULL
+    ELSE facturacion_cuit <> ''::text AND facturacion_punto_de_venta IS NOT NULL AND facturacion_desde IS NOT NULL
+END),
+  constraint ajustes_facturacion_concepto_valido CHECK (facturacion_concepto = ANY (ARRAY[1, 2, 3])),
+  constraint ajustes_facturacion_cuit_formato CHECK (facturacion_cuit = ''::text OR facturacion_cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
+  constraint ajustes_facturacion_ingresos_brutos_largo CHECK (char_length(facturacion_ingresos_brutos) <= 40),
+  constraint ajustes_facturacion_punto_de_venta_valido CHECK (facturacion_punto_de_venta IS NULL OR facturacion_punto_de_venta >= 1 AND facturacion_punto_de_venta <= 99998),
   constraint ajustes_fila_es_un_objeto CHECK (fila IS NULL OR jsonb_typeof(fila) = 'object'::text),
   constraint ajustes_fila_version_valida CHECK (fila_version >= 0),
   constraint ajustes_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
@@ -181,6 +202,16 @@ comment on column public.ajustes.dolar_del_dia_centavos is 'El dólar del día d
 comment on column public.ajustes.dolar_del_dia_el is 'El día para el que vale el dólar del día, o null si nunca se cargó. Va con dolar_del_dia_centavos o sin ninguno de los dos (ADR 0081).';
 comment on column public.ajustes.cobro_dolares_cbu is 'El CBU de la cuenta en dólares del taller, 22 dígitos sin espacios ni guiones, o vacío. Mismo formato que cobro_cbu; el titular y el CUIT son los de la cuenta en pesos. Viaja a la página del cliente solo si el pago que toca se ofrece en dólares por transferencia (ADR 0081).';
 comment on column public.ajustes.cobro_dolares_alias is 'El alias de la cuenta en dólares del taller, o vacío. Mismo formato que cobro_alias (el del BCRA). Viaja a la página del cliente solo si el pago que toca se ofrece en dólares por transferencia (ADR 0081).';
+comment on column public.ajustes.facturacion_ambiente is 'Con qué ambiente de ARCA factura el taller: homologacion (el de prueba, sin efecto fiscal) o produccion, o null si la facturación no está conectada. Sin grant de escritura para la app: lo escribe solo private.conectar_la_facturacion(), desde el script db:facturacion (solo homologación, solo el taller de la cuenta de los e2e) o desde public.facturacion_conectar(), que la función de borde llama recién después de entrar a ARCA con el certificado propio del taller (ADR 0085).';
+comment on column public.ajustes.facturacion_cuit is 'El CUIT con el que el taller factura en ARCA (NN-NNNNNNNN-N), o vacío sin conexión. En producción es el del certificado del taller; en homologación, uno inventado (20-11111111-2): el CUIT del certificado de prueba no se guarda en ningún lado. Lo escribe la misma función que el ambiente.';
+comment on column public.ajustes.facturacion_punto_de_venta is 'El punto de venta de ARCA, de 1 a 99998, exclusivo de NUMA, o null sin conexión. Lo escribe la misma función que el ambiente.';
+comment on column public.ajustes.facturacion_desde is 'Desde cuándo factura con NUMA, o null sin conexión: es el día desde el que cuentan los «Cobros sin facturar» de Finanzas. Lo escribe la misma función que el ambiente.';
+comment on column public.ajustes.facturacion_concepto is 'Qué factura el taller, el concepto de ARCA: 1 productos (el de siempre), 2 servicios o 3 productos y servicios. Lo define el contador y lo elige el dueño en Ajustes: cambia la ventana de fechas que acepta ARCA y los campos de la factura. Cada comprobante lo copia al pedirse.';
+comment on column public.ajustes.facturacion_categoria is 'La categoría del monotributo del taller, de la A a la K, o null si el dueño no la eligió. Solo sirve para mostrar en Finanzas cuánto le falta para el tope: la escala vive en @maun/domain (monotributo.ts).';
+comment on column public.ajustes.facturacion_ingresos_brutos is 'El número de Ingresos Brutos del taller, como lo escribe el dueño, o vacío. Sale en cada factura; sin él no se factura (LO_QUE_FALTA_PARA_FACTURAR).';
+comment on column public.ajustes.facturacion_inicio_de_actividades is 'La fecha de inicio de actividades del taller, o null. Sale en cada factura; sin ella no se factura.';
+comment on column public.ajustes.facturacion_alertas is 'Las alertas de la facturación que muestra Inicio: un arreglo de objetos con su codigo (fuera-de-numa, a-revisar, certificado-por-vencer o sin-acceso) y sus datos. Las escriben la función de borde (el control diario y el login) y public.descartar_la_alerta_de_facturacion(); la app no tiene grant de escritura.';
+CREATE UNIQUE INDEX ajustes_facturacion_un_taller_por_punto_de_venta ON public.ajustes USING btree (facturacion_ambiente, facturacion_cuit, facturacion_punto_de_venta) WHERE (facturacion_ambiente IS NOT NULL);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER contar_la_revision_de_la_fila BEFORE UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.contar_la_revision_de_la_fila();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON ajustes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
@@ -194,7 +225,7 @@ create policy ajustes_lectura on public.ajustes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.ajustes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.ajustes to service_role;
-grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos, taller_titular, taller_cuit, taller_condicion_fiscal, taller_domicilio, taller_telefono, taller_email, idioma_de_los_clientes, dolar_del_dia_centavos, dolar_del_dia_el, cobro_dolares_cbu, cobro_dolares_alias) on public.ajustes to authenticated;
+grant update (sueldo_mensual_centavos, costos_fijos_centavos, meta_cocos_centavos, tasa_cocos_anual_bp, perdido_con_sueldo, perdido_con_diezmo, sena_bp, cobro_alias, cobro_cbu, cobro_titular, cobro_cuit, cobro_link, resena_link, presupuesto_vale_dias, instagram_link, facebook_link, tiktok_link, relevamiento_centavos, taller_titular, taller_cuit, taller_condicion_fiscal, taller_domicilio, taller_telefono, taller_email, idioma_de_los_clientes, dolar_del_dia_centavos, dolar_del_dia_el, cobro_dolares_cbu, cobro_dolares_alias, facturacion_concepto, facturacion_categoria, facturacion_ingresos_brutos, facturacion_inicio_de_actividades) on public.ajustes to authenticated;
 
 create table public.anotaciones (
   id uuid not null default private.uuidv7(),
@@ -389,7 +420,9 @@ create table public.clientes (
   updated_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone,
   version integer not null default 1,
+  dni text not null default ''::text,
   constraint clientes_cuit_formato CHECK (cuit = ''::text OR cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
+  constraint clientes_dni_formato CHECK (dni = ''::text OR dni ~ '^[0-9]{7,8}$'::text),
   constraint clientes_email_formato CHECK (email = ''::text OR email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'::text),
   constraint clientes_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
   constraint clientes_household_id_key UNIQUE (household_id, id),
@@ -403,6 +436,7 @@ comment on column public.clientes.zona is 'Barrio o localidad, para ubicar al cl
 comment on column public.clientes.origen_detalle is 'Detalle libre del origen: quién lo refirió, por qué red escribió.';
 comment on column public.clientes.cuit is 'CUIT con guiones (NN-NNNNNNNN-N), o vacío. El dígito verificador lo valida la app.';
 comment on column public.clientes.deleted_at is 'Borrado lógico. No se puede borrar un cliente con proyectos vivos.';
+comment on column public.clientes.dni is 'El DNI del cliente, de 7 u 8 dígitos sin puntos, o vacío. ARCA lo pide para facturarle a un consumidor final un trabajo de $ 10.000.000 o más (RG 5866): es la identificación del consumidor final cuando no da su CUIT (ADR 0085).';
 CREATE INDEX clientes_household_actualizado ON public.clientes USING btree (household_id, updated_at);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON clientes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON clientes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
@@ -420,8 +454,131 @@ create policy clientes_lectura on public.clientes as permissive
   using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
 grant select on public.clientes to authenticated;
 grant delete, insert, maintain, references, select, trigger, truncate, update on public.clientes to service_role;
-grant insert (id, nombre, zona, telefono, email, direccion, origen_contacto, origen_detalle, condicion_fiscal, cuit, razon_social, domicilio_fiscal, notas, deleted_at) on public.clientes to authenticated;
-grant update (id, nombre, zona, telefono, email, direccion, origen_contacto, origen_detalle, condicion_fiscal, cuit, razon_social, domicilio_fiscal, notas, deleted_at) on public.clientes to authenticated;
+grant insert (id, nombre, zona, telefono, email, direccion, origen_contacto, origen_detalle, condicion_fiscal, cuit, razon_social, domicilio_fiscal, notas, deleted_at, dni) on public.clientes to authenticated;
+grant update (id, nombre, zona, telefono, email, direccion, origen_contacto, origen_detalle, condicion_fiscal, cuit, razon_social, domicilio_fiscal, notas, deleted_at, dni) on public.clientes to authenticated;
+
+create table public.comprobantes (
+  id uuid not null default private.uuidv7(),
+  household_id uuid not null default private.household_actual(),
+  proyecto_id uuid not null,
+  pago_id uuid not null,
+  asociado_id uuid,
+  tipo text not null,
+  ambiente text not null,
+  estado text not null default 'pedida'::text,
+  cuit_emisor text not null,
+  punto_de_venta integer not null,
+  concepto smallint not null,
+  numero bigint,
+  fecha date,
+  importe_centavos bigint not null,
+  moneda text not null default 'ARS'::text,
+  doc_tipo smallint not null,
+  doc_nro text not null,
+  condicion_iva_receptor smallint not null,
+  receptor_condicion condicion_fiscal not null,
+  receptor_nombre text not null,
+  receptor_domicilio text not null default ''::text,
+  emisor jsonb not null,
+  detalle text not null,
+  cae text,
+  cae_vence date,
+  rechazo jsonb,
+  intentos integer not null default 0,
+  emitiendo_hasta timestamp with time zone,
+  ultimo_error text,
+  pedida_at timestamp with time zone not null default now(),
+  autorizada_at timestamp with time zone,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone,
+  version integer not null default 1,
+  constraint comprobantes_ambiente_valido CHECK (ambiente = ANY (ARRAY['homologacion'::text, 'produccion'::text])),
+  constraint comprobantes_anulada_es_factura CHECK (estado <> 'anulada'::text OR tipo = 'factura_c'::text),
+  constraint comprobantes_asociado_fk FOREIGN KEY (household_id, asociado_id) REFERENCES comprobantes(household_id, id),
+  constraint comprobantes_autorizada_completa CHECK ((estado <> ALL (ARRAY['autorizada'::text, 'anulada'::text])) OR numero IS NOT NULL AND fecha IS NOT NULL AND cae IS NOT NULL AND cae_vence IS NOT NULL),
+  constraint comprobantes_cae_formato CHECK (cae IS NULL OR cae ~ '^[0-9]{14}$'::text),
+  constraint comprobantes_con_numero CHECK (
+CASE
+    WHEN estado = ANY (ARRAY['emitiendo'::text, 'a_revisar'::text]) THEN numero IS NOT NULL AND fecha IS NOT NULL
+    WHEN estado = ANY (ARRAY['pedida'::text, 'rechazada'::text]) THEN numero IS NULL AND fecha IS NULL
+    ELSE true
+END),
+  constraint comprobantes_concepto_valido CHECK (concepto = ANY (ARRAY[1, 2, 3])),
+  constraint comprobantes_condicion_iva_valida CHECK (condicion_iva_receptor = ANY (ARRAY[1, 4, 5, 6])),
+  constraint comprobantes_cuit_emisor_formato CHECK (cuit_emisor ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'::text),
+  constraint comprobantes_detalle_valido CHECK (detalle ~ '[^ \t\n\r\f\v]'::text AND char_length(detalle) <= 200),
+  constraint comprobantes_doc_tipo_valido CHECK (doc_tipo = ANY (ARRAY[80, 96, 99])),
+  constraint comprobantes_documento_coherente CHECK (doc_tipo = 99 AND doc_nro = '0'::text OR doc_tipo = 80 AND doc_nro ~ '^[0-9]{11}$'::text OR doc_tipo = 96 AND doc_nro ~ '^[0-9]{7,8}$'::text),
+  constraint comprobantes_emisor_bien_formado CHECK (private.emisor_bien_formado(emisor)),
+  constraint comprobantes_estado_valido CHECK (estado = ANY (ARRAY['pedida'::text, 'emitiendo'::text, 'autorizada'::text, 'anulada'::text, 'rechazada'::text, 'a_revisar'::text])),
+  constraint comprobantes_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint comprobantes_household_id_key UNIQUE (household_id, id),
+  constraint comprobantes_importe_positivo CHECK (importe_centavos > 0),
+  constraint comprobantes_intentos_validos CHECK (intentos >= 0),
+  constraint comprobantes_moneda_pesos CHECK (moneda = 'ARS'::text),
+  constraint comprobantes_nota_con_su_factura CHECK ((tipo = 'nota_de_credito_c'::text) = (asociado_id IS NOT NULL)),
+  constraint comprobantes_numero_valido CHECK (numero IS NULL OR numero >= 1 AND numero <= 99999999),
+  constraint comprobantes_pago_fk FOREIGN KEY (household_id, pago_id) REFERENCES pagos(household_id, id),
+  constraint comprobantes_pkey PRIMARY KEY (id),
+  constraint comprobantes_produccion_no_se_borra CHECK (ambiente = 'homologacion'::text OR deleted_at IS NULL),
+  constraint comprobantes_proyecto_fk FOREIGN KEY (household_id, proyecto_id) REFERENCES proyectos(household_id, id),
+  constraint comprobantes_punto_de_venta_valido CHECK (punto_de_venta >= 1 AND punto_de_venta <= 99998),
+  constraint comprobantes_receptor_domicilio_largo CHECK (char_length(receptor_domicilio) <= 500),
+  constraint comprobantes_receptor_nombre_valido CHECK (receptor_nombre ~ '[^ \t\n\r\f\v]'::text AND char_length(receptor_nombre) <= 200),
+  constraint comprobantes_rechazo_es_un_objeto CHECK (rechazo IS NULL OR jsonb_typeof(rechazo) = 'object'::text),
+  constraint comprobantes_tipo_valido CHECK (tipo = ANY (ARRAY['factura_c'::text, 'nota_de_credito_c'::text])),
+  constraint comprobantes_ultimo_error_largo CHECK (ultimo_error IS NULL OR char_length(ultimo_error) <= 500)
+);
+comment on table public.comprobantes is 'Las facturas C y las notas de crédito C que el taller le pide a ARCA, una fila por comprobante, desde que se pide hasta que queda resuelto. La app solo lee: las escriben public.pedir_la_factura() y public.pedir_la_nota_de_credito(), que congelan lo que dice el comprobante desde la base, y la función de borde facturar por las funciones de service_role, que reservan el número, guardan el CAE o el rechazo y llevan la toma. Lo que dice un comprobante no cambia desde que se pide, ni desde el servidor ni como dueño de la base (private.cuidar_los_comprobantes), y uno de producción no se borra nunca (private.no_se_borran_los_comprobantes): ARCA conserva lo autorizado y NUMA también. Los de homologación son de prueba, no tienen efecto fiscal y se van con su trabajo (ADR 0085).';
+comment on column public.comprobantes.id is 'El UUIDv7 que genera la app al tocar: es la clave de idempotencia del pedido, así un reenvío de la cola devuelve el mismo comprobante y no pide otro.';
+comment on column public.comprobantes.household_id is 'El taller. Las funciones que escriben la tabla lo ponen explícito.';
+comment on column public.comprobantes.pago_id is 'El pago que factura. La nota de crédito lleva el de su factura.';
+comment on column public.comprobantes.asociado_id is 'Solo en la nota de crédito: la factura que anula.';
+comment on column public.comprobantes.tipo is 'factura_c (código 11 de ARCA) o nota_de_credito_c (código 13).';
+comment on column public.comprobantes.ambiente is 'homologacion (prueba, sin efecto fiscal) o produccion, copiado del taller al pedir y congelado: la función de borde trabaja cada fila con su ambiente, no con el que tenga el taller después (traba 3 del ADR 0085).';
+comment on column public.comprobantes.estado is 'pedida, emitiendo (el servidor reservó el número y le está pidiendo el CAE a ARCA), autorizada, anulada (una factura con su nota de crédito autorizada), rechazada (ARCA no la autorizó) o a_revisar (NUMA no sabe si quedó autorizada). Solo sigue las flechas de private.cuidar_los_comprobantes().';
+comment on column public.comprobantes.cuit_emisor is 'El CUIT con el que se factura, congelado al pedir: el del taller en producción y el inventado 20-11111111-2 en homologación, donde ARCA recibe el del certificado de prueba.';
+comment on column public.comprobantes.numero is 'El número en el punto de venta, de 1 a 99999999. Lo reserva el servidor al emitir, con el último autorizado de ARCA más uno.';
+comment on column public.comprobantes.fecha is 'La fecha del comprobante: el día, en la Argentina, en que el servidor le pide el CAE, o la que contesta ARCA al autorizarlo.';
+comment on column public.comprobantes.importe_centavos is 'El importe del pago, congelado al pedir. En pesos: no se factura en dólares.';
+comment on column public.comprobantes.doc_tipo is 'El documento del receptor según ARCA: 80 CUIT, 96 DNI o 99 sin identificar, con private.documento_del_receptor().';
+comment on column public.comprobantes.doc_nro is 'El número del documento: 0 con 99, once dígitos con 80, siete u ocho con 96.';
+comment on column public.comprobantes.condicion_iva_receptor is 'CondicionIVAReceptorId de ARCA: 5 consumidor final, 6 monotributo, 1 responsable inscripto o 4 exento.';
+comment on column public.comprobantes.receptor_condicion is 'La condición del cliente frente al IVA al pedir, para el PDF.';
+comment on column public.comprobantes.receptor_nombre is 'El nombre o la razón social del cliente como sale en la factura, congelado al pedir.';
+comment on column public.comprobantes.receptor_domicilio is 'El domicilio del cliente como sale en la factura, o vacío.';
+comment on column public.comprobantes.emisor is 'Los datos del taller como salen en la factura, congelados al pedir: razonSocial, nombreDelTaller, domicilio, cuit, ingresosBrutos e inicioDeActividades, todos texto. Salen de la base, no de lo que mandó la app.';
+comment on column public.comprobantes.detalle is 'La línea del detalle, de 1 a 200 caracteres: lo único del comprobante que escribe el dueño.';
+comment on column public.comprobantes.cae is 'El Código de Autorización Electrónico de ARCA, catorce dígitos, desde que queda autorizado.';
+comment on column public.comprobantes.cae_vence is 'El vencimiento del CAE.';
+comment on column public.comprobantes.rechazo is 'Lo que contestó ARCA al rechazarlo ({ errores: [{ codigo, mensaje }], observaciones }), o el motivo por el que quedó a revisar ({ motivo }).';
+comment on column public.comprobantes.intentos is 'Cuántas veces lo tomó el servidor.';
+comment on column public.comprobantes.emitiendo_hasta is 'La toma del servidor: hasta cuándo una vuelta de la función tiene el comprobante en la mano. No es una transacción, porque la función habla con ARCA entre llamadas a la base.';
+comment on column public.comprobantes.ultimo_error is 'El último error pasajero (la red, ARCA caída), hasta 500 caracteres, para db:facturacion --listar. Nunca lleva un CUIT ni un ticket.';
+comment on column public.comprobantes.pedida_at is 'Cuándo se pidió. Ordena la cola del servidor.';
+comment on column public.comprobantes.autorizada_at is 'Cuándo lo autorizó ARCA.';
+comment on column public.comprobantes.deleted_at is 'Solo en homologación, con su trabajo. Uno de producción no se borra nunca.';
+CREATE INDEX comprobantes_household_actualizado ON public.comprobantes USING btree (household_id, updated_at);
+CREATE INDEX comprobantes_household_asociado ON public.comprobantes USING btree (household_id, asociado_id);
+CREATE INDEX comprobantes_household_pago ON public.comprobantes USING btree (household_id, pago_id);
+CREATE INDEX comprobantes_household_proyecto ON public.comprobantes USING btree (household_id, proyecto_id);
+CREATE INDEX comprobantes_pendientes ON public.comprobantes USING btree (pedida_at) WHERE ((estado = ANY (ARRAY['pedida'::text, 'emitiendo'::text])) AND (deleted_at IS NULL));
+CREATE UNIQUE INDEX comprobantes_numero_unico ON public.comprobantes USING btree (cuit_emisor, punto_de_venta, tipo, numero) WHERE ((ambiente = 'produccion'::text) AND (numero IS NOT NULL));
+CREATE UNIQUE INDEX comprobantes_una_factura_por_pago ON public.comprobantes USING btree (household_id, pago_id) WHERE ((tipo = 'factura_c'::text) AND (deleted_at IS NULL) AND (estado = ANY (ARRAY['pedida'::text, 'emitiendo'::text, 'autorizada'::text, 'a_revisar'::text])));
+CREATE UNIQUE INDEX comprobantes_una_nota_por_factura ON public.comprobantes USING btree (asociado_id) WHERE ((tipo = 'nota_de_credito_c'::text) AND (deleted_at IS NULL) AND (estado = ANY (ARRAY['pedida'::text, 'emitiendo'::text, 'autorizada'::text, 'a_revisar'::text])));
+CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON comprobantes FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
+CREATE TRIGGER cuidar_los_comprobantes BEFORE UPDATE ON comprobantes FOR EACH ROW EXECUTE FUNCTION private.cuidar_los_comprobantes();
+CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON comprobantes FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
+CREATE TRIGGER no_se_borran_los_comprobantes BEFORE DELETE ON comprobantes FOR EACH ROW EXECUTE FUNCTION private.no_se_borran_los_comprobantes();
+CREATE TRIGGER no_se_truncan_los_comprobantes BEFORE TRUNCATE ON comprobantes FOR EACH STATEMENT EXECUTE FUNCTION private.no_se_borran_los_comprobantes();
+CREATE TRIGGER pedir_la_emision AFTER INSERT ON comprobantes FOR EACH STATEMENT EXECUTE FUNCTION private.pedir_la_emision();
+alter table public.comprobantes enable row level security;
+create policy comprobantes_lectura on public.comprobantes as permissive
+  for select to authenticated
+  using ((household_id = ANY (ARRAY( SELECT private.user_household_ids() AS user_household_ids))));
+grant select on public.comprobantes to authenticated;
+grant maintain, references, select, trigger on public.comprobantes to service_role;
 
 create table public.encuestas_enviadas (
   id uuid not null default private.uuidv7(),
@@ -864,6 +1021,7 @@ create table public.pagos (
   constraint pagos_cotizacion_de_otra_moneda CHECK (moneda = 'ARS'::text OR cotizacion_centavos IS NOT NULL),
   constraint pagos_cotizacion_en_rango CHECK (cotizacion_centavos IS NULL OR cotizacion_centavos >= 100 AND cotizacion_centavos <= 10000000),
   constraint pagos_household_id_fkey FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  constraint pagos_household_id_key UNIQUE (household_id, id),
   constraint pagos_moneda_valida CHECK (moneda = ANY (ARRAY['ARS'::text, 'USD'::text])),
   constraint pagos_monto_positivo CHECK (monto_centavos > 0),
   constraint pagos_pkey PRIMARY KEY (id),
@@ -882,6 +1040,7 @@ CREATE INDEX pagos_household_actualizado ON public.pagos USING btree (household_
 CREATE INDEX pagos_household_proyecto ON public.pagos USING btree (household_id, proyecto_id);
 CREATE INDEX pagos_household_tesoro ON public.pagos USING btree (household_id, tesoro_id);
 CREATE TRIGGER avisar_los_cambios AFTER INSERT OR DELETE OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.avisar_los_cambios('household_id');
+CREATE TRIGGER cuidar_los_pagos_facturados BEFORE UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.cuidar_los_pagos_facturados();
 CREATE TRIGGER metadatos BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.mantener_metadatos();
 CREATE CONSTRAINT TRIGGER pagos_con_su_dolar AFTER INSERT OR UPDATE ON pagos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (new.moneda = 'ARS'::text AND new.cotizacion_centavos IS NULL AND new.deleted_at IS NULL) EXECUTE FUNCTION private.exigir_el_dolar_de_los_pagos();
 CREATE TRIGGER validar_el_tesoro BEFORE INSERT OR UPDATE ON pagos FOR EACH ROW EXECUTE FUNCTION private.validar_el_tesoro_del_pago();
@@ -1927,6 +2086,9 @@ AS $function$
     ),
     'revisiones_del_presupuesto', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.revisiones_del_presupuesto t where t.deleted_at is null
+    ),
+    'comprobantes', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.comprobantes t where t.deleted_at is null
     )
   )
 $function$;
@@ -2206,12 +2368,25 @@ begin
     ),
     'revisiones_del_presupuesto', (
       select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.revisiones_del_presupuesto t where t.updated_at >= v_desde
+    ),
+    'comprobantes', (
+      select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.comprobantes t where t.updated_at >= v_desde
     )
   );
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function delta(timestamp with time zone) is 'Filas del household cambiadas desde el cursor, incluidas las borradas (deleted_at no null), más el cursor siguiente. Aplica un solape de cinco minutos.';
+
+CREATE OR REPLACE FUNCTION public.descartar_la_alerta_de_facturacion(p_codigo text, p_numero bigint)
+ RETURNS ajustes
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select * from private.descartar_la_alerta_de_facturacion(p_codigo, p_numero)
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function descartar_la_alerta_de_facturacion(text,bigint) is 'RPC de «Ya lo revisé» en Inicio: descarta la alerta de una factura que NUMA no hizo, con el número de ARCA que vio el dueño, y devuelve la fila de ajustes. Ver private.descartar_la_alerta_de_facturacion().';
 
 CREATE OR REPLACE FUNCTION public.encuesta_compartida(p_token text)
  RETURNS jsonb
@@ -2339,6 +2514,150 @@ AS $function$
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function estado_de_mis_avisos(text) is 'Si este dispositivo recibe avisos y las preferencias de la persona. preferencias es null hasta que activa los avisos por primera vez.';
+
+CREATE OR REPLACE FUNCTION public.facturacion_anotar_el_acceso(p_ambiente text, p_ok boolean, p_household_id uuid)
+ RETURNS integer
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_anotar_el_acceso(p_ambiente, p_ok, p_household_id)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_anotar_el_acceso(text,boolean,uuid) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_anotar_el_intercambio(p_intercambio jsonb)
+ RETURNS uuid
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_anotar_el_intercambio(p_intercambio)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_anotar_el_intercambio(jsonb) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_anotar_las_alertas(p_household_id uuid, p_alertas jsonb)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_anotar_las_alertas(p_household_id, p_alertas)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_anotar_las_alertas(uuid,jsonb) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_anotar(p_id uuid, p_paso jsonb)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_anotar(p_id, p_paso)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_anotar(uuid,jsonb) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_certificados(p_household_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_certificados(p_household_id)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_certificados(uuid) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_conectar(p_household_id uuid, p_certificado_id uuid, p_punto_de_venta integer)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_conectar(p_household_id, p_certificado_id, p_punto_de_venta)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_conectar(uuid,uuid,integer) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_del_usuario(p_user_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_del_usuario(p_user_id)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_del_usuario(uuid) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_guardar_el_certificado(p_id uuid, p_certificado text, p_huella text, p_vence date)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_guardar_el_certificado(p_id, p_certificado, p_huella, p_vence)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_guardar_el_certificado(uuid,text,text,date) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_guardar_el_pedido(p_household_id uuid, p_cuit text, p_pedido text, p_clave_cifrada text, p_clave_iv text)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_guardar_el_pedido(p_household_id, p_cuit, p_pedido, p_clave_cifrada, p_clave_iv)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_guardar_el_pedido(uuid,text,text,text,text) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_guardar_el_ticket(p_certificado text, p_ticket jsonb)
+ RETURNS boolean
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_guardar_el_ticket(p_certificado, p_ticket)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_guardar_el_ticket(text,jsonb) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_para_controlar(p_ambientes text[])
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_para_controlar(p_ambientes)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_para_controlar(text[]) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_pendientes(p_ambientes text[])
+ RETURNS uuid[]
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_pendientes(p_ambientes)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_pendientes(text[]) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_tomar_el_login(p_certificado text, p_segundos integer)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_tomar_el_login(p_certificado, p_segundos)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_tomar_el_login(text,integer) is 'Solo para la función de borde de la facturación (service_role).';
+
+CREATE OR REPLACE FUNCTION public.facturacion_tomar(p_id uuid, p_segundos integer)
+ RETURNS jsonb
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_tomar(p_id, p_segundos)
+$function$;
+-- execute: service_role:EXECUTE
+comment on function facturacion_tomar(uuid,integer) is 'Solo para la función de borde de la facturación (service_role).';
 
 CREATE OR REPLACE FUNCTION public.guardar_el_presupuesto(p_id uuid, p_proyecto_id uuid, p_version integer, p_contenido jsonb)
  RETURNS presupuestos
@@ -3115,6 +3434,26 @@ $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
 comment on function mandar_el_presupuesto(uuid,uuid,integer,jsonb,text,date,date,text) is 'RPC de la hoja de mandar: congela una revisión del presupuesto con el documento que armó la app, en el idioma con que lo armó, y devuelve la revisión, el borrador, el trabajo y sus próximos contactos para la réplica. El idioma tiene default: una app sin actualizar lo llama como antes (ADR 0082). Ver private.mandar_el_presupuesto().';
 
+CREATE OR REPLACE FUNCTION public.pedir_la_factura(p_id uuid, p_pago_id uuid, p_detalle text)
+ RETURNS comprobantes
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select * from private.pedir_la_factura(p_id, p_pago_id, p_detalle)
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function pedir_la_factura(uuid,uuid,text) is 'RPC de «Facturar este pago»: pide la Factura C del pago y devuelve el comprobante para la réplica. Ver private.pedir_la_factura().';
+
+CREATE OR REPLACE FUNCTION public.pedir_la_nota_de_credito(p_id uuid, p_factura_id uuid)
+ RETURNS comprobantes
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$
+  select * from private.pedir_la_nota_de_credito(p_id, p_factura_id)
+$function$;
+-- execute: authenticated:EXECUTE, service_role:EXECUTE
+comment on function pedir_la_nota_de_credito(uuid,uuid) is 'RPC de «Anular la factura»: pide la nota de crédito que la anula y devuelve el comprobante para la réplica. Ver private.pedir_la_nota_de_credito().';
+
 CREATE OR REPLACE FUNCTION private.anotar_aviso(p_suscripcion uuid, p_dia date, p_mandado boolean)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -3358,6 +3697,45 @@ $function$;
 -- execute: solo el dueño
 comment on function private.armar_la_encuesta() is 'Trigger del alta de una encuesta enviada: exige que el trabajo esté entregado o cobrado y que su cliente no haya contestado ya, y le saca la foto a la encuesta base vigente. Lo que el dueño manda es el id, el trabajo y el enlace; la foto, la fecha y los estados los pone la base.';
 
+CREATE OR REPLACE FUNCTION private.autorizar_el_comprobante(p_id uuid, p_cae text, p_cae_vence date, p_fecha date)
+ RETURNS comprobantes
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_comprobante public.comprobantes;
+begin
+  if coalesce(p_cae, '') !~ '^[0-9]{14}$' or p_cae_vence is null or p_fecha is null then
+    raise exception 'Una autorización lleva el CAE, su vencimiento y la fecha del comprobante' using errcode = '22023';
+  end if;
+
+  update public.comprobantes c
+  set estado = 'autorizada',
+      fecha = p_fecha,
+      cae = p_cae,
+      cae_vence = p_cae_vence,
+      autorizada_at = now(),
+      emitiendo_hasta = null,
+      rechazo = null,
+      ultimo_error = null
+  where c.id = p_id
+  returning c.* into v_comprobante;
+
+  -- Una nota de crédito autorizada anula su factura en la misma transacción.
+  if v_comprobante.tipo = 'nota_de_credito_c' then
+    update public.comprobantes f
+    set estado = 'anulada'
+    where f.household_id = v_comprobante.household_id
+      and f.id = v_comprobante.asociado_id
+      and f.estado = 'autorizada';
+  end if;
+
+  return v_comprobante;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.autorizar_el_comprobante(uuid,text,date,date) is 'Deja autorizado un comprobante con su CAE, su vencimiento y la fecha que dice ARCA, y si es una nota de crédito, anula su factura en la misma transacción. La llaman private.facturacion_anotar() y private.resolver_el_comprobante(), que ya tomaron los candados (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.avisar_los_cambios()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3592,6 +3970,21 @@ $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.borrar_el_presupuesto_del_trabajo(uuid,uuid,timestamp with time zone) is 'Borra, con la marca del trabajo, el borrador del presupuesto y sus revisiones de un trabajo que ya se borró. Es security definer porque el dueño no tiene grant para escribir ninguna de las dos: la llama private.borrar_hijos_de_proyecto(), y no hace nada si el trabajo está vivo (ADR 0080).';
 
+CREATE OR REPLACE FUNCTION private.borrar_el_ticket_del_certificado()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if old.huella is not null then
+    delete from private.arca_tickets t where t.certificado = old.huella;
+  end if;
+  return old;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.borrar_el_ticket_del_certificado() is 'Trigger AFTER DELETE de private.arca_certificados: el ticket de un certificado se va con él, en la misma transacción.';
+
 CREATE OR REPLACE FUNCTION private.borrar_hijos_de_proyecto()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3656,6 +4049,10 @@ begin
   -- La encuesta que se le mandó, lo que contestó y sus preguntas propias. El enlace deja de
   -- funcionar con el trabajo.
   perform private.borrar_las_opiniones_del_trabajo(new.household_id, new.id, new.deleted_at);
+
+  -- Los comprobantes de prueba (ADR 0085). Los de producción no se borran nunca, y un trabajo que los
+  -- tiene no llega acá: lo frena private.validar_proyecto().
+  perform private.borrar_los_comprobantes_de_prueba(new.household_id, new.id, new.deleted_at);
 
   return null;
 end;
@@ -3739,6 +4136,33 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.borrar_las_opiniones_del_trabajo(uuid,uuid,timestamp with time zone) is 'Borra, con la marca del trabajo, lo que se le preguntó y lo que contestó el cliente de un trabajo que ya se borró. Es security definer porque el dueño no tiene grant para borrar respuestas: la llama private.borrar_hijos_de_proyecto(), y no hace nada si el trabajo está vivo.';
+
+CREATE OR REPLACE FUNCTION private.borrar_los_comprobantes_de_prueba(p_household_id uuid, p_proyecto_id uuid, p_momento timestamp with time zone)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  -- Solo con el trabajo ya borrado. El dueño no tiene grant para escribir un comprobante, y esta puerta
+  -- no le abre ese camino para un trabajo vivo.
+  if not exists (
+    select 1 from public.proyectos p
+    where p.household_id = p_household_id and p.id = p_proyecto_id and p.deleted_at is not null
+  ) then
+    return;
+  end if;
+
+  update public.comprobantes c
+  set deleted_at = p_momento
+  where c.household_id = p_household_id
+    and c.proyecto_id = p_proyecto_id
+    and c.ambiente = 'homologacion'
+    and c.deleted_at is null;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.borrar_los_comprobantes_de_prueba(uuid,uuid,timestamp with time zone) is 'Da de baja, con la marca del trabajo, los comprobantes de homologación de un trabajo que ya se borró. Los de producción no se tocan: no se borran nunca, y la baja de un trabajo que los tiene la frena private.validar_proyecto() (MN043). Es security definer porque el dueño no tiene grant para escribir comprobantes: la llama private.borrar_hijos_de_proyecto(), y no hace nada si el trabajo está vivo (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.borrar_suscripcion_vencida(p_endpoint text)
  RETURNS boolean
@@ -4010,6 +4434,95 @@ end;
 $function$;
 -- execute: solo el dueño
 comment on function private.completar_los_tesoros() is 'Trigger de movimientos: completa desde_id y hacia_id desde tesoro_origen y tesoro_destino, o al revés, siguiendo el lado que cambió, y rechaza con 23514 si los dos cambian y no dicen lo mismo. Así una app de antes, que manda el enum, y una nueva, que manda el id, escriben la misma fila. Con los dos lados completos, rechaza con MN035 un movimiento entre tesoros de monedas distintas que no sea un cambio, y un cambio entre tesoros de la misma moneda; lo mira en toda alta y en toda edición que toque el tipo, un lado o monto_destino_centavos, leyendo la moneda de los dos tesoros, que es inmutable (ADR 0081). Antes de escribir toma los ajustes del taller for no key update, como una liquidación, porque todo movimiento cambia un saldo que la liquidación puede mirar (un compromiso que se renueva al pagar, un ahorro que se repone al usarlo, una meta, lo que cubre un mes); si trae proyecto_id, toma primero ese proyecto for key share, en el orden de la liquidación y de la reversión (ADR 0078).';
+
+CREATE OR REPLACE FUNCTION private.condicion_iva_del_receptor(p_condicion condicion_fiscal)
+ RETURNS smallint
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select case p_condicion
+    when 'consumidor_final' then 5
+    when 'monotributo' then 6
+    when 'responsable_inscripto' then 1
+    when 'exento' then 4
+  end::smallint
+$function$;
+-- execute: solo el dueño
+comment on function private.condicion_iva_del_receptor(condicion_fiscal) is 'El CondicionIVAReceptorId de ARCA para la condición del cliente: 5 consumidor final, 6 monotributo, 1 responsable inscripto y 4 exento. Gemela de condicionIvaDelReceptor en facturacion.ts; scripts/comparacion.ts las compara (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.conectar_la_facturacion(p_household_id uuid, p_ambiente text, p_cuit text, p_punto_de_venta integer, p_desde date)
+ RETURNS ajustes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_ajustes public.ajustes;
+begin
+  if num_nulls(p_household_id, p_ambiente, p_cuit, p_punto_de_venta, p_desde) > 0 then
+    raise exception 'Conectar la facturación necesita el taller, el ambiente, el CUIT, el punto de venta y la fecha'
+      using errcode = '22004';
+  end if;
+
+  if p_ambiente not in ('homologacion', 'produccion') then
+    raise exception 'El ambiente es homologacion o produccion' using errcode = '22023', hint = 'ambiente';
+  end if;
+
+  if p_cuit !~ '^[0-9]{2}-[0-9]{8}-[0-9]$' or not private.cuit_valido(p_cuit) then
+    raise exception 'El CUIT va con guiones y con su dígito verificador' using errcode = '22023', hint = 'cuit-invalido';
+  end if;
+
+  if p_punto_de_venta not between 1 and 99998 then
+    raise exception 'El punto de venta va de 1 a 99998' using errcode = '22023', hint = 'punto-de-venta';
+  end if;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = p_household_id
+  for no key update;
+
+  if not found then
+    raise exception 'Ese taller no existe' using errcode = '22023', hint = 'sin-taller';
+  end if;
+
+  if v_ajustes.facturacion_ambiente is not null then
+    raise exception 'La facturación de ese taller ya está conectada' using errcode = '22023', hint = 'ya-conectada';
+  end if;
+
+  if exists (
+    select 1 from public.comprobantes c
+    where c.household_id = p_household_id
+      and c.deleted_at is null
+      and c.estado in ('pedida', 'emitiendo', 'a_revisar')
+  ) then
+    raise exception 'Ese taller tiene comprobantes en camino' using errcode = '22023', hint = 'comprobantes-en-vuelo';
+  end if;
+
+  if exists (
+    select 1 from public.ajustes o
+    where o.household_id <> p_household_id
+      and o.facturacion_ambiente = p_ambiente
+      and o.facturacion_cuit = p_cuit
+      and o.facturacion_punto_de_venta = p_punto_de_venta
+  ) then
+    raise exception 'Ese punto de venta ya lo usa otro taller' using errcode = '22023', hint = 'punto-de-venta-de-otro-taller';
+  end if;
+
+  update public.ajustes a
+  set facturacion_ambiente = p_ambiente,
+      facturacion_cuit = p_cuit,
+      facturacion_punto_de_venta = p_punto_de_venta,
+      facturacion_desde = p_desde,
+      facturacion_alertas = '[]'::jsonb
+  where a.household_id = p_household_id
+  returning a.* into v_ajustes;
+
+  return v_ajustes;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.conectar_la_facturacion(uuid,text,text,integer,date) is 'Conecta la facturación de un taller: el ambiente, el CUIT, el punto de venta y desde cuándo. Es lo único que escribe esas cuatro columnas, que no tienen grant (traba 2). Sin ningún grant: la llaman db:facturacion, como dueño de la base, solo en homologación y solo para el taller de la cuenta de los e2e, y public.facturacion_conectar(), en producción, recién después de que la función de borde entró a ARCA con el certificado del taller. Se niega si el taller ya está conectado, si tiene comprobantes en camino o si otro taller usa ese punto de venta con ese CUIT en ese ambiente (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.contar_la_revision_de_la_fila()
  RETURNS trigger
@@ -4507,6 +5020,151 @@ $function$;
 -- execute: solo el dueño
 comment on function private.cuidar_las_fechas_de_la_entrega() is 'Guarda de proyectos, antes de escribir y venga de donde venga el cambio (la ficha, el formulario, reactivar un perdido): un trabajo en una etapa de antes de aprobar no tiene listo ni entrega comprometida, uno en curso no tiene fecha de entrega, y la franja no queda sin su día. Corre antes que private.mantener_metadatos(), así un reenvío que solo difiere en lo que esto limpia sigue siendo un no-op (ADR 0071).';
 
+CREATE OR REPLACE FUNCTION private.cuidar_los_comprobantes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_reserva boolean;
+  v_autoriza boolean;
+  v_suelta boolean;
+begin
+  if (
+    new.household_id, new.proyecto_id, new.pago_id, new.asociado_id, new.tipo, new.ambiente, new.cuit_emisor,
+    new.punto_de_venta, new.concepto, new.importe_centavos, new.moneda, new.doc_tipo, new.doc_nro,
+    new.condicion_iva_receptor, new.receptor_condicion, new.receptor_nombre, new.receptor_domicilio,
+    new.emisor, new.detalle, new.pedida_at
+  ) is distinct from (
+    old.household_id, old.proyecto_id, old.pago_id, old.asociado_id, old.tipo, old.ambiente, old.cuit_emisor,
+    old.punto_de_venta, old.concepto, old.importe_centavos, old.moneda, old.doc_tipo, old.doc_nro,
+    old.condicion_iva_receptor, old.receptor_condicion, old.receptor_nombre, old.receptor_domicilio,
+    old.emisor, old.detalle, old.pedida_at
+  ) then
+    raise exception 'Lo que dice un comprobante no cambia'
+      using errcode = 'MN043',
+            detail = 'congelado',
+            hint = 'Si está mal, anulá la factura con una nota de crédito y pedí otra.';
+  end if;
+
+  -- Las flechas de los estados (ADR 0085, «Los estados y la toma»).
+  if new.estado <> old.estado and not (
+    (old.estado = 'pedida' and new.estado = 'emitiendo')
+    or (old.estado = 'emitiendo' and new.estado in ('autorizada', 'rechazada', 'pedida', 'a_revisar'))
+    or (old.estado = 'a_revisar' and new.estado in ('autorizada', 'pedida', 'rechazada'))
+    or (old.estado = 'autorizada' and new.estado = 'anulada')
+  ) then
+    raise exception 'Un comprobante no pasa de % a %', old.estado, new.estado
+      using errcode = 'MN043',
+            detail = format('estado %s → %s', old.estado, new.estado);
+  end if;
+
+  -- El número y la fecha se reservan al pasar a emitiendo (o al volver a reservar), vuelven a null al
+  -- volver a pedida o al rechazarse, y la fecha toma la que dice ARCA al autorizarse. El CAE, su
+  -- vencimiento y cuándo se autorizó se escriben una sola vez, al autorizarse. Después, nada de eso cambia.
+  v_reserva := new.estado = 'emitiendo' and old.estado in ('pedida', 'emitiendo');
+  v_autoriza := new.estado = 'autorizada' and old.estado in ('emitiendo', 'a_revisar');
+  v_suelta := new.estado in ('pedida', 'rechazada') and old.estado <> new.estado;
+
+  if not (v_reserva or v_suelta) and new.numero is distinct from old.numero then
+    raise exception 'El número de un comprobante no cambia'
+      using errcode = 'MN043', detail = 'numero';
+  end if;
+
+  if not (v_reserva or v_suelta or v_autoriza) and new.fecha is distinct from old.fecha then
+    raise exception 'La fecha de un comprobante no cambia'
+      using errcode = 'MN043', detail = 'fecha';
+  end if;
+
+  if not v_autoriza
+    and (new.cae, new.cae_vence, new.autorizada_at) is distinct from (old.cae, old.cae_vence, old.autorizada_at)
+  then
+    raise exception 'El CAE de un comprobante se escribe una sola vez, al autorizarse'
+      using errcode = 'MN043', detail = 'cae';
+  end if;
+
+  if new.deleted_at is distinct from old.deleted_at and old.ambiente = 'produccion' then
+    raise exception 'Un comprobante de producción no se borra'
+      using errcode = 'MN043', detail = 'produccion';
+  end if;
+
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuidar_los_comprobantes() is 'Trigger BEFORE UPDATE de comprobantes. Corre para todos, también para service_role y para el dueño de la base: lo que dice el comprobante (el taller, el trabajo, el pago, la factura que anula, el tipo, el ambiente, el CUIT, el punto de venta, el concepto, el importe, la moneda, el receptor, el emisor, el detalle y cuándo se pidió) no cambia nunca; el estado sigue solo sus flechas; el número y la fecha cambian solo al reservarse o al soltarse, y la fecha al autorizarse; el CAE se escribe una vez; y uno de producción no se borra. Cualquier otra cosa es MN043 (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.cuidar_los_pagos_facturados()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  -- El concepto sí cambia: la factura ya congeló su detalle. Y el reenvío idéntico pasa.
+  if (
+    new.monto_centavos, new.fecha, new.moneda, new.cotizacion_centavos, new.tesoro_id, new.proyecto_id,
+    new.deleted_at
+  ) is not distinct from (
+    old.monto_centavos, old.fecha, old.moneda, old.cotizacion_centavos, old.tesoro_id, old.proyecto_id,
+    old.deleted_at
+  ) then
+    return new;
+  end if;
+
+  if exists (
+    select 1
+    from public.comprobantes c
+    where c.household_id = old.household_id
+      and c.pago_id = old.id
+      and c.tipo = 'factura_c'
+      and c.ambiente = 'produccion'
+      and c.deleted_at is null
+      and c.estado in ('pedida', 'emitiendo', 'autorizada', 'a_revisar')
+  ) then
+    raise exception 'Tiene una factura de ARCA: para cambiarlo, anulala primero'
+      using errcode = 'MN043',
+            detail = 'pago',
+            hint = 'Anulá la factura con una nota de crédito y después cambiá el pago.';
+  end if;
+
+  return new;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuidar_los_pagos_facturados() is 'Trigger BEFORE UPDATE de pagos: un pago con una factura de producción pedida, en camino, autorizada o a revisar no cambia su importe, su fecha, su moneda, su cotización, su tesoro, su trabajo ni su baja (MN043): ARCA ya tiene, o puede tener, una factura por eso. El concepto sí, porque la factura congeló su detalle, y el reenvío idéntico pasa. Una factura anulada o rechazada no traba, y una de homologación tampoco (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.cuit_valido(p_cuit text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  c_pesos constant integer[] := array[5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  v_digitos text := regexp_replace(coalesce(p_cuit, ''), '[^0-9]', '', 'g');
+  v_suma integer := 0;
+  v_verificador integer;
+begin
+  if char_length(v_digitos) <> 11 or left(v_digitos, 2) not in ('20', '23', '24', '27', '30', '33', '34') then
+    return false;
+  end if;
+
+  for v_indice in 1..10 loop
+    v_suma := v_suma + c_pesos[v_indice] * substr(v_digitos, v_indice, 1)::integer;
+  end loop;
+
+  v_verificador := 11 - v_suma % 11;
+  if v_verificador = 11 then
+    v_verificador := 0;
+  end if;
+
+  -- Con un resto de 10 no hay dígito verificador: revisarCuit lo da por ambiguo, y ambiguo no es válido.
+  return v_verificador <> 10 and v_verificador = substr(v_digitos, 11, 1)::integer;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.cuit_valido(text) is 'Si un CUIT es válido para facturar: once dígitos sin contar los guiones ni nada que no sea un dígito, uno de los prefijos de persona o de empresa y el dígito verificador. Gemela de cuitValido en facturacion.ts (revisarCuit da valido); scripts/comparacion.ts las compara (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.dar_de_baja_suscripcion(p_endpoint text)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -4523,6 +5181,146 @@ $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.dar_de_baja_suscripcion(text) is 'Borra este dispositivo si es del usuario de la sesión. Un endpoint de otra cuenta no se toca.';
 
+CREATE OR REPLACE FUNCTION private.descartar_la_alerta_de_facturacion(p_codigo text, p_numero bigint)
+ RETURNS ajustes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid := private.household_actual();
+  v_ajustes public.ajustes;
+  v_alertas jsonb;
+begin
+  if num_nulls(p_codigo, p_numero) > 0 then
+    raise exception 'Descartar la alerta necesita su código y el número de ARCA' using errcode = '22004';
+  end if;
+
+  -- Las demás alertas no se descartan: se van solas cuando se resuelven.
+  if p_codigo <> 'fuera-de-numa' then
+    raise exception 'Esa alerta se va sola cuando se resuelve' using errcode = '22023';
+  end if;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = v_household
+  for no key update;
+
+  -- Solo la del número que vio el dueño: si mientras tanto llegó otra, esa sigue.
+  select coalesce(
+    jsonb_agg(
+      case
+        when t.alerta ->> 'codigo' = 'fuera-de-numa' and t.alerta -> 'numeroArca' = to_jsonb(p_numero)
+          then t.alerta || '{"descartada": true}'::jsonb
+        else t.alerta
+      end
+      order by t.orden
+    ),
+    '[]'::jsonb
+  ) into v_alertas
+  from jsonb_array_elements(v_ajustes.facturacion_alertas) with ordinality as t (alerta, orden);
+
+  -- El reenvío no cambia nada: la fila queda como estaba, sin otra versión.
+  if v_alertas is distinct from v_ajustes.facturacion_alertas then
+    update public.ajustes a
+    set facturacion_alertas = v_alertas
+    where a.household_id = v_household
+    returning a.* into v_ajustes;
+  end if;
+
+  return v_ajustes;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.descartar_la_alerta_de_facturacion(text,bigint) is 'Marca descartada ({"descartada": true}) la alerta fuera-de-numa del taller cuyo número de ARCA (numeroArca) es el que vio el dueño: si mientras tanto llegó otra con otro número, esa no se descarta. Las otras alertas no se descartan (22023): se van solas cuando se resuelven. Toma los ajustes for no key update. Las alertas son objetos con su codigo: fuera-de-numa {tipo, puntoDeVenta, numeroArca, numeroNuma, descartada}, a-revisar {comprobanteId, proyectoId, tipo, puntoDeVenta, numero, cliente}, certificado-por-vencer {vence} y sin-acceso {desde} (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.desconectar_la_facturacion(p_household_id uuid, p_forzar boolean)
+ RETURNS ajustes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_ajustes public.ajustes;
+begin
+  if p_household_id is null then
+    raise exception 'Desconectar la facturación necesita el taller' using errcode = '22004';
+  end if;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = p_household_id
+  for no key update;
+
+  if not found then
+    raise exception 'Ese taller no existe' using errcode = '22023', hint = 'sin-taller';
+  end if;
+
+  -- Con lo pedido o en camino no se desconecta; lo que está a revisar, solo forzando.
+  if exists (
+    select 1 from public.comprobantes c
+    where c.household_id = p_household_id
+      and c.deleted_at is null
+      and (
+        c.estado in ('pedida', 'emitiendo')
+        or (c.estado = 'a_revisar' and not coalesce(p_forzar, false))
+      )
+  ) then
+    raise exception 'Ese taller tiene comprobantes en camino' using errcode = '22023', hint = 'comprobantes-en-vuelo';
+  end if;
+
+  update public.ajustes a
+  set facturacion_ambiente = null,
+      facturacion_cuit = '',
+      facturacion_punto_de_venta = null,
+      facturacion_desde = null,
+      facturacion_alertas = '[]'::jsonb
+  where a.household_id = p_household_id
+  returning a.* into v_ajustes;
+
+  return v_ajustes;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.desconectar_la_facturacion(uuid,boolean) is 'Desconecta la facturación de un taller: deja la conexión y las alertas vacías. No toca los comprobantes ni el certificado del taller, que puede volver a conectar desde Ajustes con su certificado activo. Se niega con algo pedido o en camino, y con algo a revisar salvo forzando. Sin ningún grant: la llama db:facturacion como dueño de la base (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.documento_del_receptor(p_condicion condicion_fiscal, p_cuit text, p_dni text, p_operacion_centavos bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  -- UMBRAL_DE_IDENTIFICACION_CENTAVOS de @maun/domain: $ 10.000.000 (RG 5866).
+  c_umbral constant bigint := 1000000000;
+  v_digitos text := regexp_replace(coalesce(p_cuit, ''), '[^0-9]', '', 'g');
+begin
+  if private.cuit_valido(p_cuit) then
+    return jsonb_build_object('docTipo', 80, 'docNro', v_digitos);
+  end if;
+
+  if v_digitos <> '' then
+    return jsonb_build_object('falta', 'cuit-invalido');
+  end if;
+
+  if p_condicion is distinct from 'consumidor_final' then
+    return jsonb_build_object('falta', 'cuit');
+  end if;
+
+  if coalesce(p_operacion_centavos, 0) < c_umbral then
+    return jsonb_build_object('docTipo', 99, 'docNro', '0');
+  end if;
+
+  if coalesce(p_dni, '') ~ '^[0-9]{7,8}$' then
+    return jsonb_build_object('docTipo', 96, 'docNro', p_dni);
+  end if;
+
+  return jsonb_build_object('falta', 'dni');
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.documento_del_receptor(condicion_fiscal,text,text,bigint) is 'El documento del cliente en la factura, {docTipo, docNro}, o lo que falta, {falta}: con un CUIT válido, 80 y sus dígitos, sea o no consumidor final; con un CUIT cargado que no es válido, cuit-invalido; sin CUIT, al que no es consumidor final le falta el cuit; al consumidor final, 99 y 0 si la operación (el trabajo, no el pago) no llega a $ 10.000.000, y si llega, 96 y su DNI, o le falta el dni. Gemela de documentoDelReceptor en facturacion.ts; scripts/comparacion.ts las compara (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.dolares_de_pesos(p_pesos bigint, p_cotizacion bigint)
  RETURNS bigint
  LANGUAGE plpgsql
@@ -4538,6 +5336,23 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.dolares_de_pesos(bigint,bigint) is 'Los centavos de dólar de unos centavos de peso a una cotización en centavos de peso por dólar, redondeados a la mitad hacia arriba: dolares_de_pesos(pesos_de_dolares(d, c), c) = d para toda cotización desde un peso. Gemela de dolaresDePesos en cotizacion.ts (ADR 0081).';
+
+CREATE OR REPLACE FUNCTION private.emisor_bien_formado(p_emisor jsonb)
+ RETURNS boolean
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select coalesce(
+    jsonb_typeof(p_emisor) = 'object'
+    and (select array_agg(k order by k collate "C") from jsonb_object_keys(p_emisor) as k)
+      = array['cuit', 'domicilio', 'ingresosBrutos', 'inicioDeActividades', 'nombreDelTaller', 'razonSocial']
+    and (select bool_and(jsonb_typeof(v) = 'string') from jsonb_each(p_emisor) as e (k, v)),
+    false
+  )
+$function$;
+-- execute: solo el dueño
+comment on function private.emisor_bien_formado(jsonb) is 'Si el emisor congelado de un comprobante tiene su forma: un objeto con razonSocial, nombreDelTaller, domicilio, cuit, ingresosBrutos e inicioDeActividades, todos texto, y nada más. Lo usa el check comprobantes_emisor_bien_formado (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.entero_de_json(p_valor jsonb)
  RETURNS bigint
@@ -4673,6 +5488,835 @@ end;
 $function$;
 -- execute: solo el dueño
 comment on function private.exigir_el_dolar_de_los_pagos() is 'Constraint trigger diferido de pagos y de proyectos (solo after update of moneda): en un trabajo en dólares, todo pago vivo en pesos tiene que llevar a qué dólar se tomó; si no, MN039. Es diferido porque guardar_proyecto escribe el trabajo antes que sus pagos. Se encola solo para un pago vivo en pesos sin su dólar y para un trabajo que de verdad cambia de moneda: el when de un constraint trigger se mira al escribir, no al commit. Un pago en pesos y un cambio de moneda a la vez se esperan en el candado del proyecto, y el que commitea segundo ve al otro (ADR 0081).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_anotar_el_acceso(p_ambiente text, p_ok boolean, p_household_id uuid)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_taller record;
+  v_alertas jsonb;
+  v_cuantos integer := 0;
+begin
+  if p_ambiente is null or p_ambiente not in ('homologacion', 'produccion') or p_ok is null then
+    raise exception 'El acceso necesita el ambiente y si anduvo' using errcode = '22023';
+  end if;
+
+  -- En producción cada taller entra con su certificado: el acceso es siempre de uno.
+  if p_ambiente = 'produccion' and p_household_id is null then
+    raise exception 'En producción el acceso es de un taller' using errcode = '22023';
+  end if;
+
+  for v_taller in
+    select a.household_id, a.facturacion_alertas
+    from public.ajustes a
+    where (p_household_id is null and a.facturacion_ambiente = p_ambiente)
+       or a.household_id = p_household_id
+    order by a.household_id
+    for no key update
+  loop
+    if p_ok then
+      select coalesce(jsonb_agg(t.alerta order by t.orden), '[]'::jsonb) into v_alertas
+      from jsonb_array_elements(v_taller.facturacion_alertas) with ordinality as t (alerta, orden)
+      where t.alerta ->> 'codigo' is distinct from 'sin-acceso';
+    elsif exists (
+      select 1 from jsonb_array_elements(v_taller.facturacion_alertas) as t (alerta)
+      where t.alerta ->> 'codigo' = 'sin-acceso'
+    ) then
+      v_alertas := v_taller.facturacion_alertas;
+    else
+      v_alertas := v_taller.facturacion_alertas || jsonb_build_array(jsonb_build_object('codigo', 'sin-acceso', 'desde', now()));
+    end if;
+
+    if v_alertas is distinct from v_taller.facturacion_alertas then
+      update public.ajustes a set facturacion_alertas = v_alertas where a.household_id = v_taller.household_id;
+      v_cuantos := v_cuantos + 1;
+    end if;
+  end loop;
+
+  return v_cuantos;
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_anotar_el_acceso(text,boolean,uuid) is 'Pone o saca la alerta sin-acceso ({codigo, desde}) después de un login: sin taller, solo en homologación y en todos los talleres conectados ahí, que comparten el certificado de prueba; con un taller, solo en ese. En producción va siempre con el taller del certificado, y sin taller se niega. Devuelve en cuántos talleres cambió algo (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_anotar_el_intercambio(p_intercambio jsonb)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_id uuid;
+begin
+  if jsonb_typeof(p_intercambio) is distinct from 'object' then
+    raise exception 'Un intercambio es un objeto' using errcode = '22023';
+  end if;
+
+  insert into private.arca_intercambios (
+    household_id, comprobante_id, ambiente, metodo, http_estado, duracion_ms, pedido, respuesta, error
+  ) values (
+    (p_intercambio ->> 'householdId')::uuid,
+    (p_intercambio ->> 'comprobanteId')::uuid,
+    p_intercambio ->> 'ambiente',
+    p_intercambio ->> 'metodo',
+    (p_intercambio ->> 'httpEstado')::integer,
+    (p_intercambio ->> 'duracionMs')::integer,
+    left(p_intercambio ->> 'pedido', 102400),
+    left(p_intercambio ->> 'respuesta', 102400),
+    left(p_intercambio ->> 'error', 500)
+  )
+  returning id into v_id;
+
+  return v_id;
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_anotar_el_intercambio(jsonb) is 'Anota una llamada a ARCA en private.arca_intercambios: {householdId, comprobanteId, ambiente, metodo, httpEstado, duracionMs, pedido, respuesta, error}, con el pedido y la respuesta recortados a 100 KB y el error a 500. El check de la tabla rechaza un XML con el bloque Auth, un elemento Cuit o el CMS (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_anotar_las_alertas(p_household_id uuid, p_alertas jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  c_del_control constant text[] := array['fuera-de-numa', 'certificado-por-vencer', 'a-revisar'];
+  v_viejas jsonb;
+  v_nuevas jsonb;
+begin
+  if p_household_id is null
+    or jsonb_typeof(p_alertas) is distinct from 'array'
+    or exists (
+      select 1 from jsonb_array_elements(p_alertas) as t (alerta)
+      where jsonb_typeof(t.alerta) <> 'object' or not coalesce(t.alerta ->> 'codigo' = any (c_del_control), false)
+    ) then
+    raise exception 'Las alertas del control son fuera-de-numa, certificado-por-vencer y a-revisar' using errcode = '22023';
+  end if;
+
+  select a.facturacion_alertas into v_viejas
+  from public.ajustes a
+  where a.household_id = p_household_id
+  for no key update;
+
+  if not found then
+    raise exception 'Ese taller no existe' using errcode = '22023';
+  end if;
+
+  -- La fuera-de-numa que el dueño ya descartó con el mismo número sigue descartada; con otro, vuelve.
+  select coalesce(
+    jsonb_agg(
+      case
+        when t.alerta ->> 'codigo' = 'fuera-de-numa' then
+          t.alerta || jsonb_build_object('descartada', exists (
+            select 1 from jsonb_array_elements(v_viejas) as v (alerta)
+            where v.alerta ->> 'codigo' = 'fuera-de-numa'
+              and v.alerta -> 'tipo' = t.alerta -> 'tipo'
+              and v.alerta -> 'numeroArca' = t.alerta -> 'numeroArca'
+              and v.alerta -> 'descartada' = 'true'::jsonb
+          ))
+        else t.alerta
+      end
+      order by t.orden
+    ),
+    '[]'::jsonb
+  ) into v_nuevas
+  from jsonb_array_elements(p_alertas) with ordinality as t (alerta, orden);
+
+  -- Las que no son del control (sin-acceso, del login) quedan como estaban, adelante.
+  v_nuevas := coalesce(
+    (
+      select jsonb_agg(t.alerta order by t.orden)
+      from jsonb_array_elements(v_viejas) with ordinality as t (alerta, orden)
+      where not coalesce(t.alerta ->> 'codigo' = any (c_del_control), false)
+    ),
+    '[]'::jsonb
+  ) || v_nuevas;
+
+  if v_nuevas is distinct from v_viejas then
+    update public.ajustes a set facturacion_alertas = v_nuevas where a.household_id = p_household_id;
+  end if;
+
+  return v_nuevas;
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_anotar_las_alertas(uuid,jsonb) is 'Reemplaza las alertas del control diario de un taller (fuera-de-numa, certificado-por-vencer y a-revisar) sin tocar sin-acceso, que es del login, y conserva descartada la fuera-de-numa que el dueño ya vio con el mismo tipo y el mismo número de ARCA. Devuelve las alertas que quedaron (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_anotar(p_id uuid, p_paso jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_paso text := p_paso ->> 'paso';
+  v_household uuid;
+  v_comprobante public.comprobantes;
+  v_numero bigint;
+  v_fecha date;
+  v_segundos integer;
+  v_motivo text;
+  v_choco boolean := false;
+begin
+  if p_id is null
+    or jsonb_typeof(p_paso) is distinct from 'object'
+    or v_paso is null
+    or v_paso not in ('reservar', 'autorizada', 'rechazada', 'a_revisar', 'pedida', 'soltar') then
+    raise exception 'Ese paso no existe' using errcode = '22023';
+  end if;
+
+  select c.household_id into v_household from public.comprobantes c where c.id = p_id;
+  if not found then
+    raise exception 'Ese comprobante no existe' using errcode = '22023';
+  end if;
+
+  perform 1 from public.ajustes a where a.household_id = v_household for no key update;
+
+  select c.* into v_comprobante from public.comprobantes c where c.id = p_id for update;
+
+  -- Todo paso sobre un pedido o un emitiendo es de una toma vigente, y de esa toma: la vuelta que lo tomó
+  -- manda su intento. Uno a revisar lo resuelve el control sin tomarlo, solo a autorizado o a pedido.
+  if v_comprobante.estado in ('pedida', 'emitiendo') then
+    if v_comprobante.emitiendo_hasta is null
+      or v_comprobante.emitiendo_hasta <= now()
+      or (p_paso ->> 'intento') is distinct from v_comprobante.intentos::text then
+      raise exception 'La toma de este comprobante venció o es de otra vuelta' using errcode = '55000';
+    end if;
+  elsif not (v_comprobante.estado = 'a_revisar' and v_paso in ('autorizada', 'pedida')) then
+    raise exception 'Un comprobante % no da el paso %', v_comprobante.estado, v_paso using errcode = '55000';
+  end if;
+
+  case v_paso
+    when 'reservar' then
+      v_numero := (p_paso ->> 'numero')::bigint;
+      v_fecha := (p_paso ->> 'fecha')::date;
+      v_segundos := coalesce((p_paso ->> 'segundos')::integer, 120);
+
+      if v_numero is null or v_numero not between 1 and 99999999 or v_segundos not between 1 and 600 then
+        raise exception 'Reservar necesita un número de 1 a 99999999' using errcode = '22023';
+      end if;
+
+      if v_fecha is distinct from private.hoy_en_el_taller() then
+        raise exception 'La fecha del comprobante es la de hoy en el taller' using errcode = '22023';
+      end if;
+
+      -- Con los mismos candados que la toma, y en el mismo orden: si otro de la secuencia está en vuelo, o
+      -- si el número ya es de otro, contesta como soltar.
+      if private.facturacion_secuencia_ocupada(v_comprobante) then
+        v_choco := true;
+      else
+        begin
+          update public.comprobantes c
+          set estado = 'emitiendo',
+              numero = v_numero,
+              fecha = v_fecha,
+              emitiendo_hasta = now() + make_interval(secs => v_segundos)
+          where c.id = p_id
+          returning c.* into v_comprobante;
+        exception
+          when unique_violation then
+            v_choco := true;
+        end;
+      end if;
+
+      if v_choco then
+        update public.comprobantes c
+        set emitiendo_hasta = case when c.estado = 'emitiendo' then now() + interval '5 minutes' end,
+            ultimo_error = 'La secuencia o el número estaban ocupados: se vuelve a intentar.'
+        where c.id = p_id
+        returning c.* into v_comprobante;
+
+        return jsonb_build_object('hecho', false, 'comprobante', to_jsonb(v_comprobante));
+      end if;
+
+    when 'autorizada' then
+      if v_comprobante.estado = 'pedida' then
+        raise exception 'Un comprobante pedido no queda autorizado sin su número' using errcode = '55000';
+      end if;
+
+      v_comprobante := private.autorizar_el_comprobante(
+        p_id,
+        p_paso ->> 'cae',
+        (p_paso ->> 'caeVence')::date,
+        (p_paso ->> 'fecha')::date
+      );
+
+    when 'rechazada' then
+      if v_comprobante.estado <> 'emitiendo' then
+        raise exception 'Solo se rechaza un comprobante emitiendo' using errcode = '55000';
+      end if;
+
+      if jsonb_typeof(p_paso -> 'rechazo') is distinct from 'object' then
+        raise exception 'Un rechazo lleva lo que contestó ARCA' using errcode = '22023';
+      end if;
+
+      update public.comprobantes c
+      set estado = 'rechazada',
+          numero = null,
+          fecha = null,
+          rechazo = p_paso -> 'rechazo',
+          emitiendo_hasta = null,
+          ultimo_error = null
+      where c.id = p_id
+      returning c.* into v_comprobante;
+
+    when 'a_revisar' then
+      if v_comprobante.estado <> 'emitiendo' then
+        raise exception 'Solo queda a revisar un comprobante emitiendo' using errcode = '55000';
+      end if;
+
+      v_motivo := left(p_paso ->> 'motivo', 500);
+      if coalesce(v_motivo, '') !~ '[^ \t\n\r\f\v]' then
+        raise exception 'A revisar lleva su motivo' using errcode = '22023';
+      end if;
+
+      update public.comprobantes c
+      set estado = 'a_revisar',
+          rechazo = jsonb_build_object('motivo', v_motivo),
+          emitiendo_hasta = null,
+          ultimo_error = null
+      where c.id = p_id
+      returning c.* into v_comprobante;
+
+    when 'pedida' then
+      if v_comprobante.estado = 'pedida' then
+        raise exception 'Ya está pedido: para dejarlo, soltar' using errcode = '55000';
+      end if;
+
+      update public.comprobantes c
+      set estado = 'pedida',
+          numero = null,
+          fecha = null,
+          emitiendo_hasta = null,
+          ultimo_error = left(p_paso ->> 'error', 500)
+      where c.id = p_id
+      returning c.* into v_comprobante;
+
+    when 'soltar' then
+      -- Un emitiendo que se quedó sin respuesta no se libera enseguida: ARCA puede estar terminando.
+      update public.comprobantes c
+      set emitiendo_hasta = case when c.estado = 'emitiendo' then now() + interval '5 minutes' end,
+          ultimo_error = left(p_paso ->> 'error', 500)
+      where c.id = p_id
+      returning c.* into v_comprobante;
+  end case;
+
+  return jsonb_build_object('hecho', true, 'comprobante', to_jsonb(v_comprobante));
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_anotar(uuid,jsonb) is 'Cada paso de la función de borde sobre un comprobante tomado, con su intento: reservar ({numero, fecha, segundos}: emitiendo con el número, la fecha de hoy en el taller y la toma extendida; si la secuencia tiene otro en vuelo o el número es de otro, contesta como soltar, con hecho en false), autorizada ({cae, caeVence, fecha}; una nota de crédito anula su factura en la misma transacción), rechazada ({rechazo}), a_revisar ({motivo}), pedida (vuelve sin número) y soltar ({error}: libera un pedido y deja un emitiendo cinco minutos más). Toma los ajustes y la fila en el orden de facturacion_tomar. Uno a revisar lo resuelve el control sin tomarlo, a autorizada o a pedida. Devuelve {hecho, comprobante} (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_certificados(p_household_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select jsonb_build_object(
+    'activo', (
+      select jsonb_build_object(
+        'id', c.id, 'cuit', c.cuit, 'certificado', c.certificado, 'huella', c.huella, 'vence', c.vence,
+        'claveCifrada', c.clave_cifrada, 'claveIv', c.clave_iv
+      )
+      from private.arca_certificados c
+      where c.household_id = p_household_id and c.estado = 'activo'
+    ),
+    'pendiente', (
+      select jsonb_build_object(
+        'id', c.id, 'estado', c.estado, 'cuit', c.cuit, 'pedido', c.pedido, 'certificado', c.certificado,
+        'huella', c.huella, 'vence', c.vence, 'claveCifrada', c.clave_cifrada, 'claveIv', c.clave_iv
+      )
+      from private.arca_certificados c
+      where c.household_id = p_household_id and c.estado <> 'activo'
+    )
+  )
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_certificados(uuid) is 'El certificado activo y el pendiente de un taller, con la clave cifrada, para que la función de borde firme el login o controle el certificado que sube el dueño. La clave sale cifrada: sin ARCA_PRODUCCION_LLAVE no sirve (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_conectar(p_household_id uuid, p_certificado_id uuid, p_punto_de_venta integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_ajustes public.ajustes;
+  v_certificado private.arca_certificados;
+begin
+  if num_nulls(p_household_id, p_certificado_id, p_punto_de_venta) > 0 or p_punto_de_venta not between 1 and 99998 then
+    raise exception 'Conectar necesita el taller, el certificado y un punto de venta de 1 a 99998' using errcode = '22023';
+  end if;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = p_household_id
+  for no key update;
+
+  select c.* into v_certificado
+  from private.arca_certificados c
+  where c.id = p_certificado_id
+  for update;
+
+  if v_ajustes.household_id is null or v_certificado.id is null or v_certificado.household_id <> p_household_id then
+    raise exception 'Ese certificado no es de este taller' using errcode = '22023', hint = 'certificado-ajeno';
+  end if;
+
+  if v_ajustes.facturacion_ambiente = 'homologacion' then
+    raise exception 'El taller factura en prueba' using errcode = '22023', hint = 'en-prueba';
+  end if;
+
+  if v_ajustes.facturacion_ambiente = 'produccion' then
+    -- Renovar: cambia solo el certificado, con el mismo CUIT y el mismo punto de venta.
+    if v_certificado.estado <> 'subido' then
+      raise exception 'Ese certificado no está subido' using errcode = '22023', hint = 'certificado-sin-subir';
+    end if;
+
+    if v_certificado.cuit <> v_ajustes.facturacion_cuit then
+      raise exception 'El certificado nuevo es de otro CUIT' using errcode = '22023', hint = 'otro-cuit';
+    end if;
+
+    if p_punto_de_venta <> v_ajustes.facturacion_punto_de_venta then
+      raise exception 'Al renovar, el punto de venta es el mismo' using errcode = '22023', hint = 'otro-punto-de-venta';
+    end if;
+  else
+    -- Conectar: con el subido, o con el activo de un taller que se desconectó.
+    if v_certificado.estado = 'pedido' then
+      raise exception 'Ese certificado no está subido' using errcode = '22023', hint = 'certificado-sin-subir';
+    end if;
+
+    if exists (
+      select 1 from public.comprobantes c
+      where c.household_id = p_household_id
+        and c.deleted_at is null
+        and c.estado in ('pedida', 'emitiendo', 'a_revisar')
+    ) then
+      raise exception 'El taller tiene comprobantes en camino' using errcode = '22023', hint = 'comprobantes-en-vuelo';
+    end if;
+
+    if exists (
+      select 1 from public.ajustes o
+      where o.household_id <> p_household_id
+        and o.facturacion_ambiente = 'produccion'
+        and o.facturacion_cuit = v_certificado.cuit
+        and o.facturacion_punto_de_venta = p_punto_de_venta
+    ) then
+      raise exception 'Ese punto de venta ya lo usa otro taller' using errcode = '22023', hint = 'punto-de-venta-de-otro-taller';
+    end if;
+  end if;
+
+  -- Al activar uno, el anterior se borra, con su ticket.
+  if v_certificado.estado = 'subido' then
+    delete from private.arca_certificados c
+    where c.household_id = p_household_id and c.estado = 'activo';
+
+    update private.arca_certificados c
+    set estado = 'activo', updated_at = now()
+    where c.id = p_certificado_id;
+  end if;
+
+  if v_ajustes.facturacion_ambiente is null then
+    perform private.conectar_la_facturacion(
+      p_household_id, 'produccion', v_certificado.cuit, p_punto_de_venta, private.hoy_en_el_taller()
+    );
+  end if;
+
+  return private.facturacion_del_taller(p_household_id);
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_conectar(uuid,uuid,integer) is 'Conecta un taller en producción, o renueva su certificado. La llama la función de borde recién después de entrar a ARCA con ese certificado y de encontrar el punto de venta, en el mismo pedido que confirmó el dueño. Con un certificado subido lo pasa a activo y borra el anterior; con el activo de un taller desconectado, lo deja como está. Si el taller no estaba conectado, lo conecta con el CUIT del certificado, ese punto de venta y hoy (private.conectar_la_facturacion). Se niega, con el motivo en el hint, si el certificado no es de ese taller (certificado-ajeno) o no está subido ni es el activo de un taller desconectado (certificado-sin-subir), si el taller está en homologación (en-prueba), si al conectarse tiene comprobantes en camino (comprobantes-en-vuelo) o si otro taller usa ese CUIT y ese punto de venta (punto-de-venta-de-otro-taller), y al renovar, si el CUIT o el punto de venta no son los mismos (otro-cuit, otro-punto-de-venta) (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_del_taller(p_household_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select jsonb_build_object(
+    'householdId', a.household_id,
+    'ambiente', a.facturacion_ambiente,
+    'cuit', a.facturacion_cuit,
+    'puntoDeVenta', a.facturacion_punto_de_venta,
+    'desde', a.facturacion_desde,
+    'tallerCuit', a.taller_cuit,
+    'tallerTitular', a.taller_titular,
+    'tallerCondicionFiscal', a.taller_condicion_fiscal,
+    'certificados', jsonb_build_object(
+      'activo', (
+        select jsonb_build_object('id', c.id, 'estado', c.estado, 'cuit', c.cuit, 'vence', c.vence)
+        from private.arca_certificados c
+        where c.household_id = a.household_id and c.estado = 'activo'
+      ),
+      'pendiente', (
+        select jsonb_build_object('id', c.id, 'estado', c.estado, 'cuit', c.cuit, 'vence', c.vence)
+        from private.arca_certificados c
+        where c.household_id = a.household_id and c.estado <> 'activo'
+      )
+    )
+  )
+  from public.ajustes a
+  where a.household_id = p_household_id
+$function$;
+-- execute: solo el dueño
+comment on function private.facturacion_del_taller(uuid) is 'La facturación de un taller como la ven las rutas con sesión de la función de borde: la conexión, los datos de «Tu presupuesto» que hacen falta para pedir el certificado y el estado de sus certificados, sin ninguna clave (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_del_usuario(p_user_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select private.facturacion_del_taller(m.household_id)
+  from public.household_members m
+  join public.households h on h.id = m.household_id and h.deleted_at is null
+  where m.user_id = p_user_id
+    and m.deleted_at is null
+    and m.rol = 'titular'
+  limit 1
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_del_usuario(uuid) is 'Para las rutas con sesión de la función de borde, que validan la sesión con Auth y mandan el id del usuario: la facturación de su taller si es su titular (private.facturacion_del_taller), o null si no es dueño de ninguno. Sin ninguna clave (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_guardar_el_certificado(p_id uuid, p_certificado text, p_huella text, p_vence date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid;
+  v_certificado private.arca_certificados;
+begin
+  if num_nulls(p_id, p_certificado, p_huella, p_vence) > 0 then
+    raise exception 'Guardar el certificado necesita el pedido, el certificado, su huella y su vencimiento' using errcode = '22004';
+  end if;
+
+  select c.household_id into v_household from private.arca_certificados c where c.id = p_id;
+  if not found then
+    raise exception 'Ese pedido no existe' using errcode = '22023', hint = 'sin-pedido';
+  end if;
+
+  perform 1 from public.ajustes a where a.household_id = v_household for no key update;
+
+  begin
+    update private.arca_certificados c
+    set estado = 'subido',
+        certificado = p_certificado,
+        huella = p_huella,
+        vence = p_vence,
+        updated_at = now()
+    where c.id = p_id and c.estado = 'pedido'
+    returning c.* into v_certificado;
+  exception
+    when unique_violation then
+      raise exception 'Ese certificado ya está guardado' using errcode = '22023', hint = 'certificado-repetido';
+  end;
+
+  if v_certificado.id is null then
+    raise exception 'Ese pedido ya tiene su certificado' using errcode = '22023', hint = 'sin-pedido';
+  end if;
+
+  return jsonb_build_object(
+    'id', v_certificado.id, 'estado', v_certificado.estado, 'cuit', v_certificado.cuit, 'vence', v_certificado.vence
+  );
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_guardar_el_certificado(uuid,text,text,date) is 'Guarda el certificado que el dueño bajó de ARCA en su pedido, con su huella y su vencimiento: pasa a subido solo un certificado en pedido. Los controles del certificado (que sea X.509, de la clave del pedido, del CUIT del pedido y no vencido) los hace la función de borde antes (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_guardar_el_pedido(p_household_id uuid, p_cuit text, p_pedido text, p_clave_cifrada text, p_clave_iv text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_certificado private.arca_certificados;
+begin
+  if num_nulls(p_household_id, p_cuit, p_pedido, p_clave_cifrada, p_clave_iv) > 0 then
+    raise exception 'Guardar el pedido necesita el taller, el CUIT, el pedido y la clave cifrada' using errcode = '22004';
+  end if;
+
+  if p_cuit !~ '^[0-9]{2}-[0-9]{8}-[0-9]$' or not private.cuit_valido(p_cuit) then
+    raise exception 'El CUIT del pedido no es válido' using errcode = '22023', hint = 'cuit-invalido';
+  end if;
+
+  perform 1 from public.ajustes a where a.household_id = p_household_id for no key update;
+  if not found then
+    raise exception 'Ese taller no existe' using errcode = '22023', hint = 'sin-taller';
+  end if;
+
+  -- El pedido nuevo reemplaza al pendiente anterior, nunca al activo.
+  delete from private.arca_certificados c
+  where c.household_id = p_household_id and c.estado <> 'activo';
+
+  insert into private.arca_certificados (household_id, cuit, pedido, clave_cifrada, clave_iv)
+  values (p_household_id, p_cuit, p_pedido, p_clave_cifrada, p_clave_iv)
+  returning * into v_certificado;
+
+  return jsonb_build_object(
+    'id', v_certificado.id, 'estado', v_certificado.estado, 'cuit', v_certificado.cuit, 'vence', v_certificado.vence
+  );
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_guardar_el_pedido(uuid,text,text,text,text) is 'Guarda un pedido de certificado nuevo de un taller, con su clave privada cifrada, y borra el pendiente anterior: nunca el activo. Devuelve el pedido sin la clave (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_guardar_el_ticket(p_certificado text, p_ticket jsonb)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if p_certificado is null or jsonb_typeof(p_ticket) is distinct from 'object' then
+    raise exception 'Guardar el ticket necesita el certificado y qué guardar' using errcode = '22023';
+  end if;
+
+  if p_certificado <> 'homologacion'
+    and not exists (select 1 from private.arca_certificados c where c.huella = p_certificado) then
+    raise exception 'Ese certificado no existe' using errcode = '22023';
+  end if;
+
+  insert into private.arca_tickets (certificado) values (p_certificado) on conflict do nothing;
+
+  if p_ticket ? 'token' then
+    if coalesce(p_ticket ->> 'token', '') = '' or coalesce(p_ticket ->> 'firma', '') = '' or (p_ticket ->> 'vence') is null then
+      raise exception 'Un ticket lleva el token, la firma y su vencimiento' using errcode = '22023';
+    end if;
+
+    update private.arca_tickets t
+    set token = p_ticket ->> 'token',
+        firma = p_ticket ->> 'firma',
+        vence = (p_ticket ->> 'vence')::timestamptz,
+        obtenido_at = now(),
+        login_hasta = null,
+        bloqueado_hasta = null
+    where t.certificado = p_certificado;
+  elsif p_ticket ? 'bloqueadoHasta' then
+    update private.arca_tickets t
+    set bloqueado_hasta = (p_ticket ->> 'bloqueadoHasta')::timestamptz,
+        login_hasta = null
+    where t.certificado = p_certificado;
+  elsif p_ticket -> 'soltar' = 'true'::jsonb then
+    update private.arca_tickets t
+    set login_hasta = null
+    where t.certificado = p_certificado;
+  elsif p_ticket -> 'borrar' = 'true'::jsonb then
+    update private.arca_tickets t
+    set token = null, firma = null, vence = null, obtenido_at = null, login_hasta = null
+    where t.certificado = p_certificado;
+  else
+    raise exception 'Se guarda un ticket, un bloqueo, se suelta el login o se borra el ticket' using errcode = '22023';
+  end if;
+
+  return true;
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_guardar_el_ticket(text,jsonb) is 'Guarda el ticket nuevo de un certificado ({token, firma, vence}), el bloqueo de ARCA ({bloqueadoHasta}), suelta el login que no consiguió nada ({soltar: true}) o borra el ticket guardado, después de un 600 o un 601 del WSFE ({borrar: true}). El ticket se guarda tal como llega, sin decodificarlo (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_para_controlar(p_ambientes text[])
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'householdId', a.household_id,
+        'ambiente', a.facturacion_ambiente,
+        'cuit', a.facturacion_cuit,
+        'puntoDeVenta', a.facturacion_punto_de_venta,
+        'certificadoVence', (
+          select c.vence from private.arca_certificados c
+          where c.household_id = a.household_id and c.estado = 'activo'
+        ),
+        'ultimos', (
+          select jsonb_build_object(
+            'factura_c', max(c.numero) filter (where c.tipo = 'factura_c'),
+            'nota_de_credito_c', max(c.numero) filter (where c.tipo = 'nota_de_credito_c')
+          )
+          from public.comprobantes c
+          where c.household_id = a.household_id
+            and c.ambiente = a.facturacion_ambiente
+            and c.cuit_emisor = a.facturacion_cuit
+            and c.punto_de_venta = a.facturacion_punto_de_venta
+            and c.estado in ('autorizada', 'anulada', 'emitiendo', 'a_revisar')
+        ),
+        'aRevisar', (
+          select coalesce(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', c.id, 'tipo', c.tipo, 'ambiente', c.ambiente, 'cuitEmisor', c.cuit_emisor,
+                'puntoDeVenta', c.punto_de_venta, 'numero', c.numero, 'fecha', c.fecha,
+                'importeCentavos', c.importe_centavos, 'docTipo', c.doc_tipo, 'docNro', c.doc_nro,
+                'proyectoId', c.proyecto_id, 'cliente', c.receptor_nombre
+              )
+              order by c.pedida_at, c.id
+            ),
+            '[]'::jsonb
+          )
+          from public.comprobantes c
+          where c.household_id = a.household_id and c.estado = 'a_revisar' and c.deleted_at is null
+        ),
+        'alertas', a.facturacion_alertas
+      )
+      order by a.household_id
+    ),
+    '[]'::jsonb
+  )
+  from public.ajustes a
+  where a.facturacion_ambiente = any (coalesce(p_ambientes, array[]::text[]))
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_para_controlar(text[]) is 'Lo que mira el control diario, por taller conectado en los ambientes prendidos: el ambiente, el CUIT, el punto de venta, el vencimiento de su certificado activo, el último número de cada tipo que NUMA tiene en esa secuencia (autorizado, anulado, emitiendo o a revisar, contando las filas dadas de baja), los comprobantes a revisar y las alertas que tiene (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_pendientes(p_ambientes text[])
+ RETURNS uuid[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select coalesce(array_agg(t.id order by t.orden, t.pedida_at, t.id), array[]::uuid[])
+  from (
+    select c.id, case c.estado when 'emitiendo' then 0 else 1 end as orden, c.pedida_at
+    from public.comprobantes c
+    where c.estado in ('pedida', 'emitiendo')
+      and c.deleted_at is null
+      and c.ambiente = any (coalesce(p_ambientes, array[]::text[]))
+      and (c.emitiendo_hasta is null or c.emitiendo_hasta <= now())
+    order by 2, c.pedida_at, c.id
+    limit 20
+  ) as t
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_pendientes(text[]) is 'Hasta 20 comprobantes para trabajar, de los ambientes que la función de borde tiene prendidos: primero los emitiendo cuya toma venció, que hay que consultar antes de pedir de nuevo, y después los pedidos, por cuándo se pidieron (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_secuencia_ocupada(p_comprobante comprobantes)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select exists (
+    select 1
+    from public.comprobantes c
+    where c.household_id = p_comprobante.household_id
+      and c.ambiente = p_comprobante.ambiente
+      and c.tipo = p_comprobante.tipo
+      and c.id <> p_comprobante.id
+      and c.deleted_at is null
+      and (c.estado = 'emitiendo' or (c.estado = 'pedida' and c.emitiendo_hasta > now()))
+  )
+$function$;
+-- execute: solo el dueño
+comment on function private.facturacion_secuencia_ocupada(comprobantes) is 'Si otro comprobante de la misma secuencia (el taller, el ambiente y el tipo) está emitiendo o tomado: con eso, este no se toma ni reserva número. Es la invariante 1: un número en vuelo por secuencia (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_tomar_el_login(p_certificado text, p_segundos integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_ticket private.arca_tickets;
+  v_el_guardado jsonb;
+begin
+  if p_certificado is null or p_segundos is null or p_segundos not between 1 and 600 then
+    raise exception 'El login necesita el certificado y de 1 a 600 segundos' using errcode = '22023';
+  end if;
+
+  if p_certificado <> 'homologacion'
+    and not exists (select 1 from private.arca_certificados c where c.huella = p_certificado) then
+    raise exception 'Ese certificado no existe' using errcode = '22023';
+  end if;
+
+  insert into private.arca_tickets (certificado) values (p_certificado) on conflict do nothing;
+
+  select t.* into v_ticket from private.arca_tickets t where t.certificado = p_certificado for update;
+
+  v_el_guardado := jsonb_build_object(
+    'ticket', jsonb_build_object('token', v_ticket.token, 'firma', v_ticket.firma, 'vence', v_ticket.vence)
+  );
+
+  -- Con más de diez minutos por delante, el guardado.
+  if v_ticket.vence > now() + interval '10 minutes' then
+    return v_el_guardado;
+  end if;
+
+  -- Si ARCA no da otro todavía, o alguien ya lo está pidiendo, el guardado mientras valga; si no, esperar.
+  if v_ticket.bloqueado_hasta > now() or v_ticket.login_hasta > now() then
+    if v_ticket.vence > now() + interval '1 minute' then
+      return v_el_guardado;
+    end if;
+
+    return jsonb_build_object(
+      'esperar', greatest(coalesce(v_ticket.bloqueado_hasta, '-infinity'), coalesce(v_ticket.login_hasta, '-infinity'))
+    );
+  end if;
+
+  update private.arca_tickets t
+  set login_hasta = now() + make_interval(secs => p_segundos)
+  where t.certificado = p_certificado;
+
+  return jsonb_build_object('pedir', true);
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_tomar_el_login(text,integer) is 'El ticket del WSAA de un certificado (homologacion, o la huella de uno de producción): el guardado si le quedan más de diez minutos ({ticket}); si no, el permiso de pedir uno nuevo a una sola llamada por vez, por p_segundos ({pedir}); a las demás, el guardado mientras valga o hasta cuándo esperar ({esperar}), y lo mismo con el bloqueo de «ya posee un TA valido». La fila nace la primera vez (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.facturacion_tomar(p_id uuid, p_segundos integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid;
+  v_comprobante public.comprobantes;
+begin
+  if p_id is null or p_segundos is null or p_segundos not between 1 and 600 then
+    raise exception 'La toma necesita el comprobante y de 1 a 600 segundos' using errcode = '22023';
+  end if;
+
+  select c.household_id into v_household from public.comprobantes c where c.id = p_id;
+  if not found then
+    return null;
+  end if;
+
+  -- Los candados de la invariante 1, en este orden: los ajustes del taller y después la fila.
+  perform 1 from public.ajustes a where a.household_id = v_household for no key update;
+
+  select c.* into v_comprobante from public.comprobantes c where c.id = p_id for update;
+
+  if v_comprobante.estado not in ('pedida', 'emitiendo')
+    or v_comprobante.deleted_at is not null
+    or v_comprobante.emitiendo_hasta > now() then
+    return null;
+  end if;
+
+  if v_comprobante.estado = 'pedida' and private.facturacion_secuencia_ocupada(v_comprobante) then
+    return null;
+  end if;
+
+  update public.comprobantes c
+  set emitiendo_hasta = now() + make_interval(secs => p_segundos),
+      intentos = c.intentos + 1
+  where c.id = p_id
+  returning c.* into v_comprobante;
+
+  return to_jsonb(v_comprobante);
+end;
+$function$;
+-- execute: service_role:EXECUTE
+comment on function private.facturacion_tomar(uuid,integer) is 'La toma de un comprobante: si está pedido o emitiendo, sin baja y libre o con la toma vencida, y si es un pedido cuya secuencia no tiene otro emitiendo ni tomado, le pone emitiendo_hasta = ahora + p_segundos, le suma un intento y lo devuelve. Si no, null. Toma los ajustes del taller for no key update y después la fila for update. La toma es una fecha y no una transacción, porque la función habla con ARCA entre llamadas a la base; cada paso lleva su número de intento (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.fecha_de_apertura(p_household_id uuid)
  RETURNS date
@@ -5040,6 +6684,20 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.guardar_preferencias_de_avisos(text,time without time zone,jsonb) is 'Guarda la zona horaria, la hora y qué avisa, para el usuario de la sesión.';
+
+CREATE OR REPLACE FUNCTION private.hay_facturacion_pendiente()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists (
+    select 1 from public.comprobantes c
+    where c.estado in ('pedida', 'emitiendo') and c.deleted_at is null
+  )
+$function$;
+-- execute: solo el dueño
+comment on function private.hay_facturacion_pendiente() is 'Si hay algún comprobante pedido o emitiendo, de cualquier taller: sin nada, el trabajo de cada cinco minutos no llama a la función (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.household_actual()
  RETURNS uuid
@@ -6039,6 +7697,87 @@ $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.lo_que_descuenta(text,bigint,bigint,text) is 'Lo que un pago descuenta del precio, en la moneda del trabajo: su importe si es de la misma moneda, y si no, convertido a su cotización. Es lo que se resta para la seña, el saldo, lo pagado por delante y «Lo que pagaste». Gemela de loQueDescuenta en cotizacion.ts (ADR 0081).';
 
+CREATE OR REPLACE FUNCTION private.lo_que_falta_para_facturar(p_datos jsonb)
+ RETURNS text[]
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+declare
+  c_algo_escrito constant text := '[^ \t\n\r\f\v]';
+  v_taller jsonb := coalesce(p_datos -> 'taller', '{}'::jsonb);
+  v_trabajo jsonb := coalesce(p_datos -> 'trabajo', '{}'::jsonb);
+  v_pago jsonb := coalesce(p_datos -> 'pago', '{}'::jsonb);
+  v_cliente jsonb := coalesce(p_datos -> 'cliente', '{}'::jsonb);
+  v_precio bigint := (v_trabajo ->> 'precio')::bigint;
+  v_cobrado bigint := coalesce((v_trabajo ->> 'cobrado')::bigint, 0);
+  v_documento jsonb;
+  v_falta text[] := array[]::text[];
+begin
+  if (v_taller ->> 'condicion') is distinct from 'monotributo' then
+    v_falta := v_falta || 'taller-no-monotributo'::text;
+  end if;
+
+  if coalesce(v_taller ->> 'razonSocial', '') !~ c_algo_escrito then
+    v_falta := v_falta || 'taller-sin-razon-social'::text;
+  end if;
+
+  if coalesce(v_taller ->> 'domicilio', '') !~ c_algo_escrito then
+    v_falta := v_falta || 'taller-sin-domicilio'::text;
+  end if;
+
+  if coalesce(v_taller ->> 'ingresosBrutos', '') !~ c_algo_escrito then
+    v_falta := v_falta || 'taller-sin-ingresos-brutos'::text;
+  end if;
+
+  if (v_taller ->> 'inicioDeActividades') is null then
+    v_falta := v_falta || 'taller-sin-inicio-de-actividades'::text;
+  end if;
+
+  if coalesce((v_pago ->> 'borrado')::boolean, false) or coalesce((v_trabajo ->> 'borrado')::boolean, false) then
+    v_falta := v_falta || 'pago-borrado'::text;
+  end if;
+
+  if (v_pago ->> 'moneda') is distinct from 'ARS' or (v_trabajo ->> 'moneda') is distinct from 'ARS' then
+    v_falta := v_falta || 'en-dolares'::text;
+  end if;
+
+  if coalesce((v_pago ->> 'yaEnLaApertura')::boolean, false) then
+    v_falta := v_falta || 'de-la-apertura'::text;
+  end if;
+
+  -- La operación es el trabajo y no el pago: su precio o lo cobrado, lo que sea más (operacionDelTrabajo).
+  v_documento := private.documento_del_receptor(
+    (v_cliente ->> 'condicion')::public.condicion_fiscal,
+    coalesce(v_cliente ->> 'cuit', ''),
+    coalesce(v_cliente ->> 'dni', ''),
+    case when v_precio is not null and v_precio > v_cobrado then v_precio else v_cobrado end
+  );
+
+  if v_documento ->> 'falta' = 'cuit' then
+    v_falta := v_falta || 'cliente-sin-cuit'::text;
+  end if;
+
+  if v_documento ->> 'falta' = 'cuit-invalido' then
+    v_falta := v_falta || 'cliente-cuit-invalido'::text;
+  end if;
+
+  if (v_cliente ->> 'condicion') is distinct from 'consumidor_final'
+    and coalesce(v_cliente ->> 'domicilioFiscal', '') !~ c_algo_escrito
+    and coalesce(v_cliente ->> 'direccion', '') !~ c_algo_escrito then
+    v_falta := v_falta || 'cliente-sin-domicilio'::text;
+  end if;
+
+  if v_documento ->> 'falta' = 'dni' then
+    v_falta := v_falta || 'cliente-sin-dni'::text;
+  end if;
+
+  return v_falta;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.lo_que_falta_para_facturar(jsonb) is 'Lo que le falta a un pago, a su cliente o al taller para facturarlo, con los mismos códigos y en el mismo orden que loQueFaltaParaFacturar en facturacion.ts, que recibe el mismo objeto: {taller: {condicion, razonSocial, domicilio, ingresosBrutos, inicioDeActividades}, trabajo: {moneda, borrado, precio, cobrado}, pago: {moneda, borrado, yaEnLaApertura}, cliente: {condicion, cuit, dni, domicilioFiscal, direccion}}. Vacío si se puede facturar. La conexión (MN040) y la factura repetida (MN042) no son de esta lista. scripts/comparacion.ts las compara (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.lo_que_falta_para_mandar(p_documento jsonb, p_revision integer, p_que_cambio text)
  RETURNS text[]
  LANGUAGE plpgsql
@@ -6487,6 +8226,28 @@ $function$;
 -- execute: solo el dueño
 comment on function private.motivo_del_rechazo(text) is 'El mensaje de cada motivo de private.validar_respuesta().';
 
+CREATE OR REPLACE FUNCTION private.no_se_borran_los_comprobantes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if tg_op = 'TRUNCATE' then
+    raise exception 'Los comprobantes no se truncan'
+      using errcode = 'MN043', detail = 'truncate';
+  end if;
+
+  if old.ambiente = 'produccion' then
+    raise exception 'Un comprobante de producción no se borra'
+      using errcode = 'MN043', detail = 'produccion';
+  end if;
+
+  return old;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.no_se_borran_los_comprobantes() is 'Trigger BEFORE DELETE (por fila) y BEFORE TRUNCATE de comprobantes: uno de producción no se borra ni físicamente, ni como dueño de la base, y la tabla no se trunca nunca (MN043). Los de homologación se pueden borrar a mano; la app los da de baja con su trabajo (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.opciones_de_pregunta_validas(p_opciones text[])
  RETURNS boolean
  LANGUAGE sql
@@ -6571,6 +8332,421 @@ end;
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.pagos_por_delante(bigint,bigint,integer) is 'Los pagos que le faltan al cliente, en el orden en que los va a hacer: la seña mientras no esté cubierta y después el saldo, o nada cuando ya pagó todo. El importe de la seña es lo que falta de ella, con todo lo cobrado hasta hoy ya descontado —la visita incluida, que entra como un pago más—; el del saldo es el presupuesto menos la seña entera, que es lo que va a quedar cuando la termine de pagar. La seña sale de private.sena_esperada(). Sin presupuesto devuelve los dos sin importe: el porcentaje de seña es política comercial del taller y no viaja. Es la gemela en SQL de pagosPorDelante() de @maun/domain y scripts/comparacion.ts las compara caso por caso (ADR 0053 y 0067).';
+
+CREATE OR REPLACE FUNCTION private.pedir_la_emision()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  perform private.pedir_la_facturacion('trabajo');
+  return null;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.pedir_la_emision() is 'Trigger AFTER INSERT de comprobantes, por sentencia: cada pedido de una factura o de una nota de crédito le avisa a la función de borde que hay algo para emitir, así el dueño la tiene en segundos y no a los cinco minutos (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.pedir_la_factura(p_id uuid, p_pago_id uuid, p_detalle text)
+ RETURNS comprobantes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  c_algo_escrito constant text := '[^ \t\n\r\f\v]';
+  c_puntas constant text := '^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$';
+  v_household uuid := private.household_actual();
+  v_proyecto_id uuid;
+  v_proyecto public.proyectos;
+  v_pago public.pagos;
+  v_ajustes public.ajustes;
+  v_cliente public.clientes;
+  v_comprobante public.comprobantes;
+  v_cobrado bigint;
+  v_falta text[];
+  v_documento jsonb;
+  v_detalle text;
+  v_con_razon_social boolean;
+begin
+  if num_nulls(p_id, p_pago_id, p_detalle) > 0 then
+    raise exception 'Pedir la factura necesita su id, el pago y el detalle' using errcode = '22004';
+  end if;
+
+  -- El trabajo del pago, leído sin candado para saber cuál tomar primero.
+  select g.proyecto_id into v_proyecto_id
+  from public.pagos g
+  where g.household_id = v_household and g.id = p_pago_id;
+
+  if not found then
+    raise exception 'Le falta algo para facturar'
+      using errcode = 'MN041',
+            hint = 'pago-borrado';
+  end if;
+
+  -- Los candados, en este orden: el trabajo, el pago y los ajustes del taller. Un guardado del trabajo o
+  -- un cambio del pago esperan a que la factura quede pedida, y la factura espera a que terminen.
+  select p.* into v_proyecto
+  from public.proyectos p
+  where p.household_id = v_household and p.id = v_proyecto_id
+  for share;
+
+  select g.* into v_pago
+  from public.pagos g
+  where g.household_id = v_household and g.id = p_pago_id
+  for no key update;
+
+  if v_pago.proyecto_id <> v_proyecto.id then
+    raise exception 'El pago cambió de trabajo mientras se pedía su factura'
+      using errcode = '40001',
+            hint = 'Probá de nuevo.';
+  end if;
+
+  select a.* into v_ajustes
+  from public.ajustes a
+  where a.household_id = v_household
+  for share;
+
+  -- El reenvío de la cola, mirado con los candados tomados: esta factura ya se pidió y la respuesta se
+  -- perdió. Se devuelve tal cual, esté como esté.
+  select c.* into v_comprobante
+  from public.comprobantes c
+  where c.id = p_id;
+
+  if found then
+    if v_comprobante.household_id <> v_household then
+      raise exception 'Ese comprobante no es de tu taller' using errcode = '42501';
+    end if;
+
+    if v_comprobante.tipo = 'factura_c' and v_comprobante.pago_id = p_pago_id then
+      return v_comprobante;
+    end if;
+
+    raise exception 'Ese id ya es de otro comprobante' using errcode = '22023';
+  end if;
+
+  if v_ajustes.facturacion_ambiente is null then
+    raise exception 'La facturación con ARCA no está conectada'
+      using errcode = 'MN040',
+            hint = 'Conectala en Ajustes.';
+  end if;
+
+  select c.* into v_cliente
+  from public.clientes c
+  where c.household_id = v_household and c.id = v_proyecto.cliente_id;
+
+  -- Lo cobrado del trabajo, en su moneda: lo que descuenta cada pago vivo (ADR 0081).
+  select coalesce(
+    sum(private.lo_que_descuenta(g.moneda, g.monto_centavos, g.cotizacion_centavos, v_proyecto.moneda)),
+    0
+  ) into v_cobrado
+  from public.pagos g
+  where g.household_id = v_household
+    and g.proyecto_id = v_proyecto.id
+    and g.deleted_at is null;
+
+  v_falta := private.lo_que_falta_para_facturar(jsonb_build_object(
+    'taller', jsonb_build_object(
+      'condicion', v_ajustes.taller_condicion_fiscal,
+      'razonSocial', v_ajustes.taller_titular,
+      'domicilio', v_ajustes.taller_domicilio,
+      'ingresosBrutos', v_ajustes.facturacion_ingresos_brutos,
+      'inicioDeActividades', to_char(v_ajustes.facturacion_inicio_de_actividades, 'YYYY-MM-DD')
+    ),
+    'trabajo', jsonb_build_object(
+      'moneda', v_proyecto.moneda,
+      'borrado', v_proyecto.deleted_at is not null,
+      'precio', v_proyecto.presupuesto_centavos,
+      'cobrado', v_cobrado
+    ),
+    'pago', jsonb_build_object(
+      'moneda', v_pago.moneda,
+      'borrado', v_pago.deleted_at is not null,
+      'yaEnLaApertura', v_pago.ya_en_la_apertura
+    ),
+    'cliente', jsonb_build_object(
+      'condicion', v_cliente.condicion_fiscal,
+      'cuit', v_cliente.cuit,
+      'dni', v_cliente.dni,
+      'domicilioFiscal', v_cliente.domicilio_fiscal,
+      'direccion', v_cliente.direccion
+    )
+  ));
+
+  -- La app no deja tocar «Emitir» si falta algo: este rechazo es para la carrera. Los códigos van en el
+  -- hint, separados por coma, en el orden de la lista.
+  if cardinality(v_falta) > 0 then
+    raise exception 'Le falta algo para facturar'
+      using errcode = 'MN041',
+            hint = array_to_string(v_falta, ', ');
+  end if;
+
+  if exists (
+    select 1
+    from public.comprobantes c
+    where c.household_id = v_household
+      and c.pago_id = p_pago_id
+      and c.tipo = 'factura_c'
+      and c.deleted_at is null
+      and c.estado in ('pedida', 'emitiendo', 'autorizada', 'a_revisar')
+  ) then
+    raise exception 'Ese pago ya tiene su factura'
+      using errcode = 'MN042',
+            detail = 'factura';
+  end if;
+
+  -- El detalle es lo único que factura que manda la app: sin blancos en las puntas y hasta 200, como
+  -- detalleDeLaFactura.
+  v_detalle := regexp_replace(left(regexp_replace(p_detalle, c_puntas, '', 'g'), 200), c_puntas, '', 'g');
+  if v_detalle = '' then
+    raise exception 'La factura necesita su detalle' using errcode = '22023';
+  end if;
+
+  v_documento := private.documento_del_receptor(
+    v_cliente.condicion_fiscal,
+    v_cliente.cuit,
+    v_cliente.dni,
+    case
+      when v_proyecto.presupuesto_centavos > v_cobrado then v_proyecto.presupuesto_centavos
+      else v_cobrado
+    end
+  );
+
+  -- El nombre y el domicilio del receptor, como nombreDelReceptor y domicilioDelReceptor: del que no es
+  -- consumidor final, la razón social y el domicilio fiscal, si los tiene.
+  v_con_razon_social := v_cliente.condicion_fiscal <> 'consumidor_final';
+
+  begin
+    insert into public.comprobantes (
+      id, household_id, proyecto_id, pago_id, tipo, ambiente, cuit_emisor, punto_de_venta, concepto,
+      importe_centavos, moneda, doc_tipo, doc_nro, condicion_iva_receptor, receptor_condicion,
+      receptor_nombre, receptor_domicilio, emisor, detalle
+    ) values (
+      p_id,
+      v_household,
+      v_proyecto.id,
+      v_pago.id,
+      'factura_c',
+      v_ajustes.facturacion_ambiente,
+      v_ajustes.facturacion_cuit,
+      v_ajustes.facturacion_punto_de_venta,
+      v_ajustes.facturacion_concepto,
+      v_pago.monto_centavos,
+      'ARS',
+      (v_documento ->> 'docTipo')::smallint,
+      v_documento ->> 'docNro',
+      private.condicion_iva_del_receptor(v_cliente.condicion_fiscal),
+      v_cliente.condicion_fiscal,
+      regexp_replace(
+        case
+          when v_con_razon_social and v_cliente.razon_social ~ c_algo_escrito then v_cliente.razon_social
+          else v_cliente.nombre
+        end,
+        c_puntas, '', 'g'
+      ),
+      regexp_replace(
+        case
+          when v_con_razon_social and v_cliente.domicilio_fiscal ~ c_algo_escrito then v_cliente.domicilio_fiscal
+          else v_cliente.direccion
+        end,
+        c_puntas, '', 'g'
+      ),
+      jsonb_build_object(
+        'razonSocial', regexp_replace(v_ajustes.taller_titular, c_puntas, '', 'g'),
+        'nombreDelTaller', (select h.nombre from public.households h where h.id = v_household),
+        'domicilio', regexp_replace(v_ajustes.taller_domicilio, c_puntas, '', 'g'),
+        'cuit', v_ajustes.facturacion_cuit,
+        'ingresosBrutos', regexp_replace(v_ajustes.facturacion_ingresos_brutos, c_puntas, '', 'g'),
+        'inicioDeActividades', to_char(v_ajustes.facturacion_inicio_de_actividades, 'YYYY-MM-DD')
+      ),
+      v_detalle
+    )
+    returning * into v_comprobante;
+  exception
+    when unique_violation then
+      -- Nunca un 23505 crudo: si es el mismo pedido, la fila; si no, ese pago ya tiene su factura.
+      select c.* into v_comprobante
+      from public.comprobantes c
+      where c.id = p_id;
+
+      if found
+        and v_comprobante.household_id = v_household
+        and v_comprobante.tipo = 'factura_c'
+        and v_comprobante.pago_id = p_pago_id then
+        return v_comprobante;
+      end if;
+
+      raise exception 'Ese pago ya tiene su factura'
+        using errcode = 'MN042',
+              detail = 'factura';
+  end;
+
+  return v_comprobante;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.pedir_la_factura(uuid,uuid,text) is 'Pide la Factura C de un pago: la deja en pedida, con todo lo que factura congelado desde la base (el importe del pago, el receptor según el cliente y la operación del trabajo, el concepto, el ambiente, el CUIT y el punto de venta del taller, y el emisor), salvo el detalle, que manda la app. Toma el trabajo for share, el pago for no key update y los ajustes for share, en ese orden. Reconoce el reenvío por el id (42501 si es de otro taller, 22023 si es de otro pago o de una nota). Rechaza con MN040 sin la conexión, con MN041 si falta algo (los códigos de private.lo_que_falta_para_facturar en el hint, separados por coma) y con MN042 si el pago ya tiene una factura viva. Del resto se ocupa la función de borde (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.pedir_la_facturacion(p_ruta text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_secretos jsonb;
+begin
+  if p_ruta is null or p_ruta not in ('trabajo', 'control') then
+    raise exception 'La función de la facturación tiene dos rutas: trabajo y control' using errcode = '22023';
+  end if;
+
+  v_secretos := private.secretos_de_la_facturacion();
+  if v_secretos ->> 'url' is null or v_secretos ->> 'secreto' is null then
+    return null;
+  end if;
+
+  if p_ruta = 'trabajo' and not private.hay_facturacion_pendiente() then
+    return null;
+  end if;
+
+  return net.http_post(
+    url := rtrim(v_secretos ->> 'url', '/') || '/' || p_ruta,
+    body := '{}'::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (v_secretos ->> 'secreto')
+    ),
+    timeout_milliseconds := 30000
+  );
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.pedir_la_facturacion(text) is 'Le pide a la función de borde facturar que trabaje lo pendiente (trabajo) o que haga el control diario (control), con el secreto del disparo. Sin los secretos en Vault devuelve null y no pide nada; para trabajo, tampoco sin nada pedido ni emitiendo. La llaman el disparo de cada pedido y pg_cron. pg_net manda el pedido recién cuando la transacción confirma (ADR 0085).';
+
+CREATE OR REPLACE FUNCTION private.pedir_la_nota_de_credito(p_id uuid, p_factura_id uuid)
+ RETURNS comprobantes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid := private.household_actual();
+  v_proyecto_id uuid;
+  v_factura public.comprobantes;
+  v_nota public.comprobantes;
+begin
+  if num_nulls(p_id, p_factura_id) > 0 then
+    raise exception 'Pedir la nota de crédito necesita su id y la factura' using errcode = '22004';
+  end if;
+
+  select c.proyecto_id into v_proyecto_id
+  from public.comprobantes c
+  where c.household_id = v_household and c.id = p_factura_id;
+
+  if not found then
+    raise exception 'La factura no existe o no es tuya' using errcode = '42501';
+  end if;
+
+  -- Los candados en el orden de pedir la factura: el trabajo y después el comprobante.
+  perform 1
+  from public.proyectos p
+  where p.household_id = v_household and p.id = v_proyecto_id
+  for share;
+
+  select c.* into v_factura
+  from public.comprobantes c
+  where c.household_id = v_household and c.id = p_factura_id
+  for update;
+
+  -- El reenvío de la cola, como en pedir_la_factura.
+  select c.* into v_nota
+  from public.comprobantes c
+  where c.id = p_id;
+
+  if found then
+    if v_nota.household_id <> v_household then
+      raise exception 'Ese comprobante no es de tu taller' using errcode = '42501';
+    end if;
+
+    if v_nota.tipo = 'nota_de_credito_c' and v_nota.asociado_id = p_factura_id then
+      return v_nota;
+    end if;
+
+    raise exception 'Ese id ya es de otro comprobante' using errcode = '22023';
+  end if;
+
+  if v_factura.tipo <> 'factura_c'
+    or v_factura.estado <> 'autorizada'
+    or v_factura.deleted_at is not null
+    or exists (
+      select 1
+      from public.comprobantes c
+      where c.household_id = v_household
+        and c.asociado_id = v_factura.id
+        and c.tipo = 'nota_de_credito_c'
+        and c.deleted_at is null
+        and c.estado in ('pedida', 'emitiendo', 'autorizada', 'a_revisar')
+    ) then
+    raise exception 'Esa factura ya está anulada o todavía no está autorizada'
+      using errcode = 'MN042',
+            detail = 'nota';
+  end if;
+
+  begin
+    insert into public.comprobantes (
+      id, household_id, proyecto_id, pago_id, asociado_id, tipo, ambiente, cuit_emisor, punto_de_venta,
+      concepto, importe_centavos, moneda, doc_tipo, doc_nro, condicion_iva_receptor, receptor_condicion,
+      receptor_nombre, receptor_domicilio, emisor, detalle
+    ) values (
+      p_id,
+      v_household,
+      v_factura.proyecto_id,
+      v_factura.pago_id,
+      v_factura.id,
+      'nota_de_credito_c',
+      v_factura.ambiente,
+      v_factura.cuit_emisor,
+      v_factura.punto_de_venta,
+      v_factura.concepto,
+      v_factura.importe_centavos,
+      v_factura.moneda,
+      v_factura.doc_tipo,
+      v_factura.doc_nro,
+      v_factura.condicion_iva_receptor,
+      v_factura.receptor_condicion,
+      v_factura.receptor_nombre,
+      v_factura.receptor_domicilio,
+      v_factura.emisor,
+      format(
+        'Anula la factura C %s-%s',
+        lpad(v_factura.punto_de_venta::text, 5, '0'),
+        lpad(v_factura.numero::text, 8, '0')
+      )
+    )
+    returning * into v_nota;
+  exception
+    when unique_violation then
+      select c.* into v_nota
+      from public.comprobantes c
+      where c.id = p_id;
+
+      if found
+        and v_nota.household_id = v_household
+        and v_nota.tipo = 'nota_de_credito_c'
+        and v_nota.asociado_id = p_factura_id then
+        return v_nota;
+      end if;
+
+      raise exception 'Esa factura ya está anulada o todavía no está autorizada'
+        using errcode = 'MN042',
+              detail = 'nota';
+  end;
+
+  return v_nota;
+end;
+$function$;
+-- execute: authenticated:EXECUTE
+comment on function private.pedir_la_nota_de_credito(uuid,uuid) is 'Pide la Nota de Crédito C que anula entera una factura autorizada: la deja en pedida con el mismo pago, ambiente, CUIT, punto de venta, concepto, importe, receptor y emisor que la factura, y el detalle «Anula la factura C 00003-00000042». Toma el trabajo for share y la factura for update. Reconoce el reenvío por el id como pedir_la_factura y rechaza con MN042 si la factura no está autorizada o ya tiene una nota viva. No pide que la facturación siga conectada: una factura se anula aunque el taller ya no facture con NUMA. Cuando la nota queda autorizada, la factura queda anulada (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.pedir_los_avisos()
  RETURNS bigint
@@ -8104,6 +10280,62 @@ $function$;
 -- execute: solo el dueño
 comment on function private.repartir_por_la_fila(bigint,bigint,integer[],text[],bigint[],bigint[],boolean[],integer[],bigint[]) is 'Reparte el ingreso de un cobro por la fila: las obligaciones en su orden (su porcentaje de lo cobrado o de lo que les llega, redondeado como el diezmo y nunca más que lo que llega), cada paso hasta lo que le falta y lo que sobra por porcentajes, cada parte redondeada hacia abajo y sin pasar su tope; el resto y los centavos son del superávit. Rechaza con 22004, 22023 y 22003 donde repartir tira RangeError. Gemela de repartir en fila.ts (ADR 0078).';
 
+CREATE OR REPLACE FUNCTION private.resolver_el_comprobante(p_id uuid, p_resolucion jsonb)
+ RETURNS comprobantes
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_household uuid;
+  v_comprobante public.comprobantes;
+  v_como text := p_resolucion ->> 'como';
+begin
+  if p_id is null or v_como is null or v_como not in ('autorizada', 'rechazada') then
+    raise exception 'Se resuelve como autorizada, con el CAE, su vencimiento y la fecha, o como rechazada'
+      using errcode = '22023';
+  end if;
+
+  select c.household_id into v_household from public.comprobantes c where c.id = p_id;
+  if not found then
+    raise exception 'Ese comprobante no existe' using errcode = '22023';
+  end if;
+
+  perform 1 from public.ajustes a where a.household_id = v_household for no key update;
+
+  select c.* into v_comprobante from public.comprobantes c where c.id = p_id for update;
+
+  if v_comprobante.estado <> 'a_revisar' then
+    raise exception 'Solo se resuelve a mano un comprobante a revisar' using errcode = '22023', hint = 'no-esta-a-revisar';
+  end if;
+
+  if v_como = 'autorizada' then
+    v_comprobante := private.autorizar_el_comprobante(
+      p_id,
+      p_resolucion ->> 'cae',
+      (p_resolucion ->> 'vence')::date,
+      (p_resolucion ->> 'fecha')::date
+    );
+  else
+    update public.comprobantes c
+    set estado = 'rechazada',
+        numero = null,
+        fecha = null,
+        rechazo = coalesce(c.rechazo, '{}'::jsonb) || '{"resuelta": "a mano"}'::jsonb,
+        emitiendo_hasta = null
+    where c.id = p_id
+    returning c.* into v_comprobante;
+  end if;
+
+  insert into private.arca_intercambios (household_id, comprobante_id, ambiente, metodo, pedido)
+  values (v_household, p_id, v_comprobante.ambiente, 'resolver', p_resolucion::text);
+
+  return v_comprobante;
+end;
+$function$;
+-- execute: solo el dueño
+comment on function private.resolver_el_comprobante(uuid,jsonb) is 'Resuelve a mano un comprobante a revisar que el control no pudo resolver, después de mirarlo en ARCA: {"como": "autorizada", "cae", "vence", "fecha"} o {"como": "rechazada"}. Deja anotado en private.arca_intercambios qué se hizo. Sin ningún grant: la llama db:facturacion --resolver como dueño de la base (ADR 0085).';
+
 CREATE OR REPLACE FUNCTION private.reversion_valida(p_desde estado_proyecto, p_hacia estado_proyecto)
  RETURNS boolean
  LANGUAGE sql
@@ -8338,6 +10570,20 @@ AS $function$
 $function$;
 -- execute: authenticated:EXECUTE
 comment on function private.ruta_del_archivo(uuid,uuid,uuid,text,boolean) is 'La ruta del binario en el bucket archivos, la misma que arma la app (ADR 0039). La vista del cliente la manda ya armada para que el navegador del cliente no tenga que conocer la convención.';
+
+CREATE OR REPLACE FUNCTION private.secretos_de_la_facturacion()
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select jsonb_build_object(
+    'url', (select s.decrypted_secret from vault.decrypted_secrets s where s.name = 'facturar_url'),
+    'secreto', (select s.decrypted_secret from vault.decrypted_secrets s where s.name = 'facturar_secreto')
+  )
+$function$;
+-- execute: solo el dueño
+comment on function private.secretos_de_la_facturacion() is 'La URL de la función de borde facturar y el secreto del disparo, de Vault (facturar_url y facturar_secreto), o null el que falte. Los carga db:facturacion --vault desde variables de entorno (ADR 0085).';
 
 CREATE OR REPLACE FUNCTION private.sembrar_la_encuesta(p_household_id uuid)
  RETURNS void
@@ -8916,6 +11162,22 @@ begin
         using errcode = 'MN001';
     end if;
 
+    -- Un trabajo con comprobantes de producción no se borra: lo que ARCA autorizó no desaparece con él, y
+    -- uno que está en camino puede quedar autorizado. Uno rechazado no traba: ARCA no lo tiene. Los de
+    -- homologación se van con el trabajo (ADR 0085).
+    if old.deleted_at is null and new.deleted_at is not null and exists (
+      select 1 from public.comprobantes c
+      where c.household_id = old.household_id
+        and c.proyecto_id = old.id
+        and c.ambiente = 'produccion'
+        and c.estado <> 'rechazada'
+    ) then
+      raise exception 'Este trabajo tiene facturas de ARCA y no se puede borrar'
+        using errcode = 'MN043',
+              detail = 'trabajo',
+              hint = 'Si no sigue, dalo por perdido.';
+    end if;
+
     -- La baja se lleva los pagos y gastos, y des-borrar no los trae de vuelta: un proyecto
     -- borrado se queda borrado. Evita que una edición vieja encolada lo resucite vacío.
     if old.deleted_at is not null and new.deleted_at is null then
@@ -8961,7 +11223,7 @@ begin
 end;
 $function$;
 -- execute: solo el dueño
-comment on function private.validar_proyecto() is 'Guarda de proyectos: un liquidado (cobrado o perdido) no cambia de estado editándolo, y con pagos o gastos no se borra (MN001); un borrado no revive (MN002); un proyecto vivo no cuelga de un cliente borrado (MN005); el estado solo sigue transiciones válidas (MN007). Deja pasar el reenvío idéntico de la cola.';
+comment on function private.validar_proyecto() is 'Guarda de proyectos: un liquidado (cobrado o perdido) no cambia de estado editándolo, y con pagos o gastos no se borra (MN001); un trabajo con comprobantes de producción que no estén rechazados no se borra (MN043, ADR 0085); un borrado no revive (MN002); un proyecto vivo no cuelga de un cliente borrado (MN005); el estado solo sigue transiciones válidas (MN007). Deja pasar el reenvío idéntico de la cola.';
 
 CREATE OR REPLACE FUNCTION private.validar_respuesta_de_entrega(p_respuesta jsonb, p_forma forma_de_coordinar, p_hoy date)
  RETURNS text
@@ -10104,9 +12366,76 @@ begin
     -- visita es un pago del trabajo, y queda a cuenta de la seña.
     'relevamiento_centavos', case when not v_presupuesto_mandado then v_ajustes.relevamiento_centavos end,
     -- El presupuesto que se le mandó desde la app, en la forma de su etapa (ver arriba), o null.
-    'presupuesto', v_presupuesto
+    'presupuesto', v_presupuesto,
+    -- Sus facturas con ARCA (ADR 0085): las autorizadas o anuladas y las notas de crédito autorizadas,
+    -- desde cualquier etapa, porque la de la seña existe antes de aprobar. Las de producción, siempre; las
+    -- de prueba, solo mientras el taller siga en homologación. Campo por campo, como todo lo demás: el
+    -- emisor clave por clave y nunca el jsonb entero, y del receptor lo que dice la factura, que es del
+    -- propio cliente y lo necesita el PDF. Lo de la emisión (el rechazo, los intentos, la toma, el último
+    -- error) no viaja. Desde el link esta función corre sin RLS: se filtra por el taller del trabajo.
+    'facturas', (
+      select coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', c.id,
+            'tipo', c.tipo,
+            'punto_de_venta', c.punto_de_venta,
+            'numero', c.numero,
+            'fecha', c.fecha,
+            'importe_centavos', c.importe_centavos,
+            'detalle', c.detalle,
+            'cae', c.cae,
+            'cae_vence', c.cae_vence,
+            'prueba', c.ambiente = 'homologacion',
+            'emisor', jsonb_build_object(
+              'razonSocial', c.emisor ->> 'razonSocial',
+              'nombreDelTaller', c.emisor ->> 'nombreDelTaller',
+              'domicilio', c.emisor ->> 'domicilio',
+              'cuit', c.emisor ->> 'cuit',
+              'ingresosBrutos', c.emisor ->> 'ingresosBrutos',
+              'inicioDeActividades', c.emisor ->> 'inicioDeActividades'
+            ),
+            'receptor', jsonb_build_object(
+              'nombre', c.receptor_nombre,
+              'domicilio', c.receptor_domicilio,
+              'condicion', c.receptor_condicion,
+              'doc_tipo', c.doc_tipo,
+              'doc_nro', c.doc_nro
+            ),
+            'anulada_por', (
+              select jsonb_build_object('punto_de_venta', n.punto_de_venta, 'numero', n.numero, 'fecha', n.fecha)
+              from public.comprobantes n
+              where c.tipo = 'factura_c'
+                and n.household_id = c.household_id
+                and n.asociado_id = c.id
+                and n.tipo = 'nota_de_credito_c'
+                and n.estado = 'autorizada'
+                and n.deleted_at is null
+            ),
+            'anula_a', (
+              select jsonb_build_object('punto_de_venta', f.punto_de_venta, 'numero', f.numero, 'fecha', f.fecha)
+              from public.comprobantes f
+              where c.tipo = 'nota_de_credito_c'
+                and f.household_id = c.household_id
+                and f.id = c.asociado_id
+            )
+          )
+          order by c.fecha, c.tipo, c.numero, c.id
+        ),
+        '[]'::jsonb
+      )
+      from public.comprobantes c
+      where c.household_id = v_p.household_id
+        and c.proyecto_id = v_p.id
+        and c.deleted_at is null
+        and (
+          (c.tipo = 'factura_c' and c.estado in ('autorizada', 'anulada'))
+          or (c.tipo = 'nota_de_credito_c' and c.estado = 'autorizada')
+        )
+        and (c.ambiente = 'produccion' or v_ajustes.facturacion_ambiente = 'homologacion')
+    )
   );
 end;
 $function$;
 -- execute: authenticated:EXECUTE, service_role:EXECUTE
-comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). La clave presupuesto trae el presupuesto que se le mandó desde la app (ADR 0080): null antes de mandarlo o si nunca se mandó desde la app; esperando la seña, la última revisión tal cual (numero, revision, mandado_el, que_cambio y contenido, con las opciones y la obra adentro); desde que aprueba, la última revisión sin que_cambio, con las opciones del contenido filtradas a la aprobada, más aceptado_el y la letra de esa opción: las que no eligió no viajan. Los datos del taller para el presupuesto viajan solo adentro del contenido de cada revisión. La clave idioma trae el idioma de los clientes del taller, en el que habla la página, y el presupuesto trae el de su revisión, en el que se armó (ADR 0082). Desde el ADR 0081 trae también la moneda del trabajo y en qué le paga el cliente (cobra_en), las formas en dólares del pago que toca y del siguiente (vacías si no cobra en dólares; las de pesos, vacías si no cobra en pesos), la cuenta en dólares (cobro_en_dolares) solo si el pago que toca se ofrece en dólares por transferencia, y el dólar del día con su fecha solo en un trabajo en dólares y desde que se le manda el presupuesto. Lo pagado y el monto_centavos de cada pago son lo que descuenta, en la moneda del trabajo; cada pago trae además su moneda, lo que se entregó (pagado_centavos) y su dólar. Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076, 0079, 0080, 0081 y 0082).';
+comment on function vista_del_cliente(uuid) is 'Lo único que un cliente puede ver de su trabajo, y cada dato recién desde la etapa en la que es cierto (ADR 0067): el presupuesto desde que se le manda; la dirección de entrega, el día de inicio, la entrega estimada (la clave entrega_pautada, que no se renombró) y el día de la aprobación desde que aprueba; el día en que el mueble quedó listo desde que lo está; el día de la entrega desde que se entrega. Antes de esas etapas no viajan, aunque estén cargados: un campo cargado no es un hecho. Devuelve cuánto vale, cuánto pagó, en qué anda, la seña en pesos, qué pago le toca ahora, cuánto es, cómo puede pagarlo y cuál viene después (antes de aprobar solo se le pide la seña), hasta cuándo vale el presupuesto mientras espera la seña, los archivos que el dueño marcó, el día que se le mandó el estimativo y el día de la visita para medir con si ya se fue. La clave entrega trae la entrega comprometida mientras el trabajo está en curso, y la propuesta de entrega vigente con lo último que contestó el cliente solo con el trabajo en curso, listo y sin comprometida (ADR 0071). La clave vidriera trae, en todas las etapas, las redes del taller y hasta 12 fotos de su vidriera con la ruta de cada una, solo del taller del trabajo (ADR 0076). La clave presupuesto trae el presupuesto que se le mandó desde la app (ADR 0080): null antes de mandarlo o si nunca se mandó desde la app; esperando la seña, la última revisión tal cual (numero, revision, mandado_el, que_cambio y contenido, con las opciones y la obra adentro); desde que aprueba, la última revisión sin que_cambio, con las opciones del contenido filtradas a la aprobada, más aceptado_el y la letra de esa opción: las que no eligió no viajan. Los datos del taller para el presupuesto viajan solo adentro del contenido de cada revisión. La clave idioma trae el idioma de los clientes del taller, en el que habla la página, y el presupuesto trae el de su revisión, en el que se armó (ADR 0082). Desde el ADR 0081 trae también la moneda del trabajo y en qué le paga el cliente (cobra_en), las formas en dólares del pago que toca y del siguiente (vacías si no cobra en dólares; las de pesos, vacías si no cobra en pesos), la cuenta en dólares (cobro_en_dolares) solo si el pago que toca se ofrece en dólares por transferencia, y el dólar del día con su fecha solo en un trabajo en dólares y desde que se le manda el presupuesto. Lo pagado y el monto_centavos de cada pago son lo que descuenta, en la moneda del trabajo; cada pago trae además su moneda, lo que se entregó (pagado_centavos) y su dólar. La clave facturas trae sus facturas con ARCA (ADR 0085): las facturas autorizadas o anuladas y las notas de crédito autorizadas del trabajo, desde cualquier etapa, porque la de la seña existe antes de aprobar; las de producción siempre, aunque el taller se haya desconectado, y las de homologación solo mientras el taller siga en homologación (prueba en true). De cada una viajan el tipo, el punto de venta, el número, la fecha, el importe, el detalle, el CAE con su vencimiento, el emisor clave por clave (nunca el jsonb entero), el receptor como dice la factura (nombre, domicilio, condición y documento: los únicos datos del cliente que viajan además de su nombre, porque son suyos y el PDF los necesita) y la nota que la anula o la factura que anula; lo de la emisión (el rechazo, los intentos, la toma, el último error) no viaja. Enumera los campos uno por uno y nunca devuelve la fila entera: convertirla en un select * expondría cada columna nueva de proyectos sin que nadie lo decida, costos estimados, margen y tipo de proyecto incluidos. Un trabajo en seguimiento se muestra en la etapa en la que estaba: el «por ahora no» y su próximo contacto son del taller y no viajan (ADR 0064). Del estimativo viaja el día, nunca un importe. De la visita viajan el día y la marca, no la hora. De ajustes viajan exactamente los cinco campos de cobro —los cuatro de la cuenta y el link de Mercado Pago—, y solo cuando el pago que toca AHORA se ofrece por transferencia: lo que no se muestra, no se manda; los tres links de las redes, siempre; y el valor del relevamiento técnico (relevamiento_centavos) solo antes de mandar el presupuesto, en null después o si el dueño lo dejó vacío (ADR 0079). El porcentaje de seña y los días que vale un presupuesto no viajan nunca; lo que viaja son el importe y la fecha que salen de ellos. Es security invoker: desde la app la llama el dueño y la RLS decide; desde el link la llama public.vista_compartida(), que ya resolvió el token (ADR 0046, 0048, 0053, 0054, 0058, 0067, 0071, 0076, 0079, 0080, 0081, 0082 y 0085).';

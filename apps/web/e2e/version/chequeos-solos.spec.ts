@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { dedo, tirarYSoltar } from '../apoyo/dedo';
 import { alFrente, aSegundoPlano, visibilidadControlable } from '../apoyo/huella';
 import { indicadorDeSync, listoParaCortar } from '../apoyo/pantalla';

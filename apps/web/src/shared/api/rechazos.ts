@@ -1,6 +1,8 @@
 import { rechazoDeLaBase, SIN_PERMISO, type RechazoDeLaBase } from '@maun/db';
+import { LO_QUE_FALTA_PARA_FACTURAR, type LoQueFaltaParaFacturar } from '@maun/domain';
 
 import { mensajes, type Mensajes } from '@/shared/idioma';
+import { frasesDeLoQueFaltaParaFacturar } from '@/shared/lib';
 
 export type OperacionRechazada =
   | 'cobro'
@@ -14,6 +16,8 @@ export type OperacionRechazada =
   | 'tesoro'
   | 'presupuesto'
   | 'plantilla'
+  | 'factura'
+  | 'nota-de-credito'
   | 'guardado';
 
 export interface ContextoDelRechazo {
@@ -62,6 +66,7 @@ const SIMPLES = [
   'MN037',
   'MN038',
   'MN039',
+  'MN040',
 ] as const satisfies readonly (keyof TextosDeLosRechazos)[];
 
 type CodigoSimple = (typeof SIMPLES)[number];
@@ -168,6 +173,23 @@ function laEntrega(
   return { titulo: `${rechazo.mensaje}.`, queHacer: r.MN021.noSeGuardoNada(rechazo.hint) };
 }
 
+function esLoQueFalta(codigo: string): codigo is LoQueFaltaParaFacturar {
+  return (LO_QUE_FALTA_PARA_FACTURAR as readonly string[]).includes(codigo);
+}
+
+function loQueFaltaParaFacturar(
+  rechazo: RechazoDeLaBase,
+  contexto: ContextoDelRechazo,
+  r: TextosDeLosRechazos,
+): TituloYQueHacer {
+  const codigos = rechazo.hint
+    .split(',')
+    .map((codigo) => codigo.trim())
+    .filter(esLoQueFalta);
+  const [primera] = frasesDeLoQueFaltaParaFacturar(codigos, sujetoDe(contexto) ?? null);
+  return { titulo: primera?.texto ?? r.MN041.titulo, queHacer: r.MN041.queHacer };
+}
+
 function traduccionDe(
   error: unknown,
   rechazo: RechazoDeLaBase,
@@ -217,6 +239,12 @@ function traduccionDe(
         titulo: contexto.operacion === 'plantilla' ? r.MN031.plantilla : r.MN031.presupuesto,
         queHacer: r.MN031.queHacer,
       };
+    case 'MN041':
+      return loQueFaltaParaFacturar(rechazo, contexto, r);
+    case 'MN042':
+      return detalleDe(error) === 'nota' ? r.MN042.nota : r.MN042.factura;
+    case 'MN043':
+      return detalleDe(error) === 'trabajo' ? r.MN043.trabajo : r.MN043.pago;
     case 'MN012':
     case 'MN015':
       return Object.hasOwn(POR_EL_MENSAJE_DE_LA_BASE, rechazo.mensaje)

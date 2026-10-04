@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   adornosDelCampo,
+  enPesosEnteros,
   formatearCadaMoneda,
   formatearPesos,
   formatearPlata,
@@ -46,6 +47,14 @@ describe('formatearPesos', () => {
     for (const centavos of [0, 1, 5, 99, 100, 150, 123456, -50000, -5, 180000000, 999999999999]) {
       expect(formatearPesos(centavos), String(centavos)).toBe(deAntes(centavos));
     }
+  });
+});
+
+describe('los pesos enteros de un tope', () => {
+  it('le saca los centavos, sin redondear para arriba', () => {
+    expect(enPesosEnteros(3_062_865_155)).toBe(3_062_865_100);
+    expect(enPesosEnteros(3_062_865_100)).toBe(3_062_865_100);
+    expect(enPesosEnteros(99)).toBe(0);
   });
 });
 

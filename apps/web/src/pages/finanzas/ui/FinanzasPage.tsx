@@ -24,7 +24,9 @@ import {
 import { useLiquidacionesEnVuelo } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosDelTaller } from '@/entities/tesoro';
-import { datosDelLibro } from '@/shared/api';
+import { HojaDeCliente } from '@/features/editar-cliente';
+import { TarjetaDelMonotributo } from '@/features/facturar-con-arca';
+import { datosDelLibro, filaPorId } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   conFondo,
@@ -112,6 +114,9 @@ export function FinanzasPage() {
   const elegido = tesoros.find((tesoro) => tesoro.id === pedido || tesoro.clave === pedido);
   const filtro: FiltroDelLibro = { ...resto, tesoro: elegido?.id ?? TODOS_LOS_TESOROS };
   const [ficha, setFicha] = useState<LineaDelTaller | null>(null);
+  const [clienteAbierto, setClienteAbierto] = useState<string | null>(null);
+  const clienteParaEditar =
+    clienteAbierto === null ? undefined : filaPorId(replica, 'clientes', clienteAbierto);
 
   const enVuelo = useMovimientosEnVuelo();
   const liquidaciones = useLiquidacionesEnVuelo();
@@ -181,35 +186,43 @@ export function FinanzasPage() {
         separacion="gap-y-3 @min-[40rem]/apoyo:gap-y-4"
         apoyo={
           <div className="flex flex-col gap-1">
-            <ComparacionMensual
-              titulo={textos.contra(nombreDelMes(mes), mesEnUnaFrase(mesAnterior(mes)))}
-              etiquetaPrevia={mesEnUnaFrase(mesAnterior(mes))}
-              etiquetaActual={mesEnUnaFrase(mes)}
-              barras={[
-                {
-                  id: 'entro-hogar',
-                  etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
-                  previo: previo.entroHogar,
-                  actual: actual.entroHogar,
-                  tono: 'text-hogar',
-                },
-                {
-                  id: 'gasto-hogar',
-                  etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
-                  previo: previo.gastoHogar,
-                  actual: actual.gastoHogar,
-                  tono: 'text-ink',
-                  mejorSiBaja: true,
-                },
-                {
-                  id: 'facturo-taller',
-                  etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
-                  previo: previo.facturoTaller,
-                  actual: actual.facturoTaller,
-                  tono: 'text-maun',
-                },
-              ]}
-            />
+            <div className="flex flex-col gap-3 md:gap-4">
+              <ComparacionMensual
+                titulo={textos.contra(nombreDelMes(mes), mesEnUnaFrase(mesAnterior(mes)))}
+                etiquetaPrevia={mesEnUnaFrase(mesAnterior(mes))}
+                etiquetaActual={mesEnUnaFrase(mes)}
+                barras={[
+                  {
+                    id: 'entro-hogar',
+                    etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
+                    previo: previo.entroHogar,
+                    actual: actual.entroHogar,
+                    tono: 'text-hogar',
+                  },
+                  {
+                    id: 'gasto-hogar',
+                    etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
+                    previo: previo.gastoHogar,
+                    actual: actual.gastoHogar,
+                    tono: 'text-ink',
+                    mejorSiBaja: true,
+                  },
+                  {
+                    id: 'facturo-taller',
+                    etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
+                    previo: previo.facturoTaller,
+                    actual: actual.facturoTaller,
+                    tono: 'text-maun',
+                  },
+                ]}
+              />
+              <TarjetaDelMonotributo
+                hoy={hoy}
+                alEditarElCliente={(clienteId) => {
+                  setClienteAbierto(clienteId);
+                }}
+              />
+            </div>
             <Ir
               a={RUTA_DE_LAS_ESTADISTICAS}
               className="inline-flex min-h-tap w-fit items-center gap-1 px-1 text-label font-semibold text-ink"
@@ -340,6 +353,16 @@ export function FinanzasPage() {
             hoy={hoy}
             alCerrar={() => {
               setFicha(null);
+            }}
+          />
+        )}
+      </ConSalida>
+      <ConSalida valor={clienteParaEditar ?? null}>
+        {(cliente) => (
+          <HojaDeCliente
+            cliente={cliente}
+            alCerrar={() => {
+              setClienteAbierto(null);
             }}
           />
         )}

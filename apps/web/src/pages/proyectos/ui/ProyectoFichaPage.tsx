@@ -1,14 +1,12 @@
 import {
   categoriaDeGastoLeida,
-  conceptoDeSiempre,
-  conceptoEnPantalla,
   estaLiquidado,
   faseDe,
   puedeCerrarPerdido,
   puedeCobrar,
   type EstadoProyecto,
-  type Moneda,
 } from '@maun/domain';
+import { useState } from 'react';
 import { useParams } from 'react-router';
 
 import { enlaceDeMapa, rutaDelCliente } from '@/entities/cliente';
@@ -18,7 +16,6 @@ import {
   CostosDeCotizar,
   despieceDelProyecto,
   DistribucionDespiece,
-  efectoDelPago,
   enOtrosTesoros,
   esEtapaDeConsulta,
   EstadoBadge,
@@ -28,12 +25,10 @@ import {
   gastosDelProyecto,
   insumosDelProyecto,
   listoDelTrabajo,
-  loQueHizoElPago,
   MarcaDeLiquidacion,
   MarcaDeListo,
   nombreDeLaCategoria,
   pagosDelProyecto,
-  plataDelPago,
   RUTA_DE_PROYECTOS,
   resumenDeProyecto,
   rutaDeCierre,
@@ -42,7 +37,6 @@ import {
   senaDelProyecto,
   senaDelTrabajo,
   useLiquidacionEnVuelo,
-  type Pago,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
@@ -59,9 +53,10 @@ import {
   NotasDelProyecto,
   OpcionesDelTrabajo,
 } from '@/features/editar-proyecto';
+import { HojaDeCliente } from '@/features/editar-cliente';
+import { ListaDePagos } from '@/features/facturar-con-arca';
 import { BotonDeReversion } from '@/features/liquidar-proyecto';
 import { PedirLaOpinion } from '@/features/pedir-la-opinion';
-import { importeDelPago } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
@@ -78,6 +73,7 @@ import {
 } from '@/shared/lib';
 import {
   Button,
+  ConSalida,
   ESCENA_EN_LA_LAMINA,
   Icono,
   Ilustracion,
@@ -121,16 +117,6 @@ function Dato({
   );
 }
 
-function EfectoDelPagoGuardado({ pago, moneda }: { pago: Pago; moneda: Moneda }) {
-  const efecto = efectoDelPago(importeDelPago(pago), moneda);
-  if (efecto === null) return null;
-  return (
-    <span translate="no" className="mt-0.5 block text-meta text-text-2">
-      {loQueHizoElPago(efecto)}
-    </span>
-  );
-}
-
 function etapaDeLaFicha(estado: EstadoProyecto | undefined): string {
   const fase = estado === undefined ? 'activos' : faseDe(estado);
   return ETAPAS.find((etapa) => etapa.id === fase)?.ruta ?? RUTA_DE_PROYECTOS;
@@ -142,7 +128,7 @@ export function ProyectoFichaPage() {
   const { id = '' } = useParams();
   const m = useMensajes();
   const { comun, ficha: textos } = m.paginaProyectos;
-  const conceptos = m.proyecto.conceptosDeSiempre;
+  const [editandoCliente, setEditandoCliente] = useState(false);
 
   const hoy = hoyLocal();
   const resumen = resumenDeProyecto(replica, id, hoy);
@@ -482,49 +468,14 @@ export function ProyectoFichaPage() {
                 {textos.sinPagos}
               </p>
             ) : (
-              <ol className="list-none">
-                {pagos.map((pago, indice) => (
-                  <li key={pago.id} className="grid grid-cols-[20px_1fr_auto] items-start gap-x-3">
-                    <span aria-hidden className="flex h-full flex-col items-center">
-                      <span
-                        className={`h-3.5 w-px flex-none ${
-                          indice === 0 ? 'bg-transparent' : 'bg-border'
-                        }`}
-                      />
-                      <span className="size-2.5 flex-none rounded-pill bg-hogar" />
-                      <span
-                        className={`w-px flex-1 ${
-                          indice === pagos.length - 1 ? 'bg-transparent' : 'bg-border'
-                        }`}
-                      />
-                    </span>
-                    <span className="py-2.5">
-                      <span
-                        translate={
-                          pago.concepto.trim() === '' || conceptoDeSiempre(pago.concepto) !== null
-                            ? undefined
-                            : 'no'
-                        }
-                        className="block text-body-lg font-medium"
-                      >
-                        {pago.concepto.trim() === ''
-                          ? textos.pago
-                          : conceptoEnPantalla(pago.concepto, conceptos)}
-                      </span>
-                      <span translate="no" className="mt-0.5 block text-meta text-text-3">
-                        {fechaLarga(pago.fecha, hoy)}
-                      </span>
-                      <EfectoDelPagoGuardado pago={pago} moneda={resumen.moneda} />
-                    </span>
-                    <span
-                      translate="no"
-                      className="py-2.5 text-body-lg font-semibold tabular-nums whitespace-nowrap"
-                    >
-                      {formatearLaPlata(plataDelPago(pago))}
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <ListaDePagos
+                pagos={pagos}
+                moneda={resumen.moneda}
+                hoy={hoy}
+                alEditarElCliente={() => {
+                  setEditandoCliente(true);
+                }}
+              />
             )}
           </section>
 
@@ -666,6 +617,17 @@ export function ProyectoFichaPage() {
           <ArchivosDelTrabajo proyectoId={proyecto.id} />
         </div>
       </PrincipalYApoyo>
+
+      <ConSalida valor={editandoCliente && cliente !== undefined ? cliente : null}>
+        {(elCliente) => (
+          <HojaDeCliente
+            cliente={elCliente}
+            alCerrar={() => {
+              setEditandoCliente(false);
+            }}
+          />
+        )}
+      </ConSalida>
     </Pagina>
   );
 }

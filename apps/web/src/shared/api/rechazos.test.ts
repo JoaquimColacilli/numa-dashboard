@@ -422,9 +422,139 @@ describe('los rechazos de los dólares', () => {
   });
 });
 
+describe('los rechazos de la facturación', () => {
+  it('MN040: la facturación no está conectada', () => {
+    expect(
+      traducirRechazo(
+        deLaBase('MN040', 'La facturación con ARCA no está conectada', 'Conectala en Ajustes.'),
+      ),
+    ).toEqual({
+      titulo: 'La facturación con ARCA no está conectada.',
+      queHacer: 'No se pidió nada. Conectala en Ajustes › Facturación y volvé a pedirla.',
+      codigo: 'MN040',
+    });
+  });
+
+  it('MN041: dice el primer faltante del hint, con las palabras de la hoja y el nombre del cliente', () => {
+    const contexto: ContextoDelRechazo = { operacion: 'factura', sujeto: 'Carpintería Pérez SRL' };
+    expect(
+      traducirRechazo(
+        deLaBase('MN041', 'Le falta algo para facturar', 'cliente-sin-cuit, cliente-sin-domicilio'),
+        contexto,
+      ),
+    ).toEqual({
+      titulo:
+        'A Carpintería Pérez SRL le falta el CUIT. Cargalo en su ficha para poder facturarle.',
+      queHacer: 'No se pidió la factura. Completá lo que falta y volvé a pedirla desde el pago.',
+      codigo: 'MN041',
+    });
+    expect(
+      traducirRechazo(
+        deLaBase(
+          'MN041',
+          'Le falta algo para facturar',
+          'taller-sin-domicilio, taller-sin-ingresos-brutos, cliente-sin-dni',
+        ),
+        contexto,
+      )?.titulo,
+    ).toBe('Faltan tus datos de facturación: tu domicilio y tu número de Ingresos Brutos.');
+    expect(
+      traducirRechazo(deLaBase('MN041', 'Le falta algo para facturar', 'cliente-sin-dni'))?.titulo,
+    ).toBe('Este trabajo llega a $ 10.000.000: ARCA pide el DNI o el CUIT del cliente.');
+    expect(
+      traducirRechazo(deLaBase('MN041', 'Le falta algo para facturar', 'cliente-cuit-invalido'))
+        ?.titulo,
+    ).toBe('El CUIT de tu cliente no da: revisá los números.');
+    expect(
+      traducirRechazo(deLaBase('MN041', 'Le falta algo para facturar', 'algo-que-no-existe'))
+        ?.titulo,
+    ).toBe('Le falta algo para facturar.');
+  });
+
+  it('MN041: lo que no llega a la hoja también se dice, por si el pago cambió mientras esperaba en la cola', () => {
+    expect(traducirRechazo(deLaBase('MN041', 'x', 'pago-borrado'))?.titulo).toBe(
+      'Ese pago o su trabajo se borraron.',
+    );
+    expect(traducirRechazo(deLaBase('MN041', 'x', 'en-dolares'))?.titulo).toBe(
+      'En dólares: por ahora se factura a mano.',
+    );
+    expect(traducirRechazo(deLaBase('MN041', 'x', 'de-la-apertura'))?.titulo).toBe(
+      'Ese cobro es de antes de empezar con NUMA: no se factura desde acá.',
+    );
+    expect(traducirRechazo(deLaBase('MN041', 'x', 'taller-no-monotributo'))?.titulo).toBe(
+      'NUMA factura solo si sos monotributista (Factura C).',
+    );
+  });
+
+  it('MN042: la factura repetida y la nota que no se puede, por el detail', () => {
+    expect(
+      traducirRechazo(conDetalle('MN042', 'Ese pago ya tiene su factura', '', 'factura')),
+    ).toEqual({
+      titulo: 'Ese pago ya tiene su factura.',
+      queHacer: 'No hace falta pedirla de nuevo: su estado está en el pago.',
+      codigo: 'MN042',
+    });
+    expect(
+      traducirRechazo(
+        conDetalle('MN042', 'Esa factura ya está anulada o todavía no está autorizada', '', 'nota'),
+      )?.titulo,
+    ).toBe('Esa factura ya está anulada o todavía no está autorizada.');
+  });
+
+  it('MN043: el pago facturado y el trabajo que no se borra, por el detail', () => {
+    expect(
+      traducirRechazo(
+        conDetalle('MN043', 'Tiene una factura de ARCA', 'Anulá la factura…', 'pago'),
+        { operacion: 'proyecto', sujeto: 'Placard' },
+      ),
+    ).toEqual({
+      titulo: 'Tiene una factura de ARCA: para cambiarlo, anulala primero.',
+      queHacer: 'Anulá la factura con una nota de crédito y después cambiá el pago.',
+      codigo: 'MN043',
+    });
+    expect(
+      traducirRechazo(
+        conDetalle(
+          'MN043',
+          'Este trabajo tiene facturas de ARCA y no se puede borrar',
+          '',
+          'trabajo',
+        ),
+        { operacion: 'baja-de-proyecto' },
+      ),
+    ).toEqual({
+      titulo: 'Este trabajo tiene facturas de ARCA y no se puede borrar.',
+      queHacer: 'Si no sigue, dalo por perdido.',
+      codigo: 'MN043',
+    });
+  });
+});
+
 describe('los rechazos en los otros idiomas', () => {
   afterEach(async () => {
     await usarIdioma('es');
+  });
+
+  it('los de la facturación también, con el primer faltante en el idioma de la persona', async () => {
+    await usarIdioma('en');
+    expect(
+      traducirRechazo(deLaBase('MN041', 'x', 'cliente-sin-domicilio'), {
+        operacion: 'factura',
+        sujeto: 'Lucía Gómez',
+      })?.titulo,
+    ).toBe('Lucía Gómez is missing an address.');
+    expect(traducirRechazo(deLaBase('MN040'))?.titulo).toBe("Invoicing with ARCA isn't connected.");
+    await usarIdioma('pt-BR');
+    expect(
+      traducirRechazo(
+        deLaBase('MN041', 'x', 'taller-sin-razon-social, taller-sin-inicio-de-actividades'),
+      )?.titulo,
+    ).toBe(
+      'Faltam seus dados de faturamento: seu nome ou razão social e seu início das atividades.',
+    );
+    expect(traducirRechazo(conDetalle('MN043', 'x', '', 'trabajo'))?.queHacer).toBe(
+      'Se ele não vai seguir, marque como perdido.',
+    );
   });
 
   it('en inglés el trabajo va entre comillas y la frase es entera', async () => {

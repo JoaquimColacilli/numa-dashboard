@@ -294,5 +294,34 @@ export const api = {
       queHacer:
         'A peso payment on a dollar job needs the rate it was taken at. Open the job and fill it in.',
     },
+    MN040: {
+      titulo: "Invoicing with ARCA isn't connected.",
+      queHacer: 'Nothing was requested. Connect it in Settings › Invoicing and request it again.',
+    },
+    MN041: {
+      titulo: "Something's missing to invoice this.",
+      queHacer:
+        "The invoice wasn't requested. Fill in what's missing and request it again from the payment.",
+    },
+    MN042: {
+      factura: {
+        titulo: 'That payment already has its invoice.',
+        queHacer: "No need to request it again: you'll find its status on the payment.",
+      },
+      nota: {
+        titulo: "That invoice is already voided or hasn't been authorized yet.",
+        queHacer: 'Check how it looks on the payment: only an authorized invoice can be voided.',
+      },
+    },
+    MN043: {
+      pago: {
+        titulo: 'It has an ARCA invoice: void it first to change it.',
+        queHacer: 'Void the invoice with a credit note, then change the payment.',
+      },
+      trabajo: {
+        titulo: "This job has ARCA invoices and can't be deleted.",
+        queHacer: "If it's not going ahead, mark it as lost.",
+      },
+    },
   },
 } satisfies Mensajes['api'];

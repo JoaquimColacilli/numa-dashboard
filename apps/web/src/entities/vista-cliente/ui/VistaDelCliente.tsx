@@ -55,6 +55,7 @@ import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
 import { ElPresupuesto, ElPresupuestoAceptado } from './ElPresupuesto';
 import { useEscritura } from './escritura';
+import { TusFacturas } from './TusFacturas';
 import { VidrieraDelTaller } from './VidrieraDelTaller';
 
 export interface VistaDelClienteProps {
@@ -667,6 +668,8 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <CierreDeLosPagos vista={vista} hoy={hoy} />
             <p className="mt-2.5 text-label leading-normal text-text-3">{textoDelPie}</p>
           </section>
+
+          <TusFacturas facturas={vista.facturas} hoy={hoy} />
 
           {estaAprobada(vista) && vista.elPresupuesto !== null && (
             <ElPresupuestoAceptado presupuesto={vista.elPresupuesto} />

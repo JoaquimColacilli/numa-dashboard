@@ -31,6 +31,15 @@ export {
 } from './entrega';
 export { clienteMaun, vinoPorRecuperacion } from './cliente';
 export {
+  bajarElPedidoDelCertificadoDeArca,
+  conectarElTallerConArca,
+  estadoDeLaFacturacion,
+  marcarLaAlertaRevisada,
+  pedirLaFacturaDelPago,
+  pedirLaNotaDeCreditoDeLaFactura,
+  subirElCertificadoDeArca,
+} from './facturacion';
+export {
   compartirElArchivo,
   generarElEnlace,
   guardarElToken,
@@ -273,4 +282,20 @@ export {
   type Json,
   type PresupuestoMandado,
   type PresupuestoParaMandar,
+  leerAlertasDeFacturacion,
+  leerRechazoDeArca,
+  type AlertaDeFacturacion,
+  type AlertaParaDescartar,
+  type CertificadoDelTaller,
+  type Contestado,
+  type ErrorDeArca,
+  type EstadoDeLaFacturacion,
+  type EstadoDelCertificado,
+  type FacturaParaPedir,
+  type LoginEnArca,
+  type MotivoDeLaConexion,
+  type MotivoDeLaSubida,
+  type MotivoDelPedido,
+  type NotaDeCreditoParaPedir,
+  type RechazoDeArca,
 } from '@maun/db';

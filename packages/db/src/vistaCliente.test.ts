@@ -188,6 +188,7 @@ describe('leer la vista del cliente', () => {
       },
       valorDelRelevamiento: null,
       presupuesto: null,
+      facturas: [],
     });
   });
 
@@ -912,5 +913,163 @@ describe('el idioma', () => {
     );
     expect(desconocido.idioma).toBe('es');
     expect(desconocido.presupuesto?.idioma).toBe('es');
+  });
+});
+
+describe('las facturas', () => {
+  const EMISOR = {
+    razonSocial: 'Ana Gutiérrez',
+    nombreDelTaller: 'Taller MAUN',
+    domicilio: 'Olazábal 1240, CABA',
+    cuit: '20-11111111-2',
+    ingresosBrutos: '901-123456-7',
+    inicioDeActividades: '2019-03-01',
+  };
+
+  const FACTURA = {
+    id: 'c1',
+    tipo: 'factura_c',
+    punto_de_venta: 3,
+    numero: 42,
+    fecha: '2026-10-03',
+    importe_centavos: 45_000_000,
+    detalle: 'Seña — Placard 3 puertas',
+    cae: '76398765432109',
+    cae_vence: '2026-10-13',
+    prueba: false,
+    emisor: EMISOR,
+    receptor: {
+      nombre: 'Marcela Duarte',
+      domicilio: '',
+      condicion: 'consumidor_final',
+      doc_tipo: 96,
+      doc_nro: '28456789',
+    },
+    anulada_por: { punto_de_venta: 3, numero: 7, fecha: '2026-10-04' },
+    anula_a: null,
+  };
+
+  const NOTA = {
+    ...FACTURA,
+    id: 'c2',
+    tipo: 'nota_de_credito_c',
+    numero: 7,
+    fecha: '2026-10-04',
+    cae: '76398765432110',
+    cae_vence: '2026-10-14',
+    anulada_por: null,
+    anula_a: { punto_de_venta: 3, numero: 42, fecha: '2026-10-03' },
+  };
+
+  it('lee cada factura y cada nota de crédito con quién la hizo, a quién y con qué se anula', () => {
+    expect(leerVistaDelCliente(respuesta({ facturas: [FACTURA, NOTA] })).facturas).toEqual([
+      {
+        id: 'c1',
+        tipo: 'factura_c',
+        puntoDeVenta: 3,
+        numero: 42,
+        fecha: '2026-10-03',
+        importe: 45_000_000,
+        detalle: 'Seña — Placard 3 puertas',
+        cae: '76398765432109',
+        caeVence: '2026-10-13',
+        prueba: false,
+        emisor: EMISOR,
+        receptor: {
+          nombre: 'Marcela Duarte',
+          condicion: 'consumidor_final',
+          docTipo: 96,
+          docNro: '28456789',
+          domicilio: '',
+        },
+        anuladaPor: { puntoDeVenta: 3, numero: 7, fecha: '2026-10-04' },
+        anulaA: null,
+      },
+      {
+        id: 'c2',
+        tipo: 'nota_de_credito_c',
+        puntoDeVenta: 3,
+        numero: 7,
+        fecha: '2026-10-04',
+        importe: 45_000_000,
+        detalle: 'Seña — Placard 3 puertas',
+        cae: '76398765432110',
+        caeVence: '2026-10-14',
+        prueba: false,
+        emisor: EMISOR,
+        receptor: {
+          nombre: 'Marcela Duarte',
+          condicion: 'consumidor_final',
+          docTipo: 96,
+          docNro: '28456789',
+          domicilio: '',
+        },
+        anuladaPor: null,
+        anulaA: { puntoDeVenta: 3, numero: 42, fecha: '2026-10-03' },
+      },
+    ]);
+  });
+
+  it('una respuesta de antes, sin la clave, se lee sin facturas', () => {
+    expect(leerVistaDelCliente(respuesta()).facturas).toEqual([]);
+    expect(leerVistaDelCliente(respuesta({ facturas: null })).facturas).toEqual([]);
+  });
+
+  it('la de prueba llega marcada, y sin inicio de actividades el emisor lo lleva en null', () => {
+    const [leida] =
+      leerVistaDelCliente(
+        respuesta({
+          facturas: [
+            { ...FACTURA, prueba: true, emisor: { ...EMISOR, inicioDeActividades: null } },
+          ],
+        }),
+      ).facturas ?? [];
+    expect(leida?.prueba).toBe(true);
+    expect(leida?.emisor.inicioDeActividades).toBeNull();
+  });
+
+  it('a qué factura anula se lee solo en una nota, y con qué nota se anuló solo en una factura', () => {
+    const [factura, nota, sinFecha, viva] =
+      leerVistaDelCliente(
+        respuesta({
+          facturas: [
+            { ...FACTURA, anula_a: NOTA.anula_a },
+            { ...NOTA, anulada_por: FACTURA.anulada_por, anula_a: { numero: 42 } },
+            { ...FACTURA, anulada_por: { punto_de_venta: 3, numero: 7, fecha: 'ayer' } },
+            { ...FACTURA, anulada_por: null },
+          ],
+        }),
+      ).facturas ?? [];
+    expect(factura?.anulaA).toBeNull();
+    expect(nota?.anuladaPor).toBeNull();
+    expect(nota?.anulaA).toBeNull();
+    expect(sinFecha?.anuladaPor).toBeNull();
+    expect(viva?.anuladaPor).toBeNull();
+  });
+
+  it('una factura que no se puede leer se deja afuera en vez de romper la página del cliente', () => {
+    const rotas: unknown[] = [
+      null,
+      'factura',
+      { ...FACTURA, tipo: 'factura_b' },
+      { ...FACTURA, numero: 0 },
+      { ...FACTURA, punto_de_venta: '3' },
+      { ...FACTURA, importe_centavos: 450_000.5 },
+      { ...FACTURA, fecha: '2026-02-30' },
+      { ...FACTURA, cae: null },
+      { ...FACTURA, cae_vence: null },
+      { ...FACTURA, prueba: 'no' },
+      { ...FACTURA, detalle: null },
+      { ...FACTURA, id: 7 },
+      { ...FACTURA, emisor: null },
+      { ...FACTURA, emisor: { ...EMISOR, cuit: null } },
+      { ...FACTURA, receptor: [] },
+      { ...FACTURA, receptor: { ...FACTURA.receptor, condicion: 'otra' } },
+      { ...FACTURA, receptor: { ...FACTURA.receptor, doc_tipo: 86 } },
+      { ...FACTURA, receptor: { ...FACTURA.receptor, doc_nro: 28456789 } },
+    ];
+    const leidas = leerVistaDelCliente(respuesta({ facturas: [...rotas, NOTA] })).facturas ?? [];
+    expect(leidas.map((factura) => factura.id)).toEqual(['c2']);
+    expect(leerVistaDelCliente(respuesta({ facturas: { c1: FACTURA } })).facturas).toEqual([]);
   });
 });

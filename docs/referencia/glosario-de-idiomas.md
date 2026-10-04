@@ -339,6 +339,20 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Presupuestos mandados / Se volvieron trabajo / Sigue abierta / Perdida | Quotes sent / Became jobs / Still open / Lost | Orçamentos enviados / Viraram projetos / Em aberto / Perdida | Estadísticas |
 | Los tiempos / El trato (las preguntas de la encuesta, en corto) | Timing / Service | Prazos / Atendimento | Estadísticas |
 | Por cobrar / Te deben / Pasó los N días / Atrasado N días | Awaiting payment / You're owed / Over N days / N days late | A receber / Falta receber / Passou de N dias / N dias de atraso | Estadísticas |
+| factura / nota de crédito (sueltas; con su tipo y su número no se traducen: «Factura C 00003-00000042») | invoice / credit note | nota fiscal / nota de crédito | La facturación con ARCA |
+| facturar (con ARCA) / pedir la factura / anular | invoice / request the invoice / void | emitir nota fiscal / solicitar a nota fiscal / anular | La facturación con ARCA |
+| Facturación (la sección de Ajustes) / datos de facturación | Invoicing / invoicing details | Faturamento / dados de faturamento | Ajustes y los rechazos |
+| inicio de actividades | business start date | início das atividades | Los datos de facturación |
+| alerta / «Ya lo revisé» | alert / checked | alerta / revisado | Inicio |
+| DNI (no se traduce; donde se explica) | DNI (Argentine national ID) | DNI (documento de identidade argentino) | La hoja del cliente |
+| punto de venta | point of sale | ponto de venda | La facturación con ARCA |
+| CAE (no se traduce) / Vence el CAE | CAE / CAE expires | CAE / Vencimento do CAE | La hoja de la factura |
+| Prueba (la cápsula; nunca «homologación») | Test | Teste | La facturación con ARCA |
+| categoría (del monotributo) / tope / recategorización | category / cap / category review | categoria / teto / recategorização | Ajustes y la hoja de facturar |
+| certificado / pedido del certificado | certificate / certificate request | certificado / pedido de certificado | El asistente de ARCA |
+| Cobros y facturas / Sin facturar | Payments and invoices / Not invoiced | Recebimentos e notas fiscais / Sem nota fiscal | Las fichas |
+| Cobros sin facturar | Payments not invoiced | Recebimentos sem nota fiscal | Finanzas |
+| Tus facturas / Anulada / Anula la factura C … | Your invoices / Voided / Voids Factura C … | Suas notas fiscais / Anulada / Anula a Factura C … | La página del cliente |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del

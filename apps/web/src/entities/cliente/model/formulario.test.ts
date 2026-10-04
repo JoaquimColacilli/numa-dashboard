@@ -44,6 +44,14 @@ describe('esquemaDeCliente', () => {
     );
   });
 
+  it('el DNI es opcional, con o sin puntos, y frena lo que no es de 7 u 8 números', () => {
+    expect(esquemaDeCliente.safeParse(conNombre({ dni: '' })).success).toBe(true);
+    expect(esquemaDeCliente.safeParse(conNombre({ dni: '28.456.789' })).success).toBe(true);
+    expect(esquemaDeCliente.safeParse(conNombre({ dni: '7654321' })).success).toBe(true);
+    expect(esquemaDeCliente.safeParse(conNombre({ dni: '12345' })).success).toBe(false);
+    expect(esquemaDeCliente.safeParse(conNombre({ dni: '28A456789' })).success).toBe(false);
+  });
+
   it('recorta los espacios de los bordes', () => {
     const resultado = esquemaDeCliente.safeParse(conNombre({ nombre: '  Ana Gómez  ' }));
     expect(resultado.data?.nombre).toBe('Ana Gómez');
@@ -67,6 +75,11 @@ describe('datosDelFormulario', () => {
   it('deja el CUIT con el formato que exige la base', () => {
     expect(datosDelFormulario(conNombre({ cuit: '20123456786' })).cuit).toBe('20-12345678-6');
     expect(datosDelFormulario(conNombre()).cuit).toBe('');
+  });
+
+  it('guarda el DNI sin puntos ni espacios', () => {
+    expect(datosDelFormulario(conNombre({ dni: ' 28.456.789 ' })).dni).toBe('28456789');
+    expect(datosDelFormulario(conNombre()).dni).toBe('');
   });
 });
 
@@ -107,5 +120,18 @@ describe('valoresDelFormulario', () => {
       version: 3,
     });
     expect(valores).toEqual({ ...CLIENTE_EN_BLANCO, nombre: 'Ana Gómez', zona: 'Olivos' });
+  });
+
+  it('un cliente guardado antes de la columna del DNI arranca con el DNI vacío', () => {
+    const { dni: _dni, ...sinDni } = {
+      ...conNombre(),
+      id: 'x',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+      deleted_at: null,
+      version: 3,
+    };
+    expect(valoresDelFormulario(sinDni as Parameters<typeof valoresDelFormulario>[0]).dni).toBe('');
   });
 });

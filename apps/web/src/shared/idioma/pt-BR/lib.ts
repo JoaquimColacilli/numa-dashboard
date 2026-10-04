@@ -277,6 +277,49 @@ export const lib = {
       enCola: `Anotado sem internet: sai da sua vitrine ${QUANDO_VOLTAR}`,
       error: 'Não foi possível tirar a foto da sua vitrine.',
     },
+    facturaPedida: {
+      hecho: 'Nota fiscal solicitada à ARCA.',
+      enCola: `Nota fiscal solicitada sem internet: sai ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível solicitar a nota fiscal.',
+    },
+    notaDeCreditoPedida: {
+      hecho: 'Nota de crédito solicitada à ARCA.',
+      enCola: `Nota de crédito solicitada sem internet: sai ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível solicitar a nota de crédito.',
+    },
+    datosDeFacturacion: {
+      hecho: 'Dados de faturamento salvos.',
+      enCola: `Dados de faturamento anotados sem internet: serão salvos automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível salvar os dados de faturamento.',
+    },
+    alertaRevisada: {
+      hecho: 'Pronto, o alerta ficou como revisado.',
+      enCola: `Anotado sem internet: o alerta sai ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível marcar o alerta como revisado.',
+    },
+  },
+  loQueFaltaParaFacturar: {
+    clienteSinCuit: (cliente: string) =>
+      `Falta o CUIT (identificação fiscal argentina) de ${cliente}. Registre nos dados do cliente para poder emitir a nota fiscal.`,
+    clienteCuitInvalido: (cliente: string) =>
+      `O CUIT de ${cliente} não confere: revise os números.`,
+    clienteSinDomicilio: (cliente: string) => `Falta o endereço de ${cliente}.`,
+    tuCliente: 'seu cliente',
+    clienteSinDni: (umbral: string) =>
+      `Este projeto chega a ${umbral}: a ARCA pede o DNI ou o CUIT do cliente.`,
+    taller: (loQueFalta: string) => `Faltam seus dados de faturamento: ${loQueFalta}.`,
+    datosDelTaller: {
+      razonSocial: 'seu nome ou razão social',
+      domicilio: 'seu endereço',
+      ingresosBrutos: 'seu número de Ingresos Brutos',
+      inicio: 'seu início das atividades',
+    },
+    tallerNoMonotributo:
+      'O NUMA só emite nota fiscal se você está no monotributo (regime tributário simplificado da Argentina): Factura C.',
+    pagoBorrado: 'Esse pagamento ou o projeto dele foi excluído.',
+    enDolares: 'Em dólares: por enquanto a nota fiscal é emitida à mão.',
+    deLaApertura:
+      'Esse recebimento é de antes de você começar com o NUMA: não se emite nota fiscal daqui.',
   },
   fechaDeLaPlata: {
     falta: 'Informe o dia em que o dinheiro entrou.',

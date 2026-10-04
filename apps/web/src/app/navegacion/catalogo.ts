@@ -334,6 +334,24 @@ export const CATALOGO: readonly Pantalla[] = [
     profundidad: 2,
     forma: 'pantalla',
   },
+  {
+    id: 'facturacion',
+    patron: '/ajustes/facturacion',
+    nombre: 'facturacion',
+    seccion: 'inicio',
+    raiz: false,
+    profundidad: 2,
+    forma: 'pantalla',
+  },
+  {
+    id: 'conectar-con-arca',
+    patron: '/ajustes/facturacion/conectar',
+    nombre: 'conectarConArca',
+    seccion: 'inicio',
+    raiz: false,
+    profundidad: 3,
+    forma: 'pantalla',
+  },
 ];
 
 const ESPECIFICAS_PRIMERO = [...CATALOGO].sort(

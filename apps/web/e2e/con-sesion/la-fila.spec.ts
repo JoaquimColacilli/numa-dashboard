@@ -1,8 +1,9 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { endpointsCreados, servidorDeAvisosSimulado, simularPush } from '../apoyo/avisos';
 import { RAIZ_DE_LA_APP } from '../apoyo/entorno';
 import { indicadorDeSync, saldosEnInicio } from '../apoyo/pantalla';

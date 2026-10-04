@@ -99,7 +99,10 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, t
   } satisfies FilaDe<'tesoros'>;
 }
 
-function taller({ conTesoros = true }: { conTesoros?: boolean } = {}): Replica {
+function taller({
+  conTesoros = true,
+  ajustes = {},
+}: { conTesoros?: boolean; ajustes?: Partial<FilaDe<'ajustes'>> } = {}): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   let replica = { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
@@ -114,6 +117,7 @@ function taller({ conTesoros = true }: { conTesoros?: boolean } = {}): Replica {
     fila: (conTesoros ? FILA : null) as unknown as FilaDe<'ajustes'>['fila'],
     fila_version: 4,
     fila_guardada_at: null,
+    ...ajustes,
   } as unknown as FilaDe<'ajustes'>);
   if (conTesoros) {
     for (const fila of [
@@ -369,6 +373,153 @@ describe('cobrar por la fila', () => {
     expect(botonDeCobrar()).toHaveAttribute('aria-describedby', aviso.id);
     fireEvent.click(botonDeCobrar());
     expect(liquidaciones()).toEqual([]);
+  });
+});
+
+describe('la factura del pago final', () => {
+  const CONECTADO: Partial<FilaDe<'ajustes'>> = {
+    taller_titular: 'Martín Rivas',
+    taller_condicion_fiscal: 'monotributo',
+    taller_domicilio: 'Pasaje Los Robles 450',
+    facturacion_ambiente: 'produccion',
+    facturacion_cuit: '20-11111111-2',
+    facturacion_punto_de_venta: 3,
+    facturacion_ingresos_brutos: '901-123456-7',
+    facturacion_inicio_de_actividades: '2019-03-01',
+  };
+
+  const CON_SALDO = {
+    ...RESUMEN,
+    cliente: {
+      ...METADATOS,
+      id: 'c',
+      nombre: 'Lucía Gómez',
+      telefono: '',
+      email: '',
+      direccion: '',
+      zona: '',
+      notas: '',
+      cuit: '',
+      dni: '',
+      razon_social: '',
+      domicilio_fiscal: '',
+      condicion_fiscal: 'consumidor_final',
+      origen_contacto: null,
+      origen_detalle: '',
+    },
+    cobradoEnSuMoneda: plata('ARS', 500_000),
+    cobradoEnPesos: centavos(500_000),
+    enMaun: centavos(500_000),
+    saldo: plata('ARS', 500_000),
+  } as unknown as ResumenDeProyecto;
+
+  function conElPagoAMitad(replica: Replica): Replica {
+    return aplicarFilaLocal(replica, 'pagos', {
+      ...METADATOS,
+      id: 'pago',
+      proyecto_id: 'p',
+      fecha: DIA_DEL_PAGO,
+      concepto: 'Seña',
+      monto_centavos: 500_000,
+      ya_en_la_apertura: false,
+      moneda: 'ARS',
+      cotizacion_centavos: null,
+      tesoro_id: null,
+    });
+  }
+
+  function claves(queryClient: QueryClient): (string | undefined)[] {
+    return queryClient
+      .getMutationCache()
+      .getAll()
+      .map((mutacion) => mutacion.options.mutationKey?.[1] as string | undefined);
+  }
+
+  function montarElCobro(replica: Replica) {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    });
+    render(
+      <MemoryRouter initialEntries={['/proyectos/p/cobrar']}>
+        <QueryClientProvider client={queryClient}>
+          <ProveedorDeReplica replica={replica}>
+            <PantallaDeLiquidacion resumen={CON_SALDO} destino="cobrado" />
+          </ProveedorDeReplica>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+    return queryClient;
+  }
+
+  function casilla(): HTMLElement {
+    return screen.getByRole('checkbox', { name: /^Facturar el pago final con ARCA/ });
+  }
+
+  it('con el taller conectado sale prendida, dice a nombre de quién y pide la factura después del cobro', () => {
+    const queryClient = montarElCobro(conElPagoAMitad(taller({ ajustes: CONECTADO })));
+    expect(casilla()).toBeChecked();
+    expect(casilla()).toBeEnabled();
+    expect(screen.getByText('Sale a nombre de Lucía Gómez, consumidor final.')).toBeInTheDocument();
+
+    fireEvent.click(botonDeCobrar());
+
+    expect(claves(queryClient)).toEqual(['guardar', 'liquidar', 'pedir-la-factura']);
+    const mutaciones = queryClient.getMutationCache().getAll();
+    const pago = (mutaciones[0]?.state.variables as { pedido: ProyectoParaGuardar }).pedido
+      .pagos[0];
+    expect(mutaciones[2]?.state.variables).toEqual({
+      pedido: {
+        id: expect.stringMatching(UUID) as unknown,
+        pagoId: pago?.id,
+        detalle: 'Saldo final en la entrega — Placard de tres puertas',
+      },
+      proyectoId: 'p',
+    });
+  });
+
+  it('apagada a mano, cobra sin pedir la factura', () => {
+    const queryClient = montarElCobro(conElPagoAMitad(taller({ ajustes: CONECTADO })));
+    fireEvent.click(casilla());
+    expect(casilla()).not.toBeChecked();
+    fireEvent.click(botonDeCobrar());
+    expect(claves(queryClient)).toEqual(['guardar', 'liquidar']);
+  });
+
+  it('si falta algo, apagada y sin poder prenderla, con lo que falta y su enlace', () => {
+    const queryClient = montarElCobro(
+      conElPagoAMitad(taller({ ajustes: { ...CONECTADO, facturacion_ingresos_brutos: '' } })),
+    );
+    expect(casilla()).not.toBeChecked();
+    expect(casilla()).toBeDisabled();
+    expect(
+      screen.getByText('Faltan tus datos de facturación: tu número de Ingresos Brutos.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Completarlos' })).toHaveAttribute(
+      'href',
+      '/ajustes/facturacion',
+    );
+    fireEvent.click(botonDeCobrar());
+    expect(claves(queryClient)).toEqual(['guardar', 'liquidar']);
+  });
+
+  it('sin el taller conectado, o con el pago final en dólares, no aparece', () => {
+    montarElCobro(conElPagoAMitad(taller()));
+    expect(screen.queryByRole('checkbox', { name: /Facturar el pago final/ })).toBeNull();
+    cleanup();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+    const DOLARES = '00000000-0000-7000-8000-000000000020';
+    const replica = aplicarFilaLocal(conElPagoAMitad(taller({ ajustes: CONECTADO })), 'tesoros', {
+      ...tesoro(DOLARES, null, 'Dólares', 'grana'),
+      moneda: 'USD',
+    });
+    montarElCobro(replica);
+    expect(casilla()).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pasar a dólares' }));
+    expect(screen.queryByRole('checkbox', { name: /Facturar el pago final/ })).toBeNull();
   });
 });
 

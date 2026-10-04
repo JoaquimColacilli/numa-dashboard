@@ -29,6 +29,12 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Corta el build: solo lo ve quien arma la app.',
   },
   {
+    archivo: 'src/features/configurar-taller/model/asistente.ts',
+    texto: '-----BEGIN CERTIFICATE-----',
+    motivo:
+      'Es el encabezado de un certificado en PEM, para saber si el archivo vino en texto o en binario: no lo lee nadie.',
+  },
+  {
     archivo: 'src/shared/idioma/nombres.ts',
     texto: /^(Español|English|Português)$/u,
     motivo: 'Cada idioma se nombra en su propio idioma, y es igual en los tres catálogos.',
@@ -86,6 +92,17 @@ const EXCEPCIONES: readonly Excepcion[] = [
     texto: /^(DOCUMENTO NO VÁLIDO COMO FACTURA|Documento no válido como factura)$/u,
     motivo:
       'La leyenda de ARCA va en castellano en los tres idiomas (glosario); en inglés y en portugués la aclaración sale del catálogo.',
+  },
+  {
+    archivo: 'src/shared/pdf/factura/textos.ts',
+    texto: /./su,
+    motivo:
+      'El PDF de la factura va siempre en castellano en los tres idiomas: es un documento fiscal argentino (ADR 0085, como la leyenda de ARCA).',
+  },
+  {
+    archivo: 'src/shared/pdf/factura/qr.ts',
+    texto: 'M h1v1h-1z',
+    motivo: 'Es el trazo de cada cuadradito del QR de ARCA en el PDF, no un texto.',
   },
   {
     archivo: 'src/shared/ui/LogoDeMercadoPago.tsx',

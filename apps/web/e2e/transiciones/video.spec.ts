@@ -1,7 +1,8 @@
 import path from 'node:path';
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import { iniciarSesionDePrueba, type SesionDePrueba } from '../apoyo/taller';
 import { sembrarElTaller } from './datos';

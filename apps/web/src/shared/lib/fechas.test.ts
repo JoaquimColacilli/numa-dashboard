@@ -9,6 +9,8 @@ import {
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
+  fechaCorta,
+  fechaCortaSinAnio,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -16,6 +18,7 @@ import {
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,
+  mesCortoConAnio,
   mesDeLaFecha,
   mesEnUnaFrase,
   nombreDelMes,
@@ -45,6 +48,32 @@ describe('las fechas del presupuesto', () => {
   it('la del PDF, con el año siempre', () => {
     expect(fechaConAnio('2026-09-17')).toBe('17 de septiembre de 2026');
     expect(fechaConAnio('2027-01-02')).toBe('2 de enero de 2027');
+  });
+});
+
+describe('la fecha corta de la facturación', () => {
+  it('en castellano, día, mes y año en números, sin ceros', () => {
+    expect(fechaCorta('2026-09-03')).toBe('3/9/2026');
+    expect(fechaCorta('2028-10-02')).toBe('2/10/2028');
+  });
+
+  it('en inglés y en portugués nombra el mes', () => {
+    expect(fechaCorta('2028-10-02', 'en')).toBe('Oct 2, 2028');
+    expect(fechaCorta('2028-10-02', 'pt-BR')).toBe('2 de out. de 2028');
+  });
+
+  it('el mes corto con su año, para el rango de lo facturado', () => {
+    expect(mesCortoConAnio('2025-11')).toBe('nov. 2025');
+    expect(mesCortoConAnio('2026-05')).toBe('may. 2026');
+    expect(mesCortoConAnio('2025-11', 'en')).toBe('Nov 2025');
+    expect(mesCortoConAnio('2025-11', 'pt-BR')).toBe('nov. de 2025');
+  });
+
+  it('sin el año, el día y el mes en números, con el orden de cada idioma', () => {
+    expect(fechaCortaSinAnio('2026-10-03')).toBe('3/10');
+    expect(fechaCortaSinAnio('2026-09-20')).toBe('20/9');
+    expect(fechaCortaSinAnio('2026-10-03', 'en')).toBe('10/3');
+    expect(fechaCortaSinAnio('2026-10-03', 'pt-BR')).toBe('03/10');
   });
 });
 

@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   gastoVacio,
+  pagoVacio,
   valoresDelFormulario,
   type FilaDeGasto,
+  type FilaDePago,
   type FormularioDeProyecto,
 } from '@/entities/proyecto';
 
@@ -44,6 +46,64 @@ function Arnes({ gastos }: { gastos: FilaDeGasto[] }) {
 function leidas(): string {
   return screen.getByRole('status', { name: 'categorías' }).textContent;
 }
+
+function ArnesDePagos({ pagos, facturados }: { pagos: FilaDePago[]; facturados: Set<string> }) {
+  const { control, register, setValue, formState } = useForm<FormularioDeProyecto>({
+    defaultValues: {
+      ...valoresDelFormulario(undefined, [], [], [], { hoy: '2026-10-03' }),
+      pagos,
+    },
+  });
+  const campos = useFieldArray({ control, name: 'pagos', keyName: 'clave' });
+  return (
+    <FilasDinamicas
+      lista="pagos"
+      control={control}
+      register={register}
+      setValue={setValue}
+      errores={formState.errors}
+      campos={campos}
+      bloqueado={false}
+      delPago={{
+        monedaDelTrabajo: 'ARS',
+        monedaNueva: 'ARS',
+        tesorosEnDolares: [],
+        dolarDelDia: null,
+        facturados,
+      }}
+    />
+  );
+}
+
+describe('un pago con factura de ARCA en el formulario del trabajo', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('queda quieto salvo el concepto, sin el tacho y con el porqué', () => {
+    render(
+      <ArnesDePagos
+        pagos={[
+          { ...pagoVacio('p1', '2026-10-01', 'ARS', null), detalle: 'Seña', monto: 45_000_000 },
+          { ...pagoVacio('p2', '2026-10-02', 'ARS', null), detalle: 'Saldo', monto: 10_000_000 },
+        ]}
+        facturados={new Set(['p1'])}
+      />,
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Concepto 1' })).toBeEnabled();
+    expect(screen.getByLabelText('Fecha 1')).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Monto 1' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Quitar concepto 1' })).toBeNull();
+    expect(
+      screen.getByText('Tiene una factura de ARCA: para cambiarlo, anulala primero.'),
+    ).toBeInTheDocument();
+
+    expect(screen.getByLabelText('Fecha 2')).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Monto 2' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Quitar concepto 2' })).toBeEnabled();
+  });
+});
 
 describe('la categoría de cada gasto en el formulario del trabajo', () => {
   beforeEach(() => {

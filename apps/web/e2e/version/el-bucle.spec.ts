@@ -1,5 +1,6 @@
-import { expect, test, type CDPSession, type Page } from '@playwright/test';
+import { expect, type CDPSession, type Page } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { dedo, tirarYSoltar } from '../apoyo/dedo';
 import { listoParaCortar } from '../apoyo/pantalla';
 import { sinTransicionEnCurso } from '../apoyo/transiciones';

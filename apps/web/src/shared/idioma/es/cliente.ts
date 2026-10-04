@@ -45,6 +45,7 @@ export const cliente = {
     cuitConOtroPrefijo:
       'Los CUIT arrancan con 20, 23, 24, 27, 30, 33 o 34. Guardalo igual si es el que te pasaron.',
     cuitQueNoCierra: 'El dígito verificador no cierra. Revisalo, pero podés guardarlo igual.',
+    dniInvalido: 'Un DNI tiene 7 u 8 números. Dejalo vacío si no lo tenés a mano.',
   },
   contacto: {
     llamar: 'Llamar',

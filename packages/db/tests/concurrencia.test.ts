@@ -862,3 +862,162 @@ describe('dos aparatos que suman una foto a la misma vidriera, con conexiones re
     await expect(alta).resolves.toBeDefined();
   });
 });
+
+const PAGO_PARA_FACTURAR = `insert into public.pagos (id, household_id, proyecto_id, fecha, concepto, monto_centavos)
+  values ($1, $2, $3, '2026-09-11', 'Pago para facturar', 100000)`;
+
+const FACTURA_PEDIDA = `insert into public.comprobantes (
+    id, household_id, proyecto_id, pago_id, tipo, ambiente, cuit_emisor, punto_de_venta, concepto,
+    importe_centavos, doc_tipo, doc_nro, condicion_iva_receptor, receptor_condicion, receptor_nombre, emisor, detalle
+  ) values (
+    $1, $2, $3, $4, 'factura_c', 'homologacion', '20-11111111-2', 9, 1, 100000, 99, '0', 5, 'consumidor_final',
+    'Cliente de prueba',
+    '{"razonSocial": "TALLER DE PRUEBA", "nombreDelTaller": "[seed] Taller de prueba", "domicilio": "Calle 1",
+      "cuit": "20-11111111-2", "ingresosBrutos": "1", "inicioDeActividades": "2019-03-01"}',
+    'Pago para facturar'
+  )`;
+
+async function tomar(cliente: pg.Client, comprobante: string): Promise<unknown> {
+  const { rows } = await cliente.query<{ fila: unknown }>(
+    'select public.facturacion_tomar($1, 120) as fila',
+    [comprobante],
+  );
+  return rows[0]?.fila ?? null;
+}
+
+async function elVanitoryDelSeed(monitor: pg.Client): Promise<string> {
+  const { rows } = await monitor.query<{ trabajo: string }>(
+    `select to_jsonb(p)::text as trabajo
+     from public.proyectos p
+     where p.id = $1 and p.estado = 'entregado' and p.deleted_at is null
+       and exists (select 1 from public.pagos g where g.id = $2 and g.proyecto_id = p.id and g.deleted_at is null)
+       and not exists (select 1 from public.comprobantes c where c.pago_id = $2)`,
+    [PROYECTO_DEL_SEED, PAGO_DEL_SEED],
+  );
+  const fila = rows[0];
+  if (fila === undefined) {
+    throw new Error(
+      'El test de concurrencia usa el vanitory entregado del seed, con su seña sin facturar. Cargalo con `pnpm --filter @maun/db db:seed`.',
+    );
+  }
+  return fila.trabajo;
+}
+
+async function conectarElSeedEnPrueba(cliente: pg.Client): Promise<void> {
+  await cliente.query(
+    `update public.ajustes set
+       taller_condicion_fiscal = 'monotributo', taller_titular = 'TALLER DE PRUEBA', taller_domicilio = 'Calle 1',
+       facturacion_ingresos_brutos = '1', facturacion_inicio_de_actividades = '2019-03-01',
+       facturacion_ambiente = 'homologacion', facturacion_cuit = '20-11111111-2', facturacion_punto_de_venta = 9,
+       facturacion_desde = '2026-09-01'
+     where household_id = $1`,
+    [HOUSEHOLD_DEL_SEED],
+  );
+}
+
+async function pedirLaSena(cliente: pg.Client): Promise<void> {
+  await cliente.query("select public.pedir_la_factura($1, $2, 'Seña — Vanitory')", [
+    '0192a3b4-c5d6-7e8f-9a0b-0000000000a3',
+    PAGO_DEL_SEED,
+  ]);
+}
+
+describe('la facturación contra los trabajos y los pagos del mismo taller, con conexiones reales y todo en rollback', () => {
+  it('la segunda toma de la misma secuencia espera a la primera en la fila de ajustes, antes de mirar su comprobante', async () => {
+    const primera = await sesion();
+    const segunda = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(primera);
+    await primera.query(PAGO_PARA_FACTURAR, [
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000b1',
+      HOUSEHOLD_DEL_SEED,
+      PROYECTO_DEL_SEED,
+    ]);
+    await primera.query(FACTURA_PEDIDA, [
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000a1',
+      HOUSEHOLD_DEL_SEED,
+      PROYECTO_DEL_SEED,
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000b1',
+    ]);
+    await primera.query("select set_config('role', 'service_role', true)");
+    expect(await tomar(primera, '0192a3b4-c5d6-7e8f-9a0b-0000000000a1')).not.toBeNull();
+
+    await abrirTransaccion(segunda);
+    await segunda.query(PAGO_PARA_FACTURAR, [
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000b2',
+      HOUSEHOLD_DEL_SEED,
+      PROYECTO_DEL_SEED,
+    ]);
+    await segunda.query(FACTURA_PEDIDA, [
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000a2',
+      HOUSEHOLD_DEL_SEED,
+      PROYECTO_DEL_SEED,
+      '0192a3b4-c5d6-7e8f-9a0b-0000000000b2',
+    ]);
+    await segunda.query("select set_config('role', 'service_role', true)");
+    const pidSegunda = await pidDe(segunda);
+    const toma = sinRechazoSuelto(tomar(segunda, '0192a3b4-c5d6-7e8f-9a0b-0000000000a2'));
+
+    expect(await esperarQueEspere(monitor, pidSegunda)).toContain(await pidDe(primera));
+    expect(await locksSobre(monitor, pidSegunda, 'public.comprobantes', 'RowShareLock')).toBe(0);
+
+    await primera.query('rollback');
+    await expect(toma).resolves.not.toBeNull();
+  });
+
+  it('guardar el trabajo espera a que la factura de su pago quede pedida, en el trabajo', async () => {
+    const factura = await sesion();
+    const guardado = await sesion();
+    const monitor = await sesion();
+
+    const vanitory = await elVanitoryDelSeed(monitor);
+
+    await abrirTransaccion(factura);
+    await conectarElSeedEnPrueba(factura);
+    await entrarAlHousehold(factura);
+    await pedirLaSena(factura);
+
+    await abrirTransaccion(guardado);
+    await entrarAlHousehold(guardado);
+    const pidGuardado = await pidDe(guardado);
+    const guardar = sinRechazoSuelto(
+      guardado.query("select public.guardar_proyecto($1::jsonb, '[]'::jsonb, '[]'::jsonb)", [
+        vanitory,
+      ]),
+    );
+
+    expect(await esperarQueEspere(monitor, pidGuardado)).toContain(await pidDe(factura));
+    expect(await locksSobre(monitor, pidGuardado, 'public.pagos', 'RowExclusiveLock')).toBe(0);
+
+    await factura.query('rollback');
+    await expect(guardar).resolves.toBeDefined();
+  });
+
+  it('un cambio directo del pago espera a que su factura quede pedida, en el pago', async () => {
+    const factura = await sesion();
+    const cambio = await sesion();
+    const monitor = await sesion();
+
+    await elVanitoryDelSeed(monitor);
+
+    await abrirTransaccion(factura);
+    await conectarElSeedEnPrueba(factura);
+    await entrarAlHousehold(factura);
+    await pedirLaSena(factura);
+
+    await abrirTransaccion(cambio);
+    await entrarAlHousehold(cambio);
+    const pidCambio = await pidDe(cambio);
+    const edicion = sinRechazoSuelto(
+      cambio.query(`update public.pagos set concepto = concepto || ' (editado)' where id = $1`, [
+        PAGO_DEL_SEED,
+      ]),
+    );
+
+    expect(await esperarQueEspere(monitor, pidCambio)).toContain(await pidDe(factura));
+
+    await factura.query('rollback');
+    await expect(edicion).resolves.toBeDefined();
+  });
+});

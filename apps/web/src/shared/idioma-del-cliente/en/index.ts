@@ -3,6 +3,7 @@ import type { MensajesDelCliente } from '../es';
 import { documento } from './documento';
 import { encuesta } from './encuesta';
 import { enlace } from './enlace';
+import { facturas } from './facturas';
 import { pdf } from './pdf';
 import { presupuesto } from './presupuesto';
 import { ui } from './ui';
@@ -14,6 +15,7 @@ export const en = {
   documento,
   encuesta,
   enlace,
+  facturas,
   pdf,
   presupuesto,
   ui,

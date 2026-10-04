@@ -6,6 +6,15 @@ export {
   type LoQueGuardaLaPlantilla,
 } from './api/plantilla';
 export { hayRedesCargadas } from './model/redes';
+export { AsistenteDeArca, type AsistenteDeArcaProps } from './ui/facturacion/AsistenteDeArca';
+export {
+  PantallaDeLaFacturacion,
+  type PantallaDeLaFacturacionProps,
+} from './ui/facturacion/PantallaDeLaFacturacion';
+export {
+  ResumenDeLaFacturacion,
+  type ResumenDeLaFacturacionProps,
+} from './ui/facturacion/ResumenDeLaFacturacion';
 export { FormularioDeCobro } from './ui/FormularioDeCobro';
 export {
   FormularioDeConfiguracion,

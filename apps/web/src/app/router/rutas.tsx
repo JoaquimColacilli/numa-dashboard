@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
 
 import { AgendaPage, AnotarPage } from '@/pages/agenda';
-import { AjustesPage, AvisosPage, PresupuestoDelTallerPage } from '@/pages/ajustes';
+import {
+  AjustesPage,
+  AvisosPage,
+  ConectarConArcaPage,
+  FacturacionPage,
+  PresupuestoDelTallerPage,
+} from '@/pages/ajustes';
 import { AnaliticoPage } from '@/pages/analitico';
 import { ClienteFichaPage, ClientesPage } from '@/pages/clientes';
 import { DiezmoPage } from '@/pages/diezmo';
@@ -27,9 +33,11 @@ import {
   HOJAS_POR_RUTA,
   RUTA_DE_CONSULTAS,
   RUTA_DE_CONTACTO_NUEVO,
+  RUTA_DE_LA_FACTURACION,
   RUTA_DE_LAS_ESTADISTICAS,
   RUTA_DE_TESOROS,
   RUTA_DEL_ANALITICO,
+  RUTA_DEL_ASISTENTE_DE_ARCA,
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
   type PatronDeHoja,
 } from '@/shared/lib';
@@ -64,6 +72,8 @@ export const RUTAS_DE_PANTALLA: RouteObject[] = [
   { path: '/ajustes', element: <AjustesPage /> },
   { path: '/ajustes/avisos', element: <AvisosPage /> },
   { path: RUTA_DEL_PRESUPUESTO_EN_AJUSTES, element: <PresupuestoDelTallerPage /> },
+  { path: RUTA_DE_LA_FACTURACION, element: <FacturacionPage /> },
+  { path: RUTA_DEL_ASISTENTE_DE_ARCA, element: <ConectarConArcaPage /> },
 ];
 
 const HOJA: Readonly<Record<PatronDeHoja, ReactNode>> = {

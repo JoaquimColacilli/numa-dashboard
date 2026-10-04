@@ -9,10 +9,14 @@ import {
   centavosEn,
   columnasDeSiempre,
   COMBINACIONES_DE_LA_MONEDA,
+  condicionIvaDelReceptor,
+  CONDICIONES_DEL_RECEPTOR,
   cotizacion,
+  cuitValido,
   DIEZMO,
   dolaresDePesos,
   documentoDelPresupuesto,
+  documentoDelReceptor,
   ESTADOS,
   esEstado,
   estaLiquidado,
@@ -28,6 +32,7 @@ import {
   leerLaFila,
   letraDeLaOpcion,
   loQueDescuenta,
+  loQueFaltaParaFacturar,
   loVistoEsOtro,
   MONEDA_DEL_TALLER,
   MONEDAS,
@@ -65,7 +70,9 @@ import {
   type BaseDeLaObligacion,
   type BorradorDelPresupuesto,
   type ClaseDePaso,
+  type CondicionDelReceptor,
   type DatosDelTaller,
+  type DatosParaFacturar,
   type Distribucion,
   type DocumentoDelPresupuesto,
   type DocumentoEnPesos,
@@ -7404,8 +7411,193 @@ export async function compararPresupuesto(cliente: pg.Client, escala = 1): Promi
   return [...plantillas, ...borradores, ...documentos, ...paraMandar];
 }
 
+const CUITS_PARA_COMPARAR: readonly string[] = (() => {
+  const casos = [
+    '',
+    'abc',
+    '20111111112',
+    '20-11111111-2',
+    ' 20-11111111-2 ',
+    '20.11111111.2',
+    '2011111111',
+    '201111111123',
+    '２０-11111111-2',
+    '20-00000001-0',
+  ];
+  for (const prefijo of ['20', '21', '23', '24', '27', '30', '33', '34', '99']) {
+    for (const cuerpo of ['11111111', '30123456', '71234567', '00000001', '28456123']) {
+      for (let verificador = 0; verificador <= 9; verificador++) {
+        casos.push(`${prefijo}-${cuerpo}-${String(verificador)}`);
+      }
+    }
+  }
+  return casos;
+})();
+
+interface CasoDelDocumento {
+  condicion: CondicionDelReceptor;
+  cuit: string;
+  dni: string;
+  operacion: number;
+}
+
+const CASOS_DEL_DOCUMENTO: readonly CasoDelDocumento[] = CONDICIONES_DEL_RECEPTOR.flatMap(
+  (condicion) =>
+    ['', '20-11111111-2', '20-11111111-3', '20-00000001-0', 'abc', '30-71234567-1'].flatMap(
+      (cuit) =>
+        ['', '1234567', '12345678', '123456', '123456789', '12.345.678', ' 12345678'].flatMap(
+          (dni) =>
+            [0, 999_999_999, 1_000_000_000, 5_000_000_000].map((operacion) => ({
+              condicion,
+              cuit,
+              dni,
+              operacion,
+            })),
+        ),
+    ),
+);
+
+const TEXTOS_PARA_FACTURAR = ['', ' ', '\t\n', 'R', ' '] as const;
+
+function casosDeLoQueFalta(): DatosParaFacturar[] {
+  const opciones = {
+    tallerCondicion: [null, 'monotributo', 'responsable_inscripto', 'exento'] as const,
+    inicio: [null, '2019-03-01'] as const,
+    moneda: ['ARS', 'USD'] as const,
+    siNo: [false, true] as const,
+    precio: [null, 0, 999_999_999, 1_000_000_000, 3_000_000_000] as const,
+    cobrado: [0, 999_999_999, 1_000_000_000] as const,
+    cuit: ['', '20-11111111-2', '20-11111111-3', 'abc', '30-71234567-1'] as const,
+    dni: ['', '12345678', '123'] as const,
+    domicilio: ['', ' ', 'Calle 1'] as const,
+  };
+  let semilla = 85;
+  const elegir = <T>(lista: readonly T[]): T => {
+    semilla = (semilla * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return lista[semilla % lista.length] as T;
+  };
+  const caso = (): DatosParaFacturar => {
+    const precio = elegir(opciones.precio);
+    return {
+      taller: {
+        condicion: elegir(opciones.tallerCondicion),
+        razonSocial: elegir(TEXTOS_PARA_FACTURAR),
+        domicilio: elegir(TEXTOS_PARA_FACTURAR),
+        ingresosBrutos: elegir(TEXTOS_PARA_FACTURAR),
+        inicioDeActividades: elegir(opciones.inicio),
+      },
+      trabajo: {
+        moneda: elegir(opciones.moneda),
+        borrado: elegir(opciones.siNo),
+        precio: precio === null ? null : centavos(precio),
+        cobrado: centavos(elegir(opciones.cobrado)),
+      },
+      pago: {
+        moneda: elegir(opciones.moneda),
+        borrado: elegir(opciones.siNo),
+        yaEnLaApertura: elegir(opciones.siNo),
+      },
+      cliente: {
+        condicion: elegir(CONDICIONES_DEL_RECEPTOR),
+        cuit: elegir(opciones.cuit),
+        dni: elegir(opciones.dni),
+        domicilioFiscal: elegir(opciones.domicilio),
+        direccion: elegir(opciones.domicilio),
+      },
+    };
+  };
+  const base: DatosParaFacturar = {
+    taller: {
+      condicion: 'monotributo',
+      razonSocial: 'RIVAS MARTIN',
+      domicilio: 'Pasaje Los Robles 450',
+      ingresosBrutos: '20-11111111-2',
+      inicioDeActividades: '2019-03-01',
+    },
+    trabajo: { moneda: 'ARS', borrado: false, precio: centavos(90_000_000), cobrado: centavos(0) },
+    pago: { moneda: 'ARS', borrado: false, yaEnLaApertura: false },
+    cliente: {
+      condicion: 'consumidor_final',
+      cuit: '',
+      dni: '',
+      domicilioFiscal: '',
+      direccion: '',
+    },
+  };
+  const casos: DatosParaFacturar[] = [base];
+  for (const condicion of CONDICIONES_DEL_RECEPTOR) {
+    for (const cuit of opciones.cuit) {
+      casos.push({ ...base, cliente: { ...base.cliente, condicion, cuit } });
+    }
+  }
+  for (let i = 0; i < 800; i++) casos.push(caso());
+  return casos;
+}
+
+export async function compararFacturacion(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+
+  const condiciones = await compararGemela<CondicionDelReceptor, number>(cliente, {
+    nombre: 'la condición frente al IVA del receptor',
+    casos: CONDICIONES_DEL_RECEPTOR,
+    ts: condicionIvaDelReceptor,
+    sql: `select private.condicion_iva_del_receptor((c.caso #>> '{}')::public.condicion_fiscal) as condicion
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => String(fila.condicion),
+    deTs: (condicion) => String(condicion),
+  });
+
+  const cuits = await compararGemela<string, boolean>(cliente, {
+    nombre: 'el CUIT válido para facturar',
+    casos: CUITS_PARA_COMPARAR,
+    ts: cuitValido,
+    sql: `select private.cuit_valido(c.caso #>> '{}') as valido
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => String(fila.valido),
+    deTs: (valido) => String(valido),
+  });
+
+  const documentos = await compararGemela<CasoDelDocumento, unknown>(cliente, {
+    nombre: 'el documento del receptor',
+    casos: CASOS_DEL_DOCUMENTO,
+    ts: (caso) =>
+      documentoDelReceptor(
+        { condicion: caso.condicion, cuit: caso.cuit, dni: caso.dni },
+        centavos(caso.operacion),
+      ),
+    sql: `select private.documento_del_receptor(
+            (c.caso ->> 'condicion')::public.condicion_fiscal, c.caso ->> 'cuit', c.caso ->> 'dni',
+            (c.caso ->> 'operacion')::bigint
+          ) as documento
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => canonico(fila.documento),
+    deTs: (documento) => canonico(documento),
+  });
+
+  const faltas = await compararGemela<DatosParaFacturar, string[]>(cliente, {
+    nombre: 'lo que falta para facturar',
+    casos: casosDeLoQueFalta(),
+    ts: loQueFaltaParaFacturar,
+    sql: `select private.lo_que_falta_para_facturar(c.caso) as falta
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => JSON.stringify(fila.falta),
+    deTs: (falta) => JSON.stringify(falta),
+  });
+
+  return [...condiciones, ...cuits, ...documentos, ...faltas];
+}
+
 export async function compararDominioYSql(cliente: pg.Client): Promise<string[]> {
   return [
+    ...(await compararFacturacion(cliente)),
     ...(await compararCascada(cliente)),
     ...(await compararTopes(cliente)),
     ...(await compararPagosPorDelante(cliente)),

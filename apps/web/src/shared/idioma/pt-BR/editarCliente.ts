@@ -20,6 +20,11 @@ export const editarCliente = {
   loQueQuierasAnotar: 'O que você quiser anotar',
   condicionFrenteAlIva: 'Condição perante o IVA',
   condicionYComprobante: (condicion, comprobante) => `${condicion}. Você emite ${comprobante}.`,
+  dni: 'DNI',
+  dniParaFacturar: (umbral) =>
+    `É necessário para emitir nota fiscal de projetos de ${umbral} ou mais.`,
+  cuit: 'CUIT',
+  cuitParaFacturar: 'Se o cliente pedir a nota fiscal com o CUIT dele.',
   razonSocial: 'Razão social',
   siFacturaAUnaEmpresa: 'Se faturar para uma empresa',
   domicilioFiscal: 'Endereço fiscal',

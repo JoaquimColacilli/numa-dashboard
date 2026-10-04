@@ -6,6 +6,10 @@ import { calcularEstadoSync, type EstadoSync } from './estado-sync';
 const suscribir = (avisar: () => void) => onlineManager.subscribe(avisar);
 const estaEnLinea = () => onlineManager.isOnline();
 
+export function useHaySenal(): boolean {
+  return useSyncExternalStore(suscribir, estaEnLinea, estaEnLinea);
+}
+
 export function useEstadoSync(): EstadoSync {
   const enLinea = useSyncExternalStore(suscribir, estaEnLinea, estaEnLinea);
   const pendientes = useIsMutating();

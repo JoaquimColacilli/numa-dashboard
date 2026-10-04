@@ -13,6 +13,8 @@ const NOMBRE_DE_SECRETO = /SERVICE_ROLE|SECRET/i;
 
 const EN_NODE = 'src/shared/pdf/**/*.node.test.{ts,tsx}';
 
+const CAPTURAS_DE_ARCA = /(^|[\\/])src[\\/]assets[\\/]arca[\\/]/;
+
 const SOLO_EN_SU_PANTALLA =
   /[\\/]node_modules[\\/](uqr|@xyflow|d3-[a-z]+|zustand|classcat|use-sync-external-store|@react-pdf|pdfkit|fontkit|yoga-layout|brotli|hyphen|linebreak|bidi-js|restructure|unicode-properties|unicode-trie|dfa|tiny-inflate|png-js|jay-peg|js-md5|fflate|@noble|vite-compatible-readable-stream|emoji-regex-xs|queue|abs-svg-path|parse-svg-path|normalize-svg-path|svg-arc-to-cubic-bezier|color-string|color-name|hsl-to-hex|hsl-to-rgb-for-reals|media-engine|postcss-value-parser|is-url|clone|fast-deep-equal|@swc)[\\/]/;
 
@@ -60,6 +62,12 @@ export default defineConfig(({ mode }) => {
           // arrancar la app.
           manualChunks: (id) =>
             SOLO_EN_SU_PANTALLA.test(id) || !id.includes('node_modules') ? undefined : 'vendor',
+          // Las capturas del asistente de ARCA van a su propia carpeta para que el service worker
+          // no las guarde: se bajan solo cuando se abre el asistente (ADR 0085).
+          assetFileNames: (asset) =>
+            asset.originalFileNames.some((original) => CAPTURAS_DE_ARCA.test(original))
+              ? 'assets/arca/[name]-[hash][extname]'
+              : 'assets/[name]-[hash][extname]',
         },
       },
     },
@@ -117,6 +125,7 @@ export default defineConfig(({ mode }) => {
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,woff}'],
+          globIgnores: ['assets/arca/**'],
         },
       }),
     ],

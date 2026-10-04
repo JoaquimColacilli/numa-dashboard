@@ -70,6 +70,10 @@ export const COLUMNAS_DE_AJUSTES = [
   'taller_telefono',
   'taller_email',
   'idioma_de_los_clientes',
+  'facturacion_concepto',
+  'facturacion_categoria',
+  'facturacion_ingresos_brutos',
+  'facturacion_inicio_de_actividades',
 ] as const;
 
 export type ColumnaDeAjustes = (typeof COLUMNAS_DE_AJUSTES)[number];
@@ -254,6 +258,7 @@ export const COLUMNAS_DE_CLIENTE = [
   'cuit',
   'razon_social',
   'domicilio_fiscal',
+  'dni',
   'notas',
 ] as const;
 

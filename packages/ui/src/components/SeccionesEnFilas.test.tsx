@@ -93,6 +93,18 @@ describe('SeccionesEnFilas', () => {
     expect(lista).not.toHaveClass('gap-3');
   });
 
+  it('con etiqueta, la sección se nombra con ella y no con su título', () => {
+    render(
+      <SeccionEnFila id="titulo-facturacion" titulo="Facturación" etiqueta="Facturación con ARCA">
+        <p>Todavía no está conectada.</p>
+      </SeccionEnFila>,
+    );
+
+    const seccion = screen.getByRole('region', { name: 'Facturación con ARCA' });
+    expect(seccion).not.toHaveAttribute('aria-labelledby');
+    expect(seccion).toContainElement(screen.getByRole('heading', { name: 'Facturación' }));
+  });
+
   it('el cuerpo acepta lo que la sección necesita sin tocar la fila', () => {
     render(<Ajustes />);
 

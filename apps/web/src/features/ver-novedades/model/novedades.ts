@@ -16,6 +16,29 @@ export type Novedad = NovedadEnLosTresIdiomas | NovedadDeAntes;
 
 export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [
   {
+    version: '2026-10-04',
+    lineas: {
+      es: [
+        'Ahora podés hacer la factura de cada cobro con ARCA. Tocás «Facturar» en el pago y sale con su número, lista para mandarle al cliente.',
+        'Si te equivocás, la anulás desde el mismo pago con una nota de crédito.',
+        'En Finanzas ves cuánto llevás facturado en los últimos 12 meses contra el tope de tu categoría del monotributo.',
+        'La conectás vos mismo, una sola vez, desde Ajustes › Facturación › «Conectar con ARCA», con una guía paso a paso. Mientras tanto, ya podés completar tus datos.',
+      ],
+      en: [
+        'You can now make the invoice for each payment with ARCA. Tap “Invoice” on the payment and it comes out with its number, ready to send to your client.',
+        'If you make a mistake, you void it from the same payment with a credit note.',
+        'In Finances you see how much you have invoiced in the last 12 months against the cap of your monotributo category.',
+        'You connect it yourself, just once, from Settings › Invoicing › “Connect to ARCA”, with a step-by-step guide. In the meantime, you can already fill in your details.',
+      ],
+      'pt-BR': [
+        'Agora você pode emitir a nota fiscal de cada recebimento com a ARCA. Toque em “Emitir nota fiscal” no pagamento e ela sai com o número, pronta para mandar ao cliente.',
+        'Se você errar, anula a nota fiscal no mesmo pagamento com uma nota de crédito.',
+        'Em Finanças você vê quanto já faturou nos últimos 12 meses contra o teto da sua categoria do monotributo.',
+        'Você mesmo conecta, uma vez só, em Configurações › Faturamento › “Conectar com a ARCA”, com um guia passo a passo. Enquanto isso, já pode completar seus dados.',
+      ],
+    },
+  },
+  {
     version: '2026-10-03',
     lineas: {
       es: [

@@ -31,12 +31,20 @@ export interface SeccionEnFilaProps {
   bajada?: ReactNode;
   children: ReactNode;
   cuerpo?: string;
+  etiqueta?: string;
 }
 
-export function SeccionEnFila({ id, titulo, bajada, children, cuerpo = '' }: SeccionEnFilaProps) {
+export function SeccionEnFila({
+  id,
+  titulo,
+  bajada,
+  children,
+  cuerpo = '',
+  etiqueta,
+}: SeccionEnFilaProps) {
   return (
     <section
-      aria-labelledby={id}
+      {...(etiqueta === undefined ? { 'aria-labelledby': id } : { 'aria-label': etiqueta })}
       data-reparto="fila"
       className="relative flex min-w-0 flex-col gap-3.5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5 @min-[44rem]/secciones:grid @min-[44rem]/secciones:grid-cols-[15rem_minmax(0,1fr)] @min-[44rem]/secciones:items-start @min-[44rem]/secciones:gap-x-12"
     >

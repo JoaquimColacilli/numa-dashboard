@@ -5,6 +5,7 @@ import type { ClienteMaun } from './cliente.ts';
 import { RespuestaInvalidaError } from './replica.ts';
 import {
   COLUMNAS_DE_AJUSTES,
+  COLUMNAS_DE_CLIENTE,
   COLUMNAS_DE_COSTOS,
   COLUMNAS_DE_FORMAS_DE_COBRO,
   COLUMNAS_DE_LA_ENTREGA,
@@ -250,6 +251,30 @@ describe('las monedas y los idiomas en lo que se guarda', () => {
     ]) {
       expect(COLUMNAS_DE_AJUSTES).toContain(columna);
     }
+  });
+
+  it('los ajustes guardan los cuatro datos de la facturación que son del dueño, y nunca la conexión con ARCA', () => {
+    for (const columna of [
+      'facturacion_concepto',
+      'facturacion_categoria',
+      'facturacion_ingresos_brutos',
+      'facturacion_inicio_de_actividades',
+    ]) {
+      expect(COLUMNAS_DE_AJUSTES).toContain(columna);
+    }
+    for (const columna of [
+      'facturacion_ambiente',
+      'facturacion_cuit',
+      'facturacion_punto_de_venta',
+      'facturacion_desde',
+      'facturacion_alertas',
+    ]) {
+      expect(COLUMNAS_DE_AJUSTES).not.toContain(columna);
+    }
+  });
+
+  it('el cliente guarda su DNI', () => {
+    expect(COLUMNAS_DE_CLIENTE).toContain('dni');
   });
 });
 

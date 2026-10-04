@@ -953,6 +953,7 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await archivarLosTesorosDelDueno(sesion);
   await restablecerElPresupuestoDelTaller(sesion);
   await dolaresEIdiomaDeFabrica(sesion);
+  await escribirLaFacturacion(sesion, FACTURACION_DE_FABRICA);
 }
 
 export async function crearCliente(
@@ -1531,6 +1532,104 @@ export async function restablecerElPresupuestoDelTaller(sesion: SesionDePrueba):
       taller_email: '',
     }),
   });
+}
+
+export interface FacturacionDePrueba {
+  facturacion_ambiente: string | null;
+  facturacion_cuit: string;
+  facturacion_punto_de_venta: number | null;
+  facturacion_desde: string | null;
+  facturacion_concepto: number;
+  facturacion_categoria: string | null;
+  facturacion_ingresos_brutos: string;
+  facturacion_inicio_de_actividades: string | null;
+}
+
+export type LoQueEditaLaApp = Pick<
+  FacturacionDePrueba,
+  | 'facturacion_concepto'
+  | 'facturacion_categoria'
+  | 'facturacion_ingresos_brutos'
+  | 'facturacion_inicio_de_actividades'
+>;
+
+export const FACTURACION_DE_FABRICA: LoQueEditaLaApp = {
+  facturacion_concepto: 1,
+  facturacion_categoria: null,
+  facturacion_ingresos_brutos: '',
+  facturacion_inicio_de_actividades: null,
+};
+
+const COLUMNAS_DE_LA_FACTURACION =
+  'facturacion_ambiente,facturacion_cuit,facturacion_punto_de_venta,facturacion_desde,facturacion_concepto,facturacion_categoria,facturacion_ingresos_brutos,facturacion_inicio_de_actividades';
+
+export async function leerLaFacturacion({
+  entorno,
+  accessToken,
+}: SesionDePrueba): Promise<FacturacionDePrueba> {
+  const filas = (await pedir(
+    entorno,
+    `/rest/v1/ajustes?select=${COLUMNAS_DE_LA_FACTURACION}&deleted_at=is.null`,
+    { accessToken },
+  )) as FacturacionDePrueba[];
+  const fila = filas[0];
+  if (fila === undefined) throw new Error('el taller de prueba no tiene ajustes');
+  return fila;
+}
+
+export async function escribirLaFacturacion(
+  { entorno, accessToken }: SesionDePrueba,
+  cambios: Partial<LoQueEditaLaApp>,
+): Promise<void> {
+  await pedir(entorno, '/rest/v1/ajustes?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(cambios),
+  });
+}
+
+export interface TallerQueFactura {
+  taller_titular: string;
+  taller_condicion_fiscal: string;
+  taller_domicilio: string;
+}
+
+export async function tallerQueFactura(sesion: SesionDePrueba): Promise<void> {
+  await pedir(sesion.entorno, '/rest/v1/ajustes?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken: sesion.accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      taller_titular: 'Taller de Prueba Ñandú',
+      taller_condicion_fiscal: 'monotributo',
+      taller_domicilio: 'Calle Falsa 123, Rosario',
+    } satisfies TallerQueFactura),
+  });
+  await escribirLaFacturacion(sesion, {
+    facturacion_categoria: 'D',
+    facturacion_ingresos_brutos: '901-123456-7',
+    facturacion_inicio_de_actividades: '2019-03-01',
+  });
+}
+
+export interface DocumentoDelClienteDePrueba {
+  condicion_fiscal: string | null;
+  cuit: string;
+  dni: string;
+  domicilio_fiscal: string;
+}
+
+export async function documentoDelCliente(
+  { entorno, accessToken }: SesionDePrueba,
+  id: string,
+): Promise<DocumentoDelClienteDePrueba | undefined> {
+  const filas = (await pedir(
+    entorno,
+    `/rest/v1/clientes?select=condicion_fiscal,cuit,dni,domicilio_fiscal&id=eq.${id}`,
+    { accessToken },
+  )) as DocumentoDelClienteDePrueba[];
+  return filas[0];
 }
 
 export interface PreferenciasDeAvisosDePrueba {

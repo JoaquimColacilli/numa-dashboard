@@ -149,6 +149,10 @@ export const RUTA_DE_AVISOS = '/ajustes/avisos';
 
 export const RUTA_DEL_PRESUPUESTO_EN_AJUSTES = '/ajustes/presupuesto';
 
+export const RUTA_DE_LA_FACTURACION = '/ajustes/facturacion';
+
+export const RUTA_DEL_ASISTENTE_DE_ARCA = '/ajustes/facturacion/conectar';
+
 export const RUTA_DE_AGENDA = '/agenda';
 
 export const RUTA_DE_ANOTAR = '/agenda/anotar';

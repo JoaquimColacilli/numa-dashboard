@@ -5,25 +5,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { MUTACION_DE_AJUSTES } from '@/entities/replica';
 import type { FilaDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
-import {
-  Ir,
-  metaDeAvisos,
-  RUTA_DE_AJUSTES,
-  useAlgoEnCurso,
-  useAnchoDePantalla,
-  useVolver,
-  uuidv7,
-} from '@/shared/lib';
-import {
-  Button,
-  ConSalida,
-  FilaDeAcciones,
-  Hoja,
-  Icono,
-  Pagina,
-  SeccionEnFila,
-  SeccionesEnFilas,
-} from '@/shared/ui';
+import { Ir, metaDeAvisos, RUTA_DE_AJUSTES, useAlgoEnCurso, useVolver, uuidv7 } from '@/shared/lib';
+import { ConSalida, Icono, Pagina, SeccionEnFila, SeccionesEnFilas } from '@/shared/ui';
 
 import { MUTACION_DE_LA_PLANTILLA } from '../../api/plantilla';
 import {
@@ -50,6 +33,7 @@ import {
   type NumerosEditables,
   type ProblemaDeLaPantalla,
 } from '../../model/presupuestoDelTaller';
+import { SalirSinGuardar } from '../SalirSinGuardar';
 import { BarraDeGuardado } from './BarraDeGuardado';
 import { ClausulasDeLaMoneda } from './ClausulasDeLaMoneda';
 import { DatosDelPresupuesto } from './DatosDelPresupuesto';
@@ -69,32 +53,6 @@ interface LoGuardado {
 
 function Bajada({ lugar, children }: { lugar: LugarEnElPresupuesto; children: ReactNode }) {
   return <BajadaConUbicacion lugar={lugar}>{children}</BajadaConUbicacion>;
-}
-
-function SalirSinGuardar({
-  alSeguir,
-  alDescartar,
-}: {
-  alSeguir: () => void;
-  alDescartar: () => void;
-}) {
-  const m = useMensajes().configurarTaller.presupuesto.salir;
-  const enCelular = useAnchoDePantalla() === 'movil';
-  return (
-    <Hoja titulo={m.titulo} rol="alertdialog" desdeAbajo={enCelular} alCerrar={alSeguir}>
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
-        <p className="text-body leading-relaxed text-text-2">{m.texto}</p>
-        <FilaDeAcciones>
-          <Button variant="secundario" onClick={alSeguir}>
-            {m.seguirEditando}
-          </Button>
-          <Button variant="peligro" onClick={alDescartar}>
-            {m.descartar}
-          </Button>
-        </FilaDeAcciones>
-      </div>
-    </Hoja>
-  );
 }
 
 export interface PantallaDelPresupuestoDelTallerProps {

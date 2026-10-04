@@ -1,5 +1,6 @@
 import type { BrowserContext } from '@playwright/test';
 
+import { ESTADO_DEL_TALLER_DE_PRUEBA, trabarLaFacturacion } from './facturacion';
 import type { SesionDePrueba } from './taller';
 
 const VISTA_ANTES_DE_LA_A = '2099-12-30';
@@ -8,6 +9,7 @@ export async function entrarConLaSesion(
   context: BrowserContext,
   sesion: SesionDePrueba,
 ): Promise<void> {
+  await trabarLaFacturacion(context, { estado: ESTADO_DEL_TALLER_DE_PRUEBA });
   await context.addInitScript(
     ({ guardada, vista }) => {
       if (localStorage.getItem('maun.sesion') === null) {

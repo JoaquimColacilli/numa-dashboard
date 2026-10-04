@@ -24,5 +24,7 @@ export const appNavegacion = {
     ajustes: 'Ajustes',
     avisos: 'Avisos',
     tuPresupuesto: 'Tu presupuesto',
+    facturacion: 'Facturación',
+    conectarConArca: 'Conectar con ARCA',
   },
 } as const;

@@ -26,6 +26,7 @@ import {
   FormularioDeResena,
   hayRedesCargadas,
   IdiomaDeLosClientes,
+  ResumenDeLaFacturacion,
   ResumenDelPresupuesto,
   type ParteDeLaConfiguracion,
 } from '@/features/configurar-taller';
@@ -307,6 +308,16 @@ export function AjustesPage() {
             }
           >
             <ResumenDelPresupuesto household={household} ajustes={ajustes} />
+          </SeccionEnFila>
+        )}
+
+        {ajustes && (
+          <SeccionEnFila
+            id="titulo-facturacion"
+            titulo={m.facturacion.pagina.titulo}
+            etiqueta={m.facturacion.resumen.etiqueta}
+          >
+            <ResumenDeLaFacturacion ajustes={ajustes} />
           </SeccionEnFila>
         )}
 

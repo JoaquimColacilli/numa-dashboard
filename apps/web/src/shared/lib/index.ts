@@ -20,6 +20,8 @@ export {
   diaYMesCorto,
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
+  fechaCorta,
+  fechaCortaSinAnio,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -28,6 +30,7 @@ export {
   hoyEnElTaller,
   hoyLocal,
   mesAnterior,
+  mesCortoConAnio,
   mesDeLaFecha,
   mesEnUnaFrase,
   nombreDelMes,
@@ -121,6 +124,7 @@ export { useAlgoEnCurso, useHayAlgoEnCurso } from './en-curso';
 export { useTirarParaActualizar, type FaseDelTiron, type Tiron } from './tirar-para-actualizar';
 export {
   adornosDelCampo,
+  enPesosEnteros,
   formatearCadaMoneda,
   formatearLaPlata,
   formatearPesos,
@@ -133,6 +137,11 @@ export {
 } from './plata';
 export { crearPlural, type FormasDelPlural } from './plural';
 export { fijarLosTextosDeLib, textosDeLib, type TextosDeLib } from './textos';
+export {
+  frasesDeLoQueFaltaParaFacturar,
+  type ClaveDeLoQueFalta,
+  type FraseDeLoQueFalta,
+} from './facturacion';
 export { type Ensanchar, type Envoltorio } from './catalogo';
 export { ABRE_EL_SEUDOIDIOMA, CIERRA_EL_SEUDOIDIOMA, seudoCatalogo, seudoTexto } from './seudo';
 export {
@@ -243,6 +252,8 @@ export {
   RUTA_DE_ANOTAR,
   RUTA_DE_AVISOS,
   RUTA_DEL_PRESUPUESTO_EN_AJUSTES,
+  RUTA_DE_LA_FACTURACION,
+  RUTA_DEL_ASISTENTE_DE_ARCA,
   RUTA_DE_CONTACTO_NUEVO,
   RUTA_DE_DIEZMO,
   RUTA_DE_LAS_ESTADISTICAS,
@@ -326,5 +337,5 @@ export {
   useTema,
   type PreferenciaDeTema,
 } from './tema';
-export { useEstadoSync } from './sync/useEstadoSync';
+export { useEstadoSync, useHaySenal } from './sync/useEstadoSync';
 export { uuidv7 } from './uuid';

@@ -1,7 +1,7 @@
 -- Dos talleres, cada uno con su usuario y un juego completo de datos. Un usuario ve y toca solo
 -- lo suyo, por cada camino: las tablas, la vista, las funciones de sync y las foreign keys.
 
-select plan(62);
+select plan(63);
 
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
@@ -38,6 +38,12 @@ insert into public.fotos_de_la_vidriera (id, orden, tipo, bytes, ancho, alto, ar
   values ('aaaaaaaa-0000-7000-8000-00000000000c', 0, 'image/webp', 1000, 900, 1200, 'aaaaaaaa-0000-7000-8000-000000000007');
 select tests.guardar_el_borrador('aaaaaaaa-0000-7000-8000-00000000000f', 'aaaaaaaa-0000-7000-8000-000000000002');
 select tests.mandar_el_presupuesto('aaaaaaaa-0000-7000-8000-00000000000f', 'aaaaaaaa-0000-7000-8000-000000000010', '2026-09-10');
+-- Un comprobante: la app no escribe la tabla, así que lo pone el ayudante elevado (ADR 0085).
+select tests.un_comprobante(jsonb_build_object(
+  'id', 'aaaaaaaa-0000-7000-8000-000000000011', 'household_id', tests.id('household_a'),
+  'proyecto_id', 'aaaaaaaa-0000-7000-8000-000000000002', 'pago_id', 'aaaaaaaa-0000-7000-8000-000000000003',
+  'importe_centavos', 100000
+));
 
 select tests.entrar_como(tests.id('b'));
 insert into public.clientes (id, nombre) values ('bbbbbbbb-0000-7000-8000-000000000001', 'Cliente de B');
@@ -67,6 +73,11 @@ insert into public.tesoros (id, nombre, tinta, icono)
   values ('bbbbbbbb-0000-7000-8000-00000000000d', 'Herramientas de B', 'grana', 'wrench');
 select tests.guardar_el_borrador('bbbbbbbb-0000-7000-8000-00000000000f', 'bbbbbbbb-0000-7000-8000-000000000002');
 select tests.mandar_el_presupuesto('bbbbbbbb-0000-7000-8000-00000000000f', 'bbbbbbbb-0000-7000-8000-000000000010', '2026-09-10');
+select tests.un_comprobante(jsonb_build_object(
+  'id', 'bbbbbbbb-0000-7000-8000-000000000011', 'household_id', tests.id('household_b'),
+  'proyecto_id', 'bbbbbbbb-0000-7000-8000-000000000002', 'pago_id', 'bbbbbbbb-0000-7000-8000-000000000003',
+  'importe_centavos', 200000
+));
 
 
 -- Lectura --------------------------------------------------------------------------------------
@@ -95,6 +106,7 @@ select results_eq('select id from public.proximos_contactos', array['aaaaaaaa-00
 select results_eq('select id from public.fotos_de_la_vidriera', array['aaaaaaaa-0000-7000-8000-00000000000c'::uuid], 'A ve solo las fotos de su vidriera');
 select results_eq('select id from public.presupuestos', array['aaaaaaaa-0000-7000-8000-00000000000f'::uuid], 'A ve solo el presupuesto de su trabajo');
 select results_eq('select id from public.revisiones_del_presupuesto', array['aaaaaaaa-0000-7000-8000-000000000010'::uuid], 'A ve solo lo que les mandó a sus clientes');
+select results_eq('select id from public.comprobantes', array['aaaaaaaa-0000-7000-8000-000000000011'::uuid], 'A ve solo los comprobantes de su taller');
 select is(
   (select array_agg(distinct household_id) from public.tesoros),
   array[tests.id('household_a')],
@@ -119,8 +131,8 @@ select isnt_empty('select 1 from public.libro_mayor', 'el libro mayor de A tiene
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 2, "fotos_de_la_vidriera": 1, "presupuestos": 1, "revisiones_del_presupuesto": 1}'::jsonb,
-  'bootstrap() de A trae su household completo, con las cinco preguntas de la encuesta que nace escrita, sus cuatro tesoros de siempre, las dos etapas de su trabajo y ningún reparto'
+  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 2, "fotos_de_la_vidriera": 1, "presupuestos": 1, "revisiones_del_presupuesto": 1, "comprobantes": 1}'::jsonb,
+  'bootstrap() de A trae su household completo, con las cinco preguntas de la encuesta que nace escrita, sus cuatro tesoros de siempre, las dos etapas de su trabajo, su comprobante y ningún reparto'
 );
 
 select is(
@@ -342,7 +354,7 @@ select tests.entrar_como(tests.id('sin_taller'));
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 0, "fotos_de_la_vidriera": 0, "presupuestos": 0, "revisiones_del_presupuesto": 0}'::jsonb,
+  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 0, "fotos_de_la_vidriera": 0, "presupuestos": 0, "revisiones_del_presupuesto": 0, "comprobantes": 0}'::jsonb,
   'un usuario sin household no ve nada'
 );
 

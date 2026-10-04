@@ -263,6 +263,10 @@ export function ClienteFichaPage() {
     { clave: textos.condicion, valor: condicion.etiqueta, sinTraducir: false },
     { clave: textos.comprobante, valor: condicion.comprobante, sinTraducir: false },
   ];
+  const dni = (cliente as Partial<typeof cliente>).dni ?? '';
+  if (dni !== '') {
+    facturacion.push({ clave: textos.dni, valor: dni, sinTraducir: true });
+  }
   if (cliente.cuit !== '') {
     facturacion.push({
       clave: cliente.condicion_fiscal === 'monotributo' ? textos.cuitOCuil : textos.cuit,

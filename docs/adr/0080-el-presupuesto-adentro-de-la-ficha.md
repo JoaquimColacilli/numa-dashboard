@@ -25,6 +25,10 @@
   las cláusulas de la moneda (cinco, editables) y la moneda del valor de una modificación, y el borrador la
   cláusula retocable y la moneda de lo abonado. `mandar_el_presupuesto` compara la moneda con la del trabajo y
   calcula lo abonado con lo que descuenta cada pago.
+- Enmendado el 2026-10-04 por el [ADR 0085](0085-la-factura-con-arca.md): el PDF de la factura es un documento más del mismo Worker,
+  con las mismas fuentes, estilos y medidas, siempre en castellano y con el QR de ARCA dibujado con `uqr`;
+  nada fuera del Worker importa `@react-pdf/*`. El mismo comprobante da los mismos bytes (`creationDate` al
+  mediodía de su fecha) y en homologación lleva de fondo «PRUEBA · SIN VALIDEZ FISCAL», como el borrador.
 
 ## Contexto
 

@@ -94,6 +94,19 @@ describe('la hoja', () => {
     expect(hoja).toHaveAttribute('open');
   });
 
+  it('una marca va al lado del título, sin entrar en su nombre', () => {
+    render(
+      <Hoja titulo="Facturar este pago" marca={<span>Prueba</span>} alCerrar={() => undefined}>
+        <p>Contenido</p>
+      </Hoja>,
+    );
+
+    const hoja = screen.getByRole('dialog', { name: 'Facturar este pago' });
+    const titulo = screen.getByRole('heading', { name: 'Facturar este pago' });
+    expect(titulo.nextElementSibling).toHaveTextContent('Prueba');
+    expect(hoja).toContainElement(titulo);
+  });
+
   it('las teclas de adentro le llegan a quien la abrió, también con el foco en la X del encabezado', () => {
     const alTeclear = vi.fn();
     render(

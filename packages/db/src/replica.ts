@@ -9,6 +9,7 @@ export const TABLAS_REPLICADAS = [
   'proyectos',
   'repartos',
   'pagos',
+  'comprobantes',
   'gastos',
   'opciones_de_presupuesto',
   'presupuestos',

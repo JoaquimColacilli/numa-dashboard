@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { devices, expect, test, type Browser, type Page, type TestInfo } from '@playwright/test';
+import { devices, expect, type Browser, type Page, type TestInfo } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { entrarConLaSesion } from '../apoyo/sesion';
 import {
   escribirAjustes,

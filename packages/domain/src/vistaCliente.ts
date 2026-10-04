@@ -1,6 +1,7 @@
 import { pesosDeDolares, type Cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
+import type { CondicionDelReceptor, TipoDeComprobante, TipoDeDocumento } from './facturacion.ts';
 import { DIAS_HABILES_DE_ENTREGA, diasEntre, entregaEstimada } from './fechas.ts';
 import { idiomaLeido, type Idioma } from './idioma.ts';
 import {
@@ -133,6 +134,46 @@ export interface PresupuestoDelTrabajo {
   letra: string | null;
 }
 
+export interface ComprobanteAsociado {
+  puntoDeVenta: number;
+  numero: number;
+  fecha: string;
+}
+
+export interface EmisorDeLaFactura {
+  nombreDelTaller: string;
+  razonSocial: string;
+  domicilio: string;
+  cuit: string;
+  ingresosBrutos: string;
+  inicioDeActividades: string | null;
+}
+
+export interface ReceptorDeLaFactura {
+  nombre: string;
+  condicion: CondicionDelReceptor;
+  docTipo: TipoDeDocumento;
+  docNro: string;
+  domicilio: string;
+}
+
+export interface FacturaDelCliente {
+  id: string;
+  tipo: TipoDeComprobante;
+  puntoDeVenta: number;
+  numero: number;
+  fecha: string;
+  importe: Money;
+  detalle: string;
+  cae: string;
+  caeVence: string;
+  prueba: boolean;
+  emisor: EmisorDeLaFactura;
+  receptor: ReceptorDeLaFactura;
+  anuladaPor: ComprobanteAsociado | null;
+  anulaA: ComprobanteAsociado | null;
+}
+
 export interface TrabajoDelCliente {
   taller: string;
   cliente: string;
@@ -156,6 +197,7 @@ export interface TrabajoDelCliente {
   vidriera: VidrieraDelTaller;
   valorDelRelevamiento: Money | null;
   presupuesto?: PresupuestoDelTrabajo | null;
+  facturas?: readonly FacturaDelCliente[];
 }
 
 export function hayComoTransferir(cobro: CobroDelTaller): boolean {
@@ -554,6 +596,7 @@ interface LoComunDeLaVista {
   archivos: readonly ArchivoDelCliente[];
   comoPagar: ComoPagar | null;
   vidriera: VidrieraDelTaller;
+  facturas: readonly FacturaDelCliente[];
 }
 
 export interface RelevamientoPorHacer {
@@ -1353,6 +1396,7 @@ export function vistaDelCliente(
     archivos: trabajo.archivos,
     comoPagar: comoPagar(trabajo, hoy, textos.comoPagar),
     vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
+    facturas: trabajo.facturas ?? [],
   };
 
   if (etapa === 'antes-del-presupuesto') {

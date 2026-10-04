@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import { crearCliente, iniciarSesionDePrueba, vaciarTaller } from '../apoyo/taller';
 
 const ALTO_CON_TECLADO = 380;

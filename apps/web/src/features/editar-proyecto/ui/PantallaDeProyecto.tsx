@@ -14,6 +14,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch, type SubmitHandler } from 'react-hook-form';
 
 import { ClienteCombobox, CONDICION, enlaceDeMapa } from '@/entities/cliente';
+import { pagosConFacturaDeVerdad } from '@/entities/factura';
 import {
   COMPROBANTE,
   COMPROBANTES_EN_ORDEN,
@@ -701,6 +702,7 @@ export function PantallaDeProyecto({
                   tesorosEnDolares,
                   dolarDelDia,
                   alCrearUnTesoroEnDolares,
+                  facturados: pagosConFacturaDeVerdad(replica),
                 }}
               />
               <FilasDinamicas

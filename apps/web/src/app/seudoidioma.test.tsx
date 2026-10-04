@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { ProveedorDeReplica } from '@/entities/replica';
 import { ProveedorDeSesion } from '@/entities/sesion';
-import { AjustesPage } from '@/pages/ajustes';
+import { AjustesPage, ConectarConArcaPage, FacturacionPage } from '@/pages/ajustes';
 import { FinanzasPage } from '@/pages/finanzas';
 import { InicioPage } from '@/pages/inicio';
 import { ProyectoFichaPage } from '@/pages/proyectos';
@@ -19,6 +19,11 @@ import {
 } from '@/shared/api';
 import { usarIdioma } from '@/shared/idioma';
 import { CLAVE_DEL_SEUDOIDIOMA } from '@/shared/lib';
+
+vi.mock('@/shared/api', async (importar) => ({
+  ...(await importar<typeof import('@/shared/api')>()),
+  estadoDeLaFacturacion: () => new Promise(() => undefined),
+}));
 
 const HOY = '2026-10-02';
 
@@ -125,6 +130,15 @@ const AJUSTES = {
   plantilla_del_presupuesto: null,
   plantilla_del_presupuesto_version: 0,
   idioma_de_los_clientes: 'es',
+  facturacion_ambiente: 'homologacion',
+  facturacion_cuit: '20-11111111-2',
+  facturacion_punto_de_venta: 1,
+  facturacion_desde: '2026-09-03',
+  facturacion_alertas: [],
+  facturacion_concepto: 1,
+  facturacion_categoria: 'D',
+  facturacion_ingresos_brutos: '',
+  facturacion_inicio_de_actividades: null,
 } satisfies FilaDe<'ajustes'>;
 
 const CLIENTE = {
@@ -137,6 +151,7 @@ const CLIENTE = {
   zona: 'Palermo',
   notas: '',
   cuit: '',
+  dni: '',
   razon_social: '',
   domicilio_fiscal: '',
   condicion_fiscal: 'consumidor_final',
@@ -215,6 +230,56 @@ const PROYECTO = {
   presupuesto_importante: false,
 } satisfies FilaDe<'proyectos'>;
 
+const EN_PESOS = {
+  ...PROYECTO,
+  id: 'p2',
+  titulo: 'Vanitory del baño',
+  presupuesto_centavos: 96_000_000,
+  moneda: 'ARS',
+  cobra_en: ['ARS'],
+} satisfies FilaDe<'proyectos'>;
+
+const FACTURA = {
+  ...METADATOS,
+  id: 'f1',
+  proyecto_id: 'p2',
+  pago_id: 'pago-facturado',
+  tipo: 'factura_c',
+  ambiente: 'homologacion',
+  estado: 'autorizada',
+  punto_de_venta: 1,
+  numero: 7,
+  fecha: '2026-09-18',
+  concepto: 1,
+  importe_centavos: 45_000_000,
+  moneda: 'ARS',
+  detalle: 'Seña — Vanitory del baño',
+  cuit_emisor: '20-11111111-2',
+  emisor: {
+    razonSocial: 'Eliseo Maun',
+    nombreDelTaller: 'MAUN',
+    domicilio: 'Calle Falsa 123, Rosario',
+    cuit: '20-11111111-2',
+    ingresosBrutos: '901-123456-7',
+    inicioDeActividades: '2019-03-01',
+  },
+  receptor_nombre: 'Marcela Duarte',
+  receptor_domicilio: '',
+  receptor_condicion: 'consumidor_final',
+  condicion_iva_receptor: 5,
+  doc_tipo: 99,
+  doc_nro: '0',
+  asociado_id: null,
+  cae: '86400944804384',
+  cae_vence: '2026-09-28',
+  autorizada_at: '2026-09-18T15:00:00Z',
+  rechazo: null,
+  intentos: 0,
+  emitiendo_hasta: null,
+  ultimo_error: null,
+  pedida_at: '2026-09-18T14:59:00Z',
+} satisfies FilaDe<'comprobantes'>;
+
 function pago(id: string, extra: Partial<FilaDe<'pagos'>>) {
   return {
     ...METADATOS,
@@ -287,6 +352,13 @@ function taller(): Replica {
       tesoro_id: DOLARES,
     }),
   );
+  replica = aplicarFilaLocal(replica, 'proyectos', EN_PESOS);
+  replica = aplicarFilaLocal(
+    replica,
+    'pagos',
+    pago('pago-facturado', { proyecto_id: 'p2', concepto: 'Seña', monto_centavos: 45_000_000 }),
+  );
+  replica = aplicarFilaLocal(replica, 'comprobantes', FACTURA);
   return aplicarFilaLocal(replica, 'movimientos', COMPRA);
 }
 
@@ -327,6 +399,8 @@ function montar(ruta: string) {
               <Route path="/" element={<InicioPage />} />
               <Route path="/finanzas" element={<FinanzasPage />} />
               <Route path="/ajustes" element={<AjustesPage />} />
+              <Route path="/ajustes/facturacion" element={<FacturacionPage />} />
+              <Route path="/ajustes/facturacion/conectar" element={<ConectarConArcaPage />} />
               <Route path="/proyectos/:id" element={<ProyectoFichaPage />} />
             </Routes>
           </ProveedorDeReplica>
@@ -368,7 +442,10 @@ describe('con el seudoidioma, las pantallas principales', () => {
     ['Inicio', '/'],
     ['Finanzas', '/finanzas'],
     ['Ajustes', '/ajustes'],
+    ['Ajustes › Facturación', '/ajustes/facturacion'],
+    ['el asistente para conectar con ARCA', '/ajustes/facturacion/conectar'],
     ['la ficha de un trabajo en dólares', '/proyectos/p'],
+    ['la ficha con un pago facturado', '/proyectos/p2'],
   ])('%s no tiene texto fuera del catálogo', (_pantalla, ruta) => {
     const raiz = montar(ruta);
     expect(raiz.textContent).toMatch(/[⟦⟧]/u);

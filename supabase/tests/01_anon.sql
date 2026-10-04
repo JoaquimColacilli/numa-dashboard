@@ -2,7 +2,7 @@
 -- tiene grants sobre ninguna tabla: cada acceso tiene que fallar por permisos, no devolver cero
 -- filas (cero filas querría decir que la RLS es la única barrera).
 
-select plan(32);
+select plan(33);
 
 -- Un household con datos, para que "no ve nada" no sea trivial.
 select tests.guardar('usuario', tests.crear_usuario('titular@maun.test'));
@@ -21,7 +21,8 @@ from unnest(array[
   'households', 'household_members', 'ajustes', 'clientes', 'proyectos', 'pagos', 'gastos',
   'movimientos', 'libro_mayor', 'archivos', 'enlaces_publicos', 'cambios_de_estado',
   'preguntas', 'encuestas_enviadas', 'respuestas', 'renglones_de_respuesta',
-  'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera'
+  'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera',
+  'comprobantes'
 ]) as t (tabla);
 
 select throws_ok('select public.bootstrap()', '42501', null, 'anon no llama a bootstrap()');

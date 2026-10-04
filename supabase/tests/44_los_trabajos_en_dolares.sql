@@ -594,9 +594,9 @@ select set_eq(
   array[
     'taller', 'cliente', 'trabajo', 'idioma', 'direccion', 'estado', 'precio_centavos', 'moneda', 'cobra_en',
     'sena_centavos', 'pago', 'cobro', 'cobro_en_dolares', 'dolar_del_dia', 'fechas', 'visita', 'entrega',
-    'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto'
+    'pagos', 'archivos', 'vidriera', 'relevamiento_centavos', 'presupuesto', 'facturas'
   ],
-  'la vista suma la moneda, en qué le paga, la cuenta en dólares y el dólar del día'
+  'la vista suma la moneda, en qué le paga, la cuenta en dólares y el dólar del día (y desde el ADR 0085, las facturas)'
 );
 
 select is(

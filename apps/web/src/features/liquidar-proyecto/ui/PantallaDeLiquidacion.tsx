@@ -1,8 +1,10 @@
 import {
   centavos,
   conceptoParaGuardar,
+  detalleDeLaFactura,
   esAnteriorALaApertura,
   MONEDA_DEL_TALLER,
+  nombreDelReceptor,
   planDeLaLiquidacion,
   plata,
   type EstadoLiquidado,
@@ -11,6 +13,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { EnlaceACliente } from '@/entities/cliente';
+import {
+  clienteDeLaFactura,
+  facturacionDelTaller,
+  faltasParaFacturar,
+  LoQueFaltaParaFacturar,
+  MUTACION_DE_LA_FACTURA,
+} from '@/entities/factura';
 import { CasillaDeLaApertura, rutaParaVenderDolaresA } from '@/entities/movimiento';
 import {
   ajustesDeLaReplica,
@@ -44,6 +53,7 @@ import {
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosSincronizados } from '@/entities/tesoro';
 import {
+  ajustesDe,
   aperturaDeLaReplica,
   mensajeDeSincronizacion,
   tesorosDeLaReplica,
@@ -59,6 +69,7 @@ import {
   hoyEnElTaller,
   mesDeLaFecha,
   mesEnUnaFrase,
+  metaDeAvisos,
   uuidv7,
   Ir,
   useIr,
@@ -153,9 +164,14 @@ function Trio({ resumen }: { resumen: ResumenDeProyecto }) {
 export interface PantallaDeLiquidacionProps {
   resumen: ResumenDeProyecto;
   destino: EstadoLiquidado;
+  alEditarElCliente?: ((clienteId: string) => void) | undefined;
 }
 
-export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacionProps) {
+export function PantallaDeLiquidacion({
+  resumen,
+  destino,
+  alEditarElCliente,
+}: PantallaDeLiquidacionProps) {
   const m = useMensajes();
   const { pantalla } = m.liquidarProyecto;
   const conceptos = m.proyecto.conceptosDeSiempre;
@@ -164,9 +180,16 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const { proyecto } = resumen;
   const textos = pantalla[destino];
   const vuelta = useVolver(rutaDelProyecto(proyecto.id), textos.volver, { fija: true });
+  const clienteQueRecibe = clienteDeLaFactura(resumen.cliente);
+  const receptor = nombreDelReceptor(clienteQueRecibe);
 
   const guardar = useMutation(MUTACION_DE_PROYECTO);
   const liquidar = useMutation(MUTACION_DE_LIQUIDACION);
+  const pedirLaFactura = useMutation({
+    ...MUTACION_DE_LA_FACTURA,
+    meta: metaDeAvisos('facturaPedida', { sujeto: receptor }),
+  });
+  const [facturar, setFacturar] = useState(true);
 
   const hoy = hoyEnElTaller();
   const apertura = aperturaDeLaReplica(replica);
@@ -221,6 +244,23 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   const pagoEnLaApertura = pagoAntes && enLaApertura;
   const repartoEnLaApertura = repartoAntes && enLaApertura;
 
+  const ajustesDelTaller = ajustesDe(replica);
+  const ofreceFacturar =
+    hayPagoFinal &&
+    facturacionDelTaller(ajustesDelTaller).conectado &&
+    pagoFinal.moneda === MONEDA_DEL_TALLER &&
+    resumen.moneda === MONEDA_DEL_TALLER;
+  const faltasDeLaFactura = ofreceFacturar
+    ? faltasParaFacturar({
+        ajustes: ajustesDelTaller,
+        proyecto,
+        cliente: clienteQueRecibe,
+        pago: { moneda: pagoFinal.moneda, borrado: false, yaEnLaApertura: pagoEnLaApertura },
+        cobrado: centavos(resumen.cobradoEnSuMoneda.importe + (pagoFinal.monto ?? 0)),
+      })
+    : [];
+  const facturaElPagoFinal = ofreceFacturar && facturar && faltasDeLaFactura.length === 0;
+
   const cobro = cobroPorLaFila(replica, proyecto, fechaValida, { destino, pagoExtra });
   const { liquidacion } = cobro;
   const despiece = despieceDelCobro(replica, cobro);
@@ -250,16 +290,19 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
   function confirmar(): void {
     if (!listo) return;
 
-    if (pagoExtra > 0 && importeDelPagoFinal !== null) {
+    const idDelPago = uuidv7();
+    const conceptoDelPago = conceptoParaGuardar(concepto, conceptos);
+    const conPago = pagoExtra > 0 && importeDelPagoFinal !== null;
+    if (conPago) {
       const pedidoDelPago: ProyectoParaGuardar = {
         id: proyecto.id,
         version: proyecto.version,
         datos: datosActualesDelProyecto(proyecto),
         pagos: [
           {
-            id: uuidv7(),
+            id: idDelPago,
             fecha: fechaDelPago,
-            concepto: conceptoParaGuardar(concepto, conceptos),
+            concepto: conceptoDelPago,
             monto_centavos: importeDelPagoFinal.monto,
             ya_en_la_apertura: pagoEnLaApertura,
             moneda: pagoFinal.moneda,
@@ -286,6 +329,17 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
       repartos: repartosLiquidados(replica, proyecto, cobro, pedido, liquidadaEn),
       plan: planDeLaLiquidacion(liquidacion),
     });
+
+    if (conPago && facturaElPagoFinal) {
+      pedirLaFactura.mutate({
+        pedido: {
+          id: uuidv7(),
+          pagoId: idDelPago,
+          detalle: detalleDeLaFactura(conceptoDelPago, proyecto.titulo),
+        },
+        proyectoId: proyecto.id,
+      });
+    }
 
     ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienLiquidado' });
   }
@@ -404,6 +458,45 @@ export function PantallaDeLiquidacion({ resumen, destino }: PantallaDeLiquidacio
                     errores={erroresDelPagoFinal}
                   />
                 </div>
+              </div>
+            )}
+
+            {ofreceFacturar && (
+              <div className="mt-3 flex flex-col gap-1.5 border-t border-hairline-soft pt-3">
+                <label className="flex min-h-tap items-start gap-2.5 text-body">
+                  <input
+                    type="checkbox"
+                    checked={facturaElPagoFinal}
+                    disabled={faltasDeLaFactura.length > 0}
+                    onChange={(evento) => {
+                      setFacturar(evento.target.checked);
+                    }}
+                    className="mt-1 size-4 flex-none accent-ink"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">{m.facturacion.cobro.facturarElPagoFinal}</span>
+                    {faltasDeLaFactura.length === 0 && (
+                      <span className="text-meta leading-normal text-text-3">
+                        {m.facturacion.cobro.aNombreDe(
+                          receptor,
+                          m.cliente.condiciones[
+                            clienteQueRecibe.condicion
+                          ].etiqueta.toLocaleLowerCase(etiquetaActual()),
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </label>
+                {faltasDeLaFactura.length > 0 && (
+                  <div className="pl-6.5">
+                    <LoQueFaltaParaFacturar
+                      faltas={faltasDeLaFactura}
+                      cliente={{ id: resumen.cliente?.id ?? null, nombre: receptor }}
+                      alEditarElCliente={alEditarElCliente}
+                      soloLaPrimera
+                    />
+                  </div>
+                )}
               </div>
             )}
           </section>

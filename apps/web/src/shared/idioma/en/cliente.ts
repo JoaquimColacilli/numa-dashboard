@@ -55,6 +55,8 @@ export const cliente = {
     cuitConOtroPrefijo:
       "CUITs start with 20, 23, 24, 27, 30, 33 or 34. Save it anyway if it's the one you were given.",
     cuitQueNoCierra: "The check digit doesn't match. Check it, but you can still save it.",
+    dniInvalido:
+      "A DNI (Argentine national ID) has 7 or 8 digits. Leave it empty if you don't have it handy.",
   },
   contacto: {
     llamar: 'Call',
