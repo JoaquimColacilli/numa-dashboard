@@ -351,6 +351,8 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | categoría (del monotributo) / tope / recategorización | category / cap / category review | categoria / teto / recategorização | Ajustes y la hoja de facturar |
 | certificado / pedido del certificado | certificate / certificate request | certificado / pedido de certificado | El asistente de ARCA |
 | Cobros y facturas / Sin facturar | Payments and invoices / Not invoiced | Recebimentos e notas fiscais / Sem nota fiscal | Las fichas |
+| Cobros sin facturar | Payments not invoiced | Recebimentos sem nota fiscal | Finanzas |
+| Tus facturas / Anulada / Anula la factura C … | Your invoices / Voided / Voids Factura C … | Suas notas fiscais / Anulada / Anula a Factura C … | La página del cliente |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del

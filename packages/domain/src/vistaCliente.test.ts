@@ -41,6 +41,7 @@ import {
   type EstadoDelHito,
   type EstadoDelRelevamiento,
   type EtapaDeLaVista,
+  type FacturaDelCliente,
   type FechasDelTrabajo,
   type FormatosDeFecha,
   type HitoDelTrabajo,
@@ -1454,6 +1455,64 @@ describe('un trabajo guardado por una versión vieja de la app', () => {
       VIDRIERA_VACIA,
     );
   });
+
+  it('sin las facturas, la página se dibuja sin facturas', () => {
+    const { facturas: _facturas, ...viejo } = trabajo({ facturas: [] });
+    expect(vistaDelCliente(viejo, HOY).facturas).toEqual([]);
+  });
+});
+
+describe('las facturas en la página del cliente', () => {
+  const EMISOR = {
+    nombreDelTaller: 'Taller MAUN',
+    razonSocial: 'Ana Gutiérrez',
+    domicilio: 'Olazábal 1240, CABA',
+    cuit: '20-11111111-2',
+    ingresosBrutos: '901-123456-7',
+    inicioDeActividades: '2019-03-01',
+  };
+  const FACTURA: FacturaDelCliente = {
+    id: 'c1',
+    tipo: 'factura_c',
+    puntoDeVenta: 3,
+    numero: 42,
+    fecha: '2026-09-10',
+    importe: centavos(45_000_000),
+    detalle: 'Seña — Placard 3 puertas',
+    cae: '76398765432109',
+    caeVence: '2026-09-20',
+    prueba: false,
+    emisor: EMISOR,
+    receptor: {
+      nombre: 'Marcela Duarte',
+      condicion: 'consumidor_final',
+      docTipo: 96,
+      docNro: '28456789',
+      domicilio: '',
+    },
+    anuladaPor: { puntoDeVenta: 3, numero: 7, fecha: '2026-09-12' },
+    anulaA: null,
+  };
+  const NOTA: FacturaDelCliente = {
+    ...FACTURA,
+    id: 'c2',
+    tipo: 'nota_de_credito_c',
+    numero: 7,
+    fecha: '2026-09-12',
+    cae: '76398765432110',
+    caeVence: '2026-09-22',
+    anuladaPor: null,
+    anulaA: { puntoDeVenta: 3, numero: 42, fecha: '2026-09-10' },
+  };
+
+  it.each(['contacto', 'presupuesto_enviado', 'en_curso', 'cobrado'] as const)(
+    'llegan tal cual con el trabajo en %s: la de la seña existe antes de aprobar',
+    (estado) => {
+      expect(vistaDelCliente(trabajo({ estado, facturas: [FACTURA, NOTA] }), HOY).facturas).toEqual(
+        [FACTURA, NOTA],
+      );
+    },
+  );
 });
 
 describe('la vidriera del taller en la página del cliente', () => {
