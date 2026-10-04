@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compararCascada,
   compararEstados,
+  compararFacturacion,
   compararFila,
   compararFormasDeCobro,
   compararGuardadoDeProyecto,
@@ -103,5 +104,9 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
 
   it('lo que escribe guardar_proyecto es lo que la app lee de su réplica', async () => {
     expect(await enTransaccionConRollback(compararGuardadoDeProyecto)).toEqual([]);
+  });
+
+  it('las cuatro gemelas de la facturación (la condición del receptor, el CUIT, el documento y lo que falta) dan lo mismo que facturacion.ts en cientos de casos', async () => {
+    expect(await enTransaccionConRollback(compararFacturacion)).toEqual([]);
   });
 });

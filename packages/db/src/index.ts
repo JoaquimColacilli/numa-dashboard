@@ -270,6 +270,38 @@ export {
 } from './presupuesto.ts';
 
 export {
+  bajarElPedidoDelCertificado,
+  conectarConArca,
+  descartarLaAlertaDeFacturacion,
+  FUNCION_DE_FACTURAR,
+  leerAlertasDeFacturacion,
+  leerEstadoDeLaFacturacion,
+  leerRechazoDeArca,
+  MOTIVOS_DE_LA_CONEXION,
+  MOTIVOS_DE_LA_SUBIDA,
+  MOTIVOS_DEL_PEDIDO,
+  pedirLaFactura,
+  pedirLaNotaDeCredito,
+  subirElCertificado,
+  traerElEstadoDeLaFacturacion,
+  type AlertaDeFacturacion,
+  type AlertaParaDescartar,
+  type CertificadoDelTaller,
+  type Contestado,
+  type ErrorDeArca,
+  type EstadoDeLaFacturacion,
+  type EstadoDelCertificado,
+  type FacturaParaPedir,
+  type LoginEnArca,
+  type MotivoDeLaConexion,
+  type MotivoDeLaSubida,
+  type MotivoDelPedido,
+  type NotaDeCreditoParaPedir,
+  type RechazoDeArca,
+  type ServidorDeArca,
+} from './facturacion.ts';
+
+export {
   contestarLaEncuesta,
   leerEncuestaCompartida,
   leerResultadoDeContestar,
