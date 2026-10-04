@@ -133,6 +133,11 @@ export {
 } from './plata';
 export { crearPlural, type FormasDelPlural } from './plural';
 export { fijarLosTextosDeLib, textosDeLib, type TextosDeLib } from './textos';
+export {
+  frasesDeLoQueFaltaParaFacturar,
+  type ClaveDeLoQueFalta,
+  type FraseDeLoQueFalta,
+} from './facturacion';
 export { type Ensanchar, type Envoltorio } from './catalogo';
 export { ABRE_EL_SEUDOIDIOMA, CIERRA_EL_SEUDOIDIOMA, seudoCatalogo, seudoTexto } from './seudo';
 export {

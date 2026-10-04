@@ -270,6 +270,41 @@ export const lib = {
       enCola: 'Anotado sin señal: sale de tu vidriera cuando vuelva.',
       error: 'No se sacó la foto de tu vidriera.',
     },
+    facturaPedida: {
+      hecho: 'Factura pedida a ARCA.',
+      enCola: 'Factura pedida sin señal: sale cuando vuelva.',
+      error: 'No se pidió la factura.',
+    },
+    notaDeCreditoPedida: {
+      hecho: 'Nota de crédito pedida a ARCA.',
+      enCola: 'Nota de crédito pedida sin señal: sale cuando vuelva.',
+      error: 'No se pidió la nota de crédito.',
+    },
+    alertaRevisada: {
+      hecho: 'Listo, la alerta quedó revisada.',
+      enCola: 'Anotado sin señal: la alerta se va cuando vuelva.',
+      error: 'No se marcó la alerta como revisada.',
+    },
+  },
+  loQueFaltaParaFacturar: {
+    clienteSinCuit: (cliente: string) =>
+      `A ${cliente} le falta el CUIT. Cargalo en su ficha para poder facturarle.`,
+    clienteCuitInvalido: (cliente: string) => `El CUIT de ${cliente} no da: revisá los números.`,
+    clienteSinDomicilio: (cliente: string) => `A ${cliente} le falta el domicilio.`,
+    tuCliente: 'tu cliente',
+    clienteSinDni: (umbral: string) =>
+      `Este trabajo llega a ${umbral}: ARCA pide el DNI o el CUIT del cliente.`,
+    taller: (loQueFalta: string) => `Faltan tus datos de facturación: ${loQueFalta}.`,
+    datosDelTaller: {
+      razonSocial: 'tu nombre o razón social',
+      domicilio: 'tu domicilio',
+      ingresosBrutos: 'tu número de Ingresos Brutos',
+      inicio: 'tu inicio de actividades',
+    },
+    tallerNoMonotributo: 'NUMA factura solo si sos monotributista (Factura C).',
+    pagoBorrado: 'Ese pago o su trabajo se borraron.',
+    enDolares: 'En dólares: por ahora se factura a mano.',
+    deLaApertura: 'Ese cobro es de antes de empezar con NUMA: no se factura desde acá.',
   },
   fechaDeLaPlata: {
     falta: 'Poné el día en que entró la plata.',

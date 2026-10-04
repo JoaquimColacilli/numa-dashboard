@@ -66,6 +66,9 @@ const OPERACION: Readonly<Record<QueSeGuarda, OperacionRechazada>> = {
   fotoDeLaVidriera: 'guardado',
   fotoDeLaVidrieraMovida: 'guardado',
   fotoDeLaVidrieraSacada: 'guardado',
+  facturaPedida: 'factura',
+  notaDeCreditoPedida: 'nota-de-credito',
+  alertaRevisada: 'guardado',
 };
 
 const CLAVE_DE_LO_ANOTADO = 'anotado-sin-senal';

@@ -296,5 +296,34 @@ export const api = {
       queHacer:
         'Um pagamento em pesos de um projeto em dólares precisa da cotação usada. Abra o projeto e complete.',
     },
+    MN040: {
+      titulo: 'A emissão de notas fiscais com a ARCA não está conectada.',
+      queHacer: 'Nada foi solicitado. Conecte em Configurações › Faturamento e solicite de novo.',
+    },
+    MN041: {
+      titulo: 'Falta algo para emitir a nota fiscal.',
+      queHacer:
+        'A nota fiscal não foi solicitada. Complete o que falta e solicite de novo pelo pagamento.',
+    },
+    MN042: {
+      factura: {
+        titulo: 'Esse pagamento já tem a nota fiscal dele.',
+        queHacer: 'Não precisa solicitar de novo: o status está no pagamento.',
+      },
+      nota: {
+        titulo: 'Essa nota fiscal já está anulada ou ainda não foi autorizada.',
+        queHacer: 'Veja como ficou no pagamento: só se anula uma nota fiscal autorizada.',
+      },
+    },
+    MN043: {
+      pago: {
+        titulo: 'Tem uma nota fiscal da ARCA: para alterar, anule primeiro.',
+        queHacer: 'Anule a nota fiscal com uma nota de crédito e depois altere o pagamento.',
+      },
+      trabajo: {
+        titulo: 'Este projeto tem notas fiscais da ARCA e não pode ser excluído.',
+        queHacer: 'Se ele não vai seguir, marque como perdido.',
+      },
+    },
   },
 } satisfies Mensajes['api'];

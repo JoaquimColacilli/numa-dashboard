@@ -293,5 +293,33 @@ export const api = {
       queHacer:
         'Un pago en pesos de un trabajo en dólares necesita a qué dólar se tomó. Abrí el trabajo y completalo.',
     },
+    MN040: {
+      titulo: 'La facturación con ARCA no está conectada.',
+      queHacer: 'No se pidió nada. Conectala en Ajustes › Facturación y volvé a pedirla.',
+    },
+    MN041: {
+      titulo: 'Le falta algo para facturar.',
+      queHacer: 'No se pidió la factura. Completá lo que falta y volvé a pedirla desde el pago.',
+    },
+    MN042: {
+      factura: {
+        titulo: 'Ese pago ya tiene su factura.',
+        queHacer: 'No hace falta pedirla de nuevo: su estado está en el pago.',
+      },
+      nota: {
+        titulo: 'Esa factura ya está anulada o todavía no está autorizada.',
+        queHacer: 'Mirá cómo quedó en el pago: se anula una factura autorizada.',
+      },
+    },
+    MN043: {
+      pago: {
+        titulo: 'Tiene una factura de ARCA: para cambiarlo, anulala primero.',
+        queHacer: 'Anulá la factura con una nota de crédito y después cambiá el pago.',
+      },
+      trabajo: {
+        titulo: 'Este trabajo tiene facturas de ARCA y no se puede borrar.',
+        queHacer: 'Si no sigue, dalo por perdido.',
+      },
+    },
   },
 } as const;

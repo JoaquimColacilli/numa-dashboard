@@ -39,6 +39,14 @@ import {
   MUTACION_DE_CLIENTE_NUEVO,
 } from '@/entities/cliente';
 import {
+  CLAVE_DE_LA_ALERTA_REVISADA,
+  CLAVE_DE_LA_FACTURA,
+  CLAVE_DE_LA_NOTA_DE_CREDITO,
+  MUTACION_DE_LA_ALERTA_REVISADA,
+  MUTACION_DE_LA_FACTURA,
+  MUTACION_DE_LA_NOTA_DE_CREDITO,
+} from '@/entities/factura';
+import {
   CLAVE_DE_BAJA_DE_MOVIMIENTO,
   CLAVE_DE_EDICION_DE_MOVIMIENTO,
   CLAVE_DE_MOVIMIENTO,
@@ -276,6 +284,15 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_LA_PLANTILLA, MUTACION_DE_LA_PLANTILLA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_LA_FACTURA, MUTACION_DE_LA_FACTURA);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_LA_NOTA_DE_CREDITO, MUTACION_DE_LA_NOTA_DE_CREDITO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(CLAVE_DE_LA_ALERTA_REVISADA, MUTACION_DE_LA_ALERTA_REVISADA);
   },
 ];
 

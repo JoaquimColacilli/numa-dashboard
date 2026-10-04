@@ -14,6 +14,7 @@ import * as archivo from '@/entities/archivo';
 import * as cliente from '@/entities/cliente';
 import * as enlace from '@/entities/enlace';
 import * as entrega from '@/entities/entrega';
+import * as factura from '@/entities/factura';
 import * as movimiento from '@/entities/movimiento';
 import * as opinion from '@/entities/opinion';
 import * as presupuesto from '@/entities/presupuesto';
@@ -34,10 +35,12 @@ import {
   NUMERO_PENDIENTE,
   type EnvioDelPresupuesto,
 } from '@/entities/presupuesto';
+import { CLAVE_DE_LA_FACTURA, type PedidoDeLaFactura } from '@/entities/factura';
 import {
   filaPorId,
   guardarElProyecto,
   mandarElPresupuestoAlCliente,
+  pedirLaFacturaDelPago,
   TABLAS_REPLICADAS,
   type FilaDe,
   type PresupuestoMandado,
@@ -62,6 +65,7 @@ vi.mock(import('@/shared/api'), async (importOriginal) => {
     ...real,
     guardarElProyecto: vi.fn<typeof real.guardarElProyecto>(),
     mandarElPresupuestoAlCliente: vi.fn<typeof real.mandarElPresupuestoAlCliente>(),
+    pedirLaFacturaDelPago: vi.fn<typeof real.pedirLaFacturaDelPago>(),
   };
 });
 
@@ -240,6 +244,7 @@ const MODULOS_CON_MUTACIONES = {
   cliente,
   enlace,
   entrega,
+  factura,
   movimiento,
   opinion,
   presupuesto,
@@ -286,6 +291,7 @@ describe('el registro de las mutaciones', () => {
 beforeEach(() => {
   vi.mocked(guardarElProyecto).mockReset();
   vi.mocked(mandarElPresupuestoAlCliente).mockReset();
+  vi.mocked(pedirLaFacturaDelPago).mockReset();
 });
 
 afterEach(async () => {
@@ -466,5 +472,114 @@ describe('mandar el presupuesto sin señal', () => {
       '20260922-01',
     );
     expect(confirmada && filaPorId(confirmada, 'presupuestos', 'b1')?.numero).toBe('20260922-01');
+  });
+});
+
+const FACTURA_PEDIDA: FilaDe<'comprobantes'> = {
+  id: 'f1',
+  household_id: 'h',
+  proyecto_id: 'p1',
+  pago_id: 'g1',
+  asociado_id: null,
+  tipo: 'factura_c',
+  ambiente: 'homologacion',
+  estado: 'pedida',
+  cuit_emisor: '20-11111111-2',
+  punto_de_venta: 2,
+  concepto: 1,
+  numero: null,
+  fecha: null,
+  importe_centavos: 45_000_000,
+  moneda: 'ARS',
+  detalle: 'Seña — Vanitory Chico',
+  doc_tipo: 99,
+  doc_nro: '0',
+  condicion_iva_receptor: 5,
+  receptor_nombre: 'Lucía Gómez',
+  receptor_condicion: 'consumidor_final',
+  receptor_domicilio: '',
+  emisor: { razonSocial: 'Taller de prueba' },
+  cae: null,
+  cae_vence: null,
+  rechazo: null,
+  ultimo_error: null,
+  intentos: 0,
+  emitiendo_hasta: null,
+  pedida_at: AHORA,
+  autorizada_at: null,
+  created_at: AHORA,
+  updated_at: AHORA,
+  deleted_at: null,
+  version: 1,
+};
+
+describe('pedir la factura sin señal', () => {
+  it('queda en la cola, sobrevive a cerrar la app y sale una sola vez, con el mismo id, al volver la señal', async () => {
+    const abierta = crearQueryClient();
+    onlineManager.setOnline(false);
+    const olvidar = registrarGuardado({
+      queryClient: abierta,
+      persister: crearPersisterIndexedDb(),
+      buster: VERSION_CACHE,
+      dehydrateOptions: OPCIONES_DE_DESHIDRATACION,
+    });
+    abierta.setQueryData(CLAVE_DE_LA_REPLICA, replicaDelTaller());
+
+    const pedido: PedidoDeLaFactura = {
+      pedido: { id: 'f1', pagoId: 'g1', detalle: 'Seña — Vanitory Chico' },
+      proyectoId: 'p1',
+    };
+    const mutacion: Mutation<FilaDe<'comprobantes'>, unknown, PedidoDeLaFactura> = abierta
+      .getMutationCache()
+      .build(abierta, { mutationKey: CLAVE_DE_LA_FACTURA });
+    void mutacion.execute(pedido).catch(() => undefined);
+    await vi.waitFor(() => {
+      expect(mutacion.state.isPaused).toBe(true);
+    });
+    await guardarCacheAhora();
+    expect(pedirLaFacturaDelPago).not.toHaveBeenCalled();
+    olvidar();
+    abierta.clear();
+
+    const reabierta = crearQueryClient();
+    onlineManager.setOnline(false);
+    await restaurarEn(reabierta);
+    const enLaCola = reabierta.getMutationCache().getAll();
+    expect(enLaCola).toHaveLength(1);
+    expect(enLaCola[0]?.state.variables).toEqual(pedido);
+
+    vi.mocked(pedirLaFacturaDelPago).mockResolvedValue(FACTURA_PEDIDA);
+    onlineManager.setOnline(true);
+    await reanudarCola(reabierta);
+    await reanudarCola(reabierta);
+
+    expect(pedirLaFacturaDelPago).toHaveBeenCalledOnce();
+    expect(vi.mocked(pedirLaFacturaDelPago).mock.calls[0]?.[0]).toEqual({
+      id: 'f1',
+      pagoId: 'g1',
+      detalle: 'Seña — Vanitory Chico',
+    });
+    const confirmada = reabierta.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
+    expect(confirmada && filaPorId(confirmada, 'comprobantes', 'f1')?.estado).toBe('pedida');
+  });
+
+  it('lo que devuelve la base no pisa una fila más nueva que ya trajo el delta', async () => {
+    const cliente = crearQueryClient();
+    const autorizada = { ...FACTURA_PEDIDA, estado: 'autorizada', numero: 42, version: 3 };
+    const conLaAutorizada = replicaDelTaller();
+    cliente.setQueryData(CLAVE_DE_LA_REPLICA, {
+      ...conLaAutorizada,
+      tablas: { ...conLaAutorizada.tablas, comprobantes: { f1: autorizada } },
+    });
+    vi.mocked(pedirLaFacturaDelPago).mockResolvedValue(FACTURA_PEDIDA);
+    const mutacion: Mutation<FilaDe<'comprobantes'>, unknown, PedidoDeLaFactura> = cliente
+      .getMutationCache()
+      .build(cliente, { mutationKey: CLAVE_DE_LA_FACTURA });
+    await mutacion.execute({
+      pedido: { id: 'f1', pagoId: 'g1', detalle: 'Seña — Vanitory Chico' },
+      proyectoId: 'p1',
+    });
+    const replica = cliente.getQueryData<Replica>(CLAVE_DE_LA_REPLICA);
+    expect(replica && filaPorId(replica, 'comprobantes', 'f1')?.estado).toBe('autorizada');
   });
 });

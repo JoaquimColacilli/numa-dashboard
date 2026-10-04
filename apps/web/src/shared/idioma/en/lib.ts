@@ -283,6 +283,43 @@ export const lib = {
       enCola: "Queued while offline: it'll leave your showcase when you're back online.",
       error: "Couldn't remove the photo from your showcase.",
     },
+    facturaPedida: {
+      hecho: 'Invoice requested from ARCA.',
+      enCola: "Invoice requested while offline: it'll go out when you're back online.",
+      error: "Couldn't request the invoice.",
+    },
+    notaDeCreditoPedida: {
+      hecho: 'Credit note requested from ARCA.',
+      enCola: "Credit note requested while offline: it'll go out when you're back online.",
+      error: "Couldn't request the credit note.",
+    },
+    alertaRevisada: {
+      hecho: 'Done, the alert is marked as checked.',
+      enCola: "Saved offline: the alert will go away when you're back online.",
+      error: "Couldn't mark the alert as checked.",
+    },
+  },
+  loQueFaltaParaFacturar: {
+    clienteSinCuit: (cliente: string) =>
+      `${cliente} is missing a CUIT (Argentine tax ID). Add it to their details to invoice them.`,
+    clienteCuitInvalido: (cliente: string) =>
+      `The CUIT for ${cliente} doesn't check out: double-check the numbers.`,
+    clienteSinDomicilio: (cliente: string) => `${cliente} is missing an address.`,
+    tuCliente: 'your client',
+    clienteSinDni: (umbral: string) =>
+      `This job reaches ${umbral}: ARCA requires the client's DNI or CUIT.`,
+    taller: (loQueFalta: string) => `Your invoicing details are missing: ${loQueFalta}.`,
+    datosDelTaller: {
+      razonSocial: 'your name or legal name',
+      domicilio: 'your address',
+      ingresosBrutos: 'your Ingresos Brutos number',
+      inicio: 'your business start date',
+    },
+    tallerNoMonotributo:
+      "NUMA only invoices if you're on the monotributo (Argentina's simplified tax regime for small businesses): Factura C.",
+    pagoBorrado: 'That payment or its job was deleted.',
+    enDolares: 'In dollars: for now these are invoiced by hand.',
+    deLaApertura: "That payment is from before you started with NUMA: it isn't invoiced from here.",
   },
   fechaDeLaPlata: {
     falta: 'Enter the day the money came in.',
