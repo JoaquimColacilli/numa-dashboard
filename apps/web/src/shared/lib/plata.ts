@@ -64,6 +64,10 @@ export function formatearPesos(centavos: number): string {
   return formatearPlata(centavos, MONEDA_DEL_TALLER);
 }
 
+export function enPesosEnteros(centavos: number): number {
+  return Math.trunc(centavos / 100) * 100;
+}
+
 export function formatearLaPlata(una: Plata, idioma: Idioma = idiomaActual()): string {
   return formatearPlata(una.importe, una.moneda, idioma);
 }

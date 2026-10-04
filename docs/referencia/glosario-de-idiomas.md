@@ -345,6 +345,12 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | inicio de actividades | business start date | início das atividades | Los datos de facturación |
 | alerta / «Ya lo revisé» | alert / checked | alerta / revisado | Inicio |
 | DNI (no se traduce; donde se explica) | DNI (Argentine national ID) | DNI (documento de identidade argentino) | La hoja del cliente |
+| punto de venta | point of sale | ponto de venda | La facturación con ARCA |
+| CAE (no se traduce) / Vence el CAE | CAE / CAE expires | CAE / Vencimento do CAE | La hoja de la factura |
+| Prueba (la cápsula; nunca «homologación») | Test | Teste | La facturación con ARCA |
+| categoría (del monotributo) / tope / recategorización | category / cap / category review | categoria / teto / recategorização | Ajustes y la hoja de facturar |
+| certificado / pedido del certificado | certificate / certificate request | certificado / pedido de certificado | El asistente de ARCA |
+| Cobros y facturas / Sin facturar | Payments and invoices / Not invoiced | Recebimentos e notas fiscais / Sem nota fiscal | Las fichas |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del

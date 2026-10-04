@@ -10,11 +10,10 @@ import {
 import { useId, type ReactNode } from 'react';
 
 import { useMensajes } from '@/shared/idioma';
-import { formatearPesos, hoyEnElTaller } from '@/shared/lib';
+import { enPesosEnteros, formatearPesos, hoyEnElTaller } from '@/shared/lib';
 import { Campo, CamposJuntos, FondoDelElegido, Icono } from '@/shared/ui';
 
 import {
-  enPesosEnteros,
   LARGO_MAXIMO_DE_INGRESOS_BRUTOS,
   type DatosDeLaFacturacion,
 } from '../../model/facturacion';

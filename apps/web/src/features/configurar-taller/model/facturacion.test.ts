@@ -6,7 +6,6 @@ import {
   cambiosDeLaFacturacion,
   conexionDelTaller,
   datosDeLaFacturacion,
-  enPesosEnteros,
   problemaDeLaFacturacion,
   puntoDeVentaEscrito,
 } from './facturacion';
@@ -105,12 +104,5 @@ describe('los cambios para guardar', () => {
     expect(problemaDeLaFacturacion({ ...guardados, ingresosBrutos: 'x'.repeat(41) })).toBe(
       'ingresos-brutos-largo',
     );
-  });
-});
-
-describe('el tope en pesos enteros', () => {
-  it('le saca los centavos', () => {
-    expect(enPesosEnteros(3_062_865_155)).toBe(3_062_865_100);
-    expect(enPesosEnteros(3_062_865_100)).toBe(3_062_865_100);
   });
 });

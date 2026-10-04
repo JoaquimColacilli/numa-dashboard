@@ -272,6 +272,12 @@ export function fechaCorta(fecha: string, idioma: Idioma = idiomaActual()): stri
   );
 }
 
+export function fechaCortaSinAnio(fecha: string, idioma: Idioma = idiomaActual()): string {
+  if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { day: 'numeric', month: 'numeric' }));
+  const dia = comoUtc(fecha);
+  return marcada(`${String(dia.getUTCDate())}/${String(dia.getUTCMonth() + 1)}`);
+}
+
 export function fechaConAnio(fecha: string, idioma: Idioma = idiomaActual()): string {
   if (idioma !== 'es') return marcada(conIntl(fecha, idioma, { dateStyle: 'long' }));
   const dia = comoUtc(fecha);

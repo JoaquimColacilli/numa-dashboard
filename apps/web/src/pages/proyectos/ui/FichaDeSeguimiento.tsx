@@ -9,6 +9,7 @@ import {
   historiaDelSeguimiento,
   insumosDelProyecto,
   loCobradoEnPalabras,
+  pagosDelProyecto,
   pendienteDelSeguimiento,
   RUTA_DE_SEGUIMIENTO,
   rutaDeCierre,
@@ -19,7 +20,9 @@ import { useReplicaDelTaller } from '@/entities/replica';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
 import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
 import { HojaDeContacto } from '@/features/avanzar-la-consulta';
+import { HojaDeCliente } from '@/features/editar-cliente';
 import { BorradoDelProyecto, NotasDelProyecto } from '@/features/editar-proyecto';
+import { CobrosYFacturas } from '@/features/facturar-con-arca';
 import { HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
 import { useMensajes } from '@/shared/idioma';
 import {
@@ -99,6 +102,7 @@ function FichaDelSeguimiento({
   const { proyecto, cliente } = resumen;
   const avisos = useAvisosDelProyecto(proyecto.id);
   const [hoja, setHoja] = useState<HojaAbierta>(null);
+  const [editandoCliente, setEditandoCliente] = useState(false);
   const cerrarLaHoja = useCallback(() => {
     setHoja(null);
   }, []);
@@ -304,6 +308,15 @@ function FichaDelSeguimiento({
             )}
           </section>
 
+          <CobrosYFacturas
+            pagos={pagosDelProyecto(replica, proyecto.id)}
+            moneda={resumen.moneda}
+            hoy={hoy}
+            alEditarElCliente={() => {
+              setEditandoCliente(true);
+            }}
+          />
+
           <NotasDelProyecto
             proyecto={proyecto}
             titulo={comun.notas}
@@ -354,6 +367,17 @@ function FichaDelSeguimiento({
             />
           )
         }
+      </ConSalida>
+
+      <ConSalida valor={editandoCliente && cliente !== undefined ? cliente : null}>
+        {(elCliente) => (
+          <HojaDeCliente
+            cliente={elCliente}
+            alCerrar={() => {
+              setEditandoCliente(false);
+            }}
+          />
+        )}
       </ConSalida>
     </Pagina>
   );

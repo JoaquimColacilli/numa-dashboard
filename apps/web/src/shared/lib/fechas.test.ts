@@ -10,6 +10,7 @@ import {
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
   fechaCorta,
+  fechaCortaSinAnio,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -58,6 +59,13 @@ describe('la fecha corta de la facturación', () => {
   it('en inglés y en portugués nombra el mes', () => {
     expect(fechaCorta('2028-10-02', 'en')).toBe('Oct 2, 2028');
     expect(fechaCorta('2028-10-02', 'pt-BR')).toBe('2 de out. de 2028');
+  });
+
+  it('sin el año, el día y el mes en números, con el orden de cada idioma', () => {
+    expect(fechaCortaSinAnio('2026-10-03')).toBe('3/10');
+    expect(fechaCortaSinAnio('2026-09-20')).toBe('20/9');
+    expect(fechaCortaSinAnio('2026-10-03', 'en')).toBe('10/3');
+    expect(fechaCortaSinAnio('2026-10-03', 'pt-BR')).toBe('03/10');
   });
 });
 

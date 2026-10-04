@@ -1,3 +1,4 @@
+export { usePedidosEnLaCola } from './api/cola';
 export {
   CLAVE_DE_LA_ALERTA_REVISADA,
   CLAVE_DE_LA_FACTURA,
@@ -10,4 +11,26 @@ export {
   type PedidoDeLaNotaDeCredito,
 } from './api/mutacion';
 export { alertasDeLaFacturacion, conLaAlertaRevisada } from './model/alertas';
+export { nombreDe, numeroDe } from './model/nombres';
+export { emisorDe, facturaEnPdf } from './model/pdf';
+export { motivoDelRechazo } from './model/rechazo';
+export {
+  comprobantesDelPago,
+  comprobantesDelTaller,
+  comprobantesQueSuman,
+  DEMORA_DE_ARCA_MS,
+  esDePrueba,
+  NADA_EN_LA_COLA,
+  notasDeLaFactura,
+  queSuma,
+  sePuedeFacturar,
+  situacionDelPago,
+  type Comprobante,
+  type DatosDeLaSituacion,
+  type PagoQueSeMira,
+  type PedidosEnLaCola,
+  type SituacionDelPago,
+  type TallerQueFactura,
+} from './model/situacion';
 export { CapsulaDePrueba } from './ui/CapsulaDePrueba';
+export { LineaDeLaFactura, type LineaDeLaFacturaProps } from './ui/LineaDeLaFactura';

@@ -109,6 +109,7 @@ export interface HojaProps {
   desdeAbajo?: boolean;
   conCambios?: boolean;
   antes?: ReactNode;
+  marca?: ReactNode;
   bajada?: ReactNode;
   alCostado?: boolean;
   tituloGrande?: boolean;
@@ -124,6 +125,7 @@ export function Hoja({
   desdeAbajo = false,
   conCambios = false,
   antes,
+  marca,
   bajada,
   alCostado = false,
   tituloGrande = false,
@@ -272,12 +274,24 @@ export function Hoja({
         <div className="flex min-w-0 items-center gap-3">
           {antes}
           <div className="flex min-w-0 flex-col">
-            <h2
-              id={idTitulo}
-              className={`leading-snug font-semibold ${tituloGrande ? 'text-firma' : 'text-body-lg'}`}
-            >
-              {titulo}
-            </h2>
+            {marca === undefined ? (
+              <h2
+                id={idTitulo}
+                className={`leading-snug font-semibold ${tituloGrande ? 'text-firma' : 'text-body-lg'}`}
+              >
+                {titulo}
+              </h2>
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h2
+                  id={idTitulo}
+                  className={`leading-snug font-semibold ${tituloGrande ? 'text-firma' : 'text-body-lg'}`}
+                >
+                  {titulo}
+                </h2>
+                {marca}
+              </div>
+            )}
             {typeof bajada === 'string' ? (
               <span className="truncate text-label text-text-2">{bajada}</span>
             ) : (

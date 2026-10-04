@@ -21,6 +21,7 @@ export {
   errorDeLaFechaDeLaPlata,
   fechaConAnio,
   fechaCorta,
+  fechaCortaSinAnio,
   fechaDelRotulo,
   fechaEnUnaFrase,
   fechaLarga,
@@ -122,6 +123,7 @@ export { useAlgoEnCurso, useHayAlgoEnCurso } from './en-curso';
 export { useTirarParaActualizar, type FaseDelTiron, type Tiron } from './tirar-para-actualizar';
 export {
   adornosDelCampo,
+  enPesosEnteros,
   formatearCadaMoneda,
   formatearLaPlata,
   formatearPesos,

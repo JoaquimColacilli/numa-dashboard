@@ -35,6 +35,8 @@ import {
   OpcionesDelTrabajo,
 } from '@/features/editar-proyecto';
 import { AvanceDelContacto, HojaDeContacto } from '@/features/avanzar-la-consulta';
+import { HojaDeCliente } from '@/features/editar-cliente';
+import { CobrosYFacturas } from '@/features/facturar-con-arca';
 import { HojaDePonerEnSeguimiento } from '@/features/hacer-el-seguimiento';
 import { mensajes, useMensajes } from '@/shared/idioma';
 import {
@@ -125,6 +127,7 @@ function FichaDelContacto({
   const vuelta = useVolver(RUTA_DE_CONSULTAS, textos.consultas);
   const avisos = useAvisosDelProyecto(resumen.proyecto.id);
   const [editando, setEditando] = useState<HojaAbierta>(null);
+  const [editandoCliente, setEditandoCliente] = useState(false);
   const cerrarLaHoja = useCallback(() => {
     setEditando(null);
   }, []);
@@ -366,6 +369,15 @@ function FichaDelContacto({
             </Ir>
           </section>
 
+          <CobrosYFacturas
+            pagos={pagos}
+            moneda={resumen.moneda}
+            hoy={hoy}
+            alEditarElCliente={() => {
+              setEditandoCliente(true);
+            }}
+          />
+
           <LoQueHaceFalta proyecto={proyecto} />
 
           <NotasDelProyecto
@@ -424,6 +436,17 @@ function FichaDelContacto({
             />
           )
         }
+      </ConSalida>
+
+      <ConSalida valor={editandoCliente && cliente !== undefined ? cliente : null}>
+        {(elCliente) => (
+          <HojaDeCliente
+            cliente={elCliente}
+            alCerrar={() => {
+              setEditandoCliente(false);
+            }}
+          />
+        )}
       </ConSalida>
     </Pagina>
   );

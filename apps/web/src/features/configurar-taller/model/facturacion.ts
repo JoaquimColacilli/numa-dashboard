@@ -113,10 +113,6 @@ export function problemaDeLaFacturacion(
     : null;
 }
 
-export function enPesosEnteros(centavos: number): number {
-  return Math.trunc(centavos / 100) * 100;
-}
-
 export type TonoDeLaPrueba = 'bien' | 'atencion' | 'alerta';
 
 export interface RespuestaDeLaPrueba {
