@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
 import { useReplicaDelTaller } from '@/entities/replica';
 import { useMensajes } from '@/shared/idioma';
@@ -30,7 +30,6 @@ export interface TarjetaDelMonotributoProps {
 export function TarjetaDelMonotributo({ hoy, alEditarElCliente }: TarjetaDelMonotributoProps) {
   const m = useMensajes().facturacion.monotributo;
   const replica = useReplicaDelTaller();
-  const id = useId();
   const [viendoLosCobros, setViendoLosCobros] = useState(false);
   const [facturando, setFacturando] = useState<string | null>(null);
   const datos = datosDelMonotributo(replica, hoy);
@@ -45,13 +44,11 @@ export function TarjetaDelMonotributo({ hoy, alEditarElCliente }: TarjetaDelMono
 
   return (
     <section
-      aria-labelledby={id}
+      aria-label={m.titulo}
       className="@container flex flex-col gap-3 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
     >
       <div className="flex items-baseline justify-between gap-2.5">
-        <h2 id={id} className="text-label font-semibold">
-          {m.titulo}
-        </h2>
+        <h2 className="text-label font-semibold">{m.titulo}</h2>
         {categoria === null ? (
           <span className="text-meta text-text-3">{m.sinCategoria}</span>
         ) : (

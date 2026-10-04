@@ -1,5 +1,6 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 
+import { test } from '../apoyo/prueba';
 import {
   ajustarTaller,
   crearCliente,
@@ -488,6 +489,7 @@ const TARJETAS_DE_PLATA = [
   'section[aria-label^="La fila de "]',
   'section[aria-label="Metas"]',
   'section[aria-label^="Falta para "]',
+  'section[aria-label="Monotributo"]',
   'section:has(+ nav[aria-label="Las cifras del período"])',
   'nav[aria-label="Las cifras del período"] li:first-child > button',
 ].join(', ');

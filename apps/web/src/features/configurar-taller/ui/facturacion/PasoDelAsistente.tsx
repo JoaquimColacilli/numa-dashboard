@@ -107,32 +107,34 @@ export function PasoDelAsistente({
       data-paso={String(numero)}
       data-primero={primero ? '' : undefined}
       tabIndex={primero ? -1 : undefined}
-      className={`grid scroll-mt-4 grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-panel border bg-paper p-4 outline-none md:px-5 md:py-4.5 ${
+      className={`flex scroll-mt-4 flex-col gap-2 rounded-panel border bg-paper p-4 outline-none md:px-5 md:py-4.5 ${
         enNuma ? 'border-ink' : 'border-hairline'
       }`}
     >
-      <span
-        aria-hidden
-        className={`flex size-8 items-center justify-center rounded-pill border-[1.5px] border-ink text-label font-semibold tabular-nums ${
-          hecho ? 'bg-ink text-paper' : 'text-ink'
-        }`}
-      >
-        {hecho ? <Icono nombre="check" tamano={16} grosor={2.5} /> : numero}
-      </span>
-      <div className="flex min-h-8 flex-wrap items-center gap-2">
-        <Titulo className="text-body-lg leading-snug font-semibold">
-          <span className="sr-only">{m.paso(numero)}</span> {titulo}
-        </Titulo>
+      <div className="flex items-start gap-3">
         <span
-          className={`inline-flex items-center rounded-pill border px-2 py-px text-badge leading-normal font-semibold whitespace-nowrap ${
-            enNuma ? 'border-ink bg-ink text-paper' : 'border-border text-text-2'
+          aria-hidden
+          className={`flex size-8 flex-none items-center justify-center rounded-pill border-[1.5px] border-ink text-label font-semibold tabular-nums ${
+            hecho ? 'bg-ink text-paper' : 'text-ink'
           }`}
         >
-          {enNuma ? m.enNuma : m.enArca}
+          {hecho ? <Icono nombre="check" tamano={16} grosor={2.5} /> : numero}
         </span>
-        {hecho && <span className="sr-only">{m.hecho}</span>}
+        <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2">
+          <Titulo className="text-body-lg leading-snug font-semibold">
+            <span className="sr-only">{m.paso(numero)}</span> {titulo}
+          </Titulo>
+          <span
+            className={`inline-flex items-center rounded-pill border px-2 py-px text-badge leading-normal font-semibold whitespace-nowrap ${
+              enNuma ? 'border-ink bg-ink text-paper' : 'border-border text-text-2'
+            }`}
+          >
+            {enNuma ? m.enNuma : m.enArca}
+          </span>
+          {hecho && <span className="sr-only">{m.hecho}</span>}
+        </div>
       </div>
-      <div className="col-span-2 flex min-w-0 flex-col gap-2.5 text-body-sm leading-relaxed text-text-2 md:col-span-1 md:col-start-2">
+      <div className="flex min-w-0 flex-col gap-2.5 text-body-sm leading-relaxed text-text-2 md:pl-11">
         {children}
       </div>
     </li>

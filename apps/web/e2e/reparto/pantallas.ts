@@ -189,6 +189,23 @@ export const PANTALLAS: readonly Pantalla[] = [
     listo: enElMarco,
   },
   {
+    clave: 'facturacion',
+    nombre: 'Ajustes: facturación',
+    ruta: () => '/ajustes/facturacion',
+    listo: enElMarco,
+  },
+  {
+    clave: 'conectar-con-arca',
+    sinMarco:
+      'Es una guía para leer de corrido, paso a paso y con las capturas de la página de ARCA: una sola columna angosta centrada, como la dibuja la maqueta, no una página con secciones o con principal y apoyo.',
+    nombre: 'Ajustes: conectar con ARCA',
+    ruta: () => '/ajustes/facturacion/conectar',
+    listo: async (page) => {
+      await enElMarco(page);
+      await expect(page.getByRole('button', { name: 'Bajar el pedido' })).toBeVisible(CARGA);
+    },
+  },
+  {
     clave: 'movimiento-nuevo',
     sinMarco: HOJA,
     nombre: 'Hoja: cargar un movimiento',
