@@ -2,7 +2,12 @@ import { LARGO_MAXIMO_DEL_DETALLE } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { CapsulaDePrueba, MUTACION_DE_LA_FACTURA, usePedidosEnLaCola } from '@/entities/factura';
+import {
+  CapsulaDePrueba,
+  LoQueFaltaParaFacturar,
+  MUTACION_DE_LA_FACTURA,
+  usePedidosEnLaCola,
+} from '@/entities/factura';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { useMensajes } from '@/shared/idioma';
 import {
@@ -10,15 +15,11 @@ import {
   fechaCorta,
   fechaCortaSinAnio,
   formatearPesos,
-  frasesDeLoQueFaltaParaFacturar,
   hoyEnElTaller,
-  Ir,
   metaDeAvisos,
-  RUTA_DE_LA_FACTURACION,
   useAnchoDePantalla,
   useHaySenal,
   uuidv7,
-  type ClaveDeLoQueFalta,
 } from '@/shared/lib';
 import {
   Button,
@@ -30,75 +31,8 @@ import {
   RotuloEnCasillas,
 } from '@/shared/ui';
 
-import { datosDeLaHojaDeFacturar, type DatosDeLaHojaDeFacturar } from '../model/hoja';
+import { datosDeLaHojaDeFacturar } from '../model/hoja';
 import { Bloque, CuerpoDeLaHoja, Nota, PieDeLaHoja } from './piezas';
-
-const ENLACE =
-  'inline-flex min-h-tap items-center gap-1 self-start text-label font-semibold text-ink underline underline-offset-3';
-
-type DelCliente = Extract<
-  ClaveDeLoQueFalta,
-  'cliente-sin-cuit' | 'cliente-cuit-invalido' | 'cliente-sin-domicilio' | 'cliente-sin-dni'
->;
-
-function esDelCliente(clave: ClaveDeLoQueFalta): clave is DelCliente {
-  return (
-    clave === 'cliente-sin-cuit' ||
-    clave === 'cliente-cuit-invalido' ||
-    clave === 'cliente-sin-domicilio' ||
-    clave === 'cliente-sin-dni'
-  );
-}
-
-function LoQueFalta({
-  datos,
-  alEditarElCliente,
-}: {
-  datos: DatosDeLaHojaDeFacturar;
-  alEditarElCliente: ((clienteId: string) => void) | undefined;
-}) {
-  const t = useMensajes().facturacion.facturar;
-  const accion: Readonly<Record<DelCliente, string>> = {
-    'cliente-sin-cuit': t.cargarElCuit,
-    'cliente-cuit-invalido': t.revisarElCuit,
-    'cliente-sin-domicilio': t.cargarElDomicilio,
-    'cliente-sin-dni': t.cargarElDni,
-  };
-  const frases = frasesDeLoQueFaltaParaFacturar(datos.faltas, datos.receptor.nombre);
-  const { clienteId } = datos.receptor;
-  return (
-    <section aria-label={t.loQueFalta}>
-      <ul className="flex list-none flex-col gap-2">
-        {frases.map((frase) => (
-          <li
-            key={frase.clave}
-            className="flex flex-col items-start gap-0.5 rounded-field border border-alerta bg-alerta-tint px-3 py-2.5 text-label leading-normal text-ink"
-          >
-            <span>{frase.texto}</span>
-            {frase.clave === 'taller' && (
-              <Ir a={RUTA_DE_LA_FACTURACION} className={ENLACE}>
-                {t.completarlos}
-                <Icono nombre="arrow-right" tamano={14} grosor={2} />
-              </Ir>
-            )}
-            {esDelCliente(frase.clave) && clienteId !== null && alEditarElCliente !== undefined && (
-              <button
-                type="button"
-                className={ENLACE}
-                onClick={() => {
-                  alEditarElCliente(clienteId);
-                }}
-              >
-                {accion[frase.clave]}
-                <Icono nombre="arrow-right" tamano={14} grosor={2} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 export interface HojaDeFacturarProps {
   pagoId: string;
@@ -228,7 +162,13 @@ export function HojaDeFacturar({ pagoId, alCerrar, alEditarElCliente }: HojaDeFa
               </>
             )}
             {datos.faltas.length > 0 && (
-              <LoQueFalta datos={datos} alEditarElCliente={alEditarElCliente} />
+              <section aria-label={t.loQueFalta}>
+                <LoQueFaltaParaFacturar
+                  faltas={datos.faltas}
+                  cliente={{ id: datos.receptor.clienteId, nombre: datos.receptor.nombre }}
+                  alEditarElCliente={alEditarElCliente}
+                />
+              </section>
             )}
             {datos.yaTieneFactura && (
               <Recuadro tono="alerta">{m.api.rechazos.MN042.factura.titulo}</Recuadro>

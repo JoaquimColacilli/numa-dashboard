@@ -324,6 +324,15 @@ export const facturacion = {
     emitir: 'Emitir a nota de crédito',
     dejarla: 'Deixar como está',
   },
+  cobro: {
+    facturarElPagoFinal: 'Emitir a nota fiscal do pagamento final com a ARCA',
+    aNombreDe: (nombre, condicion) => `Sai em nome de ${nombre}, ${condicion}.`,
+  },
+  bloqueos: {
+    pagoFacturado: 'Tem uma nota fiscal da ARCA: para alterar, anule a nota fiscal primeiro.',
+    trabajoConFacturas:
+      'Este projeto tem notas fiscais da ARCA e não pode ser excluído. Se não for adiante, marque como perdido.',
+  },
   monotributo: {
     cerca: (letra) => `Você está chegando ao teto da categoria ${letra}.`,
     pasado: (letra) =>

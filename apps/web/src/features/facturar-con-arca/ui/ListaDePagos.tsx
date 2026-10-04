@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import {
   comprobantesDelTaller,
+  facturacionDelTaller,
   LineaDeLaFactura,
   situacionDelPago,
   usePedidosEnLaCola,
@@ -16,7 +17,6 @@ import { diaYMes, fechaLarga, formatearLaPlata, useHaySenal } from '@/shared/lib
 import { ConSalida } from '@/shared/ui';
 
 import { anuncioDeLosCambios, firmaDeLosEstados } from '../model/anuncios';
-import { facturacionDelTaller } from '../model/taller';
 import { HojaDeFacturar } from './HojaDeFacturar';
 import { HojaDeLaFactura } from './HojaDeLaFactura';
 

@@ -320,6 +320,15 @@ export const facturacion = {
     emitir: 'Issue the credit note',
     dejarla: 'Leave it as is',
   },
+  cobro: {
+    facturarElPagoFinal: 'Invoice the final payment with ARCA',
+    aNombreDe: (nombre, condicion) => `Issued to ${nombre}, ${condicion}.`,
+  },
+  bloqueos: {
+    pagoFacturado: 'It has an ARCA invoice: to change it, void the invoice first.',
+    trabajoConFacturas:
+      "This job has ARCA invoices and can't be deleted. If it isn't going ahead, mark it as lost.",
+  },
   monotributo: {
     cerca: (letra) => `You're getting close to the ${letra} cap.`,
     pasado: (letra) =>

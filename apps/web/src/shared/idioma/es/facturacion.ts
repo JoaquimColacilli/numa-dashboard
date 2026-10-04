@@ -317,6 +317,15 @@ export const facturacion = {
     emitir: 'Emitir la nota de crédito',
     dejarla: 'Dejarla como está',
   },
+  cobro: {
+    facturarElPagoFinal: 'Facturar el pago final con ARCA',
+    aNombreDe: (nombre: string, condicion: string) => `Sale a nombre de ${nombre}, ${condicion}.`,
+  },
+  bloqueos: {
+    pagoFacturado: 'Tiene una factura de ARCA: para cambiarlo, anulala primero.',
+    trabajoConFacturas:
+      'Este trabajo tiene facturas de ARCA y no se puede borrar. Si no sigue, dalo por perdido.',
+  },
   monotributo: {
     cerca: (letra: string) => `Te acercás al tope de la ${letra}.`,
     pasado: (letra: string) =>

@@ -39,6 +39,7 @@ export interface LoDeLosPagos {
   tesorosEnDolares: readonly TesoroQueRecibeDolares[];
   dolarDelDia: DolarDelDiaDelTaller | null;
   alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
+  facturados?: ReadonlySet<string>;
 }
 
 export interface FilasDinamicasProps {
@@ -89,6 +90,7 @@ export function FilasDinamicas({
 }: FilasDinamicasProps) {
   const filasDelFormulario = useMensajes().editarProyecto.filas;
   const textosDelFormulario = useMensajes().proyecto.formulario;
+  const { bloqueos } = useMensajes().facturacion;
   const textos = filasDelFormulario[lista];
   const [deshacer, setDeshacer] = useState<Deshacer | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
@@ -205,6 +207,8 @@ export function FilasDinamicas({
             (FieldErrors<FilaDePago> & FieldErrors<FilaDeGasto>) | undefined;
           const fila = filas[indice];
           const pago = pagos !== null && esPago(fila) ? fila : null;
+          const facturado = pago !== null && (pagos?.facturados?.has(pago.id) ?? false);
+          const quieto = bloqueado || facturado;
           const moneda = pago?.moneda ?? MONEDA_DEL_TALLER;
           const errorDelMonto =
             errorDeFila?.monto === undefined
@@ -232,7 +236,7 @@ export function FilasDinamicas({
                 type="date"
                 max={lista === 'pagos' ? hoyEnElTaller() : undefined}
                 aria-label={filasDelFormulario.fecha(indice + 1)}
-                disabled={bloqueado}
+                disabled={quieto}
                 className={`h-11 min-w-0 rounded-field border bg-paper px-2.5 text-body text-ink ${
                   errorDeFila?.fecha ? 'border-alerta' : 'border-border'
                 }`}
@@ -245,7 +249,7 @@ export function FilasDinamicas({
                 {pago !== null && pagos !== null ? (
                   <BotonDeLaMoneda
                     moneda={pago.moneda}
-                    deshabilitado={bloqueado}
+                    deshabilitado={quieto}
                     alCambiar={(otra) => {
                       cambiarElPago(
                         indice,
@@ -270,7 +274,7 @@ export function FilasDinamicas({
                       moneda={moneda}
                       aria-label={filasDelFormulario.monto(indice + 1)}
                       placeholder="0"
-                      disabled={bloqueado}
+                      disabled={quieto}
                       className="min-w-0 flex-1 bg-transparent text-right text-body font-semibold outline-none"
                     />
                   )}
@@ -293,21 +297,35 @@ export function FilasDinamicas({
                   ))}
                 </select>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  quitar(indice);
-                }}
-                disabled={bloqueado}
-                aria-label={textos.quitar(indice + 1)}
-                className={`col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta ${
-                  deGastos
-                    ? '@lg/filas:col-start-4 @lg/filas:row-start-auto @2xl/filas:col-start-5'
-                    : '@lg/filas:col-start-auto @lg/filas:row-start-auto'
-                }`}
-              >
-                <Icono nombre="trash-2" tamano={18} />
-              </button>
+              {facturado ? (
+                <span
+                  aria-hidden
+                  className="col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center text-text-3 @lg/filas:col-start-auto @lg/filas:row-start-auto"
+                >
+                  <Icono nombre="receipt" tamano={18} />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    quitar(indice);
+                  }}
+                  disabled={bloqueado}
+                  aria-label={textos.quitar(indice + 1)}
+                  className={`col-start-3 row-start-1 flex size-11 items-center justify-center justify-self-center rounded-pill text-text-3 hover:bg-surface hover:text-alerta ${
+                    deGastos
+                      ? '@lg/filas:col-start-4 @lg/filas:row-start-auto @2xl/filas:col-start-5'
+                      : '@lg/filas:col-start-auto @lg/filas:row-start-auto'
+                  }`}
+                >
+                  <Icono nombre="trash-2" tamano={18} />
+                </button>
+              )}
+              {facturado && (
+                <p className="col-span-3 text-meta leading-normal text-text-2 @lg/filas:col-span-4">
+                  {bloqueos.pagoFacturado}
+                </p>
+              )}
               {(errorDelMonto ?? errorDeFila?.fecha) && (
                 <span
                   role="alert"
@@ -341,7 +359,7 @@ export function FilasDinamicas({
                       cotizacion: errorDeFila?.cotizacion?.message,
                       tesoro: errorDeFila?.tesoroId?.message,
                     }}
-                    deshabilitado={bloqueado}
+                    deshabilitado={quieto}
                   />
                 </div>
               )}
@@ -356,7 +374,7 @@ export function FilasDinamicas({
                       apertura={apertura}
                       marcada={field.value}
                       alCambiar={field.onChange}
-                      disabled={bloqueado}
+                      disabled={quieto}
                     />
                   )}
                 />

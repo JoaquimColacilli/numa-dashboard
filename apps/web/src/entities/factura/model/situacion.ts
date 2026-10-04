@@ -96,6 +96,41 @@ export function notasDeLaFactura(
   );
 }
 
+function esDeVerdad(comprobante: Comprobante): boolean {
+  return comprobante.ambiente === 'produccion' && comprobante.deleted_at === null;
+}
+
+export function tieneUnaFacturaViva(comprobantes: readonly Comprobante[], pagoId: string): boolean {
+  return comprobantes.some((comprobante) => {
+    const estado = estadoDe(comprobante);
+    return (
+      esFactura(comprobante) &&
+      comprobante.pago_id === pagoId &&
+      comprobante.deleted_at === null &&
+      estado !== null &&
+      esUnaFacturaViva(estado)
+    );
+  });
+}
+
+export function pagosConFacturaDeVerdad(replica: Replica): ReadonlySet<string> {
+  return new Set(
+    comprobantesDelTaller(replica)
+      .filter((comprobante) => esDeVerdad(comprobante) && esFactura(comprobante))
+      .filter((comprobante) => {
+        const estado = estadoDe(comprobante);
+        return estado !== null && esUnaFacturaViva(estado);
+      })
+      .map((comprobante) => comprobante.pago_id),
+  );
+}
+
+export function trabajoConFacturasDeVerdad(replica: Replica, proyectoId: string): boolean {
+  return comprobantesDelTaller(replica).some(
+    (comprobante) => esDeVerdad(comprobante) && comprobante.proyecto_id === proyectoId,
+  );
+}
+
 function puedeFacturarse(
   pago: PagoQueSeMira,
   monedaDelTrabajo: string,

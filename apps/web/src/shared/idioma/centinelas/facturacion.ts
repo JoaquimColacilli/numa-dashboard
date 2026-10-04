@@ -133,6 +133,10 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.facturacion.anular.texto('«MONTO»', '«CLIENTE»'),
     tieneQueDecir: ['«MONTO»', '«CLIENTE»', 'ARCA'],
   },
+  'facturacion.cobro.aNombreDe': {
+    llamar: (m) => m.facturacion.cobro.aNombreDe('«NOMBRE»', '«CONDICIÓN»'),
+    tieneQueDecir: ['«NOMBRE»', '«CONDICIÓN»'],
+  },
   'facturacion.monotributo.cerca': {
     llamar: (m) => m.facturacion.monotributo.cerca('«LETRA»'),
     tieneQueDecir: ['«LETRA»'],

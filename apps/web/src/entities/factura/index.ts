@@ -11,6 +11,12 @@ export {
   type PedidoDeLaNotaDeCredito,
 } from './api/mutacion';
 export { alertasDeLaFacturacion, conLaAlertaRevisada } from './model/alertas';
+export {
+  clienteDeLaFactura,
+  documentoParaFacturar,
+  faltasParaFacturar,
+  type LoQueSeFactura,
+} from './model/faltas';
 export { nombreDe, numeroDe } from './model/nombres';
 export { emisorDe, facturaEnPdf } from './model/pdf';
 export { motivoDelRechazo } from './model/rechazo';
@@ -22,9 +28,12 @@ export {
   esDePrueba,
   NADA_EN_LA_COLA,
   notasDeLaFactura,
+  pagosConFacturaDeVerdad,
   queSuma,
   sePuedeFacturar,
   situacionDelPago,
+  tieneUnaFacturaViva,
+  trabajoConFacturasDeVerdad,
   type Comprobante,
   type DatosDeLaSituacion,
   type PagoQueSeMira,
@@ -32,5 +41,14 @@ export {
   type SituacionDelPago,
   type TallerQueFactura,
 } from './model/situacion';
+export {
+  datosDelTallerQueFactura,
+  facturacionDelTaller,
+  type FacturacionDelTaller,
+} from './model/taller';
 export { CapsulaDePrueba } from './ui/CapsulaDePrueba';
 export { LineaDeLaFactura, type LineaDeLaFacturaProps } from './ui/LineaDeLaFactura';
+export {
+  LoQueFaltaParaFacturar,
+  type LoQueFaltaParaFacturarProps,
+} from './ui/LoQueFaltaParaFacturar';

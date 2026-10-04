@@ -1,9 +1,8 @@
-import { comprobantesDelTaller } from '@/entities/factura';
+import { comprobantesDelTaller, facturacionDelTaller } from '@/entities/factura';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ajustesDe } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 
-import { facturacionDelTaller } from '../model/taller';
 import { ListaDePagos, type ListaDePagosProps } from './ListaDePagos';
 
 export function CobrosYFacturas(props: ListaDePagosProps) {
