@@ -14,6 +14,9 @@ select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
 select tests.guardar('household_b', private.crear_household('Taller B', tests.id('b')));
+-- Un taller de antes de los tipos de tesoro, con Cocos.
+select private.sembrar_cocos(tests.id('household_a'));
+select private.sembrar_cocos(tests.id('household_b'));
 
 select tests.guardar('maun', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'maun'));
 select tests.guardar('cocos', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'cocos'));

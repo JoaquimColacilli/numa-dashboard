@@ -96,7 +96,8 @@ select is(
   'una sola es la del número de arriba de Resultados: la de qué tan conforme quedó'
 );
 
--- Y con sus cuatro tesoros de siempre (ADR 0078), escritos por private.sembrar_los_tesoros().
+-- Y con sus tres tesoros de siempre (ADR 0078), escritos por private.sembrar_los_tesoros(): un taller nuevo
+-- ya no nace con Cocos (los tipos de tesoro).
 select results_eq(
   format(
     $$ select clave::text, nombre, descripcion, tinta, icono, orden from public.tesoros where household_id = %L order by orden $$,
@@ -106,10 +107,9 @@ select results_eq(
     values
       ('hogar', 'Hogar', 'La plata de la familia', 'hogar', 'house', 0),
       ('maun', 'Maun', 'La caja del taller', 'maun', 'hammer', 1),
-      ('diezmo', 'Diezmo', 'Lo apartado de cada ganancia', 'diezmo', 'church', 2),
-      ('cocos', 'Cocos', 'Ahorro para la casa propia', 'cocos', 'piggy-bank', 3)
+      ('diezmo', 'Diezmo', 'Lo apartado de cada ganancia', 'diezmo', 'church', 2)
   $$,
-  'y con sus cuatro tesoros de siempre: cada uno con su clave, su nombre, su tinta y su ícono'
+  'y con sus tres tesoros de siempre: cada uno con su clave, su nombre, su tinta y su ícono'
 );
 
 select ok(
@@ -117,7 +117,7 @@ select ok(
     select bool_and(meta_centavos is null and rinde_anual_bp is null and archivado_at is null)
     from public.tesoros where household_id = tests.id('taller')
   ),
-  'sin meta ni rinde, que los de Cocos siguen en ajustes, y sin archivar'
+  'sin meta ni rinde, y sin archivar'
 );
 
 select tests.guardar('confirmada', tests.crear_usuario('confirmada@maun.test', true));
@@ -154,7 +154,7 @@ select private.sembrar_los_tesoros(tests.id('taller'));
 
 select is(
   (select count(*)::int from public.tesoros where household_id = tests.id('taller')),
-  4,
+  3,
   'volver a sembrar los tesoros de un taller que ya los tiene no suma ninguno'
 );
 
@@ -189,7 +189,7 @@ select is(
 
 alter table public.preguntas drop constraint prueba_el_alta_falla;
 
--- Lo mismo con el último paso de hoy, los cuatro tesoros: corren en la misma transacción que la cuenta.
+-- Lo mismo con el último paso de hoy, los tres tesoros: corren en la misma transacción que la cuenta.
 alter table public.tesoros add constraint prueba_los_tesoros_fallan check (false) not valid;
 
 select throws_ok(
