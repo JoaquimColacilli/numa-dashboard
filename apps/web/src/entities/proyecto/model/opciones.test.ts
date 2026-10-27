@@ -117,6 +117,7 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
     ...extra,
   };
 }
@@ -169,6 +170,7 @@ function ajustes(extra: Partial<FilaDe<'ajustes'>> = {}): FilaDe<'ajustes'> {
     sueldo_tope_mensual: false,
     perdido_con_sueldo: false,
     perdido_con_diezmo: true,
+    preguntas_de_la_consulta: null,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-01T12:00:00Z',
     deleted_at: null,

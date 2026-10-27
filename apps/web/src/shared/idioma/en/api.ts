@@ -298,6 +298,30 @@ export const api = {
       titulo: "Invoicing with ARCA isn't connected.",
       queHacer: 'Nothing was requested. Connect it in Settings › Invoicing and request it again.',
     },
+    MN044: {
+      titulo: "An estimate doesn't carry dates.",
+      queHacer: 'Uncheck the estimate or remove the dates and send it again.',
+    },
+    MN045: {
+      titulo: 'The quote is missing one of its dates.',
+      queHacer: 'Enter when it can be ready and when the deposit has to come in by.',
+    },
+    MN046: {
+      titulo: 'The deposit date already passed.',
+      queHacer: 'Pick today or a day ahead and send it again.',
+    },
+    MN047: {
+      titulo: 'Delivery has to be after the deposit.',
+      queHacer: 'Move the delivery date or the deposit date and send it again.',
+    },
+    MN048: {
+      titulo: 'That follow-up was already logged.',
+      queHacer: 'If you need to reach out again, set a new date from the job page.',
+    },
+    MN049: {
+      titulo: 'The next follow-up goes today or on a day ahead.',
+      queHacer: 'Pick today or a day ahead.',
+    },
     MN041: {
       titulo: "Something's missing to invoice this.",
       queHacer:

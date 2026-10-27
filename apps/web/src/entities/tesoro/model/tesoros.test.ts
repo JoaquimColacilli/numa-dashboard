@@ -46,6 +46,7 @@ function tesoro(
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     moneda: 'ARS',
@@ -61,7 +62,7 @@ function conTesoros(filas: readonly FilaDe<'tesoros'>[]): Replica {
 }
 
 describe('los tesoros del taller', () => {
-  it('sin tesoros replicados, son los cuatro de siempre con su clave como id', () => {
+  it('sin tesoros replicados, son los tres de un taller nuevo con su clave como id, sin Cocos', () => {
     const replica = replicaVacia('u');
     expect(tesorosSincronizados(replica)).toBe(false);
     expect(
@@ -70,7 +71,6 @@ describe('los tesoros del taller', () => {
       ['hogar', 'Hogar', 'hogar', enPesos(CERO)],
       ['maun', 'Maun', 'maun', enPesos(CERO)],
       ['diezmo', 'Diezmo', 'diezmo', enPesos(CERO)],
-      ['cocos', 'Cocos', 'cocos', enPesos(CERO)],
     ]);
   });
 
@@ -95,6 +95,7 @@ describe('los tesoros del taller', () => {
       desde_id: 't-maun',
       hacia_id: 't-materiales',
       cubre_el_mes: null,
+      vencimiento: null,
       monto_centavos: 15_000_000,
       monto_destino_centavos: null,
       categoria: '',

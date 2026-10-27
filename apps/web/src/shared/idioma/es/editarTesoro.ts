@@ -7,6 +7,21 @@ export const editarTesoro = {
     enPesos: 'En pesos',
     enDolares: 'En dólares',
   },
+  ajustar: {
+    boton: 'Ajustar el saldo',
+    titulo: (nombre: string) => `Ajustar el saldo de ${nombre}`,
+    bajada: 'Para que quede con lo que tiene de verdad.',
+    tieneAhora: 'Tiene ahora',
+    seSuman: (monto: string) => `Se suman ${monto}`,
+    seRestan: (monto: string) => `Se restan ${monto}`,
+    quedaIgual: 'Queda igual',
+    porQue: 'Por qué (opcional)',
+    oEscribilo: 'O escribilo',
+    fecha: 'Fecha',
+    fechaQueNoPaso: 'Elegí hoy o un día que ya pasó.',
+    ajustar: 'Ajustar',
+    volver: 'Volver',
+  },
   archivar: {
     conDolaresSinDestino: 'Para archivarlo, vendé los dólares o pasalos a otro tesoro en dólares.',
     debeDolaresSinOrigen:
@@ -49,9 +64,11 @@ export const editarTesoro = {
       `También la usa ${nombre}: se distinguen por el nombre y el ícono.`,
     icono: 'Ícono',
     meta: 'Meta',
-    ayudaDeLaMeta: 'Opcional. Si la ponés, Inicio te muestra cuánto falta.',
-    rinde: 'Rinde por año (%)',
-    ayudaDelRinde: 'Solo sirve para proyectar. Si no lo sabés, dejalo en 0.',
+    ayudaDeLaMeta: 'Opcional. Si la ponés, junta hasta llegar y Inicio te muestra cuánto falta.',
+    objetivo: 'Objetivo',
+    ayudaDelObjetivo: 'Junta hasta llegar. Cuando llega, lo que le tocaba sigue hacia abajo.',
+    paraCuando: 'Para cuándo',
+    ayudaDeLaFecha: 'Opcional: una fecha estimada para llegar.',
   },
   iconos: {
     receipt: 'Recibo',
@@ -78,7 +95,10 @@ export const editarTesoro = {
   errores: {
     nombre: (maximo: number) => `Ponele un nombre, de hasta ${String(maximo)} letras.`,
     descripcion: (maximo: number) => `Hasta ${String(maximo)} letras.`,
-    rinde: 'Escribí el rinde como un porcentaje, por ejemplo 40. Podés dejarlo en 0.',
+    meta: 'Poné el objetivo: hasta cuánto junta.',
+    fechaSinMeta: 'Para poner una fecha, poné primero el objetivo.',
+    fechaDeLaMeta: 'La fecha va de hoy en adelante.',
+    diaDePago: 'El día de pago va del 1 al 31.',
     monto: 'Poné hasta cuánto recibe.',
     montoGrande: 'El monto no puede ser tan grande.',
     porcentajeDeLaObligacion: (minimo: string, maximo: string) =>
@@ -87,7 +107,6 @@ export const editarTesoro = {
       `Poné un porcentaje de ${minimo} a ${libre}, lo que queda libre.`,
   },
   bajada: {
-    conRinde: 'Nombre, color, ícono, meta y rinde',
     conMeta: 'Nombre, color, ícono y meta',
     deSiempre: 'Nombre, color e ícono',
   },
@@ -128,6 +147,50 @@ export const editarTesoro = {
   nuevo: {
     titulo: 'Nuevo tesoro',
     bajada: 'Un lugar más para la plata',
+    queEs: '¿Qué es?',
+    otroTipo: 'Cambiar',
+    tipos: {
+      caja: {
+        titulo: 'Caja',
+        que: 'Qué es una caja',
+        ejemplo: 'Stock del taller, una caja chica',
+        ayuda:
+          'Junta sin tope. No vence ni vuelve a cero sola. Maun es la caja general del taller.',
+      },
+      'deuda-destinada': {
+        titulo: 'Deuda destinada',
+        que: 'Qué es una deuda destinada',
+        ejemplo: 'Ingresos Brutos',
+        ayuda:
+          'Se lleva una parte de cada cobro, en porcentaje o un monto fijo. Queda para entregar hasta que registrás el pago.',
+      },
+      'deuda-obligatoria': {
+        titulo: 'Deuda obligatoria',
+        que: 'Qué es una deuda obligatoria',
+        ejemplo: 'El alquiler, los sueldos',
+        ayuda:
+          'Junta hasta su tope entre un vencimiento y el siguiente. El día de pago se paga y arranca de cero. Si no llegó al tope, lo que falta lo pone Maun.',
+      },
+      meta: {
+        titulo: 'Meta',
+        ejemplo: 'Una máquina, el galpón',
+        que: 'Qué es una meta',
+        ayuda:
+          'Junta hasta llegar al objetivo. Cuando llega, deja de recibir y lo que le tocaba sigue hacia abajo.',
+      },
+    },
+    enDolares: 'Un tesoro en dólares es una caja o una meta: la fila reparte pesos.',
+    comoRecibe: '¿Cómo recibe plata?',
+    seLleva: 'Se lleva',
+    unPorcentaje: 'Un porcentaje',
+    unMontoFijo: 'Un monto fijo',
+    montoFijo: 'Monto de cada cobro',
+    ayudaDelMontoFijo: 'Nunca más de lo que llega.',
+    tope: 'Tope',
+    ayudaDelTope: 'Lo que junta entre un día de pago y el siguiente.',
+    diaDePago: 'Día de pago',
+    ayudaDelDiaDePago: 'Del 1 al 31. Si el mes no lo tiene, el último.',
+    seLaPaga: 'Se paga sola',
     sobreQueSeCalcula: 'Sobre qué se calcula',
     nombresSugeridos: 'Nombres sugeridos',
     dondeVa: 'Dónde va',

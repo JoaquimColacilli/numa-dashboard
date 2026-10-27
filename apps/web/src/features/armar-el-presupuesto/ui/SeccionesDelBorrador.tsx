@@ -3,6 +3,8 @@ import {
   clausulaDeLaMonedaDelTrabajo,
   completarHuecos,
   cuentasDelPresupuesto,
+  entregaEstimada,
+  HUECOS_DE_LAS_FECHAS,
   LARGOS_DEL_DOCUMENTO,
   LARGOS_DEL_PRESUPUESTO,
   letraDeLaOpcion,
@@ -14,11 +16,13 @@ import {
   valoresDelTrabajo,
   type BorradorDelPresupuesto,
   type Clausula,
+  type FechasDelPresupuesto,
   type FormaElegida,
   type Hueco,
   type Moneda,
   type Money,
   type PlantillaDelPresupuesto,
+  type ProblemaDeLasFechas,
   type PuntosBasicos,
 } from '@maun/domain';
 import { useId, useState, type ReactNode } from 'react';
@@ -229,6 +233,139 @@ function Validez({
   );
 }
 
+function TildeDelBorrador({
+  tildado,
+  titulo,
+  ayuda,
+  alCambiar,
+}: {
+  tildado: boolean;
+  titulo: string;
+  ayuda: string;
+  alCambiar: (tildado: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3">
+      <Casilla tildada={tildado} alCambiar={alCambiar} />
+      <span className="flex max-w-[38rem] min-w-0 flex-col gap-0.5">
+        <span className="text-body font-semibold">{titulo}</span>
+        <span className="text-label leading-relaxed text-text-2">{ayuda}</span>
+      </span>
+    </label>
+  );
+}
+
+function BotonDelCampo({ children, alTocar }: { children: ReactNode; alTocar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={alTocar}
+      className="-my-3 min-h-tap px-1 text-label font-medium underline underline-offset-3"
+    >
+      {children}
+    </button>
+  );
+}
+
+export interface DireccionDelEditor {
+  valor: string;
+  delCliente: string;
+  alCambiar: (direccion: string) => void;
+}
+
+function DireccionDelBorrador({ valor, delCliente, alCambiar }: DireccionDelEditor) {
+  const m = useMensajes().armarElPresupuesto.encabezado;
+  const escrita = valor.trim();
+  const cliente = delCliente.trim();
+  const ofreceLaDelCliente = escrita !== '' && cliente !== '' && cliente !== escrita;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Campo
+        etiqueta={m.obra}
+        data-campo="obra"
+        translate="no"
+        value={valor}
+        maxLength={LARGOS_DEL_PRESUPUESTO.obra}
+        placeholder={cliente === '' ? m.ejemploDeLaObra : cliente}
+        ayuda={escrita === '' && cliente !== '' ? m.vaLaDelCliente(cliente) : m.esLaDelTrabajo}
+        onChange={(evento) => {
+          alCambiar(evento.target.value);
+        }}
+      />
+      {ofreceLaDelCliente && (
+        <Button
+          variant="terciario"
+          size="chico"
+          className="max-w-full self-start"
+          onClick={() => {
+            alCambiar(cliente);
+          }}
+        >
+          <Icono nombre="map-pin" tamano={16} />
+          <span className="min-w-0 truncate">
+            {m.usarLaDelCliente}: <span translate="no">{cliente}</span>
+          </span>
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function FechaDelBorrador({
+  etiqueta,
+  campo,
+  elegida,
+  sugerida,
+  minimo,
+  ayudaSugerida,
+  error,
+  alCambiar,
+}: {
+  etiqueta: string;
+  campo: string;
+  elegida: string | null;
+  sugerida: string;
+  minimo: string;
+  ayudaSugerida: string;
+  error: string | undefined;
+  alCambiar: (fecha: string | null) => void;
+}) {
+  const m = useMensajes().armarElPresupuesto.encabezado;
+  const [escrita, setEscrita] = useState<string | null>(null);
+  return (
+    <Campo
+      etiqueta={etiqueta}
+      type="date"
+      data-campo={campo}
+      min={minimo}
+      value={escrita ?? elegida ?? sugerida}
+      ayuda={elegida === null ? ayudaSugerida : m.elegidaPorVos}
+      error={error}
+      accesorio={
+        elegida === null ? undefined : (
+          <BotonDelCampo
+            alTocar={() => {
+              setEscrita(null);
+              alCambiar(null);
+            }}
+          >
+            {m.usarLaSugerida}
+          </BotonDelCampo>
+        )
+      }
+      onChange={(evento) => {
+        const fecha = evento.target.value;
+        setEscrita(fecha);
+        if (fecha !== '') alCambiar(fecha);
+      }}
+      onBlur={() => {
+        if (escrita === '') alCambiar(null);
+        setEscrita(null);
+      }}
+    />
+  );
+}
+
 export function EncabezadoDelBorrador({
   borrador,
   alCambiar,
@@ -237,18 +374,45 @@ export function EncabezadoDelBorrador({
   cliente,
   hoy,
   diasDeAjustes,
+  diasParaLaSena,
+  direccion,
+  fechas,
+  problemaDeLasFechas,
 }: ConElBorrador & {
   numero: string | null;
   revisionQueSeManda: number;
   cliente: string;
   hoy: string;
   diasDeAjustes: number;
+  diasParaLaSena: number;
+  direccion: DireccionDelEditor;
+  fechas: FechasDelPresupuesto | null;
+  problemaDeLasFechas: ProblemaDeLasFechas | null;
 }) {
   const m = useMensajes().armarElPresupuesto.encabezado;
-  const id = useId();
+  const errorDe = (problema: keyof typeof m.problemaDeLasFechas) =>
+    problemaDeLasFechas === problema ? m.problemaDeLasFechas[problema] : undefined;
   return (
     <Seccion numero={1} id="presupuesto-encabezado" titulo={m.titulo} bajada={m.bajada}>
       <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3.5 rounded-field bg-surface px-3.5 py-3">
+          <TildeDelBorrador
+            tildado={borrador.estimativo}
+            titulo={m.estimativo}
+            ayuda={m.ayudaDelEstimativo}
+            alCambiar={(estimativo) => {
+              alCambiar({ ...borrador, estimativo });
+            }}
+          />
+          <TildeDelBorrador
+            tildado={borrador.pideFecha}
+            titulo={m.pideFecha}
+            ayuda={m.ayudaDePideFecha}
+            alCambiar={(pideFecha) => {
+              alCambiar({ ...borrador, pideFecha });
+            }}
+          />
+        </div>
         <dl className="flex flex-col">
           <DatoFijo
             clave={m.numero}
@@ -276,15 +440,7 @@ export function EncabezadoDelBorrador({
               alCambiar({ ...borrador, titulo: evento.target.value });
             }}
           />
-          <Campo
-            etiqueta={m.obra}
-            value={borrador.obra}
-            maxLength={LARGOS_DEL_PRESUPUESTO.obra}
-            placeholder={m.ejemploDeLaObra}
-            onChange={(evento) => {
-              alCambiar({ ...borrador, obra: evento.target.value });
-            }}
-          />
+          <DireccionDelBorrador {...direccion} />
         </CamposJuntos>
         <Validez
           dias={borrador.validezDias}
@@ -294,19 +450,34 @@ export function EncabezadoDelBorrador({
             alCambiar({ ...borrador, validezDias: dias });
           }}
         />
-        <CampoConUnidad
-          id={`${id}-plazo`}
-          etiqueta={m.plazo}
-          unidad={m.diasHabiles}
-          valor={String(borrador.plazoDeFabricacion)}
-          alCambiar={(texto) => {
-            const numero = Number(texto);
-            if (texto !== '' && numero > 0) {
-              alCambiar({ ...borrador, plazoDeFabricacion: Math.min(numero, 365) });
-            }
-          }}
-          ayuda={m.ayudaDelPlazo}
-        />
+        {fechas !== null && (
+          <CamposJuntos separacion="gap-5">
+            <FechaDelBorrador
+              etiqueta={m.senaAntesDel}
+              campo="senaAntesDel"
+              elegida={borrador.senaAntesDel}
+              sugerida={fechas.senaAntesDel}
+              minimo={hoy}
+              ayudaSugerida={m.senaSugerida(diasParaLaSena)}
+              error={errorDe('sena-antes-del-envio')}
+              alCambiar={(senaAntesDel) => {
+                alCambiar({ ...borrador, senaAntesDel });
+              }}
+            />
+            <FechaDelBorrador
+              etiqueta={m.listoPara}
+              campo="listoPara"
+              elegida={borrador.listoPara}
+              sugerida={entregaEstimada(hoy, borrador.plazoDeFabricacion)}
+              minimo={hoy}
+              ayudaSugerida={m.listoSugerido(borrador.plazoDeFabricacion)}
+              error={errorDe('entrega-antes-de-la-sena')}
+              alCambiar={(listoPara) => {
+                alCambiar({ ...borrador, listoPara });
+              }}
+            />
+          </CamposJuntos>
+        )}
       </div>
     </Seccion>
   );
@@ -696,8 +867,16 @@ export function HerrajesDelBorrador({
 }
 
 export interface HuecosDelEditor {
-  valores: Readonly<Record<Hueco, string>>;
+  valores: Readonly<Partial<Record<Hueco, string>>>;
   abonado: Money<Moneda>;
+}
+
+type FrenoDeLaClausula = 'pago' | 'estimativo';
+
+function frenoDeLaClausula(texto: string, huecos: HuecosDelEditor): FrenoDeLaClausula | null {
+  if (usaElHueco(texto, 'relevamiento') && huecos.abonado <= 0) return 'pago';
+  const conFechas = HUECOS_DE_LAS_FECHAS.some((hueco) => usaElHueco(texto, hueco));
+  return conFechas && huecos.valores.entrega === undefined ? 'estimativo' : null;
 }
 
 function CasillaDeLaPlantilla({
@@ -712,15 +891,15 @@ function CasillaDeLaPlantilla({
   alCambiar: (tildada: boolean) => void;
 }) {
   const m = useMensajes().armarElPresupuesto.casillas;
-  const esperaUnPago = usaElHueco(clausula.texto, 'relevamiento') && huecos.abonado <= 0;
+  const freno = frenoDeLaClausula(clausula.texto, huecos);
   const texto = completarHuecos(clausula.texto, huecos.valores);
-  const va = tildada && !esperaUnPago;
+  const va = tildada && freno === null;
   return (
     <li className="border-t border-hairline-soft first:border-t-0">
       <label
-        className={`flex items-start gap-3 py-2.5 ${esperaUnPago ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        className={`flex items-start gap-3 py-2.5 ${freno === null ? 'cursor-pointer' : 'cursor-not-allowed'}`}
       >
-        <Casilla tildada={va} deshabilitada={esperaUnPago} alCambiar={alCambiar} />
+        <Casilla tildada={va} deshabilitada={freno !== null} alCambiar={alCambiar} />
         <span
           className={`max-w-[38rem] min-w-0 text-body leading-relaxed ${va ? 'text-ink' : 'text-text-3'}`}
         >
@@ -730,8 +909,10 @@ function CasillaDeLaPlantilla({
             </span>
           )}
           <span translate="no">{texto}</span>
-          {esperaUnPago && (
-            <span className="mt-1 block text-meta text-text-3">{m.apareceCuandoPague}</span>
+          {freno !== null && (
+            <span className="mt-1 block text-meta text-text-3">
+              {freno === 'pago' ? m.apareceCuandoPague : m.noVaEnUnEstimativo}
+            </span>
           )}
         </span>
       </label>
@@ -760,9 +941,7 @@ export function CasillasDelBorrador({
   const tildadas = new Set(seleccion.tildadas);
   const van =
     clausulas.filter(
-      (clausula) =>
-        tildadas.has(clausula.id) &&
-        !(usaElHueco(clausula.texto, 'relevamiento') && huecos.abonado <= 0),
+      (clausula) => tildadas.has(clausula.id) && frenoDeLaClausula(clausula.texto, huecos) === null,
     ).length + seleccion.propias.length;
   const total = clausulas.length + seleccion.propias.length;
 
@@ -1021,6 +1200,7 @@ export function ValoresDelBorrador({
   senaPropia,
   abonado,
   moneda,
+  estimativo = false,
   extra = null,
 }: {
   valores: ValoresDelEditor;
@@ -1029,9 +1209,12 @@ export function ValoresDelBorrador({
   senaPropia: boolean;
   abonado: Money<Moneda>;
   moneda: Moneda;
+  estimativo?: boolean;
   extra?: ReactNode;
 }) {
-  const m = useMensajes().armarElPresupuesto.valores;
+  const textos = useMensajes().armarElPresupuesto;
+  const m = textos.valores;
+  const textosDeLaSena = textos.sena;
   const id = useId();
   const conOpciones = valores.opciones.length > 0;
 
@@ -1180,13 +1363,19 @@ export function ValoresDelBorrador({
           </Button>
         </div>
       )}
-      <CuentaDeLaSena
-        valores={valores}
-        senaBp={senaBp}
-        senaPropia={senaPropia}
-        abonado={abonado}
-        moneda={moneda}
-      />
+      {estimativo ? (
+        <p className="max-w-[30rem] rounded-field bg-surface px-3.5 py-3 text-label leading-relaxed text-text-2">
+          {textosDeLaSena.elEstimativoNoLaPide}
+        </p>
+      ) : (
+        <CuentaDeLaSena
+          valores={valores}
+          senaBp={senaBp}
+          senaPropia={senaPropia}
+          abonado={abonado}
+          moneda={moneda}
+        />
+      )}
       {extra}
     </Seccion>
   );
@@ -1289,85 +1478,93 @@ export function FormaDePagoDelBorrador({
 
   return (
     <Seccion numero={7} id="presupuesto-forma-de-pago" titulo={m.titulo} bajada={m.bajada}>
-      <fieldset className="@container flex min-w-0 flex-col gap-1.5">
-        <legend className="sr-only">{m.titulo}</legend>
-        <div
-          role="radiogroup"
-          aria-label={m.titulo}
-          className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @min-[36rem]:grid-cols-4"
-        >
-          {opciones.map((opcion) => {
-            const esta =
-              opcion.valor === 'ninguna' ? elegida === null : elegida?.plantillaId === opcion.valor;
-            return (
-              <button
-                key={opcion.valor}
-                type="button"
-                role="radio"
-                aria-checked={esta}
-                translate={opcion.dato ? 'no' : undefined}
-                onClick={() => {
-                  alCambiar(
-                    conLaForma(
-                      borrador,
-                      opcion.valor === 'ninguna'
-                        ? null
-                        : { plantillaId: opcion.valor, texto: null },
-                    ),
-                  );
-                }}
-                className={`min-h-tap rounded-[16px] px-2 text-label leading-tight ${
-                  esta
-                    ? 'bg-elevado font-semibold text-ink shadow-float'
-                    : 'font-medium text-text-2'
-                }`}
-              >
-                {opcion.etiqueta}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-      {elegida === null ? (
-        <p className="text-label leading-relaxed text-text-2">{m.noVa}</p>
+      {borrador.estimativo ? (
+        <p className="text-label leading-relaxed text-text-2">{m.noVaEnUnEstimativo}</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <span className="flex items-baseline justify-between gap-3">
-            <label htmlFor={`${id}-texto`} className="text-label text-text-2">
-              {m.loQueDice}
-            </label>
-            {retocada && (
-              <button
-                type="button"
-                onClick={() => {
+        <>
+          <fieldset className="@container flex min-w-0 flex-col gap-1.5">
+            <legend className="sr-only">{m.titulo}</legend>
+            <div
+              role="radiogroup"
+              aria-label={m.titulo}
+              className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @min-[36rem]:grid-cols-4"
+            >
+              {opciones.map((opcion) => {
+                const esta =
+                  opcion.valor === 'ninguna'
+                    ? elegida === null
+                    : elegida?.plantillaId === opcion.valor;
+                return (
+                  <button
+                    key={opcion.valor}
+                    type="button"
+                    role="radio"
+                    aria-checked={esta}
+                    translate={opcion.dato ? 'no' : undefined}
+                    onClick={() => {
+                      alCambiar(
+                        conLaForma(
+                          borrador,
+                          opcion.valor === 'ninguna'
+                            ? null
+                            : { plantillaId: opcion.valor, texto: null },
+                        ),
+                      );
+                    }}
+                    className={`min-h-tap rounded-[16px] px-2 text-label leading-tight ${
+                      esta
+                        ? 'bg-elevado font-semibold text-ink shadow-float'
+                        : 'font-medium text-text-2'
+                    }`}
+                  >
+                    {opcion.etiqueta}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          {elegida === null ? (
+            <p className="text-label leading-relaxed text-text-2">{m.noVa}</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <span className="flex items-baseline justify-between gap-3">
+                <label htmlFor={`${id}-texto`} className="text-label text-text-2">
+                  {m.loQueDice}
+                </label>
+                {retocada && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      alCambiar(
+                        conLaForma(borrador, { plantillaId: elegida.plantillaId, texto: null }),
+                      );
+                    }}
+                    className="-my-3 min-h-tap px-1 text-label font-medium underline underline-offset-3"
+                  >
+                    {m.volverAlDeSiempre}
+                  </button>
+                )}
+              </span>
+              <TextoQueCrece
+                id={`${id}-texto`}
+                valor={texto}
+                filasMinimas={2}
+                maxLength={LARGOS_DEL_PRESUPUESTO.textoDeClausula}
+                alCambiar={(nuevo) => {
                   alCambiar(
-                    conLaForma(borrador, { plantillaId: elegida.plantillaId, texto: null }),
+                    conLaForma(borrador, {
+                      plantillaId: elegida.plantillaId,
+                      texto: nuevo === deLaPlantilla(elegida) ? null : nuevo,
+                    }),
                   );
                 }}
-                className="-my-3 min-h-tap px-1 text-label font-medium underline underline-offset-3"
-              >
-                {m.volverAlDeSiempre}
-              </button>
-            )}
-          </span>
-          <TextoQueCrece
-            id={`${id}-texto`}
-            valor={texto}
-            filasMinimas={2}
-            maxLength={LARGOS_DEL_PRESUPUESTO.textoDeClausula}
-            alCambiar={(nuevo) => {
-              alCambiar(
-                conLaForma(borrador, {
-                  plantillaId: elegida.plantillaId,
-                  texto: nuevo === deLaPlantilla(elegida) ? null : nuevo,
-                }),
-              );
-            }}
-          />
-          <span className="text-meta text-text-3">
-            {retocada ? m.retocado : m.laSenaDeEsteTrabajo(huecos.valores.sena)}
-          </span>
-        </div>
+              />
+              <span className="text-meta text-text-3">
+                {retocada ? m.retocado : m.laSenaDeEsteTrabajo(huecos.valores.sena ?? '')}
+              </span>
+            </div>
+          )}
+        </>
       )}
       <ClausulaDeLaMoneda
         borrador={borrador}

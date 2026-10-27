@@ -15,6 +15,8 @@ export interface DatosDelTesoro {
 
 export const TESOROS_EN_ORDEN: readonly Tesoro[] = ['hogar', 'maun', 'diezmo', 'cocos'];
 
+export const TESOROS_DE_UN_TALLER_NUEVO: readonly Tesoro[] = ['hogar', 'maun', 'diezmo'];
+
 export const TESORO: Readonly<Record<Tesoro, DatosDelTesoro>> = {
   hogar: {
     id: 'hogar',

@@ -18,10 +18,10 @@ import {
   CLASE,
   claseDe,
   clasesDelGrupo,
+  gruposQueSeCargan,
   destinosDeLaClase,
   esCategoriaDelCatalogo,
   esUnCambio,
-  GRUPOS,
   hayDolaresParaCargar,
   ladosDeLaFila,
   ladosDelMovimiento,
@@ -69,14 +69,25 @@ const LUGAR_DEL_GRUPO: Readonly<Record<GrupoDeMovimiento, string>> = {
   gasto: 'col-span-2 @min-[30rem]:col-span-1',
   diezmo: 'col-span-2 @min-[30rem]:col-span-1',
   cocos: 'col-span-3 @min-[30rem]:col-span-1',
-  entre: 'col-span-3 @min-[30rem]:col-span-1',
-  dolares: 'col-span-2 @min-[30rem]:col-span-1',
+  entre: 'col-span-6 @min-[30rem]:col-span-1',
+  dolares: 'col-span-3 @min-[30rem]:col-span-1',
 };
 
 const LUGAR_CON_LOS_DOLARES: Readonly<Record<GrupoDeMovimiento, string>> = {
   ...LUGAR_DEL_GRUPO,
+  entre: 'col-span-3 @min-[30rem]:col-span-1',
+};
+
+const LUGAR_CON_COCOS: Readonly<Record<GrupoDeMovimiento, string>> = {
+  ...LUGAR_DEL_GRUPO,
+  entre: 'col-span-3 @min-[30rem]:col-span-1',
+};
+
+const LUGAR_CON_COCOS_Y_DOLARES: Readonly<Record<GrupoDeMovimiento, string>> = {
+  ...LUGAR_DEL_GRUPO,
   cocos: 'col-span-2 @min-[30rem]:col-span-1',
   entre: 'col-span-2 @min-[30rem]:col-span-1',
+  dolares: 'col-span-2 @min-[30rem]:col-span-1',
 };
 
 function ayerLocal(hoy: string): string {
@@ -236,7 +247,7 @@ function claseQueSePuede(
   clase: ClaseDeMovimiento,
   tesoros: readonly TesoroDelTaller[],
 ): ClaseDeMovimiento {
-  return CLASE[clase].grupo === 'dolares' && !hayDolaresParaCargar(tesoros) ? 'gasto_hogar' : clase;
+  return CLASE[clase].grupo === 'dolares' && !hayDolaresParaCargar(tesoros) ? 'gasto_maun' : clase;
 }
 
 function cotizacionDeLosDos(
@@ -266,16 +277,27 @@ function Segmentado({
   alElegir: (nuevo: GrupoDeMovimiento) => void;
 }) {
   const m = useMensajes();
-  const grupos = GRUPOS.filter((opcion) => conDolares || opcion.id !== 'dolares');
-  const lugar = conDolares ? LUGAR_CON_LOS_DOLARES : LUGAR_DEL_GRUPO;
+  const grupos = gruposQueSeCargan(grupo).filter((opcion) => conDolares || opcion.id !== 'dolares');
+  const conCocos = grupos.some((opcion) => opcion.id === 'cocos');
+  const lugar = conCocos
+    ? conDolares
+      ? LUGAR_CON_COCOS_Y_DOLARES
+      : LUGAR_CON_COCOS
+    : conDolares
+      ? LUGAR_CON_LOS_DOLARES
+      : LUGAR_DEL_GRUPO;
+  const columnas =
+    grupos.length >= 6
+      ? '@min-[30rem]:grid-cols-6'
+      : grupos.length === 5
+        ? '@min-[30rem]:grid-cols-5'
+        : '@min-[30rem]:grid-cols-4';
   return (
     <div className="@container">
       <div
         role="radiogroup"
         aria-label={m.registrarMovimiento.tipo}
-        className={`grid grid-cols-6 gap-0.5 rounded-panel bg-ink/6 p-1 ${
-          conDolares ? '@min-[30rem]:grid-cols-6' : '@min-[30rem]:grid-cols-5'
-        }`}
+        className={`grid grid-cols-6 gap-0.5 rounded-panel bg-ink/6 p-1 ${columnas}`}
       >
         {grupos.map((opcion) => (
           <button
@@ -399,6 +421,7 @@ export interface HojaDeMovimientoProps {
   montoInicial?: number;
   categoriaInicial?: string;
   fechaInicial?: string;
+  vencimientoInicial?: string;
   renglones?: ReadonlyMap<string, readonly string[]>;
   tesoros: readonly TesoroDelTaller[];
   tesorosSincronizados: boolean;
@@ -414,6 +437,7 @@ export function HojaDeMovimiento({
   montoInicial,
   categoriaInicial,
   fechaInicial,
+  vencimientoInicial,
   renglones,
   tesoros,
   tesorosSincronizados,
@@ -429,7 +453,7 @@ export function HojaDeMovimiento({
   const [iniciales] = useState(() => {
     const clase = movimiento
       ? claseDeLaFila(movimiento, tesoros)
-      : claseQueSePuede(claseInicial ?? 'gasto_hogar', tesoros);
+      : claseQueSePuede(claseInicial ?? 'gasto_maun', tesoros);
     const tesoroElegido = tesoroInicialElegido(movimiento, clase, tesoroInicial, tesoros);
     const lados = ladosIniciales(movimiento, clase, tesoros, {
       ...(tesoroInicial === undefined ? {} : { desde: tesoroInicial }),
@@ -685,7 +709,16 @@ export function HojaDeMovimiento({
         },
       });
     } else {
-      crear.mutate({ id: uuidv7(), ...campos });
+      const deUnVencimiento =
+        vencimientoInicial !== undefined &&
+        datos.tipo === 'gasto' &&
+        'desde_id' in lados &&
+        lados.desde_id === tesoroInicial;
+      crear.mutate({
+        id: uuidv7(),
+        ...campos,
+        ...(deUnVencimiento ? { vencimiento: vencimientoInicial } : {}),
+      });
     }
     alCerrar();
   }
@@ -802,13 +835,13 @@ export function HojaDeMovimiento({
             </p>
           )}
 
-          {clasesDelGrupo(datos.grupo).length > 1 && (
+          {clasesDelGrupo(datos.grupo, clase).length > 1 && (
             <div
               role="group"
               aria-label={m.registrarMovimiento.detalleDelTipo}
               className="flex flex-wrap gap-2"
             >
-              {clasesDelGrupo(datos.grupo)
+              {clasesDelGrupo(datos.grupo, clase)
                 .filter(
                   (opcion) =>
                     !opcion.eligeElTesoro ||

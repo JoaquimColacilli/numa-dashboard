@@ -70,6 +70,12 @@ const OPERACION: Readonly<Record<QueSeGuarda, OperacionRechazada>> = {
   notaDeCreditoPedida: 'nota-de-credito',
   alertaRevisada: 'guardado',
   datosDeFacturacion: 'guardado',
+  respuestaAtendida: 'guardado',
+  fechaDelContacto: 'proyecto',
+  respuestasDeLaConsulta: 'proyecto',
+  preguntasDeLaConsulta: 'guardado',
+  saldoAjustado: 'guardado',
+  adelantoRegistrado: 'guardado',
 };
 
 const CLAVE_DE_LO_ANOTADO = 'anotado-sin-senal';

@@ -53,6 +53,7 @@ import {
 import { CaminoDeHitos } from './CaminoDeHitos';
 import { ComoPagar } from './ComoPagar';
 import { CoordinarLaEntrega } from './CoordinarLaEntrega';
+import type { AprobarElPresupuesto } from '../model/aprobar';
 import { ElPresupuesto, ElPresupuestoAceptado } from './ElPresupuesto';
 import { useEscritura } from './escritura';
 import { TusFacturas } from './TusFacturas';
@@ -62,6 +63,7 @@ export interface VistaDelClienteProps {
   vista: Vista;
   hoy: string;
   alMandar?: MandarLaEntrega;
+  alAprobar?: AprobarElPresupuesto;
 }
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
@@ -215,7 +217,9 @@ function lineaDeLaEntrada(vista: VistaEsperandoLaSena, escritura: Escritura): st
   if (vista.proyeccion.situacion === 'vencida') {
     return t.pagina.presupuestoVencido(f.fechaLarga(vista.proyeccion.vencio, hoy));
   }
-  if (vista.opciones > 0) return t.pagina.miraLasOpciones(vista.opciones);
+  if (vista.opciones > 0 && vista.elPresupuesto?.aprobacion.situacion !== 'aprobada') {
+    return t.pagina.miraLasOpciones(vista.opciones);
+  }
   return lineaDeLaSena(vista.sena, vista.pagado, vista.moneda, escritura);
 }
 
@@ -385,10 +389,15 @@ function ParaCuando({
   const { t, f } = useEscritura(hoy);
   const [principal, ...resto] = textoDeLaProyeccion(
     proyeccion,
-    { enUnaFrase: (fecha) => f.fechaEnUnaFrase(fecha, hoy) },
+    {
+      enUnaFrase: (fecha) => f.fechaEnUnaFrase(fecha, hoy),
+      plata: (monto, moneda) => f.plata(monto, moneda),
+      porcentaje: f.porcentaje,
+    },
     sena.situacion,
     t.delDominio.proyeccion,
   );
+  if (principal === undefined) return null;
   return (
     <section aria-label={t.pagina.paraCuando}>
       <div className={TARJETA}>
@@ -462,7 +471,7 @@ function CierreDeLosPagos({ vista, hoy }: { vista: Vista; hoy: string }) {
   }
 }
 
-export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) {
+export function VistaDelCliente({ vista, hoy, alMandar, alAprobar }: VistaDelClienteProps) {
   const escritura = useEscritura(hoy);
   const { t, f } = escritura;
   const [anuncio, setAnuncio] = useState('');
@@ -528,13 +537,15 @@ export function VistaDelCliente({ vista, hoy, alMandar }: VistaDelClienteProps) 
             <EntradaDeLaVista vista={vista} bajada={nota?.resumen ?? ''} hoy={hoy} />
           </TarjetaConLamina>
 
-          {vista.etapa === 'esperando-la-sena' && vista.elPresupuesto !== null && (
-            <ElPresupuesto
-              presupuesto={vista.elPresupuesto}
-              hoy={hoy}
-              hayComoPagar={hayConQuePagar}
-            />
-          )}
+          {(vista.etapa === 'esperando-la-sena' || vista.etapa === 'antes-del-presupuesto') &&
+            vista.elPresupuesto !== null && (
+              <ElPresupuesto
+                presupuesto={vista.elPresupuesto}
+                hoy={hoy}
+                hayComoPagar={hayConQuePagar}
+                alAprobar={alAprobar}
+              />
+            )}
 
           <p
             role="status"

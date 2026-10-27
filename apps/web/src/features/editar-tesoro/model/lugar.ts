@@ -1,5 +1,7 @@
 import {
   centavos,
+  DIA_DE_PAGO_PROPUESTO,
+  esDiaDePago,
   lugarLibreDelReparto,
   MONEDA_DEL_TALLER,
   MONTO_MAXIMO_DE_LA_FILA,
@@ -12,6 +14,7 @@ import {
   type Moneda,
   type Money,
   type PuntosBasicos,
+  type QueEsElTesoro,
 } from '@maun/domain';
 
 import { lugaresParaSumar, type LugarEnLaFila } from '@/entities/fila';
@@ -29,11 +32,36 @@ export type DondeVa =
       porcentaje: PuntosBasicos;
       base: BaseDeLaObligacion;
       antesDelDiezmo: boolean;
+      montoFijo: Money | null;
     }
-  | { lugar: 'compromiso'; monto: Money }
+  | { lugar: 'compromiso'; monto: Money; dia: number; pagaSola: boolean }
   | { lugar: 'ahorro-fijo'; monto: Money }
   | { lugar: 'reparto'; porcentaje: PuntosBasicos }
   | { lugar: 'superavit' };
+
+export const LUGARES_DEL_TIPO: Readonly<Record<QueEsElTesoro, readonly LugarDelTesoro[]>> = {
+  caja: ['estante', 'ahorro-fijo', 'reparto', 'superavit'],
+  meta: ['estante', 'ahorro-fijo', 'reparto'],
+  'deuda-destinada': ['obligacion'],
+  'deuda-obligatoria': ['compromiso'],
+};
+
+export function tipoDelLugar(lugar: LugarDelTesoro): QueEsElTesoro | null {
+  if (lugar === 'obligacion') return 'deuda-destinada';
+  if (lugar === 'compromiso') return 'deuda-obligatoria';
+  return null;
+}
+
+export function lugarDelTipo(tipo: QueEsElTesoro, inicial: LugarDelTesoro): LugarDelTesoro {
+  const lugares = LUGARES_DEL_TIPO[tipo];
+  return lugares.includes(inicial) ? inicial : (lugares[0] ?? 'estante');
+}
+
+export function tiposPosibles(moneda: Moneda): readonly QueEsElTesoro[] {
+  return moneda === MONEDA_DEL_TALLER
+    ? ['caja', 'deuda-destinada', 'deuda-obligatoria', 'meta']
+    : ['caja', 'meta'];
+}
 
 export interface OpcionDeLugar {
   id: LugarDelTesoro;
@@ -182,6 +210,8 @@ export const SUGERENCIAS_DEL_LUGAR: Readonly<
 export interface ErroresDelLugar {
   monto?: string;
   porcentaje?: string;
+  montoFijo?: string;
+  dia?: string;
 }
 
 export interface LoQueSePide {
@@ -189,7 +219,15 @@ export interface LoQueSePide {
   porcentaje: string;
   base: BaseDeLaObligacion;
   antesDelDiezmo: boolean;
+  conMontoFijo?: boolean;
+  montoFijo?: number | null;
+  dia?: string;
+  pagaSola?: boolean;
 }
+
+export const DIA_DE_PAGO_INICIAL = String(DIA_DE_PAGO_PROPUESTO);
+
+const PORCENTAJE_CON_MONTO_FIJO = 100;
 
 export type LugarRevisado =
   { dondeVa: DondeVa; errores?: undefined } | { dondeVa?: undefined; errores: ErroresDelLugar };
@@ -203,7 +241,16 @@ function montoRevisado(monto: number | null): Money | string {
 
 export function revisarElLugar(
   lugar: LugarDelTesoro,
-  { monto, porcentaje, base, antesDelDiezmo }: LoQueSePide,
+  {
+    monto,
+    porcentaje,
+    base,
+    antesDelDiezmo,
+    conMontoFijo = false,
+    montoFijo = null,
+    dia = DIA_DE_PAGO_INICIAL,
+    pagaSola = true,
+  }: LoQueSePide,
   fila: Pick<Fila, 'reparto'>,
 ): LugarRevisado {
   switch (lugar) {
@@ -211,14 +258,38 @@ export function revisarElLugar(
       return { dondeVa: { lugar: 'estante' } };
     case 'superavit':
       return { dondeVa: { lugar: 'superavit' } };
-    case 'compromiso':
     case 'ahorro-fijo': {
       const revisado = montoRevisado(monto);
       return typeof revisado === 'string'
         ? { errores: { monto: revisado } }
         : { dondeVa: { lugar, monto: revisado } };
     }
+    case 'compromiso': {
+      const revisado = montoRevisado(monto);
+      const numero = Number(dia.trim());
+      const diaValido = /^\d{1,2}$/.test(dia.trim()) && esDiaDePago(numero);
+      const errores: ErroresDelLugar = {
+        ...(typeof revisado === 'string' ? { monto: revisado } : {}),
+        ...(diaValido ? {} : { dia: mensajes().editarTesoro.errores.diaDePago }),
+      };
+      if (typeof revisado === 'string' || !diaValido) return { errores };
+      return { dondeVa: { lugar, monto: revisado, dia: numero, pagaSola } };
+    }
     case 'obligacion': {
+      if (conMontoFijo) {
+        const revisado = montoRevisado(montoFijo);
+        return typeof revisado === 'string'
+          ? { errores: { montoFijo: revisado } }
+          : {
+              dondeVa: {
+                lugar,
+                porcentaje: puntosBasicos(PORCENTAJE_CON_MONTO_FIJO),
+                base,
+                antesDelDiezmo,
+                montoFijo: revisado,
+              },
+            };
+      }
       const bp = parsearPorcentaje(porcentaje, PORCENTAJE_MAXIMO);
       if (bp === undefined || bp <= 0) {
         return {
@@ -231,7 +302,7 @@ export function revisarElLugar(
         };
       }
       return {
-        dondeVa: { lugar, porcentaje: puntosBasicos(bp), base, antesDelDiezmo },
+        dondeVa: { lugar, porcentaje: puntosBasicos(bp), base, antesDelDiezmo, montoFijo: null },
       };
     }
     case 'reparto': {

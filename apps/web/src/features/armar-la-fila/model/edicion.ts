@@ -6,9 +6,9 @@ import {
   cambiarLaParte,
   CERO,
   lugarLibreDelReparto,
-  modoInicial,
   moverObligacion,
   moverPaso,
+  pasoNuevo as pasoNuevoDeLaFila,
   ponerDespues,
   ponerElSuperavit,
   ponerEnElReparto,
@@ -32,6 +32,7 @@ import {
 
 import type { Tesoro } from '@/shared/api';
 import { mensajes, textosDelIdioma } from '@/shared/idioma';
+import { hoyEnElTaller } from '@/shared/lib';
 
 export { entraOtroPaso, puedeIrAlReparto } from '@/entities/fila';
 
@@ -74,23 +75,35 @@ export interface OpcionesDelPasoNuevo {
   clase?: ClaseDePaso;
   meta?: Money | null;
   renglon?: string;
+  dia?: number;
+  pagaSola?: boolean;
+  hoy?: string;
 }
 
 export function pasoNuevo(
   tesoro: string,
   clave: Tesoro | null,
   tope: Money = CERO,
-  { clase = claseDeSiempre(clave), meta = null, renglon }: OpcionesDelPasoNuevo = {},
+  {
+    clase = claseDeSiempre(clave),
+    meta = null,
+    renglon,
+    dia,
+    pagaSola,
+    hoy = hoyEnElTaller(),
+  }: OpcionesDelPasoNuevo = {},
 ): PasoDeLaFila {
   const nombre = renglon ?? (clave === 'maun' ? 'Costos fijos' : RENGLON_DE_UN_COMPROMISO);
+  const base = pasoNuevoDeLaFila(tesoro, clase, clave, tope, hoy);
+  const conDia = base.dia === null ? null : (dia ?? base.dia);
+  const seLaPaga = conDia !== null && (pagaSola ?? base.pagaSola);
   return {
-    tesoro,
-    clase,
-    tope,
+    ...base,
     renglones: clase === 'fijos' ? [{ nombre, monto: tope, dia: null }] : [],
-    desde: null,
-    modo: modoInicial(clase, clave),
     hastaLaMeta: admiteLaMeta(clase) && tieneMeta(meta),
+    dia: conDia,
+    pagaSola: seLaPaga,
+    pagaSolaDesde: seLaPaga ? hoy : null,
   };
 }
 
@@ -132,6 +145,8 @@ export interface OpcionesDelTipo {
   meta?: Money | null;
   renglon?: string;
   despuesDe?: string | null;
+  dia?: number;
+  pagaSola?: boolean;
 }
 
 export function sumarComoTipo(
@@ -176,16 +191,27 @@ export interface ObligacionNueva {
   porcentaje?: PuntosBasicos;
   base?: BaseDeLaObligacion;
   posicion?: number;
+  montoFijo?: Money | null;
 }
 
 export function sumarComoObligacion(
   fila: Fila,
   tesoro: string,
-  { porcentaje = puntosBasicos(0), base = 'ingreso', posicion }: ObligacionNueva = {},
+  {
+    porcentaje = puntosBasicos(0),
+    base = 'ingreso',
+    posicion,
+    montoFijo = null,
+  }: ObligacionNueva = {},
 ): Fila {
   const sin = sacarDeLaFila(fila, tesoro);
   const lugar = Math.min(Math.max(0, posicion ?? sin.obligaciones.length), sin.obligaciones.length);
-  return ponerObligacion(sin, { tesoro, porcentaje, base }, lugar);
+  return ponerObligacion(sin, { tesoro, porcentaje, base, montoFijo }, lugar);
+}
+
+export function conMontoFijo(fila: Fila, tesoro: string, montoFijo: Money | null): Fila {
+  if (!fila.obligaciones.some((obligacion) => obligacion.tesoro === tesoro)) return fila;
+  return cambiarLaObligacion(fila, tesoro, { montoFijo });
 }
 
 export function puedeMoverseLaObligacion(fila: Fila, tesoro: string, hacia: -1 | 1): boolean {
@@ -261,8 +287,13 @@ export function conClase(
   const renglones: Renglon[] =
     clase === 'fijos' ? [{ nombre: RENGLON_DE_UN_COMPROMISO, monto: paso.tope, dia: null }] : [];
   const cambiada = cambiarLaClase(fila, tesoro, clase, renglones);
-  if (!admiteLaMeta(clase) || !tieneMeta(meta)) return cambiada;
-  return cambiarElPaso(cambiada, tesoro, { hastaLaMeta: true });
+  const deuda = pasoDe(cambiada, tesoro);
+  const conDesde =
+    deuda?.pagaSola === true && deuda.pagaSolaDesde === null
+      ? cambiarElPaso(cambiada, tesoro, { pagaSolaDesde: hoyEnElTaller() })
+      : cambiada;
+  if (!admiteLaMeta(clase) || !tieneMeta(meta)) return conDesde;
+  return cambiarElPaso(conDesde, tesoro, { hastaLaMeta: true });
 }
 
 export function conTipo(
@@ -281,6 +312,27 @@ export function conTope(fila: Fila, tesoro: string, tope: Money): Fila {
 
 export function conRenglones(fila: Fila, tesoro: string, renglones: readonly Renglon[]): Fila {
   return cambiarElPaso(fila, tesoro, { renglones });
+}
+
+export function conDiaDePago(fila: Fila, tesoro: string, dia: number): Fila {
+  const paso = pasoDe(fila, tesoro);
+  if (paso === undefined || paso.dia === dia) return fila;
+  return cambiarElPaso(fila, tesoro, {
+    dia,
+    modo: 'mes',
+    renglones: paso.renglones.map((renglon) => ({ ...renglon, dia: null })),
+  });
+}
+
+export function conPagaSola(
+  fila: Fila,
+  tesoro: string,
+  pagaSola: boolean,
+  hoy: string = hoyEnElTaller(),
+): Fila {
+  const paso = pasoDe(fila, tesoro);
+  if (paso === undefined || paso.pagaSola === pagaSola || paso.dia === null) return fila;
+  return cambiarElPaso(fila, tesoro, { pagaSola, pagaSolaDesde: pagaSola ? hoy : null });
 }
 
 export function conDia(fila: Fila, tesoro: string, indice: number, dia: number | null): Fila {

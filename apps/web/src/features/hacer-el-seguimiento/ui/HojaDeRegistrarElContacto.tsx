@@ -25,7 +25,7 @@ import {
 } from '../model/seguimiento';
 import { CuandoLeEscribis } from './CuandoLeEscribis';
 
-type QueSigue = 'vuelve' | 'otra_fecha' | 'no_va';
+export type QueSigue = 'vuelve' | 'otra_fecha' | 'no_va';
 
 const OPCIONES: readonly QueSigue[] = ['vuelve', 'otra_fecha', 'no_va'];
 
@@ -42,6 +42,8 @@ export interface HojaDeRegistrarElContactoProps {
   pendiente: ProximoContacto;
   nombre: string;
   telefono: string;
+  vuelveALaConsulta?: boolean;
+  alRegistrar?: (que: QueSigue) => void;
   alCerrar: () => void;
 }
 
@@ -50,8 +52,11 @@ export function HojaDeRegistrarElContacto({
   pendiente,
   nombre,
   telefono,
+  vuelveALaConsulta = false,
+  alRegistrar,
   alCerrar,
 }: HojaDeRegistrarElContactoProps) {
+  const queInicial: QueSigue | null = vuelveALaConsulta ? 'vuelve' : null;
   const m = useMensajes();
   const textos = m.hacerElSeguimiento.registrarElContacto;
   const ids = useId();
@@ -60,7 +65,7 @@ export function HojaDeRegistrarElContacto({
   const [idDelSiguiente] = useState(uuidv7);
   const [dia, setDia] = useState(hoy);
   const [respuesta, setRespuesta] = useState('');
-  const [que, setQue] = useState<QueSigue | null>(null);
+  const [que, setQue] = useState<QueSigue | null>(queInicial);
   const [etapa, setEtapa] = useState<EstadoDeConsulta>(() => etapaAlVolver(pendiente));
   const [fecha, setFecha] = useState('');
   const [nota, setNota] = useState('');
@@ -80,7 +85,11 @@ export function HojaDeRegistrarElContacto({
   }, [guardar.isPaused, alCerrar]);
 
   const conCambios =
-    dia !== hoy || respuesta.trim() !== '' || que !== null || fecha !== '' || nota.trim() !== '';
+    dia !== hoy ||
+    respuesta.trim() !== '' ||
+    que !== queInicial ||
+    fecha !== '' ||
+    nota.trim() !== '';
 
   function terminar(): void {
     if (yaTermino.current) return;
@@ -115,6 +124,7 @@ export function HojaDeRegistrarElContacto({
       idDelSiguiente,
     );
 
+    alRegistrar?.(que);
     if (que === 'no_va') {
       if (respuesta.trim() !== '') guardar.mutate(guardado);
       yaTermino.current = true;

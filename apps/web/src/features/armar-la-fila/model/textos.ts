@@ -35,6 +35,7 @@ export function textoDelProblema(problema: ProblemaDeLaFila, nombre?: string): s
 
 export type LugarDelProblema =
   | 'tope'
+  | 'dia'
   | 'renglones'
   | 'reparto'
   | 'tesoro'
@@ -81,6 +82,14 @@ const LUGAR_DEL_PROBLEMA: Readonly<Record<ProblemaDeLaFila, LugarDelProblema>> =
   'superavit-invalido': 'superavit',
   'superavit-en-la-fila': 'superavit',
   'sueldo-por-trabajo': 'fila',
+  'monto-fijo-invalido': 'obligacion',
+  'diezmo-por-monto': 'obligacion',
+  'dia-de-pago-invalido': 'dia',
+  'dia-de-pago-fuera-de-compromiso': 'dia',
+  'dias-en-los-renglones': 'renglones',
+  'paga-sola-sin-dia': 'dia',
+  'paga-sola-en-maun': 'dia',
+  'paga-sola-desde-invalido': 'dia',
 };
 
 export function lugarDelProblema(problema: ProblemaDeLaFila): LugarDelProblema {
@@ -224,6 +233,26 @@ export function renglonDelCambio(
       };
     case 'cambian-los-dias':
       return { icono: 'calendar', frase: (Nombre) => textos.cambianLosDias(Nombre, nombre) };
+    case 'cambia-el-monto-fijo':
+      return {
+        icono: 'coins',
+        frase: (Nombre) =>
+          textos.cambiaElMontoFijo(
+            Nombre,
+            nombre,
+            cambio.despues === null ? null : formatearPesos(cambio.despues),
+          ),
+      };
+    case 'cambia-el-dia-de-pago':
+      return {
+        icono: 'calendar',
+        frase: (Nombre) => textos.cambiaElDiaDePago(Nombre, nombre, cambio.despues),
+      };
+    case 'cambia-paga-sola':
+      return {
+        icono: 'calendar-check',
+        frase: (Nombre) => textos.cambiaPagaSola(Nombre, nombre, cambio.pagaSola),
+      };
     case 'cambia-el-modo':
       return {
         icono: 'refresh-cw',

@@ -1,3 +1,4 @@
+import { diasParaMedir } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +8,7 @@ import {
   estaElegido,
   llegoAlMaximo,
   mesesDelCalendario,
+  mesesParaMedir,
 } from './calendario';
 
 const HOY = '2026-09-25';
@@ -30,6 +32,21 @@ describe('el calendario de la entrega', () => {
     expect(septiembre?.semanas).toHaveLength(1);
     expect(septiembre?.semanas[0]?.[0]?.fecha).toBe('2026-09-28');
     expect(octubre?.semanas.at(-1)?.[0]?.fecha).toBe('2026-10-19');
+  });
+});
+
+describe('el calendario para ir a medir', () => {
+  it('va de pasado mañana a dentro de 60 días, con todos los días de la semana', () => {
+    const meses = mesesParaMedir(diasParaMedir(HOY), HOY);
+    expect(meses.map((mes) => mes.mes)).toEqual(['2026-09', '2026-10', '2026-11']);
+    const elegibles = meses
+      .flatMap((mes) => mes.semanas.flat())
+      .filter((celda) => celda.sePuede)
+      .map((celda) => celda.fecha);
+    expect(elegibles[0]).toBe('2026-09-27');
+    expect(elegibles.at(-1)).toBe('2026-11-24');
+    expect(elegibles).toContain('2026-10-04');
+    expect(elegibles).toHaveLength(59);
   });
 });
 

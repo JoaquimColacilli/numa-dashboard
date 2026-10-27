@@ -52,7 +52,9 @@ const METADATOS = {
 } as const;
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -62,6 +64,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -71,6 +76,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -96,6 +104,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, m
     icono: 'vault',
     meta_centavos: meta > 0 ? meta : null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     moneda: 'ARS',
@@ -173,6 +182,7 @@ function replicaDelMes(fila: Fila = FILA): Replica {
     desde_id: FIJOS,
     hacia_id: null,
     cubre_el_mes: null,
+    vencimiento: null,
     monto_centavos: 100,
     monto_destino_centavos: null,
     categoria: 'Alquiler',
@@ -234,6 +244,9 @@ describe('lo del mes de la fila del taller', () => {
           desde: null,
           modo: 'trabajo',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
     };
@@ -293,8 +306,8 @@ describe('lo del mes de la fila del taller', () => {
     const conIngresosBrutos: Fila = {
       ...FILA,
       obligaciones: [
-        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
-        { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' },
+        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
+        { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
       ],
       pasos: [],
       reparto: [],
@@ -349,6 +362,9 @@ describe('los tipos de la fila', () => {
         desde: null,
         modo: 'mes',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
   };
@@ -403,6 +419,9 @@ describe('los tipos de la fila', () => {
           desde: null,
           modo: 'mes',
           hastaLaMeta: true,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
     };

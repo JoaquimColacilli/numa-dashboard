@@ -15,6 +15,49 @@ export const fila = {
     ahorros: 'Reservas',
     superavit: 'Superávit',
   },
+  queEs: {
+    caja: 'Caixa',
+    'deuda-destinada': 'Obrigação',
+    'deuda-obligatoria': 'Conta',
+    meta: 'Meta',
+  },
+  ayudasDeLoQueEs: {
+    caja: {
+      que: 'O que é um caixa',
+      texto:
+        'Junta sem limite. Não vence nem volta a zero sozinha. Maun é o caixa geral da marcenaria.',
+    },
+    'deuda-destinada': {
+      que: 'O que é uma obrigação',
+      texto:
+        'Leva uma parte de cada recebimento, em porcentagem ou um valor fixo. Fica para entregar até você registrar o pagamento.',
+    },
+    'deuda-obligatoria': {
+      que: 'O que é uma conta',
+      texto:
+        'Junta até o limite entre um vencimento e o seguinte. No dia de pagamento é paga e começa do zero. Se não chegou ao limite, Maun põe o que falta.',
+    },
+    meta: {
+      que: 'O que é uma meta',
+      texto:
+        'Junta até chegar ao objetivo. Quando chega, deixa de receber e a parte dela segue para baixo.',
+    },
+    pagaSola: {
+      que: 'O que quer dizer que se paga sozinha',
+      texto:
+        'No dia de pagamento, o NUMA registra o pagamento. Se não juntou o limite, Maun põe e fica registrado como dívida interna.',
+    },
+    adelanto: {
+      que: 'O que é um adiantamento',
+      texto:
+        'Se você tirar uma parte antes do dia de pagamento, registre aqui: nesse dia é descontada.',
+    },
+    deudaInterna: {
+      que: 'O que é a dívida interna',
+      texto: 'O que Maun pôs para cobrir um pagamento que não chegou ao limite.',
+    },
+  },
+  paraCuando: (mes, anio) => `para ${mes} de ${anio}`,
   descripcionDelTipo: {
     obligacion: 'obrigação',
     compromiso: 'conta',
@@ -63,18 +106,6 @@ export const fila = {
       que: 'O que a receita mostra',
       texto:
         'É o mapa de como cada recebimento é dividido. Os valores são de uma simulação ou do que entrou no mês. Quando você recebe por um projeto, o recebimento mostra como foi dividido.',
-    },
-    queEs: {
-      que: 'O que é cada tipo de etapa',
-      compromiso: {
-        rotulo: 'Conta:',
-        texto:
-          'o que você precisa pagar, como salários, aluguel ou parcelas. O pró-labore vai sempre para Hogar.',
-      },
-      ahorroFijo: {
-        rotulo: 'Reserva fixa:',
-        texto: 'um valor que você separa do lucro, como o estoque da marcenaria.',
-      },
     },
     monto: {
       que: 'O que é o valor',

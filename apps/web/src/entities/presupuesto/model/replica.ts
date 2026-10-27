@@ -1,4 +1,10 @@
-import { idiomaLeido, puedeCambiarEstado, sinBlancosEnLasPuntas } from '@maun/domain';
+import {
+  idiomaLeido,
+  puedeCambiarEstado,
+  sinBlancosEnLasPuntas,
+  type DocumentoDelPresupuesto,
+  type EstadoProyecto,
+} from '@maun/domain';
 
 import {
   aplicarFilaLocal,
@@ -109,19 +115,26 @@ export function sinElBorradorGuardado(
     : aplicarFilaLocal(replica, 'presupuestos', previo);
 }
 
+export function estadoAlMandar(
+  estado: EstadoProyecto,
+  documento: Pick<DocumentoDelPresupuesto, 'estimativo'>,
+): EstadoProyecto {
+  if (documento.estimativo) return estado === 'contacto' ? 'presupuesto_estimativo' : estado;
+  return estado !== 'presupuesto_enviado' && puedeCambiarEstado(estado, 'presupuesto_enviado')
+    ? 'presupuesto_enviado'
+    : estado;
+}
+
 function proyectoMandado(
   proyecto: FilaDe<'proyectos'>,
   { pedido, momento }: EnvioDelPresupuesto,
 ): FilaDe<'proyectos'> {
-  const pasa =
-    proyecto.estado !== 'presupuesto_enviado' &&
-    puedeCambiarEstado(proyecto.estado, 'presupuesto_enviado');
   return {
     ...proyecto,
-    estado: pasa ? 'presupuesto_enviado' : proyecto.estado,
+    estado: estadoAlMandar(proyecto.estado, pedido.documento),
     presupuesto_vale_hasta: pedido.valeHasta,
     ultimo_contacto: pedido.mandadoEl,
-    presupuesto_pdf: true,
+    presupuesto_pdf: pedido.documento.estimativo ? proyecto.presupuesto_pdf : true,
     updated_at: momento,
     version: proyecto.version + 1,
   };
@@ -148,12 +161,11 @@ export function conElPresupuestoMandado(replica: Replica, envio: EnvioDelPresupu
     deleted_at: null,
     version: 1,
   });
-  const conElProyecto = aplicarFilaLocal(
-    conLaRevision,
-    'proyectos',
-    proyectoMandado(previos.proyecto, envio),
-  );
-  if (previos.proyecto.estado !== 'en_seguimiento') return conElProyecto;
+  const mandado = proyectoMandado(previos.proyecto, envio);
+  const conElProyecto = aplicarFilaLocal(conLaRevision, 'proyectos', mandado);
+  if (previos.proyecto.estado !== 'en_seguimiento' || mandado.estado === 'en_seguimiento') {
+    return conElProyecto;
+  }
   return previos.proximos
     .filter((contacto) => contacto.hecho_el === null)
     .reduce(

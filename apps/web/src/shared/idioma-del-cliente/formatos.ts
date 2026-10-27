@@ -71,5 +71,7 @@ export function formatosDelDocumento(idioma: Idioma): Formatos {
     porcentaje: f.porcentaje,
     modificaciones: textos.modificaciones,
     meses: textos.meses,
+    fecha: f.fechaConAnio,
+    senaAcordada: textos.senaAcordada,
   };
 }

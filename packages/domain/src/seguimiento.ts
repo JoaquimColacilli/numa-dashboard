@@ -1,4 +1,4 @@
-import { sumarDias, sumarMeses } from './fechas.ts';
+import { esFechaQueExiste, sumarDias, sumarMeses } from './fechas.ts';
 
 export const PLAZOS_DEL_SEGUIMIENTO = ['una_semana', 'un_mes', 'tres_meses'] as const;
 
@@ -21,4 +21,8 @@ export function fechaDelPlazo(hoy: string, plazo: PlazoDelSeguimiento): string {
 
 export function plazoDeLaFecha(hoy: string, fecha: string): PlazoDelSeguimiento | null {
   return PLAZOS_DEL_SEGUIMIENTO.find((plazo) => fechaDelPlazo(hoy, plazo) === fecha) ?? null;
+}
+
+export function esFechaParaElContacto(fecha: string, hoy: string): boolean {
+  return esFechaQueExiste(fecha) && fecha >= hoy;
 }

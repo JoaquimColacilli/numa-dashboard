@@ -35,10 +35,6 @@ export const paginaInicio = {
   pendienteDeCobro: 'Pendiente de cobro',
   proyectosEnCurso: (proyectos: number) => `${String(proyectos)} proyectos en curso`,
   diezmo: 'Diezmo',
-  proyeccionDeCocos: 'Proyección de Cocos',
-  cocosEnUnAnio: 'Cocos en un año',
-  conLaTasaQueCargaste: 'con la tasa que cargaste, sin aportes nuevos',
-  faltaParaLaMeta: 'falta para la meta',
   diaDelMes: (dia: number, dias: number) => `día ${String(dia)} de ${String(dias)}`,
   panorama: {
     titulo: 'Panorama',
@@ -46,11 +42,14 @@ export const paginaInicio = {
     ayuda: 'Dónde está la plata y para qué la podés usar.',
     paraPagar: 'Para pagar',
     nadaPendiente: 'nada pendiente',
-    ahorros: 'Ahorros',
-    todaviaSinAhorros: 'todavía sin ahorros',
-    superavit: 'Superávit',
-    enElTesoro: (tesoro: string) => `en ${tesoro}`,
-    enElTesoroQueNoAlcanza: (tesoro: string) => `en ${tesoro}, que no alcanza`,
+    metas: 'Metas',
+    todaviaSinMetas: 'todavía sin metas',
+    cajas: 'Cajas',
+    sinLosInsumos: (tesoros: number) =>
+      tesoros === 1
+        ? 'en una caja, sin los insumos'
+        : `en ${String(tesoros)} cajas, sin los insumos`,
+    noAlcanzanParaLosInsumos: 'no alcanzan para los insumos',
     insumos: 'Insumos de los trabajos',
     sinTrabajosEnCurso: 'sin trabajos en curso',
     deTrabajos: (trabajos: number) =>
@@ -77,7 +76,10 @@ export const paginaInicio = {
       ingreso: (porcentaje: string) => `${porcentaje}% sobre el ingreso`,
     },
     apartado: (monto: string) => `${monto} apartado`,
-    aPagar: (monto: string) => `A pagar ${monto}`,
+    aPagar: (monto: string) => `Para entregar ${monto}`,
+    reglaDelMontoFijo: (monto: string) => `${monto} de cada cobro`,
+    delCiclo: (desde: string, hasta: string) => `del ${desde} al ${hasta}`,
+    sueldoDelCiclo: (ciclo: string) => `sueldo · ${ciclo}`,
     alDia: 'Al día',
     sueldo: 'sueldo',
     costosFijos: 'costos fijos',
@@ -214,6 +216,7 @@ export const paginaInicio = {
     titulo: 'Metas',
     diezmoPagado: 'Diezmo pagado',
     deLaMeta: (saldo: string, meta: string) => `${saldo} de ${meta}`,
+    deLaMetaPara: (deLaMeta: string, para: string) => `${deLaMeta}, ${para}`,
   },
   portada: {
     arrancaAca: 'El taller arranca acá',
@@ -242,10 +245,11 @@ export const paginaInicio = {
     titulo: 'Tesoros',
     gastoMasDeLoQueEntro: 'gastó más de lo que entró',
     enNegativo: 'en negativo',
-    tipos: (tipos: readonly string[]) => tipos.join(' y '),
     pusoEnLosTrabajos: (monto: string) => `puso ${monto} en los trabajos`,
     noAlcanzaParaLosInsumos: (monto: string) => `no alcanza para ${monto} de insumos`,
     sonInsumos: (monto: string) => `${monto} son insumos`,
     deLaMeta: (porcentaje: number) => `${String(porcentaje)}% de la meta`,
+    deLaMetaPara: (porcentaje: number, para: string) =>
+      `${String(porcentaje)}% de la meta, ${para}`,
   },
 } as const;

@@ -1,6 +1,12 @@
-import { centavos, type EventoPropio, type EventoVencimiento } from '@maun/domain';
+import {
+  centavos,
+  type EventoDerivado,
+  type EventoPropio,
+  type EventoVencimiento,
+} from '@maun/domain';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { FilaDeEvento, type AccionesDeLaAgenda } from './FilaDeEvento';
@@ -123,6 +129,7 @@ const ALQUILER: EventoVencimiento = {
   monto: centavos(27_000_000),
   hecha: false,
   importante: false,
+  pagoSolo: null,
 };
 
 function accionesDelVencimiento() {
@@ -248,5 +255,102 @@ describe('un vencimiento en la agenda', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver en Tesoros' })).toBeInTheDocument();
+  });
+});
+
+const ESCRIBIRLE: EventoDerivado = {
+  clase: 'derivada',
+  id: 'seguimiento:pc1',
+  categoria: 'seguimiento',
+  fecha: '2026-09-25',
+  hora: null,
+  proyectoId: 'p1',
+  clienteId: 'c1',
+  titulo: 'Lucía Gómez',
+  cliente: 'Lucía Gómez',
+  lugar: '',
+  hecha: false,
+  importante: false,
+  comprometida: false,
+  franja: null,
+};
+
+function dibujar(fila: ReactNode): void {
+  render(
+    <MemoryRouter>
+      <ul>{fila}</ul>
+    </MemoryRouter>,
+  );
+}
+
+function conLaPantalla(enLaCompu: boolean): void {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: enLaCompu,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
+describe('un seguimiento en la agenda', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function acciones() {
+    const alCambiarLaFecha = vi.fn<(evento: EventoDerivado) => void>();
+    const todas: AccionesDeLaAgenda = {
+      alAbrirTrabajo: vi.fn(),
+      alTildar: vi.fn(),
+      alMarcar: vi.fn(),
+      alBorrar: vi.fn(),
+      alRegistrar: vi.fn(),
+      alCambiarLaFecha,
+    };
+    return { todas, alCambiarLaFecha };
+  }
+
+  it('en el día ofrece cambiarle la fecha, al lado de registrar el contacto', () => {
+    conLaPantalla(false);
+    const { todas, alCambiarLaFecha } = acciones();
+    dibujar(<FilaDeEvento evento={ESCRIBIRLE} hoy="2026-09-25" acciones={todas} enElDia />);
+    const fila = screen.getByRole('listitem');
+    expect(
+      within(fila).getByText(
+        'Sale del seguimiento del trabajo. Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va. Para pasarlo a otro día, cambiá la fecha.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(within(fila).getByRole('button', { name: 'Cambiar la fecha' }));
+    expect(alCambiarLaFecha).toHaveBeenCalledWith(ESCRIBIRLE);
+    expect(within(fila).getByRole('button', { name: 'Registrar el contacto' })).toBeInTheDocument();
+  });
+
+  it('con la grilla del mes, dice que también se arrastra a hoy o a un día que viene', () => {
+    conLaPantalla(true);
+    dibujar(
+      <FilaDeEvento evento={ESCRIBIRLE} hoy="2026-09-25" acciones={acciones().todas} enElDia />,
+    );
+    expect(
+      screen.getByText(
+        'Sale del seguimiento del trabajo. Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va. Para pasarlo a otro día, arrastralo en el mes a hoy o a un día que viene, o cambiá la fecha.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('sin la acción no ofrece cambiar la fecha, y una entrega tampoco', () => {
+    conLaPantalla(false);
+    const { alCambiarLaFecha: _sinCambiar, ...sinLaAccion } = acciones().todas;
+    dibujar(<FilaDeEvento evento={ESCRIBIRLE} hoy="2026-09-25" acciones={sinLaAccion} enElDia />);
+    expect(screen.queryByRole('button', { name: 'Cambiar la fecha' })).toBeNull();
+    cleanup();
+
+    dibujar(
+      <FilaDeEvento
+        evento={{ ...ESCRIBIRLE, id: 'entrega:p1', categoria: 'entrega' }}
+        hoy="2026-09-25"
+        acciones={acciones().todas}
+        enElDia
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Cambiar la fecha' })).toBeNull();
   });
 });

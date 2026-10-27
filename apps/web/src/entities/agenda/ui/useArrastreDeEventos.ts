@@ -1,4 +1,4 @@
-import { puedeArrastrarse, type EventoDeLaAgenda } from '@maun/domain';
+import { puedeArrastrarse, sePuedeSoltar, type EventoDeLaAgenda } from '@maun/domain';
 import {
   useCallback,
   useEffect,
@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { mensajes } from '@/shared/idioma';
+import { hoyLocal } from '@/shared/lib';
 
 import { diaEnPalabras, nombreDelEvento } from '../model/calendario';
 
@@ -121,6 +122,10 @@ export function useArrastreDeEventos({ fechas, alMover }: UsoDelArrastre): Accio
       setArrastre(null);
       if (arrastrado.destino === arrastrado.evento.fecha) {
         setAnuncio(textos().loDejaste(diaEnPalabras(arrastrado.evento.fecha)));
+        return;
+      }
+      if (!sePuedeSoltar(arrastrado.evento, arrastrado.destino, hoyLocal())) {
+        setAnuncio(textos().soloHoyOAdelante(nombreDelEvento(arrastrado.evento)));
         return;
       }
       setAnuncio(

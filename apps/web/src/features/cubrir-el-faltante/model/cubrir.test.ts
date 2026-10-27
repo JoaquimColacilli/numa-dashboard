@@ -1,4 +1,4 @@
-import { centavos, enPesos } from '@maun/domain';
+import { centavos, cicloDelPaso, enPesos } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
@@ -26,7 +26,7 @@ function tesoro(
     tinta: 'grana',
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(saldo)),
@@ -175,6 +175,38 @@ describe('los movimientos', () => {
         monto_centavos: 7_000_000,
       }),
     ]);
+  });
+
+  it('con un compromiso con día de pago, cubre el ciclo que arrancó en su último vencimiento', () => {
+    const [movimiento] = movimientosParaCubrir({
+      fuentes: [{ id: MAUN.id, monto: 20_000_000 }],
+      candidatos: candidatosParaCubrir(TESOROS, FIJOS),
+      paso: GASTOS_FIJOS,
+      mes: '2026-09',
+      hoy: '2026-09-27',
+      nuevoId: () => 'm',
+      cubre: cicloDelPaso({ dia: 10 }, '2026-09-27').desde,
+    });
+    expect(movimiento?.cubre_el_mes).toBe('2026-09-10');
+    const [delCicloAnterior] = movimientosParaCubrir({
+      fuentes: [{ id: MAUN.id, monto: 20_000_000 }],
+      candidatos: candidatosParaCubrir(TESOROS, FIJOS),
+      paso: GASTOS_FIJOS,
+      mes: '2026-09',
+      hoy: '2026-09-05',
+      nuevoId: () => 'm',
+      cubre: cicloDelPaso({ dia: 10 }, '2026-09-05').desde,
+    });
+    expect(delCicloAnterior?.cubre_el_mes).toBe('2026-08-10');
+    const [sinDia] = movimientosParaCubrir({
+      fuentes: [{ id: MAUN.id, monto: 20_000_000 }],
+      candidatos: candidatosParaCubrir(TESOROS, FIJOS),
+      paso: GASTOS_FIJOS,
+      mes: '2026-09',
+      hoy: '2026-09-27',
+      nuevoId: () => 'm',
+    });
+    expect(sinDia?.cubre_el_mes).toBe('2026-09-01');
   });
 
   it('sin los tesoros en la réplica manda solo las claves', () => {

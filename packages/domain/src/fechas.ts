@@ -165,3 +165,29 @@ export function diaDelMes(mes: string, dia: number): string {
   const ultimo = new Date(Date.UTC(Math.floor(numero / 12), (numero % 12) + 1, 0)).getUTCDate();
   return `${mes}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`;
 }
+
+export interface Ciclo {
+  desde: string;
+  hasta: string;
+}
+
+export function cicloDeLaFecha(fecha: string, dia: number): Ciclo {
+  const mes = mesDe(fecha);
+  const vence = diaDelMes(mes, dia);
+  if (fecha < vence) return { desde: diaDelMes(correrMes(mes, -1), dia), hasta: vence };
+  return { desde: vence, hasta: diaDelMes(correrMes(mes, 1), dia) };
+}
+
+export function estaEnElCiclo(fecha: string, ciclo: Ciclo): boolean {
+  return fecha >= ciclo.desde && fecha < ciclo.hasta;
+}
+
+export function vencimientosEntre(despuesDe: string, hasta: string, dia: number): string[] {
+  const vencimientos: string[] = [];
+  let ciclo = cicloDeLaFecha(despuesDe, dia);
+  while (ciclo.hasta <= hasta) {
+    vencimientos.push(ciclo.hasta);
+    ciclo = cicloDeLaFecha(ciclo.hasta, dia);
+  }
+  return vencimientos;
+}

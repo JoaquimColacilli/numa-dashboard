@@ -101,6 +101,7 @@ export const paginaProyectos = {
     leTocaba: (fecha) => `Was due on ${fecha}`,
     leVolvesAEscribir: (fecha) => `Write to them again on ${fecha}`,
     proximoContacto: 'Next follow-up',
+    cambiarLaFecha: 'Change the date',
     registrarElContacto: 'Log the follow-up',
     cuandoLeEscribas:
       'When you write to them, log it: there you choose whether it goes back to Inquiries, stays in Follow-up with another date, or is a no.',
@@ -142,6 +143,7 @@ export const paginaProyectos = {
   },
   consultas: {
     visita: 'Site measure',
+    tuClienteAprobo: 'Your client approved',
     vacioTitulo: 'No inquiries for now',
     vacioDetalle:
       "When someone calls you, add them here with what they want and the date of the site measure. If they left you a deposit at the site measure, add it: it goes into the shop's cash from that day. Once they approve it, it moves to Active.",

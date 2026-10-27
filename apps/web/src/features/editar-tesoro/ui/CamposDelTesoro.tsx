@@ -24,7 +24,7 @@ export interface CamposDelTesoroProps {
   tesoros: readonly TesoroDelTaller[];
   excepto: string | null;
   conMeta: boolean;
-  conRinde: boolean;
+  pideMeta?: boolean;
   eligeLaMoneda?: boolean;
   campoDelNombre?: Ref<HTMLInputElement>;
   debajoDelNombre?: ReactNode;
@@ -89,7 +89,7 @@ export function CamposDelTesoro({
   tesoros,
   excepto,
   conMeta,
-  conRinde,
+  pideMeta = false,
   eligeLaMoneda = false,
   campoDelNombre,
   debajoDelNombre,
@@ -238,29 +238,29 @@ export function CamposDelTesoro({
       </fieldset>
 
       {conMeta && (
-        <MoneyInput
-          etiqueta={textos.meta}
-          ayuda={textos.ayudaDeLaMeta}
-          moneda={borrador.moneda}
-          conMarcador={borrador.moneda !== MONEDA_DEL_TALLER}
-          value={borrador.meta}
-          onChange={(meta) => {
-            cambiar({ meta });
-          }}
-        />
-      )}
-
-      {conRinde && (
-        <Campo
-          etiqueta={textos.rinde}
-          inputMode="decimal"
-          ayuda={textos.ayudaDelRinde}
-          value={borrador.rinde}
-          error={errores.rinde}
-          onChange={(evento) => {
-            cambiar({ rinde: evento.target.value });
-          }}
-        />
+        <>
+          <MoneyInput
+            etiqueta={pideMeta ? textos.objetivo : textos.meta}
+            ayuda={pideMeta ? textos.ayudaDelObjetivo : textos.ayudaDeLaMeta}
+            moneda={borrador.moneda}
+            conMarcador={borrador.moneda !== MONEDA_DEL_TALLER}
+            value={borrador.meta}
+            error={errores.meta}
+            onChange={(meta) => {
+              cambiar({ meta });
+            }}
+          />
+          <Campo
+            etiqueta={textos.paraCuando}
+            type="date"
+            value={borrador.metaFecha}
+            ayuda={textos.ayudaDeLaFecha}
+            error={errores.metaFecha}
+            onChange={(evento) => {
+              cambiar({ metaFecha: evento.target.value });
+            }}
+          />
+        </>
       )}
     </>
   );

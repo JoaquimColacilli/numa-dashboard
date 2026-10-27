@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useParams } from 'react-router';
 
+import { respuestaPendiente } from '@/entities/presupuesto';
 import {
   opcionesDelProyecto,
   RUTA_DE_CONSULTAS,
@@ -28,6 +29,7 @@ export function ProyectoPasajePage() {
         <PantallaDePasaje
           resumen={resumen}
           opciones={opcionesDelProyecto(replica, id)}
+          respuestaDelCliente={respuestaPendiente(replica, id)}
           alCrearUnTesoroEnDolares={pedir}
         />
       )}

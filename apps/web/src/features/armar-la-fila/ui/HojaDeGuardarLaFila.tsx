@@ -1,9 +1,11 @@
-import { conDesde, type Money } from '@maun/domain';
+import { conDesde, conElPagaSolaDesde, type Money } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
 import { pruebaDeUnCobro } from '@/entities/fila';
+import { MUTACION_DE_MOVIMIENTO, vaEntreTesoros } from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
+import { datosDelMesDeLaReplica } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import {
   formatearPesos,
@@ -11,6 +13,7 @@ import {
   metaDeAvisos,
   TINTA,
   useAnchoDePantalla,
+  uuidv7,
   type Envoltorio,
   type TintaDeTesoro,
 } from '@/shared/lib';
@@ -19,9 +22,16 @@ import { Ayuda, Button, FilaDeAcciones, Hoja, Icono, type NombreDeIcono } from '
 import { MUTACION_DE_LA_FILA } from '../api/mutacion';
 import { descartarElBorrador } from '../model/borrador';
 import { comparacionDeLaFila } from '../model/comparacion';
+import {
+  faltaElegir,
+  loQueSePagaSolo,
+  movimientosDeLaPlataDeAntes,
+  type QueHacerConLaPlata,
+} from '../model/pagaSola';
 import { COBRO_DE_EJEMPLO } from '../model/prueba';
 import { cuantasCosas, renglonDelCambio } from '../model/textos';
 import { loQueEstabaGuardado, tesoroDe, type VistaDeLaFila } from '../model/vista';
+import { LoQueSePagaSolo } from './LoQueSePagaSolo';
 
 export interface HojaDeGuardarLaFilaProps {
   vista: VistaDeLaFila;
@@ -79,7 +89,18 @@ export function HojaDeGuardarLaFila({
   const [vista] = useState(laDeAhora);
   const enCelular = useAnchoDePantalla() === 'movil';
   const guardar = useMutation({ ...MUTACION_DE_LA_FILA, meta: metaDeAvisos('filaGuardada') });
+  const pasar = useMutation({
+    ...MUTACION_DE_MOVIMIENTO,
+    meta: metaDeAvisos('movimientoNuevo', { silencioso: true }),
+  });
   const borrador = vista.borrador;
+  const [pagosSolos] = useState(() =>
+    borrador === null
+      ? []
+      : loQueSePagaSolo(borrador.base, borrador.fila, datosDelMesDeLaReplica(replica), vista.hoy),
+  );
+  const [elegidos, setElegidos] = useState<Readonly<Record<string, QueHacerConLaPlata>>>({});
+  const falta = faltaElegir(pagosSolos, elegidos);
   const cobro = monto !== null && monto > 0 ? monto : COBRO_DE_EJEMPLO;
   const mes = mesEnUnaFrase(vista.mes);
 
@@ -106,17 +127,31 @@ export function HojaDeGuardarLaFila({
 
   const enCero = vista.fila.pasos.filter((paso) => paso.tope <= 0);
   const cuantas = vista.cambios.length + (borrador?.pasadoAMensual === true ? 1 : 0);
-  const sePuede = borrador !== null && vista.ajustesId !== null && vista.problemas.length === 0;
+  const sePuede =
+    borrador !== null && vista.ajustesId !== null && vista.problemas.length === 0 && !falta;
 
   function guardarLaFila(): void {
     if (borrador === null || vista.ajustesId === null || !sePuede) return;
     guardar.mutate({
       ajustesId: vista.ajustesId,
       version: borrador.version,
-      fila: conDesde(borrador.base, borrador.fila, vista.mes),
+      fila: conElPagaSolaDesde(
+        borrador.base,
+        conDesde(borrador.base, borrador.fila, vista.mes),
+        vista.hoy,
+      ),
       guardadaEn: new Date().toISOString(),
       previa: loQueEstabaGuardado(replica),
     });
+    for (const movimiento of movimientosDeLaPlataDeAntes(
+      pagosSolos,
+      elegidos,
+      vista.sistema.maun,
+      vista.hoy,
+      uuidv7,
+    )) {
+      pasar.mutate(movimiento);
+    }
     alGuardar?.();
     alCerrar();
     descartarElBorrador();
@@ -210,6 +245,36 @@ export function HojaDeGuardarLaFila({
             )}
           </section>
 
+          {pagosSolos.length > 0 && (
+            <ul className="flex flex-col gap-3">
+              {pagosSolos.map((pago) => {
+                const tesoro = tesoroDe(vista, pago.tesoro);
+                return (
+                  <LoQueSePagaSolo
+                    key={pago.tesoro}
+                    pago={pago}
+                    tesoro={tesoro}
+                    maun={tesoroDe(vista, vista.sistema.maun)}
+                    otros={vista.tesoros.filter(
+                      (otro) =>
+                        !otro.archivado &&
+                        vaEntreTesoros(otro) &&
+                        otro.id !== pago.tesoro &&
+                        otro.id !== vista.sistema.maun &&
+                        otro.moneda === tesoro.moneda,
+                    )}
+                    hoy={vista.hoy}
+                    elegido={elegidos[pago.tesoro]}
+                    Nombre={NOMBRE_EN_LA_TINTA[tesoro.tinta]}
+                    alElegir={(elegido) => {
+                      setElegidos((previos) => ({ ...previos, [pago.tesoro]: elegido }));
+                    }}
+                  />
+                );
+              })}
+            </ul>
+          )}
+
           {enCero.map((paso) => {
             const tesoro = tesoroDe(vista, paso.tesoro);
             return (
@@ -236,6 +301,11 @@ export function HojaDeGuardarLaFila({
         </div>
 
         <footer className="flex-none border-t border-hairline bg-paper px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-6 md:pb-3">
+          {falta && (
+            <p role="status" className="mb-2 text-label text-text-2">
+              {textos.faltaElegir}
+            </p>
+          )}
           <FilaDeAcciones>
             <Button variant="secundario" onClick={alCerrar}>
               {textos.seguirEditando}

@@ -17,7 +17,7 @@ import {
   type PresupuestoDelTrabajo,
   type TrabajoDelCliente,
 } from '@maun/domain';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -1013,6 +1013,8 @@ const FORMATOS: Formatos = {
   porcentaje: EN_CASTELLANO.porcentaje,
   modificaciones: MENSAJES_DEL_CLIENTE_EN_CASTELLANO.documento.modificaciones,
   meses: MENSAJES_DEL_CLIENTE_EN_CASTELLANO.documento.meses,
+  fecha: EN_CASTELLANO.fechaConAnio,
+  senaAcordada: MENSAJES_DEL_CLIENTE_EN_CASTELLANO.documento.senaAcordada,
 };
 
 const TALLER: DatosDelTaller = {
@@ -1036,6 +1038,7 @@ function documentoMandado(opciones: readonly OpcionDelTrabajo[] = []): Documento
     obra: 'Belgrano 455, Haedo',
     plantilla: PLANTILLA_DE_SIEMPRE,
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm1',
   });
   return documentoDelPresupuesto(
@@ -1050,6 +1053,8 @@ function documentoMandado(opciones: readonly OpcionDelTrabajo[] = []): Documento
           },
         ],
         herrajes: { mostrar: true, lista: [{ id: 'h1', texto: 'Correderas con cierre suave.' }] },
+        listoPara: '2026-10-30',
+        senaAntesDel: '2026-09-22',
       },
       plantilla: PLANTILLA_DE_SIEMPRE,
       taller: TALLER,
@@ -1059,6 +1064,7 @@ function documentoMandado(opciones: readonly OpcionDelTrabajo[] = []): Documento
       valores: valoresDelTrabajo(centavos(124_800_000), opciones),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(12_000_000),
+      mandadoEl: '2026-09-10',
     },
     FORMATOS,
   );
@@ -1130,7 +1136,7 @@ describe('el presupuesto mandado desde la app, esperando la seña', () => {
     expect(rotulo).toHaveTextContent('Vale hasta25/09/26');
   });
 
-  it('trae qué cambió, el trabajo, el detalle, los valores con lo pagado, el plazo, la validez y el pie', () => {
+  it('trae qué cambió, el trabajo, el detalle, los valores con lo pagado, las fechas, la validez y el pie', () => {
     dibujar(esperandoLaSena());
 
     const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
@@ -1145,7 +1151,9 @@ describe('el presupuesto mandado desde la app, esperando la seña', () => {
     expect(presupuesto).toHaveTextContent('Te falta para la seña$ 504.000');
     expect(presupuesto).toHaveTextContent('Después, el saldo$ 624.000');
     expect(presupuesto).toHaveTextContent('Seña del 50% para confirmar el trabajo');
-    expect(presupuesto).toHaveTextContent('Plazo de fabricación30 días hábiles');
+    expect(presupuesto).toHaveTextContent('Entrega estimada30 de octubre de 2026');
+    expect(presupuesto).toHaveTextContent('Seña antes del22 de septiembre de 2026');
+    expect(presupuesto).not.toHaveTextContent('Plazo de fabricación');
     expect(presupuesto).toHaveTextContent('ValidezHasta el vie 25 sep');
     expect(within(presupuesto).getByText('Garantía')).toBeInTheDocument();
     expect(presupuesto).toHaveTextContent('Garantía6 meses');
@@ -1223,6 +1231,28 @@ describe('el presupuesto mandado desde la app, esperando la seña', () => {
     expect(screen.queryByRole('link', { name: 'Cómo dejar la seña' })).not.toBeInTheDocument();
   });
 
+  it('con opciones que ya aprobó en la página, deja de pedirle que avise cuál prefiere', () => {
+    dibujar(
+      esperandoLaSena({
+        precio: null,
+        sena: null,
+        pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+        presupuesto: presupuestoMandado({
+          documento: documentoMandado(OPCIONES),
+          revisionId: 'revision-2',
+          respuesta: { opcionId: 'opcion-a', respondidaEl: '2026-09-12', dia: null, franja: null },
+        }),
+      }),
+    );
+
+    expect(screen.getByRole('region', { name: 'Tu mueble' })).not.toHaveTextContent(
+      'avisale al taller cuál preferís',
+    );
+    const presupuesto = screen.getByRole('region', { name: 'El presupuesto' });
+    expect(presupuesto).toHaveTextContent('Aprobaste la opción A el');
+    expect(presupuesto).not.toHaveTextContent('Elegí la opción que prefieras');
+  });
+
   it('vencido, la sección lo marca y deja de mandar a pagar la seña', () => {
     dibujar(
       esperandoLaSena({ fechas: fechas({ presupuesto: '2026-09-10', valeHasta: '2026-09-17' }) }),
@@ -1239,12 +1269,66 @@ describe('el presupuesto mandado desde la app, esperando la seña', () => {
     expect(screen.queryByRole('region', { name: 'Para cuándo' })).not.toBeInTheDocument();
   });
 
-  it('«Para cuándo» cuenta el plazo del presupuesto en vez de los 21 días hábiles', () => {
-    const documento = { ...documentoMandado(), plazoDeFabricacion: 10 };
+  it('con las fechas del presupuesto, «Para cuándo» dice la entrega y antes de cuándo va la seña acordada', () => {
+    dibujar(esperandoLaSena());
+
+    expect(screen.getByRole('region', { name: 'Para cuándo' })).toHaveTextContent(
+      'Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el vie 30 de octubre. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada del 50% ($ 504.000) antes del mar 22 de septiembre.',
+    );
+  });
+
+  it('con opciones, la seña acordada es la de la opción que elija', () => {
+    dibujar(
+      esperandoLaSena({
+        precio: null,
+        sena: null,
+        pago: { instancia: 'sena', formas: ['efectivo'], monto: null, siguiente: null },
+        presupuesto: presupuestoMandado({ documento: documentoMandado(OPCIONES) }),
+      }),
+    );
+
+    expect(screen.getByRole('region', { name: 'Para cuándo' })).toHaveTextContent(
+      'se deberá concretar la seña acordada del 50% de la opción que elijas antes del mar 22 de septiembre.',
+    );
+  });
+
+  it('si pasó el día de la seña y no entró, «Para cuándo» ya no promete la fecha', () => {
+    const documento = { ...documentoMandado(), senaAntesDel: '2026-09-15' };
+    dibujar(esperandoLaSena({ presupuesto: presupuestoMandado({ documento }) }));
+
+    const paraCuando = screen.getByRole('region', { name: 'Para cuándo' });
+    expect(paraCuando).toHaveTextContent(
+      'La fecha de entrega dependía de la seña antes del mar 15 de septiembre. Escribinos y te confirmamos una nueva.',
+    );
+    expect(paraCuando).not.toHaveTextContent('30 de octubre');
+  });
+
+  it('un estimativo mandado sobre un presupuesto ya enviado no deja «Para cuándo» vacío', () => {
+    const documento = {
+      ...documentoMandado(),
+      estimativo: true,
+      listoPara: null,
+      senaAntesDel: null,
+    };
+    dibujar(esperandoLaSena({ presupuesto: presupuestoMandado({ documento }) }));
+
+    expect(screen.queryByRole('region', { name: 'Para cuándo' })).not.toBeInTheDocument();
+  });
+
+  it('en una revisión sin fechas, «Para cuándo» cuenta el plazo del presupuesto en vez de los 21 días hábiles', () => {
+    const documento = {
+      ...documentoMandado(),
+      plazoDeFabricacion: 10,
+      listoPara: null,
+      senaAntesDel: null,
+    };
     dibujar(esperandoLaSena({ presupuesto: presupuestoMandado({ documento }) }));
 
     expect(screen.getByRole('region', { name: 'Para cuándo' })).toHaveTextContent(
       'Si dejás la seña antes del vie 25 de septiembre, podríamos tenerlo listo para el vie 9 de octubre.',
+    );
+    expect(screen.getByRole('region', { name: 'El presupuesto' })).toHaveTextContent(
+      'Plazo de fabricación10 días hábiles',
     );
   });
 
@@ -1551,4 +1635,97 @@ describe('un trabajo en dólares', () => {
       'Você pagou ARS 120.000 com o dólar a ARS 1.450',
     );
   }, 60_000);
+});
+
+describe('el estimativo mandado desde la app', () => {
+  beforeEach(() => {
+    conPantalla('celular');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function documentoDelEstimativo(): DocumentoDelPresupuesto {
+    const borrador = borradorNuevo({
+      titulo: 'Escritorio',
+      obra: 'Belgrano 455, Haedo',
+      plantilla: PLANTILLA_DE_SIEMPRE,
+      validezDias: 15,
+      faltaMedir: true,
+      idNuevo: () => 'm1',
+    });
+    return documentoDelPresupuesto(
+      {
+        borrador: {
+          ...borrador,
+          muebles: [{ id: 'm1', nombre: 'Escritorio en L', descripcion: 'En melamina Blanco.' }],
+        },
+        plantilla: PLANTILLA_DE_SIEMPRE,
+        taller: TALLER,
+        cliente: 'Lucía Ferreyra',
+        moneda: 'ARS',
+        cobraEn: null,
+        valores: valoresDelTrabajo(centavos(124_800_000), []),
+        senaBp: puntosBasicos(5_000),
+        abonado: centavos(0),
+        mandadoEl: '2026-09-10',
+      },
+      FORMATOS,
+    );
+  }
+
+  function conElEstimativo(cambios: Partial<PresupuestoDelTrabajo> = {}): TrabajoDelCliente {
+    return trabajo({
+      trabajo: 'Escritorio',
+      cliente: 'Lucía Ferreyra',
+      estado: 'presupuesto_estimativo',
+      precio: centavos(124_800_000),
+      sena: null,
+      fechas: fechas({ estimativo: '2026-09-10', valeHasta: '2026-09-25' }),
+      pago: {
+        instancia: 'sena',
+        formas: ['efectivo'],
+        monto: centavos(62_400_000),
+        siguiente: null,
+      },
+      pagos: [],
+      presupuesto: presupuestoMandado({
+        documento: documentoDelEstimativo(),
+        revision: 1,
+        queCambio: null,
+        ...cambios,
+      }),
+    });
+  }
+
+  it('se ve antes del presupuesto, como estimativo y sin pedir la seña', () => {
+    dibujar(conElEstimativo());
+
+    const estimativo = screen.getByRole('region', { name: 'Presupuesto estimativo' });
+    expect(estimativo).toHaveTextContent(
+      'Es un número estimado: el presupuesto final sale después del relevamiento técnico.',
+    );
+    expect(estimativo).toHaveTextContent('Total$ 1.248.000');
+    expect(estimativo).not.toHaveTextContent('Seña (50%)');
+    expect(estimativo).not.toHaveTextContent('Entrega estimada');
+    expect(screen.queryByRole('link', { name: 'Cómo dejar la seña' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Cómo pagar' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Para cuándo' })).toBeNull();
+  });
+
+  it('sin la revisión de la app no se puede aprobar; con ella, «Aprobar» pide el día para ir a medir', () => {
+    dibujar(conElEstimativo());
+    expect(screen.queryByRole('button', { name: 'Aprobar' })).toBeNull();
+    cleanup();
+
+    dibujar(conElEstimativo({ revisionId: '0190f5a2-7c1e-7a3b-9d4e-5f6a7b8c9d0e' }));
+    const estimativo = screen.getByRole('region', { name: 'Presupuesto estimativo' });
+    fireEvent.click(within(estimativo).getByRole('button', { name: 'Aprobar' }));
+
+    expect(screen.getByRole('heading', { name: 'Aprobar el estimativo' })).toBeInTheDocument();
+    expect(
+      screen.getByText('¿Qué día te queda bien para que vayamos a medir?'),
+    ).toBeInTheDocument();
+  });
 });

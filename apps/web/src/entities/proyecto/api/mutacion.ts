@@ -1,8 +1,14 @@
-import { MONEDA_DEL_TALLER, monedaLeida } from '@maun/domain';
+import {
+  leerLasRespuestas,
+  MONEDA_DEL_TALLER,
+  monedaLeida,
+  type RespuestaDeLaConsulta,
+} from '@maun/domain';
 import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
   aplicarFilaLocal,
+  cambiarLaFechaDelProximoContacto,
   darDeBajaProyecto,
   debeReintentarse,
   editarProyecto,
@@ -11,6 +17,7 @@ import {
   guardarElProyecto,
   guardarLaEntregaDelTrabajo,
   guardarLasFormasDeCobro,
+  guardarLasRespuestasDeLaConsulta,
   guardarLosCostosEstimados,
   householdDe,
   marcarElProximoContacto,
@@ -25,6 +32,7 @@ import {
   type CambiosDeTareas,
   type FilaDe,
   type GastoParaGuardar,
+  type Json,
   type NecesidadParaGuardar,
   type PagoParaGuardar,
   type ProyectoGuardado,
@@ -39,6 +47,7 @@ import { cambiaAlgunaForma } from '../model/cobro';
 import { cambiaAlgunCosto } from '../model/costos';
 import { cambiaAlgoDeLaEntrega } from '../model/entrega';
 import { cambiaAlgunaMarca } from '../model/marcas';
+import { mismasRespuestas } from '../model/preguntas';
 import { ultimoContactoAlGuardar } from '../model/consultas';
 import { cambiaAlgunaTarea } from '../model/tareas';
 
@@ -51,6 +60,11 @@ export const CLAVE_DE_COSTOS = ['proyectos', 'costos'] as const;
 export const CLAVE_DE_FORMAS_DE_COBRO = ['proyectos', 'formas-de-cobro'] as const;
 export const CLAVE_DE_LA_ENTREGA = ['proyectos', 'entrega'] as const;
 export const CLAVE_DE_BAJA_DE_PROYECTO = ['proyectos', 'borrar'] as const;
+export const CLAVE_DE_LA_FECHA_DEL_CONTACTO = ['proyectos', 'fecha-del-contacto'] as const;
+export const CLAVE_DE_RESPUESTAS_DE_LA_CONSULTA = [
+  'proyectos',
+  'respuestas-de-la-consulta',
+] as const;
 
 const REINTENTOS = 5;
 
@@ -66,6 +80,7 @@ export interface GuardadoDeProyecto {
     necesidades: readonly FilaDe<'necesidades'>[];
     proximos?: readonly FilaDe<'proximos_contactos'>[];
   };
+  respuestas?: readonly RespuestaDeLaConsulta[];
 }
 
 export interface EdicionDeProyecto {
@@ -100,6 +115,12 @@ export interface CostosDelTrabajo {
   cambios: CambiosDeCostos;
   previos: CambiosDeCostos;
   version: number;
+}
+
+export interface FechaDelContacto {
+  contacto: FilaDe<'proximos_contactos'>;
+  fecha: string;
+  momento: string;
 }
 
 export interface BajaDeProyecto {
@@ -267,7 +288,23 @@ export function filaDelGastoGuardado(
   };
 }
 
-function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
+function conLasRespuestasDelAlta(
+  fila: FilaDe<'proyectos'>,
+  respuestas: readonly RespuestaDeLaConsulta[] | undefined,
+): FilaDe<'proyectos'> {
+  if (respuestas === undefined || respuestas.length === 0) return fila;
+  return {
+    ...fila,
+    respuestas_de_la_consulta: [...respuestas] as unknown as Json,
+    version: fila.version + 1,
+  };
+}
+
+function conElAgregado(
+  replica: Replica,
+  pedido: ProyectoParaGuardar,
+  respuestas?: readonly RespuestaDeLaConsulta[],
+): Replica {
   const household = householdDe(replica);
   if (!household) return replica;
 
@@ -334,9 +371,14 @@ function conElAgregado(replica: Replica, pedido: ProyectoParaGuardar): Replica {
         listo_el: null,
         entrega_comprometida: null,
         entrega_comprometida_franja: null,
+        respuestas_de_la_consulta: [],
       } satisfies FilaDe<'proyectos'>);
 
-  let siguiente = aplicarFilaLocal(replica, 'proyectos', fila);
+  let siguiente = aplicarFilaLocal(
+    replica,
+    'proyectos',
+    actual ? fila : conLasRespuestasDelAlta(fila, respuestas),
+  );
 
   for (const pago of pedido.pagos) {
     if (pago.borrado === true) {
@@ -447,9 +489,10 @@ function aplicarSiNoEsVieja(replica: Replica, fila: FilaDe<'proyectos'>): Replic
 function conLoQueVolvio(
   replica: Replica,
   guardado: ProyectoGuardado,
-  { pedido, previos }: GuardadoDeProyecto,
+  { pedido, previos, respuestas }: GuardadoDeProyecto,
 ): Replica {
-  const esperada = versionDelGuardado(previos.proyecto, pedido.datos);
+  const conLasDelAlta = previos.proyecto === null && (respuestas?.length ?? 0) > 0 ? 1 : 0;
+  const esperada = versionDelGuardado(previos.proyecto, pedido.datos) + conLasDelAlta;
   const actual = filaPorId(replica, 'proyectos', guardado.proyecto.id);
   const hayAlgoMasNuevo =
     actual !== undefined && actual.version > Math.max(esperada, guardado.proyecto.version);
@@ -504,13 +547,27 @@ function comoEstaba(replica: Replica, { pedido, previos }: GuardadoDeProyecto): 
 export const MUTACION_DE_PROYECTO: MutationOptions<ProyectoGuardado, unknown, GuardadoDeProyecto> =
   {
     mutationKey: CLAVE_DE_PROYECTO,
-    mutationFn: ({ pedido }) => guardarElProyecto(pedido),
+    mutationFn: async ({ pedido, respuestas }) => {
+      const guardado = await guardarElProyecto(pedido);
+      if (pedido.version !== null || respuestas === undefined || respuestas.length === 0) {
+        return guardado;
+      }
+      try {
+        return {
+          ...guardado,
+          proyecto: await guardarLasRespuestasDeLaConsulta(pedido.id, respuestas),
+        };
+      } catch (error) {
+        if (debeReintentarse(error)) throw error;
+        return guardado;
+      }
+    },
     scope: COLA_DE_SALIDA,
     gcTime: DURACION_DEL_RECHAZO_MS,
     retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
-    onMutate: async ({ pedido }, { client }) => {
+    onMutate: async ({ pedido, respuestas }, { client }) => {
       await client.cancelQueries({ queryKey: claveDeTodaReplica() });
-      cambiarReplicas(client, (replica) => conElAgregado(replica, pedido));
+      cambiarReplicas(client, (replica) => conElAgregado(replica, pedido, respuestas));
       await guardarCacheAhora();
     },
     onSuccess: (guardado, variables, _contexto, { client }) => {
@@ -558,6 +615,54 @@ export const MUTACION_DE_NOTAS: MutationOptions<FilaDe<'proyectos'>, unknown, Ed
   },
   onError: (_error, variables, _contexto, { client }) => {
     cambiarReplicas(client, (replica) => sinLosCambios(replica, variables));
+  },
+};
+
+export interface RespuestasDelTrabajo {
+  id: string;
+  respuestas: readonly RespuestaDeLaConsulta[];
+  previas: readonly RespuestaDeLaConsulta[];
+  version: number;
+}
+
+function conLasRespuestas(
+  replica: Replica,
+  id: string,
+  respuestas: readonly RespuestaDeLaConsulta[],
+  version?: number,
+): Replica {
+  const actual = filaPorId(replica, 'proyectos', id);
+  if (!actual) return replica;
+  const cambia = !mismasRespuestas(leerLasRespuestas(actual.respuestas_de_la_consulta), respuestas);
+  if (!cambia && version === undefined) return replica;
+  return aplicarFilaLocal(replica, 'proyectos', {
+    ...actual,
+    respuestas_de_la_consulta: [...respuestas] as unknown as Json,
+    version: version ?? actual.version + 1,
+    updated_at: version === undefined ? new Date().toISOString() : actual.updated_at,
+  });
+}
+
+export const MUTACION_DE_RESPUESTAS_DE_LA_CONSULTA: MutationOptions<
+  FilaDe<'proyectos'>,
+  unknown,
+  RespuestasDelTrabajo
+> = {
+  mutationKey: CLAVE_DE_RESPUESTAS_DE_LA_CONSULTA,
+  mutationFn: ({ id, respuestas }) => guardarLasRespuestasDeLaConsulta(id, respuestas),
+  scope: COLA_DE_SALIDA,
+  gcTime: DURACION_DEL_RECHAZO_MS,
+  retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
+  onMutate: async ({ id, respuestas }, { client }) => {
+    await client.cancelQueries({ queryKey: claveDeTodaReplica() });
+    cambiarReplicas(client, (replica) => conLasRespuestas(replica, id, respuestas));
+    await guardarCacheAhora();
+  },
+  onSuccess: (fila, _variables, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) => aplicarSiNoEsVieja(replica, fila));
+  },
+  onError: (_error, { id, previas, version }, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) => conLasRespuestas(replica, id, previas, version));
   },
 };
 
@@ -799,5 +904,36 @@ export const MUTACION_DE_BAJA_DE_PROYECTO: MutationOptions<
       }
       return siguiente;
     });
+  },
+};
+
+export const MUTACION_DE_LA_FECHA_DEL_CONTACTO: MutationOptions<
+  FilaDe<'proximos_contactos'>,
+  unknown,
+  FechaDelContacto
+> = {
+  mutationKey: CLAVE_DE_LA_FECHA_DEL_CONTACTO,
+  mutationFn: ({ contacto, fecha }) =>
+    cambiarLaFechaDelProximoContacto(contacto.id, contacto.version, fecha),
+  scope: COLA_DE_SALIDA,
+  gcTime: DURACION_DEL_RECHAZO_MS,
+  retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
+  onMutate: async ({ contacto, fecha, momento }, { client }) => {
+    await client.cancelQueries({ queryKey: claveDeTodaReplica() });
+    cambiarReplicas(client, (replica) =>
+      aplicarFilaLocal(replica, 'proximos_contactos', {
+        ...contacto,
+        fecha,
+        updated_at: momento,
+        version: contacto.version + 1,
+      }),
+    );
+    await guardarCacheAhora();
+  },
+  onSuccess: (fila, _cambio, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proximos_contactos', fila));
+  },
+  onError: (_error, { contacto }, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) => aplicarFilaLocal(replica, 'proximos_contactos', contacto));
   },
 };

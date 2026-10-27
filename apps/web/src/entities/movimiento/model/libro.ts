@@ -26,7 +26,7 @@ import { categoriaEnPantalla, claseDe } from './clases';
 
 export type SentidoDeLinea = 'entra' | 'sale' | 'mueve';
 
-export type BloqueoDeLinea = 'del-proyecto' | 'ajuste';
+export type BloqueoDeLinea = 'del-proyecto' | 'del-vencimiento' | 'ajuste';
 
 export const TODOS_LOS_TESOROS = 'todos';
 
@@ -85,6 +85,7 @@ function etiquetaDe(
 }
 
 function bloqueoDe(linea: LineaDelLibro): BloqueoDeLinea | null {
+  if (linea.origen === 'vencimiento') return 'del-vencimiento';
   if (linea.origen !== 'manual') return 'del-proyecto';
   return linea.concepto === 'ajuste' ? 'ajuste' : null;
 }

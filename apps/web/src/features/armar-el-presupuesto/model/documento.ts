@@ -33,7 +33,9 @@ import {
 import type { FilaDelPresupuesto } from '@/entities/presupuesto';
 import {
   diasQueValeElPresupuesto,
+  direccionDelTrabajo,
   dolarDelDiaDelTaller,
+  faltaMedirAlPresupuestar,
   opcionesDelProyecto,
   pagosDelProyecto,
   senaDelProyecto,
@@ -52,7 +54,7 @@ import {
   type Replica,
 } from '@/shared/api';
 import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
-import { nombreDelTaller, uuidv7 } from '@/shared/lib';
+import { hoyEnElTaller, nombreDelTaller, uuidv7 } from '@/shared/lib';
 
 export function formatosDeLaReplica(replica: Replica): Formatos {
   return formatosDelDocumento(idiomaDeLosClientes(replica));
@@ -161,14 +163,30 @@ export function nombreDelCliente(replica: Replica, proyecto: Proyecto): string {
   return filaPorId(replica, 'clientes', proyecto.cliente_id)?.nombre ?? '';
 }
 
-export function borradorParaEmpezar(replica: Replica, proyecto: Proyecto): BorradorDelPresupuesto {
+export function borradorParaEmpezar(
+  replica: Replica,
+  proyecto: Proyecto,
+  hoy: string = hoyEnElTaller(),
+): BorradorDelPresupuesto {
   return borradorNuevo({
     titulo: proyecto.titulo,
-    obra: proyecto.direccion_entrega,
+    obra: '',
     plantilla: plantillaDeLaReplica(replica),
     validezDias: diasQueValeElPresupuesto(ajustesDe(replica)),
+    faltaMedir: faltaMedirAlPresupuestar(replica, proyecto, hoy),
     idNuevo: uuidv7,
   });
+}
+
+export function obraDelDocumento(
+  replica: Replica,
+  proyecto: Proyecto,
+  borrador: Pick<BorradorDelPresupuesto, 'obra'>,
+): string {
+  const { direccion, deDonde } = direccionDelTrabajo(replica, proyecto);
+  if (deDonde === 'trabajo') return direccion;
+  const escrita = borrador.obra.trim();
+  return escrita === '' ? direccion : escrita;
 }
 
 export function borradorGuardado(
@@ -202,6 +220,7 @@ export interface EntradaDeHoy {
   opciones?: readonly OpcionDelTrabajo<Moneda>[];
   abonado?: Money<Moneda>;
   referencia?: ReferenciaEnPesos | null;
+  mandadoEl?: string;
 }
 
 export function entradaDeHoy({
@@ -212,15 +231,17 @@ export function entradaDeHoy({
   opciones = opcionesDeHoy(replica, proyecto.id),
   abonado = abonadoDeHoy(replica, proyecto.id, monedaDeLoAbonadoDeHoy(proyecto, borrador)),
   referencia = referenciaDelTaller(replica),
+  mandadoEl = hoyEnElTaller(),
 }: EntradaDeHoy): EntradaDelDocumento {
   const comun = {
-    borrador,
+    borrador: { ...borrador, obra: obraDelDocumento(replica, proyecto, borrador) },
     plantilla: plantillaDeLaReplica(replica),
     taller: datosDelTaller(replica),
     cliente: nombreDelCliente(replica, proyecto),
     cobraEn: cobraEnDelTrabajo(proyecto),
     senaBp: senaDeHoy(replica, proyecto),
     abonado,
+    mandadoEl,
   };
   if (monedaDelTrabajo(proyecto) === MONEDA_DEL_TALLER) {
     return {

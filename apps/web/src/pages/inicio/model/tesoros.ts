@@ -1,6 +1,6 @@
 import { CERO, enPesos, restar, type Fila, type Money, type Plata } from '@maun/domain';
 
-import { DESCRIPCION_DEL_TIPO, tiposDelTesoro } from '@/entities/fila';
+import { nombreDeLoQueEs, paraCuandoEsLaMeta } from '@/entities/fila';
 import type { FraseDelDiezmo } from '@/entities/movimiento';
 import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import { mensajes } from '@/shared/idioma';
@@ -24,25 +24,18 @@ export function conLaMetaDeCocos(
   );
 }
 
-export function tipoEnLaTarjeta(fila: Fila, tesoro: string): string | null {
-  const tipos = [
-    ...new Set(tiposDelTesoro(fila, tesoro).map((tipo) => DESCRIPCION_DEL_TIPO[tipo])),
-  ];
-  if (tipos.length === 0) return null;
-  const texto = mensajes().paginaInicio.tarjetas.tipos(tipos);
-  return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
+export function tipoEnLaTarjeta(
+  fila: Fila,
+  tesoro: Pick<TesoroDelTaller, 'id' | 'clave' | 'meta' | 'moneda'>,
+): string {
+  return nombreDeLoQueEs(fila, tesoro);
 }
 
 export function tiposEnLasTarjetas(
   fila: Fila,
-  tesoros: readonly Pick<TesoroDelTaller, 'id'>[],
+  tesoros: readonly Pick<TesoroDelTaller, 'id' | 'clave' | 'meta' | 'moneda'>[],
 ): Map<string, string> {
-  const tipos = new Map<string, string>();
-  for (const tesoro of tesoros) {
-    const tipo = tipoEnLaTarjeta(fila, tesoro.id);
-    if (tipo !== null) tipos.set(tesoro.id, tipo);
-  }
-  return tipos;
+  return new Map(tesoros.map((tesoro) => [tesoro.id, tipoEnLaTarjeta(fila, tesoro)]));
 }
 
 export function fraseDeLosInsumosDeMaun(insumos: Money, saldo: Money): string | null {
@@ -60,7 +53,7 @@ export interface DetalleDeLaTarjeta {
 }
 
 export function detalleDeLaTarjeta(
-  tesoro: Pick<TesoroDelTaller, 'clave' | 'descripcion' | 'meta' | 'saldo'>,
+  tesoro: Pick<TesoroDelTaller, 'clave' | 'descripcion' | 'meta' | 'metaFecha' | 'saldo'>,
   diezmo: FraseDelDiezmo,
   insumos: Money = CERO,
 ): DetalleDeLaTarjeta {
@@ -71,10 +64,11 @@ export function detalleDeLaTarjeta(
     if (deLosInsumos !== null) return { texto: deLosInsumos, delDueno: false };
   }
   if (tesoro.meta !== null && tesoro.meta.importe > 0) {
+    const textos = mensajes().paginaInicio.tarjetas;
+    const porcentaje = porcentajeDeLaMeta(tesoro.saldo, tesoro.meta);
+    const para = paraCuandoEsLaMeta(tesoro.metaFecha);
     return {
-      texto: mensajes().paginaInicio.tarjetas.deLaMeta(
-        porcentajeDeLaMeta(tesoro.saldo, tesoro.meta),
-      ),
+      texto: para === null ? textos.deLaMeta(porcentaje) : textos.deLaMetaPara(porcentaje, para),
       delDueno: false,
     };
   }

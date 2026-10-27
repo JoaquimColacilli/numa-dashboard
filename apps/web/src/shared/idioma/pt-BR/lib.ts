@@ -287,6 +287,36 @@ export const lib = {
       enCola: `Nota de crédito solicitada sem internet: sai ${QUANDO_VOLTAR}`,
       error: 'Não foi possível solicitar a nota de crédito.',
     },
+    respuestaAtendida: {
+      hecho: 'Pronto: a resposta fica marcada como conversada.',
+      enCola: ANOTADO_EM_ESPERA,
+      error: 'Não foi possível marcar a resposta como conversada.',
+    },
+    fechaDelContacto: {
+      hecho: 'Data do próximo contato alterada.',
+      enCola: `Data nova anotada sem internet: será salva automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível alterar a data do próximo contato.',
+    },
+    respuestasDeLaConsulta: {
+      hecho: 'Respostas salvas.',
+      enCola: `Respostas anotadas sem internet: serão salvas automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível salvar as respostas da consulta.',
+    },
+    preguntasDeLaConsulta: {
+      hecho: 'Perguntas salvas.',
+      enCola: `Perguntas anotadas sem internet: serão salvas automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível salvar as perguntas.',
+    },
+    saldoAjustado: {
+      hecho: 'Saldo ajustado.',
+      enCola: `Ajuste anotado sem internet: será salvo automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível ajustar o saldo.',
+    },
+    adelantoRegistrado: {
+      hecho: 'Adiantamento anotado.',
+      enCola: `Adiantamento anotado sem internet: será salvo automaticamente ${QUANDO_VOLTAR}`,
+      error: 'Não foi possível anotar o adiantamento.',
+    },
     datosDeFacturacion: {
       hecho: 'Dados de faturamento salvos.',
       enCola: `Dados de faturamento anotados sem internet: serão salvos automaticamente ${QUANDO_VOLTAR}`,

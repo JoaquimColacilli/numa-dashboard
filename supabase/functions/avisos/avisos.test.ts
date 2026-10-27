@@ -5,8 +5,10 @@ import webpush from 'web-push';
 
 import {
   baseDeSupabase,
+  type AvisoDeLaRespuesta,
   type AvisoPorMandar,
   type Base,
+  type RespuestaParaElAviso,
   type Suscripcion,
   type UsuarioDelToken,
 } from './base.ts';
@@ -14,13 +16,14 @@ import { configuracionDelEntorno } from './entorno.ts';
 import {
   laSuscripcionMurio,
   mandarLaPrueba,
+  mandarLaRespuesta,
   mandarLosAvisos,
   preferenciasCompletas,
   rangoDelAviso,
   type Enviador,
 } from './envio.ts';
 import { crearManejador } from './manejador.ts';
-import { cargaDelAviso, pesos } from './texto.ts';
+import { cargaDeLaRespuesta, cargaDelAviso, fraseDeLaRespuesta, pesos } from './texto.ts';
 
 const DIA = '2026-09-14';
 const VAPID = {
@@ -36,6 +39,7 @@ const PREFERENCIAS: PreferenciasDeAvisos = {
   seguimientos: { activo: true, anticipacion: 0 },
   vencimientos: { activo: true, anticipacion: 0 },
   anotaciones: { activo: false, anticipacion: 0 },
+  respuestas: { activo: true, anticipacion: 0 },
 };
 
 interface Registro {
@@ -48,11 +52,14 @@ const DE_LA_SESION: UsuarioDelToken = { id: 'u1', idioma: 'es' };
 function baseFalsa(
   avisos: AvisoPorMandar[] = [],
   suscripciones: Suscripcion[] = [],
+  deLaRespuesta: AvisoDeLaRespuesta[] = [],
 ): Base & { registro: Registro } {
   const registro: Registro = { anotados: [], borrados: [] };
   return {
     registro,
     avisosPorMandar: () => Promise.resolve(avisos),
+    avisoDeLaRespuesta: (respuesta) =>
+      Promise.resolve(deLaRespuesta.filter((uno) => uno.respuesta.id === respuesta)),
     anotarAviso: (id, dia, mandado) => {
       registro.anotados.push([id, dia, mandado]);
       return Promise.resolve();
@@ -1017,3 +1024,235 @@ Deno.test(
     );
   },
 );
+
+const LUCIA: RespuestaParaElAviso = {
+  id: '0199c000-0000-7000-8000-000000000001',
+  proyecto_id: 'aaaaaaaa-0000-7000-8000-000000000010',
+  cliente: 'Lucía García',
+  estimativo: true,
+  letra: null,
+  dia: '2026-10-29',
+  franja: 'manana',
+  respondida_el: '2026-10-26',
+};
+
+Deno.test('lo que aprobó el cliente se dice en una frase, en los tres idiomas', () => {
+  assert.equal(
+    fraseDeLaRespuesta(LUCIA),
+    'Lucía García aprobó el estimativo y propone el jueves 29 a la mañana para medir.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta(LUCIA, 'en'),
+    'Lucía García approved the estimate and suggests Thursday 29 in the morning for the site measure.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta(LUCIA, 'pt-BR'),
+    'Lucía García aprovou a estimativa e propõe quinta-feira, 29, de manhã, para a visita técnica.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta({ ...LUCIA, letra: 'B', franja: 'me_da_igual' }),
+    'Lucía García aprobó la opción B del estimativo y propone el jueves 29 para medir.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta({ ...LUCIA, letra: 'B', franja: 'me_da_igual' }, 'pt-BR'),
+    'Lucía García aprovou a opção B da estimativa e propõe quinta-feira, 29, para a visita técnica.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta({ ...LUCIA, estimativo: false, dia: null, franja: null }),
+    'Lucía García aprobó el presupuesto.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta({ ...LUCIA, estimativo: false, letra: 'A', dia: null, franja: null }, 'en'),
+    'Lucía García approved option A of the quote.',
+  );
+  assert.equal(
+    fraseDeLaRespuesta({ ...LUCIA, dia: '2026-11-03', franja: 'tarde' }, 'en'),
+    'Lucía García approved the estimate and suggests Tuesday 3 in the afternoon for the site measure.',
+  );
+});
+
+Deno.test('el aviso en el momento lleva a la ficha del trabajo, una vez por respuesta', () => {
+  assert.deepEqual(cargaDeLaRespuesta(LUCIA), {
+    titulo: 'Tu cliente aprobó',
+    cuerpo: 'Lucía García aprobó el estimativo y propone el jueves 29 a la mañana para medir.',
+    url: '/proyectos/aaaaaaaa-0000-7000-8000-000000000010',
+    etiqueta: 'respuesta-0199c000-0000-7000-8000-000000000001',
+  });
+  assert.equal(cargaDeLaRespuesta(LUCIA, 'en').lang, 'en-US');
+});
+
+Deno.test(
+  'el aviso de la mañana repite lo que aprobaron los clientes, primero, si está prendido',
+  async () => {
+    const conLucia = { ...aviso('telefono', null), respuestas: [LUCIA] };
+    const { cargas, resultado } = await cuerposDe([conLucia]);
+    assert.deepEqual(cargas, [
+      {
+        titulo: 'Tu cliente aprobó',
+        cuerpo: 'Lucía García aprobó el estimativo y propone el jueves 29 a la mañana para medir.',
+        url: '/agenda',
+        etiqueta: `agenda-${DIA}`,
+      },
+    ]);
+    assert.equal(resultado.mandados, 1);
+
+    const conEntrega = await cuerposDe([{ ...aviso('telefono', DIA), respuestas: [LUCIA] }]);
+    assert.deepEqual(
+      conEntrega.cargas.map((carga) => [carga.titulo, carga.cuerpo]),
+      [
+        [
+          'Hoy tenés 1 cosa en la agenda',
+          'Lucía García aprobó el estimativo y propone el jueves 29 a la mañana para medir.\nEntregar: Cocina de Villalba (hoy)',
+        ],
+      ],
+    );
+
+    const apagadas = await cuerposDe([
+      {
+        ...conLucia,
+        preferencias: { ...PREFERENCIAS, respuestas: { activo: false, anticipacion: 0 } },
+      },
+    ]);
+    assert.deepEqual(apagadas.cargas, []);
+    assert.equal(apagadas.resultado.sinNadaQueAvisar, 1);
+  },
+);
+
+Deno.test('el vencimiento que se pagó solo dice cuánto se pagó y cuánto puso Maun', async () => {
+  const salario = conVencimientos('telefono', { renglones: [] });
+  const fila = {
+    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+    pasos: [
+      {
+        tesoro: GASTOS_FIJOS,
+        clase: 'fijos',
+        tope: 90_000_000,
+        renglones: [{ nombre: 'Alquiler', monto: 90_000_000, dia: null }],
+        desde: null,
+        modo: 'mes',
+        hastaLaMeta: false,
+        dia: 14,
+        pagaSola: true,
+        pagaSolaDesde: '2026-08-01',
+      },
+    ],
+    reparto: [],
+    superavit: MAUN,
+    sueldoPorTrabajo: false,
+  };
+  const pago = (puso: number) =>
+    ({
+      id: 'v1',
+      tesoro_id: GASTOS_FIJOS,
+      vencimiento: DIA,
+      dia: 14,
+      tope_centavos: 90_000_000,
+      pagado_antes_centavos: 0,
+      saldo_centavos: 90_000_000 - puso,
+      a_pagar_centavos: 90_000_000,
+      puso_maun_centavos: puso,
+      vuelve_a_maun_centavos: 0,
+      deleted_at: null,
+    }) as never;
+  const conElPago = (puso: number): AvisoPorMandar => ({
+    ...salario,
+    filas: {
+      ...salario.filas,
+      ajustes: [
+        { id: 'a1', fila, fila_version: 3, fila_guardada_at: null, deleted_at: null } as never,
+      ],
+      pagos_de_vencimientos: [pago(puso)],
+    },
+  });
+
+  const { cargas } = await cuerposDe([
+    conElPago(27_000_000),
+    { ...conElPago(0), id: 'otro' },
+    { ...conElPago(27_000_000), id: 'ingles', idioma: 'en' },
+  ]);
+  assert.deepEqual(
+    cargas.map((carga) => carga.cuerpo),
+    [
+      'Se pagó Gastos fijos: $\u00a0900.000 · Maun puso $\u00a0270.000 (hoy)',
+      'Se pagó Gastos fijos: $\u00a0900.000 (hoy)',
+      'Paid Gastos fijos: ARS\u00a0900,000 · Maun put in ARS\u00a0270,000 (today)',
+    ],
+  );
+});
+
+Deno.test(
+  'la ruta de la respuesta pide el secreto y una respuesta, y avisa a sus dispositivos',
+  async () => {
+    const dispositivo: AvisoDeLaRespuesta = { ...suscripcion('telefono'), respuesta: LUCIA };
+    const enIngles: AvisoDeLaRespuesta = {
+      ...suscripcion('tablet'),
+      idioma: 'en',
+      respuesta: LUCIA,
+    };
+    const enviar = enviadorQueContesta({ tablet: 410 });
+    const base = baseFalsa([], [], [dispositivo, enIngles]);
+    const atender = manejador(CON_CLAVES, base, enviar);
+    const pedido = (autorizacion: string | null, cuerpo: unknown) =>
+      new Request('https://f.example/avisos/respuesta', {
+        method: 'POST',
+        headers: autorizacion === null ? {} : { Authorization: autorizacion },
+        body: JSON.stringify(cuerpo),
+      });
+
+    assert.equal((await atender(pedido(null, { respuesta: LUCIA.id }))).status, 401);
+    assert.equal((await atender(pedido('Bearer otro', { respuesta: LUCIA.id }))).status, 401);
+    assert.equal(
+      (await atender(pedido('Bearer el-secreto', { respuesta: 'no-es-un-id' }))).status,
+      400,
+    );
+    assert.equal((await atender(pedido('Bearer el-secreto', {}))).status, 400);
+    assert.deepEqual(enviar.cargas, []);
+
+    const respuesta = await atender(pedido('Bearer el-secreto', { respuesta: LUCIA.id }));
+    assert.deepEqual(await respuesta.json(), {
+      configurado: true,
+      mandados: 1,
+      sinNadaQueAvisar: 0,
+      podados: 1,
+      fallidos: 0,
+    });
+    assert.deepEqual(base.registro.borrados, ['https://push.example/tablet']);
+    assert.deepEqual(base.registro.anotados, []);
+    assert.deepEqual(
+      enviar.cargas.map((carga) => (JSON.parse(carga) as { titulo: string }).titulo),
+      ['Tu cliente aprobó', 'Your client approved'],
+    );
+
+    const sinClaves = manejador({ AVISOS_SECRETO: 'el-secreto' }, base, enviar);
+    assert.deepEqual(
+      await (await sinClaves(pedido('Bearer el-secreto', { respuesta: LUCIA.id }))).json(),
+      {
+        configurado: false,
+        mandados: 0,
+      },
+    );
+  },
+);
+
+Deno.test('mandar la respuesta a nadie no manda nada', async () => {
+  const enviar = enviadorQueContesta({});
+  assert.deepEqual(await mandarLaRespuesta([], baseFalsa(), enviar, VAPID), {
+    mandados: 0,
+    sinNadaQueAvisar: 0,
+    podados: 0,
+    fallidos: 0,
+  });
+  assert.deepEqual(enviar.cargas, []);
+});
+
+Deno.test('la base pide el aviso de una respuesta por su id', async () => {
+  const pedidos: { url: string; init: RequestInit }[] = [];
+  const base = baseDeSupabase('https://ref.supabase.co', 'sb_secret_abc', (url, init) => {
+    pedidos.push({ url, init });
+    return Promise.resolve(new Response('[]', { status: 200 }));
+  });
+
+  assert.deepEqual(await base.avisoDeLaRespuesta(LUCIA.id), []);
+  assert.equal(pedidos[0]?.url, 'https://ref.supabase.co/rest/v1/rpc/aviso_de_la_respuesta');
+  assert.equal(pedidos[0]?.init.body, JSON.stringify({ p_id: LUCIA.id }));
+});

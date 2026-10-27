@@ -42,6 +42,7 @@ function filaDeTesoro(
     tinta,
     icono: 'receipt',
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
@@ -63,6 +64,7 @@ function ingreso(hacia: string, clave: string | null, monto: number) {
     desde_id: null,
     hacia_id: hacia,
     cubre_el_mes: null,
+    vencimiento: null,
     monto_centavos: monto,
     categoria: '',
     descripcion: '',
@@ -148,6 +150,8 @@ function renglon(nombre: string): HTMLElement {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-27T15:00:00-03:00'));
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => undefined,
@@ -156,6 +160,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -171,6 +176,9 @@ describe('cubrir el faltante de los gastos fijos', () => {
           desde: null,
           modo: 'saldo',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
       reparto: [],
@@ -271,6 +279,31 @@ describe('cubrir el faltante de los gastos fijos', () => {
     });
     expect([deMaun?.silencioso, deCocos?.silencioso]).toEqual([true, false]);
     expect(alCerrar).toHaveBeenCalledOnce();
+  });
+
+  it('con un compromiso con día de pago, cubre el ciclo que arrancó en su último vencimiento', () => {
+    const { encolados } = montar(FIJOS, 27_000_000, {
+      pasos: [
+        {
+          tesoro: FIJOS,
+          clase: 'fijos',
+          tope: 90_000_000,
+          renglones: [{ nombre: 'Alquiler', monto: 90_000_000, dia: null }],
+          desde: null,
+          modo: 'mes',
+          hastaLaMeta: false,
+          dia: 10,
+          pagaSola: true,
+          pagaSolaDesde: '2026-09-01',
+        },
+      ],
+      reparto: [],
+      sueldoPorTrabajo: false,
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: `Pasar ${formatearPesos(27_000_000)} a Gastos fijos` }),
+    );
+    expect(encolados().map((uno) => uno.movimiento.cubre_el_mes)).toEqual(['2026-09-10']);
   });
 
   it('por moneda: un tesoro en dólares no cubre los gastos fijos, que son en pesos', () => {

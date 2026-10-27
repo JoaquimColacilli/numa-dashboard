@@ -20,6 +20,8 @@ export const armarElPresupuesto = {
   verElPdf: 'Ver el PDF',
   pdf: 'PDF',
   mandarElPresupuesto: 'Mandar el presupuesto',
+  mandarElEstimativo: 'Mandar el estimativo',
+  tituloDelEstimativo: 'Presupuesto estimativo',
   mandarLaRevision: (revision: number) => `Mandar la revisión ${String(revision)}`,
   seNumeraCuandoVuelvaLaSenal: 'Se numera cuando vuelva la señal.',
   opcion: (letra: string) => `Opción ${letra}`,
@@ -39,10 +41,29 @@ export const armarElPresupuesto = {
     ejemploDelTitulo: 'Cocina, placard del dormitorio…',
     obra: 'Obra',
     ejemploDeLaObra: 'Calle y número, barrio',
-    plazo: 'Plazo de fabricación',
-    diasHabiles: 'días hábiles',
-    ayudaDelPlazo:
-      'Desde que se acredita la seña. Lo usan el aviso del plazo y la entrega estimada.',
+    estimativo: 'Es un estimativo',
+    ayudaDelEstimativo:
+      'Un número prudente antes de ir a medir. Tu cliente lo ve como estimativo, sin seña, y lo puede aprobar para que vayas a medir.',
+    pideFecha: 'Pedirle una fecha para medir',
+    ayudaDePideFecha: 'Al aprobarlo, te propone un día y un horario para que vayas a medir.',
+    esLaDelTrabajo: 'Es la dirección del trabajo: si la cambiás acá, cambia también en su ficha.',
+    vaLaDelCliente: (direccion: string) => `Si la dejás vacía, va la de tu cliente: ${direccion}.`,
+    usarLaDelCliente: 'Usar la del cliente',
+    listoPara: 'Puede estar listo para',
+    senaAntesDel: 'Si la seña entra antes del',
+    listoSugerido: (plazo: number) =>
+      `Sale de los ${String(plazo)} días hábiles de Ajustes, contados desde el día en que lo mandes.`,
+    senaSugerida: (dias: number) =>
+      dias === 1
+        ? 'Un día después del día en que lo mandes. Se cambia en Ajustes.'
+        : `${String(dias)} días después del día en que lo mandes. Se cambia en Ajustes.`,
+    elegidaPorVos: 'La elegiste vos.',
+    usarLaSugerida: 'Usar la sugerida',
+    problemaDeLasFechas: {
+      'sena-antes-del-envio':
+        'La seña tiene que vencer hoy o después: hoy es el día en que lo mandás.',
+      'entrega-antes-de-la-sena': 'La entrega tiene que ser después de la fecha de la seña.',
+    },
   },
   validez: {
     titulo: 'Validez',
@@ -137,6 +158,7 @@ export const armarElPresupuesto = {
     },
     van: (van: number, total: number) => `Van ${String(van)} de ${String(total)}`,
     apareceCuandoPague: 'Aparece cuando tu cliente pague algo: dice cuánto ya pagó.',
+    noVaEnUnEstimativo: 'No va en un estimativo: la lleva el presupuesto, con sus fechas.',
     soloEnEste: 'Solo en este presupuesto',
     agregarOtra: 'Agregar otra',
   },
@@ -160,6 +182,7 @@ export const armarElPresupuesto = {
     },
     yaPago: 'Ya pagó',
     leFaltaParaLaSena: 'Le falta para la seña',
+    elEstimativoNoLaPide: 'Un estimativo no pide seña: la pide el presupuesto.',
     segunLaQueElija: {
       taller: (porcentaje: string) => `La seña del ${porcentaje} del taller, según la que elija`,
       trabajo: (porcentaje: string) =>
@@ -215,6 +238,7 @@ export const armarElPresupuesto = {
     volverAlDeSiempre: 'Volver al de siempre',
     retocado: 'Retocado para este trabajo. La de siempre sigue igual en Ajustes.',
     laSenaDeEsteTrabajo: (sena: string) => `El ${sena} es la seña de este trabajo.`,
+    noVaEnUnEstimativo: 'Un estimativo no lleva la forma de pago: va en el presupuesto.',
   },
   garantia: {
     titulo: 'Garantía',
@@ -228,6 +252,7 @@ export const armarElPresupuesto = {
       muebles: 'Detalle',
       valores: 'Valores',
       queCambio: 'Qué cambió',
+      fechas: 'Fechas',
     },
     loQueFalta: {
       titulo: 'Ponele un título al trabajo.',
@@ -236,6 +261,8 @@ export const armarElPresupuesto = {
       opciones: 'Cada opción necesita su importe.',
       queCambio: 'Contale a tu cliente qué cambió.',
       queCambioLargo: 'Lo que cambió tiene que entrar en 280 caracteres.',
+      'sena-antes-del-envio': 'La fecha de la seña ya pasó: tiene que ser hoy o después.',
+      'entrega-antes-de-la-sena': 'La entrega tiene que ser después de la fecha de la seña.',
     },
     leFaltaAlgo: 'Le falta algo para mandarlo',
     noSePudoMandar: 'No se pudo mandar el presupuesto.',
@@ -249,6 +276,11 @@ export const armarElPresupuesto = {
     valeHasta: (fecha: string) => `Vale hasta el ${fecha}.`,
     pasaA: (estado: ReactNode) => <>Pasa a {estado}</>,
     seTilda: 'Se tilda «Armar el presupuesto» en Qué falta.',
+    esUnEstimativo: 'Tu cliente lo ve como presupuesto estimativo, sin seña, y lo puede aprobar.',
+    teProponeUnDia: 'Al aprobarlo, te propone un día y un horario para que vayas a medir.',
+    noSeTilda: '«Armar el presupuesto» sigue sin tildar: espera el definitivo.',
+    prometeLaEntrega: (entrega: string, sena: string) =>
+      `Promete la entrega para el ${entrega} si la seña entra antes del ${sena}.`,
     quedaGuardada: (revision: number) =>
       `La revisión ${String(revision)} queda guardada en la ficha, con su PDF.`,
     conLaReferencia: (dolar: string) =>

@@ -77,6 +77,7 @@ function tesoro(
     tinta,
     icono,
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden,
     archivado_at: null,
@@ -95,7 +96,9 @@ const TESOROS = [
 ];
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -105,6 +108,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -114,6 +120,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -124,7 +133,7 @@ const FILA: Fila = {
 const CON_TODO: Fila = {
   ...FILA,
   obligaciones: [
-    { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
+    { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
     ...FILA.obligaciones,
   ],
   superavit: APARTE,
@@ -239,24 +248,58 @@ const REABIERTO = {
 } satisfies Partial<Proyecto>;
 
 describe('fechaDelCobroPropuesta', () => {
-  it('es el día del último pago del trabajo, no hoy', () => {
-    const replica = replicaCon([
-      { fecha: '2026-07-10' },
-      { fecha: '2026-08-20' },
-      { fecha: '2026-09-01', proyecto_id: 'otro' },
+  function conPagos(
+    pagos: readonly { fecha: string; monto: number; proyecto_id?: string }[],
+  ): Replica {
+    return replicaCon(
+      pagos.map(({ monto, ...pago }) => ({
+        ...pago,
+        monto_centavos: monto,
+        moneda: 'ARS',
+        cotizacion_centavos: null,
+      })),
+    );
+  }
+
+  it('un trabajo sin saldar no se reparte el día de la seña: propone hoy, aunque la seña sea de cuando se creó', () => {
+    const replica = conPagos([
+      { fecha: '2026-07-10', monto: 50_000_00 },
+      { fecha: '2026-08-20', monto: 10_000_00 },
+      { fecha: '2026-09-01', monto: 1_000_000_00, proyecto_id: 'otro' },
     ]);
-    expect(fechaDelCobroPropuesta(replica, proyecto(), HOY)).toBe('2026-08-20');
+    expect(
+      fechaDelCobroPropuesta(replica, proyecto({ presupuesto_centavos: 200_000_00 }), HOY),
+    ).toBe(HOY);
   });
 
-  it('con el pago final que se está cargando, sigue a ese día', () => {
-    const replica = replicaCon([{ fecha: '2026-07-10' }]);
-    expect(fechaDelCobroPropuesta(replica, proyecto(), HOY, '2026-09-05')).toBe('2026-09-05');
-    expect(fechaDelCobroPropuesta(replica, proyecto(), HOY, '')).toBe('2026-07-10');
+  it('saldado con sus pagos, es el día del último pago: ahí entró la plata', () => {
+    const replica = conPagos([
+      { fecha: '2026-07-10', monto: 100_000_00 },
+      { fecha: '2026-08-20', monto: 100_000_00 },
+      { fecha: '2026-09-01', monto: 5_00, proyecto_id: 'otro' },
+    ]);
+    expect(
+      fechaDelCobroPropuesta(replica, proyecto({ presupuesto_centavos: 200_000_00 }), HOY),
+    ).toBe('2026-08-20');
   });
 
-  it('sin pagos, o con un día que todavía no llegó, propone hoy', () => {
+  it('con el pago final que se está cargando, va ese día, y vacío vuelve a la regla de siempre', () => {
+    const replica = conPagos([{ fecha: '2026-07-10', monto: 50_000_00 }]);
+    const sinSaldar = proyecto({ presupuesto_centavos: 200_000_00 });
+    expect(fechaDelCobroPropuesta(replica, sinSaldar, HOY, '2026-09-05')).toBe('2026-09-05');
+    expect(fechaDelCobroPropuesta(replica, sinSaldar, HOY, '')).toBe(HOY);
+  });
+
+  it('sin pagos, sin presupuesto o con un día que todavía no llegó, propone hoy', () => {
     expect(fechaDelCobroPropuesta(replicaCon([]), proyecto(), HOY)).toBe(HOY);
     expect(fechaDelCobroPropuesta(replicaCon([]), proyecto(), HOY, '2026-09-30')).toBe(HOY);
+    expect(
+      fechaDelCobroPropuesta(
+        conPagos([{ fecha: '2026-07-10', monto: 50_000_00 }]),
+        proyecto({ presupuesto_centavos: null }),
+        HOY,
+      ),
+    ).toBe(HOY);
   });
 
   it('un cobro reabierto trae el día del cobro original', () => {
@@ -783,7 +826,7 @@ describe('el despiece real', () => {
       dist_fila: {
         ...CON_TODO,
         obligaciones: [
-          { tesoro: DIEZMO, porcentaje: puntosBasicos(1200), base: 'cobrado' },
+          { tesoro: DIEZMO, porcentaje: puntosBasicos(1200), base: 'cobrado', montoFijo: null },
           ...CON_TODO.obligaciones.filter((obligacion) => obligacion.tesoro !== DIEZMO),
         ],
       } as unknown as Proyecto['dist_fila'],

@@ -1,4 +1,5 @@
 import {
+  aprobarElPresupuesto,
   generarEnlacePublico,
   guardarElTokenDelEnlace,
   marcarArchivoParaElCliente,
@@ -7,8 +8,9 @@ import {
   traerVistaDelCliente,
   type EnlaceNuevo,
   type FilaDe,
+  type ResultadoDeAprobar,
 } from '@maun/db';
-import type { TrabajoDelCliente } from '@maun/domain';
+import type { AprobacionParaMandar, TrabajoDelCliente } from '@maun/domain';
 
 import { clienteAnonimo, clienteMaun } from './cliente';
 
@@ -43,4 +45,11 @@ export function revocarElEnlace(
 
 export function compartirElArchivo(id: string, visible: boolean): Promise<FilaDe<'archivos'>> {
   return marcarArchivoParaElCliente(clienteMaun(), id, visible);
+}
+
+export function aprobarElPresupuestoDelCliente(
+  token: string,
+  aprobacion: AprobacionParaMandar,
+): Promise<ResultadoDeAprobar> {
+  return aprobarElPresupuesto(clienteAnonimo(), token, aprobacion);
 }

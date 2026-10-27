@@ -12,14 +12,20 @@ import {
 } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type {
-  GuardadoDeProyecto,
-  OpcionDePresupuesto,
-  Proyecto,
-  ResumenDeProyecto,
+import {
+  CLAVE_DE_LA_RESPUESTA_ATENDIDA,
+  type FilaDeRespuesta,
+  type RespuestaDelCliente,
+} from '@/entities/presupuesto';
+import {
+  CLAVE_DE_PROYECTO,
+  type GuardadoDeProyecto,
+  type OpcionDePresupuesto,
+  type Proyecto,
+  type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
@@ -62,6 +68,7 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
           obra: '',
           plantilla: PLANTILLA_DE_SIEMPRE,
           validezDias: 15,
+          faltaMedir: false,
           idNuevo: () => 'm1',
         }),
         plazoDeFabricacion: plazo,
@@ -82,9 +89,14 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
+      mandadoEl: '2026-09-10',
     },
     formatosDelDocumento('es'),
   );
+}
+
+function sinFechas(mandado: DocumentoDelPresupuesto): DocumentoDelPresupuesto {
+  return { ...mandado, listoPara: null, senaAntesDel: null };
 }
 
 function opcion(id: string, monto: number): OpcionDePresupuesto {
@@ -137,7 +149,15 @@ function montar(
     proyecto = PROYECTO,
     opciones = [],
     moneda = 'ARS',
-  }: { proyecto?: Proyecto; opciones?: OpcionDePresupuesto[]; moneda?: Moneda } = {},
+    respuestaDelCliente = null,
+    quedaMontada = false,
+  }: {
+    proyecto?: Proyecto;
+    opciones?: OpcionDePresupuesto[];
+    moneda?: Moneda;
+    respuestaDelCliente?: RespuestaDelCliente | null;
+    quedaMontada?: boolean;
+  } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -159,21 +179,38 @@ function montar(
     entrega: { fecha: null, comprometida: false, franja: null },
     urgencia: undefined,
   } as unknown as ResumenDeProyecto;
+  const pantalla = (
+    <PantallaDePasaje
+      resumen={resumen}
+      opciones={opciones}
+      respuestaDelCliente={respuestaDelCliente}
+    />
+  );
   render(
     <MemoryRouter initialEntries={['/proyectos/p/aprobar']}>
       <QueryClientProvider client={queryClient}>
         <ProveedorDeReplica replica={replica}>
-          <PantallaDePasaje resumen={resumen} opciones={opciones} />
+          {quedaMontada ? (
+            pantalla
+          ) : (
+            <Routes>
+              <Route path="/proyectos/:id/aprobar" element={pantalla} />
+              <Route path="*" element={null} />
+            </Routes>
+          )}
         </ProveedorDeReplica>
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  const deLaClave = (clave: readonly string[]) =>
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .filter((mutacion) => mutacion.options.mutationKey?.join('/') === clave.join('/'))
+      .map((mutacion) => mutacion.state.variables);
   return {
-    guardados: () =>
-      queryClient
-        .getMutationCache()
-        .getAll()
-        .map((mutacion) => mutacion.state.variables as GuardadoDeProyecto),
+    guardados: () => deLaClave(CLAVE_DE_PROYECTO) as GuardadoDeProyecto[],
+    atendidas: () => deLaClave(CLAVE_DE_LA_RESPUESTA_ATENDIDA) as { respuesta: FilaDeRespuesta }[],
   };
 }
 
@@ -208,8 +245,21 @@ afterEach(() => {
 });
 
 describe('el pasaje con un presupuesto mandado', () => {
-  it('calcula la entrega con el plazo del presupuesto y lo dice', () => {
+  it('la entrega es la que prometió el presupuesto, y no se mueve con el inicio', () => {
     montar(taller(documento(30, valoresDelTrabajo(centavos(1_000_000), []))));
+
+    expect(campo('Fecha de inicio').value).toBe(HOY);
+    expect(campo('Entrega estimada').value).toBe('2026-10-22');
+    expect(campo('Entrega estimada')).toHaveAccessibleDescription(
+      'Es la que prometió el presupuesto, con la seña antes de su fecha.',
+    );
+
+    fireEvent.change(campo('Fecha de inicio'), { target: { value: '2026-09-21' } });
+    expect(campo('Entrega estimada').value).toBe('2026-10-22');
+  });
+
+  it('con una revisión sin fechas, calcula la entrega con el plazo del presupuesto y lo dice', () => {
+    montar(taller(sinFechas(documento(30, valoresDelTrabajo(centavos(1_000_000), [])))));
 
     expect(campo('Fecha de inicio').value).toBe(HOY);
     expect(campo('Entrega estimada').value).toBe('2026-10-26');
@@ -267,6 +317,87 @@ describe('el pasaje con un presupuesto mandado', () => {
     expect(enUnRenglon(screen.getByText(/Acordado al aprobar/))).toBe(
       'En el presupuesto Nº 20260910-01 dice $ 15.000. Si lo aprobás así, su página, la ficha y el PDF suman «Acordado al aprobar: $ 16.000».',
     );
+  });
+});
+
+describe('el pasaje con la respuesta del cliente', () => {
+  const CON_OPCIONES = documento(
+    21,
+    valoresDelTrabajo(null, [
+      { id: 'o1', descripcion: 'Frentes en melamina', monto: centavos(1_000_000) },
+      { id: 'o2', descripcion: 'Frentes laqueados', monto: centavos(1_500_000) },
+    ]),
+  );
+
+  function respuesta(cambios: Partial<FilaDeRespuesta> = {}): RespuestaDelCliente {
+    return {
+      fila: {
+        ...METADATOS,
+        id: 'resp-1',
+        proyecto_id: 'p',
+        revision_id: 'r1',
+        opcion_id: 'o2',
+        dia: null,
+        franja: null,
+        nota: '',
+        respondida_el: '2026-09-12',
+        atendida_at: null,
+        ...cambios,
+      },
+      documento: CON_OPCIONES,
+      letra: 'B',
+      franja: null,
+      hora: null,
+    };
+  }
+
+  it('si el cliente aprobó una opción desde su página, la trae elegida', () => {
+    montar(taller(CON_OPCIONES), {
+      opciones: [opcion('o1', 1_000_000), opcion('o2', 1_500_000)],
+      respuestaDelCliente: respuesta(),
+    });
+
+    expect(screen.getByRole('radio', { name: /Frentes laqueados/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Frentes en melamina/ })).not.toBeChecked();
+  });
+
+  it('al pasarlo, la respuesta del cliente queda atendida', () => {
+    const { guardados, atendidas } = montar(taller(CON_OPCIONES), {
+      opciones: [opcion('o1', 1_000_000), opcion('o2', 1_500_000)],
+      respuestaDelCliente: respuesta(),
+    });
+
+    expect(atendidas()).toEqual([]);
+    fireEvent.click(botonDePasar());
+
+    expect(guardados()).toHaveLength(1);
+    expect(atendidas().map(({ respuesta: atendida }) => atendida.id)).toEqual(['resp-1']);
+    expect(screen.queryByRole('button', { name: /Pasar a Proyectos/ })).toBeNull();
+  });
+
+  it('sin señal, la respuesta queda atendida una sola vez aunque la pantalla siga dibujándose', () => {
+    const { guardados, atendidas } = montar(taller(CON_OPCIONES), {
+      opciones: [opcion('o1', 1_000_000), opcion('o2', 1_500_000)],
+      respuestaDelCliente: respuesta(),
+      quedaMontada: true,
+    });
+
+    fireEvent.click(botonDePasar());
+
+    expect(guardados()).toHaveLength(1);
+    expect(atendidas()).toHaveLength(1);
+  });
+
+  it('sin respuesta del cliente, no elige ninguna ni atiende nada', () => {
+    const { atendidas } = montar(taller(CON_OPCIONES), {
+      opciones: [opcion('o1', 1_000_000), opcion('o2', 1_500_000)],
+    });
+
+    expect(screen.getByRole('radio', { name: /Frentes laqueados/ })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: /Frentes en melamina/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: /Frentes en melamina/ }));
+    fireEvent.click(botonDePasar());
+    expect(atendidas()).toEqual([]);
   });
 });
 

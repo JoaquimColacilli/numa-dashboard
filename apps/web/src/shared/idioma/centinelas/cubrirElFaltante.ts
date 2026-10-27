@@ -57,4 +57,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.cubrirElFaltante.pasar('«MONTO»', '«TESORO»'),
     tieneQueDecir: ['«MONTO»', '«TESORO»'],
   },
+  'cubrirElFaltante.seVaAPagar': {
+    llamar: (m) => m.cubrirElFaltante.seVaAPagar('«RENGLÓN»', 23, '«FALTA»', '«MAUN»'),
+    tieneQueDecir: ['«RENGLÓN»', '23', '«FALTA»', '«MAUN»'],
+  },
 };

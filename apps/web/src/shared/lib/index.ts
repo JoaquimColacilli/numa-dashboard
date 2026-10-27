@@ -40,6 +40,7 @@ export {
 export { nombreDelTaller, TALLER_DE_RESPALDO } from './taller';
 export {
   enlaceParaEscribir,
+  mensajeDelEstimativo,
   mensajeParaElCliente,
   telefonoParaWhatsapp,
   whatsappCon,
@@ -272,6 +273,7 @@ export {
   iconoDelTesoro,
   NOMBRE_DE_LA_TINTA,
   TESORO,
+  TESOROS_DE_UN_TALLER_NUEVO,
   TESOROS_EN_ORDEN,
   TINTA,
   TINTAS_DE_TESORO,

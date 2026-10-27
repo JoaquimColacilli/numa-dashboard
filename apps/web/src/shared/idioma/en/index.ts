@@ -3,7 +3,6 @@ import type { Mensajes } from '../es';
 import { activarHuella } from './activarHuella';
 import { adjuntarArchivos } from './adjuntarArchivos';
 import { agenda } from './agenda';
-import { ajustarCocos } from './ajustarCocos';
 import { api } from './api';
 import { appLayout } from './appLayout';
 import { appNavegacion } from './appNavegacion';
@@ -13,6 +12,7 @@ import { archivo } from './archivo';
 import { armarElPresupuesto } from './armarElPresupuesto';
 import { armarLaFila } from './armarLaFila';
 import { armarLaVidriera } from './armarLaVidriera';
+import { atenderLaRespuesta } from './atenderLaRespuesta';
 import { avanzarLaConsulta } from './avanzarLaConsulta';
 import { cerrarSesion } from './cerrarSesion';
 import { cliente } from './cliente';
@@ -71,7 +71,6 @@ export const en = {
   activarHuella,
   adjuntarArchivos,
   agenda,
-  ajustarCocos,
   api,
   appLayout,
   appNavegacion,
@@ -81,6 +80,7 @@ export const en = {
   armarElPresupuesto,
   armarLaFila,
   armarLaVidriera,
+  atenderLaRespuesta,
   avanzarLaConsulta,
   cerrarSesion,
   cliente,

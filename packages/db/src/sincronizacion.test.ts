@@ -327,7 +327,9 @@ describe('el cobro por la fila', () => {
   it('guardar la fila manda la revisión que se vio, o null para volver a la de siempre', async () => {
     const { cliente, rpc } = clienteFalso({ id: 'a1', fila_version: 5 });
     const fila: Fila = {
-      obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+      obligaciones: [
+        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+      ],
       pasos: [],
       reparto: [],
       superavit: 'maun',
@@ -353,8 +355,20 @@ describe('el cobro por la fila', () => {
   it('el pedido lleva los repartos en el orden del cobro, sin el diezmo, y lo que vio cada paso y cada meta', () => {
     const reparto = repartir({
       obligaciones: [
-        { tesoro: 'brutos', porcentaje: puntosBasicos(350), base: 'cobrado', diezmo: false },
-        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', diezmo: true },
+        {
+          tesoro: 'brutos',
+          porcentaje: puntosBasicos(350),
+          base: 'cobrado',
+          montoFijo: null,
+          diezmo: false,
+        },
+        {
+          tesoro: 'diezmo',
+          porcentaje: puntosBasicos(1000),
+          base: 'ingreso',
+          montoFijo: null,
+          diezmo: true,
+        },
       ],
       pasos: [
         {
@@ -364,6 +378,7 @@ describe('el cobro por la fila', () => {
           porMes: true,
           modo: 'saldo',
           hastaLaMeta: false,
+          dia: null,
         },
       ],
       reparto: [

@@ -109,13 +109,9 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.paginaInicio.diaDelMes(7, 30),
     tieneQueDecir: ['7', '30'],
   },
-  'paginaInicio.panorama.enElTesoro': {
-    llamar: (m) => m.paginaInicio.panorama.enElTesoro(TESORO),
-    tieneQueDecir: [TESORO],
-  },
-  'paginaInicio.panorama.enElTesoroQueNoAlcanza': {
-    llamar: (m) => m.paginaInicio.panorama.enElTesoroQueNoAlcanza(TESORO),
-    tieneQueDecir: [TESORO],
+  'paginaInicio.panorama.sinLosInsumos': {
+    llamar: (m) => m.paginaInicio.panorama.sinLosInsumos(7),
+    tieneQueDecir: ['7'],
   },
   'paginaInicio.panorama.deTrabajos': {
     llamar: (m) => m.paginaInicio.panorama.deTrabajos(7),
@@ -269,10 +265,6 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.paginaInicio.ultimaOpinion.comentario('«COMENTARIO»'),
     tieneQueDecir: ['«COMENTARIO»'],
   },
-  'paginaInicio.tarjetas.tipos': {
-    llamar: (m) => m.paginaInicio.tarjetas.tipos(['«UNO»', '«DOS»']),
-    tieneQueDecir: ['«UNO»', '«DOS»'],
-  },
   'paginaInicio.tarjetas.pusoEnLosTrabajos': {
     llamar: (m) => m.paginaInicio.tarjetas.pusoEnLosTrabajos(MONTO),
     tieneQueDecir: [MONTO],
@@ -288,5 +280,25 @@ export const centinelas: Centinelas = {
   'paginaInicio.tarjetas.deLaMeta': {
     llamar: (m) => m.paginaInicio.tarjetas.deLaMeta(7),
     tieneQueDecir: ['7'],
+  },
+  'paginaInicio.laFila.reglaDelMontoFijo': {
+    llamar: (m) => m.paginaInicio.laFila.reglaDelMontoFijo(MONTO),
+    tieneQueDecir: [MONTO],
+  },
+  'paginaInicio.laFila.delCiclo': {
+    llamar: (m) => m.paginaInicio.laFila.delCiclo('«DESDE»', '«HASTA»'),
+    tieneQueDecir: ['«DESDE»', '«HASTA»'],
+  },
+  'paginaInicio.laFila.sueldoDelCiclo': {
+    llamar: (m) => m.paginaInicio.laFila.sueldoDelCiclo('«CICLO»'),
+    tieneQueDecir: ['«CICLO»'],
+  },
+  'paginaInicio.metas.deLaMetaPara': {
+    llamar: (m) => m.paginaInicio.metas.deLaMetaPara('«DE LA META»', '«PARA CUÁNDO»'),
+    tieneQueDecir: ['«DE LA META»', '«PARA CUÁNDO»'],
+  },
+  'paginaInicio.tarjetas.deLaMetaPara': {
+    llamar: (m) => m.paginaInicio.tarjetas.deLaMetaPara(7, '«PARA CUÁNDO»'),
+    tieneQueDecir: ['7', '«PARA CUÁNDO»'],
   },
 };

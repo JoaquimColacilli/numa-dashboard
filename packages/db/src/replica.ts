@@ -14,6 +14,7 @@ export const TABLAS_REPLICADAS = [
   'opciones_de_presupuesto',
   'presupuestos',
   'revisiones_del_presupuesto',
+  'respuestas_al_presupuesto',
   'necesidades',
   'proximos_contactos',
   'propuestas_de_entrega',
@@ -21,6 +22,7 @@ export const TABLAS_REPLICADAS = [
   'cambios_de_fecha',
   'cambios_de_estado',
   'movimientos',
+  'pagos_de_vencimientos',
   'anotaciones',
   'archivos',
   'fotos_de_la_vidriera',
@@ -212,12 +214,7 @@ export function ajustesDe(replica: Replica): FilaDe<'ajustes'> | undefined {
 export function faltaConfigurar(ajustes: FilaDe<'ajustes'> | undefined): boolean {
   if (!ajustes) return false;
   if (((ajustes as Partial<FilaDe<'ajustes'>>).fila ?? null) !== null) return false;
-  return (
-    ajustes.sueldo_mensual_centavos === 0 &&
-    ajustes.costos_fijos_centavos === 0 &&
-    ajustes.meta_cocos_centavos === 0 &&
-    ajustes.tasa_cocos_anual_bp === 0
-  );
+  return ajustes.sueldo_mensual_centavos === 0 && ajustes.costos_fijos_centavos === 0;
 }
 
 export function necesitaReconcile(replica: Replica | undefined, ahora: number): boolean {

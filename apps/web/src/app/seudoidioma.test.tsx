@@ -43,7 +43,9 @@ const METADATOS = {
 } as const;
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -53,6 +55,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -62,6 +67,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -85,6 +93,7 @@ function tesoro(
     tinta,
     icono: 'vault',
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
@@ -103,6 +112,7 @@ const AJUSTES = {
   sueldo_tope_mensual: true,
   perdido_con_sueldo: false,
   perdido_con_diezmo: true,
+  preguntas_de_la_consulta: null,
   cobro_alias: 'taller.maun',
   cobro_cbu: '',
   cobro_titular: 'Eliseo Maun',
@@ -228,6 +238,7 @@ const PROYECTO = {
   visita_importante: false,
   entrega_importante: false,
   presupuesto_importante: false,
+  respuestas_de_la_consulta: [],
 } satisfies FilaDe<'proyectos'>;
 
 const EN_PESOS = {
@@ -307,6 +318,7 @@ const COMPRA = {
   monto_destino_centavos: 50_000,
   categoria: 'Oficial',
   descripcion: '',
+  vencimiento: null,
   cubre_el_mes: null,
   proyecto_id: null,
   tesoro_origen: null,

@@ -113,6 +113,7 @@ export const avanzarLaConsulta = {
     ayudaDeLaEntrega: (dias: number) => `Calculada a ${String(dias)} días hábiles del inicio.`,
     ayudaDeLaEntregaDelPresupuesto: (dias: number) =>
       `Calculada a ${String(dias)} días hábiles del inicio, el plazo del presupuesto.`,
+    ayudaDeLaEntregaPrometida: 'Es la que prometió el presupuesto, con la seña antes de su fecha.',
     direccionDeEntrega: 'Dirección de entrega',
     ejemploDeDireccion: 'Calle y número, localidad',
     comprobanteAEmitir: 'Comprobante a emitir',

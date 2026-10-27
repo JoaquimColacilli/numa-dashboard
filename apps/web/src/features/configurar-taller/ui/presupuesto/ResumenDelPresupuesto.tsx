@@ -57,6 +57,9 @@ export function ResumenDelPresupuesto({ household, ajustes }: ResumenDelPresupue
         <Renglon clave={m.plazo}>
           <span className="tabular-nums">{m.diasHabiles(plantilla.plazoDeFabricacion)}</span>
         </Renglon>
+        <Renglon clave={m.sena}>
+          <span className="tabular-nums">{m.diasDespues(plantilla.diasParaLaSena)}</span>
+        </Renglon>
         <Renglon clave={m.garantia}>
           <span className="tabular-nums">{m.meses(plantilla.garantiaMeses)}</span>
         </Renglon>

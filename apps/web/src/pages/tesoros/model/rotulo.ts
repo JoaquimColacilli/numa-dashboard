@@ -42,3 +42,21 @@ export function anotarQueSeEntendio(): void {
     return;
   }
 }
+
+const CLAVE_DE_LA_FORMA_NUEVA = 'maun:tesoros-forma-nueva-propuesta';
+
+export function yaSePropusoLaFormaNueva(): boolean {
+  try {
+    return globalThis.localStorage.getItem(CLAVE_DE_LA_FORMA_NUEVA) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function anotarQueSePropusoLaFormaNueva(): void {
+  try {
+    globalThis.localStorage.setItem(CLAVE_DE_LA_FORMA_NUEVA, '1');
+  } catch {
+    return;
+  }
+}

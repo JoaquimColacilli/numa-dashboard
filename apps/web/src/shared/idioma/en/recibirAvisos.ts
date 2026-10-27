@@ -37,7 +37,12 @@ export const recibirAvisos = {
       etiqueta: 'My notes',
       detalle: 'What you jot down: materials, shop work',
     },
+    respuestas: {
+      etiqueta: 'Replies from your clients',
+      detalle: 'When a client approves a quote or an estimate from their page',
+    },
   },
+  enElMomento: 'Right away',
   laMananaDelDia: 'that morning',
   elDiaAnterior: 'the day before',
   diasAntes: ({ dias }) => plural(dias, { one: '# day before', other: '# days before' }),

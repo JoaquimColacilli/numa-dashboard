@@ -23,7 +23,7 @@ export function porQueNoSeArchiva(
   replica: Replica,
   tesoro: Pick<TesoroDelTaller, 'id' | 'clave'>,
 ): PorQueNoSeArchiva | null {
-  if (tesoro.clave !== null) return { motivo: 'de-siempre' };
+  if (tesoro.clave !== null && tesoro.clave !== 'cocos') return { motivo: 'de-siempre' };
 
   const { fila, guardada } = filaDelTaller(replica);
   if (guardada && tesorosDeLaFila(fila).includes(tesoro.id)) return { motivo: 'en-la-fila' };

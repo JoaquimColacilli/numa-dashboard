@@ -14,6 +14,7 @@ import {
 } from '@/shared/ui';
 
 import type { ResultadoDeLaVista } from '../api/consulta';
+import type { AprobarElPresupuesto } from '../model/aprobar';
 import type { MandarLaEntrega } from '../model/mandar';
 import { VistaDelCliente } from './VistaDelCliente';
 
@@ -24,6 +25,7 @@ export interface PantallaDeLaVistaProps {
   idiomaDeEspera: Idioma;
   elQueNoEsta: ElQueNoEsta;
   alMandar?: MandarLaEntrega;
+  alAprobar?: AprobarElPresupuesto;
 }
 
 function Aviso({
@@ -90,14 +92,16 @@ function LaVista({
   trabajo,
   hoy,
   alMandar,
+  alAprobar,
 }: {
   trabajo: TrabajoDelCliente;
   hoy: string;
   alMandar?: MandarLaEntrega;
+  alAprobar?: AprobarElPresupuesto;
 }) {
   const m = useMensajesDelCliente();
   const vista = useMemo(() => vistaDelCliente(trabajo, hoy, m.vista.delDominio), [trabajo, hoy, m]);
-  return <VistaDelCliente vista={vista} hoy={hoy} alMandar={alMandar} />;
+  return <VistaDelCliente vista={vista} hoy={hoy} alMandar={alMandar} alAprobar={alAprobar} />;
 }
 
 function MientrasNoEsta({
@@ -144,6 +148,7 @@ export function PantallaDeLaVista({
   idiomaDeEspera,
   elQueNoEsta,
   alMandar,
+  alAprobar,
 }: PantallaDeLaVistaProps) {
   if (resultado.estado === 'lista') {
     return (
@@ -155,7 +160,12 @@ export function PantallaDeLaVista({
           </ConElIdiomaDelCliente>
         }
       >
-        <LaVista trabajo={resultado.trabajo} hoy={resultado.hoy} alMandar={alMandar} />
+        <LaVista
+          trabajo={resultado.trabajo}
+          hoy={resultado.hoy}
+          alMandar={alMandar}
+          alAprobar={alAprobar}
+        />
       </ConElIdiomaDelCliente>
     );
   }

@@ -711,6 +711,7 @@ export async function migrar(
   );
   const datos: DatosDelLibro = {
     tesoros: [],
+    vencimientos: [],
     movimientos: [...movimientos, ...filasDeApertura].map((fila) => ({
       id: fila.id,
       fecha: fila.fecha,

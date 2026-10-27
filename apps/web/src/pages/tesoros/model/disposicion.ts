@@ -13,11 +13,17 @@ import {
   type ObligacionDeLaFila,
   type PasoDeLaFila,
   type PasoDelMes,
+  type QueEsElTesoro,
   type TipoDelPaso,
 } from '@maun/domain';
 import type { Edge, Node } from '@xyflow/react';
 
-import { DESCRIPCION_DEL_TIPO, type LugarEnLaFila, type ParteDeLaEscala } from '@/entities/fila';
+import {
+  DESCRIPCION_DEL_TIPO,
+  loQueEs,
+  type LugarEnLaFila,
+  type ParteDeLaEscala,
+} from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import {
   escalaDe,
@@ -138,6 +144,7 @@ export interface DatosDeLaObligacion extends Comun {
   numero: number;
   cuantos: number;
   tesoro: TesoroDelTaller;
+  queEs: QueEsElTesoro;
   obligacion: ObligacionDeLaFila;
   diezmo: boolean;
   aPagar: Money;
@@ -157,6 +164,7 @@ export interface DatosDelPaso extends Comun {
   numero: number;
   cuantos: number;
   tesoro: TesoroDelTaller;
+  queEs: QueEsElTesoro;
   paso: PasoDeLaFila;
   tipo: TipoDelPaso;
   porTrabajo: boolean;
@@ -175,6 +183,7 @@ export interface DatosDelReparto extends Comun {
 
 export interface DatosDeLaParte extends Comun {
   tesoro: TesoroDelTaller;
+  queEs: QueEsElTesoro;
   porcentaje: number;
   superavit: boolean;
   hastaLaMeta: boolean;
@@ -187,6 +196,7 @@ export interface DatosDeLaParte extends Comun {
 
 export interface DatosDelEstante extends Comun {
   tesoro: TesoroDelTaller;
+  queEs: QueEsElTesoro;
 }
 
 export interface DatosDelTitulo extends Comun {
@@ -344,6 +354,7 @@ function delMesDe(mes: FilaDelMes, paso: PasoDeLaFila): PasoDelMes {
       tipo: tipoDelPaso(paso.clase),
       modo: paso.modo,
       objetivo: paso.tope,
+      ciclo: null,
       recibido: CERO,
       cubierto: CERO,
       lleva: CERO,
@@ -351,6 +362,8 @@ function delMesDe(mes: FilaDelMes, paso: PasoDeLaFila): PasoDelMes {
       completo: paso.modo !== 'trabajo' && paso.tope === 0,
       aPagar: null,
       vencimientos: [],
+      vencimiento: null,
+      ultimoPago: null,
       meta: null,
     }
   );
@@ -535,6 +548,7 @@ export function armarElPlano({
   const pasos = ordenConHueco(fila.pasos, arrastre);
   const cuantos = obligaciones.length + pasos.length;
   const conDeudaEn = (tesoro: string) => tesoro !== sistema.hogar && tesoro !== sistema.maun;
+  const queEsDe = (tesoro: TesoroDelTaller): QueEsElTesoro => loQueEs(fila, tesoro);
 
   nodos.push({
     id: FICHA_DE_LA_SENA,
@@ -653,6 +667,7 @@ export function armarElPlano({
         numero: indice + 1,
         cuantos,
         tesoro,
+        queEs: queEsDe(tesoro),
         obligacion,
         diezmo: esDiezmo,
         aPagar,
@@ -714,6 +729,7 @@ export function armarElPlano({
         numero,
         cuantos,
         tesoro,
+        queEs: queEsDe(tesoro),
         paso,
         tipo,
         porTrabajo: paso.clase === 'sueldo' && fila.sueldoPorTrabajo,
@@ -882,6 +898,7 @@ export function armarElPlano({
         ...comun,
         revision: parte.resto ? null : marca(parte.tesoro),
         tesoro,
+        queEs: queEsDe(tesoro),
         porcentaje: parte.porcentaje,
         superavit: parte.resto,
         hastaLaMeta,
@@ -985,7 +1002,7 @@ export function armarElPlano({
       height: ALTO.estante,
       draggable: false,
       selected: elegido === id,
-      data: { ...comun, tesoro: suelto },
+      data: { ...comun, tesoro: suelto, queEs: queEsDe(suelto) },
       ...accesible(
         textos.rolDelEstante,
         textos.etiquetaDelEstante(suelto.nombre, formatearLaPlata(suelto.saldo)),

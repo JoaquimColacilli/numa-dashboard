@@ -46,13 +46,18 @@ export function AyudaDelMapa({ className }: { className?: string }) {
   );
 }
 
-export function AyudaDeQueEs() {
-  const { queEs } = useMensajes().fila.ayudas;
-  return (
-    <Ayuda que={queEs.que}>
-      <Parrafos>{[queEs.compromiso, queEs.ahorroFijo]}</Parrafos>
-    </Ayuda>
-  );
+export type QueSeExplica =
+  | 'caja'
+  | 'deuda-destinada'
+  | 'deuda-obligatoria'
+  | 'meta'
+  | 'pagaSola'
+  | 'adelanto'
+  | 'deudaInterna';
+
+export function AyudaDeLoQueEs({ de }: { de: QueSeExplica }) {
+  const ayuda = useMensajes().fila.ayudasDeLoQueEs[de];
+  return <Ayuda que={ayuda.que}>{ayuda.texto}</Ayuda>;
 }
 
 export function AyudaDelMonto({ monto }: { monto: number }) {

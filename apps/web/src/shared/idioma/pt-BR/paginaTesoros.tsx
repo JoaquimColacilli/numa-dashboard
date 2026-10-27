@@ -155,7 +155,6 @@ export const paginaTesoros = {
     elResto: 'O resto',
     hastaLaMetaUnidad: 'Até a meta',
     tiene: 'Saldo',
-    sinDescripcion: 'Sem descrição',
     uniUnaFlecha: 'Ligue uma seta aqui',
     nuevoTesoro: 'Nova caixinha',
     seCobraElTrabajo: 'O projeto é pago',

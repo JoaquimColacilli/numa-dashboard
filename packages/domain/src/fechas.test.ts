@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cicloDeLaFecha,
   correrMes,
   DIAS_HABILES_DE_ENTREGA,
   DIAS_HABILES_PARA_PRESUPUESTAR,
@@ -9,12 +10,14 @@ import {
   diasEntre,
   entregaEstimada,
   esFechaQueExiste,
+  estaEnElCiclo,
   mesDe,
   mesesDelRango,
   mesesEntre,
   sumarDias,
   sumarDiasHabiles,
   vencimientoDelPresupuesto,
+  vencimientosEntre,
 } from './fechas.ts';
 
 describe('mesesDelRango', () => {
@@ -74,6 +77,67 @@ describe('diaDelMes', () => {
   it('rechaza un día fuera del 1 al 31 o un mes mal escrito', () => {
     for (const dia of [0, 32, 1.5]) expect(() => diaDelMes('2026-09', dia)).toThrow(RangeError);
     expect(() => diaDelMes('septiembre', 1)).toThrow(RangeError);
+  });
+});
+
+describe('cicloDeLaFecha', () => {
+  it('va de un vencimiento al siguiente: con el 10, del 10 al 10', () => {
+    expect(cicloDeLaFecha('2026-10-27', 10)).toEqual({ desde: '2026-10-10', hasta: '2026-11-10' });
+    expect(cicloDeLaFecha('2026-10-09', 10)).toEqual({ desde: '2026-09-10', hasta: '2026-10-10' });
+  });
+
+  it('el día del vencimiento ya es del ciclo que sigue', () => {
+    expect(cicloDeLaFecha('2026-11-10', 10)).toEqual({ desde: '2026-11-10', hasta: '2026-12-10' });
+  });
+
+  it('con el 1 es el mes del calendario', () => {
+    expect(cicloDeLaFecha('2026-10-01', 1)).toEqual({ desde: '2026-10-01', hasta: '2026-11-01' });
+    expect(cicloDeLaFecha('2026-10-31', 1)).toEqual({ desde: '2026-10-01', hasta: '2026-11-01' });
+  });
+
+  it('con el 31, en noviembre vence el 30 y el ciclo que vence el 31 de diciembre arranca el 30 de noviembre', () => {
+    expect(cicloDeLaFecha('2026-11-15', 31)).toEqual({ desde: '2026-10-31', hasta: '2026-11-30' });
+    expect(cicloDeLaFecha('2026-12-01', 31)).toEqual({ desde: '2026-11-30', hasta: '2026-12-31' });
+    expect(cicloDeLaFecha('2026-12-31', 31)).toEqual({ desde: '2026-12-31', hasta: '2027-01-31' });
+  });
+
+  it('cruza febrero y el año', () => {
+    expect(cicloDeLaFecha('2027-02-27', 30)).toEqual({ desde: '2027-01-30', hasta: '2027-02-28' });
+    expect(cicloDeLaFecha('2027-02-28', 30)).toEqual({ desde: '2027-02-28', hasta: '2027-03-30' });
+    expect(cicloDeLaFecha('2027-01-05', 10)).toEqual({ desde: '2026-12-10', hasta: '2027-01-10' });
+  });
+
+  it('rechaza una fecha que no existe o un día fuera del 1 al 31', () => {
+    expect(() => cicloDeLaFecha('2026-02-30', 10)).toThrow(RangeError);
+    expect(() => cicloDeLaFecha('2026-10-10', 0)).toThrow(RangeError);
+  });
+});
+
+describe('estaEnElCiclo', () => {
+  it('desde incluido y hasta afuera', () => {
+    const ciclo = { desde: '2026-10-10', hasta: '2026-11-10' };
+    expect(estaEnElCiclo('2026-10-10', ciclo)).toBe(true);
+    expect(estaEnElCiclo('2026-11-09', ciclo)).toBe(true);
+    expect(estaEnElCiclo('2026-11-10', ciclo)).toBe(false);
+    expect(estaEnElCiclo('2026-10-09', ciclo)).toBe(false);
+  });
+});
+
+describe('vencimientosEntre', () => {
+  it('son los vencimientos después del primer día, hasta el último incluido', () => {
+    expect(vencimientosEntre('2026-10-27', '2026-12-10', 10)).toEqual(['2026-11-10', '2026-12-10']);
+    expect(vencimientosEntre('2026-11-10', '2026-11-10', 10)).toEqual([]);
+    expect(vencimientosEntre('2026-11-09', '2026-11-10', 10)).toEqual(['2026-11-10']);
+    expect(vencimientosEntre('2026-10-27', '2026-11-09', 10)).toEqual([]);
+  });
+
+  it('con el 31, sigue el último día de cada mes', () => {
+    expect(vencimientosEntre('2026-10-31', '2027-03-01', 31)).toEqual([
+      '2026-11-30',
+      '2026-12-31',
+      '2027-01-31',
+      '2027-02-28',
+    ]);
   });
 });
 

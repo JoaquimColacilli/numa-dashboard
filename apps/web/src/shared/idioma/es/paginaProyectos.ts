@@ -99,6 +99,7 @@ export const paginaProyectos = {
     leTocaba: (fecha: string) => `Le tocaba el ${fecha}`,
     leVolvesAEscribir: (fecha: string) => `Le volvés a escribir el ${fecha}`,
     proximoContacto: 'Próximo contacto',
+    cambiarLaFecha: 'Cambiar la fecha',
     registrarElContacto: 'Registrar el contacto',
     cuandoLeEscribas:
       'Cuando le escribas, registralo: ahí elegís si vuelve a las consultas, si sigue en seguimiento con otra fecha o si no va.',
@@ -140,6 +141,7 @@ export const paginaProyectos = {
   },
   consultas: {
     visita: 'Visita',
+    tuClienteAprobo: 'Tu cliente aprobó',
     vacioTitulo: 'No hay consultas por ahora',
     vacioDetalle:
       'Cuando te llame alguien, cargalo acá con lo que pide y la fecha de la visita. Si en la visita te dejó una seña, anotala: entra a la caja del taller desde ese día. Cuando lo apruebe, pasa a Activos.',

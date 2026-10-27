@@ -5,8 +5,13 @@ import { obligacionDelDiezmo, reglaDelDiezmo, todaviaSinDiezmo } from './regla';
 
 describe('el diezmo lee su porcentaje y sobre qué se calcula en la fila', () => {
   const obligaciones = [
-    { tesoro: 'iibb', porcentaje: puntosBasicos(350), base: 'cobrado' as const },
-    { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' as const },
+    { tesoro: 'iibb', porcentaje: puntosBasicos(350), base: 'cobrado' as const, montoFijo: null },
+    {
+      tesoro: 'diezmo',
+      porcentaje: puntosBasicos(1000),
+      base: 'ingreso' as const,
+      montoFijo: null,
+    },
   ];
 
   it('con lo de siempre, el 10% del ingreso de cada trabajo', () => {

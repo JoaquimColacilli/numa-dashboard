@@ -11,6 +11,7 @@ import { FaltanteDelMes } from './FaltanteDelMes';
 
 const MAUN = '01900000-0000-7000-8000-000000000002';
 const FIJOS = '01900000-0000-7000-8000-000000000005';
+const ALQUILER = '01900000-0000-7000-8000-000000000006';
 
 function filaDeTesoro(id: string, clave: string | null, nombre: string, tinta: string) {
   return {
@@ -22,6 +23,7 @@ function filaDeTesoro(id: string, clave: string | null, nombre: string, tinta: s
     tinta,
     icono: 'receipt',
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
@@ -41,6 +43,7 @@ function replicaDelTaller(): Replica {
   const tesoros = [
     filaDeTesoro(MAUN, 'maun', 'Maun', 'maun'),
     filaDeTesoro(FIJOS, null, 'Gastos fijos', 'grana'),
+    filaDeTesoro(ALQUILER, null, 'Alquiler', 'petroleo'),
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((una) => [una.id, una]));
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
@@ -52,6 +55,8 @@ const GASTOS_FIJOS: FaltanteEnInicio = {
   modo: 'mes',
   falta: centavos(27_000_000),
   vence: null,
+  pagaSola: false,
+  maun: 'Maun',
 };
 
 const ALQUILER_QUE_VENCE: FaltanteEnInicio = {
@@ -65,7 +70,27 @@ const ALQUILER_QUE_VENCE: FaltanteEnInicio = {
     monto: centavos(50_000_000),
     fecha: '2026-10-03',
     pagado: false,
+    pagoSolo: null,
   },
+};
+
+const ALQUILER_QUE_SE_PAGA_SOLO: FaltanteEnInicio = {
+  tesoro: ALQUILER,
+  nombre: 'alquiler',
+  modo: 'mes',
+  falta: centavos(27_000_000),
+  vence: {
+    id: `vencimiento:${ALQUILER}:2026-10-03`,
+    tesoro: ALQUILER,
+    nombreDelTesoro: 'Alquiler',
+    renglon: null,
+    monto: centavos(50_000_000),
+    fecha: '2026-10-03',
+    pagado: false,
+    pagoSolo: null,
+  },
+  pagaSola: true,
+  maun: 'Maun',
 };
 
 function montar(faltantes: readonly FaltanteEnInicio[], hoy: string, sePuedeCubrir = true) {
@@ -142,6 +167,27 @@ describe('el faltante de los gastos fijos en Inicio', () => {
       'Vence el alquiler el 3 y faltan $ 270.000.',
     );
     expect(within(aviso).getByText(/270\.000/)).toHaveClass('font-semibold');
+  });
+
+  it('una deuda que se paga sola dice qué día se paga y que, si no entra más plata, lo que falta lo pone Maun', () => {
+    montar([ALQUILER_QUE_SE_PAGA_SOLO], '2026-09-28');
+
+    const aviso = screen.getByRole('region', { name: 'Falta para alquiler' });
+    const parrafos = within(aviso).getAllByRole('paragraph');
+    expect(parrafos).toHaveLength(1);
+    expect(llano(parrafos[0]?.textContent ?? null)).toBe(
+      'El 3 se paga el alquiler y faltan $ 270.000. Si no entra más plata, los pone Maun.',
+    );
+    expect(within(aviso).getByText(/270\.000/)).toHaveClass('font-semibold');
+  });
+
+  it('una deuda con día de pago que no se paga sola nombra al tesoro cuando vence', () => {
+    montar([{ ...ALQUILER_QUE_SE_PAGA_SOLO, pagaSola: false }], '2026-09-28');
+
+    const aviso = screen.getByRole('region', { name: 'Falta para alquiler' });
+    expect(llano(within(aviso).getByRole('paragraph').textContent)).toBe(
+      'Vence el alquiler el 3 y faltan $ 270.000.',
+    );
   });
 
   it('uno que se renueva al pagar no habla del mes', () => {

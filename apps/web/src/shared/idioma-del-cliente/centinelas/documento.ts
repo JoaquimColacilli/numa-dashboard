@@ -9,4 +9,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.documento.meses(18),
     tieneQueDecir: ['18'],
   },
+  'documento.senaAcordada': {
+    llamar: (m) => m.documento.senaAcordada('«PORCENTAJE»', '«MONTO»'),
+    tieneQueDecir: ['«PORCENTAJE»', '«MONTO»'],
+  },
 };

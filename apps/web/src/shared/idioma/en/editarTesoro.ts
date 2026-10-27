@@ -11,6 +11,21 @@ export const editarTesoro = {
     enPesos: 'In pesos',
     enDolares: 'In dollars',
   },
+  ajustar: {
+    boton: 'Adjust the balance',
+    titulo: (nombre) => `Adjust the balance of ${nombre}`,
+    bajada: 'So it matches what it really has.',
+    tieneAhora: 'It has now',
+    seSuman: (monto) => `${monto} is added`,
+    seRestan: (monto) => `${monto} is taken out`,
+    quedaIgual: 'Stays the same',
+    porQue: 'Why (optional)',
+    oEscribilo: 'Or write it',
+    fecha: 'Date',
+    fechaQueNoPaso: 'Choose today or a day that already passed.',
+    ajustar: 'Adjust',
+    volver: 'Back',
+  },
   archivar: {
     conDolaresSinDestino: 'To archive it, sell the dollars or move them to another dollar bucket.',
     debeDolaresSinOrigen:
@@ -52,9 +67,12 @@ export const editarTesoro = {
     tambienLaUsa: (nombre) => `${nombre} uses it too: you can tell them apart by name and icon.`,
     icono: 'Icon',
     meta: 'Goal',
-    ayudaDeLaMeta: 'Optional. If you set one, Home shows how much is left to go.',
-    rinde: 'Yearly yield (%)',
-    ayudaDelRinde: "It's only used for projections. If you don't know it, leave it at 0.",
+    ayudaDeLaMeta:
+      'Optional. If you set one, it collects until it gets there and Home shows how much is left.',
+    objetivo: 'Goal',
+    ayudaDelObjetivo: 'It collects until it gets there. Then its share keeps flowing down.',
+    paraCuando: 'By when',
+    ayudaDeLaFecha: 'Optional: an estimated date to get there.',
   },
   iconos: {
     receipt: 'Receipt',
@@ -86,7 +104,10 @@ export const editarTesoro = {
       }),
     descripcion: (maximo) =>
       plural(maximo, { one: 'Up to # character.', other: 'Up to # characters.' }),
-    rinde: 'Enter the yield as a percentage, for example 40. You can leave it at 0.',
+    meta: 'Enter the goal: how much it collects.',
+    fechaSinMeta: 'To set a date, enter the goal first.',
+    fechaDeLaMeta: 'The date goes from today on.',
+    diaDePago: 'The payment day goes from 1 to 31.',
     monto: 'Enter the most it can get.',
     montoGrande: "The amount can't be that large.",
     porcentajeDeLaObligacion: (minimo, maximo) => `Enter a percentage from ${minimo} to ${maximo}.`,
@@ -94,7 +115,6 @@ export const editarTesoro = {
       `Enter a percentage from ${minimo} to ${libre}, what's still free.`,
   },
   bajada: {
-    conRinde: 'Name, color, icon, goal and yield',
     conMeta: 'Name, color, icon and goal',
     deSiempre: 'Name, color and icon',
   },
@@ -144,6 +164,50 @@ export const editarTesoro = {
   nuevo: {
     titulo: 'New bucket',
     bajada: 'One more place for your money',
+    queEs: 'What is it?',
+    otroTipo: 'Change',
+    tipos: {
+      caja: {
+        titulo: 'Cash box',
+        que: 'What a cash box is',
+        ejemplo: 'Shop stock, petty cash',
+        ayuda:
+          "It collects with no cap. It doesn't come due or reset to zero on its own. Maun is the shop's main cash box.",
+      },
+      'deuda-destinada': {
+        titulo: 'Obligation',
+        que: 'What an obligation is',
+        ejemplo: 'Gross income tax',
+        ayuda:
+          "It takes a share of each payment, as a percentage or a fixed amount. It's there to hand over until you log the payment.",
+      },
+      'deuda-obligatoria': {
+        titulo: 'Bill',
+        que: 'What a bill is',
+        ejemplo: 'Rent, wages',
+        ayuda:
+          "It collects up to its cap between one due date and the next. On payment day it's paid and starts from zero. If it didn't reach the cap, Maun puts in what's missing.",
+      },
+      meta: {
+        titulo: 'Goal',
+        ejemplo: 'A machine, the workshop',
+        que: 'What a goal is',
+        ayuda:
+          'It collects until it reaches the goal. Then it stops receiving and its share keeps flowing down.',
+      },
+    },
+    enDolares: 'A dollar bucket is a cash box or a goal: the waterfall splits pesos.',
+    comoRecibe: 'How does it get money?',
+    seLleva: 'It takes',
+    unPorcentaje: 'A percentage',
+    unMontoFijo: 'A fixed amount',
+    montoFijo: 'Amount from each payment',
+    ayudaDelMontoFijo: 'Never more than what comes in.',
+    tope: 'Cap',
+    ayudaDelTope: 'What it collects between one payment day and the next.',
+    diaDePago: 'Payment day',
+    ayudaDelDiaDePago: "From 1 to 31. If the month doesn't have it, the last day.",
+    seLaPaga: 'Pays itself',
     sobreQueSeCalcula: "What it's calculated on",
     nombresSugeridos: 'Suggested names',
     dondeVa: 'Where it goes',

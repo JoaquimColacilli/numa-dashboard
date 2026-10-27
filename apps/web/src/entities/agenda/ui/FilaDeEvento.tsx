@@ -25,6 +25,7 @@ export interface AccionesDeLaAgenda {
   alMarcar: (evento: EventoDeLaAgenda) => void;
   alBorrar: (evento: EventoPropio) => void;
   alRegistrar?: (evento: EventoDerivado) => void;
+  alCambiarLaFecha?: (evento: EventoDerivado) => void;
   alRegistrarElPago?: (evento: EventoVencimiento) => void;
   alAbrirVencimiento?: (evento: EventoVencimiento) => void;
   recienHecha?: string | null;
@@ -212,7 +213,9 @@ function FilaDerivada({
   const conGrilla = useAnchoDePantalla() !== 'movil';
   const comoSeMueve =
     evento.categoria === 'seguimiento'
-      ? m.agenda.comoSeMueve.seguimiento
+      ? conGrilla
+        ? m.agenda.comoSeMueve.seguimiento
+        : m.agenda.comoSeMueve.seguimientoConLaFecha
       : conGrilla
         ? m.agenda.comoSeMueve.arrastrando
         : m.agenda.comoSeMueve.conLaFecha;
@@ -222,6 +225,10 @@ function FilaDerivada({
   const registrar =
     evento.categoria === 'seguimiento' && acciones.alRegistrar !== undefined
       ? acciones.alRegistrar
+      : undefined;
+  const cambiarLaFecha =
+    evento.categoria === 'seguimiento' && acciones.alCambiarLaFecha !== undefined
+      ? acciones.alCambiarLaFecha
       : undefined;
 
   return (
@@ -260,6 +267,17 @@ function FilaDerivada({
                   }}
                 >
                   {m.agenda.registrarElContacto}
+                </Button>
+              )}
+              {cambiarLaFecha !== undefined && (
+                <Button
+                  variant="secundario"
+                  size="chico"
+                  onClick={() => {
+                    cambiarLaFecha(evento);
+                  }}
+                >
+                  {m.agenda.cambiarLaFecha}
                 </Button>
               )}
               <Button variant="secundario" size="chico" onClick={abrir}>

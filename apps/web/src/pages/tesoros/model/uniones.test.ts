@@ -34,7 +34,9 @@ const TESOROS = [
 ];
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -44,6 +46,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -53,6 +58,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'saldo',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -62,6 +70,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -116,7 +127,7 @@ describe('unir con la manija hasta el estante, con el tipo del grupo', () => {
     expect(aplicada.elegir).toBe(`paso-${HERRAMIENTAS}`);
   });
 
-  it('desde un compromiso, entra como compromiso y se renueva al pagar', () => {
+  it('desde un compromiso, entra como compromiso por mes, con su día de pago y pagándose solo', () => {
     expect(frase(`paso-${HOGAR}`, `estante-${HERRAMIENTAS}`)).toBe(
       'Soltá: Herramientas entra como compromiso 3',
     );
@@ -125,10 +136,11 @@ describe('unir con la manija hasta el estante, con el tipo del grupo', () => {
     const aplicada = aplicarLaUnion(FILA, TESOROS, DIEZMO, unida);
     expect(aplicada.fila.pasos.map((paso) => [paso.tesoro, paso.clase, paso.modo])).toEqual([
       [HOGAR, 'sueldo', 'mes'],
-      [HERRAMIENTAS, 'fijos', 'saldo'],
+      [HERRAMIENTAS, 'fijos', 'mes'],
       [FIJOS, 'fijos', 'saldo'],
       [MATERIALES, 'prioridad', 'mes'],
     ]);
+    expect(aplicada.fila.pasos[1]).toMatchObject({ dia: 10, pagaSola: true });
   });
 
   it('desde una obligación, entra como obligación con 0% y queda elegida para ponerle el porcentaje', () => {
@@ -151,6 +163,7 @@ describe('unir con la manija hasta el estante, con el tipo del grupo', () => {
       tesoro: IIBB,
       porcentaje: 0,
       base: 'ingreso',
+      montoFijo: null,
     });
     expect(aplicada.elegir).toBe(`obligacion-${IIBB}`);
     expect(union('diezmo', `estante-${HOGAR}`)).toBeNull();
@@ -185,7 +198,7 @@ describe('unir con la manija hasta el estante, con el tipo del grupo', () => {
     const conDos: Fila = {
       ...FILA,
       obligaciones: [
-        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
+        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
         ...FILA.obligaciones,
       ],
     };

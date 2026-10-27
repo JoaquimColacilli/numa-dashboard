@@ -80,7 +80,7 @@ function nombreDe(presupuesto: PresupuestoEnPdf): string {
     presupuesto.documento,
     presupuesto.borrador ? null : presupuesto.numero,
     presupuesto.revision,
-    m.pdf.archivo,
+    presupuesto.documento.estimativo ? m.pdf.archivoDelEstimativo : m.pdf.archivo,
   );
 }
 
@@ -90,7 +90,7 @@ function tituloDe(presupuesto: PresupuestoEnPdf): string {
   return tituloDelArchivo(
     presupuesto.borrador ? null : presupuesto.numero,
     presupuesto.revision,
-    m.pdf.titulo,
+    presupuesto.documento.estimativo ? m.pdf.tituloDelEstimativo : m.pdf.titulo,
   );
 }
 

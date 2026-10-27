@@ -45,7 +45,9 @@ const TESOROS = [
 ];
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -55,6 +57,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -64,6 +69,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(9500), hastaLaMeta: false }],
@@ -122,19 +130,37 @@ describe('editar la fila', () => {
   });
 
   it('un paso nuevo arranca con el modo y la meta de su tipo', () => {
-    expect(pasoNuevo(MAUN, 'maun', centavos(100))).toMatchObject({
+    const hoy = '2026-10-26';
+    expect(pasoNuevo(MAUN, 'maun', centavos(100), { hoy })).toMatchObject({
       clase: 'fijos',
       modo: 'mes',
       renglones: [{ nombre: 'Costos fijos', monto: 100, dia: null }],
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     });
-    expect(pasoNuevo(HERRAMIENTAS, null, centavos(100), { clase: 'fijos' })).toMatchObject({
-      modo: 'saldo',
+    expect(pasoNuevo(HERRAMIENTAS, null, centavos(100), { clase: 'fijos', hoy })).toMatchObject({
+      modo: 'mes',
       hastaLaMeta: false,
+      dia: 10,
+      pagaSola: true,
+      pagaSolaDesde: hoy,
     });
-    expect(pasoNuevo(HERRAMIENTAS, null, centavos(100), { meta: centavos(5) })).toMatchObject({
+    expect(
+      pasoNuevo(HERRAMIENTAS, null, centavos(100), {
+        clase: 'fijos',
+        dia: 5,
+        pagaSola: false,
+        hoy,
+      }),
+    ).toMatchObject({ modo: 'mes', dia: 5, pagaSola: false, pagaSolaDesde: null });
+    expect(pasoNuevo(HERRAMIENTAS, null, centavos(100), { meta: centavos(5), hoy })).toMatchObject({
       clase: 'prioridad',
       modo: 'mes',
       hastaLaMeta: true,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     });
   });
 
@@ -255,7 +281,7 @@ describe('los textos', () => {
     const conIngresosBrutos: Fila = {
       ...FILA,
       obligaciones: [
-        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
+        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
         ...FILA.obligaciones,
       ],
     };

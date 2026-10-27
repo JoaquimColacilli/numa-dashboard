@@ -34,6 +34,17 @@ export const editarProyecto = {
       perdido:
         'Un proyecto perdido tiene la distribución congelada: su estado se cambia reabriéndolo.',
     },
+    visita: 'Visita',
+    horaDeLaVisita: 'Hora de la visita',
+    ayudaDeLaHora: 'Opcional. Con hora, la visita cae en su renglón del día en la agenda.',
+    yaFuiARelevar: 'Ya fui a relevar',
+    ayudaDeYaFui:
+      'En la agenda la visita queda tachada. Si no fuiste, destildala y vuelve a quedar pendiente.',
+    entregarElPresupuestoAntesDel: 'Entregar el presupuesto antes del',
+    ayudaDelVencimiento: 'Sale en la agenda hasta que lo mandes.',
+    valeHasta: 'El presupuesto vale hasta',
+    ayudaDeValeHasta:
+      'Tu cliente lo ve en su página: si deja la seña antes de ese día, le dice para cuándo podría estar listo. Pasado el día, le dice que venció. Sin fecha, no le promete ninguna.',
     direccionDeEntrega: 'Dirección de entrega',
     usarLaDelCliente: 'Usar la del cliente',
     direccionEjemplo: 'Calle y número, localidad',
@@ -136,6 +147,7 @@ export const editarProyecto = {
     conAprobada: 'Las que no eligió quedan acá, para saber qué le ofreciste.',
     sinDetalle: 'Opción sin detalle',
     esElPresupuesto: 'Aprobada: es el presupuesto del trabajo',
+    laEligioTuCliente: 'La eligió tu cliente',
     estaAprobada: 'Aprobada',
     laAprobo: 'La aprobó',
   },

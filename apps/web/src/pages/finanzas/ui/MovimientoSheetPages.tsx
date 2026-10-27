@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router';
 
-import { CLASES_EN_ORDEN, renglonesPorTesoro, type ClaseDeMovimiento } from '@/entities/movimiento';
+import {
+  CLASES_QUE_SE_CARGAN,
+  renglonesPorTesoro,
+  type ClaseDeMovimiento,
+} from '@/entities/movimiento';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { tesorosDelTaller, tesorosSincronizados } from '@/entities/tesoro';
 import { HojaDeMovimiento } from '@/features/registrar-movimiento';
@@ -9,7 +13,7 @@ import { ajustesDe, filaDelTaller, filaPorId } from '@/shared/api';
 import { movimientoPropuesto, RUTA_DE_FINANZAS, useCerrarHoja } from '@/shared/lib';
 
 function esClase(valor: string | undefined): valor is ClaseDeMovimiento {
-  return valor !== undefined && (CLASES_EN_ORDEN as readonly string[]).includes(valor);
+  return valor !== undefined && (CLASES_QUE_SE_CARGAN as readonly string[]).includes(valor);
 }
 
 export function MovimientoNuevoPage() {
@@ -26,6 +30,7 @@ export function MovimientoNuevoPage() {
       montoInicial={propuesto.monto}
       categoriaInicial={propuesto.categoria}
       fechaInicial={propuesto.fecha}
+      vencimientoInicial={propuesto.vencimiento}
       renglones={renglonesPorTesoro(filaDelTaller(replica).fila)}
       tesoros={tesorosDelTaller(replica)}
       tesorosSincronizados={tesorosSincronizados(replica)}

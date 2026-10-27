@@ -23,6 +23,7 @@ function documento(): DocumentoDelPresupuesto {
         obra: '',
         plantilla: PLANTILLA_DE_SIEMPRE,
         validezDias: 15,
+        faltaMedir: false,
         idNuevo: () => 'm1',
       }),
       plantilla: PLANTILLA_DE_SIEMPRE,
@@ -41,12 +42,15 @@ function documento(): DocumentoDelPresupuesto {
       valores: valoresDelTrabajo(centavos(124_800_000), []),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(0),
+      mandadoEl: '2026-09-10',
     },
     {
       plata: (importe) => String(importe),
       porcentaje: (puntos) => String(puntos / 100),
       modificaciones: String,
       meses: String,
+      fecha: String,
+      senaAcordada: (porcentaje, monto) => `${porcentaje} ${monto ?? ''}`,
     },
   );
 }
@@ -221,6 +225,30 @@ describe('el PDF del presupuesto', () => {
 
     expect(descargados).toEqual([]);
     expect(result.current.estado).toBe('sin-preparar');
+  });
+
+  it('un estimativo se llama así, en el archivo y en su título', async () => {
+    const compartirConElAparato = vi.fn((_datos: ShareData) => Promise.resolve());
+    vi.stubGlobal('navigator', {
+      userAgent: '',
+      canShare: () => true,
+      share: compartirConElAparato,
+    });
+    const estimativo = { ...MANDADO, documento: { ...MANDADO.documento, estimativo: true } };
+    const { result } = renderHook(() => usePdfDelPresupuesto(estimativo, { generar }));
+
+    expect(result.current.nombre).toBe('Presupuesto estimativo 20260910-01 - Lucía Ferreyra.pdf');
+    act(() => {
+      result.current.compartir();
+    });
+    await terminar();
+    act(() => {
+      result.current.compartir();
+    });
+    expect(compartirConElAparato).toHaveBeenCalledOnce();
+    expect(compartirConElAparato.mock.calls[0]?.[0].title).toBe(
+      'Presupuesto estimativo 20260910-01',
+    );
   });
 
   it('el archivo se llama en el idioma del presupuesto', async () => {

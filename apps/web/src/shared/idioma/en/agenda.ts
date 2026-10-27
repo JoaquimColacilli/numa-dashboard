@@ -73,7 +73,9 @@ export const agenda = {
   estaComprometida: "It's confirmed with the client. To change it, open the job.",
   comoSeMueve: {
     seguimiento:
-      "When you write to them, log it: that's where you choose whether the job comes back, gets another date or is off.",
+      "When you write to them, log it: that's where you choose whether the job comes back, gets another date or is off. To move it to another day, drag it on the month to today or a day ahead, or change the date.",
+    seguimientoConLaFecha:
+      "When you write to them, log it: that's where you choose whether the job comes back, gets another date or is off. To move it to another day, change the date.",
     arrastrando: 'Drag it on the month to move it, or change the date there.',
     conLaFecha: 'To move it, change the date there.',
   },
@@ -82,6 +84,7 @@ export const agenda = {
     tarde: 'in the afternoon',
   },
   registrarElContacto: 'Log the follow-up',
+  cambiarLaFecha: 'Change the date',
   marcarComoImportante: 'Mark as important',
   sacarLaMarca: 'Remove the important mark',
   borrar: (texto) => `Delete “${texto}”`,
@@ -149,6 +152,7 @@ export const agenda = {
   },
   arrastre: {
     loDejaste: (dia) => `You left it where it was, on ${dia}.`,
+    soloHoyOAdelante: (nombre) => `${nombre} goes today or on a day ahead: it stayed where it was.`,
     moviste: (nombre, dia) => `You moved ${nombre} to ${dia}. You can undo it from the notice.`,
     agarrasteConTeclado: (nombre, dia) =>
       `You picked up ${nombre}, from ${dia}. Move it with the arrow keys, drop it with Enter and cancel with Escape.`,

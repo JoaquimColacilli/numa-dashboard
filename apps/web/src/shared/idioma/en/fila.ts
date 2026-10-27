@@ -15,6 +15,48 @@ export const fila = {
     ahorros: 'Savings',
     superavit: 'Surplus',
   },
+  queEs: {
+    caja: 'Cash box',
+    'deuda-destinada': 'Obligation',
+    'deuda-obligatoria': 'Bill',
+    meta: 'Goal',
+  },
+  ayudasDeLoQueEs: {
+    caja: {
+      que: 'What a cash box is',
+      texto:
+        "It collects with no cap. It doesn't come due or reset to zero on its own. Maun is the shop's main cash box.",
+    },
+    'deuda-destinada': {
+      que: 'What an obligation is',
+      texto:
+        "It takes a share of each payment, as a percentage or a fixed amount. It's there to hand over until you log the payment.",
+    },
+    'deuda-obligatoria': {
+      que: 'What a bill is',
+      texto:
+        "It collects up to its cap between one due date and the next. On payment day it's paid and starts from zero. If it didn't reach the cap, Maun puts in what's missing.",
+    },
+    meta: {
+      que: 'What a goal is',
+      texto:
+        'It collects until it reaches the goal. Then it stops receiving and its share keeps flowing down.',
+    },
+    pagaSola: {
+      que: 'What “pays itself” means',
+      texto:
+        "On payment day, NUMA logs the payment. If it didn't reach the cap, Maun puts it in and it's logged as internal debt.",
+    },
+    adelanto: {
+      que: 'What an advance is',
+      texto: "If you take out part of it before payment day, log it here: it's deducted that day.",
+    },
+    deudaInterna: {
+      que: 'What internal debt is',
+      texto: "What Maun put in to cover a payment that didn't reach its cap.",
+    },
+  },
+  paraCuando: (mes, anio) => `by ${mes} ${anio}`,
   descripcionDelTipo: {
     obligacion: 'obligation',
     compromiso: 'bill',
@@ -63,18 +105,6 @@ export const fila = {
       que: 'What the income shows',
       texto:
         "It's the map of how each payment gets split. The amounts come from a test or from what came in this month. When a client pays you for a job, the payment shows you how it was split.",
-    },
-    queEs: {
-      que: 'What each kind of step is',
-      compromiso: {
-        rotulo: 'Bill:',
-        texto:
-          "what you have to pay, like wages, rent or installments. Owner's pay always goes to Hogar.",
-      },
-      ahorroFijo: {
-        rotulo: 'Fixed savings:',
-        texto: "an amount you set aside from profit, like the shop's stock.",
-      },
     },
     monto: {
       que: 'What the amount is',

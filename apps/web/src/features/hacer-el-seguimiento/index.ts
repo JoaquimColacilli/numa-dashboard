@@ -1,3 +1,4 @@
+export { HojaDeCambiarLaFecha, type HojaDeCambiarLaFechaProps } from './ui/HojaDeCambiarLaFecha';
 export {
   HojaDePonerEnSeguimiento,
   type HojaDePonerEnSeguimientoProps,

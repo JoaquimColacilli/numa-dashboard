@@ -33,8 +33,6 @@ export const configurarTaller = {
     ayudaDelSueldoPorTrabajo: 'What each paid job transfers to the household.',
     costosFijos: 'Monthly fixed costs',
     ayudaDeLosCostosFijos: 'Rent, utilities and everything you pay even when no work comes in.',
-    metaDeCocos: 'Cocos goal',
-    ayudaDeLaMeta: 'How much you want your invested savings to reach.',
     sena: 'Deposit you ask for (%)',
     ayudaDeLaSena:
       "The part of the quote you ask for to confirm a job. It's usually half, and you can change it for a specific job.",
@@ -44,8 +42,6 @@ export const configurarTaller = {
     vigencia: 'Days a quote is valid',
     ayudaDeLaVigencia:
       'Counted from the day you send it. Your client sees the deadline to pay the deposit, and you can change the date for each job.',
-    tasa: 'Cocos annual rate (%)',
-    ayudaDeLaTasa: "Only used for projections. If you don't know it, leave it at 0.",
     guardarTodo: 'Save settings',
     guardarElReparto: 'Save pay and costs',
     errores: {
@@ -55,7 +51,6 @@ export const configurarTaller = {
           other: 'Enter a name for your shop, up to # characters.',
         }),
       importe: 'Enter an amount, for example 1,800,000. You can leave it at 0.',
-      tasa: 'Enter the rate as a percentage, for example 40. You can leave it at 0.',
       sena: 'Enter the deposit as a percentage between 0 and 100, for example 50.',
       vigencia: (maximo) =>
         `Enter how many days a quote is valid, between 1 and ${String(maximo)}. Usually it's 15.`,
@@ -183,6 +178,24 @@ export const configurarTaller = {
       'otro-sitio':
         'It has to be a Google review link, like the ones that start with https://g.page/ or https://search.google.com/.',
     },
+  },
+  preguntas: {
+    pregunta: (numero) => `Question ${String(numero)}`,
+    ayudaDe: (rotulo) => `Hint for “${rotulo}”`,
+    escribiLaPregunta: 'Write the question',
+    ayudaOpcional: 'Hint (optional): what to ask',
+    elDomicilio: "It's the job's address, the delivery one: it goes first and can't be deleted.",
+    sinNombre: "Give it a name: it isn't saved without one.",
+    escribilaParaQueSeGuarde: 'Write the question so it gets saved.',
+    sumar: 'Add a question',
+    lleno: (cuantas) => `Up to ${String(cuantas)} fit: to add another, delete one.`,
+    subir: (rotulo) => `Move “${rotulo}” up`,
+    bajar: (rotulo) => `Move “${rotulo}” down`,
+    borrar: (rotulo) => `Delete “${rotulo}”`,
+    laNueva: 'the new question',
+    borraste: (rotulo) => `You deleted “${rotulo}”.`,
+    loContestadoQueda: 'What clients already answered stays in each job.',
+    deshacer: 'Undo',
   },
   presupuesto: {
     ajustes: 'Settings',
@@ -387,6 +400,33 @@ export const configurarTaller = {
           </>
         ),
       },
+      entrega: {
+        nombre: 'Delivery date',
+        explicacion: (Dato, valor) => (
+          <>
+            <Dato>{valor}</Dato> is when it can be ready. It starts from the lead time in “Numbers”,
+            counted from the day you send the quote, and you can change it on each one.
+          </>
+        ),
+      },
+      sena_acordada: {
+        nombre: 'Agreed deposit',
+        explicacion: (Dato, valor) => (
+          <>
+            The deposit reads like this: <Dato>{valor}</Dato>. With a single total it shows the
+            amount, minus what they've already paid.
+          </>
+        ),
+      },
+      sena_antes: {
+        nombre: 'Deposit date',
+        explicacion: (Dato, valor) => (
+          <>
+            <Dato>{valor}</Dato> is the date the deposit has to come in by to keep the delivery
+            date. It starts from the days in “Numbers” after the day you send it.
+          </>
+        ),
+      },
     },
     formas: {
       vaElegida: 'Selected by default',
@@ -463,6 +503,9 @@ export const configurarTaller = {
       ayudaDeLasModificaciones: 'The 3D design modifications included in the price.',
       valor: 'Price of each extra modification',
       ayudaDelValor: 'What you charge for each one beyond those.',
+      diasSena: 'Days for the deposit',
+      ayudaDeLosDiasDeLaSena:
+        'The days from when you send the quote to the deposit date. You can change it on each one.',
     },
     problemas: {
       titularLargo: (caracteres) =>
@@ -495,6 +538,8 @@ export const configurarTaller = {
       lasModificaciones: 'the modifications included',
       valor: 'Enter the price of an extra modification. It can be 0.',
       elValor: 'the price of a modification',
+      diasSena: 'Enter the days for the deposit, between 0 and 60.',
+      losDiasDeLaSena: 'the days for the deposit',
       textoVacio: 'Write the text or remove it from the list.',
       unTextoVacio: 'an empty text',
       textoLargo: (caracteres) =>
@@ -559,6 +604,11 @@ export const configurarTaller = {
           one: 'The lead time goes back to # business day.',
           other: 'The lead time goes back to # business days.',
         }),
+      losDiasDeLaSenaVuelven: (dias) =>
+        plural(dias, {
+          one: 'The deposit is due # day after you send it again.',
+          other: 'The deposit is due # days after you send it again.',
+        }),
       vuelvenLasModificaciones: (cuantas, valor) =>
         plural(cuantas, {
           one: `# modification is included again, and each extra one costs ${valor}.`,
@@ -601,6 +651,12 @@ export const configurarTaller = {
       plazo: 'Lead time',
       diasHabiles: (dias) =>
         plural(dias, { one: '#\u00a0business day', other: '#\u00a0business days' }),
+      sena: 'Deposit',
+      diasDespues: (dias) =>
+        plural(dias, {
+          one: '#\u00a0day after you send it',
+          other: '#\u00a0days after you send it',
+        }),
       garantia: 'Warranty',
       meses: (meses) => plural(meses, { one: '#\u00a0month', other: '#\u00a0months' }),
       textos: 'Texts',

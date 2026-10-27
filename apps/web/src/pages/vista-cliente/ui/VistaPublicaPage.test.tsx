@@ -9,6 +9,7 @@ const consulta = vi.hoisted((): { resultado: unknown } => ({ resultado: null }))
 vi.mock('@/entities/vista-cliente', () => ({
   PantallaDeLaVista: () => null,
   useMandarLaEntrega: () => undefined,
+  useAprobarElPresupuesto: () => undefined,
   useVistaCompartida: () => consulta.resultado,
 }));
 

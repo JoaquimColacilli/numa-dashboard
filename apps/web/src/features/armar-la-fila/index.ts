@@ -4,7 +4,13 @@ export {
   type GuardadoDeLaFila,
   type LoQueGuardaLaFila,
 } from './api/mutacion';
-export { editarLaFila, empezarAEditar, sePuedeEditar } from './model/acciones';
+export {
+  editarLaFila,
+  empezarAEditar,
+  proponerLaFormaNueva,
+  sePuedeEditar,
+  type PropuestaDeLaFormaNueva,
+} from './model/acciones';
 export {
   borradorDeLaFila,
   cortarLaJunta,

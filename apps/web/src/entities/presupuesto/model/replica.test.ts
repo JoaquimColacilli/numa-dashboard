@@ -35,6 +35,7 @@ const BORRADOR: BorradorDelPresupuesto = {
     obra: '',
     plantilla: PLANTILLA_DE_SIEMPRE,
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm1',
   }),
   muebles: [{ id: 'm1', nombre: 'Placard', descripcion: 'Tres puertas.' }],

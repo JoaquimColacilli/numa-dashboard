@@ -119,7 +119,8 @@
     "list": "id del datalist que sugiere valores",
     "etiquetadoPor": "id de la etiqueta del editor con datos (aria-labelledby)",
     "descritoPor": "id del error del editor con datos (aria-describedby)",
-    "idDeLaRespuesta": "id de la respuesta de la encuesta"
+    "idDeLaRespuesta": "id de la respuesta de la encuesta",
+    "idDeLaPregunta": "id de la pregunta de la consulta"
   },
   "porElemento": {
     "Icono": {
@@ -153,6 +154,15 @@
     },
     "HojaDeTesoroNuevo": {
       "monedaInicial": "código de la moneda con que arranca el tesoro"
+    },
+    "AyudaDeLoQueEs": {
+      "de": "qué se explica: el tipo de tesoro o «se paga sola»"
+    },
+    "Segmentos": {
+      "elegido": "valor del segmento elegido"
+    },
+    "FechaDelBorrador": {
+      "campo": "qué fecha del borrador edita: la de la seña o la de la entrega"
     }
   }
 }

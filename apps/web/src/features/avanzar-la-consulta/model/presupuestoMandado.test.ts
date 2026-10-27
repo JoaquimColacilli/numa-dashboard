@@ -19,6 +19,7 @@ import {
   avisoDelAcordado,
   ayudaDeLaEntrega,
   entregaDelPasaje,
+  entregaPrometida,
   loMandadoAlCliente,
   plazoDelPasaje,
   type LoMandadoAlCliente,
@@ -32,7 +33,11 @@ const METADATOS = {
   version: 1,
 } as const;
 
-function documento(plazo: number, valores: ValoresDelPresupuesto | null): DocumentoDelPresupuesto {
+function documento(
+  plazo: number,
+  valores: ValoresDelPresupuesto | null,
+  faltaMedir = false,
+): DocumentoDelPresupuesto {
   return documentoDelPresupuesto(
     {
       borrador: {
@@ -41,6 +46,7 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
           obra: '',
           plantilla: PLANTILLA_DE_SIEMPRE,
           validezDias: 15,
+          faltaMedir,
           idNuevo: () => 'm1',
         }),
         plazoDeFabricacion: plazo,
@@ -61,6 +67,7 @@ function documento(plazo: number, valores: ValoresDelPresupuesto | null): Docume
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(0),
+      mandadoEl: '2026-09-14',
     },
     formatosDelDocumento('es'),
   );
@@ -145,6 +152,22 @@ describe('lo que se le mandó al cliente, en el pasaje', () => {
     expect(entregaDelPasaje('2026-09-14', 21)).toBe('2026-10-13');
   });
 
+  it('la entrega prometida es la fecha de la última revisión; un estimativo o una revisión sin fechas no prometen nada', () => {
+    expect(entregaPrometida(mandado(CON_TOTAL))).toBe('2026-10-26');
+    expect(
+      entregaPrometida(
+        mandado({ ...CON_TOTAL, listoPara: '2026-11-20', senaAntesDel: '2026-09-18' }),
+      ),
+    ).toBe('2026-11-20');
+    expect(
+      entregaPrometida(mandado(documento(30, valoresDelTrabajo(centavos(1_000_000), []), true))),
+    ).toBeNull();
+    expect(
+      entregaPrometida(mandado({ ...CON_TOTAL, listoPara: null, senaAntesDel: null })),
+    ).toBeNull();
+    expect(entregaPrometida(null)).toBeNull();
+  });
+
   it('la ayuda de la entrega dice de dónde sale el plazo', () => {
     expect(ayudaDeLaEntrega(30, true)).toBe(
       'Calculada a 30 días hábiles del inicio, el plazo del presupuesto.',
@@ -190,6 +213,7 @@ describe('lo acordado, solo contra un presupuesto de la misma moneda y la misma 
         obra: '',
         plantilla: PLANTILLA_DE_SIEMPRE,
         validezDias: 15,
+        faltaMedir: false,
         idNuevo: () => 'm1',
       }),
       plantilla: PLANTILLA_DE_SIEMPRE,
@@ -209,6 +233,7 @@ describe('lo acordado, solo contra un presupuesto de la misma moneda y la misma 
       referencia: { cotizacion: cotizacion(154_000), fecha: '2026-09-14' },
       senaBp: puntosBasicos(5000),
       abonado: centavosEn('USD', 0),
+      mandadoEl: '2026-09-14',
     },
     formatosDelDocumento('es'),
   );

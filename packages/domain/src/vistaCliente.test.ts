@@ -20,6 +20,7 @@ import { VIDRIERA_VACIA, type VidrieraDelTaller } from './vidriera.ts';
 import {
   comoPagar as comoPagarCon,
   estaAprobada,
+  faltaElRelevamiento,
   hayComoPagar,
   HITOS_DEL_CAMINO,
   llegoAl,
@@ -157,6 +158,12 @@ const TEXTOS: TextosDeLaVista = {
     siDejasLaSenaAntesDel: (antesDe, listoPara) =>
       `Si dejás la seña antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`,
     vamosTomandoLosTrabajos: 'Vamos tomando los trabajos a medida que entran las señas.',
+    conLasFechas: (entrega, senaAcordada, senaAntes) =>
+      `Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el ${entrega}. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada ${senaAcordada} antes del ${senaAntes}.`,
+    senaAcordada: (porcentaje, monto) =>
+      monto === null ? `del ${porcentaje} de la opción que elijas` : `del ${porcentaje} (${monto})`,
+    dependiaDeLaSena: (fecha) =>
+      `La fecha de entrega dependía de la seña antes del ${fecha}. Escribinos y te confirmamos una nueva.`,
   },
   nota: {
     pendiente: {
@@ -241,7 +248,16 @@ function textoDeLaProyeccion(
   formatos: Pick<FormatosDeFecha, 'enUnaFrase'>,
   sena: SenaDeLaVista['situacion'],
 ) {
-  return textoDeLaProyeccionCon(proyeccion, formatos, sena, TEXTOS.proyeccion);
+  return textoDeLaProyeccionCon(
+    proyeccion,
+    {
+      ...formatos,
+      plata: (monto, moneda) => `${moneda === 'USD' ? 'US$' : '$'}${String(monto / 100)}`,
+      porcentaje: (puntos) => String(puntos / 100),
+    },
+    sena,
+    TEXTOS.proyeccion,
+  );
 }
 
 const HOY = '2026-09-18';
@@ -2871,12 +2887,19 @@ const BORRADOR_DEL_PRESUPUESTO: BorradorDelPresupuesto = {
   clausulaDeLaMoneda: null,
   modificacion: null,
   monedaDeLoAbonado: null,
+  estimativo: false,
+  pideFecha: false,
+  listoPara: null,
+  senaAntesDel: null,
 };
 
-function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
+function documentoMandado(
+  conOpciones: boolean,
+  borrador: BorradorDelPresupuesto = BORRADOR_DEL_PRESUPUESTO,
+): DocumentoDelPresupuesto {
   return documentoDelPresupuesto(
     {
-      borrador: BORRADOR_DEL_PRESUPUESTO,
+      borrador,
       plantilla: PLANTILLA_DE_SIEMPRE,
       taller: {
         nombre: 'Taller MAUN',
@@ -2896,14 +2919,21 @@ function documentoMandado(conOpciones: boolean): DocumentoDelPresupuesto {
       ),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(RELEVAMIENTO),
+      mandadoEl: '2026-09-02',
     },
     {
       plata: (importe) => `$${String(importe / 100)}`,
       porcentaje: (puntos) => String(puntos / 100),
       modificaciones: (cantidad) => `${String(cantidad)} modificaciones`,
       meses: (cantidad) => `${String(cantidad)} meses`,
+      fecha: (fecha) => fecha,
+      senaAcordada: (porcentaje, monto) => `del ${porcentaje} (${String(monto)})`,
     },
   );
+}
+
+function deAntesDeLasFechas(documento: DocumentoDelPresupuesto): DocumentoDelPresupuesto {
+  return { ...documento, estimativo: false, pideFecha: false, listoPara: null, senaAntesDel: null };
 }
 
 function mandado(
@@ -3007,8 +3037,20 @@ describe('el presupuesto en la página del cliente', () => {
     expect(vista.elPresupuesto?.pideLaSena).toBe(false);
   });
 
-  it('«Para cuándo» cuenta con el plazo de la última revisión, no con los 21 días hábiles', () => {
-    const vista = esperandoLaSena(vistaDelCliente(mandado(), HOY));
+  it('«Para cuándo» de una revisión de antes cuenta con su plazo, no con los 21 días hábiles', () => {
+    const deAntes = mandado();
+    const vista = esperandoLaSena(
+      vistaDelCliente(
+        {
+          ...deAntes,
+          presupuesto: {
+            ...(deAntes.presupuesto as PresupuestoDelTrabajo),
+            documento: deAntesDeLasFechas(documentoMandado(false)),
+          },
+        },
+        HOY,
+      ),
+    );
     expect(vista.proyeccion).toEqual({
       situacion: 'vigente',
       senarAntesDe: VALE_HASTA,
@@ -3132,9 +3174,8 @@ describe('el presupuesto en la página del cliente', () => {
   });
 
   it('antes del presupuesto no hay sección', () => {
-    const vista = vistaDelCliente(mandado({ estado: 'a_presupuestar' }), HOY);
-    expect(vista.etapa).toBe('antes-del-presupuesto');
-    expect('elPresupuesto' in vista).toBe(false);
+    const vista = antesDelPresupuesto(vistaDelCliente(mandado({ estado: 'a_presupuestar' }), HOY));
+    expect(vista.elPresupuesto).toBeNull();
   });
 
   it('una vista sin la clave del presupuesto se lee como sin presupuesto', () => {
@@ -3267,6 +3308,9 @@ const FORMATOS_DEL_DOCUMENTO = {
   porcentaje: (puntos: number) => String(puntos / 100),
   modificaciones: (cantidad: number) => `${String(cantidad)} modificaciones`,
   meses: (cantidad: number) => `${String(cantidad)} meses`,
+  fecha: (fecha: string) => fecha,
+  senaAcordada: (porcentaje: string, monto: string | null) =>
+    `del ${porcentaje} (${String(monto)})`,
 };
 
 function documentoEnDolares(): DocumentoDelPresupuesto {
@@ -3281,6 +3325,7 @@ function documentoEnDolares(): DocumentoDelPresupuesto {
     senaBp: puntosBasicos(5_000),
     abonado: centavosEn('USD', 8_276),
     referencia: REFERENCIA_DEL_PRESUPUESTO,
+    mandadoEl: '2026-09-14',
   };
   return documentoDelPresupuesto(entrada, FORMATOS_DEL_DOCUMENTO);
 }
@@ -3797,5 +3842,196 @@ describe('el presupuesto mandado en otra moneda que la del trabajo', () => {
       ),
     );
     expect(enLaMisma.elPresupuesto?.acordado).toBe(150_000);
+  });
+});
+
+describe('el estimativo, la aprobación y las fechas en la página del cliente', () => {
+  const REVISION_ID = '0199c000-0000-7000-8000-0000000000aa';
+
+  function conDocumento(
+    documento: DocumentoDelPresupuesto,
+    cambios: Partial<TrabajoDelCliente> = {},
+    presupuesto: Partial<PresupuestoDelTrabajo> = {},
+  ): TrabajoDelCliente {
+    const base = mandado(cambios);
+    return {
+      ...base,
+      presupuesto: {
+        ...(base.presupuesto as PresupuestoDelTrabajo),
+        documento,
+        revisionId: REVISION_ID,
+        ...presupuesto,
+      },
+    };
+  }
+
+  const ESTIMATIVO = documentoMandado(false, {
+    ...BORRADOR_DEL_PRESUPUESTO,
+    estimativo: true,
+    pideFecha: true,
+  });
+
+  const CON_FECHAS = documentoMandado(false);
+
+  it('un estimativo mandado se ve antes del presupuesto, sin seña, y se puede aprobar pidiendo fecha', () => {
+    const vista = antesDelPresupuesto(
+      vistaDelCliente(conDocumento(ESTIMATIVO, { estado: 'presupuesto_estimativo' }), HOY),
+    );
+    expect(vista.elPresupuesto).toMatchObject({
+      etapa: 'mandado',
+      estimativo: true,
+      pideLaSena: false,
+      fechas: null,
+      aprobacion: {
+        situacion: 'se-puede',
+        revisionId: REVISION_ID,
+        pideFecha: true,
+        dias: { desde: '2026-09-20', hasta: '2026-11-17' },
+      },
+    });
+    expect(vista.comoPagar).toBeNull();
+  });
+
+  it('una revisión que no es estimativo no se ve antes del presupuesto', () => {
+    const vista = antesDelPresupuesto(
+      vistaDelCliente(conDocumento(CON_FECHAS, { estado: 'presupuesto_estimativo' }), HOY),
+    );
+    expect(vista.elPresupuesto).toBeNull();
+  });
+
+  it('un estimativo esperando la seña no pide seña, ni «Cómo pagar», ni «Para cuándo»', () => {
+    const vista = esperandoLaSena(vistaDelCliente(conDocumento(ESTIMATIVO), HOY));
+    expect(vista.sena).toEqual({ situacion: 'sin-presupuesto' });
+    expect(vista.comoPagar).toBeNull();
+    expect(vista.proyeccion).toEqual({ situacion: 'estimativo' });
+    expect(textoDeLaProyeccion(vista.proyeccion, FORMATOS, 'sin-presupuesto')).toEqual([]);
+  });
+
+  it('«Para cuándo» con las fechas del presupuesto dice la frase de Eliseo con la seña que falta', () => {
+    const vista = esperandoLaSena(vistaDelCliente(conDocumento(CON_FECHAS), '2026-09-03'));
+    expect(vista.proyeccion).toEqual({
+      situacion: 'del-presupuesto',
+      listoPara: '2026-10-21',
+      senaAntesDel: '2026-09-04',
+      senaBp: 5_000,
+      sena: SENA_DEL_PRESUPUESTO - RELEVAMIENTO,
+      moneda: 'ARS',
+    });
+    expect(textoDeLaProyeccion(vista.proyeccion, FORMATOS, 'falta')).toEqual([
+      'Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el frase(2026-10-21). A fin de poder confirmar estos plazos, se deberá concretar la seña acordada del 50% ($970500) antes del frase(2026-09-04).',
+    ]);
+    expect(vista.elPresupuesto?.fechas).toEqual({
+      listoPara: '2026-10-21',
+      senaAntesDel: '2026-09-04',
+      vencioLaSena: false,
+    });
+  });
+
+  it('con opciones, la seña es la de la opción que elija', () => {
+    const conOpciones = documentoMandado(true);
+    const vista = esperandoLaSena(vistaDelCliente(conDocumento(conOpciones, {}, {}), '2026-09-03'));
+    expect(vista.proyeccion).toMatchObject({ situacion: 'del-presupuesto', sena: null });
+    expect(textoDeLaProyeccion(vista.proyeccion, FORMATOS, 'falta')[0]).toContain(
+      'la seña acordada del 50% de la opción que elijas antes del',
+    );
+  });
+
+  it('pasada la fecha de la seña sin seña, deja de prometer la entrega', () => {
+    const vista = esperandoLaSena(vistaDelCliente(conDocumento(CON_FECHAS), '2026-09-05'));
+    expect(vista.proyeccion).toEqual({ situacion: 'sena-vencida', senaAntesDel: '2026-09-04' });
+    expect(textoDeLaProyeccion(vista.proyeccion, FORMATOS, 'falta')).toEqual([
+      'La fecha de entrega dependía de la seña antes del frase(2026-09-04). Escribinos y te confirmamos una nueva.',
+    ]);
+    expect(vista.elPresupuesto?.fechas?.vencioLaSena).toBe(true);
+  });
+
+  it('con la seña cubierta, la fecha no vence', () => {
+    const cubierta = conDocumento(CON_FECHAS, {
+      pago: { instancia: 'saldo', formas: [], monto: null, siguiente: null },
+    });
+    const vista = esperandoLaSena(vistaDelCliente(cubierta, '2026-09-05'));
+    expect(vista.proyeccion).toMatchObject({ situacion: 'del-presupuesto' });
+  });
+
+  it('un presupuesto vencido sigue diciendo que venció, aunque tenga fechas', () => {
+    const vista = esperandoLaSena(vistaDelCliente(conDocumento(CON_FECHAS), '2026-09-26'));
+    expect(vista.proyeccion).toEqual({ situacion: 'vencida', vencio: VALE_HASTA });
+    expect(vista.elPresupuesto?.aprobacion).toEqual({ situacion: 'cerrada' });
+  });
+
+  it('respondida, la tarjeta dice qué opción, el día que aprobó y lo que propuso', () => {
+    const conOpciones = documentoMandado(true, {
+      ...BORRADOR_DEL_PRESUPUESTO,
+      estimativo: true,
+      pideFecha: true,
+    });
+    const respondido = conDocumento(
+      conOpciones,
+      { estado: 'presupuesto_estimativo' },
+      {
+        respuesta: {
+          opcionId: OPCION_A.id,
+          respondidaEl: '2026-09-18',
+          dia: '2026-09-24',
+          franja: 'manana',
+        },
+      },
+    );
+    const vista = antesDelPresupuesto(vistaDelCliente(respondido, HOY));
+    expect(vista.elPresupuesto?.aprobacion).toEqual({
+      situacion: 'aprobada',
+      opcionId: OPCION_A.id,
+      letra: 'A',
+      respondidaEl: '2026-09-18',
+      dia: '2026-09-24',
+      franja: 'manana',
+    });
+  });
+
+  it('sin el id de la revisión, o con el trabajo ya aprobado, no se aprueba desde la página', () => {
+    const sinId = conDocumento(CON_FECHAS, {}, { revisionId: undefined });
+    delete (sinId.presupuesto as Partial<PresupuestoDelTrabajo>).revisionId;
+    expect(esperandoLaSena(vistaDelCliente(sinId, HOY)).elPresupuesto?.aprobacion).toEqual({
+      situacion: 'cerrada',
+    });
+    const sinValores = conDocumento({ ...CON_FECHAS, valores: null });
+    expect(esperandoLaSena(vistaDelCliente(sinValores, HOY)).elPresupuesto?.aprobacion).toEqual({
+      situacion: 'cerrada',
+    });
+  });
+
+  it('un estimativo aprobado deja de cambiar la seña: el trabajo ya tiene la suya', () => {
+    const vista = aprobada(
+      vistaDelCliente(conDocumento(ESTIMATIVO, { estado: 'en_curso', sena: centavos(10) }), HOY),
+    );
+    expect(vista.elPresupuesto).toMatchObject({ etapa: 'aceptado', estimativo: true });
+  });
+});
+
+describe('si al trabajo todavía le falta el relevamiento', () => {
+  it('es lo mismo que hace decir «lo próximo es ir a medir» en la página del cliente', () => {
+    expect(faltaElRelevamiento('contacto', { dia: null, hecha: false }, '2026-10-26')).toBe(true);
+    expect(
+      faltaElRelevamiento('relevamiento', { dia: '2026-10-29', hecha: false }, '2026-10-26'),
+    ).toBe(true);
+    expect(faltaElRelevamiento('contacto', { dia: '2026-10-20', hecha: false }, '2026-10-26')).toBe(
+      true,
+    );
+  });
+
+  it('no falta si ya se fue a medir, si el día pasó en una etapa de después, o si la etapa no espera visita', () => {
+    expect(
+      faltaElRelevamiento('relevamiento', { dia: '2026-10-20', hecha: true }, '2026-10-26'),
+    ).toBe(false);
+    expect(
+      faltaElRelevamiento(
+        'presupuesto_estimativo',
+        { dia: '2026-10-20', hecha: false },
+        '2026-10-26',
+      ),
+    ).toBe(false);
+    expect(faltaElRelevamiento('a_presupuestar', { dia: null, hecha: false }, '2026-10-26')).toBe(
+      false,
+    );
   });
 });

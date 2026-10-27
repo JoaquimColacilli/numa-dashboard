@@ -4,6 +4,7 @@ import { useParams } from 'react-router';
 
 import {
   PantallaDeLaVista,
+  useAprobarElPresupuesto,
   useMandarLaEntrega,
   useVistaCompartida,
 } from '@/entities/vista-cliente';
@@ -17,6 +18,7 @@ export function VistaPublicaPage() {
   const { token = '' } = useParams();
   const resultado = useVistaCompartida(token);
   const mandar = useMandarLaEntrega(token);
+  const aprobar = useAprobarElPresupuesto(token);
   const [deEspera] = useState(idiomaDeLaPagina);
   const lista = resultado.estado === 'lista' ? resultado.trabajo : null;
   const trabajo = lista?.trabajo ?? '';
@@ -38,6 +40,7 @@ export function VistaPublicaPage() {
         idiomaDeEspera={deEspera}
         elQueNoEsta="enlace"
         alMandar={mandar}
+        alAprobar={aprobar}
       />
     </main>
   );

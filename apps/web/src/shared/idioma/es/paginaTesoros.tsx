@@ -193,7 +193,6 @@ export const paginaTesoros = {
     elResto: 'El resto',
     hastaLaMetaUnidad: 'Hasta la meta',
     tiene: 'Tiene',
-    sinDescripcion: 'Sin descripción',
     uniUnaFlecha: 'Uní una flecha acá',
     nuevoTesoro: 'Nuevo tesoro',
     seCobraElTrabajo: 'Se cobra el trabajo',

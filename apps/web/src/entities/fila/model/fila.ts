@@ -32,8 +32,15 @@ export function filaDelMesDelTaller(
   replica: Replica,
   mes: string,
   fila: Fila = filaDelTaller(replica).fila,
+  referencia?: string,
 ): FilaDelMes {
-  return filaDelMes(fila, sistemaDeLaReplica(replica), datosDelMesDeLaReplica(replica), mes);
+  return filaDelMes(
+    fila,
+    sistemaDeLaReplica(replica),
+    datosDelMesDeLaReplica(replica),
+    mes,
+    ...(referencia === undefined ? [] : [referencia]),
+  );
 }
 
 export interface PruebaDeUnCobro {

@@ -4,8 +4,10 @@ import {
   FRANJAS_DE_ENTREGA,
   HASTA_CUANTOS_DIAS,
   sePuedeElegir,
+  sePuedeElegirParaMedir,
   sumarDias,
   type DiaElegido,
+  type DiasParaMedir,
   type FranjaDeEntrega,
 } from '@maun/domain';
 
@@ -32,6 +34,20 @@ export function mesesDelCalendario(hoy: string): MesDelCalendario[] {
         semana.map((celda) => ({
           ...celda,
           sePuede: !celda.fuera && sePuedeElegir(celda.fecha, hoy),
+        })),
+      )
+      .filter((semana) => semana.some((celda) => celda.sePuede)),
+  }));
+}
+
+export function mesesParaMedir(dias: DiasParaMedir, hoy: string): MesDelCalendario[] {
+  return mesesEntre(dias.desde, dias.hasta).map((mes) => ({
+    mes,
+    semanas: semanasDelMes(mes)
+      .map((semana) =>
+        semana.map((celda) => ({
+          ...celda,
+          sePuede: !celda.fuera && sePuedeElegirParaMedir(celda.fecha, hoy),
         })),
       )
       .filter((semana) => semana.some((celda) => celda.sePuede)),

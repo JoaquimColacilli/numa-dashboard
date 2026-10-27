@@ -13,6 +13,47 @@ export const fila = {
     ahorros: 'Ahorros',
     superavit: 'Superávit',
   },
+  queEs: {
+    caja: 'Caja',
+    'deuda-destinada': 'Deuda destinada',
+    'deuda-obligatoria': 'Deuda obligatoria',
+    meta: 'Meta',
+  },
+  ayudasDeLoQueEs: {
+    caja: {
+      que: 'Qué es una caja',
+      texto: 'Junta sin tope. No vence ni vuelve a cero sola. Maun es la caja general del taller.',
+    },
+    'deuda-destinada': {
+      que: 'Qué es una deuda destinada',
+      texto:
+        'Se lleva una parte de cada cobro, en porcentaje o un monto fijo. Queda para entregar hasta que registrás el pago.',
+    },
+    'deuda-obligatoria': {
+      que: 'Qué es una deuda obligatoria',
+      texto:
+        'Junta hasta su tope entre un vencimiento y el siguiente. El día de pago se paga y arranca de cero. Si no llegó al tope, lo que falta lo pone Maun.',
+    },
+    meta: {
+      que: 'Qué es una meta',
+      texto:
+        'Junta hasta llegar al objetivo. Cuando llega, deja de recibir y lo que le tocaba sigue hacia abajo.',
+    },
+    pagaSola: {
+      que: 'Qué quiere decir que se paga sola',
+      texto:
+        'El día de pago, NUMA anota el pago. Si no juntó el tope, lo pone Maun y queda anotado como deuda interna.',
+    },
+    adelanto: {
+      que: 'Qué es un adelanto',
+      texto: 'Si sacás una parte antes del día de pago, anotala acá: ese día se descuenta.',
+    },
+    deudaInterna: {
+      que: 'Qué es la deuda interna',
+      texto: 'Lo que Maun puso para cubrir un pago que no llegó a su tope.',
+    },
+  },
+  paraCuando: (mes: string, anio: string) => `para ${mes} de ${anio}`,
   descripcionDelTipo: {
     obligacion: 'obligación',
     compromiso: 'compromiso',
@@ -61,18 +102,6 @@ export const fila = {
       que: 'Qué muestra el ingreso',
       texto:
         'Es el mapa de cómo se reparte cada cobro. Los montos son de una prueba o de lo que entró en el mes. Cuando cobrás un trabajo, el cobro te muestra cómo se repartió.',
-    },
-    queEs: {
-      que: 'Qué es cada tipo de paso',
-      compromiso: {
-        rotulo: 'Compromiso:',
-        texto:
-          'lo que tenés que pagar, como sueldos, alquiler o cuotas. El sueldo va siempre al Hogar.',
-      },
-      ahorroFijo: {
-        rotulo: 'Ahorro fijo:',
-        texto: 'un monto que apartás de la ganancia, como el stock del taller.',
-      },
     },
     monto: {
       que: 'Qué es el monto',

@@ -22,7 +22,7 @@ import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
 
 import { ElPresupuesto, ElPresupuestoAceptado } from './ElPresupuesto';
 
-function documento(idioma: Idioma): DocumentoDelPresupuesto {
+function documento(idioma: Idioma, faltaMedir = false): DocumentoDelPresupuesto {
   const plantilla = plantillaDeSiempre(idioma);
   return documentoDelPresupuesto(
     {
@@ -32,6 +32,7 @@ function documento(idioma: Idioma): DocumentoDelPresupuesto {
           obra: '',
           plantilla,
           validezDias: 15,
+          faltaMedir,
           idNuevo: () => 'm1',
         }),
         muebles: [{ id: 'm1', nombre: 'Bajomesada', descripcion: 'Melamina blanca.' }],
@@ -52,6 +53,7 @@ function documento(idioma: Idioma): DocumentoDelPresupuesto {
       valores: valoresDelTrabajo(centavos(124_800_000), []),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(0),
+      mandadoEl: '2026-09-10',
     },
     formatosDelDocumento(idioma),
   );
@@ -70,10 +72,13 @@ function mandado(idioma: Idioma): PresupuestoMandado {
       elDocumento.valores === null
         ? []
         : cuentasDelPresupuesto<Moneda>(elDocumento.valores, elDocumento.senaBp, centavos(0)),
+    estimativo: false,
     queCambio: 'Pasamos la alacena a Gris Grafito.',
     valeHasta: '2026-09-25',
     vencio: null,
     pideLaSena: true,
+    aprobacion: { situacion: 'cerrada' },
+    fechas: { listoPara: '2026-10-22', senaAntesDel: '2026-09-12', vencioLaSena: false },
   };
 }
 
@@ -84,6 +89,8 @@ function aceptado(idioma: Idioma): PresupuestoAceptado {
     valeHasta: ___,
     vencio: ____,
     pideLaSena: _____,
+    aprobacion: ______,
+    fechas: _______,
     ...comun
   } = mandado(idioma);
   return { ...comun, etapa: 'aceptado', aceptadoEl: '2026-09-12', letra: null, acordado: null };
@@ -104,7 +111,11 @@ describe('el presupuesto que ve el cliente, en el idioma de su revisión', () =>
     expect(within(presupuesto).getByText("What's included")).toBeInTheDocument();
     expect(within(presupuesto).getByText('ARS 1,248,000')).toHaveAttribute('translate', 'no');
     expect(within(presupuesto).getByText('Deposit (50%)')).toBeInTheDocument();
-    expect(within(presupuesto).getByText('30 business days')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('Estimated delivery')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('October 22, 2026')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('Deposit by')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('September 12, 2026')).toBeInTheDocument();
+    expect(within(presupuesto).queryByText('Lead time')).toBeNull();
     expect(within(presupuesto).getByText(/^Until /)).toBeInTheDocument();
     expect(within(presupuesto).getByRole('button', { name: 'Download PDF' })).toBeInTheDocument();
     expect(within(presupuesto).getByRole('link', { name: 'Message the shop' })).toHaveAttribute(
@@ -146,6 +157,71 @@ describe('el presupuesto que ve el cliente, en el idioma de su revisión', () =>
   });
 });
 
+describe('las fechas y el estimativo en el presupuesto que ve el cliente', () => {
+  it('una revisión mandada antes de las fechas sigue diciendo el plazo en días hábiles', async () => {
+    const antes = mandado('es');
+    render(
+      <ElPresupuesto
+        presupuesto={{
+          ...antes,
+          documento: { ...antes.documento, listoPara: null, senaAntesDel: null },
+          fechas: null,
+        }}
+        hoy="2026-09-12"
+        hayComoPagar
+      />,
+    );
+
+    const presupuesto = await screen.findByRole('region', { name: 'El presupuesto' });
+    expect(within(presupuesto).getByText('Plazo de fabricación')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('30 días hábiles')).toBeInTheDocument();
+    expect(within(presupuesto).queryByText('Entrega estimada')).toBeNull();
+    expect(within(presupuesto).queryByText('Seña antes del')).toBeNull();
+  });
+
+  it('con las fechas, dice para cuándo está y antes de cuándo va la seña, sin el plazo', async () => {
+    render(<ElPresupuesto presupuesto={mandado('es')} hoy="2026-09-12" hayComoPagar />);
+
+    const presupuesto = await screen.findByRole('region', { name: 'El presupuesto' });
+    expect(within(presupuesto).getByText('Entrega estimada')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('22 de octubre de 2026')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('Seña antes del')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('12 de septiembre de 2026')).toBeInTheDocument();
+    expect(within(presupuesto).getByText('Forma de pago')).toBeInTheDocument();
+    expect(within(presupuesto).queryByText('Plazo de fabricación')).toBeNull();
+  });
+
+  it('el estimativo se titula así, aclara que es un número estimado y no pide seña ni da fechas', async () => {
+    const elDocumento = documento('es', true);
+    render(
+      <ElPresupuesto
+        presupuesto={{
+          ...mandado('es'),
+          documento: elDocumento,
+          estimativo: true,
+          queCambio: null,
+          pideLaSena: false,
+          fechas: null,
+        }}
+        hoy="2026-09-12"
+        hayComoPagar
+      />,
+    );
+
+    const presupuesto = await screen.findByRole('region', { name: 'Presupuesto estimativo' });
+    expect(
+      within(presupuesto).getByText(
+        'Es un número estimado: el presupuesto final sale después del relevamiento técnico.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(presupuesto).getByText('$ 1.248.000')).toBeInTheDocument();
+    expect(within(presupuesto).queryByText('Seña (50%)')).toBeNull();
+    expect(within(presupuesto).queryByText('Forma de pago')).toBeNull();
+    expect(within(presupuesto).queryByText('Plazo de fabricación')).toBeNull();
+    expect(within(presupuesto).queryByText('Entrega estimada')).toBeNull();
+  });
+});
+
 describe('el presupuesto en dólares que ve el cliente', () => {
   function enDolares(idioma: Idioma): PresupuestoMandado {
     const plantilla = plantillaDeSiempre(idioma);
@@ -157,6 +233,7 @@ describe('el presupuesto en dólares que ve el cliente', () => {
             obra: '',
             plantilla,
             validezDias: 15,
+            faltaMedir: false,
             idNuevo: () => 'm1',
           }),
           muebles: [{ id: 'm1', nombre: 'Bajomesada', descripcion: 'Melamina blanca.' }],
@@ -178,6 +255,7 @@ describe('el presupuesto en dólares que ve el cliente', () => {
         senaBp: puntosBasicos(5_000),
         abonado: centavosEn('USD', 0),
         referencia: { cotizacion: cotizacion(154_000), fecha: '2026-10-01' },
+        mandadoEl: '2026-10-01',
       },
       formatosDelDocumento(idioma),
     );
@@ -196,10 +274,13 @@ describe('el presupuesto en dólares que ve el cliente', () => {
               elDocumento.senaBp,
               centavosEn('USD', 8_276),
             ),
+      estimativo: false,
       queCambio: null,
       valeHasta: '2026-10-16',
       vencio: null,
       pideLaSena: true,
+      aprobacion: { situacion: 'cerrada' },
+      fechas: { listoPara: '2026-11-12', senaAntesDel: '2026-10-03', vencioLaSena: false },
     };
   }
 

@@ -16,7 +16,7 @@ function unDato(hueco: Hueco, valores: Valores): HTMLSpanElement {
   dato.contentEditable = 'false';
   dato.dataset.hueco = hueco;
   dato.className = DATO_EN_EL_TEXTO;
-  dato.textContent = valores[hueco];
+  dato.textContent = valores[hueco] ?? '';
   return dato;
 }
 
@@ -105,7 +105,8 @@ export function EditorConDatos({
     if (elemento === null) return;
     for (const dato of elemento.querySelectorAll<HTMLElement>('[data-hueco]')) {
       const hueco = dato.dataset.hueco as Hueco;
-      if (dato.textContent !== valores[hueco]) dato.textContent = valores[hueco];
+      const valor = valores[hueco] ?? '';
+      if (dato.textContent !== valor) dato.textContent = valor;
     }
   }, [valores]);
 

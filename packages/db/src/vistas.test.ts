@@ -277,10 +277,18 @@ function gasto(id: string, proyecto: string, monto: number) {
   };
 }
 
-const PASO_DE_SIEMPRE = { renglones: [], desde: null, modo: 'mes', hastaLaMeta: false } as const;
+const PASO_DE_SIEMPRE = {
+  renglones: [],
+  desde: null,
+  modo: 'mes',
+  hastaLaMeta: false,
+  dia: null,
+  pagaSola: false,
+  pagaSolaDesde: null,
+} as const;
 
 const DE_LA_FILA_DE_SIEMPRE = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+  obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null }],
   reparto: [],
   superavit: MAUN,
 };
@@ -309,9 +317,9 @@ describe('los tesoros de la réplica', () => {
       'Gastos fijos',
       'Materiales',
     ]);
-    expect(tesoros[3]).toMatchObject({ meta: plata('ARS', 1_000_000_000), rindeAnualBp: 4000 });
+    expect(tesoros[3]).toMatchObject({ meta: plata('ARS', 1_000_000_000), metaFecha: null });
     expect(tesoros[4]).toMatchObject({ meta: plata('ARS', 5000), archivado: true });
-    expect(tesoros[0]).toMatchObject({ meta: null, rindeAnualBp: null });
+    expect(tesoros[0]).toMatchObject({ meta: null, metaFecha: null });
     expect(idDeLaClave(replica, 'maun')).toBe(MAUN);
   });
 
@@ -367,6 +375,14 @@ describe('los tesoros de la réplica', () => {
       tesoros: LOS_DE_SIEMPRE,
     });
     expect(metasDeLaReplica(sinMetaDeCocos).size).toBe(0);
+
+    const cocosVaciada = replicaCon({
+      ajustes: [AJUSTES],
+      tesoros: LOS_DE_SIEMPRE.map((uno) =>
+        uno.clave === 'cocos' ? { ...uno, meta_centavos: 0 } : uno,
+      ),
+    });
+    expect(metasDeLaReplica(cocosVaciada).size).toBe(0);
   });
 
   it('la meta de un tesoro en dólares no entra en las metas de la fila, que son en pesos', () => {
@@ -409,8 +425,8 @@ describe('la fila del taller', () => {
   it('con fila guardada es esa, con su revisión y su fecha', () => {
     const fila = {
       obligaciones: [
-        { tesoro: BRUTOS, porcentaje: 350, base: 'cobrado' },
-        { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' },
+        { tesoro: BRUTOS, porcentaje: 350, base: 'cobrado', montoFijo: null },
+        { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null },
       ],
       pasos: [
         {
@@ -421,6 +437,9 @@ describe('la fila del taller', () => {
           desde: '2026-09',
           modo: 'saldo',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
       reparto: [{ tesoro: COCOS, porcentaje: 5000, hastaLaMeta: true }],
@@ -471,7 +490,7 @@ describe('la fila del taller', () => {
     expect(filaDelTaller(replicaCon({ ajustes: [vieja] })).version).toBe(0);
     expect(filaDelTaller(replicaVacia('u'))).toEqual({
       fila: {
-        obligaciones: [{ tesoro: 'diezmo', porcentaje: 1000, base: 'ingreso' }],
+        obligaciones: [{ tesoro: 'diezmo', porcentaje: 1000, base: 'ingreso', montoFijo: null }],
         pasos: [],
         reparto: [],
         superavit: 'maun',
@@ -715,9 +734,9 @@ describe('lo del mes que sale de la réplica', () => {
     ]);
   });
 
-  it('las coberturas cuentan para su mes, y lo demás no es cobertura', () => {
+  it('las coberturas cuentan desde el día en que arranca el ciclo que cubren, y lo demás no es cobertura', () => {
     expect(coberturasDeLaReplica(replica)).toEqual([
-      { tesoro: FIJOS, mes: '2026-09', monto: 3_000_000 },
+      { tesoro: FIJOS, desde: '2026-09-01', monto: 3_000_000 },
     ]);
   });
 
@@ -801,7 +820,12 @@ describe('los gastos desde un tesoro', () => {
     const replica = replicaCon({
       tesoros: [...LOS_DE_SIEMPRE, tesoro(FIJOS, null, 'Gastos fijos')],
       movimientos: [
-        movimiento('m1', { desde_id: FIJOS, categoria: 'Alquiler', fecha: '2026-09-08' }),
+        movimiento('m1', {
+          desde_id: FIJOS,
+          categoria: 'Alquiler',
+          fecha: '2026-09-08',
+          vencimiento: '2026-10-10',
+        }),
         movimiento('m2', { tesoro_origen: 'maun', categoria: 'Luz', fecha: '2026-09-09' }),
         movimiento('m3', { tipo: 'transferencia', desde_id: FIJOS, hacia_id: MAUN }),
         movimiento('m4', { tipo: 'ingreso', hacia_id: MAUN }),
@@ -809,15 +833,21 @@ describe('los gastos desde un tesoro', () => {
     });
 
     expect(gastosDeLosTesorosDeLaReplica(replica)).toEqual([
-      { tesoro: FIJOS, categoria: 'Alquiler', fecha: '2026-09-08' },
-      { tesoro: MAUN, categoria: 'Luz', fecha: '2026-09-09' },
+      {
+        tesoro: FIJOS,
+        categoria: 'Alquiler',
+        fecha: '2026-09-08',
+        monto: 1,
+        vencimiento: '2026-10-10',
+      },
+      { tesoro: MAUN, categoria: 'Luz', fecha: '2026-09-09', monto: 1, vencimiento: null },
     ]);
   });
 });
 
 describe('la fila del mes con lo que sale de la réplica', () => {
   const fila = {
-    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null }],
     pasos: [
       {
         tesoro: FIJOS,
@@ -830,6 +860,9 @@ describe('la fila del mes con lo que sale de la réplica', () => {
         desde: '2026-09',
         modo: 'saldo',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
     reparto: [{ tesoro: MATERIALES, porcentaje: 2000, hastaLaMeta: true }],
@@ -1045,8 +1078,8 @@ describe('lo que se liquida sale de la réplica', () => {
   const PROYECTO = trabajo('p', 'entregado');
   const fila = {
     obligaciones: [
-      { tesoro: BRUTOS, porcentaje: 350, base: 'cobrado' },
-      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' },
+      { tesoro: BRUTOS, porcentaje: 350, base: 'cobrado', montoFijo: null },
+      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null },
     ],
     pasos: [
       {
@@ -1057,6 +1090,9 @@ describe('lo que se liquida sale de la réplica', () => {
         desde: '2026-09',
         modo: 'saldo',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
     reparto: [{ tesoro: MATERIALES, porcentaje: 2000, hastaLaMeta: true }],
@@ -1154,9 +1190,12 @@ describe('volver a cobrar el cobro del 25/9 de MAUN, que se había congelado por
     desde: null,
     modo: 'mes',
     hastaLaMeta: false,
+    dia: null,
+    pagaSola: false,
+    pagaSolaDesde: null,
   };
   const CONGELADA = {
-    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' }],
+    obligaciones: [{ tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null }],
     pasos: [SUELDO_DE_SIEMPRE],
     reparto: [],
     superavit: MAUN,

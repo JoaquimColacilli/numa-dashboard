@@ -54,4 +54,44 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.presupuesto.mensajeAlTaller.conRevision('«NÚMERO»', 7),
     tieneQueDecir: ['«NÚMERO»', '7'],
   },
+  'presupuesto.aprobar.tituloDeLaOpcion': {
+    llamar: (m) => m.presupuesto.aprobar.tituloDeLaOpcion('«LETRA»'),
+    tieneQueDecir: ['«LETRA»'],
+  },
+  'presupuesto.aprobar.loLee': {
+    llamar: (m) => m.presupuesto.aprobar.loLee('«TALLER»'),
+    tieneQueDecir: ['«TALLER»'],
+  },
+  'presupuesto.aprobar.contador': {
+    llamar: (m) => m.presupuesto.aprobar.contador(7, 300),
+    tieneQueDecir: ['7', '300'],
+  },
+  'presupuesto.aprobar.aprobasteLaOpcion': {
+    llamar: (m) => m.presupuesto.aprobar.aprobasteLaOpcion('«LETRA»', '«FECHA»'),
+    tieneQueDecir: ['«LETRA»', '«FECHA»'],
+  },
+  'presupuesto.aprobar.loAprobaste': {
+    llamar: (m) => m.presupuesto.aprobar.loAprobaste('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
+  'presupuesto.aprobar.propusiste.manana': {
+    llamar: (m) => m.presupuesto.aprobar.propusiste.manana('«DÍA»', '«TALLER»'),
+    tieneQueDecir: ['«DÍA»', '«TALLER»'],
+  },
+  'presupuesto.aprobar.propusiste.tarde': {
+    llamar: (m) => m.presupuesto.aprobar.propusiste.tarde('«DÍA»', '«TALLER»'),
+    tieneQueDecir: ['«DÍA»', '«TALLER»'],
+  },
+  'presupuesto.aprobar.propusiste.me_da_igual': {
+    llamar: (m) => m.presupuesto.aprobar.propusiste.me_da_igual('«DÍA»', '«TALLER»'),
+    tieneQueDecir: ['«DÍA»', '«TALLER»'],
+  },
+  'presupuesto.aprobar.laSenaVaAntesDel': {
+    llamar: (m) => m.presupuesto.aprobar.laSenaVaAntesDel('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
+  'presupuesto.aprobar.teEquivocaste': {
+    llamar: (m) => m.presupuesto.aprobar.teEquivocaste('«TALLER»'),
+    tieneQueDecir: ['«TALLER»'],
+  },
 };

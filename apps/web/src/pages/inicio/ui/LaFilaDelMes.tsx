@@ -1,4 +1,4 @@
-import type { FilaDelMes } from '@maun/domain';
+import type { Fila, FilaDelMes } from '@maun/domain';
 import type { ReactNode } from 'react';
 
 import { AyudaDelGrupo, Globo, NOMBRE_DEL_GRUPO, type GrupoDeLaFila } from '@/entities/fila';
@@ -136,14 +136,15 @@ export interface LaFilaDelMesProps {
   delMes: FilaDelMes;
   tesoros: readonly TesoroDelTaller[];
   hoy: string;
+  fila?: Pick<Fila, 'obligaciones'>;
 }
 
-export function LaFilaDelMes({ delMes, tesoros, hoy }: LaFilaDelMesProps) {
+export function LaFilaDelMes({ delMes, tesoros, hoy, fila }: LaFilaDelMesProps) {
   const m = useMensajes();
   const textos = m.paginaInicio.laFila;
   const titulo = textos.titulo(mesEnUnaFrase(delMes.mes));
   const dia = (diaDelMes(hoy) / diasDelMes(delMes.mes)) * 100;
-  const obligaciones = obligacionesEnInicio(delMes, tesoros);
+  const obligaciones = obligacionesEnInicio(delMes, tesoros, fila);
   const pasos = pasosEnInicio(delMes, tesoros, obligaciones.length);
   const compromisos = pasos.filter((paso) => paso.tipo === 'compromiso');
   const ahorros = pasos.filter((paso) => paso.tipo === 'ahorro-fijo');

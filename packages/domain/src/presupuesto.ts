@@ -7,7 +7,7 @@ import {
   type ImporteDeUnPago,
 } from './cotizacion.ts';
 import { largoDelTexto, sinBlancosEnLasPuntas, tieneTexto } from './encuesta.ts';
-import { DIAS_HABILES_DE_ENTREGA, esFechaQueExiste } from './fechas.ts';
+import { DIAS_HABILES_DE_ENTREGA, entregaEstimada, esFechaQueExiste, sumarDias } from './fechas.ts';
 import type { Idioma } from './idioma.ts';
 import {
   aplicarPorcentaje,
@@ -71,7 +71,10 @@ export const RANGOS_DEL_PRESUPUESTO = {
   modificacionesIncluidas: { desde: 0, hasta: 10 },
   garantiaMeses: { desde: 6, hasta: 120 },
   validezDias: { desde: 1, hasta: 365 },
+  diasParaLaSena: { desde: 0, hasta: 60 },
 } as const;
+
+export const DIAS_PARA_LA_SENA = 2;
 
 export const IMPORTE_MAXIMO_DEL_PRESUPUESTO: Money = centavos(1_000_000_000_000);
 
@@ -117,6 +120,7 @@ export interface PlantillaDelPresupuesto {
   monedaDeLaModificacion: Moneda;
   clausulasDeLaMoneda: ClausulasDeLaMoneda;
   garantiaMeses: number;
+  diasParaLaSena: number;
   incluye: readonly Clausula[];
   aTenerEnCuenta: readonly Clausula[];
   formasDePago: readonly FormaDePago[];
@@ -136,9 +140,44 @@ export const HUECOS = [
   'relevamiento',
   'sena',
   'meses',
+  'entrega',
+  'sena_acordada',
+  'sena_antes',
 ] as const;
 
 export type Hueco = (typeof HUECOS)[number];
+
+export const HUECOS_DE_LAS_FECHAS: readonly Hueco[] = ['entrega', 'sena_acordada', 'sena_antes'];
+
+const PLAZO_EN_DIAS = {
+  es: 'El plazo estimado de fabricación es de {plazo} días hábiles a partir de acreditada la seña y confirmadas las especificaciones finales del proyecto.',
+  en: 'The estimated lead time is {plazo} business days from when the deposit clears and the final project specifications are confirmed.',
+  'pt-BR':
+    'O prazo estimado de fabricação é de {plazo} dias úteis a partir do recebimento do sinal e da confirmação das especificações finais do projeto.',
+} as const satisfies Readonly<Record<Idioma, string>>;
+
+const PLAZO_CON_FECHAS = {
+  es: 'Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el {entrega}. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada {sena_acordada} antes del {sena_antes}.',
+  en: "Due to the shop's schedule and manufacturing lead times, the estimated delivery date is {entrega}. To confirm these dates, the agreed deposit {sena_acordada} must be paid by {sena_antes}.",
+  'pt-BR':
+    'Devido à agenda da marcenaria e aos prazos de fabricação, a data estimada de entrega é {entrega}. Para confirmar esses prazos, o sinal combinado {sena_acordada} deverá ser pago até {sena_antes}.',
+} as const satisfies Readonly<Record<Idioma, string>>;
+
+const LO_QUE_SIGUE_AL_PLAZO = {
+  es: 'Este plazo contempla los tiempos actuales de producción y provisión de materiales. En caso de finalizar el trabajo antes del plazo indicado, se notificará al cliente para coordinar una entrega anticipada. Los plazos indicados pueden verse afectados por demoras en la provisión de materiales, logística o factores externos ajenos al proceso de fabricación. En caso de producirse estas situaciones, se informará oportunamente al cliente.',
+  en: 'This lead time reflects current production and material supply times. If the work is finished before the stated lead time, the client will be notified to arrange an earlier delivery. The stated lead times may be affected by delays in material supply, logistics, or external factors beyond the manufacturing process. Should any of these occur, the client will be informed in a timely manner.',
+  'pt-BR':
+    'Este prazo considera os tempos atuais de produção e de fornecimento de materiais. Caso o trabalho seja concluído antes do prazo indicado, o cliente será avisado para combinar uma entrega antecipada. Os prazos indicados podem ser afetados por atrasos no fornecimento de materiais, na logística ou por fatores externos alheios ao processo de fabricação. Caso essas situações ocorram, o cliente será informado oportunamente.',
+} as const satisfies Readonly<Record<Idioma, string>>;
+
+export function conLaFraseDeLasFechas(texto: string): string {
+  for (const idioma of ['es', 'en', 'pt-BR'] as const) {
+    if (texto.includes(PLAZO_EN_DIAS[idioma])) {
+      return texto.replace(PLAZO_EN_DIAS[idioma], PLAZO_CON_FECHAS[idioma]);
+    }
+  }
+  return texto;
+}
 
 export const CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE: ClausulasDeLaMoneda = {
   dolaresEnPesos:
@@ -161,6 +200,7 @@ export const PLANTILLA_DE_SIEMPRE: PlantillaDelPresupuesto = {
   monedaDeLaModificacion: MONEDA_DEL_TALLER,
   clausulasDeLaMoneda: CLAUSULAS_DE_LA_MONEDA_DE_SIEMPRE,
   garantiaMeses: 6,
+  diasParaLaSena: DIAS_PARA_LA_SENA,
   incluye: [
     {
       id: 'incluye-visita',
@@ -236,8 +276,7 @@ export const PLANTILLA_DE_SIEMPRE: PlantillaDelPresupuesto = {
     {
       id: 'aviso-plazo',
       titulo: null,
-      texto:
-        'El plazo estimado de fabricación es de {plazo} días hábiles a partir de acreditada la seña y confirmadas las especificaciones finales del proyecto. Este plazo contempla los tiempos actuales de producción y provisión de materiales. En caso de finalizar el trabajo antes del plazo indicado, se notificará al cliente para coordinar una entrega anticipada. Los plazos indicados pueden verse afectados por demoras en la provisión de materiales, logística o factores externos ajenos al proceso de fabricación. En caso de producirse estas situaciones, se informará oportunamente al cliente.',
+      texto: `${PLAZO_CON_FECHAS.es} ${LO_QUE_SIGUE_AL_PLAZO.es}`,
       tildadaPorDefecto: true,
     },
     {
@@ -308,6 +347,7 @@ const PLANTILLA_DE_SIEMPRE_EN_INGLES: PlantillaDelPresupuesto = {
       'If any part is paid in dollars, it is converted at the rate agreed on that day and is deducted from the balance in pesos.',
   },
   garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  diasParaLaSena: PLANTILLA_DE_SIEMPRE.diasParaLaSena,
   incluye: [
     {
       id: 'incluye-visita',
@@ -383,8 +423,7 @@ const PLANTILLA_DE_SIEMPRE_EN_INGLES: PlantillaDelPresupuesto = {
     {
       id: 'aviso-plazo',
       titulo: null,
-      texto:
-        'The estimated lead time is {plazo} business days from when the deposit clears and the final project specifications are confirmed. This lead time reflects current production and material supply times. If the work is finished before the stated lead time, the client will be notified to arrange an earlier delivery. The stated lead times may be affected by delays in material supply, logistics, or external factors beyond the manufacturing process. Should any of these occur, the client will be informed in a timely manner.',
+      texto: `${PLAZO_CON_FECHAS.en} ${LO_QUE_SIGUE_AL_PLAZO.en}`,
       tildadaPorDefecto: true,
     },
     {
@@ -455,6 +494,7 @@ const PLANTILLA_DE_SIEMPRE_EN_PORTUGUES: PlantillaDelPresupuesto = {
       'Se uma parte for paga em dólares, ela é convertida pela cotação combinada nesse dia e é descontada do saldo em pesos.',
   },
   garantiaMeses: PLANTILLA_DE_SIEMPRE.garantiaMeses,
+  diasParaLaSena: PLANTILLA_DE_SIEMPRE.diasParaLaSena,
   incluye: [
     {
       id: 'incluye-visita',
@@ -530,8 +570,7 @@ const PLANTILLA_DE_SIEMPRE_EN_PORTUGUES: PlantillaDelPresupuesto = {
     {
       id: 'aviso-plazo',
       titulo: null,
-      texto:
-        'O prazo estimado de fabricação é de {plazo} dias úteis a partir do recebimento do sinal e da confirmação das especificações finais do projeto. Este prazo considera os tempos atuais de produção e de fornecimento de materiais. Caso o trabalho seja concluído antes do prazo indicado, o cliente será avisado para combinar uma entrega antecipada. Os prazos indicados podem ser afetados por atrasos no fornecimento de materiais, na logística ou por fatores externos alheios ao processo de fabricação. Caso essas situações ocorram, o cliente será informado oportunamente.',
+      texto: `${PLAZO_CON_FECHAS['pt-BR']} ${LO_QUE_SIGUE_AL_PLAZO['pt-BR']}`,
       tildadaPorDefecto: true,
     },
     {
@@ -641,6 +680,15 @@ export interface BorradorDelPresupuesto {
   clausulaDeLaMoneda: string | null;
   modificacion: ModificacionDelBorrador | null;
   monedaDeLoAbonado: Moneda | null;
+  estimativo: boolean;
+  pideFecha: boolean;
+  listoPara: string | null;
+  senaAntesDel: string | null;
+}
+
+export interface FechasDelPresupuesto {
+  listoPara: string;
+  senaAntesDel: string;
 }
 
 export const CONDICIONES_FISCALES = ['monotributo', 'responsable_inscripto', 'exento'] as const;
@@ -705,6 +753,10 @@ interface ComunDelDocumento {
   condiciones: readonly TextoConTitulo[];
   garantia: string;
   garantiaMeses: number;
+  estimativo: boolean;
+  pideFecha: boolean;
+  listoPara: string | null;
+  senaAntesDel: string | null;
 }
 
 export interface DocumentoEnPesos extends ComunDelDocumento {
@@ -854,6 +906,7 @@ export interface EntradaDelBorradorNuevo {
   obra: string;
   plantilla: PlantillaDelPresupuesto;
   validezDias: number | null;
+  faltaMedir: boolean;
   idNuevo: () => string;
 }
 
@@ -877,6 +930,25 @@ export function borradorNuevo(entrada: EntradaDelBorradorNuevo): BorradorDelPres
     clausulaDeLaMoneda: null,
     modificacion: null,
     monedaDeLoAbonado: null,
+    estimativo: entrada.faltaMedir,
+    pideFecha: entrada.faltaMedir,
+    listoPara: null,
+    senaAntesDel: null,
+  };
+}
+
+export function fechasDelPresupuesto(
+  borrador: Pick<
+    BorradorDelPresupuesto,
+    'estimativo' | 'listoPara' | 'senaAntesDel' | 'plazoDeFabricacion'
+  >,
+  plantilla: Pick<PlantillaDelPresupuesto, 'diasParaLaSena'>,
+  mandadoEl: string,
+): FechasDelPresupuesto | null {
+  if (borrador.estimativo) return null;
+  return {
+    listoPara: borrador.listoPara ?? entregaEstimada(mandadoEl, borrador.plazoDeFabricacion),
+    senaAntesDel: borrador.senaAntesDel ?? sumarDias(mandadoEl, plantilla.diasParaLaSena),
   };
 }
 
@@ -901,6 +973,8 @@ export interface Formatos {
   porcentaje: (puntos: PuntosBasicos) => string;
   modificaciones: (cantidad: number) => string;
   meses: (cantidad: number) => string;
+  fecha: (fecha: string) => string;
+  senaAcordada: (porcentaje: string, monto: string | null) => string;
 }
 
 interface ComunDeLaEntrada {
@@ -911,6 +985,7 @@ interface ComunDeLaEntrada {
   senaBp: PuntosBasicos;
   abonado: Money<Moneda>;
   cobraEn: readonly Moneda[] | null;
+  mandadoEl: string;
 }
 
 export type EntradaDelDocumento =
@@ -937,22 +1012,59 @@ export interface EntradaDeLosHuecos {
   abonado: Money<Moneda>;
   monedaDeLoAbonado: Moneda;
   senaBp: PuntosBasicos;
+  fechas: FechasDelPresupuesto | null;
+  sena: SenaDelTexto | null;
+}
+
+export interface SenaDelTexto {
+  monto: Money<Moneda>;
+  moneda: Moneda;
+}
+
+export function senaDelTexto(
+  valores: ValoresDelPresupuesto<Moneda> | null,
+  moneda: Moneda,
+  senaBp: PuntosBasicos,
+  abonado: Money<Moneda>,
+  monedaDeLoAbonado: Moneda,
+): SenaDelTexto | null {
+  if (valores?.tipo !== 'total') return null;
+  const pagado = centavosEn(moneda, monedaDeLoAbonado === moneda ? abonado : 0);
+  const esperada = aplicarPorcentaje(valores.total, senaBp);
+  return { monto: maximo(centavosEn(moneda, 0), restar(esperada, pagado)), moneda };
 }
 
 export function huecosDelPresupuesto(
   entrada: EntradaDeLosHuecos,
   formatos: Formatos,
-): Record<Hueco, string> {
-  const { plantilla } = entrada;
+): Partial<Record<Hueco, string>> {
+  const { plantilla, fechas } = entrada;
   const modificacion = modificacionDelPresupuesto(plantilla, entrada);
+  const sena = `${formatos.porcentaje(entrada.senaBp)}%`;
+  const deLasFechas =
+    fechas === null
+      ? {}
+      : {
+          entrega: formatos.fecha(fechas.listoPara),
+          sena_antes: formatos.fecha(fechas.senaAntesDel),
+          sena_acordada: formatos.senaAcordada(
+            sena,
+            entrada.sena === null ? null : formatos.plata(entrada.sena.monto, entrada.sena.moneda),
+          ),
+        };
   return {
     plazo: String(entrada.plazoDeFabricacion),
     modificaciones: formatos.modificaciones(plantilla.modificacionesIncluidas),
     valor_modificacion: formatos.plata(modificacion.importe, modificacion.moneda),
     relevamiento: formatos.plata(entrada.abonado, entrada.monedaDeLoAbonado),
-    sena: `${formatos.porcentaje(entrada.senaBp)}%`,
+    sena,
     meses: formatos.meses(plantilla.garantiaMeses),
+    ...deLasFechas,
   };
+}
+
+function usaLasFechas(texto: string): boolean {
+  return HUECOS_DE_LAS_FECHAS.some((hueco) => usaElHueco(texto, hueco));
 }
 
 export function textoDeLaGarantia(
@@ -994,6 +1106,7 @@ export function documentoDelPresupuesto(
 ): DocumentoDelPresupuesto {
   const { borrador, plantilla } = entrada;
   const deLoAbonado = monedaDeLoAbonado(borrador, entrada.moneda);
+  const fechas = fechasDelPresupuesto(borrador, plantilla, entrada.mandadoEl);
   const huecos = huecosDelPresupuesto(
     {
       plazoDeFabricacion: borrador.plazoDeFabricacion,
@@ -1002,6 +1115,14 @@ export function documentoDelPresupuesto(
       abonado: entrada.abonado,
       monedaDeLoAbonado: deLoAbonado,
       senaBp: entrada.senaBp,
+      fechas,
+      sena: senaDelTexto(
+        entrada.valores,
+        entrada.moneda,
+        entrada.senaBp,
+        entrada.abonado,
+        deLoAbonado,
+      ),
     },
     formatos,
   );
@@ -1009,11 +1130,12 @@ export function documentoDelPresupuesto(
   const conTextos = (textos: readonly TextoConTitulo[]): TextoConTitulo[] =>
     textos
       .filter(({ texto }) => !(usaElHueco(texto, 'relevamiento') && entrada.abonado <= 0))
+      .filter(({ texto }) => !(usaLasFechas(texto) && fechas === null))
       .map(({ titulo, texto }) => ({ titulo, texto: completar(texto) }))
       .filter(({ texto }) => texto !== '');
   const soloTextos = (textos: readonly TextoConTitulo[]): string[] =>
     conTextos(textos).map(({ texto }) => texto);
-  const forma = textoDeLaForma(plantilla, borrador.formaDePago);
+  const forma = borrador.estimativo ? null : textoDeLaForma(plantilla, borrador.formaDePago);
   const clausula = clausulaDeLaMonedaDelTrabajo(
     plantilla,
     borrador,
@@ -1049,6 +1171,10 @@ export function documentoDelPresupuesto(
     condiciones: conTextos(lasElegidas(plantilla.condiciones, borrador.condiciones)),
     garantia: completar(plantilla.garantia),
     garantiaMeses: plantilla.garantiaMeses,
+    estimativo: borrador.estimativo,
+    pideFecha: borrador.pideFecha,
+    listoPara: fechas?.listoPara ?? null,
+    senaAntesDel: fechas?.senaAntesDel ?? null,
   };
   if (entrada.moneda === MONEDA_DEL_TALLER) {
     return { forma: 1, ...comun, valores: entrada.valores };
@@ -1283,7 +1409,12 @@ function conLoDeLaUltima(
   entrada: EntradaDelDocumento,
   ultima: DocumentoDelPresupuesto,
 ): EntradaDelDocumento {
-  const deLaUltima = { abonado: ultima.abonado, taller: ultima.taller };
+  const borrador = {
+    ...entrada.borrador,
+    listoPara: entrada.borrador.listoPara ?? ultima.listoPara,
+    senaAntesDel: entrada.borrador.senaAntesDel ?? ultima.senaAntesDel,
+  };
+  const deLaUltima = { abonado: ultima.abonado, taller: ultima.taller, borrador };
   if (entrada.moneda === MONEDA_DEL_TALLER) return { ...entrada, ...deLaUltima };
   return {
     ...entrada,
@@ -1393,6 +1524,14 @@ function valoresLeidos<M extends Moneda>(
   return opciones.length === 0 ? null : { tipo: 'opciones', opciones };
 }
 
+function esFecha(valor: unknown): valor is string {
+  return typeof valor === 'string' && esFechaQueExiste(valor);
+}
+
+function fechaLeida(valor: unknown): string | null {
+  return esFecha(valor) ? valor : null;
+}
+
 function referenciaLeida(valor: unknown): ReferenciaEnPesos | null {
   if (!esObjeto(valor)) return null;
   const leida = cotizacionLeida(valor.cotizacion);
@@ -1437,6 +1576,10 @@ export function leerDocumento(valor: unknown): DocumentoDelPresupuesto | null {
     garantia: textoLeido(valor.garantia),
     garantiaMeses:
       enteroEn(valor.garantiaMeses, rangos.garantiaMeses) ?? PLANTILLA_DE_SIEMPRE.garantiaMeses,
+    estimativo: valor.estimativo === true,
+    pideFecha: valor.pideFecha === true,
+    listoPara: fechaLeida(valor.listoPara),
+    senaAntesDel: fechaLeida(valor.senaAntesDel),
   };
   if (valor.forma === 1) {
     return { forma: 1, ...comun, valores: valoresLeidos(MONEDA_DEL_TALLER, valor.valores) };
@@ -1459,6 +1602,7 @@ export type ProblemaDeLaPlantilla =
   | 'modificaciones-fuera-de-rango'
   | 'valor-fuera-de-rango'
   | 'garantia-fuera-de-rango'
+  | 'dias-para-la-sena-fuera-de-rango'
   | 'demasiadas-clausulas'
   | 'id-invalido'
   | 'id-repetido'
@@ -1568,12 +1712,14 @@ export function problemaDeLaPlantilla(valor: unknown): ProblemaDeLaPlantilla | n
   const modificaciones = entero(valor.modificacionesIncluidas);
   const valorDeUna = entero(valor.valorDeUnaModificacion);
   const meses = entero(valor.garantiaMeses);
+  const diasParaLaSena = valor.diasParaLaSena === undefined ? 0 : entero(valor.diasParaLaSena);
   const grupos = GRUPOS_DE_CLAUSULAS.map((grupo) => valor[grupo]);
   if (
     plazo === null ||
     modificaciones === null ||
     valorDeUna === null ||
     meses === null ||
+    diasParaLaSena === null ||
     !grupos.every((grupo) => esListaDe(grupo, esClausula)) ||
     !esListaDe(valor.formasDePago, esFormaDePago) ||
     typeof valor.garantia !== 'string' ||
@@ -1589,6 +1735,7 @@ export function problemaDeLaPlantilla(valor: unknown): ProblemaDeLaPlantilla | n
   }
   if (valorDeUna < 0 || valorDeUna > IMPORTE_MAXIMO_DEL_PRESUPUESTO) return 'valor-fuera-de-rango';
   if (!enRango(meses, rangos.garantiaMeses)) return 'garantia-fuera-de-rango';
+  if (!enRango(diasParaLaSena, rangos.diasParaLaSena)) return 'dias-para-la-sena-fuera-de-rango';
   for (const grupo of grupos) {
     const problema = problemaDeLasClausulas(grupo);
     if (problema !== null) return problema;
@@ -1638,6 +1785,7 @@ export function leerPlantilla(valor: unknown, idioma: Idioma): PlantillaDelPresu
             pesosEnPesosODolares: clausulas.pesosEnPesosODolares,
           },
     garantiaMeses: leida.garantiaMeses as number,
+    diasParaLaSena: (leida.diasParaLaSena as number | undefined) ?? DIAS_PARA_LA_SENA,
     incluye: clausulasDe(leida.incluye),
     aTenerEnCuenta: clausulasDe(leida.aTenerEnCuenta),
     formasDePago: (leida.formasDePago as readonly FormaDePago[]).map(({ id, nombre, texto }) => ({
@@ -1645,7 +1793,10 @@ export function leerPlantilla(valor: unknown, idioma: Idioma): PlantillaDelPresu
       nombre,
       texto,
     })),
-    avisos: clausulasDe(leida.avisos),
+    avisos: clausulasDe(leida.avisos).map((aviso) => ({
+      ...aviso,
+      texto: conLaFraseDeLasFechas(aviso.texto),
+    })),
     condiciones: clausulasDe(leida.condiciones),
     garantia: leida.garantia as string,
   };
@@ -1674,7 +1825,8 @@ export type ProblemaDelPresupuesto =
   | 'plazo-fuera-de-rango'
   | 'validez-fuera-de-rango'
   | 'clausula-de-la-moneda-larga'
-  | 'modificacion-fuera-de-rango';
+  | 'modificacion-fuera-de-rango'
+  | 'fecha-invalida';
 
 function esModificacion(valor: unknown): boolean {
   return (
@@ -1734,7 +1886,31 @@ function tieneLaFormaDeUnBorrador(valor: Readonly<Record<string, unknown>>): boo
     esModificacion(valor.modificacion) &&
     (valor.monedaDeLoAbonado === undefined ||
       valor.monedaDeLoAbonado === null ||
-      esMoneda(valor.monedaDeLoAbonado))
+      esMoneda(valor.monedaDeLoAbonado)) &&
+    sonLasMarcasDelEstimativo(valor)
+  );
+}
+
+function esMarca(valor: unknown): boolean {
+  return valor === undefined || typeof valor === 'boolean';
+}
+
+function esFechaOpcional(valor: unknown): boolean {
+  return valor === undefined || valor === null || typeof valor === 'string';
+}
+
+function sonLasMarcasDelEstimativo(valor: Readonly<Record<string, unknown>>): boolean {
+  return (
+    esMarca(valor.estimativo) &&
+    esMarca(valor.pideFecha) &&
+    esFechaOpcional(valor.listoPara) &&
+    esFechaOpcional(valor.senaAntesDel)
+  );
+}
+
+function hayUnaFechaQueNoExiste(valor: Readonly<Record<string, unknown>>): boolean {
+  return [valor.listoPara, valor.senaAntesDel].some(
+    (fecha) => typeof fecha === 'string' && !esFechaQueExiste(fecha),
   );
 }
 
@@ -1823,7 +1999,7 @@ export function problemaDelBorrador(valor: unknown): ProblemaDelPresupuesto | nu
   if (esObjeto(modificacion) && importeFuera(modificacion.importe as number)) {
     return 'modificacion-fuera-de-rango';
   }
-  return null;
+  return hayUnaFechaQueNoExiste(valor) ? 'fecha-invalida' : null;
 }
 
 function propiasLeidas(valor: unknown): Propia[] {
@@ -1896,6 +2072,10 @@ export function leerBorrador(
       typeof valor.clausulaDeLaMoneda === 'string' ? valor.clausulaDeLaMoneda : null,
     modificacion: modificacionLeida(valor.modificacion),
     monedaDeLoAbonado: esMoneda(valor.monedaDeLoAbonado) ? valor.monedaDeLoAbonado : null,
+    estimativo: valor.estimativo === true,
+    pideFecha: valor.pideFecha === true,
+    listoPara: fechaLeida(valor.listoPara),
+    senaAntesDel: fechaLeida(valor.senaAntesDel),
   };
 }
 
@@ -1920,7 +2100,8 @@ export type ProblemaDelDocumento =
   | 'demasiadas-clausulas'
   | 'demasiadas-opciones'
   | 'texto-largo'
-  | 'cotizacion-fuera-de-rango';
+  | 'cotizacion-fuera-de-rango'
+  | 'fecha-invalida';
 
 function esTexto(valor: unknown): valor is string {
   return typeof valor === 'string';
@@ -1993,6 +2174,7 @@ function tieneLaFormaDeUnDocumento(valor: Readonly<Record<string, unknown>>): bo
       valor.clausulaDeLaMoneda === null ||
       esTexto(valor.clausulaDeLaMoneda)) &&
     (valor.cobraEn === undefined || cobraEnLeido(valor.cobraEn) !== null) &&
+    sonLasMarcasDelEstimativo(valor) &&
     (valor.forma === 1 || esLaMonedaDeUnDocumentoEnDolares(valor))
   );
 }
@@ -2105,5 +2287,59 @@ export function problemaDelDocumento(valor: unknown): ProblemaDelDocumento | nul
   if (textosDelDocumento(documento).some(([texto, largo]) => largoDelTexto(texto) > largo)) {
     return 'texto-largo';
   }
-  return null;
+  return hayUnaFechaQueNoExiste(valor) ? 'fecha-invalida' : null;
+}
+
+export type ProblemaDeLasFechas =
+  'estimativo-con-fechas' | 'falta-una-fecha' | 'sena-antes-del-envio' | 'entrega-antes-de-la-sena';
+
+export function problemaDeLasFechas(
+  documento: Pick<DocumentoDelPresupuesto, 'estimativo' | 'listoPara' | 'senaAntesDel'>,
+  mandadoEl: string,
+): ProblemaDeLasFechas | null {
+  const { listoPara, senaAntesDel } = documento;
+  if (listoPara === null && senaAntesDel === null) return null;
+  if (documento.estimativo) return 'estimativo-con-fechas';
+  if (listoPara === null || senaAntesDel === null) return 'falta-una-fecha';
+  if (senaAntesDel < mandadoEl) return 'sena-antes-del-envio';
+  return listoPara > senaAntesDel ? null : 'entrega-antes-de-la-sena';
+}
+
+export function entregaDelPresupuesto(
+  documento: Pick<DocumentoDelPresupuesto, 'listoPara' | 'plazoDeFabricacion'> | null,
+  inicio: string,
+): string {
+  return documento?.listoPara ?? entregaEstimada(inicio, plazoDelPresupuesto(documento));
+}
+
+export function vencioLaFechaDeLaSena(
+  documento: Pick<DocumentoDelPresupuesto, 'senaAntesDel'> | null,
+  hoy: string,
+): boolean {
+  const senaAntesDel = documento?.senaAntesDel ?? null;
+  return senaAntesDel !== null && hoy > senaAntesDel;
+}
+
+export interface DireccionDelPresupuesto {
+  direccion: string;
+  deDonde: 'trabajo' | 'cliente' | null;
+  laDelCliente: string | null;
+}
+
+export function direccionDelPresupuesto(
+  delTrabajo: string,
+  delCliente: string,
+): DireccionDelPresupuesto {
+  const trabajo = limpio(delTrabajo);
+  const cliente = limpio(delCliente);
+  if (trabajo === '') {
+    return cliente === ''
+      ? { direccion: '', deDonde: null, laDelCliente: null }
+      : { direccion: cliente, deDonde: 'cliente', laDelCliente: null };
+  }
+  return {
+    direccion: trabajo,
+    deDonde: 'trabajo',
+    laDelCliente: cliente === '' || cliente === trabajo ? null : cliente,
+  };
 }

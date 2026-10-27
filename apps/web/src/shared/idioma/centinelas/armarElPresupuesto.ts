@@ -290,4 +290,20 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.armarElPresupuesto.tarjeta.loAceptoConLaOpcion('«FECHA»', '«LETRA»'),
     tieneQueDecir: ['«FECHA»', '«LETRA»'],
   },
+  'armarElPresupuesto.encabezado.vaLaDelCliente': {
+    llamar: (m) => m.armarElPresupuesto.encabezado.vaLaDelCliente('«DIRECCIÓN»'),
+    tieneQueDecir: ['«DIRECCIÓN»'],
+  },
+  'armarElPresupuesto.encabezado.listoSugerido': {
+    llamar: (m) => m.armarElPresupuesto.encabezado.listoSugerido(37),
+    tieneQueDecir: ['37'],
+  },
+  'armarElPresupuesto.encabezado.senaSugerida': {
+    llamar: (m) => m.armarElPresupuesto.encabezado.senaSugerida(37),
+    tieneQueDecir: ['37'],
+  },
+  'armarElPresupuesto.mandar.prometeLaEntrega': {
+    llamar: (m) => m.armarElPresupuesto.mandar.prometeLaEntrega('«ENTREGA»', '«SEÑA»'),
+    tieneQueDecir: ['«ENTREGA»', '«SEÑA»'],
+  },
 };

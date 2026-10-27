@@ -96,6 +96,7 @@ export interface MovimientoPropuesto {
   monto?: number;
   categoria?: string;
   fecha?: string;
+  vencimiento?: string;
 }
 
 const LARGO_MAXIMO_DE_LA_CATEGORIA = 80;
@@ -108,6 +109,7 @@ export function rutaDeMovimientoNuevo(opciones: MovimientoPropuesto = {}): strin
   if (opciones.monto !== undefined) parametros.set('monto', String(opciones.monto));
   if (opciones.categoria !== undefined) parametros.set('categoria', opciones.categoria);
   if (opciones.fecha !== undefined) parametros.set('fecha', opciones.fecha);
+  if (opciones.vencimiento !== undefined) parametros.set('vencimiento', opciones.vencimiento);
   const texto = parametros.toString();
   return texto === '' ? RUTA_DE_MOVIMIENTO_NUEVO : `${RUTA_DE_MOVIMIENTO_NUEVO}?${texto}`;
 }
@@ -123,6 +125,7 @@ export function movimientoPropuesto(parametros: URLSearchParams): MovimientoProp
   const monto = Number(parametros.get('monto') ?? '');
   const categoria = parametros.get('categoria')?.trim() ?? '';
   const fecha = fechaDelEnlace(parametros.get('fecha'));
+  const vencimiento = fechaDelEnlace(parametros.get('vencimiento'));
   return {
     ...(clase === null ? {} : { clase }),
     ...(tesoro === null ? {} : { tesoro }),
@@ -130,6 +133,7 @@ export function movimientoPropuesto(parametros: URLSearchParams): MovimientoProp
     ...(Number.isSafeInteger(monto) && monto > 0 ? { monto } : {}),
     ...(categoria === '' || categoria.length > LARGO_MAXIMO_DE_LA_CATEGORIA ? {} : { categoria }),
     ...(fecha === undefined ? {} : { fecha }),
+    ...(vencimiento === undefined ? {} : { vencimiento }),
   };
 }
 

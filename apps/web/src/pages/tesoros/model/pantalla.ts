@@ -7,7 +7,7 @@ import {
   type PasoDelMes,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import {
@@ -16,7 +16,7 @@ import {
   type PagoParaRegistrar,
 } from '@/entities/movimiento';
 import { insumosDeLosTrabajos } from '@/entities/proyecto';
-import { MUTACION_DE_AJUSTES, useReplicaDelTaller } from '@/entities/replica';
+import { useReplicaDelTaller } from '@/entities/replica';
 import {
   editarLaFila,
   empezarAEditar,
@@ -32,6 +32,7 @@ import {
   loQueEstabaGuardado,
   MUTACION_DE_LA_FILA,
   probarLaFila,
+  proponerLaFormaNueva,
   SIN_PRUEBA,
   sumarAlReparto,
   sumarComoAhorroFijo,
@@ -44,7 +45,7 @@ import {
   type PruebaEnPantalla,
   type VistaDeLaFila,
 } from '@/features/armar-la-fila';
-import type { DondeVa, EdicionDeLoDeCocos, LugarDelTesoro } from '@/features/editar-tesoro';
+import type { DondeVa, LugarDelTesoro } from '@/features/editar-tesoro';
 import { ajustesDe, datosDelLibro, type Replica, type TesoroNuevo } from '@/shared/api';
 import {
   conFondo,
@@ -56,7 +57,12 @@ import {
 } from '@/shared/lib';
 
 import type { InsumosEnElPlano } from './disposicion';
-import { anotarQueSeEntendio, yaSeEntendio } from './rotulo';
+import {
+  anotarQueSeEntendio,
+  anotarQueSePropusoLaFormaNueva,
+  yaSeEntendio,
+  yaSePropusoLaFormaNueva,
+} from './rotulo';
 
 export type HojaDeTesoros =
   | { tipo: 'nuevo'; lugar: LugarDelTesoro; despuesDe?: string | null }
@@ -102,6 +108,7 @@ export function ubicarElNuevo(
           porcentaje: dondeVa.porcentaje,
           base: dondeVa.base,
           posicion: posicionDeLaObligacion(fila, diezmo, dondeVa.antesDelDiezmo, despuesDe),
+          montoFijo: dondeVa.montoFijo,
         }),
         elegir: fichaDeLaObligacion(nuevo.id),
       };
@@ -110,6 +117,8 @@ export function ubicarElNuevo(
         fila: sumarComoCompromiso(fila, nuevo.id, null, dondeVa.monto, {
           ...(despuesDe === undefined ? {} : { despuesDe }),
           renglon: nuevo.nombre,
+          dia: dondeVa.dia,
+          pagaSola: dondeVa.pagaSola,
         }),
         elegir: fichaDelPaso(nuevo.id),
       };
@@ -207,11 +216,12 @@ export function usePantallaDeTesoros() {
 
   useAlgoEnCurso(vista.armando && vista.cuantos > 0);
 
+  useEffect(() => {
+    if (yaSePropusoLaFormaNueva()) return;
+    if (proponerLaFormaNueva(vista, hoy) !== 'todavia-no') anotarQueSePropusoLaFormaNueva();
+  }, [vista, hoy]);
+
   const guardarLaFila = useMutation({ ...MUTACION_DE_LA_FILA, meta: metaDeAvisos('filaGuardada') });
-  const guardarLoDeCocos = useMutation({
-    ...MUTACION_DE_AJUSTES,
-    meta: metaDeAvisos('tesoroEditado'),
-  });
 
   const elegir = useCallback((id: string | null) => {
     setElegido(id);
@@ -280,13 +290,6 @@ export function usePantallaDeTesoros() {
     [replica, vista, guardarLaFila],
   );
 
-  const alGuardarLoDeCocos = useCallback(
-    (edicion: EdicionDeLoDeCocos) => {
-      guardarLoDeCocos.mutate(edicion);
-    },
-    [guardarLoDeCocos],
-  );
-
   return {
     replica,
     vista,
@@ -305,7 +308,6 @@ export function usePantallaDeTesoros() {
     primeraVez: !vista.delTaller.guardada && !entendido && !vista.armando,
     entender,
     alCrear,
-    alGuardarLoDeCocos,
     registrarElPago,
     cambiarDolares,
     ultimoCambio,

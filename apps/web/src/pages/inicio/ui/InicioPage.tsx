@@ -4,7 +4,6 @@ import {
   centavos,
   estadoDelDiezmo,
   plata,
-  proyeccionCocos,
   restar,
   type FilaDelMes,
   type Money,
@@ -32,7 +31,6 @@ import {
 import { useNombreDeLaPersona, useSesionActiva } from '@/entities/sesion';
 import {
   tesoroDeLaClave,
-  tesoroPorId,
   tesorosDelTaller,
   tesorosSincronizados,
   tesorosVivos,
@@ -67,7 +65,6 @@ import {
   RUTA_DE_AGENDA,
   RUTA_DE_DIEZMO,
   rutaDelProyecto,
-  TESORO,
   useAnchoDePantalla,
   Ir,
   useIr,
@@ -89,8 +86,6 @@ import { PortadaDeInicio } from './PortadaDeInicio';
 import { RespuestasDeEntrega } from './RespuestasDeEntrega';
 import { TarjetasDeLosTesoros } from './TarjetasDeLosTesoros';
 import { UltimaOpinion } from './UltimaOpinion';
-
-const DIAS_DE_PROYECCION = 365;
 
 type TextosDeInicio = Mensajes['paginaInicio'];
 
@@ -283,7 +278,7 @@ export function InicioPage() {
   const tesoros = conLaMetaDeCocos(tesorosVivos(todos), metaCocos);
   const tintaDelDiezmo = tesoroDeLaClave(todos, 'diezmo')?.tinta ?? 'diezmo';
   const { fila } = filaDelTaller(replica);
-  const delMes = filaDelMesDelTaller(replica, mes, fila);
+  const delMes = filaDelMesDelTaller(replica, mes, fila, hoy);
   const faltantes = faltantesEnInicio(
     delMes,
     todos,
@@ -301,7 +296,6 @@ export function InicioPage() {
     insumos: insumos.total,
     trabajosConInsumos: insumos.trabajos.length,
   });
-  const nombreDelSuperavit = tesoroPorId(todos, fila.superavit)?.nombre ?? TESORO.maun.nombre;
 
   const asientos = asientosDelLibro(libro);
   const valoresDeLosPagos = valoresEnPesosDeLosPagos(replica);
@@ -334,12 +328,6 @@ export function InicioPage() {
       etiqueta: m.movimiento.resumenDelMes.entroAlHogar,
       valor: del.entroHogar,
       previo: delPrevio.entroHogar,
-    },
-    {
-      id: 'gasto-hogar',
-      etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
-      valor: del.gastoHogar,
-      previo: delPrevio.gastoHogar,
     },
     {
       id: 'facturo-taller',
@@ -376,7 +364,7 @@ export function InicioPage() {
 
       <PortadaDeInicio hoy={hoy} corte={corte} arranque={arranque} />
 
-      {!arranque && <Panorama panorama={panorama} nombreDelSuperavit={nombreDelSuperavit} />}
+      {!arranque && <Panorama panorama={panorama} />}
 
       <TarjetasDeLosTesoros
         tesoros={tesoros}
@@ -450,41 +438,6 @@ export function InicioPage() {
                   alElegir={irA(RUTA_DE_DIEZMO)}
                 />
               </section>
-
-              <section
-                aria-label={textos.proyeccionDeCocos}
-                className="@container rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5"
-              >
-                <div className="flex flex-col gap-2.5 @min-[24rem]:flex-row @min-[24rem]:items-center @min-[24rem]:gap-3.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-label text-text-2">{textos.cocosEnUnAnio}</div>
-                    <div
-                      translate="no"
-                      className="mt-0.5 text-money-lg font-semibold whitespace-nowrap text-cocos tabular-nums"
-                    >
-                      {formatearPesos(
-                        proyeccionCocos(
-                          saldos.cocos,
-                          ajustes?.tasa_cocos_anual_bp ?? 0,
-                          DIAS_DE_PROYECCION,
-                        ),
-                      )}
-                    </div>
-                    <div className="mt-0.5 text-meta text-text-3">
-                      {textos.conLaTasaQueCargaste}
-                    </div>
-                  </div>
-                  <div className="min-w-0 @min-[24rem]:flex-none @min-[24rem]:text-right">
-                    <div className="text-meta text-text-2">{textos.faltaParaLaMeta}</div>
-                    <div
-                      translate="no"
-                      className="text-body font-semibold whitespace-nowrap tabular-nums"
-                    >
-                      {formatearPesos(Math.max(0, metaCocos - saldos.cocos))}
-                    </div>
-                  </div>
-                </div>
-              </section>
             </div>
           }
         >
@@ -501,7 +454,7 @@ export function InicioPage() {
               </p>
             )}
 
-            <LaFilaDelMes delMes={delMes} tesoros={todos} hoy={hoy} />
+            <LaFilaDelMes delMes={delMes} tesoros={todos} hoy={hoy} fila={fila} />
 
             <section
               aria-label={nombreDelMes(mes)}

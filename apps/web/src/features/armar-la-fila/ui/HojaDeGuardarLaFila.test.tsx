@@ -4,7 +4,13 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProveedorDeReplica } from '@/entities/replica';
-import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
+import {
+  TABLAS_REPLICADAS,
+  type MovimientoNuevo,
+  type Replica,
+  type TablaReplicada,
+} from '@/shared/api';
+import { formatearPesos } from '@/shared/lib';
 
 import type { GuardadoDeLaFila } from '../api/mutacion';
 import {
@@ -15,7 +21,10 @@ import {
 } from '../model/borrador';
 import {
   conDia,
+  conDiaDePago,
   conModo,
+  conMontoFijo,
+  conPagaSola,
   conRenglones,
   conSuperavit,
   conTope,
@@ -31,6 +40,7 @@ import { HojaDeGuardarLaFila } from './HojaDeGuardarLaFila';
 vi.mock('@/shared/api', async (importar) => ({
   ...(await importar<typeof import('@/shared/api')>()),
   guardarLaFila: vi.fn(() => new Promise(() => undefined)),
+  registrarMovimiento: vi.fn(() => new Promise(() => undefined)),
 }));
 
 const HOGAR = '01900000-0000-7000-8000-000000000001';
@@ -44,7 +54,9 @@ const INMUEBLES = '01900000-0000-7000-8000-000000000008';
 const HOY = '2026-09-27';
 
 const GUARDADA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -54,6 +66,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -63,6 +78,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -72,6 +90,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [
@@ -93,6 +114,7 @@ function tesoro(id: string, clave: string | null, nombre: string, tinta: string)
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     created_at: '2026-09-01T10:00:00Z',
@@ -102,7 +124,31 @@ function tesoro(id: string, clave: string | null, nombre: string, tinta: string)
   };
 }
 
-function replicaDelTaller(): Replica {
+function transferencia(desde: string, hacia: string, monto: number, fecha: string) {
+  return {
+    id: `t-${hacia}`,
+    household_id: 'h',
+    fecha,
+    tipo: 'transferencia',
+    tesoro_origen: null,
+    tesoro_destino: null,
+    desde_id: desde,
+    hacia_id: hacia,
+    cubre_el_mes: null,
+    vencimiento: null,
+    monto_centavos: monto,
+    monto_destino_centavos: null,
+    categoria: '',
+    descripcion: '',
+    proyecto_id: null,
+    created_at: `${fecha}T10:00:00Z`,
+    updated_at: `${fecha}T10:00:00Z`,
+    deleted_at: null,
+    version: 1,
+  };
+}
+
+function replicaDelTaller(movimientos: readonly ReturnType<typeof transferencia>[] = []): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.households = { h: { id: 'h', nombre: 'Taller MAUN' } };
@@ -133,6 +179,7 @@ function replicaDelTaller(): Replica {
     tesoro(INMUEBLES, null, 'Inmuebles', 'ciruela'),
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((uno) => [uno.id, uno]));
+  tablas.movimientos = Object.fromEntries(movimientos.map((uno) => [uno.id, uno]));
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
@@ -142,8 +189,11 @@ function fila(): Fila {
   return actual.fila;
 }
 
-function montar(monto: number | null = null) {
-  const replica = replicaDelTaller();
+function montar(
+  monto: number | null = null,
+  movimientos: readonly ReturnType<typeof transferencia>[] = [],
+) {
+  const replica = replicaDelTaller(movimientos);
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const alCerrar = vi.fn();
   render(
@@ -163,7 +213,14 @@ function montar(monto: number | null = null) {
       queryClient
         .getMutationCache()
         .getAll()
+        .filter((mutacion) => mutacion.options.mutationKey?.[0] === 'ajustes')
         .map((mutacion) => mutacion.state.variables as GuardadoDeLaFila),
+    movimientos: () =>
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .filter((mutacion) => mutacion.options.mutationKey?.[0] === 'movimientos')
+        .map((mutacion) => mutacion.state.variables as MovimientoNuevo),
   };
 }
 
@@ -331,6 +388,124 @@ describe('la hoja de guardar la fila', () => {
     });
     expect(alCerrar).toHaveBeenCalled();
     expect(borradorDeLaFila()).toBeNull();
+  });
+
+  it('el monto fijo, el día de pago y «se paga sola» llevan su renglón', () => {
+    empezarElBorrador('a', 4, {
+      ...GUARDADA,
+      obligaciones: [
+        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
+        ...GUARDADA.obligaciones,
+      ],
+    });
+    cambiarElBorrador(conMontoFijo(fila(), HERRAMIENTAS, centavos(5_000_000)));
+    cambiarElBorrador(conDiaDePago(fila(), FIJOS, 15));
+    cambiarElBorrador(conPagaSola(fila(), FIJOS, true, HOY));
+    montar();
+
+    const renglones = within(screen.getByRole('region', { name: /Cambia/ })).getAllByRole(
+      'listitem',
+    );
+    expect(renglones.map((renglon) => renglon.textContent.replace(/\s/g, ' '))).toEqual([
+      `Herramientas se lleva ${formatearPesos(5_000_000).replace(/\s/g, ' ')} fijos de cada cobro.`,
+      'Gastos fijos se paga el 15 de cada mes.',
+      'Gastos fijos se paga sola el día de pago.',
+    ]);
+    expect(iconosDeLosCambios()).toEqual([
+      'lucide-coins',
+      'lucide-calendar',
+      'lucide-calendar-check',
+    ]);
+  });
+
+  it('con un compromiso que pasa a pagarse solo y plata de antes, no guarda hasta elegir qué hacer con ella', () => {
+    empezarElBorrador('a', 4, GUARDADA);
+    cambiarElBorrador(conDiaDePago(fila(), FIJOS, 10));
+    cambiarElBorrador(conPagaSola(fila(), FIJOS, true, '2026-09-20'));
+    const { encoladas, movimientos } = montar(null, [
+      transferencia(MAUN, FIJOS, 5_000_000, '2026-09-01'),
+    ]);
+
+    expect(screen.getByText(/se paga solo desde el 10 de octubre/)).toHaveTextContent(
+      'Gastos fijos se paga solo desde el 10 de octubre: ese día NUMA anota el pago y, si no juntó el tope, lo que falta lo pone Maun.',
+    );
+    const plataDeAntes = screen.getByRole('group', {
+      name: `Gastos fijos tiene ${formatearPesos(5_000_000)} de antes de su ciclo. ¿Qué hacés con esa plata?`,
+    });
+    expect(
+      within(plataDeAntes)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.closest('label')?.textContent),
+    ).toEqual([
+      'Pasarla a Maun',
+      'Pasarla a otro tesoro',
+      'Ya no estáSale del saldo con un ajuste: es plata que ya no tenés.',
+    ]);
+    const guardar = screen.getByRole('button', { name: 'Guardar la fila' });
+    expect(guardar).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Elegí qué hacer con la plata de antes para poder guardar.',
+    );
+
+    fireEvent.click(within(plataDeAntes).getByRole('radio', { name: 'Pasarla a otro tesoro' }));
+    const aCual = screen.getByRole('combobox', {
+      name: 'A qué tesoro pasás la plata de Gastos fijos',
+    });
+    expect(
+      within(aCual)
+        .getAllByRole('option')
+        .map((opcion) => opcion.textContent),
+    ).toEqual(['Elegí uno', 'Hogar', 'Cocos', 'Materiales', 'Herramientas', 'Inmuebles']);
+    expect(guardar).toBeDisabled();
+    fireEvent.change(aCual, { target: { value: HERRAMIENTAS } });
+    expect(guardar).toBeEnabled();
+    expect(screen.queryByRole('status')).toBeNull();
+
+    fireEvent.click(guardar);
+
+    const [guardado] = encoladas();
+    expect(guardado?.fila?.pasos.find((paso) => paso.tesoro === FIJOS)).toMatchObject({
+      modo: 'mes',
+      dia: 10,
+      pagaSola: true,
+      pagaSolaDesde: HOY,
+    });
+    expect(guardado?.fila?.pasos.find((paso) => paso.tesoro === HOGAR)).toMatchObject({
+      pagaSola: false,
+      pagaSolaDesde: null,
+    });
+    expect(movimientos()).toEqual([
+      {
+        id: expect.any(String) as string,
+        fecha: HOY,
+        tipo: 'transferencia',
+        monto_centavos: 5_000_000,
+        desde_id: FIJOS,
+        hacia_id: HERRAMIENTAS,
+        categoria: 'Plata de antes de su ciclo',
+        descripcion: '',
+      },
+    ]);
+  });
+
+  it('la plata de antes que ya no está sale con un ajuste, y sin plata de antes no pregunta nada', () => {
+    empezarElBorrador('a', 4, GUARDADA);
+    cambiarElBorrador(conDiaDePago(fila(), FIJOS, 10));
+    cambiarElBorrador(conPagaSola(fila(), FIJOS, true, HOY));
+    const { movimientos } = montar(null, [transferencia(MAUN, FIJOS, 5_000_000, '2026-09-01')]);
+
+    fireEvent.click(screen.getByRole('radio', { name: /^Ya no está/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar la fila' }));
+
+    expect(movimientos()).toEqual([
+      expect.objectContaining({
+        tipo: 'ajuste',
+        monto_centavos: 5_000_000,
+        desde_id: FIJOS,
+        hacia_id: null,
+        categoria: 'Ya no está',
+      }) as MovimientoNuevo,
+    ]);
   });
 
   it('dice que el sueldo pasa a contarse por mes', () => {

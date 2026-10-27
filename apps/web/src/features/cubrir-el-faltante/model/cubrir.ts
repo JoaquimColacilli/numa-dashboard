@@ -90,6 +90,7 @@ export function movimientosParaCubrir({
   mes,
   hoy,
   nuevoId,
+  cubre = `${mes}-01`,
 }: {
   fuentes: readonly Fuente[];
   candidatos: readonly CandidatoParaCubrir[];
@@ -97,6 +98,7 @@ export function movimientosParaCubrir({
   mes: string;
   hoy: string;
   nuevoId: () => string;
+  cubre?: string;
 }): MovimientoNuevo[] {
   const movimientos: MovimientoNuevo[] = [];
   for (const fuente of fuentes) {
@@ -111,7 +113,7 @@ export function movimientosParaCubrir({
       tesoro_destino: paso.clave,
       desde_id: idParaLaBase(desde),
       hacia_id: idParaLaBase(paso),
-      cubre_el_mes: `${mes}-01`,
+      cubre_el_mes: cubre,
       monto_centavos: monto,
       categoria: CATEGORIA_DE_LA_COBERTURA,
       descripcion: mensajes().cubrirElFaltante.paraCubrir(paso.nombre, mesEnUnaFrase(mes)),

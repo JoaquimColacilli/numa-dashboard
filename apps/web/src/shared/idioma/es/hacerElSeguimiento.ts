@@ -24,6 +24,16 @@ export const hacerElSeguimiento = {
     cancelar: 'Cancelar',
     pasarASeguimiento: 'Pasar a seguimiento',
   },
+  cambiarLaFecha: {
+    titulo: 'Cambiar la fecha',
+    leTocaba: (fecha: string) => `Le tocaba el ${fecha}.`,
+    queDia: '¿Qué día le volvés a escribir?',
+    noQuedaRegistrado:
+      'Solo cambia el día: no queda como un contacto registrado. Cuando le escribas, registralo.',
+    cancelar: 'Cancelar',
+    cambiar: 'Cambiar la fecha',
+    noSeCambio: 'No se cambió la fecha.',
+  },
   registrarElContacto: {
     titulo: 'Registrar el contacto',
     contactarA: (nombre: string) => `Contactar a ${nombre}`,

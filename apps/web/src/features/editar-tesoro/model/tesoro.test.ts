@@ -5,14 +5,16 @@ import type { TesoroDelTaller } from '@/entities/tesoro';
 import { ICONOS_DE_TESORO } from '@/shared/lib';
 
 import {
+  admiteMeta,
+  bajadaDeLaEdicion,
   borradorDe,
   borradorNuevo,
-  cambiosDeCocos,
   cambiosDelTesoro,
   conLaMoneda,
   datosQueSeEditan,
   hayDiferencias,
   iconosParaElegir,
+  metaQueVieneDeLosAjustes,
   ordenAlFinal,
   quienUsaLaTinta,
   revisarElTesoro,
@@ -30,7 +32,7 @@ function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>)
     tinta: 'petroleo',
     icono: 'wrench',
     meta: enPesos(centavos(90_000_000)),
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(0)),
@@ -82,18 +84,35 @@ describe('el borrador de un tesoro', () => {
     expect(iconosParaElegir('house')).toEqual(['house', ...ICONOS_DE_TESORO]);
   });
 
-  it('pide un nombre de 1 a 24 letras y un rinde que se pueda leer', () => {
+  it('pide un nombre de 1 a 24 letras', () => {
     const base = borradorNuevo([]);
-    expect(revisarElTesoro({ ...base, nombre: '   ' }, { conRinde: false }).nombre).toMatch(
-      /Ponele un nombre/,
-    );
-    expect(revisarElTesoro({ ...base, nombre: 'a'.repeat(25) }, { conRinde: false }).nombre).toBe(
+    expect(revisarElTesoro({ ...base, nombre: '   ' }).nombre).toMatch(/Ponele un nombre/);
+    expect(revisarElTesoro({ ...base, nombre: 'a'.repeat(25) }).nombre).toBe(
       'Ponele un nombre, de hasta 24 letras.',
     );
-    expect(revisarElTesoro({ ...base, nombre: 'Viaje' }, { conRinde: false })).toEqual({});
+    expect(revisarElTesoro({ ...base, nombre: 'Viaje' })).toEqual({});
+  });
+
+  it('una meta pide su objetivo, y la fecha va con objetivo y de hoy en adelante', () => {
+    const viaje = { ...borradorNuevo([]), nombre: 'Viaje' };
+    const hoy = '2026-10-26';
+    expect(revisarElTesoro(viaje, { pideMeta: true, hoy }).meta).toBe(
+      'Poné el objetivo: hasta cuánto junta.',
+    );
+    expect(revisarElTesoro({ ...viaje, meta: 0 }, { pideMeta: true, hoy }).meta).toBeDefined();
+    expect(revisarElTesoro({ ...viaje, meta: 100_000 }, { pideMeta: true, hoy })).toEqual({});
+    expect(revisarElTesoro({ ...viaje, metaFecha: '2027-01-15' }, { hoy }).metaFecha).toBe(
+      'Para poner una fecha, poné primero el objetivo.',
+    );
+    const conObjetivo = { ...viaje, meta: 100_000 };
+    expect(revisarElTesoro({ ...conObjetivo, metaFecha: '2026-10-25' }, { hoy }).metaFecha).toBe(
+      'La fecha va de hoy en adelante.',
+    );
     expect(
-      revisarElTesoro({ ...base, nombre: 'Cocos', rinde: 'mucho' }, { conRinde: true }).rinde,
-    ).toMatch(/porcentaje/);
+      revisarElTesoro({ ...conObjetivo, metaFecha: '15/01/2027' }, { hoy }).metaFecha,
+    ).toBeDefined();
+    expect(revisarElTesoro({ ...conObjetivo, metaFecha: hoy }, { hoy })).toEqual({});
+    expect(revisarElTesoro({ ...conObjetivo, metaFecha: '2027-01-15' }, { hoy })).toEqual({});
   });
 });
 
@@ -105,7 +124,7 @@ describe('un tesoro nuevo', () => {
     ).toBe(6);
   });
 
-  it('se arma recortado, con la meta en null si no tiene', () => {
+  it('se arma recortado, con la meta y su fecha en null si no tiene', () => {
     const borrador: BorradorDelTesoro = {
       nombre: '  Vacaciones ',
       descripcion: ' El viaje de enero ',
@@ -113,7 +132,7 @@ describe('un tesoro nuevo', () => {
       tinta: 'petroleo',
       icono: 'plane',
       meta: 250_000_000,
-      rinde: '0',
+      metaFecha: '2027-01-15',
     };
     expect(tesoroNuevo(borrador, 'id-1', 3)).toEqual({
       id: 'id-1',
@@ -122,12 +141,19 @@ describe('un tesoro nuevo', () => {
       tinta: 'petroleo',
       icono: 'plane',
       meta_centavos: 250_000_000,
-      rinde_anual_bp: null,
+      meta_fecha: '2027-01-15',
       orden: 3,
       moneda: 'ARS',
     });
-    expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3).meta_centavos).toBeNull();
-    expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3).meta_centavos).toBeNull();
+    expect(tesoroNuevo({ ...borrador, metaFecha: '' }, 'id-1', 3).meta_fecha).toBeNull();
+    expect(tesoroNuevo({ ...borrador, meta: 0 }, 'id-1', 3)).toMatchObject({
+      meta_centavos: null,
+      meta_fecha: null,
+    });
+    expect(tesoroNuevo({ ...borrador, meta: null }, 'id-1', 3)).toMatchObject({
+      meta_centavos: null,
+      meta_fecha: null,
+    });
   });
 
   it('en pesos nace con la caja fuerte y en dólares con los billetes, salvo que se haya elegido otro', () => {
@@ -163,7 +189,7 @@ describe('editar un tesoro', () => {
   it('manda solo lo que cambió, con lo de antes para volver atrás', () => {
     const herramientas = tesoro({ id: 'x' });
     const actual = datosQueSeEditan(herramientas, undefined);
-    const diferencias = cambiosDelTesoro(actual, null, {
+    const diferencias = cambiosDelTesoro(actual, true, {
       ...borradorDe(herramientas),
       nombre: 'Herramientas nuevas ',
       meta: 120_000_000,
@@ -172,10 +198,23 @@ describe('editar un tesoro', () => {
       cambios: { nombre: 'Herramientas nuevas', meta_centavos: 120_000_000 },
       previos: { nombre: 'Herramientas', meta_centavos: 90_000_000 },
     });
-    expect(hayDiferencias(cambiosDelTesoro(actual, null, borradorDe(herramientas)))).toBe(false);
+    expect(hayDiferencias(cambiosDelTesoro(actual, true, borradorDe(herramientas)))).toBe(false);
   });
 
-  it('en los de siempre no toca la meta, que no va en tesoros', () => {
+  it('la fecha de la meta va con la meta: sin meta, la fecha se va con ella', () => {
+    const herramientas = tesoro({ id: 'x', metaFecha: '2027-01-15' });
+    const actual = datosQueSeEditan(herramientas, undefined);
+    expect(borradorDe(herramientas).metaFecha).toBe('2027-01-15');
+    expect(
+      cambiosDelTesoro(actual, true, { ...borradorDe(herramientas), metaFecha: '2027-03-01' }),
+    ).toEqual({ cambios: { meta_fecha: '2027-03-01' }, previos: { meta_fecha: '2027-01-15' } });
+    expect(cambiosDelTesoro(actual, true, { ...borradorDe(herramientas), meta: null })).toEqual({
+      cambios: { meta_centavos: null, meta_fecha: null },
+      previos: { meta_centavos: 90_000_000, meta_fecha: '2027-01-15' },
+    });
+  });
+
+  it('la meta de Cocos va en el tesoro, como la de cualquiera; los otros de siempre no la llevan', () => {
     const cocos = tesoro({
       id: 'c',
       clave: 'cocos',
@@ -183,26 +222,29 @@ describe('editar un tesoro', () => {
       tinta: 'cocos',
       icono: 'piggy-bank',
       meta: enPesos(centavos(1_000_000_000)),
-      rindeAnualBp: 4000,
     });
-    const diferencias = cambiosDelTesoro(datosQueSeEditan(cocos, undefined), 'cocos', {
-      ...borradorDe(cocos),
-      meta: 2_000_000_000,
+    expect(admiteMeta('cocos')).toBe(true);
+    expect(admiteMeta(null)).toBe(true);
+    expect(admiteMeta('hogar')).toBe(false);
+    expect(admiteMeta('maun')).toBe(false);
+    expect(
+      cambiosDelTesoro(datosQueSeEditan(cocos, undefined), true, {
+        ...borradorDe(cocos),
+        meta: 2_000_000_000,
+      }),
+    ).toEqual({
+      cambios: { meta_centavos: 2_000_000_000 },
+      previos: { meta_centavos: 1_000_000_000 },
     });
-    expect(diferencias.cambios).toEqual({});
-  });
 
-  it('la meta y el rinde de Cocos salen como cambios de los ajustes', () => {
-    const ajustes = { meta_cocos_centavos: 1_000_000_000, tasa_cocos_anual_bp: 4000 };
-    const borrador = { ...borradorNuevo([]), meta: 1_500_000_000, rinde: '40' };
-    expect(cambiosDeCocos(ajustes, borrador)).toEqual({
-      cambios: { meta_cocos_centavos: 1_500_000_000 },
-      previos: { meta_cocos_centavos: 1_000_000_000 },
-    });
-    expect(cambiosDeCocos(ajustes, { ...borrador, meta: null, rinde: '45,5' })).toEqual({
-      cambios: { meta_cocos_centavos: 0, tasa_cocos_anual_bp: 4550 },
-      previos: { meta_cocos_centavos: 1_000_000_000, tasa_cocos_anual_bp: 4000 },
-    });
+    const actualDelHogar = datosQueSeEditan(HOGAR, undefined);
+    expect(actualDelHogar).toMatchObject({ meta_centavos: null, meta_fecha: null });
+    expect(
+      cambiosDelTesoro(actualDelHogar, false, { ...borradorDe(HOGAR), meta: 2_000_000_000 })
+        .cambios,
+    ).toEqual({});
+    expect(bajadaDeLaEdicion(true)).toBe('Nombre, color, ícono y meta');
+    expect(bajadaDeLaEdicion(false)).toBe('Nombre, color e ícono');
   });
 
   it('lee lo que está en la réplica si la fila está, para volver atrás con lo mismo', () => {
@@ -216,6 +258,7 @@ describe('editar un tesoro', () => {
       tinta: 'tinta-que-no-existe',
       icono: 'wrench',
       meta_centavos: null,
+      meta_fecha: '2027-01-15',
       rinde_anual_bp: null,
       orden: 0,
       archivado_at: null,
@@ -225,6 +268,70 @@ describe('editar un tesoro', () => {
       deleted_at: null,
       version: 1,
     };
-    expect(datosQueSeEditan(herramientas, fila).tinta).toBe('tinta-que-no-existe');
+    expect(datosQueSeEditan(herramientas, fila)).toMatchObject({
+      tinta: 'tinta-que-no-existe',
+      meta_fecha: '2027-01-15',
+    });
+  });
+
+  it('Cocos con la meta todavía en Ajustes: sin tocar nada no hay cambios, y vaciarla la deja en cero', () => {
+    const cocos = tesoro({
+      id: 'c',
+      clave: 'cocos',
+      nombre: 'GALPON',
+      descripcion: '',
+      tinta: 'cocos',
+      icono: 'piggy-bank',
+      meta: enPesos(centavos(7_000_000_000)),
+    });
+    const fila = {
+      id: 'c',
+      household_id: 'h',
+      clave: 'cocos' as const,
+      nombre: 'GALPON',
+      descripcion: '',
+      tinta: 'cocos',
+      icono: 'piggy-bank',
+      meta_centavos: null,
+      meta_fecha: null,
+      rinde_anual_bp: null,
+      orden: 0,
+      archivado_at: null,
+      moneda: 'ARS',
+      created_at: '',
+      updated_at: '',
+      deleted_at: null,
+      version: 1,
+    };
+    const actual = datosQueSeEditan(cocos, fila);
+    const deLosAjustes = metaQueVieneDeLosAjustes(cocos, fila);
+    expect(actual.meta_centavos).toBeNull();
+    expect(deLosAjustes).toBe(7_000_000_000);
+    expect(hayDiferencias(cambiosDelTesoro(actual, true, borradorDe(cocos), deLosAjustes))).toBe(
+      false,
+    );
+    expect(
+      cambiosDelTesoro(actual, true, { ...borradorDe(cocos), meta: 8_000_000_000 }, deLosAjustes),
+    ).toEqual({
+      cambios: { meta_centavos: 8_000_000_000 },
+      previos: { meta_centavos: null },
+    });
+    expect(
+      cambiosDelTesoro(actual, true, { ...borradorDe(cocos), meta: null }, deLosAjustes),
+    ).toEqual({
+      cambios: { meta_centavos: 0 },
+      previos: { meta_centavos: null },
+    });
+
+    const vaciada = { ...fila, meta_centavos: 0 };
+    const sinMeta = { ...cocos, meta: null };
+    expect(metaQueVieneDeLosAjustes(sinMeta, vaciada)).toBeNull();
+    expect(
+      hayDiferencias(
+        cambiosDelTesoro(datosQueSeEditan(sinMeta, vaciada), true, borradorDe(sinMeta), null),
+      ),
+    ).toBe(false);
+    expect(metaQueVieneDeLosAjustes(cocos, undefined)).toBeNull();
+    expect(metaQueVieneDeLosAjustes(HOGAR, fila)).toBeNull();
   });
 });

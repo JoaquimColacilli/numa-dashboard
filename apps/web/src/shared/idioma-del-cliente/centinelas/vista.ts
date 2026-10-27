@@ -13,6 +13,19 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.vista.delDominio.proyeccion.siDejasLaSenaAntesDel('«ANTES»', '«LISTO»'),
     tieneQueDecir: ['«ANTES»', '«LISTO»'],
   },
+  'vista.delDominio.proyeccion.conLasFechas': {
+    llamar: (m) =>
+      m.vista.delDominio.proyeccion.conLasFechas('«ENTREGA»', '«SEÑA ACORDADA»', '«ANTES»'),
+    tieneQueDecir: ['«ENTREGA»', '«SEÑA ACORDADA»', '«ANTES»'],
+  },
+  'vista.delDominio.proyeccion.senaAcordada': {
+    llamar: (m) => m.vista.delDominio.proyeccion.senaAcordada('«PORCENTAJE»', '«MONTO»'),
+    tieneQueDecir: ['«PORCENTAJE»', '«MONTO»'],
+  },
+  'vista.delDominio.proyeccion.dependiaDeLaSena': {
+    llamar: (m) => m.vista.delDominio.proyeccion.dependiaDeLaSena('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
   'vista.delDominio.nota.fuimosAMedirEl': {
     llamar: (m) => m.vista.delDominio.nota.fuimosAMedirEl('«FECHA»'),
     tieneQueDecir: ['«FECHA»'],

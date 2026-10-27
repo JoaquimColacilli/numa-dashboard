@@ -355,6 +355,12 @@ export const proyecto = {
     cubiertaDeMas: (deMas) => `The deposit is covered, and you collected ${deMas} extra.`,
     cubierta: 'The deposit is covered.',
   },
+  paraElEstimativo: {
+    titulo: 'For the estimate',
+    ayuda: 'What to ask so you can give a careful estimate.',
+    contestadas: (contestadas, total) => `${String(contestadas)} of ${String(total)}`,
+    usarLaDelCliente: (direccion) => `Use the client's: ${direccion}`,
+  },
   costosDeCotizar: {
     titulo: 'Estimated costs',
     ayuda:

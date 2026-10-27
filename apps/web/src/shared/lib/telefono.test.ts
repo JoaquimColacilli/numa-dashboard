@@ -7,6 +7,7 @@ import {
 
 import {
   enlaceParaEscribir,
+  mensajeDelEstimativo,
   mensajeParaElCliente,
   telefonoParaWhatsapp,
   whatsappCon,
@@ -76,13 +77,28 @@ describe('el mensaje para el cliente', () => {
     );
   });
 
+  it('un estimativo dice que es un presupuesto estimativo, sin hablar de pagar', async () => {
+    expect(mensajeDelEstimativo(TEXTOS, 'Marcela Duarte', 'Placard', 'https://m/v/t')).toBe(
+      'Hola Marcela, acá podés ver el presupuesto estimativo de tu placard: https://m/v/t',
+    );
+    const en = (await cargarMensajesDelCliente('en')).whatsapp;
+    const ptBR = (await cargarMensajesDelCliente('pt-BR')).whatsapp;
+    expect(mensajeDelEstimativo(en, '', 'Placard', 'https://m/v/t')).toBe(
+      "Hi, here's the estimate for Placard: https://m/v/t",
+    );
+    expect(mensajeDelEstimativo(ptBR, 'Marcela', 'Placard', 'https://m/v/t')).toBe(
+      'Olá, Marcela. Aqui está o orçamento estimativo de Placard: https://m/v/t',
+    );
+  });
+
   it('en los tres idiomas la dirección va al final, después de los dos puntos', async () => {
     for (const idioma of ['es', 'en', 'pt-BR'] as const) {
       const textos = (await cargarMensajesDelCliente(idioma)).whatsapp;
-      for (const conPago of [false, true]) {
-        for (const cliente of ['Marcela', '']) {
+      for (const cliente of ['Marcela', '']) {
+        for (const conPago of [false, true]) {
           expect(mensajeParaElCliente(textos, cliente, 'Placard', '', conPago)).toMatch(/: $/u);
         }
+        expect(mensajeDelEstimativo(textos, cliente, 'Placard', '')).toMatch(/: $/u);
       }
     }
   });

@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 
 import { AccionesDeContacto, rutaDelCliente } from '@/entities/cliente';
+import { respuestaPendiente } from '@/entities/presupuesto';
 import {
   BloqueDeLaSena,
   CostosDeCotizar,
@@ -11,8 +12,11 @@ import {
   loCobradoEnPalabras,
   opcionesDelProyecto,
   pagosDelProyecto,
+  ParaElEstimativo,
+  preguntasDelTaller,
   presupuestoVencido,
   RUTA_DE_CONSULTAS,
+  rutaDeAprobacion,
   rutaDeCierre,
   rutaDeEdicion,
   senaDelProyecto,
@@ -28,6 +32,11 @@ import { useReplicaDelTaller } from '@/entities/replica';
 import { AyudaDeLaVista } from '@/entities/vista-cliente';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
 import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
+import {
+  TarjetaDeLaRespuesta,
+  useAtenderLaRespuesta,
+  type VisitaPropuesta,
+} from '@/features/atender-la-respuesta';
 import {
   BorradoDelProyecto,
   LoQueHaceFalta,
@@ -92,7 +101,7 @@ function Dato({
   );
 }
 
-type HojaAbierta = 'contacto' | 'visita' | 'vigencia' | 'por-ahora-no' | null;
+type HojaAbierta = 'visita' | 'vigencia' | 'por-ahora-no' | null;
 
 function textoDeLaVigencia(valeHasta: string | null, vencido: boolean, hoy: string): string {
   const { comun, contacto } = mensajes().paginaProyectos;
@@ -128,8 +137,11 @@ function FichaDelContacto({
   const avisos = useAvisosDelProyecto(resumen.proyecto.id);
   const [editando, setEditando] = useState<HojaAbierta>(null);
   const [editandoCliente, setEditandoCliente] = useState(false);
+  const [visitaPropuesta, setVisitaPropuesta] = useState<VisitaPropuesta | null>(null);
+  const atender = useAtenderLaRespuesta();
   const cerrarLaHoja = useCallback(() => {
     setEditando(null);
+    setVisitaPropuesta(null);
   }, []);
 
   const hoy = hoyLocal();
@@ -183,7 +195,7 @@ function FichaDelContacto({
             className="sm:px-4"
             aria-label={comun.editar}
             onClick={() => {
-              setEditando('contacto');
+              ir(rutaDeEdicion(proyecto.id));
             }}
           >
             <Icono nombre="pencil" tamano={16} />
@@ -247,7 +259,27 @@ function FichaDelContacto({
         }
       >
         <div className="flex flex-col gap-3 md:gap-4">
+          <TarjetaDeLaRespuesta
+            proyecto={proyecto}
+            nombre={nombre}
+            telefono={cliente?.telefono ?? ''}
+            alAgendar={(visita) => {
+              setVisitaPropuesta(visita);
+              setEditando('visita');
+            }}
+            alAprobar={() => {
+              ir(rutaDeAprobacion(proyecto.id));
+            }}
+          />
+
           <TarjetaDelPresupuesto proyecto={proyecto} />
+
+          <ParaElEstimativo
+            key={proyecto.id}
+            proyecto={proyecto}
+            preguntas={preguntasDelTaller(replica)}
+            domicilioDelCliente={cliente?.direccion ?? ''}
+          />
 
           <OpcionesDelTrabajo proyecto={proyecto} ofreceCargarLaPrimera />
 
@@ -429,9 +461,19 @@ function FichaDelContacto({
           ) : (
             <HojaDeContacto
               proyecto={proyecto}
+              visitaPropuesta={abierta === 'visita' ? visitaPropuesta : null}
               enfocarLaVisita={abierta === 'visita'}
               enfocarLaVigencia={abierta === 'vigencia'}
               alCerrar={cerrarLaHoja}
+              alGuardar={
+                abierta === 'visita' && visitaPropuesta !== null
+                  ? () => {
+                      const pendiente = respuestaPendiente(replica, proyecto.id);
+                      if (pendiente !== null) atender(pendiente);
+                      cerrarLaHoja();
+                    }
+                  : undefined
+              }
               alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
             />
           )

@@ -26,6 +26,9 @@ export const paginaAjustes = {
   verLaFila: 'Ver la fila en Tesoros',
   tuTaller: 'Tu taller',
   tuPresupuesto: 'Tu presupuesto',
+  loQuePreguntas: 'Lo que preguntás en una consulta',
+  loQueTeGuia:
+    'Lo que aparece en cada consulta para guiar la charla: lo que necesitás saber para un estimativo prudente.',
   loQueVaEnCadaPresupuesto:
     'Lo que va en cada presupuesto que armás: tus datos, los números y los textos de siempre.',
   comoTePagan: 'Cómo te pagan',
@@ -39,7 +42,6 @@ export const paginaAjustes = {
   tuVidriera: 'Tu vidriera',
   loQueVenTusClientes: 'Lo que ven tus clientes en su página: fotos de otros trabajos y tus redes.',
   redes: 'Redes',
-  corregirElSaldoDeCocos: 'Corregir el saldo de Cocos',
   espacioParaArchivos: 'Espacio para archivos',
   espacioUsado: ({ usado, total, Junto }: { usado: string; total: string; Junto: Envoltorio }) => (
     <>

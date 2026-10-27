@@ -19,6 +19,8 @@ export const armarElPresupuesto = {
   verElPdf: 'View PDF',
   pdf: 'PDF',
   mandarElPresupuesto: 'Send quote',
+  mandarElEstimativo: 'Send estimate',
+  tituloDelEstimativo: 'Estimate',
   mandarLaRevision: (revision) => `Send revision ${String(revision)}`,
   seNumeraCuandoVuelvaLaSenal: "It gets its number when you're back online.",
   opcion: (letra) => `Option ${letra}`,
@@ -38,10 +40,30 @@ export const armarElPresupuesto = {
     ejemploDelTitulo: 'Kitchen, bedroom closet…',
     obra: 'Job site',
     ejemploDeLaObra: 'Street and number, neighborhood',
-    plazo: 'Lead time',
-    diasHabiles: 'business days',
-    ayudaDelPlazo:
-      'Counted from when the deposit clears. The lead-time notice and the estimated delivery use it.',
+    estimativo: "It's an estimate",
+    ayudaDelEstimativo:
+      'A careful number before you go measure. Your client sees it as an estimate, with no deposit, and can approve it so you go measure.',
+    pideFecha: 'Ask them for a day to measure',
+    ayudaDePideFecha: 'When they approve it, they suggest a day and a time for you to go measure.',
+    esLaDelTrabajo: "It's the job's address: change it here and it changes on the job page too.",
+    vaLaDelCliente: (direccion) => `Leave it empty and your client's goes: ${direccion}.`,
+    usarLaDelCliente: "Use the client's",
+    listoPara: 'Can be ready by',
+    senaAntesDel: 'If the deposit comes in by',
+    listoSugerido: (plazo) =>
+      `From the ${String(plazo)} business days in Settings, counted from the day you send it.`,
+    senaSugerida: (dias) =>
+      plural(dias, {
+        one: '# day after the day you send it. Change it in Settings.',
+        other: '# days after the day you send it. Change it in Settings.',
+      }),
+    elegidaPorVos: 'You picked it.',
+    usarLaSugerida: 'Use the suggested one',
+    problemaDeLasFechas: {
+      'sena-antes-del-envio':
+        "The deposit date has to be today or later: today's the day you send it.",
+      'entrega-antes-de-la-sena': 'Delivery has to be after the deposit date.',
+    },
   },
   validez: {
     titulo: 'Valid for',
@@ -146,6 +168,7 @@ export const armarElPresupuesto = {
     van: (van, total) => `${String(van)} of ${String(total)} on the quote`,
     apareceCuandoPague:
       "Shows up once your client pays something: it says how much they've already paid.",
+    noVaEnUnEstimativo: 'Not on an estimate: it goes on the quote, with its dates.',
     soloEnEste: 'Only in this quote',
     agregarOtra: 'Add another',
   },
@@ -169,6 +192,7 @@ export const armarElPresupuesto = {
     },
     yaPago: 'Already paid',
     leFaltaParaLaSena: 'Still needed for the deposit',
+    elEstimativoNoLaPide: "An estimate doesn't ask for a deposit: the quote does.",
     segunLaQueElija: {
       taller: (porcentaje) =>
         `The shop's ${porcentaje} deposit, depending on the option they choose`,
@@ -226,6 +250,7 @@ export const armarElPresupuesto = {
     volverAlDeSiempre: 'Back to the default',
     retocado: 'Tweaked for this job. The default stays the same in Settings.',
     laSenaDeEsteTrabajo: (sena) => `This job's deposit is ${sena}.`,
+    noVaEnUnEstimativo: "An estimate doesn't carry the payment method: it goes on the quote.",
   },
   garantia: {
     titulo: 'Warranty',
@@ -239,6 +264,7 @@ export const armarElPresupuesto = {
       muebles: 'Details',
       valores: 'Prices',
       queCambio: 'What changed',
+      fechas: 'Dates',
     },
     loQueFalta: {
       titulo: 'Give the job a title.',
@@ -247,6 +273,8 @@ export const armarElPresupuesto = {
       opciones: 'Each option needs its amount.',
       queCambio: 'Tell your client what changed.',
       queCambioLargo: 'What changed has to fit in 280 characters.',
+      'sena-antes-del-envio': 'The deposit date already passed: it has to be today or later.',
+      'entrega-antes-de-la-sena': 'Delivery has to be after the deposit date.',
     },
     leFaltaAlgo: "Something's missing before you can send it",
     noSePudoMandar: "Couldn't send the quote.",
@@ -260,6 +288,11 @@ export const armarElPresupuesto = {
     valeHasta: (fecha) => `It's valid until ${fecha}.`,
     pasaA: (estado) => <>Moves to {estado}</>,
     seTilda: '“Build the quote” gets checked off in To do.',
+    esUnEstimativo: 'Your client sees it as an estimate, with no deposit, and can approve it.',
+    teProponeUnDia: 'When they approve it, they suggest a day and a time for you to go measure.',
+    noSeTilda: '“Build the quote” stays unchecked: it waits for the final quote.',
+    prometeLaEntrega: (entrega, sena) =>
+      `It promises delivery by ${entrega} if the deposit comes in by ${sena}.`,
     quedaGuardada: (revision) =>
       `Revision ${String(revision)} stays saved on the job page, with its PDF.`,
     conLaReferencia: (dolar) =>

@@ -13,6 +13,7 @@ import {
   transferenciaDelArchivo,
 } from './archivo';
 
+const COCOS = '01900000-0000-7000-8000-000000000004';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000006';
 const MATERIALES = '01900000-0000-7000-8000-000000000007';
 
@@ -25,7 +26,7 @@ function tesoro(parcial: Partial<TesoroDelTaller> & Pick<TesoroDelTaller, 'id'>)
     tinta: 'petroleo',
     icono: 'wrench',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(0)),
@@ -66,10 +67,22 @@ function replicaCon({
 describe('cuándo no se archiva', () => {
   const herramientas = { id: HERRAMIENTAS, clave: null };
 
-  it('los de siempre no se archivan', () => {
-    expect(porQueNoSeArchiva(replicaCon({}), { id: 'x', clave: 'cocos' })).toEqual({
-      motivo: 'de-siempre',
-    });
+  it('los de siempre no se archivan, salvo Cocos, que se archiva como cualquier tesoro', () => {
+    for (const clave of ['hogar', 'maun', 'diezmo'] as const) {
+      expect(porQueNoSeArchiva(replicaCon({}), { id: 'x', clave })).toEqual({
+        motivo: 'de-siempre',
+      });
+    }
+    const cocos = { id: COCOS, clave: 'cocos' as const };
+    expect(porQueNoSeArchiva(replicaCon({}), cocos)).toBeNull();
+    expect(
+      porQueNoSeArchiva(
+        replicaCon({
+          guardada: { ...fila([]), reparto: [{ tesoro: COCOS, porcentaje: 5000 }] },
+        }),
+        cocos,
+      ),
+    ).toEqual({ motivo: 'en-la-fila' });
   });
 
   it('uno que está en la fila guardada, no; en la fila de siempre no hay tesoros del dueño', () => {

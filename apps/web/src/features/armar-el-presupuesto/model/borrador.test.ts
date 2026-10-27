@@ -33,6 +33,7 @@ const BASE: BorradorDelPresupuesto = {
     obra: '',
     plantilla: PLANTILLA_DE_SIEMPRE,
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm1',
   }),
   muebles: [

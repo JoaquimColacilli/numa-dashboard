@@ -6,6 +6,8 @@ export const cubrirElFaltante = {
   paraCubrir: (nombre: string, mes: string) => `Para cubrir ${nombre} de ${mes}`,
   vence: (renglon: string, dia: number, falta: string) =>
     `Vence ${conArticulo(renglon)} el ${String(dia)} y faltan ${falta}.`,
+  seVaAPagar: (nombre: string, dia: number, falta: string, maun: string) =>
+    `El ${String(dia)} se paga ${conArticulo(nombre)} y faltan ${falta}. Si no entra más plata, los pone ${maun}.`,
   faltanParaElSaldo: (falta: string, nombre: string) => `Faltan ${falta} para ${nombre}.`,
   faltanParaElMes: (falta: string, nombre: string, mes: string) =>
     `Faltan ${falta} para ${nombre} de ${mes}.`,

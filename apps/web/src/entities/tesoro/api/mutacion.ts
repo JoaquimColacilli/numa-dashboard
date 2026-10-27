@@ -53,6 +53,7 @@ function conTesoroNuevo(replica: Replica, nuevo: TesoroNuevo): Replica {
     household_id: household.id,
     clave: null,
     moneda: monedaLeida(nuevo.moneda),
+    rinde_anual_bp: null,
     archivado_at: null,
     created_at: ahora,
     updated_at: ahora,

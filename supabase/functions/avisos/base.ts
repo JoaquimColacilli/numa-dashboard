@@ -9,12 +9,29 @@ export interface Suscripcion {
   auth: string;
 }
 
+export interface RespuestaParaElAviso {
+  id: string;
+  proyecto_id: string;
+  cliente: string;
+  estimativo: boolean;
+  letra: string | null;
+  dia: string | null;
+  franja: string | null;
+  respondida_el: string;
+}
+
 export interface AvisoPorMandar extends Suscripcion {
   dia: string;
   zona?: string;
   idioma?: string;
   preferencias: PreferenciasDeAvisos;
+  respuestas?: readonly RespuestaParaElAviso[];
   filas: FilasDeLaAgenda;
+}
+
+export interface AvisoDeLaRespuesta extends Suscripcion {
+  idioma?: string;
+  respuesta: RespuestaParaElAviso;
 }
 
 export interface UsuarioDelToken {
@@ -24,6 +41,7 @@ export interface UsuarioDelToken {
 
 export interface Base {
   avisosPorMandar(ahora: Date): Promise<AvisoPorMandar[]>;
+  avisoDeLaRespuesta(respuesta: string): Promise<AvisoDeLaRespuesta[]>;
   anotarAviso(suscripcion: string, dia: string, mandado: boolean): Promise<void>;
   borrarSuscripcionVencida(endpoint: string): Promise<void>;
   suscripcionesParaProbar(usuario: string, endpoint: string | null): Promise<Suscripcion[]>;
@@ -53,6 +71,7 @@ export function baseDeSupabase(url: string, clave: string, pedir: Pedir = fetch)
 
   return {
     avisosPorMandar: (ahora) => rpc('avisos_por_mandar', { p_ahora: ahora.toISOString() }),
+    avisoDeLaRespuesta: (respuesta) => rpc('aviso_de_la_respuesta', { p_id: respuesta }),
     anotarAviso: async (suscripcion, dia, mandado) => {
       await rpc<boolean>('anotar_aviso', {
         p_suscripcion: suscripcion,

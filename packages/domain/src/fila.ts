@@ -1,15 +1,25 @@
 import { DIEZMO } from './cascada.ts';
 import type { EstadoLiquidado } from './estados.ts';
-import { diaDelMes, mesDe } from './fechas.ts';
+import {
+  cicloDeLaFecha,
+  diaDelMes,
+  esFechaQueExiste,
+  estaEnElCiclo,
+  mesDe,
+  vencimientosEntre,
+  type Ciclo,
+} from './fechas.ts';
 import {
   aplicarPorcentaje,
   BASE_PUNTOS_BASICOS,
   CERO,
   centavos,
   esNegativo,
+  importeDelTaller,
   maximo,
   minimo,
   MONEDA_DEL_TALLER,
+  negar,
   puntosBasicos,
   restar,
   sumar,
@@ -62,6 +72,7 @@ export interface ObligacionDeLaFila {
   tesoro: string;
   porcentaje: PuntosBasicos;
   base: BaseDeLaObligacion;
+  montoFijo: Money | null;
 }
 
 export interface PasoDeLaFila {
@@ -72,6 +83,9 @@ export interface PasoDeLaFila {
   desde: string | null;
   modo: ModoDePaso;
   hastaLaMeta: boolean;
+  dia: number | null;
+  pagaSola: boolean;
+  pagaSolaDesde: string | null;
 }
 
 export interface ParteDelReparto {
@@ -124,6 +138,7 @@ export interface PasoDelPlan {
   porMes: boolean;
   modo: ModoDePaso;
   hastaLaMeta: boolean;
+  dia: number | null;
 }
 
 export interface PlanDelReparto {
@@ -194,7 +209,7 @@ export interface LiquidacionDelMes {
 
 export interface Cobertura {
   tesoro: string;
-  mes: string;
+  desde: string;
   monto: Money;
 }
 
@@ -202,6 +217,19 @@ export interface GastoDeUnTesoro {
   tesoro: string;
   categoria: string;
   fecha: string;
+  monto: Money;
+  vencimiento: string | null;
+}
+
+export interface PagoDeUnVencimiento {
+  tesoro: string;
+  vencimiento: string;
+  tope: Money;
+  pagadoAntes: Money;
+  saldo: Money;
+  aPagar: Money;
+  pusoMaun: Money;
+  vuelveAMaun: Money;
 }
 
 export interface EntradaDeLaLiquidacion {
@@ -236,6 +264,7 @@ export type RepartoDelCobro =
       tesoro: string;
       porcentaje: PuntosBasicos;
       base: BaseDeLaObligacion;
+      montoFijo: Money | null;
       monto: Money;
     }
   | {
@@ -273,6 +302,7 @@ export interface DatosDelMes {
   saldos: ReadonlyMap<string, Money>;
   metas: ReadonlyMap<string, Money>;
   gastos: readonly GastoDeUnTesoro[];
+  pagos: readonly PagoDeUnVencimiento[];
 }
 
 export interface ObligacionDelMes {
@@ -301,12 +331,28 @@ export interface MetaDelMes {
   llego: boolean;
 }
 
+export interface CuentaDelVencimiento {
+  aPagar: Money;
+  pusoMaun: Money;
+  vuelveAMaun: Money;
+}
+
+export interface VencimientoDelCompromiso extends CuentaDelVencimiento {
+  fecha: string;
+  pagaSola: boolean;
+  tope: Money;
+  pagado: Money;
+  saldo: Money;
+  pago: PagoDeUnVencimiento | null;
+}
+
 export interface PasoDelMes {
   tesoro: string;
   clase: ClaseDePaso;
   tipo: TipoDelPaso;
   modo: ModoDePaso;
   objetivo: Money;
+  ciclo: Ciclo | null;
   recibido: Money;
   cubierto: Money;
   lleva: Money;
@@ -314,6 +360,8 @@ export interface PasoDelMes {
   completo: boolean;
   aPagar: Money | null;
   vencimientos: readonly VencimientoDelMes[];
+  vencimiento: VencimientoDelCompromiso | null;
+  ultimoPago: PagoDeUnVencimiento | null;
   meta: MetaDelMes | null;
 }
 
@@ -373,6 +421,14 @@ export type ProblemaDeLaFila =
   | 'modo-invalido'
   | 'meta-fuera-de-ahorro'
   | 'meta-sin-monto'
+  | 'monto-fijo-invalido'
+  | 'diezmo-por-monto'
+  | 'dia-de-pago-invalido'
+  | 'dia-de-pago-fuera-de-compromiso'
+  | 'dias-en-los-renglones'
+  | 'paga-sola-sin-dia'
+  | 'paga-sola-en-maun'
+  | 'paga-sola-desde-invalido'
   | 'ahorro-antes-de-compromiso'
   | 'maun-en-el-reparto'
   | 'hogar-en-el-reparto'
@@ -410,6 +466,12 @@ export type CambioDeLaFila =
       despues: BaseDeLaObligacion;
     }
   | {
+      tipo: 'cambia-el-monto-fijo';
+      tesoro: string;
+      antes: Money | null;
+      despues: Money | null;
+    }
+  | {
       tipo: 'entra-a-la-fila';
       tesoro: string;
       posicion: number;
@@ -425,6 +487,8 @@ export type CambioDeLaFila =
   | { tipo: 'cambian-los-renglones'; tesoro: string }
   | { tipo: 'cambian-los-dias'; tesoro: string }
   | { tipo: 'cambia-el-modo'; tesoro: string; antes: ModoDePaso; despues: ModoDePaso }
+  | { tipo: 'cambia-el-dia-de-pago'; tesoro: string; antes: number | null; despues: number | null }
+  | { tipo: 'cambia-paga-sola'; tesoro: string; pagaSola: boolean }
   | { tipo: 'cambia-la-meta'; tesoro: string; hastaLaMeta: boolean }
   | { tipo: 'entra-al-reparto'; tesoro: string; porcentaje: PuntosBasicos; hastaLaMeta: boolean }
   | { tipo: 'sale-del-reparto'; tesoro: string }
@@ -480,8 +544,10 @@ function tieneMeta(meta: Money | null | undefined): meta is Money {
 }
 
 function obligacionDelDiezmo(diezmo: string): ObligacionDeLaFila {
-  return { tesoro: diezmo, porcentaje: DIEZMO, base: 'ingreso' };
+  return { tesoro: diezmo, porcentaje: DIEZMO, base: 'ingreso', montoFijo: null };
 }
+
+export const DIA_DE_PAGO_PROPUESTO = 10;
 
 export function esDiaDePago(dia: number): boolean {
   return Number.isInteger(dia) && dia >= 1 && dia <= ULTIMO_DIA_DE_PAGO;
@@ -512,6 +578,102 @@ export function tipoDelTesoro(fila: Fila, tesoro: string): TipoDeTesoro | null {
   if (paso !== undefined) return tipoDelPaso(paso.clase);
   if (fila.reparto.some((parte) => parte.tesoro === tesoro)) return 'ahorro-por-porcentaje';
   return fila.superavit === tesoro ? 'superavit' : null;
+}
+
+export const LO_QUE_PUEDE_SER_UN_TESORO = [
+  'caja',
+  'deuda-destinada',
+  'deuda-obligatoria',
+  'meta',
+] as const;
+
+export type QueEsElTesoro = (typeof LO_QUE_PUEDE_SER_UN_TESORO)[number];
+
+export function queEsElTesoro(
+  fila: Fila,
+  tesoro: Pick<TesoroDeLaFila, 'id' | 'clave' | 'meta'>,
+): QueEsElTesoro {
+  if (tesoro.clave === 'maun') return 'caja';
+  const lugar = tipoDelTesoro(fila, tesoro.id);
+  if (lugar === 'obligacion') return 'deuda-destinada';
+  if (lugar === 'compromiso') return 'deuda-obligatoria';
+  if (lugar === 'superavit') return 'caja';
+  return tieneMeta(tesoro.meta) ? 'meta' : 'caja';
+}
+
+export function seOfreceSinFin(meta: Money | null | undefined): boolean {
+  return !tieneMeta(meta);
+}
+
+export function modosQueSeOfrecen(
+  clase: ClaseDePaso,
+  clave: TesoroDeLaFila['clave'],
+): readonly ModoDePaso[] {
+  return esCompromiso({ clase }) ? ['mes'] : modosPosibles(clase, clave);
+}
+
+export function pasoNuevo(
+  tesoro: string,
+  clase: ClaseDePaso,
+  clave: TesoroDeLaFila['clave'],
+  tope: Money,
+  hoy: string,
+): PasoDeLaFila {
+  const comoDeuda = esCompromiso({ clase }) && clave !== 'maun';
+  return {
+    tesoro,
+    clase,
+    tope,
+    renglones: [],
+    desde: null,
+    modo: comoDeuda ? 'mes' : modoInicial(clase, clave),
+    hastaLaMeta: false,
+    dia: comoDeuda ? DIA_DE_PAGO_PROPUESTO : null,
+    pagaSola: comoDeuda,
+    pagaSolaDesde: comoDeuda ? hoy : null,
+  };
+}
+
+export function esDeLaFormaDeAntes(paso: PasoDeLaFila, maun: string): boolean {
+  return esCompromiso(paso) && paso.tesoro !== maun && paso.dia === null;
+}
+
+export function conLaFormaNueva(fila: Fila, maun: string, hoy: string): Fila {
+  return {
+    ...fila,
+    pasos: fila.pasos.map((paso) => {
+      if (!esDeLaFormaDeAntes(paso, maun)) return paso;
+      const conDia = paso.renglones.find((renglon) => renglon.dia !== null);
+      return {
+        ...paso,
+        modo: 'mes',
+        dia: conDia?.dia ?? DIA_DE_PAGO_PROPUESTO,
+        pagaSola: true,
+        pagaSolaDesde: hoy,
+        renglones: paso.renglones.map((renglon) => ({ ...renglon, dia: null })),
+      };
+    }),
+  };
+}
+
+export function conElPagaSolaDesde(guardada: Fila, fila: Fila, hoy: string): Fila {
+  const antes = new Map(guardada.pasos.map((paso) => [paso.tesoro, paso]));
+  return {
+    ...fila,
+    pasos: fila.pasos.map((paso) => {
+      if (!paso.pagaSola) return { ...paso, pagaSolaDesde: null };
+      const previo = antes.get(paso.tesoro);
+      const desde = previo?.pagaSola === true ? previo.pagaSolaDesde : null;
+      return { ...paso, pagaSolaDesde: desde ?? hoy };
+    }),
+  };
+}
+
+export function pasanAPagarseSolos(guardada: Fila, fila: Fila): PasoDeLaFila[] {
+  const yaSePagabanSolos = new Set(
+    guardada.pasos.filter((paso) => paso.pagaSola).map((paso) => paso.tesoro),
+  );
+  return fila.pasos.filter((paso) => paso.pagaSola && !yaSePagabanSolos.has(paso.tesoro));
 }
 
 export function sumaDelReparto(fila: Pick<Fila, 'reparto'>): number {
@@ -549,6 +711,9 @@ export function filaDeSiempre(ajustes: AjustesDeSiempre, sistema: TesorosDelSist
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     });
   }
   if (ajustes.costosFijos > 0) {
@@ -560,6 +725,9 @@ export function filaDeSiempre(ajustes: AjustesDeSiempre, sistema: TesorosDelSist
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     });
   }
 
@@ -604,6 +772,16 @@ function leerMarca(valor: unknown): boolean | null {
   return typeof valor === 'boolean' ? valor : null;
 }
 
+function leerEnteroONada(valor: unknown): number | null | undefined {
+  if (valor === undefined || valor === null) return null;
+  return esEntero(valor) ? valor : undefined;
+}
+
+function leerTextoONada(valor: unknown): string | null | undefined {
+  if (valor === undefined || valor === null) return null;
+  return typeof valor === 'string' ? valor : undefined;
+}
+
 function leerRenglon(valor: unknown): Renglon | null {
   if (!esObjeto(valor) || typeof valor.nombre !== 'string' || !esEntero(valor.monto)) return null;
   const crudo = valor.dia ?? null;
@@ -626,7 +804,19 @@ function leerPaso(valor: unknown): PasoDeLaFila | null {
   const modo =
     valor.modo === undefined ? 'mes' : esUnoDe(MODOS_DE_PASO, valor.modo) ? valor.modo : null;
   const hastaLaMeta = leerMarca(valor.hastaLaMeta);
-  if (renglones === null || modo === null || hastaLaMeta === null) return null;
+  const dia = leerEnteroONada(valor.dia);
+  const pagaSola = leerMarca(valor.pagaSola);
+  const pagaSolaDesde = leerTextoONada(valor.pagaSolaDesde);
+  if (
+    renglones === null ||
+    modo === null ||
+    hastaLaMeta === null ||
+    dia === undefined ||
+    pagaSola === null ||
+    pagaSolaDesde === undefined
+  ) {
+    return null;
+  }
   return {
     tesoro: valor.tesoro,
     clase: valor.clase,
@@ -635,6 +825,9 @@ function leerPaso(valor: unknown): PasoDeLaFila | null {
     desde: valor.desde,
     modo,
     hastaLaMeta,
+    dia,
+    pagaSola,
+    pagaSolaDesde,
   };
 }
 
@@ -658,10 +851,13 @@ function leerObligacion(valor: unknown): ObligacionDeLaFila | null {
   ) {
     return null;
   }
+  const montoFijo = leerEnteroONada(valor.montoFijo);
+  if (montoFijo === undefined) return null;
   return {
     tesoro: valor.tesoro,
     porcentaje: valor.porcentaje as PuntosBasicos,
     base: valor.base,
+    montoFijo: montoFijo === null ? null : centavos(montoFijo),
   };
 }
 
@@ -714,6 +910,29 @@ function problemaDeLaObligacion(
   ) {
     return 'obligacion-invalida';
   }
+  if (obligacion.montoFijo !== null) {
+    if (tesoro.clave === 'diezmo') return 'diezmo-por-monto';
+    if (obligacion.montoFijo <= 0 || obligacion.montoFijo > MONTO_MAXIMO_DE_LA_FILA) {
+      return 'monto-fijo-invalido';
+    }
+  }
+  return null;
+}
+
+function problemaDelDiaDePago(paso: PasoDeLaFila, tesoro: TesoroDeLaFila): ProblemaDeLaFila | null {
+  if (paso.dia !== null) {
+    if (!esDiaDePago(paso.dia)) return 'dia-de-pago-invalido';
+    if (!esCompromiso(paso) || paso.modo !== 'mes') return 'dia-de-pago-fuera-de-compromiso';
+    if (paso.renglones.some((renglon) => renglon.dia !== null)) return 'dias-en-los-renglones';
+  }
+  if (!paso.pagaSola) {
+    return paso.pagaSolaDesde === null ? null : 'paga-sola-desde-invalido';
+  }
+  if (paso.dia === null) return 'paga-sola-sin-dia';
+  if (tesoro.clave === 'maun') return 'paga-sola-en-maun';
+  if (paso.pagaSolaDesde === null || !esFechaQueExiste(paso.pagaSolaDesde)) {
+    return 'paga-sola-desde-invalido';
+  }
   return null;
 }
 
@@ -749,6 +968,8 @@ function problemaDelPaso(
   if (!modosPosibles(paso.clase, tesoro.clave).includes(paso.modo)) return 'modo-invalido';
   if (paso.hastaLaMeta && !admiteLaMeta(paso.clase)) return 'meta-fuera-de-ahorro';
   if (paso.hastaLaMeta && !tieneMeta(tesoro.meta)) return 'meta-sin-monto';
+  const delDia = problemaDelDiaDePago(paso, tesoro);
+  if (delDia !== null) return delDia;
   if (!esCompromiso(paso) && siguientes.some(esCompromiso)) return 'ahorro-antes-de-compromiso';
   return null;
 }
@@ -863,6 +1084,7 @@ export function planDelReparto(
           ? puntosBasicos(0)
           : obligacion.porcentaje,
       base: obligacion.base,
+      montoFijo: lugar === delDiezmo ? null : obligacion.montoFijo,
       diezmo: lugar === delDiezmo,
     })),
     pasos: fila.pasos.map((paso) => ({
@@ -872,6 +1094,7 @@ export function planDelReparto(
       porMes: !(paso.clase === 'sueldo' && fila.sueldoPorTrabajo),
       modo: paso.modo,
       hastaLaMeta: paso.hastaLaMeta,
+      dia: esCompromiso(paso) && paso.modo === 'mes' ? paso.dia : null,
     })),
     reparto: fila.reparto.map((parte) => ({
       tesoro: parte.tesoro,
@@ -884,19 +1107,21 @@ export function planDelReparto(
 
 export function planDeLaLiquidacion(reparto: Reparto): PlanDelReparto {
   return {
-    obligaciones: reparto.obligaciones.map(({ tesoro, porcentaje, base, diezmo }) => ({
+    obligaciones: reparto.obligaciones.map(({ tesoro, porcentaje, base, montoFijo, diezmo }) => ({
       tesoro,
       porcentaje,
       base,
+      montoFijo,
       diezmo,
     })),
-    pasos: reparto.pasos.map(({ tesoro, clase, objetivo, porMes, modo, hastaLaMeta }) => ({
+    pasos: reparto.pasos.map(({ tesoro, clase, objetivo, porMes, modo, hastaLaMeta, dia }) => ({
       tesoro,
       clase,
       objetivo,
       porMes,
       modo,
       hastaLaMeta,
+      dia,
     })),
     reparto: reparto.reparto.map(({ tesoro, porcentaje, hastaLaMeta }) => ({
       tesoro,
@@ -930,6 +1155,10 @@ function exigirLaEntrada(entrada: EntradaDelReparto): void {
     if (!esUnoDe(BASES_DE_OBLIGACION, obligacion.base)) {
       throw new RangeError('Una obligación se calcula sobre lo cobrado o sobre el ingreso.');
     }
+    if (obligacion.montoFijo !== null) {
+      exigirNoNegativo('El monto fijo de una obligación', obligacion.montoFijo);
+      if (obligacion.diezmo) throw new RangeError('El diezmo va por porcentaje.');
+    }
     if (obligacion.diezmo) diezmos += 1;
   }
   if (diezmos > 1) throw new RangeError('La fila lleva un solo diezmo.');
@@ -959,7 +1188,9 @@ export function repartir(entrada: EntradaDelReparto): Reparto {
   const obligaciones: ObligacionRepartida[] = entrada.obligaciones.map((obligacion) => {
     const sobre = obligacion.base === 'cobrado' ? entrada.cobrado : resto;
     const llega = resto;
-    const monto = positiva ? minimo(aplicarPorcentaje(sobre, obligacion.porcentaje), llega) : CERO;
+    const monto = positiva
+      ? minimo(obligacion.montoFijo ?? aplicarPorcentaje(sobre, obligacion.porcentaje), llega)
+      : CERO;
     resto = restar(resto, monto);
     return { ...obligacion, sobre, llega, monto };
   });
@@ -1017,10 +1248,49 @@ export function loDelMes(
     for (const aporte of liquidacion.aportes) sumarAl(aporte.tesoro, aporte.monto);
   }
   for (const cobertura of coberturas) {
-    exigirMes(cobertura.mes);
-    if (cobertura.mes === mes) sumarAl(cobertura.tesoro, cobertura.monto);
+    if (mesDe(cobertura.desde) === mes) sumarAl(cobertura.tesoro, cobertura.monto);
   }
   return delMes;
+}
+
+export function cicloDelPaso(paso: Pick<PasoDelPlan, 'dia'>, fecha: string): Ciclo {
+  return cicloDeLaFecha(fecha, paso.dia ?? 1);
+}
+
+export function loDelCiclo(
+  liquidaciones: readonly LiquidacionDelMes[],
+  coberturas: readonly Cobertura[],
+  tesoro: string,
+  ciclo: Ciclo,
+): Money {
+  let suma = CERO;
+  for (const liquidacion of liquidaciones) {
+    if (!estaEnElCiclo(liquidacion.fecha, ciclo)) continue;
+    for (const aporte of liquidacion.aportes) {
+      if (aporte.tesoro === tesoro) suma = sumar(suma, aporte.monto);
+    }
+  }
+  for (const cobertura of coberturas) {
+    if (cobertura.tesoro === tesoro && estaEnElCiclo(cobertura.desde, ciclo)) {
+      suma = sumar(suma, cobertura.monto);
+    }
+  }
+  return suma;
+}
+
+export function loDeLosPasos(
+  plan: Pick<PlanDelReparto, 'pasos'>,
+  liquidaciones: readonly LiquidacionDelMes[],
+  coberturas: readonly Cobertura[],
+  fecha: string,
+): Map<string, Money> {
+  const delCiclo = new Map<string, Money>();
+  for (const paso of plan.pasos) {
+    if (paso.modo !== 'mes') continue;
+    const lleva = loDelCiclo(liquidaciones, coberturas, paso.tesoro, cicloDelPaso(paso, fecha));
+    if (lleva !== 0) delCiclo.set(paso.tesoro, lleva);
+  }
+  return delCiclo;
 }
 
 function llevaSegunElModo(
@@ -1066,7 +1336,7 @@ export function previoDelMes(
 
 export function calcularPorLaFila(entrada: EntradaDeLaLiquidacion): LiquidacionPorLaFila {
   const plan = planDelReparto(entrada.destino, entrada.fila, entrada.ajustes, entrada.sistema);
-  const delMes = loDelMes(entrada.liquidaciones, entrada.coberturas, mesDe(entrada.fecha));
+  const delMes = loDeLosPasos(plan, entrada.liquidaciones, entrada.coberturas, entrada.fecha);
   const reparto = repartir({
     ...plan,
     ...previoDelMes(plan, delMes, entrada.saldos, entrada.metas),
@@ -1098,6 +1368,7 @@ export function repartosDelCobro(reparto: Reparto): RepartoDelCobro[] {
       tesoro: obligacion.tesoro,
       porcentaje: obligacion.porcentaje,
       base: obligacion.base,
+      montoFijo: obligacion.montoFijo,
       monto: obligacion.monto,
     });
   }
@@ -1236,6 +1507,161 @@ export function vencimientosDelPaso(
   return vencimientos;
 }
 
+export function cuentaDelVencimiento(
+  tope: Money,
+  pagado: Money,
+  saldo: Money,
+): CuentaDelVencimiento {
+  exigirNoNegativo('El tope de un compromiso', tope);
+  exigirNoNegativo('Lo pagado para un vencimiento', pagado);
+  const aPagar = maximo(CERO, restar(tope, pagado));
+  return {
+    aPagar,
+    pusoMaun: maximo(CERO, restar(aPagar, saldo)),
+    vuelveAMaun: maximo(CERO, restar(saldo, aPagar)),
+  };
+}
+
+export function vencimientoDelGasto(gasto: GastoDeUnTesoro, dia: number): string {
+  return gasto.vencimiento ?? cicloDeLaFecha(gasto.fecha, dia).hasta;
+}
+
+export function pagadoParaElVencimiento(
+  tesoro: string,
+  vencimiento: string,
+  dia: number,
+  gastos: readonly GastoDeUnTesoro[],
+): Money {
+  let pagado = CERO;
+  for (const gasto of gastos) {
+    if (gasto.tesoro === tesoro && vencimientoDelGasto(gasto, dia) === vencimiento) {
+      pagado = sumar(pagado, gasto.monto);
+    }
+  }
+  return pagado;
+}
+
+function ultimoPagoDe(
+  tesoro: string,
+  pagos: readonly PagoDeUnVencimiento[],
+): PagoDeUnVencimiento | null {
+  let ultimo: PagoDeUnVencimiento | null = null;
+  for (const pago of pagos) {
+    if (pago.tesoro === tesoro && (ultimo === null || pago.vencimiento > ultimo.vencimiento)) {
+      ultimo = pago;
+    }
+  }
+  return ultimo;
+}
+
+export function vencimientoDelCompromiso(
+  paso: Pick<PasoDeLaFila, 'tesoro' | 'tope' | 'pagaSola'>,
+  dia: number,
+  ciclo: Ciclo,
+  datos: Pick<DatosDelMes, 'saldos' | 'gastos' | 'pagos'>,
+): VencimientoDelCompromiso {
+  const pagado = pagadoParaElVencimiento(paso.tesoro, ciclo.hasta, dia, datos.gastos);
+  const saldo = datos.saldos.get(paso.tesoro) ?? CERO;
+  return {
+    fecha: ciclo.hasta,
+    pagaSola: paso.pagaSola,
+    tope: paso.tope,
+    pagado,
+    saldo,
+    pago:
+      datos.pagos.find((pago) => pago.tesoro === paso.tesoro && pago.vencimiento === ciclo.hasta) ??
+      null,
+    ...cuentaDelVencimiento(paso.tope, pagado, saldo),
+  };
+}
+
+export function plataDeAntesDelCiclo(
+  paso: Pick<PasoDeLaFila, 'tesoro' | 'dia'>,
+  datos: Pick<DatosDelMes, 'liquidaciones' | 'coberturas' | 'saldos' | 'gastos'>,
+  hoy: string,
+): Money {
+  const ciclo = cicloDelPaso(paso, hoy);
+  const saldo = datos.saldos.get(paso.tesoro) ?? CERO;
+  const juntado = loDelCiclo(datos.liquidaciones, datos.coberturas, paso.tesoro, ciclo);
+  const pagado = pagadoParaElVencimiento(paso.tesoro, ciclo.hasta, paso.dia ?? 1, datos.gastos);
+  return sumar(restar(saldo, juntado), pagado);
+}
+
+export interface LineaDeUnTesoro {
+  tesoroId: string;
+  fecha: string;
+  monto: Money<Moneda>;
+  yaEnLaApertura: boolean;
+}
+
+export interface EntradaDeLosPagos {
+  fila: Fila;
+  maun: string;
+  hoy: string;
+  lineas: readonly LineaDeUnTesoro[];
+  gastos: readonly GastoDeUnTesoro[];
+  pagos: readonly Pick<PagoDeUnVencimiento, 'tesoro' | 'vencimiento'>[];
+}
+
+export function seVencenSolos(
+  paso: PasoDeLaFila,
+  maun: string,
+): paso is PasoDeLaFila & { dia: number; pagaSolaDesde: string } {
+  return (
+    paso.pagaSola &&
+    paso.tesoro !== maun &&
+    diaDelCiclo(paso) !== null &&
+    paso.pagaSolaDesde !== null
+  );
+}
+
+export function saldoAntesDe(
+  lineas: readonly LineaDeUnTesoro[],
+  tesoro: string,
+  fecha: string,
+): Money {
+  let saldo = CERO;
+  for (const linea of lineas) {
+    if (linea.tesoroId !== tesoro || linea.fecha >= fecha || linea.yaEnLaApertura) continue;
+    saldo = sumar(saldo, importeDelTaller(linea.monto));
+  }
+  return saldo;
+}
+
+export function pagoDelVencimiento(
+  paso: Pick<PasoDeLaFila, 'tesoro' | 'tope'>,
+  dia: number,
+  vencimiento: string,
+  saldo: Money,
+  gastos: readonly GastoDeUnTesoro[],
+): PagoDeUnVencimiento {
+  const pagadoAntes = pagadoParaElVencimiento(paso.tesoro, vencimiento, dia, gastos);
+  return {
+    tesoro: paso.tesoro,
+    vencimiento,
+    tope: paso.tope,
+    pagadoAntes,
+    saldo,
+    ...cuentaDelVencimiento(paso.tope, pagadoAntes, saldo),
+  };
+}
+
+export function pagosQueCorresponden(entrada: EntradaDeLosPagos): PagoDeUnVencimiento[] {
+  const pagados = new Set(entrada.pagos.map((pago) => `${pago.tesoro}|${pago.vencimiento}`));
+  const nuevos: PagoDeUnVencimiento[] = [];
+  for (const paso of entrada.fila.pasos) {
+    if (!seVencenSolos(paso, entrada.maun)) continue;
+    let yaPuesto = CERO;
+    for (const vencimiento of vencimientosEntre(paso.pagaSolaDesde, entrada.hoy, paso.dia)) {
+      if (pagados.has(`${paso.tesoro}|${vencimiento}`)) continue;
+      const saldo = sumar(saldoAntesDe(entrada.lineas, paso.tesoro, vencimiento), yaPuesto);
+      nuevos.push(pagoDelVencimiento(paso, paso.dia, vencimiento, saldo, entrada.gastos));
+      yaPuesto = sumar(yaPuesto, negar(saldo));
+    }
+  }
+  return nuevos;
+}
+
 function metaDelAhorro(
   tesoro: string,
   hastaLaMeta: boolean,
@@ -1248,16 +1674,24 @@ function metaDelAhorro(
   return { meta, saldo, falta, hastaLaMeta, llego: falta === 0 };
 }
 
+export function diaDelCiclo(paso: Pick<PasoDeLaFila, 'clase' | 'modo' | 'dia'>): number | null {
+  return esCompromiso(paso) && paso.modo === 'mes' ? paso.dia : null;
+}
+
+function ultimoDiaDelMes(mes: string): string {
+  return diaDelMes(mes, 31);
+}
+
 export function filaDelMes(
   fila: Fila,
   sistema: TesorosDelSistema,
   datos: DatosDelMes,
   mes: string,
+  referencia: string = ultimoDiaDelMes(mes),
 ): FilaDelMes {
   const delMes = datos.liquidaciones.filter((liquidacion) => mesDe(liquidacion.fecha) === mes);
   const recibido = loDelMes(delMes, [], mes);
   const cubierto = loDelMes([], datos.coberturas, mes);
-  const todo = loDelMes(delMes, datos.coberturas, mes);
 
   let ingreso = CERO;
   let diezmo = CERO;
@@ -1285,7 +1719,19 @@ export function filaDelMes(
 
   const pasos: PasoDelMes[] = fila.pasos.map((paso) => {
     const compromiso = esCompromiso(paso);
-    const lleva = llevaSegunElModo(paso, todo, datos.saldos);
+    const ciclo = paso.modo === 'mes' ? cicloDelPaso({ dia: diaDelCiclo(paso) }, referencia) : null;
+    const recibidoDelPaso =
+      ciclo === null
+        ? recibidoDe(paso.tesoro)
+        : loDelCiclo(datos.liquidaciones, [], paso.tesoro, ciclo);
+    const cubiertoDelPaso =
+      ciclo === null
+        ? (cubierto.get(paso.tesoro) ?? CERO)
+        : loDelCiclo([], datos.coberturas, paso.tesoro, ciclo);
+    const lleva =
+      ciclo === null
+        ? llevaSegunElModo(paso, new Map(), datos.saldos)
+        : sumar(recibidoDelPaso, cubiertoDelPaso);
     const meta = compromiso ? null : metaDelAhorro(paso.tesoro, paso.hastaLaMeta, datos);
     const segunElModo = paso.modo === 'trabajo' ? null : maximo(CERO, restar(paso.tope, lleva));
     const falta =
@@ -1293,19 +1739,26 @@ export function filaDelMes(
         ? minimo(segunElModo, meta.falta)
         : segunElModo;
     const conDeuda = compromiso && paso.tesoro !== sistema.hogar && paso.tesoro !== sistema.maun;
+    const delDia = diaDelCiclo(paso);
     return {
       tesoro: paso.tesoro,
       clase: paso.clase,
       tipo: tipoDelPaso(paso.clase),
       modo: paso.modo,
       objetivo: paso.tope,
-      recibido: recibidoDe(paso.tesoro),
-      cubierto: cubierto.get(paso.tesoro) ?? CERO,
+      ciclo,
+      recibido: recibidoDelPaso,
+      cubierto: cubiertoDelPaso,
       lleva,
       falta,
       completo: falta === 0,
       aPagar: conDeuda ? aPagarDe(paso.tesoro) : null,
-      vencimientos: vencimientosDelPaso(paso, mes, datos.gastos),
+      vencimientos: delDia === null ? vencimientosDelPaso(paso, mes, datos.gastos) : [],
+      vencimiento:
+        delDia === null
+          ? null
+          : vencimientoDelCompromiso(paso, delDia, cicloDeLaFecha(referencia, delDia), datos),
+      ultimoPago: compromiso ? ultimoPagoDe(paso.tesoro, datos.pagos) : null,
       meta,
     };
   });
@@ -1391,7 +1844,7 @@ export function moverObligacion(fila: Fila, tesoro: string, posicion: number): F
 export function cambiarLaObligacion(
   fila: Fila,
   tesoro: string,
-  cambio: Partial<Pick<ObligacionDeLaFila, 'porcentaje' | 'base'>>,
+  cambio: Partial<Pick<ObligacionDeLaFila, 'porcentaje' | 'base' | 'montoFijo'>>,
 ): Fila {
   if (!fila.obligaciones.some((obligacion) => obligacion.tesoro === tesoro)) {
     throw new RangeError(`El tesoro ${tesoro} no es una obligación de la fila.`);
@@ -1430,7 +1883,12 @@ export function ponerDespues(fila: Fila, antes: string | null, paso: PasoDeLaFil
 export function cambiarElPaso(
   fila: Fila,
   tesoro: string,
-  cambio: Partial<Pick<PasoDeLaFila, 'tope' | 'renglones' | 'desde' | 'modo' | 'hastaLaMeta'>>,
+  cambio: Partial<
+    Pick<
+      PasoDeLaFila,
+      'tope' | 'renglones' | 'desde' | 'modo' | 'hastaLaMeta' | 'dia' | 'pagaSola' | 'pagaSolaDesde'
+    >
+  >,
 ): Fila {
   exigirPaso(fila, tesoro);
   const pasos = fila.pasos.map((paso) => {
@@ -1453,13 +1911,18 @@ export function cambiarLaClase(
 ): Fila {
   const paso = exigirPaso(fila, tesoro);
   if (paso.clase === clase) return fila;
+  const comoDeuda = esCompromiso({ clase });
+  const conDia = renglones.find((renglon) => renglon.dia !== null)?.dia ?? DIA_DE_PAGO_PROPUESTO;
   const cambiado: PasoDeLaFila = {
     ...paso,
     clase,
-    renglones: clase === 'fijos' ? renglones : [],
+    renglones: clase === 'fijos' ? renglones.map((renglon) => ({ ...renglon, dia: null })) : [],
     tope: clase === 'fijos' ? sumaDeLosRenglones(renglones) : paso.tope,
-    modo: MODOS_DE_LA_CLASE[clase].includes(paso.modo) ? paso.modo : modoInicial(clase, null),
+    modo: comoDeuda ? 'mes' : paso.modo,
     hastaLaMeta: paso.hastaLaMeta && admiteLaMeta(clase),
+    dia: comoDeuda ? conDia : null,
+    pagaSola: comoDeuda,
+    pagaSolaDesde: null,
   };
   return {
     ...fila,
@@ -1614,6 +2077,14 @@ function cambiosDeLasObligaciones(antes: Fila, despues: Fila, cambios: CambioDeL
         despues: actual.base,
       });
     }
+    if (previo.elemento.montoFijo !== actual.montoFijo) {
+      cambios.push({
+        tipo: 'cambia-el-monto-fijo',
+        tesoro: actual.tesoro,
+        antes: previo.elemento.montoFijo,
+        despues: actual.montoFijo,
+      });
+    }
   }
 }
 
@@ -1636,6 +2107,12 @@ function cambiosDelPaso(
   }
   if (antes.modo !== despues.modo) {
     cambios.push({ tipo: 'cambia-el-modo', tesoro, antes: antes.modo, despues: despues.modo });
+  }
+  if (antes.dia !== despues.dia) {
+    cambios.push({ tipo: 'cambia-el-dia-de-pago', tesoro, antes: antes.dia, despues: despues.dia });
+  }
+  if (antes.pagaSola !== despues.pagaSola) {
+    cambios.push({ tipo: 'cambia-paga-sola', tesoro, pagaSola: despues.pagaSola });
   }
   if (antes.hastaLaMeta !== despues.hastaLaMeta) {
     cambios.push({ tipo: 'cambia-la-meta', tesoro, hastaLaMeta: despues.hastaLaMeta });

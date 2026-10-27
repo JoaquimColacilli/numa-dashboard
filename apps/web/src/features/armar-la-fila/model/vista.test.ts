@@ -32,7 +32,9 @@ const MATERIALES = '01900000-0000-7000-8000-000000000006';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -42,6 +44,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -51,6 +56,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -60,6 +68,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -77,7 +88,7 @@ function tesoro(id: string, clave: TesoroDelTaller['clave'], nombre: string): Te
     tinta: 'grana',
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(CERO),
@@ -140,6 +151,7 @@ function replicaCon(fila: Fila): Replica {
         icono: 'vault',
         meta_centavos: null,
         rinde_anual_bp: null,
+        meta_fecha: null,
         orden: 0,
         archivado_at: null,
         created_at: '2026-09-01T10:00:00Z',
@@ -191,7 +203,7 @@ describe('la ficha elegida', () => {
     const conObligacion: Fila = {
       ...FILA,
       obligaciones: [
-        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado' },
+        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
         ...FILA.obligaciones,
       ],
     };
@@ -202,10 +214,10 @@ describe('la ficha elegida', () => {
     expect(fichaVigente(vistaCon(conObligacion), `obligacion-${DIEZMO}`)).toBe('diezmo');
     expect(
       encabezadoDeLaFicha(vistaCon(conObligacion), `obligacion-${HERRAMIENTAS}`),
-    ).toMatchObject({ titulo: 'Herramientas', bajada: 'Obligación · 1 de 5' });
+    ).toMatchObject({ titulo: 'Herramientas', bajada: 'Deuda destinada · 1 de 5' });
     expect(encabezadoDeLaFicha(vistaCon(conObligacion), 'diezmo')).toMatchObject({
       titulo: 'Diezmo',
-      bajada: 'Obligación · 2 de 5',
+      bajada: 'Deuda destinada · 2 de 5',
     });
     expect(numeroEnLaFila(conObligacion, HERRAMIENTAS)).toBe(1);
     expect(numeroEnLaFila(conObligacion, FIJOS)).toBe(4);
@@ -223,19 +235,19 @@ describe('la ficha elegida', () => {
     expect(escalaDe(vistaCon(FILA)).at(-1)).toMatchObject({ tesoro: MAUN, resto: true });
   });
 
-  it('el encabezado de un paso dice su tipo y su lugar en la fila, contando las obligaciones', () => {
+  it('el encabezado de un paso dice qué es el tesoro y su lugar en la fila, contando las obligaciones', () => {
     expect(encabezadoDeLaFicha(vistaCon(FILA), `paso-${FIJOS}`)).toMatchObject({
       titulo: 'Gastos fijos',
-      bajada: 'Compromiso · 3 de 4',
+      bajada: 'Deuda obligatoria · 3 de 4',
     });
     expect(encabezadoDeLaFicha(vistaCon(FILA), `paso-${HOGAR}`)).toMatchObject({
-      bajada: 'Compromiso · 2 de 4 · Sueldo',
+      bajada: 'Deuda obligatoria · 2 de 4 · Sueldo',
     });
     expect(encabezadoDeLaFicha(vistaCon(FILA), `paso-${HOGAR}`, false)).toMatchObject({
-      bajada: 'Compromiso · 2 de 4',
+      bajada: 'Deuda obligatoria · 2 de 4',
     });
     expect(encabezadoDeLaFicha(vistaCon(FILA), `paso-${MATERIALES}`)).toMatchObject({
-      bajada: 'Ahorro fijo · 4 de 4',
+      bajada: 'Caja · 4 de 4',
     });
     expect(encabezadoDeLaFicha(vistaCon(FILA), `estante-${HERRAMIENTAS}`)).toMatchObject({
       titulo: 'Herramientas',
@@ -281,13 +293,27 @@ describe('la vista de la fila con el borrador', () => {
     const editando = vistaDeLaFila(replica, borradorDeLaFila(), '2026-09-27');
     expect(editando.problemas.map((problema) => problema.problema)).toContain('meta-sin-monto');
   });
+
+  it('lo del mes de un compromiso con día de pago es el del ciclo de hoy, no el del fin de mes', () => {
+    const conDia: Fila = {
+      ...FILA,
+      pasos: FILA.pasos.map((paso) =>
+        paso.tesoro === FIJOS
+          ? { ...paso, dia: 10, pagaSola: true, pagaSolaDesde: '2026-09-01' }
+          : paso,
+      ),
+    };
+    const vista = vistaDeLaFila(replicaCon(conDia), null, '2026-09-05');
+    expect(vista.delMes.pasos[1]?.ciclo).toEqual({ desde: '2026-08-10', hasta: '2026-09-10' });
+    expect(vista.delMes.pasos[1]?.vencimiento?.fecha).toBe('2026-09-10');
+  });
 });
 
 describe('probar un cobro', () => {
   const conIngresosBrutos: Fila = {
     ...FILA,
     obligaciones: [
-      { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado' },
+      { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
       ...FILA.obligaciones,
     ],
     pasos: [],

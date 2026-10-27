@@ -47,7 +47,7 @@ export const vistaCliente = {
         estimativo: {
           titulo: 'We sent you an estimate',
           texto:
-            'Only if you sent them an estimate: it shows up checked off, as a step before the quote, with the day you tapped Mark estimate as sent, and the quote stays in progress. They never see the number.',
+            "When you send the quote with the “It's an estimate” box checked, they see it before the quote, with the estimated amount and no deposit, and they can approve it from their page. If you asked them for a day to measure, they suggest one when they approve.",
         },
         relevamiento: {
           titulo: 'The number may still change',
@@ -80,7 +80,7 @@ export const vistaCliente = {
         esperando: {
           titulo: 'While waiting for the deposit',
           texto:
-            "They don't see the address or the dates you've added: those show up once they approve it. They see when it could be ready if they pay the deposit before the date the quote is valid until, or if they approve it before that day when what they've paid already covers the deposit.",
+            "They don't see the address or the dates you've added: those show up once they approve it. They read when it can be ready if the deposit comes in by the day you chose in the quote; after that day without the deposit, they read that the date depended on it.",
         },
         paso2: {
           titulo: 'Approved, deposit received',
@@ -106,7 +106,7 @@ export const vistaCliente = {
         opciones: {
           titulo: 'With options',
           texto:
-            'They see each option with its total and its deposit, and the page asks them to choose. When you approve one, the others disappear from their page.',
+            'They see each option with its total and its deposit, and they can approve one from their page: you get a notification and see it on the job. When you approve one, the others disappear from their page.',
         },
         vencido: {
           titulo: 'If it expires',

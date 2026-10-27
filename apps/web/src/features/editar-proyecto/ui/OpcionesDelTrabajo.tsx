@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
+import { respuestaDeLaUltimaRevision } from '@/entities/presupuesto';
 import {
   aprobacionDeUnaOpcion,
   MUTACION_DE_PROYECTO,
@@ -64,6 +65,7 @@ export function OpcionesDelTrabajo({
   }
 
   const aprobada = opcionAprobada(opciones);
+  const elegida = respuestaDeLaUltimaRevision(replica, proyecto.id)?.fila.opcion_id ?? null;
 
   function tildar(id: string, valor: boolean): void {
     const actual = ultimo.current;
@@ -128,6 +130,12 @@ export function OpcionesDelTrabajo({
                   <span className="mt-0.5 flex items-center gap-1 text-meta font-semibold text-hogar">
                     <Icono nombre="check" tamano={14} />
                     {textos.esElPresupuesto}
+                  </span>
+                )}
+                {opcion.id === elegida && (
+                  <span className="mt-0.5 flex items-center gap-1 text-meta font-semibold text-text-2">
+                    <Icono nombre="thumbs-up" tamano={14} />
+                    {textos.laEligioTuCliente}
                   </span>
                 )}
               </span>

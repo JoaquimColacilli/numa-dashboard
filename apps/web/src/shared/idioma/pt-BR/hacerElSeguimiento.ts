@@ -32,6 +32,16 @@ export const hacerElSeguimiento = {
     cancelar: 'Cancelar',
     pasarASeguimiento: 'Passar para Retornos',
   },
+  cambiarLaFecha: {
+    titulo: 'Mudar a data',
+    leTocaba: (fecha) => `Estava marcado para ${fecha}.`,
+    queDia: 'Que dia você volta a escrever?',
+    noQuedaRegistrado:
+      'Só muda o dia: não fica registrado como contato. Quando escrever para o cliente, registre.',
+    cancelar: 'Cancelar',
+    cambiar: 'Mudar a data',
+    noSeCambio: 'A data não foi alterada.',
+  },
   registrarElContacto: {
     titulo: 'Registrar o contato',
     contactarA: (nombre) => `Falar com ${nombre}`,

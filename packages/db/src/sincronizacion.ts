@@ -7,6 +7,7 @@ import {
   type Fila,
   type Moneda,
   type Reparto,
+  type RespuestaDeLaConsulta,
 } from '@maun/domain';
 
 import type { ColumnaDeMarca } from './agenda.ts';
@@ -28,6 +29,7 @@ export type MovimientoNuevo = Pick<
   | 'monto_destino_centavos'
   | 'categoria'
   | 'descripcion'
+  | 'vencimiento'
 > & { id: string };
 
 export async function traerBootstrap(cliente: ClienteMaun): Promise<Lote> {
@@ -74,6 +76,7 @@ export const COLUMNAS_DE_AJUSTES = [
   'facturacion_categoria',
   'facturacion_ingresos_brutos',
   'facturacion_inicio_de_actividades',
+  'preguntas_de_la_consulta',
 ] as const;
 
 export type ColumnaDeAjustes = (typeof COLUMNAS_DE_AJUSTES)[number];
@@ -129,7 +132,7 @@ export const COLUMNAS_DE_TESORO = [
   'tinta',
   'icono',
   'meta_centavos',
-  'rinde_anual_bp',
+  'meta_fecha',
   'orden',
 ] as const;
 
@@ -208,6 +211,7 @@ export const COLUMNAS_DE_MOVIMIENTO = [
   'monto_destino_centavos',
   'categoria',
   'descripcion',
+  'vencimiento',
 ] as const;
 
 export type ColumnaDeMovimiento = (typeof COLUMNAS_DE_MOVIMIENTO)[number];
@@ -665,6 +669,51 @@ export async function guardarMarcaDelProximoContacto(
   const { data, error } = await cliente
     .from('proximos_contactos')
     .update({ importante })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function cambiarLaFechaDelContacto(
+  cliente: ClienteMaun,
+  id: string,
+  version: number,
+  fecha: string,
+): Promise<FilaDe<'proximos_contactos'>> {
+  const { data, error } = await cliente.rpc('cambiar_la_fecha_del_contacto', {
+    p_id: id,
+    p_version: version,
+    p_fecha: fecha,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function guardarRespuestasDeLaConsulta(
+  cliente: ClienteMaun,
+  id: string,
+  respuestas: readonly RespuestaDeLaConsulta[],
+): Promise<FilaDe<'proyectos'>> {
+  const { data, error } = await cliente
+    .from('proyectos')
+    .update({ respuestas_de_la_consulta: respuestas as unknown as Json })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function marcarLaRespuestaAtendida(
+  cliente: ClienteMaun,
+  id: string,
+  atendidaEn: string | null,
+): Promise<FilaDe<'respuestas_al_presupuesto'>> {
+  const { data, error } = await cliente
+    .from('respuestas_al_presupuesto')
+    .update({ atendida_at: atendidaEn })
     .eq('id', id)
     .select()
     .single();

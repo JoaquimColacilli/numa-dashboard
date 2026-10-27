@@ -1,3 +1,4 @@
+import { cicloDelPaso, diaDelCiclo } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useId, useState, type SyntheticEvent } from 'react';
 
@@ -57,9 +58,10 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
   if (!paso) return null;
 
   const enPalabras = mesEnUnaFrase(mes);
-  const seRenueva = filaDelTaller(replica).fila.pasos.some(
-    (unPaso) => unPaso.tesoro === tesoroDelPaso && unPaso.modo === 'saldo',
+  const delPaso = filaDelTaller(replica).fila.pasos.find(
+    (unPaso) => unPaso.tesoro === tesoroDelPaso,
   );
+  const seRenueva = delPaso?.modo === 'saldo';
   const revision = revisarLaCobertura(fuentes, candidatos, faltante);
 
   function elegir(tesoroId: string, elegido: boolean) {
@@ -79,6 +81,7 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
   function enviar(evento: SyntheticEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!paso || !revision.sePuede) return;
+    const dia = delPaso === undefined ? null : diaDelCiclo(delPaso);
     const movimientos = movimientosParaCubrir({
       fuentes,
       candidatos,
@@ -86,6 +89,7 @@ export function HojaDeCubrir({ tesoroDelPaso, mes, faltante, alCerrar }: HojaDeC
       mes,
       hoy: hoyEnElTaller(),
       nuevoId: uuidv7,
+      cubre: dia === null ? `${mes}-01` : cicloDelPaso({ dia }, hoyEnElTaller()).desde,
     });
     movimientos.forEach((movimiento, indice) => {
       if (indice === movimientos.length - 1) pasar.mutate(movimiento);

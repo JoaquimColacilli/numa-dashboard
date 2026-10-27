@@ -17,4 +17,12 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.whatsapp.comoVaYComoPagarlo.sinNombre('«trabajo»', '«URL»'),
     tieneQueDecir: ['«trabajo»', '«URL»'],
   },
+  'whatsapp.elEstimativo.conNombre': {
+    llamar: (m) => m.whatsapp.elEstimativo.conNombre('«NOMBRE»', '«trabajo»', '«URL»'),
+    tieneQueDecir: ['«NOMBRE»', '«trabajo»', '«URL»'],
+  },
+  'whatsapp.elEstimativo.sinNombre': {
+    llamar: (m) => m.whatsapp.elEstimativo.sinNombre('«trabajo»', '«URL»'),
+    tieneQueDecir: ['«trabajo»', '«URL»'],
+  },
 };

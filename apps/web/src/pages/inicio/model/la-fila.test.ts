@@ -1,13 +1,16 @@
 import {
   centavos,
+  cuentaDelVencimiento,
   enPesos,
   puntosBasicos,
   tipoDelPaso,
+  type Fila,
   type FilaDelMes,
   type ObligacionDelMes,
   type ParteDelMes,
   type PasoDelMes,
   type VencimientoDeLaAgenda,
+  type VencimientoDelCompromiso,
 } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
@@ -46,7 +49,7 @@ function tesoro(
     tinta,
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(0)),
@@ -85,9 +88,29 @@ function paso(
     falta: centavos(falta),
     completo: falta === 0,
     aPagar: null,
+    ciclo: null,
     vencimientos: [],
+    vencimiento: null,
+    ultimoPago: null,
     meta: null,
     ...extra,
+  };
+}
+
+function vencimientoDelCiclo(
+  fecha: string,
+  tope: number,
+  saldo: number,
+  pagaSola = false,
+): VencimientoDelCompromiso {
+  return {
+    fecha,
+    pagaSola,
+    tope: centavos(tope),
+    pagado: centavos(0),
+    saldo: centavos(saldo),
+    pago: null,
+    ...cuentaDelVencimiento(centavos(tope), centavos(0), centavos(saldo)),
   };
 }
 
@@ -151,9 +174,44 @@ describe('la fila del mes en Inicio, por tipo', () => {
     ]);
     expect(obligaciones.map((una) => llano(textoDeLaObligacion(una)))).toEqual([
       'Al día',
-      'A pagar $ 270.000',
+      'Para entregar $ 270.000',
     ]);
     expect(pasosEnInicio(conIngresosBrutos, TESOROS).map((uno) => uno.numero)).toEqual([3, 4, 5]);
+  });
+
+  it('una obligación con monto fijo dice cuánto aparta de cada cobro en vez del porcentaje', () => {
+    const conElContador: FilaDelMes = {
+      ...SEPTIEMBRE,
+      obligaciones: [
+        {
+          tesoro: 'iibb',
+          porcentaje: puntosBasicos(350),
+          base: 'cobrado',
+          diezmo: false,
+          apartado: centavos(10_000_000),
+          aPagar: centavos(10_000_000),
+        },
+        DIEZMO,
+      ],
+    };
+    const fila: Pick<Fila, 'obligaciones'> = {
+      obligaciones: [
+        {
+          tesoro: 'iibb',
+          porcentaje: puntosBasicos(350),
+          base: 'cobrado',
+          montoFijo: centavos(5_000_000),
+        },
+        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+      ],
+    };
+    expect(
+      obligacionesEnInicio(conElContador, TESOROS, fila).map((una) => llano(una.regla)),
+    ).toEqual(['$ 50.000 de cada cobro', '10% sobre el ingreso']);
+    expect(obligacionesEnInicio(conElContador, TESOROS).map((una) => una.regla)).toEqual([
+      '3,5% sobre lo que cobrás',
+      '10% sobre el ingreso',
+    ]);
   });
 
   it('los pasos siguen el número de las obligaciones y dicen cómo se llenan', () => {
@@ -218,6 +276,33 @@ describe('la fila del mes en Inicio, por tipo', () => {
       '$ 630.000 de $ 900.000',
       '$ 100.000 por cobro',
       '$ 50.000 de $ 300.000',
+    ]);
+  });
+
+  it('un compromiso con día de pago dice su ciclo, el sueldo después de «sueldo», y uno sin día sigue por mes', () => {
+    const pasos = pasosEnInicio(
+      {
+        ...SEPTIEMBRE,
+        pasos: [
+          paso('hogar', 'sueldo', 180_000_000, 90_000_000, {
+            ciclo: { desde: '2026-09-05', hasta: '2026-10-05' },
+            vencimiento: vencimientoDelCiclo('2026-10-05', 180_000_000, 90_000_000),
+          }),
+          paso('fijos', 'fijos', 50_000_000, 30_000_000, {
+            ciclo: { desde: '2026-09-10', hasta: '2026-10-10' },
+            vencimiento: vencimientoDelCiclo('2026-10-10', 50_000_000, 30_000_000),
+          }),
+          paso('iibb', 'fijos', 20_000_000, 0, {
+            ciclo: { desde: '2026-09-01', hasta: '2026-10-01' },
+          }),
+        ],
+      },
+      TESOROS,
+    );
+    expect(pasos.map((uno) => uno.clase)).toEqual([
+      'sueldo · del 5 sep al 5 oct',
+      'del 10 sep al 10 oct',
+      'por mes',
     ]);
   });
 
@@ -365,13 +450,22 @@ function vencimiento(fecha: string, pagado = false): VencimientoDeLaAgenda {
     monto: centavos(50_000_000),
     fecha,
     pagado,
+    pagoSolo: null,
   };
 }
 
 describe('el faltante de los compromisos', () => {
   it('aparece solo con un compromiso de gastos fijos incompleto: el ahorro que falta espera su turno', () => {
     expect(faltantesEnInicio(SEPTIEMBRE, TESOROS, [], '2026-09-27')).toEqual([
-      { tesoro: 'fijos', nombre: 'gastos fijos', modo: 'mes', falta: 27_000_000, vence: null },
+      {
+        tesoro: 'fijos',
+        nombre: 'gastos fijos',
+        modo: 'mes',
+        falta: 27_000_000,
+        vence: null,
+        pagaSola: false,
+        maun: 'Maun',
+      },
     ]);
 
     const conLosFijosLlenos = {
@@ -403,6 +497,32 @@ describe('el faltante de los compromisos', () => {
     );
     expect(alquiler).toMatchObject({ modo: 'saldo', falta: 27_000_000 });
     expect(alquiler?.vence?.fecha).toBe('2026-10-03');
+  });
+
+  it('un compromiso con día de pago falta cuando vence en los próximos 7 días, por lo que pondría Maun, y dice si se paga solo', () => {
+    const conDiaDePago = (saldo: number): FilaDelMes => ({
+      ...SEPTIEMBRE,
+      pasos: [
+        paso('fijos', 'fijos', 50_000_000, saldo, {
+          ciclo: { desde: '2026-09-03', hasta: '2026-10-03' },
+          vencimiento: vencimientoDelCiclo('2026-10-03', 50_000_000, saldo, true),
+        }),
+      ],
+    });
+    const vence = vencimiento('2026-10-03');
+    expect(faltantesEnInicio(conDiaDePago(30_000_000), TESOROS, [vence], '2026-09-28')).toEqual([
+      {
+        tesoro: 'fijos',
+        nombre: 'gastos fijos',
+        modo: 'mes',
+        falta: 20_000_000,
+        vence,
+        pagaSola: true,
+        maun: 'Maun',
+      },
+    ]);
+    expect(faltantesEnInicio(conDiaDePago(30_000_000), TESOROS, [vence], '2026-09-20')).toEqual([]);
+    expect(faltantesEnInicio(conDiaDePago(50_000_000), TESOROS, [vence], '2026-09-28')).toEqual([]);
   });
 
   it('nombra el paso en minúscula si es un nombre común, y a Maun por sus costos fijos', () => {

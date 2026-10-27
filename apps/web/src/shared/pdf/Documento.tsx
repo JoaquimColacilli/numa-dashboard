@@ -244,7 +244,9 @@ function Encabezado({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) {
       <View style={s.derecha}>
         <View style={s.rotulo}>
           <View style={s.rotuloArriba}>
-            <Text style={s.rotuloTipo}>{rotulo.presupuesto}</Text>
+            <Text style={s.rotuloTipo}>
+              {p.documento.estimativo ? rotulo.estimativo : rotulo.presupuesto}
+            </Text>
             {p.numero === null ? (
               <Text style={s.numeroSinAsignar}>{rotulo.sinNumero}</Text>
             ) : (
@@ -322,6 +324,7 @@ function Referencia({
 function CajaDelTotal({
   cuenta,
   senaBp,
+  conSena,
   acordado,
   plata,
   referencia,
@@ -329,6 +332,7 @@ function CajaDelTotal({
 }: {
   cuenta: CuentaDeUnValor<Moneda>;
   senaBp: number;
+  conSena: boolean;
   acordado: Money<Moneda> | null;
   plata: (importe: number) => string;
   referencia: ReferenciaEnPesos | null;
@@ -351,29 +355,33 @@ function CajaDelTotal({
       </View>
       <Referencia importe={cuenta.total} referencia={referencia} l={l} />
       {acordado !== null && <Text style={s.acordado}>{valores.acordado(plata(acordado))}</Text>}
-      <View style={s.desglose}>
-        <LineaDePuntos
-          izquierda={valores.sena(l.f.porcentaje(senaBp))}
-          derecha={plata(cuenta.sena)}
-        />
-        <Referencia importe={cuenta.sena} referencia={referencia} l={l} />
-        {conAbonado && (
+      {conSena && (
+        <View style={s.desglose}>
           <LineaDePuntos
-            izquierda={delPdf.relevamientoAbonado}
-            derecha={`− ${plata(cuenta.pagado)}`}
+            izquierda={valores.sena(l.f.porcentaje(senaBp))}
+            derecha={plata(cuenta.sena)}
           />
-        )}
-        {conAbonado && (
-          <View style={s.cierre}>
+          <Referencia importe={cuenta.sena} referencia={referencia} l={l} />
+          {conAbonado && (
             <LineaDePuntos
-              izquierda={delPdf.senaAAbonar}
-              derecha={cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta}
-              fuerte
+              izquierda={delPdf.relevamientoAbonado}
+              derecha={`− ${plata(cuenta.pagado)}`}
             />
-          </View>
-        )}
-        <LineaDePuntos izquierda={delPdf.saldo} derecha={plata(cuenta.saldo)} />
-      </View>
+          )}
+          {conAbonado && (
+            <View style={s.cierre}>
+              <LineaDePuntos
+                izquierda={delPdf.senaAAbonar}
+                derecha={
+                  cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta
+                }
+                fuerte
+              />
+            </View>
+          )}
+          <LineaDePuntos izquierda={delPdf.saldo} derecha={plata(cuenta.saldo)} />
+        </View>
+      )}
     </View>
   );
 }
@@ -391,6 +399,7 @@ function anchoDeColumna(importes: string[], tamano: number, minimo: number): num
 function TablaDeOpciones({
   cuentas,
   senaBp,
+  conSena,
   abonado,
   plata,
   referencia,
@@ -398,6 +407,7 @@ function TablaDeOpciones({
 }: {
   cuentas: CuentaDeUnValor<Moneda>[];
   senaBp: number;
+  conSena: boolean;
   abonado: number;
   plata: (importe: number) => string;
   referencia: ReferenciaEnPesos | null;
@@ -406,7 +416,7 @@ function TablaDeOpciones({
   const { valores } = l.m.presupuesto;
   const delPdf = l.m.pdf.valores;
   const { rotulo } = l.m.ui;
-  const conAbonado = abonado > 0;
+  const conAbonado = conSena && abonado > 0;
   const aAbonar = (cuenta: CuentaDeUnValor<Moneda>) =>
     cuenta.faltaParaLaSena > 0 ? plata(cuenta.faltaParaLaSena) : delPdf.cubierta;
   const anchoTotal = {
@@ -434,9 +444,11 @@ function TablaDeOpciones({
           <View style={[s.colMonto, anchoTotal]}>
             <Text style={s.rotuloChico}>{valores.total}</Text>
           </View>
-          <View style={[s.colMonto, anchoSena]}>
-            <Text style={s.rotuloChico}>{valores.sena(l.f.porcentaje(senaBp))}</Text>
-          </View>
+          {conSena && (
+            <View style={[s.colMonto, anchoSena]}>
+              <Text style={s.rotuloChico}>{valores.sena(l.f.porcentaje(senaBp))}</Text>
+            </View>
+          )}
           {conAbonado && (
             <View style={[s.colMonto, anchoAAbonar]}>
               <Text style={s.rotuloChico}>{delPdf.senaAAbonar}</Text>
@@ -453,9 +465,11 @@ function TablaDeOpciones({
               <View style={[s.colMonto, anchoTotal]}>
                 <Text style={s.montoTotal}>{plata(cuenta.total)}</Text>
               </View>
-              <View style={[s.colMonto, anchoSena]}>
-                <Text style={s.renglon}>{plata(cuenta.sena)}</Text>
-              </View>
+              {conSena && (
+                <View style={[s.colMonto, anchoSena]}>
+                  <Text style={s.renglon}>{plata(cuenta.sena)}</Text>
+                </View>
+              )}
               {conAbonado && (
                 <View style={[s.colMonto, anchoAAbonar]}>
                   <Text style={[s.renglon, s.fuerte]}>{aAbonar(cuenta)}</Text>
@@ -466,7 +480,9 @@ function TablaDeOpciones({
           const linea =
             referencia === null
               ? null
-              : lineaDeLaReferenciaConLaSena(cuenta.total, cuenta.sena, referencia, l);
+              : conSena
+                ? lineaDeLaReferenciaConLaSena(cuenta.total, cuenta.sena, referencia, l)
+                : lineaDeLaReferencia(cuenta.total, referencia, l);
           if (linea === null) {
             return (
               <View
@@ -504,6 +520,7 @@ function Valores({
 }) {
   const { valores, senaBp } = documento;
   if (valores === null) return null;
+  const conSena = !documento.estimativo;
   const abonado = pagadoDelDocumento(documento);
   const plata = plataDelDocumento(documento, l);
   const referencia = referenciaDelDocumento(documento);
@@ -529,6 +546,7 @@ function Valores({
             key="opciones"
             cuentas={cuentas}
             senaBp={senaBp}
+            conSena={conSena}
             abonado={abonado}
             plata={plata}
             referencia={referencia}
@@ -539,15 +557,39 @@ function Valores({
             key="total"
             cuenta={unica}
             senaBp={senaBp}
+            conSena={conSena}
             acordado={acordado}
             plata={plata}
             referencia={referencia}
             l={l}
           />
         ),
+        ...(conSena
+          ? []
+          : [
+              <Text key="estimativo" style={s.notaAlPie}>
+                {l.m.presupuesto.esUnNumeroEstimado}
+              </Text>,
+            ]),
       ]}
     />
   );
+}
+
+function filasDelPlazo(
+  documento: DocumentoDelPresupuesto,
+  l: LenguaDelPdf,
+): { termino: string; valor: string | null }[] {
+  const { definiciones } = l.m.presupuesto;
+  if (documento.estimativo) return [];
+  const { listoPara, senaAntesDel } = documento;
+  if (listoPara === null || senaAntesDel === null) {
+    return [{ termino: definiciones.plazo, valor: textoDelPlazo(documento.plazoDeFabricacion, l) }];
+  }
+  return [
+    { termino: definiciones.entrega, valor: l.f.fechaConAnio(listoPara) },
+    { termino: definiciones.senaAntesDel, valor: l.f.fechaConAnio(senaAntesDel) },
+  ];
 }
 
 function FormaPlazoYValidez({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) {
@@ -556,7 +598,7 @@ function FormaPlazoYValidez({ p, l }: { p: PresupuestoEnPdf; l: LenguaDelPdf }) 
   const filas = [
     { termino: definiciones.formaDePago, valor: documento.formaDePago },
     { termino: definiciones.moneda, valor: documento.clausulaDeLaMoneda },
-    { termino: definiciones.plazo, valor: textoDelPlazo(documento.plazoDeFabricacion, l) },
+    ...filasDelPlazo(documento, l),
     { termino: definiciones.validez, valor: textoDeLaValidez(p, l) },
   ].filter((fila): fila is { termino: string; valor: string } => fila.valor !== null);
   return (

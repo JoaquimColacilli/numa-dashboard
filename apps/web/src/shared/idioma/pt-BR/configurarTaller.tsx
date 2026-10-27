@@ -39,8 +39,6 @@ export const configurarTaller = {
     ayudaDelSueldoPorTrabajo: 'O que cada projeto recebido transfere para a casa.',
     costosFijos: 'Custos fixos por mês',
     ayudaDeLosCostosFijos: 'Aluguel, contas e tudo o que se paga mesmo quando não entra trabalho.',
-    metaDeCocos: 'Meta do Cocos',
-    ayudaDeLaMeta: 'Quanto você quer alcançar na reserva investida.',
     sena: 'Sinal que você pede (%)',
     ayudaDeLaSena:
       'A parte do orçamento que você pede para confirmar um projeto. O normal é a metade, e dá para mudar em um projeto específico.',
@@ -50,8 +48,6 @@ export const configurarTaller = {
     vigencia: 'Dias de validade do orçamento',
     ayudaDeLaVigencia:
       'Contam a partir do dia em que você envia. O cliente vê até quando pode pagar o sinal, e a data pode ser mudada em cada projeto.',
-    tasa: 'Taxa anual do Cocos (%)',
-    ayudaDeLaTasa: 'Serve só para fazer projeções. Se não souber, deixe em 0.',
     guardarTodo: 'Salvar configuração',
     guardarElReparto: 'Salvar pró-labore e custos',
     errores: {
@@ -61,7 +57,6 @@ export const configurarTaller = {
           other: 'Digite um nome para a marcenaria, com até # caracteres.',
         }),
       importe: 'Digite um valor, por exemplo 1.800.000. Pode deixar em 0.',
-      tasa: 'Digite a taxa como porcentagem, por exemplo 40. Pode deixar em 0.',
       sena: 'Digite o sinal como porcentagem entre 0 e 100, por exemplo 50.',
       vigencia: (maximo) =>
         `Digite por quantos dias um orçamento vale, entre 1 e ${String(maximo)}. O normal são 15.`,
@@ -187,6 +182,24 @@ export const configurarTaller = {
       'otro-sitio':
         'Precisa ser um link do Google para deixar uma avaliação, como os que começam com https://g.page/ ou https://search.google.com/.',
     },
+  },
+  preguntas: {
+    pregunta: (numero) => `Pergunta ${String(numero)}`,
+    ayudaDe: (rotulo) => `Ajuda de “${rotulo}”`,
+    escribiLaPregunta: 'Escreva a pergunta',
+    ayudaOpcional: 'Ajuda (opcional): o que vale perguntar',
+    elDomicilio: 'É o endereço do projeto, o de entrega: vem primeiro e não pode ser excluído.',
+    sinNombre: 'Dê um nome: sem nome não é salvo.',
+    escribilaParaQueSeGuarde: 'Escreva a pergunta para ela ser salva.',
+    sumar: 'Adicionar uma pergunta',
+    lleno: (cuantas) => `Cabem até ${String(cuantas)}: para adicionar outra, exclua uma.`,
+    subir: (rotulo) => `Subir “${rotulo}”`,
+    bajar: (rotulo) => `Descer “${rotulo}”`,
+    borrar: (rotulo) => `Excluir “${rotulo}”`,
+    laNueva: 'a pergunta nova',
+    borraste: (rotulo) => `Você excluiu “${rotulo}”.`,
+    loContestadoQueda: 'O que já responderam fica em cada projeto.',
+    deshacer: 'Desfazer',
   },
   presupuesto: {
     ajustes: 'Configurações',
@@ -393,6 +406,33 @@ export const configurarTaller = {
           </>
         ),
       },
+      entrega: {
+        nombre: 'Data de entrega',
+        explicacion: (Dato, valor) => (
+          <>
+            <Dato>{valor}</Dato> é quando pode ficar pronto. Começa com o prazo de “Números”,
+            contado a partir do dia em que você envia o orçamento, e em cada um você pode mudar.
+          </>
+        ),
+      },
+      sena_acordada: {
+        nombre: 'Sinal combinado',
+        explicacion: (Dato, valor) => (
+          <>
+            O sinal aparece assim: <Dato>{valor}</Dato>. Com um único total, leva o valor, já
+            descontado o que o cliente pagou.
+          </>
+        ),
+      },
+      sena_antes: {
+        nombre: 'Data do sinal',
+        explicacion: (Dato, valor) => (
+          <>
+            <Dato>{valor}</Dato> é até quando o sinal pode entrar para manter a data de entrega.
+            Começa com os dias de “Números” depois do dia em que você envia.
+          </>
+        ),
+      },
     },
     formas: {
       vaElegida: 'Já vem escolhida',
@@ -471,6 +511,9 @@ export const configurarTaller = {
       ayudaDeLasModificaciones: 'As do projeto 3D que estão incluídas no preço.',
       valor: 'Valor de cada modificação extra',
       ayudaDelValor: 'O que você cobra por cada uma além dessas.',
+      diasSena: 'Dias para o sinal',
+      ayudaDeLosDiasDeLaSena:
+        'Os dias entre o envio do orçamento e a data do sinal. Em cada um você pode mudar.',
     },
     problemas: {
       titularLargo: (caracteres) =>
@@ -503,6 +546,8 @@ export const configurarTaller = {
       lasModificaciones: 'as modificações incluídas',
       valor: 'Digite quanto custa uma modificação extra. Pode ser 0.',
       elValor: 'o valor de uma modificação',
+      diasSena: 'Digite os dias para o sinal, entre 0 e 60.',
+      losDiasDeLaSena: 'os dias para o sinal',
       textoVacio: 'Escreva o texto ou remova da lista.',
       unTextoVacio: 'um texto vazio',
       textoLargo: (caracteres) =>
@@ -567,6 +612,11 @@ export const configurarTaller = {
           one: 'O prazo volta para # dia útil.',
           other: 'O prazo volta para # dias úteis.',
         }),
+      losDiasDeLaSenaVuelven: (dias) =>
+        plural(dias, {
+          one: 'O sinal volta a vencer # dia depois do envio.',
+          other: 'O sinal volta a vencer # dias depois do envio.',
+        }),
       vuelvenLasModificaciones: (cuantas, valor) =>
         plural(cuantas, {
           one: `Volta a entrar # modificação, e cada uma extra custa ${valor}.`,
@@ -611,6 +661,9 @@ export const configurarTaller = {
           : `Faltam ${que}, que a lei exige em um orçamento.`,
       plazo: 'Prazo',
       diasHabiles: (dias) => plural(dias, { one: '#\u00a0dia útil', other: '#\u00a0dias úteis' }),
+      sena: 'Sinal',
+      diasDespues: (dias) =>
+        plural(dias, { one: '#\u00a0dia depois do envio', other: '#\u00a0dias depois do envio' }),
       garantia: 'Garantia',
       meses: (meses) => plural(meses, { one: '#\u00a0mês', other: '#\u00a0meses' }),
       textos: 'Textos',

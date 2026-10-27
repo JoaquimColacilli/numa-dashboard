@@ -72,6 +72,7 @@ function borrador(muebles = 2, idioma: Idioma = 'es'): BorradorDelPresupuesto {
     obra: 'Cramer 2140, Belgrano',
     plantilla: plantillaDeSiempre(idioma),
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm0',
   });
   return {
@@ -110,6 +111,7 @@ function documento(
       valores: valoresDelTrabajo(centavos(218_100_000), opciones),
       senaBp: puntosBasicos(5_000),
       abonado: centavos(12_000_000),
+      mandadoEl: '2026-09-02',
     },
     formatosDelDocumento(idioma),
   );
@@ -137,6 +139,7 @@ function documentoEnDolares(
       abonado:
         monedaDeLoAbonado === 'USD' ? centavosEn('USD', 8_276) : centavosEn('ARS', 12_000_000),
       referencia: { cotizacion: cotizacion(154_000), fecha: '2026-10-01' },
+      mandadoEl: '2026-10-01',
     },
     formatosDelDocumento(idioma),
   );
@@ -433,6 +436,72 @@ describe('el presupuesto en PDF', () => {
   });
 });
 
+describe('las fechas y el estimativo en el PDF', () => {
+  it('con las fechas, dice la entrega estimada y antes de cuándo va la seña, en vez del plazo', async () => {
+    const texto = enUnRenglon(textoDelPdf(await generar(MANDADO)));
+    for (const dicho of [
+      'ENTREGA ESTIMADA',
+      '14 de octubre de 2026',
+      'SEÑA ANTES DEL',
+      '4 de septiembre de 2026',
+      'la fecha estimada de entrega es el 14 de octubre de 2026',
+      'se deberá concretar la seña acordada del 50% ($ 970.500) antes del 4 de septiembre de 2026',
+    ]) {
+      expect(texto).toContain(dicho);
+    }
+    expect(texto).not.toContain('PLAZO DE FABRICACIÓN');
+  });
+
+  it('una revisión mandada antes de las fechas sigue con el plazo de fabricación', async () => {
+    const texto = enUnRenglon(
+      textoDelPdf(
+        await generar({
+          ...MANDADO,
+          documento: { ...MANDADO.documento, listoPara: null, senaAntesDel: null },
+        }),
+      ),
+    );
+    expect(texto).toContain('PLAZO DE FABRICACIÓN');
+    expect(texto).toContain('30 días hábiles desde la seña.');
+    expect(texto).not.toContain('ENTREGA ESTIMADA');
+  });
+
+  it('el estimativo se titula así, no pide seña ni promete fechas y aclara que es un número estimado', async () => {
+    const estimativo = documentoDelPresupuesto(
+      {
+        borrador: { ...borrador(), estimativo: true, pideFecha: true },
+        plantilla: plantillaDeSiempre('es'),
+        taller: TALLER,
+        cliente: 'Florencia Sosa',
+        moneda: 'ARS',
+        cobraEn: null,
+        valores: valoresDelTrabajo(centavos(218_100_000), []),
+        senaBp: puntosBasicos(5_000),
+        abonado: centavos(12_000_000),
+        mandadoEl: '2026-09-02',
+      },
+      formatosDelDocumento('es'),
+    );
+    const pdf = await generar({ ...MANDADO, documento: estimativo });
+    expect(textoDeLaInfo(pdf, 'Title')).toBe('Presupuesto estimativo 20260826-01 · Rev. 2');
+    const texto = enUnRenglon(textoDelPdf(pdf));
+    expect(texto).toContain('PRESUPUESTO ESTIMATIVO');
+    expect(texto).toContain(
+      'Es un número estimado: el presupuesto final sale después del relevamiento técnico.',
+    );
+    expect(texto).toContain('$ 2.181.000');
+    for (const noDice of [
+      'Seña (50%)',
+      'FORMA DE PAGO',
+      'PLAZO DE FABRICACIÓN',
+      'ENTREGA ESTIMADA',
+      'SEÑA ANTES DEL',
+    ]) {
+      expect(texto).not.toContain(noDice);
+    }
+  });
+});
+
 describe('el presupuesto en PDF, en inglés y en portugués', () => {
   const CASOS = {
     en: {
@@ -458,8 +527,10 @@ describe('el presupuesto en PDF, en inglés y en portugués', () => {
         'Deposit (50%)',
         'Site measure and 3D design already paid',
         'PAYMENT TERMS',
-        'LEAD TIME',
-        '30 business days from the deposit.',
+        'ESTIMATED DELIVERY',
+        'October 14, 2026',
+        'DEPOSIT BY',
+        'September 4, 2026',
         'VALIDITY',
         'Until September 17, 2026.',
         'NOTICES',
@@ -494,8 +565,10 @@ describe('el presupuesto en PDF, en inglés y en portugués', () => {
         'Sinal (50%)',
         'Visita técnica e projeto 3D já pagos',
         'FORMA DE PAGAMENTO',
-        'PRAZO DE FABRICAÇÃO',
-        '30 dias úteis a partir do sinal.',
+        'PREVISÃO DE ENTREGA',
+        '14 de outubro de 2026',
+        'SINAL ATÉ',
+        '4 de setembro de 2026',
         'VALIDADE',
         'Até 17 de setembro de 2026.',
         'AVISOS',
@@ -523,6 +596,8 @@ describe('el presupuesto en PDF, en inglés y en portugués', () => {
     'Forma de pago',
     'FORMA DE PAGO',
     'PLAZO DE FABRICACIÓN',
+    'ENTREGA ESTIMADA',
+    'SEÑA ANTES DEL',
     'Validez',
     'VALIDEZ',
     'Hasta el',
@@ -619,10 +694,10 @@ describe('el presupuesto en dólares, en PDF', () => {
     const texto = enUnRenglon(textoDelPdf(await generar(EN_DOLARES)));
     const forma = texto.indexOf('FORMA DE PAGO');
     const moneda = texto.indexOf('MONEDA');
-    const plazo = texto.indexOf('PLAZO DE FABRICACIÓN');
+    const entrega = texto.indexOf('ENTREGA ESTIMADA');
     expect(forma).toBeGreaterThan(-1);
     expect(moneda).toBeGreaterThan(forma);
-    expect(plazo).toBeGreaterThan(moneda);
+    expect(entrega).toBeGreaterThan(moneda);
     expect(texto).toContain(
       'Se paga en pesos. Cada pago se convierte al tipo de cambio vendedor del dólar billete del Banco de la Nación Argentina',
     );

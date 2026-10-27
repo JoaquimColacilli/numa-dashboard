@@ -37,7 +37,7 @@ function tesoro(
     tinta,
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado,
     saldo: moneda === 'ARS' ? enPesos(centavos(saldo)) : plata(moneda, saldo),
@@ -59,6 +59,10 @@ const DE_SIEMPRE: readonly TesoroDelTaller[] = [
   tesoro('diezmo', 'diezmo', 'Diezmo', 'diezmo', 0),
   tesoro('cocos', 'cocos', 'Cocos', 'cocos', 0),
 ];
+
+const SOLO_MAUN_Y_EL_DIEZMO: readonly TesoroDelTaller[] = DE_SIEMPRE.filter(
+  (uno) => uno.clave === 'maun' || uno.clave === 'diezmo',
+);
 
 function montar(props: Partial<HojaDeMovimientoProps> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -121,6 +125,7 @@ function movimiento(extra: Partial<FilaDe<'movimientos'>>): FilaDe<'movimientos'
     monto_destino_centavos: null,
     categoria: '',
     descripcion: 'Para los materiales',
+    vencimiento: null,
     proyecto_id: null,
     created_at: '2026-09-20T10:00:00Z',
     updated_at: '2026-09-20T10:00:00Z',
@@ -220,14 +225,14 @@ describe('la hoja de un movimiento entre tesoros', () => {
   });
 
   it('una clase de las de siempre también manda los dos lados con su id', () => {
-    const { enviados } = montar({ claseInicial: 'gasto_hogar' });
+    const { enviados } = montar({ claseInicial: 'gasto_maun' });
     escribirElMonto('2.500');
     cargar();
 
     expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
       tipo: 'gasto',
-      tesoro_origen: 'hogar',
-      desde_id: ID.hogar,
+      tesoro_origen: 'maun',
+      desde_id: ID.maun,
       tesoro_destino: null,
       hacia_id: null,
     });
@@ -251,8 +256,8 @@ describe('la hoja de un movimiento entre tesoros', () => {
     const [edicion] = enviados() as EdicionDeMovimiento[];
     expect(edicion?.cambios).toMatchObject({
       tipo: 'gasto',
-      tesoro_origen: 'hogar',
-      desde_id: ID.hogar,
+      tesoro_origen: 'maun',
+      desde_id: ID.maun,
       tesoro_destino: null,
       hacia_id: null,
     });
@@ -422,9 +427,12 @@ describe('la hoja con tesoros en dólares', () => {
     expect(screen.getByRole('textbox', { name: 'Pagaste' })).toHaveValue('50.000');
   });
 
-  it('una clase de los dólares sin tesoros en dólares abre un gasto del hogar', () => {
+  it('una clase de los dólares sin tesoros en dólares abre un gasto del taller', () => {
     montar({ claseInicial: 'venta_de_dolares' });
     expect(screen.getByRole('radio', { name: 'Gasto' })).toHaveAttribute('aria-checked', 'true');
+    expect(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'Del taller' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('al editar una compra arranca con sus dos importes y los manda juntos', () => {
@@ -463,17 +471,18 @@ function categorias(): string[] {
 }
 
 describe('la hoja de un gasto de un tesoro', () => {
-  it('es la décima clase: sale de un tesoro del dueño, con los renglones si es un compromiso', () => {
+  it('es la décima clase: sale de un tesoro del dueño, del hogar o de Cocos, con los renglones si es un compromiso', () => {
     montar({
       claseInicial: 'gasto_tesoro',
       renglones: new Map([[ID.materiales, ['Placas', 'Herrajes']]]),
     });
-    expect(nombresDe(grupo('Detalle del tipo'))).toEqual([
-      'Del hogar',
-      'Del taller',
-      'De un tesoro',
-    ]);
-    expect(nombresDe(grupo('Sale de'))).toEqual(['Materiales']);
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del taller', 'De un tesoro']);
+    expect(nombresDe(grupo('Sale de'))).toEqual(['Hogar', 'Cocos', 'Materiales']);
+    expect(within(grupo('Sale de')).getByRole('button', { name: 'Hogar' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    fireEvent.click(within(grupo('Sale de')).getByRole('button', { name: 'Materiales' }));
     expect(categorias()).toEqual(['Placas', 'Herrajes', 'Otro']);
     expect(screen.getByText(/Sale de Materiales y se va/)).toBeInTheDocument();
   });
@@ -555,17 +564,116 @@ describe('la hoja de un gasto de un tesoro', () => {
     );
   });
 
-  it('sin un tesoro del dueño no se ofrece', () => {
+  it('sin tesoros del dueño se ofrece igual: el hogar y Cocos gastan por acá', () => {
     montar({ tesoros: DE_SIEMPRE, tesorosSincronizados: false });
     fireEvent.click(screen.getByRole('radio', { name: 'Gasto' }));
-    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del hogar', 'Del taller']);
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del taller', 'De un tesoro']);
+    fireEvent.click(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'De un tesoro' }),
+    );
+    expect(nombresDe(grupo('Sale de'))).toEqual(['Hogar', 'Cocos']);
+  });
+
+  it('sin ningún tesoro de donde gastar no se ofrece', () => {
+    montar({ tesoros: SOLO_MAUN_Y_EL_DIEZMO, tesorosSincronizados: false });
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del taller']);
   });
 
   it('sin tesoro elegido no carga y lo dice', () => {
-    const { enviados } = montar({ claseInicial: 'gasto_tesoro', tesoros: DE_SIEMPRE });
+    const { enviados } = montar({ claseInicial: 'gasto_tesoro', tesoros: SOLO_MAUN_Y_EL_DIEZMO });
     escribirElMonto('1.000');
     cargar();
     expect(screen.getByText('Elegí de qué tesoro sale la plata.')).toBeInTheDocument();
     expect(enviados()).toEqual([]);
+  });
+
+  it('el pago de un vencimiento lleva el día que paga; si cambia el tesoro, ya no es ese pago', () => {
+    const pago = {
+      claseInicial: 'gasto_tesoro',
+      tesoroInicial: ID.materiales,
+      montoInicial: 50_000_000,
+      categoriaInicial: 'Alquiler',
+      vencimientoInicial: '2026-10-10',
+    } as const;
+    const conElVencimiento = montar(pago);
+    cargar();
+    expect((conElVencimiento.enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'gasto',
+      desde_id: ID.materiales,
+      monto_centavos: 50_000_000,
+      vencimiento: '2026-10-10',
+    });
+    cleanup();
+
+    const desdeOtro = montar(pago);
+    fireEvent.click(within(grupo('Sale de')).getByRole('button', { name: 'Hogar' }));
+    cargar();
+    const [nuevo] = desdeOtro.enviados() as MovimientoNuevo[];
+    expect(nuevo).toMatchObject({ tipo: 'gasto', desde_id: ID.hogar });
+    expect(nuevo).not.toHaveProperty('vencimiento');
+  });
+});
+
+describe('lo que la hoja ofrece cargar', () => {
+  function tipos(): string[] {
+    return within(screen.getByRole('radiogroup', { name: 'Tipo' }))
+      .getAllByRole('radio')
+      .map((radio) => radio.textContent);
+  }
+
+  it('sin clase propuesta arranca en un gasto del taller', () => {
+    const { enviados } = montar();
+    expect(screen.getByRole('radio', { name: 'Gasto' })).toHaveAttribute('aria-checked', 'true');
+    expect(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'Del taller' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    escribirElMonto('1.000');
+    cargar();
+    expect((enviados() as MovimientoNuevo[])[0]).toMatchObject({
+      tipo: 'gasto',
+      tesoro_origen: 'maun',
+      desde_id: ID.maun,
+    });
+  });
+
+  it('ya no ofrece Cocos, ni el hogar en el ingreso ni en el gasto', () => {
+    montar();
+    expect(tipos()).toEqual(['Ingreso', 'Gasto', 'Diezmo', 'Entre tesoros']);
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual(['Del taller', 'De un tesoro']);
+    fireEvent.click(screen.getByRole('radio', { name: 'Ingreso' }));
+    expect(screen.queryByRole('group', { name: 'Detalle del tipo' })).toBeNull();
+  });
+
+  it('un movimiento de los de antes se edita con su clase', () => {
+    montar({
+      movimiento: movimiento({
+        tipo: 'gasto',
+        tesoro_origen: 'hogar',
+        desde_id: ID.hogar,
+        hacia_id: null,
+        categoria: 'Super',
+      }),
+    });
+    expect(nombresDe(grupo('Detalle del tipo'))).toEqual([
+      'Del hogar',
+      'Del taller',
+      'De un tesoro',
+    ]);
+    expect(
+      within(grupo('Detalle del tipo')).getByRole('button', { name: 'Del hogar' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    cleanup();
+
+    montar({
+      movimiento: movimiento({
+        tipo: 'aporte_cocos',
+        tesoro_origen: 'maun',
+        tesoro_destino: 'cocos',
+        desde_id: ID.maun,
+        hacia_id: ID.cocos,
+      }),
+    });
+    expect(tipos()).toEqual(['Ingreso', 'Gasto', 'Diezmo', 'Cocos', 'Entre tesoros']);
+    expect(screen.getByRole('radio', { name: 'Cocos' })).toHaveAttribute('aria-checked', 'true');
   });
 });

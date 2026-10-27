@@ -11,6 +11,21 @@ export const editarTesoro = {
     enPesos: 'Em pesos',
     enDolares: 'Em dólares',
   },
+  ajustar: {
+    boton: 'Ajustar o saldo',
+    titulo: (nombre) => `Ajustar o saldo de ${nombre}`,
+    bajada: 'Para ficar com o que tem de verdade.',
+    tieneAhora: 'Tem agora',
+    seSuman: (monto) => `Somam-se ${monto}`,
+    seRestan: (monto) => `Subtraem-se ${monto}`,
+    quedaIgual: 'Fica igual',
+    porQue: 'Por quê (opcional)',
+    oEscribilo: 'Ou escreva',
+    fecha: 'Data',
+    fechaQueNoPaso: 'Escolha hoje ou um dia que já passou.',
+    ajustar: 'Ajustar',
+    volver: 'Voltar',
+  },
   archivar: {
     conDolaresSinDestino:
       'Para arquivar, venda os dólares ou passe para outra caixinha em dólares.',
@@ -53,9 +68,11 @@ export const editarTesoro = {
     tambienLaUsa: (nombre) => `${nombre} também usa: dá para diferenciar pelo nome e pelo ícone.`,
     icono: 'Ícone',
     meta: 'Meta',
-    ayudaDeLaMeta: 'Opcional. Se você definir, o Início mostra quanto falta.',
-    rinde: 'Rendimento por ano (%)',
-    ayudaDelRinde: 'Serve só para projetar. Se você não souber, deixe em 0.',
+    ayudaDeLaMeta: 'Opcional. Se você definir, junta até chegar e o Início mostra quanto falta.',
+    objetivo: 'Objetivo',
+    ayudaDelObjetivo: 'Junta até chegar. Depois, a parte dela segue para baixo.',
+    paraCuando: 'Para quando',
+    ayudaDeLaFecha: 'Opcional: uma data estimada para chegar.',
   },
   iconos: {
     receipt: 'Recibo',
@@ -87,7 +104,10 @@ export const editarTesoro = {
       }),
     descripcion: (maximo) =>
       plural(maximo, { one: 'Até # caractere.', other: 'Até # caracteres.' }),
-    rinde: 'Digite o rendimento como porcentagem, por exemplo 40. Pode deixar em 0.',
+    meta: 'Informe o objetivo: até quanto junta.',
+    fechaSinMeta: 'Para colocar uma data, informe primeiro o objetivo.',
+    fechaDeLaMeta: 'A data vai de hoje em diante.',
+    diaDePago: 'O dia de pagamento vai de 1 a 31.',
     monto: 'Informe até quanto recebe.',
     montoGrande: 'O valor não pode ser tão alto.',
     porcentajeDeLaObligacion: (minimo, maximo) =>
@@ -96,7 +116,6 @@ export const editarTesoro = {
       `Informe uma porcentagem de ${minimo} a ${libre}, o que ainda está livre.`,
   },
   bajada: {
-    conRinde: 'Nome, cor, ícone, meta e rendimento',
     conMeta: 'Nome, cor, ícone e meta',
     deSiempre: 'Nome, cor e ícone',
   },
@@ -146,6 +165,50 @@ export const editarTesoro = {
   nuevo: {
     titulo: 'Nova caixinha',
     bajada: 'Mais um lugar para o dinheiro',
+    queEs: 'O que é?',
+    otroTipo: 'Mudar',
+    tipos: {
+      caja: {
+        titulo: 'Caixa',
+        que: 'O que é um caixa',
+        ejemplo: 'Estoque da marcenaria, um caixa pequeno',
+        ayuda:
+          'Junta sem limite. Não vence nem volta a zero sozinha. Maun é o caixa geral da marcenaria.',
+      },
+      'deuda-destinada': {
+        titulo: 'Obrigação',
+        que: 'O que é uma obrigação',
+        ejemplo: 'Imposto sobre receita bruta',
+        ayuda:
+          'Leva uma parte de cada recebimento, em porcentagem ou um valor fixo. Fica para entregar até você registrar o pagamento.',
+      },
+      'deuda-obligatoria': {
+        titulo: 'Conta',
+        que: 'O que é uma conta',
+        ejemplo: 'O aluguel, os salários',
+        ayuda:
+          'Junta até o limite entre um vencimento e o seguinte. No dia de pagamento é paga e começa do zero. Se não chegou ao limite, Maun põe o que falta.',
+      },
+      meta: {
+        titulo: 'Meta',
+        ejemplo: 'Uma máquina, o galpão',
+        que: 'O que é uma meta',
+        ayuda:
+          'Junta até chegar ao objetivo. Quando chega, deixa de receber e a parte dela segue para baixo.',
+      },
+    },
+    enDolares: 'Uma caixinha em dólares é um caixa ou uma meta: a fila divide pesos.',
+    comoRecibe: 'Como recebe dinheiro?',
+    seLleva: 'Leva',
+    unPorcentaje: 'Uma porcentagem',
+    unMontoFijo: 'Um valor fixo',
+    montoFijo: 'Valor de cada recebimento',
+    ayudaDelMontoFijo: 'Nunca mais do que entra.',
+    tope: 'Limite',
+    ayudaDelTope: 'O que junta entre um dia de pagamento e o seguinte.',
+    diaDePago: 'Dia de pagamento',
+    ayudaDelDiaDePago: 'De 1 a 31. Se o mês não tiver esse dia, o último.',
+    seLaPaga: 'Se paga sozinha',
     sobreQueSeCalcula: 'Sobre o que é calculado',
     nombresSugeridos: 'Nomes sugeridos',
     dondeVa: 'Onde fica',

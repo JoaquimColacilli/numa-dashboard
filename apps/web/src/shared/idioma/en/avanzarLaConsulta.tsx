@@ -130,6 +130,7 @@ export const avanzarLaConsulta = {
         one: "Calculated as # business day from the start, the quote's lead time.",
         other: "Calculated as # business days from the start, the quote's lead time.",
       }),
+    ayudaDeLaEntregaPrometida: "It's the date the quote promised, with the deposit by its date.",
     direccionDeEntrega: 'Delivery address',
     ejemploDeDireccion: 'Street and number, city',
     comprobanteAEmitir: 'Invoice to issue',

@@ -100,14 +100,14 @@ export function NumerosDelPresupuesto({
           }}
         />
         <Campo
-          etiqueta={m.garantia}
+          etiqueta={m.diasSena}
           inputMode="numeric"
           className="tabular-nums"
-          value={numeros.garantia}
-          ayuda={problemas.garantia === undefined ? m.ayudaDeLaGarantia : undefined}
-          error={problemas.garantia}
+          value={numeros.diasSena}
+          ayuda={problemas.diasSena === undefined ? m.ayudaDeLosDiasDeLaSena : undefined}
+          error={problemas.diasSena}
           onChange={(evento) => {
-            alCambiar({ garantia: soloDigitos(evento.target.value) });
+            alCambiar({ diasSena: soloDigitos(evento.target.value) });
           }}
         />
       </CamposJuntos>
@@ -132,6 +132,19 @@ export function NumerosDelPresupuesto({
             alCambiar({ valor });
           }}
           alCambiarLaMoneda={alCambiarLaMoneda}
+        />
+      </CamposJuntos>
+      <CamposJuntos campoMinimo="14rem">
+        <Campo
+          etiqueta={m.garantia}
+          inputMode="numeric"
+          className="tabular-nums"
+          value={numeros.garantia}
+          ayuda={problemas.garantia === undefined ? m.ayudaDeLaGarantia : undefined}
+          error={problemas.garantia}
+          onChange={(evento) => {
+            alCambiar({ garantia: soloDigitos(evento.target.value) });
+          }}
         />
       </CamposJuntos>
     </>

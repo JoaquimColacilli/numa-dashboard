@@ -5,10 +5,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProveedorDeReplica } from '@/entities/replica';
-import { descartarElBorrador } from '@/features/armar-la-fila';
+import { borradorDeLaFila, descartarElBorrador } from '@/features/armar-la-fila';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
 
 import { usePantallaDeTesoros } from '../model/pantalla';
+import { anotarQueSePropusoLaFormaNueva, yaSePropusoLaFormaNueva } from '../model/rotulo';
 import type { LienzoProps } from './lienzo/Lienzo';
 import { HojasDeTesoros } from './HojasDeTesoros';
 import { TesorosEnLaCompu } from './TesorosEnLaCompu';
@@ -43,7 +44,9 @@ const MATERIALES = '01900000-0000-7000-8000-000000000006';
 const HERRAMIENTAS = '01900000-0000-7000-8000-000000000007';
 
 const GUARDADA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -53,6 +56,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -62,6 +68,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -71,6 +80,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -89,6 +101,7 @@ function tesoro(id: string, clave: string | null, nombre: string, tinta: string)
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     created_at: '2026-09-01T10:00:00Z',
@@ -190,6 +203,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  anotarQueSePropusoLaFormaNueva();
   vi.stubGlobal('matchMedia', (consulta: string) => ({
     matches: consulta.includes('768'),
     media: consulta,
@@ -220,7 +234,7 @@ describe('Tesoros en la tablet vertical', () => {
     montar();
     fireEvent.click(screen.getByRole('button', { name: `Elegir paso-${MATERIALES}` }));
     const panel = screen.getByRole('region', { name: 'Materiales' });
-    const ayuda = within(panel).getByRole('button', { name: 'Qué es cada tipo de paso' });
+    const ayuda = within(panel).getByRole('button', { name: 'Qué es una caja' });
     const globo = document.getElementById(ayuda.getAttribute('popovertarget') ?? '') as HTMLElement;
     fireEvent.click(ayuda);
     expect(globo).toHaveAttribute('data-abierto');
@@ -244,14 +258,14 @@ describe('Tesoros en la tablet vertical', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     const panel = screen.getByRole('region', { name: 'Materiales' });
-    expect(within(panel).getByText('Ahorro fijo · 4 de 4')).toBeInTheDocument();
+    expect(within(panel).getByText('Caja · 4 de 4')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Sacar de la fila' })).toBeInTheDocument();
   });
 
   it('con ?tesoro= al entrar, ese tesoro queda elegido y su panel abierto', () => {
     montar(`/tesoros?tesoro=${FIJOS}`);
     const panel = screen.getByRole('region', { name: 'Gastos fijos' });
-    expect(within(panel).getByText('Compromiso · 3 de 4')).toBeInTheDocument();
+    expect(within(panel).getByText('Deuda obligatoria · 3 de 4')).toBeInTheDocument();
   });
 
   it('«Registrar el pago» de un renglón abre el gasto de ese tesoro con el monto y el renglón', () => {
@@ -268,5 +282,26 @@ describe('Tesoros en la tablet vertical', () => {
       monto: '90000000',
       categoria: 'Alquiler del galpón',
     });
+  });
+
+  it('la primera vez, con compromisos de la forma de antes, arranca el borrador con la forma nueva, una sola vez', () => {
+    localStorage.clear();
+    montar();
+    expect(yaSePropusoLaFormaNueva()).toBe(true);
+    expect(borradorDeLaFila()?.base).toEqual(GUARDADA);
+    expect(
+      borradorDeLaFila()?.fila.pasos.map((paso) => [paso.tesoro, paso.dia, paso.pagaSola]),
+    ).toEqual([
+      [HOGAR, 10, true],
+      [FIJOS, 10, true],
+      [MATERIALES, null, false],
+    ]);
+    expect(screen.queryByRole('button', { name: 'Editar la fila' })).toBeNull();
+    cleanup();
+    descartarElBorrador();
+
+    montar();
+    expect(borradorDeLaFila()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Editar la fila' })).toBeInTheDocument();
   });
 });

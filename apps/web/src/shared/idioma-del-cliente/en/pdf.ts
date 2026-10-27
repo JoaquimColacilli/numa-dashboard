@@ -13,6 +13,17 @@ export const pdf = {
     numero: (numero) => `Quote ${numero}`,
     conRevision: (numero, revision) => `Quote ${numero} Rev ${String(revision)}`,
   },
+  tituloDelEstimativo: {
+    sinNumero: 'Estimate (draft)',
+    numero: (numero) => `Estimate ${numero}`,
+    conRevision: (numero, revision) => `Estimate ${numero} · Rev. ${String(revision)}`,
+    enBorrador: (titulo) => `${titulo} (draft)`,
+  },
+  archivoDelEstimativo: {
+    sinNumero: 'Estimate (draft)',
+    numero: (numero) => `Estimate ${numero}`,
+    conRevision: (numero, revision) => `Estimate ${numero} Rev ${String(revision)}`,
+  },
   pagina: (titulo, pagina, total) => `${titulo} · Page ${String(pagina)} of ${String(total)}`,
   palabrasClave: {
     presupuesto: 'Quote',

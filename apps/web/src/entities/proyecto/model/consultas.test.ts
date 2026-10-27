@@ -96,6 +96,7 @@ function proyecto(id: string, extra: Partial<Proyecto> = {}): Proyecto {
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
     ...extra,
   };
 }

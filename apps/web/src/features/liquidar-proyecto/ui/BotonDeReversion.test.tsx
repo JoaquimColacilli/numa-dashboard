@@ -42,6 +42,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, t
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     moneda: 'ARS',

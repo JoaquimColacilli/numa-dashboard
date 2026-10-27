@@ -17,6 +17,7 @@ export const ui = {
   rotulo: {
     etiqueta: 'Carimbo do orçamento',
     presupuesto: 'Orçamento',
+    estimativo: 'Estimativa',
     numero: (numero) => `Nº ${numero}`,
     sinNumero: 'Ainda sem número',
     revision: 'Rev.',

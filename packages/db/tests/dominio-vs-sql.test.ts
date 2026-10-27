@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  compararAprobaciones,
   compararCascada,
+  compararCiclos,
   compararEstados,
   compararFacturacion,
+  compararFechasDelPresupuesto,
   compararFila,
   compararFormasDeCobro,
   compararGuardadoDeProyecto,
@@ -13,7 +16,9 @@ import {
   compararLinksDeLasRedes,
   compararLiquidaciones,
   compararNombreDeNecesidad,
+  compararPagosDeLosVencimientos,
   compararPagosPorDelante,
+  compararPreguntasDeLaConsulta,
   compararPresupuesto,
   compararRangos,
   compararSeed,
@@ -109,4 +114,24 @@ describe('@maun/domain y la base calculan exactamente lo mismo', () => {
   it('las cuatro gemelas de la facturación (la condición del receptor, el CUIT, el documento y lo que falta) dan lo mismo que facturacion.ts en cientos de casos', async () => {
     expect(await enTransaccionConRollback(compararFacturacion)).toEqual([]);
   });
+
+  it('las preguntas de la consulta y lo contestado los aceptan y los rechazan igual las dos, y por el mismo motivo', async () => {
+    expect(await enTransaccionConRollback(compararPreguntasDeLaConsulta)).toEqual([]);
+  });
+
+  it('una aprobación del cliente la aceptan o la rechazan igual las dos, y por el mismo motivo', async () => {
+    expect(await enTransaccionConRollback(compararAprobaciones)).toEqual([]);
+  });
+
+  it('las fechas del presupuesto y si una fecha existe los deciden igual las dos', async () => {
+    expect(await enTransaccionConRollback(compararFechasDelPresupuesto)).toEqual([]);
+  });
+
+  it('el ciclo de un compromiso, el día del mes y desde cuándo se paga sola dan lo mismo en las dos', async () => {
+    expect(await enTransaccionConRollback(compararCiclos)).toEqual([]);
+  });
+
+  it('el pago de los vencimientos que hace la base es el que calcula el dominio, con su libro, en los casos del pedido', async () => {
+    expect(await enTransaccionConRollback(compararPagosDeLosVencimientos)).toEqual([]);
+  }, 180_000);
 });

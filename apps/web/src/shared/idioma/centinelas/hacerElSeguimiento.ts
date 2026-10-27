@@ -17,4 +17,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.hacerElSeguimiento.registrarElContacto.leTocabaElConNota('«FECHA»', '«NOTA»'),
     tieneQueDecir: ['«FECHA»', '«NOTA»'],
   },
+  'hacerElSeguimiento.cambiarLaFecha.leTocaba': {
+    llamar: (m) => m.hacerElSeguimiento.cambiarLaFecha.leTocaba('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
 };

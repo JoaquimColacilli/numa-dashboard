@@ -583,6 +583,92 @@ describe('los movimientos contra las liquidaciones del mismo taller, con conexio
   });
 });
 
+const PAGAR_LOS_VENCIMIENTOS =
+  'select private.pagar_los_vencimientos_del_taller($1, private.hoy_en_el_taller()) as pagados';
+
+const UN_ADELANTO = `insert into public.movimientos (fecha, tipo, tesoro_origen, monto_centavos, categoria)
+  values ('2026-09-11', 'gasto', 'hogar', 100000, 'Adelanto')`;
+
+describe('el pago de los vencimientos contra las liquidaciones y los adelantos del mismo taller, con conexiones reales y todo en rollback', () => {
+  it('una liquidación espera al pago de los vencimientos del mismo taller en la fila de ajustes', async () => {
+    const pago = await sesion();
+    const cobro = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(pago);
+    await pago.query(PAGAR_LOS_VENCIMIENTOS, [HOUSEHOLD_DEL_SEED]);
+
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    const pidCobro = await pidDe(cobro);
+    const resultado = sinRechazoSuelto(liquidarPreparada(cobro, datos));
+
+    expect(await esperarQueEspere(monitor, pidCobro)).toContain(await pidDe(pago));
+
+    await pago.query('rollback');
+    await expect(resultado).resolves.toBeDefined();
+  });
+
+  it('el pago de los vencimientos espera a la liquidación en curso: mira el saldo con el reparto entero o sin él', async () => {
+    const cobro = await sesion();
+    const pago = await sesion();
+    const monitor = await sesion();
+
+    const datos = await leerDatos(monitor, PROYECTO_DEL_SEED, 'cobrado');
+    await abrirTransaccion(cobro);
+    await entrarAlHousehold(cobro);
+    await liquidarPreparada(cobro, datos);
+
+    await abrirTransaccion(pago);
+    const pidPago = await pidDe(pago);
+    const resultado = sinRechazoSuelto(pago.query(PAGAR_LOS_VENCIMIENTOS, [HOUSEHOLD_DEL_SEED]));
+
+    expect(await esperarQueEspere(monitor, pidPago)).toContain(await pidDe(cobro));
+
+    await cobro.query('rollback');
+    await expect(resultado).resolves.toBeDefined();
+  });
+
+  it('un adelanto que llega mientras se paga el vencimiento espera al pago: entra después y, si ese vencimiento ya se pagó, cuenta para el siguiente', async () => {
+    const pago = await sesion();
+    const adelanto = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(pago);
+    await pago.query(PAGAR_LOS_VENCIMIENTOS, [HOUSEHOLD_DEL_SEED]);
+
+    await abrirTransaccion(adelanto);
+    await entrarAlHousehold(adelanto);
+    const pidAdelanto = await pidDe(adelanto);
+    const alta = sinRechazoSuelto(adelanto.query(UN_ADELANTO));
+
+    expect(await esperarQueEspere(monitor, pidAdelanto)).toContain(await pidDe(pago));
+
+    await pago.query('rollback');
+    await expect(alta).resolves.toBeDefined();
+  });
+
+  it('el pago que llega mientras se carga un adelanto espera a que termine: lo cuenta entero o no lo cuenta, nunca a medias', async () => {
+    const adelanto = await sesion();
+    const pago = await sesion();
+    const monitor = await sesion();
+
+    await abrirTransaccion(adelanto);
+    await entrarAlHousehold(adelanto);
+    await adelanto.query(UN_ADELANTO);
+
+    await abrirTransaccion(pago);
+    const pidPago = await pidDe(pago);
+    const resultado = sinRechazoSuelto(pago.query(PAGAR_LOS_VENCIMIENTOS, [HOUSEHOLD_DEL_SEED]));
+
+    expect(await esperarQueEspere(monitor, pidPago)).toContain(await pidDe(adelanto));
+
+    await adelanto.query('rollback');
+    await expect(resultado).resolves.toBeDefined();
+  });
+});
+
 const CONSULTA_CON_LA_VISITA_DEL_SEED = '5eed0000-0000-7000-8000-000000020008';
 
 const TESORO_EN_DOLARES = `insert into public.tesoros (nombre, tinta, icono, moneda)

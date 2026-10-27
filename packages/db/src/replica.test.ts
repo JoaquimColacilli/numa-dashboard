@@ -302,13 +302,23 @@ describe('lecturas de la réplica', () => {
     );
     expect(faltaConfigurar(ajustesDe(conFila))).toBe(false);
 
-    const conTasa = ajustesCon({
-      sueldo_mensual_centavos: 0,
+    const conSueldo = ajustesCon({
+      sueldo_mensual_centavos: 1,
       costos_fijos_centavos: 0,
       meta_cocos_centavos: 0,
+      tasa_cocos_anual_bp: 0,
+    });
+    expect(faltaConfigurar(ajustesDe(conSueldo))).toBe(false);
+  });
+
+  it('la meta y la tasa de Cocos ya no cuentan como configurar el taller', () => {
+    const conLoDeCocos = ajustesCon({
+      sueldo_mensual_centavos: 0,
+      costos_fijos_centavos: 0,
+      meta_cocos_centavos: 7_000_000_000,
       tasa_cocos_anual_bp: 4000,
     });
-    expect(faltaConfigurar(ajustesDe(conTasa))).toBe(false);
+    expect(faltaConfigurar(ajustesDe(conLoDeCocos))).toBe(true);
   });
 });
 

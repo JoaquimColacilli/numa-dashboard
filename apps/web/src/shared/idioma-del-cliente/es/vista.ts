@@ -1,5 +1,7 @@
 import type { MotivoDeLaEntrega, TextosDeLaVista } from '@maun/domain';
 
+import { documento } from './documento';
+
 const CUALES: readonly string[] = [
   '',
   'la única',
@@ -133,6 +135,11 @@ export const vista = {
       siDejasLaSenaAntesDel: (antesDe, listoPara) =>
         `Si dejás la seña antes del ${antesDe}, podríamos tenerlo listo para el ${listoPara}.`,
       vamosTomandoLosTrabajos: 'Vamos tomando los trabajos a medida que entran las señas.',
+      conLasFechas: (entrega, senaAcordada, senaAntes) =>
+        `Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el ${entrega}. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada ${senaAcordada} antes del ${senaAntes}.`,
+      senaAcordada: documento.senaAcordada,
+      dependiaDeLaSena: (fecha) =>
+        `La fecha de entrega dependía de la seña antes del ${fecha}. Escribinos y te confirmamos una nueva.`,
     },
     nota: {
       pendiente: {

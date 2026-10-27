@@ -60,6 +60,14 @@ export const armarLaFila = {
     'porcentaje-invalido': 'Cada porcentagem vai de 0,01% a 100%.',
     'reparto-pasa-de-cien': 'As porcentagens somam mais de 100%.',
     'sueldo-por-trabajo': 'A fila conta o pró-labore por mês.',
+    'monto-fijo-invalido': 'O valor fixo tem que ser maior que zero.',
+    'diezmo-por-monto': 'O dízimo vai por porcentagem.',
+    'dia-de-pago-invalido': 'O dia de pagamento vai de 1 a 31.',
+    'dia-de-pago-fuera-de-compromiso': 'Só as contas têm dia de pagamento.',
+    'dias-en-los-renglones': 'Com um dia de pagamento, as linhas não levam dias.',
+    'paga-sola-sin-dia': 'Para se pagar sozinha precisa do dia de pagamento.',
+    'paga-sola-en-maun': 'Maun não se paga sozinha: é a caixinha que cobre o que falta.',
+    'paga-sola-desde-invalido': 'Não foi possível ler desde quando se paga sozinha.',
   },
   problemasConNombre: {
     'tesoro-archivado': (nombre) =>
@@ -153,6 +161,36 @@ export const armarLaFila = {
         <Nombre>{nombre}</Nombre> muda os dias de pagamento.
       </>
     ),
+    cambiaElMontoFijo: (Nombre, nombre, monto) =>
+      monto === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> volta a levar uma porcentagem de cada recebimento.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> leva {monto} fixos de cada recebimento.
+        </>
+      ),
+    cambiaElDiaDePago: (Nombre, nombre, dia) =>
+      dia === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> deixa de ter dia de pagamento.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> é paga no dia {String(dia)} de cada mês.
+        </>
+      ),
+    cambiaPagaSola: (Nombre, nombre, pagaSola) =>
+      pagaSola ? (
+        <>
+          <Nombre>{nombre}</Nombre> se paga sozinha no dia de pagamento.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> deixa de se pagar sozinha: você registra o pagamento.
+        </>
+      ),
     cambiaElModo: (Nombre, nombre, tipo, modo) =>
       modo === 'saldo' ? (
         <>
@@ -273,6 +311,24 @@ export const armarLaFila = {
     cuandoValen: (mes) =>
       `As alterações valem a partir do próximo recebimento. As divisões que você já fez não mudam, e o que já entrou em ${mes} continua contando.`,
     seguirEditando: 'Continuar editando',
+    sePagaSolo: (Nombre, nombre, fecha, maun) => (
+      <>
+        <Nombre>{nombre}</Nombre> se paga sozinha a partir de {fecha}: nesse dia o NUMA registra o
+        pagamento e, se não juntou o teto, o que falta vem de {maun}.
+      </>
+    ),
+    plataDeAntes: (Nombre, nombre, monto) => (
+      <>
+        <Nombre>{nombre}</Nombre> tem {monto} de antes do ciclo. O que você faz com esse dinheiro?
+      </>
+    ),
+    pasarlaA: (nombre) => `Passar para ${nombre}`,
+    pasarlaAOtro: 'Passar para outra caixinha',
+    aCual: (nombre) => `Para qual caixinha vai o dinheiro de ${nombre}`,
+    elegiUno: 'Escolha uma',
+    yaNoEsta: 'Não está mais',
+    ayudaDeYaNoEsta: 'Sai do saldo com um ajuste: é dinheiro que você não tem mais.',
+    faltaElegir: 'Escolha o que fazer com o dinheiro de antes para poder salvar.',
   },
   probador: {
     loQueDeja: 'Líquido (recebido menos despesas)',
@@ -305,6 +361,31 @@ export const armarLaFila = {
     daElIngreso: 'bate com a receita',
   },
   panel: {
+    paraEntregar: 'Para entregar',
+    comoSeLleva: 'Como leva a parte dela',
+    comoSeLlevaDe: (nombre) => `Como ${nombre} leva a parte dela`,
+    unPorcentaje: 'Uma porcentagem',
+    unMontoFijo: 'Um valor fixo',
+    montoFijoDe: (nombre) => `Valor fixo de ${nombre}`,
+    ayudaDelMontoFijo: 'De cada recebimento, nunca mais do que chega.',
+    diaDePago: 'Dia de pagamento',
+    sinDiaDePago: 'Sem dia de pagamento',
+    elDia: (dia) => `Dia ${String(dia)} de cada mês`,
+    ayudaDelDiaDePago: 'De 1 a 31. Se o mês não tiver, o último.',
+    pagaSola: 'Se paga sozinha',
+    loPagasVos: 'Você registra o pagamento',
+    delDiaAlDia: (dia) => `Do dia ${String(dia)} ao dia ${String(dia)}`,
+    juntaEntreVencimientos: 'Junta até o limite entre um vencimento e o seguinte.',
+    enElCiclo: (desde, hasta) => `De ${desde} a ${hasta}`,
+    nivelDelCiclo: (nombre) => `${nombre} neste ciclo`,
+    vence: (fecha) => `Vence em ${fecha}`,
+    adelantado: (monto) => `Adiantado: ${monto}`,
+    seVaAPagarSolo: (fecha, monto) => `Em ${fecha} se paga sozinha: ${monto}`,
+    loPoneMaun: (maun, monto) => `Se não entrar mais dinheiro, ${maun} põe ${monto}.`,
+    sePagaron: (dia, monto) => `No dia ${String(dia)} foram pagos ${monto}`,
+    puso: (maun, monto) => `${maun} pôs ${monto}`,
+    faltaPagar: 'Falta pagar',
+    registrarUnAdelanto: 'Registrar um adiantamento',
     cerrarElDetalle: 'Fechar o detalhe',
     subir: 'Subir',
     bajar: 'Descer',
@@ -348,8 +429,6 @@ export const armarLaFila = {
     monto: 'Valor',
     comoSeLlenaDe: (tipo, nombre) =>
       tipo === 'compromiso' ? `Como ${nombre} se completa` : `Como ${nombre} se separa`,
-    sueldoPorMes:
-      'O pró-labore de Hogar vai sempre por mês: Hogar gasta o saldo durante o mês todo.',
     hastaLaMeta: 'Até a meta',
     juntaHastaLaMeta: 'Junta até chegar à meta.',
     juntaSinFin: 'Junta sem limite.',

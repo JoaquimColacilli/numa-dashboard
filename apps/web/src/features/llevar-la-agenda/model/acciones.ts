@@ -3,6 +3,7 @@ import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 
 import {
   diaEnPalabras,
+  idDelProximoContacto,
   MUTACION_DE_ANOTACION,
   MUTACION_DE_ANOTACION_NUEVA,
   MUTACION_DE_BAJA_DE_ANOTACION,
@@ -13,6 +14,7 @@ import {
   guardadoDeUnPaso,
   marcaDeImportante,
   MUTACION_DE_MARCA_DEL_SEGUIMIENTO,
+  MUTACION_DE_LA_FECHA_DEL_CONTACTO,
   MUTACION_DE_MARCAS,
   MUTACION_DE_PROYECTO,
   type Proyecto,
@@ -25,6 +27,7 @@ import {
   type AnotacionNueva,
   type CambiosDeAnotacion,
   type CambiosDeProyecto,
+  type FilaDe,
   type Replica,
 } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
@@ -64,6 +67,17 @@ function datosDe(anotacion: Anotacion): AnotacionNueva {
 function anotacionEnLaReplica(cliente: QueryClient, id: string): Anotacion | undefined {
   for (const [, replica] of cliente.getQueriesData<Replica>({ queryKey: claveDeTodaReplica() })) {
     const fila = replica === undefined ? undefined : filaPorId(replica, 'anotaciones', id);
+    if (fila) return fila;
+  }
+  return undefined;
+}
+
+function contactoEnLaReplica(
+  cliente: QueryClient,
+  id: string,
+): FilaDe<'proximos_contactos'> | undefined {
+  for (const [, replica] of cliente.getQueriesData<Replica>({ queryKey: claveDeTodaReplica() })) {
+    const fila = replica === undefined ? undefined : filaPorId(replica, 'proximos_contactos', id);
     if (fila) return fila;
   }
   return undefined;
@@ -239,13 +253,33 @@ export function borrar(
 // Arrastrar un evento derivado no es un efecto colateral: es la operación. La fecha de una entrega
 // vive en el proyecto y en ningún otro lado, así que moverla en la agenda es escribirla ahí, por el
 // mismo guardado del agregado que usa la ficha (ADR 0045).
+function moverElSeguimiento(
+  cliente: QueryClient,
+  evento: EventoDerivado,
+  fecha: string,
+  hoy: string,
+): boolean {
+  const id = idDelProximoContacto(evento);
+  const contacto = id === null ? undefined : contactoEnLaReplica(cliente, id);
+  if (contacto === undefined || contacto.hecho_el !== null || fecha < hoy) return false;
+  mandarALaCola(
+    cliente,
+    {
+      ...MUTACION_DE_LA_FECHA_DEL_CONTACTO,
+      meta: metaDeAvisos('eventoMovido', { silencioso: true, sujeto: evento.titulo }),
+    },
+    { contacto, fecha, momento: new Date().toISOString() },
+  );
+  return true;
+}
+
 function moverElTrabajo(
   cliente: QueryClient,
   evento: EventoDerivado,
   fecha: string,
   hoy: string,
 ): boolean {
-  if (evento.categoria === 'seguimiento') return false;
+  if (evento.categoria === 'seguimiento') return moverElSeguimiento(cliente, evento, fecha, hoy);
   const proyecto = proyectoEnLaReplica(cliente, evento.proyectoId);
   if (proyecto === undefined) return false;
 
@@ -305,6 +339,8 @@ export function mover(
 
   const nombre = nombreDelEvento(evento);
   const dia = diaEnPalabras(fecha);
+  const vuelveAlPasado =
+    evento.clase === 'derivada' && evento.categoria === 'seguimiento' && evento.fecha < hoy;
   avisar({
     clave: `agenda-movido-${evento.id}`,
     tono: 'hecho',
@@ -312,11 +348,13 @@ export function mover(
       evento.clase === 'derivada'
         ? textos().movida[evento.categoria](nombre, dia)
         : textos().pasoAl(nombre, dia),
-    accion: {
-      etiqueta: textos().deshacer,
-      alTocar: () => {
-        escribirElMovimiento(cliente, { ...evento, fecha }, evento.fecha, hoy);
-      },
-    },
+    accion: vuelveAlPasado
+      ? undefined
+      : {
+          etiqueta: textos().deshacer,
+          alTocar: () => {
+            escribirElMovimiento(cliente, { ...evento, fecha }, evento.fecha, hoy);
+          },
+        },
   });
 }

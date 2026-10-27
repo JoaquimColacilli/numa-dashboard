@@ -1,12 +1,4 @@
-import {
-  centavos,
-  enPesos,
-  filaDeSiempre,
-  plata,
-  puntosBasicos,
-  type Fila,
-  type Money,
-} from '@maun/domain';
+import { centavos, enPesos, plata, puntosBasicos, type Fila, type Money } from '@maun/domain';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FraseDelDiezmo } from '@/entities/movimiento';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 
-import { conLaMetaDeCocos, tipoEnLaTarjeta, tiposEnLasTarjetas } from '../model/tesoros';
+import { conLaMetaDeCocos, tiposEnLasTarjetas } from '../model/tesoros';
 import { TarjetasDeLosTesoros } from './TarjetasDeLosTesoros';
 
 const FIJOS = '01900000-0000-7000-8000-000000000005';
@@ -35,7 +27,7 @@ function tesoro(
     tinta: clave ?? 'grana',
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(100_000)),
@@ -54,7 +46,11 @@ const LOS_OCHO = [
   ...LOS_CUATRO,
   tesoro(FIJOS, null, 'Gastos fijos', { descripcion: 'Alquiler, luz y el ayudante' }),
   tesoro('mat', null, 'Materiales', { tinta: 'mostaza' }),
-  tesoro('inm', null, 'Inmuebles', { tinta: 'ciruela', meta: enPesos(centavos(2_000_000_000)) }),
+  tesoro('inm', null, 'Inmuebles', {
+    tinta: 'ciruela',
+    meta: enPesos(centavos(2_000_000_000)),
+    metaFecha: '2027-03-31',
+  }),
   tesoro(HERRAMIENTAS, null, 'Herramientas', {
     tinta: 'petroleo',
     saldo: enPesos(centavos(15_000_000)),
@@ -90,7 +86,9 @@ function montar(
 }
 
 const FILA_DE_TIPOS: Fila = {
-  obligaciones: [{ tesoro: 'd', porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: 'd', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: 'h',
@@ -100,6 +98,9 @@ const FILA_DE_TIPOS: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -109,6 +110,9 @@ const FILA_DE_TIPOS: Fila = {
       desde: null,
       modo: 'saldo',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: 'mat',
@@ -118,6 +122,9 @@ const FILA_DE_TIPOS: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: 'c', porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -174,15 +181,15 @@ describe('las tarjetas de los tesoros en Inicio', () => {
     expect(diezmo.querySelector('.line-clamp-1')).toBeNull();
   });
 
-  it('el diezmo dice su deuda, las que tienen meta cuánto llevan y las demás para qué son', () => {
+  it('el diezmo dice su deuda, las que tienen meta cuánto llevan y para cuándo, y las demás para qué son', () => {
     const tablero = montar(LOS_OCHO);
     const tarjeta = (nombre: string) =>
       within(tablero).getByRole('button', { name: new RegExp(`^${nombre}`) });
 
     expect(tarjeta('Diezmo')).toHaveTextContent('Debés');
     expect(tarjeta('Diezmo')).toHaveTextContent('de lo que ya cobraste y todavía no diste');
-    expect(tarjeta('Herramientas')).toHaveTextContent('16% de la meta');
-    expect(tarjeta('Inmuebles')).toHaveTextContent('0% de la meta');
+    expect(tarjeta('Herramientas')).toHaveTextContent(/16% de la meta$/);
+    expect(tarjeta('Inmuebles')).toHaveTextContent('0% de la meta, para marzo de 2027');
     expect(tarjeta('Gastos fijos')).toHaveTextContent('Alquiler, luz y el ayudante');
     expect(tarjeta('Hogar')).toHaveTextContent('La plata de la familia');
     expect(tarjeta('Herramientas').querySelector('span[aria-hidden].bg-petroleo')).not.toBeNull();
@@ -224,7 +231,7 @@ describe('las tarjetas de los tesoros en Inicio', () => {
     expect(fijos.querySelector('span[aria-hidden].bg-grana')).toBeNull();
   });
 
-  it('cada tarjeta dice el tipo de su tesoro en la fila; lo del estante no lleva tipo', () => {
+  it('cada tarjeta dice lo que es su tesoro, también las del estante', () => {
     const tipos = tiposEnLasTarjetas(FILA_DE_TIPOS, LOS_OCHO);
     const tablero = montar(LOS_OCHO, tipos);
     const tipoDe = (nombre: string) =>
@@ -232,28 +239,14 @@ describe('las tarjetas de los tesoros en Inicio', () => {
         .getByRole('button', { name: new RegExp(`^${nombre}`) })
         .querySelector('[data-tipo-del-tesoro]')?.textContent ?? null;
 
-    expect(tipoDe('Diezmo')).toBe('Obligación');
-    expect(tipoDe('Hogar')).toBe('Compromiso');
-    expect(tipoDe('Gastos fijos')).toBe('Compromiso');
-    expect(tipoDe('Materiales')).toBe('Ahorro');
-    expect(tipoDe('Cocos')).toBe('Ahorro');
-    expect(tipoDe('Maun')).toBe('Superávit');
-    expect(tipoDe('Inmuebles')).toBeNull();
-    expect(tipoDe('Herramientas')).toBeNull();
-  });
-
-  it('Maun en la fila de siempre es compromiso y superávit a la vez', () => {
-    const deSiempre = filaDeSiempre(
-      {
-        sueldoMensual: centavos(180_000_000),
-        costosFijos: centavos(90_000_000),
-        sueldoTopeMensual: true,
-      },
-      { hogar: 'h', maun: 'm', diezmo: 'd' },
-    );
-    expect(tipoEnLaTarjeta(deSiempre, 'm')).toBe('Compromiso y superávit');
-    expect(tipoEnLaTarjeta(deSiempre, 'h')).toBe('Compromiso');
-    expect(tipoEnLaTarjeta(deSiempre, 'c')).toBeNull();
+    expect(tipoDe('Diezmo')).toBe('Deuda destinada');
+    expect(tipoDe('Hogar')).toBe('Deuda obligatoria');
+    expect(tipoDe('Gastos fijos')).toBe('Deuda obligatoria');
+    expect(tipoDe('Materiales')).toBe('Caja');
+    expect(tipoDe('Cocos')).toBe('Caja');
+    expect(tipoDe('Maun')).toBe('Caja');
+    expect(tipoDe('Inmuebles')).toBe('Meta');
+    expect(tipoDe('Herramientas')).toBe('Meta');
   });
 
   it('la de Maun dice cuánto de su saldo son insumos, si no le alcanza, o cuánto puso en los trabajos', () => {
@@ -287,7 +280,7 @@ describe('las tarjetas de los tesoros en Inicio', () => {
   });
 
   it('el saldo sigue siendo el primer monto de la tarjeta, antes que los insumos', () => {
-    const tablero = montar(LOS_CUATRO, new Map([['m', 'Superávit']]), centavos(60_000_000));
+    const tablero = montar(LOS_CUATRO, new Map([['m', 'Caja']]), centavos(60_000_000));
     const texto = within(tablero).getByRole('button', { name: /^Maun/ }).textContent;
     expect(/\$\s?([\d.]+)/.exec(texto)?.[1]).toBe('1.000');
   });

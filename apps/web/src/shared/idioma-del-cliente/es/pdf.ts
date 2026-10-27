@@ -12,6 +12,19 @@ export const pdf = {
     conRevision: (numero: string, revision: number) =>
       `Presupuesto ${numero} Rev ${String(revision)}`,
   },
+  tituloDelEstimativo: {
+    sinNumero: 'Presupuesto estimativo (borrador)',
+    numero: (numero: string) => `Presupuesto estimativo ${numero}`,
+    conRevision: (numero: string, revision: number) =>
+      `Presupuesto estimativo ${numero} · Rev. ${String(revision)}`,
+    enBorrador: (titulo: string) => `${titulo} (borrador)`,
+  },
+  archivoDelEstimativo: {
+    sinNumero: 'Presupuesto estimativo (borrador)',
+    numero: (numero: string) => `Presupuesto estimativo ${numero}`,
+    conRevision: (numero: string, revision: number) =>
+      `Presupuesto estimativo ${numero} Rev ${String(revision)}`,
+  },
   pagina: (titulo: string, pagina: number, total: number) =>
     `${titulo} · Página ${String(pagina)} de ${String(total)}`,
   palabrasClave: {

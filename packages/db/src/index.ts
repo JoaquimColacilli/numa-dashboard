@@ -59,6 +59,7 @@ export {
   horaDeLaVisita,
   marcadaComoImportante,
   mesEnLaZona,
+  pagosDeLosVencimientos,
   visitaHecha,
   type ColumnaDeLaFecha,
   type ColumnaDeMarca,
@@ -104,6 +105,8 @@ export {
   filaDelTaller,
   filaParaLiquidar,
   gastosDeLosTesorosDeLaReplica,
+  pagosDeLosVencimientosDeLaReplica,
+  entradaDeLosPagos,
   idDeLaClave,
   importeDelPago,
   insumosDelTaller,
@@ -185,6 +188,9 @@ export {
   guardarLaEntrega,
   guardarMarcaDelProximoContacto,
   guardarMarcasDeLaAgenda,
+  cambiarLaFechaDelContacto,
+  guardarRespuestasDeLaConsulta,
+  marcarLaRespuestaAtendida,
   guardarAnotacionNueva,
   guardarCambiosDeAnotacion,
   guardarCambiosDeCliente,
@@ -312,6 +318,14 @@ export {
   type RenglonContestado,
   type ResultadoDeContestar,
 } from './encuestaPublica.ts';
+
+export {
+  aprobarElPresupuesto,
+  CODIGO_DEL_RECHAZO_DE_LA_APROBACION,
+  leerResultadoDeAprobar,
+  motivoDelRechazoDeLaAprobacion,
+  type ResultadoDeAprobar,
+} from './aprobacionPublica.ts';
 
 export {
   CODIGO_DEL_RECHAZO_DE_LA_ENTREGA,

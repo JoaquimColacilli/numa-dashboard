@@ -18,6 +18,7 @@ function paso(extra: Partial<PasoDelMes> & Pick<PasoDelMes, 'tesoro'>): PasoDelM
     tipo: 'compromiso',
     modo: 'mes',
     objetivo: centavos(900_000),
+    ciclo: null,
     recibido: centavos(0),
     cubierto: centavos(0),
     lleva: centavos(0),
@@ -25,6 +26,8 @@ function paso(extra: Partial<PasoDelMes> & Pick<PasoDelMes, 'tesoro'>): PasoDelM
     completo: false,
     aPagar: centavos(0),
     vencimientos: [],
+    vencimiento: null,
+    ultimoPago: null,
     meta: null,
     ...extra,
   };
@@ -48,7 +51,7 @@ function delMes(pasos: PasoDelMes[]): FilaDelMes {
 
 function vencimiento(
   tesoro: string,
-  renglon: string,
+  renglon: string | null,
   fecha: string,
   pagado = false,
 ): VencimientoDeLaAgenda {
@@ -60,6 +63,30 @@ function vencimiento(
     monto: centavos(50_000_000),
     fecha,
     pagado,
+    pagoSolo: null,
+  };
+}
+
+function delCiclo(
+  tesoro: string,
+  fecha: string,
+  pagaSola: boolean,
+  pusoMaun: number,
+): Pick<PasoDelMes, 'tesoro' | 'ciclo' | 'vencimiento'> {
+  return {
+    tesoro,
+    ciclo: { desde: '2026-09-10', hasta: fecha },
+    vencimiento: {
+      fecha,
+      pagaSola,
+      tope: centavos(90_000_000),
+      pagado: centavos(0),
+      saldo: centavos(90_000_000 - pusoMaun),
+      pago: null,
+      aPagar: centavos(90_000_000),
+      pusoMaun: centavos(pusoMaun),
+      vuelveAMaun: centavos(0),
+    },
   };
 }
 
@@ -100,6 +127,58 @@ describe('el faltante de los compromisos', () => {
     expect(fijos?.vence).toBeNull();
     expect(alquiler?.vence?.renglon).toBe('Alquiler');
     expect(rangoDelFaltante('2026-09-28')).toEqual({ desde: '2026-09-28', hasta: '2026-10-05' });
+  });
+
+  it('un compromiso con día de pago falta por lo que pondría Maun, solo si vence en los próximos 7 días', () => {
+    const conDia = delMes([
+      paso({ ...delCiclo(ALQUILER, '2026-10-10', true, 27_000_000), falta: centavos(27_000_000) }),
+      paso({ ...delCiclo(FIJOS, '2026-10-10', false, 0), falta: centavos(0) }),
+      paso({ ...delCiclo(STOCK, '2026-10-30', true, 5_000_000), falta: centavos(5_000_000) }),
+    ]);
+    const vencimientos = [
+      vencimiento(ALQUILER, null, '2026-10-10'),
+      vencimiento(FIJOS, null, '2026-10-10'),
+      vencimiento(STOCK, null, '2026-10-30'),
+    ];
+    expect(faltantesDeLosCompromisos(conDia, vencimientos, '2026-10-05')).toEqual([
+      {
+        tesoro: ALQUILER,
+        modo: 'mes',
+        falta: 27_000_000,
+        vence: vencimientos[0],
+        pagaSola: true,
+      },
+    ]);
+    expect(faltantesDeLosCompromisos(conDia, [], '2026-10-05')).toEqual([]);
+  });
+
+  it('la frase de una deuda que se paga sola dice que el día de pago lo que falta lo pone Maun', () => {
+    expect(
+      fraseDelFaltante(
+        {
+          nombre: 'alquiler',
+          modo: 'mes',
+          falta: centavos(27_000_000),
+          vence: { renglon: null, fecha: '2026-10-10' },
+          pagaSola: true,
+          maun: 'Maun',
+        },
+        '2026-10',
+      ).replace(/\s/g, ' '),
+    ).toBe('El 10 se paga el alquiler y faltan $ 270.000. Si no entra más plata, los pone Maun.');
+    expect(
+      fraseDelFaltante(
+        {
+          nombre: 'alquiler',
+          modo: 'mes',
+          falta: centavos(27_000_000),
+          vence: { renglon: null, fecha: '2026-10-10' },
+          pagaSola: false,
+          maun: 'Maun',
+        },
+        '2026-10',
+      ).replace(/\s/g, ' '),
+    ).toBe('Vence el alquiler el 10 y faltan $ 270.000.');
   });
 
   it('lo dice con sus palabras', () => {

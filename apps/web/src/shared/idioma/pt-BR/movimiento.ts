@@ -117,6 +117,15 @@ export const movimiento = {
     Ajuste: 'Ajuste',
     'Archivo de un tesoro': 'Arquivamento de caixinha',
     'Cubrir el mes': 'Cobertura do mês',
+    Adelanto: 'Adiantamento',
+    'Deuda interna': 'Dívida interna',
+    Vencimiento: 'Vencimento',
+    Sobrante: 'Sobra',
+    'Plata de antes de su ciclo': 'Dinheiro de antes do ciclo',
+    'Ya no está': 'Não está mais',
+    Intereses: 'Juros',
+    Venta: 'Venda',
+    Corrección: 'Correção',
   },
   ayuda: {
     ingresoHogar: 'Entra na casa, sem passar pela marcenaria nem pelo dízimo.',
@@ -170,11 +179,12 @@ export const movimiento = {
   },
   resumenDelMes: {
     entroAlHogar: 'Receita da casa',
-    gastoElHogar: 'Gastos da casa',
     facturoElTaller: 'Faturamento da marcenaria',
   },
   libro: {
     motivoDelBloqueo: {
+      'del-vencimiento':
+        'O NUMA registrou no dia de pagamento de uma conta que se paga sozinha: o pagamento, o que a Maun pôs para chegar ao limite (dívida interna) ou o que sobrou e voltou para a Maun. Não se edita.',
       'del-proyecto':
         'Este lançamento é gerado pelo projeto: vem dos recebimentos, das despesas e da divisão que ficou fixada no recebimento. Para mudar, corrija o projeto.',
       ajuste:
@@ -188,6 +198,9 @@ export const movimiento = {
       fijos: 'Custos fixos da divisão',
       prioridad: 'Etapa da divisão',
       reparto: 'Parte da divisão',
+      vencimiento: 'Pagamento do dia de pagamento',
+      deuda_interna: 'Dívida interna',
+      sobrante: 'Sobra do dia de pagamento',
     },
     delTrabajo: 'Do projeto',
     ajusteDeSaldo: 'Ajuste de saldo',
