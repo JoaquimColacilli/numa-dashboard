@@ -46,6 +46,11 @@
   reparte desde Maun su valor en pesos aunque esos dólares estén en su tesoro en dólares, así que Maun puede
   quedar en negativo; la pantalla del cobro lo avisa antes, con «Vender dólares», sin frenarlo. Los insumos
   cuentan solo lo que entró a Maun.
+- Enmendado el 2026-10-26 por el [0087](0087-los-tipos-de-tesoro-de-eliseo.md): cada tesoro es una caja, una
+  deuda destinada, una deuda obligatoria o una meta, según su lugar en la fila y su objetivo; un compromiso
+  con día de pago junta por ciclo (de un vencimiento al siguiente) y, con «Se paga sola», lo paga la base el
+  día de pago, con Maun poniendo lo que falta como deuda interna; una obligación puede llevar un monto fijo;
+  Cocos deja de ser especial. Una fila guardada antes se lee y reparte igual.
 
 ## Contexto
 

@@ -90,6 +90,19 @@ El castellano es la fuente y no se cambia para que la traducción quede más có
 | Cripto, Otro | Crypto, Other | Cripto, Outro |
 | Pesos / Dólares (al elegir la moneda) | Pesos / Dollars | Pesos / Dólares |
 | corrección de saldo | balance adjustment | ajuste de saldo |
+| **Los tipos de tesoro** | | |
+| caja | cash box | caixa |
+| deuda destinada | obligation | obrigação |
+| deuda obligatoria | bill | conta |
+| meta | goal | meta |
+| ciclo | cycle | ciclo |
+| día de pago | payment day | dia de pagamento |
+| Se paga sola | Pays itself | Se paga sozinha |
+| adelanto | advance | adiantamento |
+| deuda interna | internal debt | dívida interna |
+| Para entregar (una deuda destinada) | To hand over | Para entregar |
+| monto fijo | fixed amount | valor fixo |
+| Ajustar el saldo | Adjust the balance | Ajustar o saldo |
 | **Los trabajos en dólares** | | |
 | Precio en | Price in | Preço em |
 | Te paga en | Client pays in | O cliente paga em |
@@ -353,6 +366,14 @@ Cada palabra nueva que se decide al traducir una zona va acá, con la zona donde
 | Cobros y facturas / Sin facturar | Payments and invoices / Not invoiced | Recebimentos e notas fiscais / Sem nota fiscal | Las fichas |
 | Cobros sin facturar | Payments not invoiced | Recebimentos sem nota fiscal | Finanzas |
 | Tus facturas / Anulada / Anula la factura C … | Your invoices / Voided / Voids Factura C … | Suas notas fiscais / Anulada / Anula a Factura C … | La página del cliente |
+| Para el estimativo / Lo que preguntás en una consulta | For the estimate / What you ask in an inquiry | Para a estimativa / O que você pergunta numa consulta | La consulta y Ajustes |
+| Es un estimativo / Pedirle una fecha para medir | It's an estimate / Ask them for a day to measure | É uma estimativa / Pedir uma data para medir | El editor del presupuesto |
+| Puede estar listo para / Si la seña entra antes del | Can be ready by / If the deposit comes in by | Pode ficar pronto para / Se o sinal entrar até | El editor del presupuesto |
+| Aprobar esta opción | Approve this option | Aprovar esta opção | La página del cliente |
+| Respuestas de tus clientes | Replies from your clients | Respostas dos seus clientes | Los avisos |
+| Cambiar la fecha (del próximo contacto) | Change the date | Mudar a data | Seguimiento y la Agenda |
+| Registrar un adelanto | Log an advance | Registrar um adiantamento | Tesoros |
+| Plata de antes de su ciclo / Ya no está | Money from before its cycle / It's gone | Dinheiro de antes do ciclo / Não está mais | Guardar la fila |
 
 Dudosas, para quien revise cada idioma: «In follow-up» / «Para retornar»; «It's a no» / «Desistiu»; «Which rate» / «Tipo de dólar»;
 «free income», «supplies», «item» (renglón), «plan» / «planta»; «Notices» para las cláusulas; «payment option»; los nombres del

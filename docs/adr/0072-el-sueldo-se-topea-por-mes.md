@@ -12,6 +12,9 @@
 - Enmendado el 2026-09-30 por el [ADR 0079](0079-las-correcciones-del-tablero.md): un cobro reabierto
   cuenta el sueldo por mes si la foto de su reapertura o el taller van por mes. «Reabrirlo no lo
   arregla» deja de valer (ver la nota en «Lo que no se corrige solo»).
+- Enmendado el 2026-10-26 por el [0087](0087-los-tipos-de-tesoro-de-eliseo.md): el sueldo del hogar deja de
+  ser «siempre por mes»: es una deuda obligatoria con su día de pago, y lo que antes se gastaba de ahí durante
+  el mes es un adelanto.
 
 ## Qué se reportó
 

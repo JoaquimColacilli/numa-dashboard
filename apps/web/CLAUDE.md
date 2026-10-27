@@ -23,7 +23,7 @@ src/
   features/    acciones del usuario (iniciar-sesion, crear-cuenta, recuperar-acceso,
                desbloquear-la-app, activar-huella, cerrar-sesion, editar-perfil,
                elegir-tema, configurar-taller, armar-la-vidriera, registrar-movimiento,
-               ajustar-cocos, editar-cliente, editar-proyecto, liquidar-proyecto,
+               editar-cliente, editar-proyecto, liquidar-proyecto, atender-la-respuesta,
                avanzar-la-consulta, hacer-el-seguimiento, llevar-la-agenda, recibir-avisos,
                adjuntar-archivos, compartir-con-el-cliente, coordinar-la-entrega,
                pedir-la-opinion, editar-la-encuesta, leer-las-opiniones, ver-novedades,
@@ -125,6 +125,7 @@ src/
 - **La holgura de abajo se mide, nunca se escribe como número** (ADR 0025). Todo lo que flota abajo vive en un solo pie fijo de `Marco` (`data-lo-que-flota-abajo`): el indicador de sincronización y, en el celular, la barra con el botón redondo **en flujo**, así que el rectángulo del pie es la huella completa. `useHolguraInferior` lo mide con `ResizeObserver` (border-box) y los eventos de tamaño, y de esa medición salen los dos consumidores:
   - el padding inferior del `<main>`: desde el borde de arriba del pie hasta el fondo **del `<main>`**, no de la ventana. En el Samsung el `<main>` se sale de la ventana y medir contra la ventana dejaba el final tapado;
   - `--holgura-inferior`: desde el borde de arriba del pie hasta el fondo de la ventana. Todo lo que se ancla con `position: fixed` sobre el contenido la usa (`bottom-(--holgura-inferior)`): hoy, los avisos y el menú de cargar.
+- **El padding del contenido no se achica mientras se escribe, ni, en el celular, mientras la barra no volvió al pie** (`data-barra-inferior`). La barra vuelve después del foco, o al soltar el toque que lo sacó: medir con el foco solo dejaba un rato con el pie vacío, el padding en cero y el scroll recortado (enmienda del ADR 0025, `holgura.ts`).
 - **Un elemento nuevo que flote abajo va adentro del pie o se ancla con `--holgura-inferior`.** No sumes otro `ResizeObserver` ni un `calc` con píxeles: dos cuentas se separan. Si lo que se agrega es una capa a pantalla completa (como la pantalla de proyecto del celular), tapa la barra y no consume nada.
 - **El fondo de la píldora tiene `backdrop-filter`, que crea un contexto de apilamiento**: lo que va encima (los botones, el botón redondo) necesita `relative` o queda pintado debajo. `destinos-en-celular.spec.ts` lo verifica.
 - `lo-que-flota-abajo.spec.ts` recorre 20 pantallas (Tesoros dos veces: mirando y editando la fila) hasta el final del scroll, con y sin señal, con zona segura de 0 a 48 px, la raíz más alta que la ventana y letra grande, y falla si hay **texto o controles** del contenido debajo de algo flotante. En la vista del cliente abierta desde la app (una obra y un contacto) además mide que su último párrafo, `data-fin-de-la-vista`, termine arriba de lo que flota (ADR 0058). Guarda capturas de cada pantalla: mirálas, la medición no ve todo.
@@ -251,10 +252,11 @@ src/
 - **jsdom no tiene `AnimationEvent`, y React escucha `webkitAnimationEnd` en su lugar.** Para terminar una animación en un test se disparan los dos eventos (`terminarLaAnimacion` en `FilaDeNecesidad.test.tsx`).
 - `shared/lib/cache/cola.test.ts` es el test de la cola: usa IndexedDB de verdad (`fake-indexeddb`) y prueba que sin red la mutación queda en pausa, sobrevive a cerrar la app y se aplica en orden al volver la señal.
 - El household de prueba se vacía con `vaciarTaller` (proyectos primero, después clientes): la base rechaza con `MN003` la baja de un cliente con proyectos vivos.
+- `vaciarTaller` borra también los pagos de los vencimientos y vuelve a fábrica las preguntas de la consulta y la meta de Cocos (ADR 0086 y 0087); las respuestas del cliente se van con los trabajos. Todo spec con sesión arranca con la propuesta de la forma nueva de la fila ya hecha (`laFormaNuevaYaSePropuso` de `e2e/apoyo/prueba`): el que quiera verla la apaga con `test.use({ laFormaNuevaYaSePropuso: false })`.
 - Playwright en `e2e/`, con cinco proyectos: `setup`, `acceso-celular` y `acceso-escritorio` (sin sesión, en `e2e/sin-sesion/`), y `celular` y `escritorio` (con sesión, en `e2e/con-sesion/`).
   - La primera vez hay que instalar chromium: `pnpm --filter @maun/web exec playwright install chromium`.
   - Necesita `apps/web/.env` con `VITE_SUPABASE_URL`, la publishable key y **`E2E_EMAIL` / `E2E_PASSWORD`**, que van sin prefijo `VITE_` porque no entran al bundle. Están en `.env.example`.
-  - `setup` entra una vez por el formulario de verdad y guarda el `storageState`; los dos proyectos con sesión lo reusan.
+  - `setup` entra una vez por el formulario de verdad y guarda el `storageState`; los dos proyectos con sesión lo reusan. Esa sesión dura una hora y la corrida entera tarda más: `e2e/apoyo/prueba` la renueva por REST cuando le quedan menos de 15 minutos (ADR 0014). Sin eso, un test que congela el reloj en el pasado y corre después de la hora ve «JWT expired».
   - **Corre contra el build (`vite build && vite preview`), no contra el dev server**: el service worker solo existe en el artefacto real, y sin él no se puede probar cerrar la app y reabrirla sin señal.
   - `workers: 1`: los proyectos comparten el household de la cuenta de prueba y cada test con sesión lo vacía antes de empezar (`e2e/apoyo/taller.ts`).
   - Ese taller se vacía en cada corrida: no lo uses para mirar datos a mano.
@@ -297,7 +299,9 @@ src/
 - **Mandar sin señal** deja la revisión en la réplica con el número vacío (`NUMERO_PENDIENTE`), la ficha dice «Se numera cuando vuelva la señal» y la hoja no ofrece el link por WhatsApp hasta que la base confirma.
 - **El link de WhatsApp de la hoja «Listo» crea el enlace al tocarlo** si el trabajo no tiene uno (pone el `href` en el mismo toque), así no queda un enlace que nadie mandó.
 - **El PDF vive en `shared/pdf`** y corre en un Worker de módulo. **Nada de la app importa `@react-pdf/*` fuera del Worker**: la guarda del build (`scripts/motor-del-pdf.ts`) falla si `pdfkit`, `fontkit` o `yoga` entran a otro chunk. Las trampas de react-pdf 4.9: nada de `lineHeight` en `Page` ni en los ancestros del pie, todo `lineHeight` con su `fontSize`, interletrado de 0,06 em como mucho y nada por debajo de 7,5 pt. La fecha de creación es el mediodía del envío en el taller: la misma revisión da los mismos bytes, y `usePdfDelPresupuesto` guarda el `Blob` por esa firma. **Lo que importe el Worker no puede traer Fast Refresh**: el runtime toca `window` y el Worker se cae con `pnpm dev` (en el build no pasa). Por eso `shared/pdf` y `shared/lib` van en el `exclude` de `react()` en `vite.config.ts`; un `.tsx` nuevo que el Worker alcance va ahí también.
-- **El plazo del presupuesto manda**: «Para cuándo» y la entrega estimada del pasaje cuentan el de la última revisión (`plazoDelPresupuesto`); sin presupuesto mandado, los 21 días hábiles de siempre.
+- **Las fechas del presupuesto mandan** (ADR 0086): «Para cuándo» y la entrega del pasaje usan «Puede estar listo para» de la última revisión (`entregaDelPresupuesto`), con la frase de Eliseo; sin fechas, el plazo de la revisión, y sin presupuesto mandado, los 21 días hábiles de siempre. «Si la seña entra antes del» arranca en hoy más `diasParaLaSena`.
+- **El estimativo es un tilde del documento** (ADR 0086): `estimativo` y `pideFecha`, sin seña ni forma de pago. Mandar mueve la etapa con `estadoAlMandar` (`entities/presupuesto`), la gemela de lo que hace la base.
+- **La dirección del presupuesto es la del trabajo** (`direccionDelPresupuesto`): el campo del editor edita `direccion_entrega` con `guardadoDeLaDireccion`, la misma mutación que «Editar», y la revisión mandada la congela.
 - **Vencido no pide la seña**: «Cómo pagar» muestra solo el aviso, «Para cuándo» no sale y «Tu mueble» lo dice. Vale también sin presupuesto armado en la app.
 - **La pantalla de Ajustes vive en `configurar-taller`**, con la mutación de la plantilla al lado de la de los ajustes: una sola barra manda los datos y los textos, con un solo aviso (la de los datos va `silencioso` cuando van las dos). Los datos que se completan solos se escriben como fichas (`EditorConDatos`, un `contentEditable`); las llaves son solo el formato guardado. **Salir con cambios** pregunta en «‹ Ajustes» y avisa el navegador al cerrar o recargar; la barra de abajo y el gesto de atrás no preguntan (la puerta no deja bloquear desde una página).
 - **«Qué falta» en «A presupuestar» sin revisión mandada** pone primero «Armar el presupuesto» (o «Seguir armándolo»): es el único primario de la ficha; los botones de la tarjeta del presupuesto son secundarios.
@@ -349,7 +353,7 @@ src/
 - **Una (i) abierta se cierra si algo de afuera scrollea o si su botón se mueve** (ADR 0079): el scroll, en captura sobre `document`, y el botón, cuadro a cuadro mientras está abierta. Si cambia lo que se ve (el teclado, girar), se reubica, sin salir del `visualViewport`. En el e2e, el dedo es `tirarYSoltar`, nunca `Input.synthesizeScrollGesture`.
 - **El rótulo del tramo al reparto entra en su hueco por geometría, no por `z-index`** (ADR 0079): la capa de rótulos de React Flow va debajo de las fichas. El reparto va a `AL_REPARTO` (128) de la cadena, el rótulo centrado en el hueco y el monto de la prueba en su propia píldora (en el celular, del otro lado de la línea). `disposicion.test.ts` («los rótulos del flujo») y `el-plano-de-tesoros.spec.ts` lo cuidan.
 - **`altoDelPaso` y `ALTO` son lo que ocupa el CSS de cada ficha**: si cambia su espaciado, cambian con él, o la última línea queda sobre la franja de color de 5 px.
-- **La meta y la tasa de Cocos se editan en la hoja del tesoro Cocos y se guardan en `ajustes`**, con la mutación de ajustes: ahí las leen `faltaConfigurar` y las apps sin actualizar. La meta de los demás tesoros es `tesoros.meta_centavos`.
+- **La meta de Cocos se edita en `tesoros`, como la de cualquier tesoro** (ADR 0087): mientras sea null, la fila y la base leen la de `ajustes.meta_cocos_centavos`. El rinde se sacó: no hay tasa ni proyección. Cocos se archiva por el camino de siempre.
 - **Cubrir el faltante** (`features/cubrir-el-faltante`) son transferencias con `cubre_el_mes`, una por tesoro de donde sale la plata; nunca desde el diezmo. **Archivar** con saldo pasa primero la plata a otro tesoro, en la cola antes del archivo.
 - **La fila optimista de `ajustes` sube `fila_version`** con la misma regla que el trigger de la base (`cambiaElReparto`, en `features/configurar-taller`), y el `onError` la devuelve: un cobro encolado detrás de una edición de Ajustes sin señal manda la revisión que la base va a tener.
 - **En Ajustes**, sin fila guardada el sueldo y los costos fijos siguen ahí (arman la fila de siempre); con fila, la sección manda a Tesoros. `faltaConfigurar` es falso con fila.
@@ -365,13 +369,16 @@ src/
   - `/tesoros?tesoro=<id>` elige ese tesoro.
 - **Los insumos son un visor, no un tesoro**: `insumosPorTrabajo` y `insumosDelTaller` de `@maun/db`. Se ven en la ficha del trabajo, en Tesoros y en Inicio, y la plata sigue en Maun.
 - **Los vencimientos** salen de la fila, no se guardan: son la tercera clase de evento de la agenda, con la marca `reloj` y la tinta `--ag-vencimiento`. «Pagado» es un gasto desde ese tesoro con el nombre del renglón como categoría en el mes.
-- **La décima clase de movimiento, «Gasto de un tesoro»** (`gasto_tesoro`), es un gasto desde cualquier tesoro del dueño. «Registrar el pago» abre `/finanzas/nuevo?clase&tesoro&monto&categoria` (y `fecha`).
-- **Inicio** suma el panorama (`pages/inicio/model/panorama.ts`).
+- **La décima clase de movimiento, «Gasto de un tesoro»** (`gasto_tesoro`), es un gasto desde cualquier tesoro del dueño, el hogar o Cocos. **El formulario ya no ofrece las clases de la casa ni las de Cocos** (`seCarga`, `CLASES_QUE_SE_CARGAN`): siguen en `CLASE` para mostrar lo viejo y para editarlo. «Registrar el pago» abre `/finanzas/nuevo?clase&tesoro&monto&categoria` (y `fecha`).
+- **Inicio** suma el panorama (`pages/inicio/model/panorama.ts`), por tipo: para pagar (las deudas), metas, cajas (sin los insumos) e insumos.
+- **Cada tesoro es una caja, una deuda destinada, una deuda obligatoria o una meta** (ADR 0087): `queEsElTesoro` del dominio, con su palabra en `NOMBRE_DE_LO_QUE_ES` y su (i) en `AyudaDeLoQueEs` (`entities/fila`). No se guarda: sale del lugar en la fila y del objetivo.
+- **Una deuda obligatoria con día de pago junta por ciclo** (`PasoDelMes.ciclo` y `vencimiento`). «Registrar el pago» desde un vencimiento lleva `vencimiento`; un adelanto es un gasto con la categoría «Adelanto». **El pago solo lo hace la base** (`pagos_de_vencimientos`, el job de cada hora): la app nunca lo escribe, solo lo muestra.
+- **La hoja de guardar la fila** manda la fila con `conElPagaSolaDesde` y, si un compromiso pasa a pagarse solo con plata de antes de su ciclo, no deja guardar hasta elegir qué hacer con ella (`model/pagaSola.ts`). La primera entrada a Tesoros propone la forma nueva una vez por aparato (`proponerLaFormaNueva`).
 
 ## La fecha de la plata (ADR 0063)
 
 - **Toda plata que entra lleva una fecha editable, con hoy por defecto, y la fecha viaja con la mutación.** Hoy es `hoyEnElTaller()` de `@/shared/lib`, el día en Argentina: nunca `toISOString()`, que después de las 21 ya es mañana. La base no inventa ninguna: rechaza la que falta (`MN016`) y la que todavía no llegó (`MN017`), y la pantalla lo avisa antes con `errorDeLaFechaDeLaPlata`.
-- **El cobro toma por defecto el día del último pago** (`fechaDelCobroPropuesta`), también el del pago final que se carga en la misma pantalla, y reabrir deja puesta la fecha del cobro original.
+- **El cobro propone su fecha con `fechaDelCobroPropuesta`** (ADR 0087): una reapertura, su día; con pago final, ese día (nunca después de hoy); saldado con sus pagos, el día del último; si no, hoy. Nunca el día de la seña de un trabajo en curso. Reabrir deja puesta la fecha del cobro original.
 - **Si la fecha es anterior a la apertura, `CasillaDeLaApertura` pregunta si esa plata ya estaba en los saldos**, tildada por defecto: queda en el libro con su fecha y no mueve los tesoros. Solo aparece antes de la apertura; marcar algo posterior lo rechaza la base (`MN018`).
 
 ## Finanzas, el diezmo y los movimientos (ADR 0018)
@@ -404,12 +411,14 @@ src/
 
 - **En seguimiento es un estado, `en_seguimiento`, con su próximo contacto** (`proximos_contactos`). Se entra desde cualquier consulta con `HojaDePonerEnSeguimiento` y se sale registrando el contacto (`HojaDeRegistrarElContacto`): vuelve a una consulta, sigue con otra fecha o no va, que lleva al cierre del perdido. Los dos viajan en `MUTACION_DE_PROYECTO` con `proximos`, en el mismo guardado que el estado: nunca los guardes por separado, la base exige los dos juntos (`MN019`). La ficha es `FichaDeSeguimiento`, elegida por la fase como las otras.
 - **No se aprueba desde seguimiento**: la ficha no ofrece aprobar. Se vuelve a una consulta y se aprueba por el camino de siempre, donde se carga la seña.
-- **En la agenda es un derivado que no se arrastra**: cambiar el día es registrar el contacto, que deja historia. La marca de importante vive en la fila del contacto y va por `MUTACION_DE_MARCA_DEL_SEGUIMIENTO`.
+- **El próximo contacto cambia de fecha en su lugar** (ADR 0086): «Cambiar la fecha» en la ficha y en el detalle de la agenda, y el arrastre a hoy o a un día que viene, por `MUTACION_DE_LA_FECHA_DEL_CONTACTO` (la cola, con versión). No cierra el contacto ni deja historia: eso es registrarlo. La marca de importante vive en la fila del contacto y va por `MUTACION_DE_MARCA_DEL_SEGUIMIENTO`.
 - **La fecha del próximo contacto se elige con `CuandoLeEscribis`** (una semana, un mes, tres meses u otro día desde hoy). La misma pieza sirve para entrar y para «todavía no».
 
 ## Consultas: el embudo (ADR 0019, 0038 y 0064)
 
 - Hasta el ADR 0064 esta pestaña se llamaba Seguimiento; en el código del front se dice consultas (`ListaDeConsultas`, `features/avanzar-la-consulta`, `RUTA_DE_CONSULTAS`), y en la base quedan los nombres viejos.
+- **«Editar» abre el editor completo en todas las fichas** (ADR 0086), y la lista de campos es `CAMPOS_DEL_TRABAJO` (`entities/proyecto/model/campos.ts`): un campo nuevo se marca con `marcaDelCampo`, y el test de los dos caminos falla si la hoja rápida tiene uno que «Editar» no. En una consulta suma el teléfono del cliente, que se guarda con `MUTACION_DE_CLIENTE`, y el aviso es el del contacto.
+- **Las preguntas de la consulta son del taller y las respuestas del trabajo**: `preguntasDelTaller(replica)` y `MUTACION_DE_RESPUESTAS_DE_LA_CONSULTA`, que se guardan solas como las notas. El domicilio no es una respuesta: es `direccion_entrega`. Su rótulo y su ayuda van con `translate="no"`: son del taller, aunque las de fábrica salgan del dominio en el idioma del dueño (el seudoidioma de `e2e:reparto` lo mira).
 - **Un contacto es una fila de `proyectos` en fase de consultas.** No tiene tabla ni mutación
   propia: todo pasa por `MUTACION_DE_PROYECTO`, y la seña es un pago del agregado. No agregues una
   tabla de leads: la seña tendría que mudarse al aprobar, y eso es lo que no puede pasar.
@@ -504,6 +513,7 @@ src/
 - **Las fotos se abren en el visor, no en otra pestaña** (ADR 0079): las miniaturas de «Fotos y planos» y de la vidriera son botones; los PDF siguen siendo enlaces. Con un `dialog` modal abierto, `/v/` no scrollea (`:has(dialog:modal)` en `index.css`) y lleva a la derecha el ancho de la barra que anotó `useVisor` (`--barra-del-documento`); `scrollbar-gutter` no sirve acá (ADR 0079). En el e2e, las pestañas se cuentan con `context.on('page')`, nunca con `waitForEvent('page')`.
 - **El bloque «Relevamiento técnico» lo decide el dominio** (`relevamientoPorHacer`, ADR 0079): va abajo de los pasos del camino, en lugar de «lo próximo». Su valor se carga en Ajustes, «Tu taller» (`cambioDelRelevamiento`: vacío o 0 es `null`), y una fila de la réplica sin la columna se lee con $ 120.000 (`valorDelRelevamiento`).
 - **«Mostrarle al cliente» va en el cuerpo de la ficha, no en el encabezado.** Con tres botones, el encabezado no entra en 390 px y todo lo que empuja para abajo termina debajo de lo que flota abajo (ADR 0025): un toque en el botón de un formulario que quedó ahí lo recibe la barra, no el botón, y el click nunca llega. Lo mismo pasó con el formulario del pasaje, que con la seña quedó más largo: el e2e lo manda con Enter, que no depende de dónde quedó parada la pantalla.
+- **El cliente aprueba desde su página** (ADR 0086) por `aprobarElPresupuestoDelCliente` de `shared/api`: una función de la base que corre elevada y valida todo; la página no escribe en ninguna tabla. Una respuesta por revisión; si se equivocó, le escribe al taller.
 
 ## La vidriera del taller (ADR 0076)
 
@@ -609,6 +619,7 @@ src/
 - **Si el servidor puede mandar lo dice el `GET` de la función** (`servidorDeAvisos`), que trae también la clave pública. No hay variable de entorno de la clave: no la agregues al bundle.
 - **Es la única pantalla del marco con carga y error propios**, porque no sale de la réplica.
 - Los cambios de preferencias son optimistas, van en serie (`cadena`) y vuelven atrás si la base los rechaza.
+- **«Respuestas de tus clientes» avisa en el momento** (ADR 0086): cuando el cliente aprueba, la base le pide el aviso a la función por pg_net; la app no manda nada. La respuesta se marca atendida desde la ficha (`features/atender-la-respuesta`), y mientras no, el aviso de la mañana la repite.
 - **La carga del push la arma `supabase/functions/avisos/texto.ts` y la lee `sw/sw.ts`** (`titulo`, `cuerpo`, `url`, `etiqueta`): si cambia una, cambia la otra.
 - **No hay campana, y no la agregues** (ADR 0036). Una campana promete una bandeja de mensajes y la app no tiene ninguna: los avisos son push, y lo que existe es una pantalla de configuración en Ajustes, en la hoja que abre la foto de Inicio. Tampoco va «Avisos» aparte en la barra lateral: Ajustes ya está ahí. Si alguna vez hace falta el historial de lo avisado, es una bandeja de verdad y va en su propio paso. El ícono del encabezado de Inicio es la agenda.
 

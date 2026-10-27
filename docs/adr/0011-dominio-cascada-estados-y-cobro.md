@@ -13,6 +13,12 @@ Estado: aceptada, 2026-09-11. Actualizada el mismo día con los topes mensuales,
   cascada es la suma de los valores en pesos de los pagos (un pago en dólares vale sus dólares a su
   cotización), en `liquidar` y en su gemela; nada más de la cuenta cambia. Un perdido retiene la seña por su
   valor en pesos.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md) y el
+  [0087](0087-los-tipos-de-tesoro-de-eliseo.md): gemelas nuevas, atadas en el comparador: las preguntas y las
+  respuestas de la consulta, las fechas del presupuesto (`es_fecha_que_existe`), la aprobación del cliente, el
+  ciclo y el día del mes, «se paga sola desde», la fila con día de pago y monto fijo, y la cuenta del pago de
+  un vencimiento (`pagosQueCorresponden`).
 
 ## Contexto
 

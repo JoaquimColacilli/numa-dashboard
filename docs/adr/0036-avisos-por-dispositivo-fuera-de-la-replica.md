@@ -20,6 +20,11 @@
   `facturacion-control`, a las 6:15 de la Argentina) y su URL y su secreto van en Vault (`facturar_url` y
   `facturar_secreto`). Los secretos de las funciones son del proyecto: ninguna que no sea `facturar` lee
   `ARCA_*`.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md) y el
+  [0087](0087-los-tipos-de-tesoro-de-eliseo.md): séptima categoría, «Respuestas de tus clientes», prendida,
+  que avisa en el momento en que el cliente aprueba (y se repite a la mañana mientras no se atiende); el aviso
+  de la mañana de un vencimiento pagado solo dice cuánto se pagó y cuánto puso Maun.
 
 ## Contexto
 

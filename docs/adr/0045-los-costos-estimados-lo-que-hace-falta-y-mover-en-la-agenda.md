@@ -27,6 +27,9 @@
   flete y ayudante) más «otro», para comparar lo estimado con lo gastado cuando haya trabajos cobrados con
   gastos categorizados. Estadísticas cuenta lo que hace falta de tipo material y herraje en «Lo que más
   usás».
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): el seguimiento también
+  se mueve en la agenda, a hoy o a un día que viene.
 
 ## Contexto
 

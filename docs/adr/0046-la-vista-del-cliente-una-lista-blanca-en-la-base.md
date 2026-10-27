@@ -21,6 +21,11 @@ Estado: aceptada, 2026-09-18. Corregida el 2026-09-19: el cliente ya no ve cuán
   factura, porque son del propio cliente y el PDF los necesita. Lo de la emisión (el rechazo, los intentos,
   la toma y el último error) no viaja, y `25_vista_del_cliente.sql` clasifica cada columna de
   `comprobantes`.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): la vista suma el
+  estimativo desde que se manda, la revisión que espera respuesta con su id, si pide fecha, y lo que el
+  cliente le contestó, las dos fechas del presupuesto y la seña vencida. Las respuestas de la consulta no
+  viajan.
 
 ## Contexto
 

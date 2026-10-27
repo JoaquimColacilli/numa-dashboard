@@ -23,6 +23,9 @@
   analítico en Historial arma su frase con el catálogo, en el idioma de la app: el dominio devuelve los
   números y ya no escribe la frase (en inglés y en portugués salía en castellano). La sección ③ de
   Estadísticas usa las mismas definiciones del analítico, y en «Todo» da sus mismos números.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): la entrega estimada
+  sale de la fecha del presupuesto aprobado, y aprobar la propone.
 
 ## Contexto
 

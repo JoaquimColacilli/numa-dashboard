@@ -12,6 +12,8 @@
   quien abre desde el primer cuadro: el build lleva sus textos en los tres idiomas y el script del `head`
   escribe el del idioma en el único elemento con texto, antes de pintar, con la misma regla que React. En otro
   idioma que el castellano, el esqueleto queda hasta que llega el primer catálogo.
+- Enmendado el 2026-10-26 por el [0087](0087-los-tipos-de-tesoro-de-eliseo.md): el esqueleto dibuja tres
+  tesoros, los de un taller nuevo.
 
 ## Contexto
 

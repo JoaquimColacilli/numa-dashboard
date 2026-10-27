@@ -29,6 +29,11 @@
   con las mismas fuentes, estilos y medidas, siempre en castellano y con el QR de ARCA dibujado con `uqr`;
   nada fuera del Worker importa `@react-pdf/*`. El mismo comprobante da los mismos bytes (`creationDate` al
   mediodía de su fecha) y en homologación lleva de fondo «PRUEBA · SIN VALIDEZ FISCAL», como el borrador.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): el estimativo es un
+  tilde del presupuesto, que también puede pedir una fecha para medir; el plazo en días hábiles deja lugar a
+  dos fechas («Puede estar listo para» y «Si la seña entra antes del») con la frase de Eliseo; la dirección es
+  la del trabajo.
 
 ## Contexto
 
