@@ -107,7 +107,7 @@ test.describe('en la compu', () => {
     );
     await expect(sumarlo.getByRole('button')).toHaveCount(0);
 
-    await ficha(page, /^Compromiso \d de \d: Maun,/).click();
+    await ficha(page, /^Caja \d de \d: Maun,/).click();
     await detalleDe(page).getByRole('button', { name: 'Comprar dólares' }).click();
     await cargarElCambio(page, { sale: '725.000', entra: '500' });
     const hoja = page.getByRole('dialog', { name: 'Cargar un movimiento' });
