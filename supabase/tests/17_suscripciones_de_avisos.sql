@@ -44,7 +44,7 @@ select is(
     'preferencias', jsonb_build_object(
       'zona', 'America/Argentina/Buenos_Aires',
       'hora', '07:30',
-      'avisos', '{"entregas": {"activo": true, "anticipacion": 2}, "visitas": {"activo": true, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 1}, "seguimientos": {"activo": true, "anticipacion": 0}, "vencimientos": {"activo": true, "anticipacion": 0}, "anotaciones": {"activo": false, "anticipacion": 0}}'::jsonb
+      'avisos', '{"entregas": {"activo": true, "anticipacion": 2}, "visitas": {"activo": true, "anticipacion": 1}, "presupuestos": {"activo": true, "anticipacion": 1}, "seguimientos": {"activo": true, "anticipacion": 0}, "vencimientos": {"activo": true, "anticipacion": 0}, "anotaciones": {"activo": false, "anticipacion": 0}, "respuestas": {"activo": true, "anticipacion": 0}}'::jsonb
     )
   ),
   'registrar el dispositivo lo deja suscripto y crea las preferencias con la zona que eligió'
