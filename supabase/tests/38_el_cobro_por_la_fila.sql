@@ -26,6 +26,9 @@ select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('b', tests.crear_usuario('b@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
 select tests.guardar('household_b', private.crear_household('Taller B', tests.id('b')));
+-- Un taller de antes de los tipos de tesoro, con Cocos.
+select private.sembrar_cocos(tests.id('household_a'));
+select private.sembrar_cocos(tests.id('household_b'));
 
 select tests.guardar('hogar', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'hogar'));
 select tests.guardar('maun', (select id from public.tesoros where household_id = tests.id('household_a') and clave = 'maun'));
@@ -1299,7 +1302,7 @@ select ok(
     from unnest(array[
       'private.lo_del_mes_es_otro(uuid[], uuid[], jsonb, jsonb)',
       'private.entero_de_json(jsonb)',
-      'private.repartir_por_la_fila(bigint, bigint, integer[], text[], bigint[], bigint[], boolean[], integer[], bigint[])',
+      'private.repartir_por_la_fila(bigint, bigint, integer[], text[], bigint[], bigint[], boolean[], integer[], bigint[], bigint[])',
       'private.fila_de_siempre(bigint, bigint, boolean, uuid, uuid, uuid)',
       'private.problema_de_la_fila(jsonb, jsonb)',
       'private.plan_del_reparto(text, jsonb, boolean, boolean, uuid, uuid)',
@@ -1319,12 +1322,12 @@ select is_empty(
       and p.proname in ('lo_del_mes_es_otro', 'repartir_por_la_fila', 'fila_de_siempre', 'plan_del_reparto')
       and p.oid::regprocedure::text not in (
         'private.lo_del_mes_es_otro(uuid[],uuid[],jsonb,jsonb)',
-        'private.repartir_por_la_fila(bigint,bigint,integer[],text[],bigint[],bigint[],boolean[],integer[],bigint[])',
+        'private.repartir_por_la_fila(bigint,bigint,integer[],text[],bigint[],bigint[],boolean[],integer[],bigint[],bigint[])',
         'private.fila_de_siempre(bigint,bigint,boolean,uuid,uuid,uuid)',
         'private.plan_del_reparto(text,jsonb,boolean,boolean,uuid,uuid)'
       )
   $$,
-  'de cada gemela que cambió de firma queda una sola versión: la de los tipos de tesoro'
+  'de cada gemela que cambió de firma queda una sola versión: la de los compromisos con día de pago'
 );
 
 select tests.salir();

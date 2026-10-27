@@ -6,7 +6,7 @@ select plan(18);
 
 select tables_are(
   'public',
-  array['households', 'household_members', 'clientes', 'proyectos', 'pagos', 'gastos', 'opciones_de_presupuesto', 'necesidades', 'movimientos', 'ajustes', 'anotaciones', 'archivos', 'enlaces_publicos', 'cambios_de_estado', 'preguntas', 'encuestas_enviadas', 'respuestas', 'renglones_de_respuesta', 'proximos_contactos', 'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera', 'tesoros', 'repartos', 'presupuestos', 'revisiones_del_presupuesto', 'comprobantes'],
+  array['households', 'household_members', 'clientes', 'proyectos', 'pagos', 'gastos', 'opciones_de_presupuesto', 'necesidades', 'movimientos', 'ajustes', 'anotaciones', 'archivos', 'enlaces_publicos', 'cambios_de_estado', 'preguntas', 'encuestas_enviadas', 'respuestas', 'renglones_de_respuesta', 'proximos_contactos', 'propuestas_de_entrega', 'respuestas_de_entrega', 'cambios_de_fecha', 'fotos_de_la_vidriera', 'tesoros', 'repartos', 'presupuestos', 'revisiones_del_presupuesto', 'comprobantes', 'respuestas_al_presupuesto', 'pagos_de_vencimientos'],
   'public tiene exactamente las tablas esperadas: una tabla nueva obliga a revisar esta suite'
 );
 
@@ -23,9 +23,9 @@ select set_eq(
   array[
     'bootstrap', 'delta', 'cobrar_proyecto', 'reabrir_proyecto', 'cerrar_perdido', 'reactivar_perdido', 'guardar_proyecto',
     'registrar_suscripcion', 'dar_de_baja_suscripcion', 'estado_de_mis_avisos', 'guardar_preferencias_de_avisos',
-    'suscripciones_para_probar', 'anotar_aviso', 'borrar_suscripcion_vencida', 'avisos_por_mandar',
+    'suscripciones_para_probar', 'anotar_aviso', 'borrar_suscripcion_vencida', 'avisos_por_mandar', 'aviso_de_la_respuesta',
     'vista_del_cliente', 'vista_compartida', 'titulo_compartido', 'encuesta_compartida', 'contestar_encuesta',
-    'proponer_la_entrega', 'responder_la_entrega', 'guardar_la_fila',
+    'proponer_la_entrega', 'responder_la_entrega', 'responder_el_presupuesto', 'guardar_la_fila', 'cambiar_la_fecha_del_contacto',
     'guardar_la_plantilla_del_presupuesto', 'guardar_el_presupuesto', 'mandar_el_presupuesto',
     'pedir_la_factura', 'pedir_la_nota_de_credito', 'descartar_la_alerta_de_facturacion',
     'facturacion_pendientes', 'facturacion_tomar', 'facturacion_anotar', 'facturacion_tomar_el_login',
@@ -96,7 +96,8 @@ select is_empty(
 
 -- Las puertas del rol anónimo, enumeradas. Son la vista del cliente entrando por el link, el
 -- título que alimenta su vista previa, las dos de la encuesta: la que la muestra y la que guarda
--- lo que contestó (ADR 0057), y la que guarda lo que contesta sobre la entrega (ADR 0071). No puede haber ninguna otra: en esta plataforma Postgres le da
+-- lo que contestó (ADR 0057), la que guarda lo que contesta sobre la entrega (ADR 0071) y la que
+-- guarda lo que aprueba del presupuesto (los detalles a mejorar). No puede haber ninguna otra: en esta plataforma Postgres le da
 -- execute a public y Supabase se lo da además a anon por default privileges, así que una función
 -- nueva que se olvide el revoke le queda alcanzable a cualquiera sin sesión (ADR 0046).
 select set_eq(
@@ -106,8 +107,8 @@ select set_eq(
     where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
       and has_function_privilege('anon', p.oid, 'EXECUTE')
   $$,
-  array['vista_compartida(text)', 'titulo_compartido(text)', 'encuesta_compartida(text)', 'contestar_encuesta(text,jsonb)', 'responder_la_entrega(text,jsonb)'],
-  'anon ejecuta exactamente cinco funciones de la base: la del link del cliente, la del título de su vista previa, las dos de la encuesta y la de la entrega'
+  array['vista_compartida(text)', 'titulo_compartido(text)', 'encuesta_compartida(text)', 'contestar_encuesta(text,jsonb)', 'responder_la_entrega(text,jsonb)', 'responder_el_presupuesto(text,jsonb)'],
+  'anon ejecuta exactamente seis funciones de la base: la del link del cliente, la del título de su vista previa, las dos de la encuesta, la de la entrega y la del presupuesto'
 );
 
 -- Y son las únicas que corren elevadas. Sin security definer no llegarían a ninguna tabla, porque
@@ -120,8 +121,8 @@ select set_eq(
       and p.prorettype <> 'event_trigger'::regtype
       and p.prosecdef
   $$,
-  array['vista_compartida(text)', 'titulo_compartido(text)', 'encuesta_compartida(text)', 'contestar_encuesta(text,jsonb)', 'responder_la_entrega(text,jsonb)'],
-  'las únicas funciones security definer de public son las cinco de los enlaces: sin elevar no llegan a ninguna tabla'
+  array['vista_compartida(text)', 'titulo_compartido(text)', 'encuesta_compartida(text)', 'contestar_encuesta(text,jsonb)', 'responder_la_entrega(text,jsonb)', 'responder_el_presupuesto(text,jsonb)'],
+  'las únicas funciones security definer de public son las seis de los enlaces: sin elevar no llegan a ninguna tabla'
 );
 
 select is_empty(

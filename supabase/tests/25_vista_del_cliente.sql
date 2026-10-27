@@ -12,7 +12,7 @@
 -- mirado. Ajustes entró a la lista con los datos para transferir: desde que uno de sus campos viaja
 -- a la superficie pública, la tabla entera necesita la misma vigilancia que proyectos.
 
-select plan(159);
+select plan(160);
 
 select tests.guardar('ana', tests.crear_usuario('ana@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller de Ana', tests.id('ana')));
@@ -38,7 +38,8 @@ select tests.guardar('household_b', private.crear_household('Taller de Beto', te
 -- («entrega.comprometida»); el tipo de proyecto es una palabra del dueño para su analítico y no viaja.
 -- La fila con la que se liquidó, lo que cada tesoro llevaba del mes y la foto de la reapertura (ADR
 -- 0078) son la distribución del taller, como los dist_*: no viajan. Desde el ADR 0081 viajan la moneda
--- del trabajo y en qué le paga; el dólar de los costos es de los costos, y no viaja.
+-- del trabajo y en qué le paga; el dólar de los costos es de los costos, y no viaja. Lo contestado
+-- en la consulta para el estimativo es de la charla del taller con el cliente: no viaja.
 select set_eq(
   $$
     select a.attname::text
@@ -71,7 +72,8 @@ select set_eq(
     'sena_bp', 'entrega_hora', 'visita_hora',
     'costo_madera_centavos', 'costo_herrajes_centavos', 'costo_flete_centavos',
     'costo_ayudante_centavos',
-    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila'
+    'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila',
+    'respuestas_de_la_consulta'
   ],
   'toda columna de proyectos está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );
@@ -94,7 +96,8 @@ select set_eq(
 -- clientes (ADR 0082) viaja: es en el que le habla la página. La cuenta en dólares y el dólar del día
 -- (ADR 0081) viajan, cada uno solo cuando toca. La facturación con ARCA (ADR 0085) no viaja como columnas:
 -- la conexión, los datos para facturar y las alertas son del taller; lo que el cliente ve de sus facturas
--- sale congelado de cada comprobante, y el ambiente solo decide si se le muestran las de prueba.
+-- sale congelado de cada comprobante, y el ambiente solo decide si se le muestran las de prueba. Lo que
+-- el taller pregunta en una consulta es suyo: no viaja.
 select set_eq(
   $$
     select a.attname::text
@@ -117,7 +120,7 @@ select set_eq(
     'taller_email', 'plantilla_del_presupuesto', 'plantilla_del_presupuesto_version',
     'facturacion_ambiente', 'facturacion_cuit', 'facturacion_punto_de_venta', 'facturacion_desde',
     'facturacion_concepto', 'facturacion_categoria', 'facturacion_ingresos_brutos',
-    'facturacion_inicio_de_actividades', 'facturacion_alertas'
+    'facturacion_inicio_de_actividades', 'facturacion_alertas', 'preguntas_de_la_consulta'
   ],
   'toda columna de ajustes está clasificada: una columna nueva rompe este test hasta que alguien decida si el cliente la ve'
 );
@@ -147,7 +150,8 @@ select set_eq(
 -- De la última revisión viaja el documento que se le mandó, con su número, su revisión y su día, y lo
 -- que cambió mientras espera la seña. Desde que aprueba, el documento con solo la opción que eligió. Su
 -- vigencia es historia del taller: la viva es la del trabajo, fechas.vale_hasta. Su idioma viaja: es
--- el de su contenido (ADR 0082).
+-- el de su contenido (ADR 0082). Su id viaja mientras espera respuesta: es con lo que el cliente la
+-- aprueba (los detalles a mejorar).
 select set_eq(
   $$
     select a.attname::text
@@ -156,12 +160,31 @@ select set_eq(
   $$,
   array[
     -- Viajan
-    'numero', 'revision', 'mandado_el', 'que_cambio', 'contenido', 'idioma',
+    'numero', 'revision', 'mandado_el', 'que_cambio', 'contenido', 'idioma', 'id',
     -- No viajan
-    'id', 'household_id', 'presupuesto_id', 'proyecto_id', 'vale_hasta',
+    'household_id', 'presupuesto_id', 'proyecto_id', 'vale_hasta',
     'created_at', 'updated_at', 'deleted_at', 'version'
   ],
   'toda columna de las revisiones del presupuesto está clasificada'
+);
+
+-- De lo que el cliente le contestó a la revisión que espera viaja lo que él mismo eligió y el día en que
+-- lo contestó. La nota es para el taller, y cuándo la atendió el dueño y a qué trabajo pertenece son
+-- cosas del taller.
+select set_eq(
+  $$
+    select a.attname::text
+    from pg_attribute a
+    where a.attrelid = 'public.respuestas_al_presupuesto'::regclass and a.attnum > 0 and not a.attisdropped
+  $$,
+  array[
+    -- Viajan
+    'opcion_id', 'respondida_el', 'dia', 'franja',
+    -- No viajan
+    'id', 'household_id', 'proyecto_id', 'revision_id', 'nota', 'atendida_at',
+    'created_at', 'updated_at', 'deleted_at', 'version'
+  ],
+  'toda columna de las respuestas al presupuesto está clasificada'
 );
 
 

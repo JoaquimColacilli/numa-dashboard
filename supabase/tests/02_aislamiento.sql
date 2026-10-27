@@ -8,6 +8,9 @@ select tests.guardar('b', tests.crear_usuario('b@maun.test'));
 select tests.guardar('sin_taller', tests.crear_usuario('sin-taller@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
 select tests.guardar('household_b', private.crear_household('Taller B', tests.id('b')));
+-- Un taller de antes de los tipos de tesoro, con Cocos.
+select private.sembrar_cocos(tests.id('household_a'));
+select private.sembrar_cocos(tests.id('household_b'));
 select tests.guardar('hogar_b', (select id from public.tesoros where household_id = tests.id('household_b') and clave = 'hogar'));
 
 -- Cada usuario carga lo suyo con su propia sesión: esto ejercita los defaults, los grants y el
@@ -131,7 +134,7 @@ select isnt_empty('select 1 from public.libro_mayor', 'el libro mayor de A tiene
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 2, "fotos_de_la_vidriera": 1, "presupuestos": 1, "revisiones_del_presupuesto": 1, "comprobantes": 1}'::jsonb,
+  '{"households": 1, "household_members": 1, "ajustes": 1, "tesoros": 4, "repartos": 0, "clientes": 1, "proyectos": 1, "pagos": 1, "gastos": 1, "opciones_de_presupuesto": 1, "necesidades": 1, "movimientos": 1, "anotaciones": 1, "archivos": 1, "enlaces_publicos": 1, "proximos_contactos": 1, "preguntas": 5, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 2, "fotos_de_la_vidriera": 1, "presupuestos": 1, "revisiones_del_presupuesto": 1, "comprobantes": 1, "respuestas_al_presupuesto": 0, "pagos_de_vencimientos": 0}'::jsonb,
   'bootstrap() de A trae su household completo, con las cinco preguntas de la encuesta que nace escrita, sus cuatro tesoros de siempre, las dos etapas de su trabajo, su comprobante y ningún reparto'
 );
 
@@ -354,7 +357,7 @@ select tests.entrar_como(tests.id('sin_taller'));
 
 select is(
   (select jsonb_object_agg(t.clave, jsonb_array_length(t.valor)) from jsonb_each(public.bootstrap() - 'cursor') as t (clave, valor)),
-  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 0, "fotos_de_la_vidriera": 0, "presupuestos": 0, "revisiones_del_presupuesto": 0, "comprobantes": 0}'::jsonb,
+  '{"households": 0, "household_members": 0, "ajustes": 0, "tesoros": 0, "repartos": 0, "clientes": 0, "proyectos": 0, "pagos": 0, "gastos": 0, "opciones_de_presupuesto": 0, "necesidades": 0, "movimientos": 0, "anotaciones": 0, "archivos": 0, "enlaces_publicos": 0, "proximos_contactos": 0, "preguntas": 0, "encuestas_enviadas": 0, "respuestas": 0, "renglones_de_respuesta": 0, "propuestas_de_entrega": 0, "respuestas_de_entrega": 0, "cambios_de_fecha": 0, "cambios_de_estado": 0, "fotos_de_la_vidriera": 0, "presupuestos": 0, "revisiones_del_presupuesto": 0, "comprobantes": 0, "respuestas_al_presupuesto": 0, "pagos_de_vencimientos": 0}'::jsonb,
   'un usuario sin household no ve nada'
 );
 

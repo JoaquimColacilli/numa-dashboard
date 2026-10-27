@@ -5,6 +5,9 @@ select plan(82);
 select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
 select tests.guardar('household_b', private.crear_household('Taller B', null));
+-- Un taller de antes de los tipos de tesoro, con Cocos.
+select private.sembrar_cocos(tests.id('household_a'));
+select private.sembrar_cocos(tests.id('household_b'));
 
 
 -- UUIDv7 ---------------------------------------------------------------------------------------
@@ -634,9 +637,9 @@ select throws_ok(
   '23514', null, 'solo una transferencia cubre un mes: un ingreso no'
 );
 
-select throws_ok(
-  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-09-15') $$,
-  '23514', null, 'el mes que se cubre va como su primer día'
+select lives_ok(
+  $$ insert into public.movimientos (fecha, tipo, tesoro_origen, hacia_id, monto_centavos, cubre_el_mes) values ('2026-09-02', 'transferencia', 'maun', 'aaaaaaaa-0000-7000-8000-000000000052', 100, '2026-08-15') $$,
+  'lo que se cubre es el ciclo, que arranca el día de pago del compromiso: con el día 15, el 15 (los tipos de tesoro)'
 );
 
 select throws_ok(
