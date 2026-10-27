@@ -4,7 +4,7 @@
 --
 -- Hoy en el taller es el 25 de septiembre de 2026.
 
-select plan(69);
+select plan(71);
 
 select set_config('maun.hoy_en_el_taller', '2026-09-25', true);
 
@@ -238,44 +238,126 @@ select is(
 
 -- La siembra -------------------------------------------------------------------------------------------------
 
--- Las importadas las dejó la migración con los trabajos aprobados que tenían estimada. Se miran las que
--- haya en la base: nacieron sin conteos, de una estimada, una por trabajo, y con el día de la aprobación
--- cuando quedó registrado.
+-- Las importadas las dejó una sola vez la migración del 2026-09-25, con los trabajos aprobados que ya tenían
+-- estimada: con el día de la aprobación si quedó en cambios_de_estado, y si no con el de la migración. El test
+-- no mira las de los talleres de verdad, que siguen su vida: en MAUN, un importado volvió a presupuesto y se
+-- aprobó de nuevo, y su primera aprobación anotada quedó después de su importada. Arma el taller de Carla con
+-- trabajos de antes de la historia, les pasa la misma siembra y mira esos.
 select tests.salir();
+select tests.guardar('carla', tests.crear_usuario('carla@maun.test'));
+select tests.guardar('household_c', private.crear_household('Taller de Carla', tests.id('carla')));
 
-select is_empty(
+select tests.entrar_como(tests.id('carla'));
+
+insert into public.clientes (id, nombre) values ('cccccccc-0000-7000-8000-000000000001', 'Marta Gómez');
+
+-- Tres aprobados con estimada: uno en curso, uno entregado y uno cuya aprobación quedó anotada. Y los que la
+-- siembra deja afuera: una consulta, uno sin estimada y uno borrado.
+insert into public.proyectos (id, cliente_id, titulo, estado, entrega_estimada) values
+  ('cccccccc-0000-7000-8000-000000000101', 'cccccccc-0000-7000-8000-000000000001', 'Vanitory', 'en_curso', '2026-10-30'),
+  ('cccccccc-0000-7000-8000-000000000103', 'cccccccc-0000-7000-8000-000000000001', 'Rack', 'presupuesto_enviado', '2026-11-05'),
+  ('cccccccc-0000-7000-8000-000000000104', 'cccccccc-0000-7000-8000-000000000001', 'Mesa', 'presupuesto_enviado', '2026-11-12'),
+  ('cccccccc-0000-7000-8000-000000000106', 'cccccccc-0000-7000-8000-000000000001', 'Placard', 'en_curso', '2026-11-20');
+insert into public.proyectos (id, cliente_id, titulo, estado, entrega_estimada, fecha_entrega) values
+  ('cccccccc-0000-7000-8000-000000000102', 'cccccccc-0000-7000-8000-000000000001', 'Escritorio', 'entregado',
+   '2026-09-20', '2026-09-18');
+insert into public.proyectos (id, cliente_id, titulo, estado) values
+  ('cccccccc-0000-7000-8000-000000000105', 'cccccccc-0000-7000-8000-000000000001', 'Biblioteca', 'en_curso');
+update public.proyectos set estado = 'en_curso' where id = 'cccccccc-0000-7000-8000-000000000103';
+update public.proyectos set deleted_at = now() where id = 'cccccccc-0000-7000-8000-000000000106';
+
+-- Antes de la historia no había fechas anotadas, y de las etapas queda solo la aprobación del Rack.
+select tests.salir();
+delete from public.cambios_de_fecha where household_id = tests.id('household_c');
+delete from public.cambios_de_estado
+  where household_id = tests.id('household_c') and proyecto_id <> 'cccccccc-0000-7000-8000-000000000103';
+
+-- La siembra de la migración, tal cual, sobre el taller de Carla.
+insert into public.cambios_de_fecha (household_id, proyecto_id, tipo, fecha, origen, decidido_el)
+select
+  p.household_id,
+  p.id,
+  'estimada',
+  p.entrega_estimada,
+  'importada',
+  coalesce(
+    (
+      select min(c.ocurrio_el)
+      from public.cambios_de_estado c
+      where c.household_id = p.household_id and c.proyecto_id = p.id and c.hacia = 'en_curso'
+    ),
+    private.hoy_en_el_taller()
+  )
+from public.proyectos p
+where p.household_id = tests.id('household_c')
+  and p.deleted_at is null
+  and p.estado in ('en_curso', 'entregado', 'cobrado')
+  and p.entrega_estimada is not null;
+
+select results_eq(
   $$
-    select c.id from public.cambios_de_fecha c
-    where c.origen = 'importada'
-      and (c.tipo <> 'estimada' or c.fecha is null or c.trabajos_en_curso is not null or c.fecha_anterior is not null)
+    select c.proyecto_id, c.tipo::text, c.fecha, c.fecha_anterior, c.trabajos_en_curso, c.trabajos_sin_terminar
+    from public.cambios_de_fecha c
+    where c.household_id = tests.id('household_c') and c.origen = 'importada'
+    order by c.proyecto_id
   $$,
-  'cada importada es una estimada con su fecha, sin conteos y sin anterior'
+  $$
+    values
+      ('cccccccc-0000-7000-8000-000000000101'::uuid, 'estimada', '2026-10-30'::date, null::date, null::integer, null::integer),
+      ('cccccccc-0000-7000-8000-000000000102'::uuid, 'estimada', '2026-09-20'::date, null::date, null::integer, null::integer),
+      ('cccccccc-0000-7000-8000-000000000103'::uuid, 'estimada', '2026-11-05'::date, null::date, null::integer, null::integer)
+  $$,
+  'una importada por cada aprobado con estimada, y ninguna para la consulta, el que no tiene estimada ni el borrado: una estimada con su fecha, sin anterior y sin conteos'
+);
+
+select results_eq(
+  $$
+    select c.proyecto_id, c.decidido_el
+    from public.cambios_de_fecha c
+    where c.household_id = tests.id('household_c') and c.origen = 'importada'
+    order by c.proyecto_id
+  $$,
+  $$
+    values
+      ('cccccccc-0000-7000-8000-000000000101'::uuid, '2026-09-25'::date),
+      ('cccccccc-0000-7000-8000-000000000102'::uuid, '2026-09-25'::date),
+      ('cccccccc-0000-7000-8000-000000000103'::uuid, (now() at time zone 'America/Argentina/Buenos_Aires')::date)
+  $$,
+  'y con el día de la aprobación cuando quedó en cambios_de_estado; si no, el de la siembra'
+);
+
+-- Lo que le pasó a un importado de MAUN el 2026-10-09: volvió a presupuesto y se aprobó de nuevo.
+select tests.entrar_como(tests.id('carla'));
+select set_config('maun.hoy_en_el_taller', '2026-10-09', true);
+update public.proyectos set estado = 'presupuesto_enviado' where id = 'cccccccc-0000-7000-8000-000000000101';
+update public.proyectos set estado = 'en_curso' where id = 'cccccccc-0000-7000-8000-000000000101';
+select set_config('maun.hoy_en_el_taller', '2026-09-25', true);
+
+select is(
+  tests.historia('cccccccc-0000-7000-8000-000000000101', 'estimada'),
+  array['2026-10-30 de nada importada', '2026-10-30 de 2026-10-30 taller'],
+  'un importado que vuelve a presupuesto y se aprueba de nuevo suma una del taller, y la importada sigue primera'
+);
+
+select results_eq(
+  $$
+    select c.origen::text, c.decidido_el
+    from public.cambios_de_fecha c
+    where c.proyecto_id = 'cccccccc-0000-7000-8000-000000000101' and c.tipo = 'estimada'
+    order by c.created_at, c.id
+  $$,
+  $$ values ('importada', '2026-09-25'::date), ('taller', '2026-10-09'::date) $$,
+  'la importada se queda con el día de la siembra, aunque ahora el trabajo tenga una aprobación anotada después'
 );
 
 select is_empty(
   $$
     select c.proyecto_id from public.cambios_de_fecha c
-    where c.origen = 'importada' and c.deleted_at is null
+    where c.household_id = tests.id('household_c') and c.origen = 'importada' and c.deleted_at is null
     group by c.proyecto_id
     having count(*) > 1
   $$,
   'una sola importada por trabajo'
-);
-
-select is_empty(
-  $$
-    select c.id
-    from public.cambios_de_fecha c
-    where c.origen = 'importada'
-      and c.decidido_el is distinct from coalesce(
-        (
-          select min(e.ocurrio_el) from public.cambios_de_estado e
-          where e.household_id = c.household_id and e.proyecto_id = c.proyecto_id and e.hacia = 'en_curso'
-        ),
-        c.decidido_el
-      )
-  $$,
-  'y con el día de la aprobación cuando quedó en cambios_de_estado'
 );
 
 select tests.entrar_como(tests.id('ana'));
