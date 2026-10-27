@@ -5,6 +5,7 @@ import {
   esCondicionDelReceptor,
   esFechaQueExiste,
   esFranja,
+  esFranjaDeLaVisita,
   esLinkDeLaRed,
   esLinkDeMercadoPago,
   esMoneda,
@@ -49,6 +50,7 @@ import type {
   RedesDelTaller,
   ReferenciaEnPesos,
   RespuestaDelCliente,
+  RespuestaDeLaVista,
   FranjaDeEntrega,
   TipoDeDocumento,
   TrabajoDelCliente,
@@ -403,6 +405,29 @@ function textoQuePuedeFaltar(valor: unknown): string | null {
   return typeof valor === 'string' && valor !== '' ? valor : null;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function respuestaDeLaVista(valor: unknown): RespuestaDeLaVista | null {
+  const cruda = crudoONada(valor);
+  if (cruda === null) return null;
+  const { opcion_id: opcion, respondida_el: respondidaEl, dia, franja } = cruda;
+  if (typeof respondidaEl !== 'string' || !esFechaQueExiste(respondidaEl)) return null;
+  if (!(opcion === null || (typeof opcion === 'string' && UUID.test(opcion)))) return null;
+  if (dia === null && franja === null) return { opcionId: opcion, respondidaEl, dia, franja };
+  if (typeof dia !== 'string' || !esFechaQueExiste(dia) || !esFranjaDeLaVisita(franja)) {
+    return null;
+  }
+  return { opcionId: opcion, respondidaEl, dia, franja };
+}
+
+function loDeLaRespuesta(
+  crudo: Record<string, unknown>,
+): Pick<PresupuestoDelTrabajo, 'revisionId' | 'respuesta'> {
+  const id = crudo.revision_id;
+  if (typeof id !== 'string' || !UUID.test(id)) return {};
+  return { revisionId: id, respuesta: respuestaDeLaVista(crudo.respuesta) };
+}
+
 function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
   if (typeof valor !== 'object' || valor === null) return null;
   const crudo = valor as Record<string, unknown>;
@@ -427,6 +452,7 @@ function presupuesto(valor: unknown): PresupuestoDelTrabajo | null {
     idioma: idiomaLeido(crudo.idioma),
     aceptadoEl: textoQuePuedeFaltar(crudo.aceptado_el),
     letra: textoQuePuedeFaltar(crudo.letra),
+    ...loDeLaRespuesta(crudo),
   };
 }
 

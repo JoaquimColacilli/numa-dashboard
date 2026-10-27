@@ -81,10 +81,9 @@ test('con señal, guardar un contacto cambiándole el teléfono deja un solo avi
   await page.goto(`/proyectos/${id}`);
   await expect(page.getByRole('region', { name: 'Qué falta' })).toBeVisible(CARGA);
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  const hoja = page.getByRole('dialog', { name: 'Editar el contacto' });
-  await hoja.getByLabel('Teléfono').fill('11 5555-9999');
-  await hoja.getByLabel('Notas').fill('Pasó un teléfono nuevo');
-  await hoja.getByRole('button', { name: 'Guardar los cambios' }).click();
+  await page.getByLabel('Teléfono').fill('11 5555-9999');
+  await page.getByLabel('Notas de obra').fill('Pasó un teléfono nuevo');
+  await page.getByRole('button', { name: 'Guardar los cambios' }).click();
 
   await expect(regionDeAvisos(page).getByText('Contacto guardado.')).toBeVisible(CARGA);
   expect(await avisosEnPantalla(page)).toEqual(['Contacto guardado.']);
@@ -108,10 +107,9 @@ test('sin señal, guardar un contacto deja un solo aviso, que cambia cuando vuel
     testInfo.project.name,
     async () => {
       await page.getByRole('button', { name: 'Editar', exact: true }).click();
-      const hoja = page.getByRole('dialog', { name: 'Editar el contacto' });
-      await hoja.getByLabel('Notas').fill('Anotado en el taller');
-      await hoja.getByRole('button', { name: 'Guardar los cambios' }).click();
-      await expect(hoja).toBeHidden();
+      await page.getByLabel('Notas de obra').fill('Anotado en el taller');
+      await page.getByRole('button', { name: 'Guardar los cambios' }).click();
+      await expect(page.getByRole('button', { name: 'Guardar los cambios' })).toBeHidden();
     },
     {
       enCola: 'Contacto anotado sin señal: se guarda solo cuando vuelva.',
@@ -160,10 +158,10 @@ test('sin señal, un movimiento deja un solo aviso que cambia', async ({
       await page.getByRole('radio', { name: 'Gasto' }).click();
       await page
         .getByRole('group', { name: 'Detalle del tipo' })
-        .getByRole('button', { name: 'Del hogar', exact: true })
+        .getByRole('button', { name: 'Del taller', exact: true })
         .click();
       await page.getByLabel('Cuánta plata').fill('33.000');
-      await page.getByLabel('Qué fue').fill('Súper sin señal');
+      await page.getByLabel('Qué fue').fill('Lija sin señal');
       await page.getByRole('button', { name: 'Cargar el movimiento' }).click();
       await expect(page.getByRole('dialog')).toBeHidden();
     },

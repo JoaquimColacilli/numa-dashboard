@@ -272,7 +272,7 @@ test.describe('en el celular', () => {
     await abrirLosTesoros(page);
     await page
       .getByRole('region', { name: 'La fila', exact: true })
-      .getByRole('button', { name: /^Compromiso 3 de 3: Gastos fijos/ })
+      .getByRole('button', { name: /^Deuda obligatoria 3 de 3: Gastos fijos/ })
       .tap();
     const hoja = page.getByRole('dialog', { name: 'Gastos fijos' });
     await expect(hoja).toBeVisible();

@@ -23,6 +23,8 @@ export const armarElPresupuesto = {
   verElPdf: 'Ver PDF',
   pdf: 'PDF',
   mandarElPresupuesto: 'Enviar orçamento',
+  mandarElEstimativo: 'Enviar estimativa',
+  tituloDelEstimativo: 'Estimativa',
   mandarLaRevision: (revision) => `Enviar revisão ${String(revision)}`,
   seNumeraCuandoVuelvaLaSenal: 'Recebe o número quando a internet voltar.',
   opcion: (letra) => `Opção ${letra}`,
@@ -41,10 +43,30 @@ export const armarElPresupuesto = {
     ejemploDelTitulo: 'Cozinha, armário do quarto…',
     obra: 'Obra',
     ejemploDeLaObra: 'Rua e número, bairro',
-    plazo: 'Prazo de fabricação',
-    diasHabiles: 'dias úteis',
-    ayudaDelPlazo:
-      'A partir de quando o sinal é creditado. O aviso do prazo e a previsão de entrega usam este número.',
+    estimativo: 'É uma estimativa',
+    ayudaDelEstimativo:
+      'Um valor prudente antes de ir medir. O cliente vê como estimativa, sem sinal, e pode aprovar para você ir medir.',
+    pideFecha: 'Pedir uma data para medir',
+    ayudaDePideFecha: 'Ao aprovar, o cliente sugere um dia e um horário para você ir medir.',
+    esLaDelTrabajo: 'É o endereço do projeto: se mudar aqui, muda também na ficha do projeto.',
+    vaLaDelCliente: (direccion) => `Se deixar vazio, vai o do cliente: ${direccion}.`,
+    usarLaDelCliente: 'Usar o do cliente',
+    listoPara: 'Pode ficar pronto para',
+    senaAntesDel: 'Se o sinal entrar até',
+    listoSugerido: (plazo) =>
+      `Sai dos ${String(plazo)} dias úteis de Configurações, contados a partir do dia em que você enviar.`,
+    senaSugerida: (dias) =>
+      plural(dias, {
+        one: '# dia depois do dia em que você enviar. Mude em Configurações.',
+        other: '# dias depois do dia em que você enviar. Mude em Configurações.',
+      }),
+    elegidaPorVos: 'Você escolheu.',
+    usarLaSugerida: 'Usar a sugerida',
+    problemaDeLasFechas: {
+      'sena-antes-del-envio':
+        'A data do sinal tem que ser hoje ou depois: hoje é o dia em que você envia.',
+      'entrega-antes-de-la-sena': 'A entrega tem que ser depois da data do sinal.',
+    },
   },
   validez: {
     titulo: 'Validade',
@@ -147,6 +169,7 @@ export const armarElPresupuesto = {
     },
     van: (van, total) => `${String(van)} de ${String(total)} no orçamento`,
     apareceCuandoPague: 'Aparece quando o cliente pagar algo: diz quanto já foi pago.',
+    noVaEnUnEstimativo: 'Não vai numa estimativa: vai no orçamento, com as datas.',
     soloEnEste: 'Só neste orçamento',
     agregarOtra: 'Adicionar outra',
   },
@@ -168,6 +191,7 @@ export const armarElPresupuesto = {
     },
     yaPago: 'Já pago',
     leFaltaParaLaSena: 'Falta para o sinal',
+    elEstimativoNoLaPide: 'Uma estimativa não pede sinal: quem pede é o orçamento.',
     segunLaQueElija: {
       taller: (porcentaje) => `O sinal de ${porcentaje} da marcenaria, conforme a opção escolhida`,
       trabajo: (porcentaje) => `O sinal de ${porcentaje} deste projeto, conforme a opção escolhida`,
@@ -222,6 +246,7 @@ export const armarElPresupuesto = {
     volverAlDeSiempre: 'Voltar ao padrão',
     retocado: 'Ajustado para este projeto. O padrão continua igual em Configurações.',
     laSenaDeEsteTrabajo: (sena) => `O sinal deste projeto é de ${sena}.`,
+    noVaEnUnEstimativo: 'Uma estimativa não leva a forma de pagamento: ela vai no orçamento.',
   },
   garantia: {
     titulo: 'Garantia',
@@ -235,6 +260,7 @@ export const armarElPresupuesto = {
       muebles: 'Detalhes',
       valores: 'Valores',
       queCambio: 'O que mudou',
+      fechas: 'Datas',
     },
     loQueFalta: {
       titulo: 'Dê um título ao projeto.',
@@ -243,6 +269,8 @@ export const armarElPresupuesto = {
       opciones: 'Cada opção precisa de um valor.',
       queCambio: 'Conte ao cliente o que mudou.',
       queCambioLargo: 'O que mudou precisa caber em 280 caracteres.',
+      'sena-antes-del-envio': 'A data do sinal já passou: tem que ser hoje ou depois.',
+      'entrega-antes-de-la-sena': 'A entrega tem que ser depois da data do sinal.',
     },
     leFaltaAlgo: 'Falta algo para enviar',
     noSePudoMandar: 'Não foi possível enviar o orçamento.',
@@ -256,6 +284,11 @@ export const armarElPresupuesto = {
     valeHasta: (fecha) => conPuntoFinal(`Vale até ${fecha}`),
     pasaA: (estado) => <>Passa para {estado}</>,
     seTilda: '“Preparar o orçamento” fica marcado em O que falta.',
+    esUnEstimativo: 'O cliente vê como orçamento estimativo, sem sinal, e pode aprovar.',
+    teProponeUnDia: 'Ao aprovar, o cliente sugere um dia e um horário para você ir medir.',
+    noSeTilda: '“Preparar o orçamento” continua sem marcar: espera o definitivo.',
+    prometeLaEntrega: (entrega, sena) =>
+      conPuntoFinal(`Promete a entrega para ${entrega} se o sinal entrar até ${sena}`),
     quedaGuardada: (revision) =>
       `A revisão ${String(revision)} fica salva na ficha do projeto, com o PDF.`,
     conLaReferencia: (dolar) =>

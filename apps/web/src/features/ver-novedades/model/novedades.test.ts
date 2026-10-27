@@ -13,6 +13,10 @@ import { compararVersiones, partesDeLaVersion } from './version';
 const LINEAS_POR_VERSION = 4;
 const LARGO_DE_UNA_LINEA = 200;
 
+const PEDIDAS_TAL_CUAL: Readonly<Record<string, { lineas: number; largo: number }>> = {
+  '2026-10-27': { lineas: 7, largo: 240 },
+};
+
 const LA_ULTIMA_DE_ANTES = '2026-10-01';
 
 const PALABRAS_QUE_NO_VAN: Readonly<Record<Idioma, readonly string[]>> = {
@@ -132,10 +136,14 @@ describe('el archivo de novedades', () => {
     (idioma) => {
       for (const novedad of novedadesEnElIdioma(NOVEDADES, idioma)) {
         const lineas = lineasDeLaNovedad(novedad, idioma);
+        const tope = PEDIDAS_TAL_CUAL[novedad.version] ?? {
+          lineas: LINEAS_POR_VERSION,
+          largo: LARGO_DE_UNA_LINEA,
+        };
         expect(lineas.length, novedad.version).toBeGreaterThan(0);
-        expect(lineas.length, novedad.version).toBeLessThanOrEqual(LINEAS_POR_VERSION);
+        expect(lineas.length, novedad.version).toBeLessThanOrEqual(tope.lineas);
         for (const linea of lineas) {
-          expect(linea.length, linea).toBeLessThanOrEqual(LARGO_DE_UNA_LINEA);
+          expect(linea.length, linea).toBeLessThanOrEqual(tope.largo);
           expect(linea, linea).toMatch(/\.$/);
           expect(linea, linea).toBe(linea.trim());
         }

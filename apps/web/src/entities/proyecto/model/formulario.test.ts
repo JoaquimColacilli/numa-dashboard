@@ -350,6 +350,7 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
     ...extra,
   };
 }

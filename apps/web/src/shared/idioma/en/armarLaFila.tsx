@@ -58,6 +58,14 @@ export const armarLaFila = {
     'porcentaje-invalido': 'Each percentage goes from 0.01% to 100%.',
     'reparto-pasa-de-cien': 'The percentages add up to more than 100%.',
     'sueldo-por-trabajo': "The waterfall counts owner's pay per month.",
+    'monto-fijo-invalido': 'The fixed amount has to be more than zero.',
+    'diezmo-por-monto': 'The tithe goes by percentage.',
+    'dia-de-pago-invalido': 'The payment day goes from 1 to 31.',
+    'dia-de-pago-fuera-de-compromiso': 'Only bills have a payment day.',
+    'dias-en-los-renglones': "With a payment day, the lines don't carry days.",
+    'paga-sola-sin-dia': 'To pay itself it needs its payment day.',
+    'paga-sola-en-maun': "Maun doesn't pay itself: it's the bucket that covers what's missing.",
+    'paga-sola-desde-invalido': "Couldn't read since when it pays itself.",
   },
   problemasConNombre: {
     'tesoro-archivado': (nombre) =>
@@ -140,6 +148,36 @@ export const armarLaFila = {
         <Nombre>{nombre}</Nombre> changes its due days.
       </>
     ),
+    cambiaElMontoFijo: (Nombre, nombre, monto) =>
+      monto === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> takes a percentage of each payment again.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> takes a fixed {monto} from each payment.
+        </>
+      ),
+    cambiaElDiaDePago: (Nombre, nombre, dia) =>
+      dia === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> no longer has a payment day.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> is paid on day {String(dia)} of each month.
+        </>
+      ),
+    cambiaPagaSola: (Nombre, nombre, pagaSola) =>
+      pagaSola ? (
+        <>
+          <Nombre>{nombre}</Nombre> pays itself on its payment day.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> stops paying itself: you log the payment.
+        </>
+      ),
     cambiaElModo: (Nombre, nombre, tipo, modo) =>
       modo === 'saldo' ? (
         <>
@@ -267,6 +305,24 @@ export const armarLaFila = {
     cuandoValen: (mes) =>
       `Changes take effect from the next payment. The splits you already made don't change, and what already came in during ${mes} still counts.`,
     seguirEditando: 'Keep editing',
+    sePagaSolo: (Nombre, nombre, fecha, maun) => (
+      <>
+        <Nombre>{nombre}</Nombre> pays itself starting {fecha}: that day NUMA records the payment
+        and, if it didn't reach its cap, {maun} puts in what's missing.
+      </>
+    ),
+    plataDeAntes: (Nombre, nombre, monto) => (
+      <>
+        <Nombre>{nombre}</Nombre> has {monto} from before its cycle. What do you do with that money?
+      </>
+    ),
+    pasarlaA: (nombre) => `Move it to ${nombre}`,
+    pasarlaAOtro: 'Move it to another bucket',
+    aCual: (nombre) => `Which bucket gets the money from ${nombre}`,
+    elegiUno: 'Choose one',
+    yaNoEsta: "It's gone",
+    ayudaDeYaNoEsta: "An adjustment takes it out of the balance: it's money you no longer have.",
+    faltaElegir: 'Choose what to do with the money from before so you can save.',
   },
   probador: {
     loQueDeja: 'Net (paid minus expenses)',
@@ -299,6 +355,31 @@ export const armarLaFila = {
     daElIngreso: 'matches the income',
   },
   panel: {
+    paraEntregar: 'To hand over',
+    comoSeLleva: 'How it takes its share',
+    comoSeLlevaDe: (nombre) => `How ${nombre} takes its share`,
+    unPorcentaje: 'A percentage',
+    unMontoFijo: 'A fixed amount',
+    montoFijoDe: (nombre) => `Fixed amount for ${nombre}`,
+    ayudaDelMontoFijo: 'From each payment, never more than what comes in.',
+    diaDePago: 'Payment day',
+    sinDiaDePago: 'No payment day',
+    elDia: (dia) => `Day ${String(dia)} of each month`,
+    ayudaDelDiaDePago: "From 1 to 31. If the month doesn't have it, the last day.",
+    pagaSola: 'Pays itself',
+    loPagasVos: 'You log the payment',
+    delDiaAlDia: (dia) => `From the ${ordinal(dia)} to the ${ordinal(dia)}`,
+    juntaEntreVencimientos: 'It collects up to its cap between one due date and the next.',
+    enElCiclo: (desde, hasta) => `From ${desde} to ${hasta}`,
+    nivelDelCiclo: (nombre) => `${nombre} this cycle`,
+    vence: (fecha) => `Due ${fecha}`,
+    adelantado: (monto) => `Advanced: ${monto}`,
+    seVaAPagarSolo: (fecha, monto) => `On ${fecha} it pays itself: ${monto}`,
+    loPoneMaun: (maun, monto) => `If no more money comes in, ${maun} puts in ${monto}.`,
+    sePagaron: (dia, monto) => `On the ${ordinal(dia)}, ${monto} was paid`,
+    puso: (maun, monto) => `${maun} put in ${monto}`,
+    faltaPagar: 'Still to pay',
+    registrarUnAdelanto: 'Log an advance',
     cerrarElDetalle: 'Close details',
     subir: 'Move up',
     bajar: 'Move down',
@@ -343,8 +424,6 @@ export const armarLaFila = {
     monto: 'Amount',
     comoSeLlenaDe: (tipo, nombre) =>
       tipo === 'compromiso' ? `How ${nombre} fills up` : `How ${nombre} is set aside`,
-    sueldoPorMes:
-      "Owner's pay for Hogar always goes per month: Hogar spends its balance all month long.",
     hastaLaMeta: 'Up to the goal',
     juntaHastaLaMeta: 'Collects until it reaches its goal.',
     juntaSinFin: 'Keeps collecting with no end.',

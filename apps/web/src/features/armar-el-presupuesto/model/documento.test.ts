@@ -42,6 +42,7 @@ const PROYECTO = {
   version: 2,
   presupuesto_centavos: 800_000,
   direccion_entrega: 'Calle Falsa 123',
+  fecha_visita: null,
   sena_bp: null,
 } as unknown as Proyecto;
 
@@ -145,14 +146,76 @@ describe('el documento de hoy, con lo que hay en el dispositivo', () => {
     ]);
   });
 
-  it('sin borrador guardado, o con uno que no se puede leer, empieza uno nuevo con el título y la obra del trabajo', () => {
+  it('sin borrador guardado, o con uno que no se puede leer, empieza uno nuevo con el título del trabajo y sin copiar la dirección', () => {
     const nuevo = borradorGuardado(replica(), PROYECTO, null);
     expect(nuevo.titulo).toBe('Vanitory');
-    expect(nuevo.obra).toBe('Calle Falsa 123');
+    expect(nuevo.obra).toBe('');
     expect(nuevo.validezDias).toBe(15);
 
     const roto = { contenido: { forma: 99 } } as unknown as FilaDelPresupuesto;
     expect(borradorGuardado(replica(), PROYECTO, roto).titulo).toBe('Vanitory');
+  });
+
+  it('el tilde del estimativo y el pedido de fecha arrancan puestos si al trabajo le falta el relevamiento', () => {
+    const contacto = { ...PROYECTO, estado: 'contacto', fecha_visita: null } as Proyecto;
+    expect(borradorGuardado(replica(), contacto, null)).toMatchObject({
+      estimativo: true,
+      pideFecha: true,
+    });
+    expect(borradorGuardado(replica(), PROYECTO, null)).toMatchObject({
+      estimativo: false,
+      pideFecha: false,
+    });
+  });
+});
+
+describe('la dirección del presupuesto es la del trabajo, o si no la del cliente', () => {
+  const borrador = borradorNuevo({
+    titulo: 'Vanitory',
+    obra: '',
+    plantilla: PLANTILLA_DE_SIEMPRE,
+    validezDias: 10,
+    faltaMedir: false,
+    idNuevo: () => 'm1',
+  });
+  const conCliente = (direccion: string) =>
+    replica({ clientes: { c: { ...METADATOS, id: 'c', nombre: 'Lucía', direccion } } });
+
+  it('la del trabajo, aunque el cliente tenga otra', () => {
+    const entrada = entradaDeHoy({
+      replica: conCliente('Arenales 1840'),
+      proyecto: PROYECTO,
+      borrador,
+    });
+    expect(entrada.borrador.obra).toBe('Calle Falsa 123');
+  });
+
+  it('sin la del trabajo, la del cliente, y la que cambie el cliente se ve sin tocar el presupuesto', () => {
+    const sinDireccion = { ...PROYECTO, direccion_entrega: '' };
+    expect(
+      entradaDeHoy({ replica: conCliente('Arenales 1840'), proyecto: sinDireccion, borrador })
+        .borrador.obra,
+    ).toBe('Arenales 1840');
+    expect(
+      entradaDeHoy({ replica: conCliente('Gorriti 4500'), proyecto: sinDireccion, borrador })
+        .borrador.obra,
+    ).toBe('Gorriti 4500');
+  });
+
+  it('un borrador de antes con la obra escrita la conserva mientras el trabajo no tenga la suya', () => {
+    const sinDireccion = { ...PROYECTO, direccion_entrega: '' };
+    const deAntes = { ...borrador, obra: 'Ruta 8 km 50' };
+    expect(
+      entradaDeHoy({
+        replica: conCliente('Arenales 1840'),
+        proyecto: sinDireccion,
+        borrador: deAntes,
+      }).borrador.obra,
+    ).toBe('Ruta 8 km 50');
+    expect(
+      entradaDeHoy({ replica: conCliente('Arenales 1840'), proyecto: PROYECTO, borrador: deAntes })
+        .borrador.obra,
+    ).toBe('Calle Falsa 123');
   });
 });
 
@@ -163,6 +226,7 @@ describe('cómo lo ve tu cliente, mientras lo armás', () => {
       obra: '',
       plantilla: PLANTILLA_DE_SIEMPRE,
       validezDias: 10,
+      faltaMedir: false,
       idNuevo: () => 'm1',
     }),
     muebles: [{ id: 'm1', nombre: 'Vanitory', descripcion: 'Dos cajones.' }],
@@ -237,6 +301,7 @@ describe('el documento de un trabajo en dólares', () => {
       obra: '',
       plantilla: PLANTILLA_DE_SIEMPRE,
       validezDias: 15,
+      faltaMedir: false,
       idNuevo: () => 'm1',
     }),
     muebles: [{ id: 'm1', nombre: 'Vanitory', descripcion: 'Dos cajones.' }],

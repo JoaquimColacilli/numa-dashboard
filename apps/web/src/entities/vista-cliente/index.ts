@@ -8,6 +8,7 @@ export {
   useVistaDelTrabajo,
   type ResultadoDeLaVista,
 } from './api/consulta';
+export { resultadoDeNoAprobar, useAprobarElPresupuesto } from './api/aprobar';
 export { resultadoDelError, resultadoDeResponder, useMandarLaEntrega } from './api/responder';
 export { AyudaDeLaVista, type AyudaDeLaVistaProps } from './ui/AyudaDeLaVista';
 export { CaminoDeHitos, type CaminoDeHitosProps } from './ui/CaminoDeHitos';
@@ -19,6 +20,12 @@ export {
   type ElPresupuestoAceptadoProps,
   type ElPresupuestoProps,
 } from './ui/ElPresupuesto';
+export type {
+  AprobacionHecha,
+  AprobarElPresupuesto,
+  MotivoDeNoAprobar,
+  ResultadoDeAprobar,
+} from './model/aprobar';
 export type { MandarLaEntrega, MotivoDelError, ResultadoDeMandar } from './model/mandar';
 export { VistaDelCliente, type VistaDelClienteProps } from './ui/VistaDelCliente';
 export { PantallaDeLaVista, type PantallaDeLaVistaProps } from './ui/PantallaDeLaVista';

@@ -13,6 +13,7 @@ import {
 } from '@maun/domain';
 import { describe, expect, it } from 'vitest';
 
+import { NOMBRE_DE_LO_QUE_ES } from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import type { TintaDeTesoro } from '@/shared/lib';
 
@@ -64,7 +65,7 @@ function tesoro(id: string, clave: TesoroDelTaller['clave'], nombre: string, tin
     tinta,
     icono: 'vault' as const,
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(CERO),
@@ -92,6 +93,9 @@ const SUELDO: PasoDeLaFila = {
   desde: null,
   modo: 'mes',
   hastaLaMeta: false,
+  dia: null,
+  pagaSola: false,
+  pagaSolaDesde: null,
 };
 
 const GASTOS_FIJOS: PasoDeLaFila = {
@@ -106,6 +110,9 @@ const GASTOS_FIJOS: PasoDeLaFila = {
   desde: null,
   modo: 'mes',
   hastaLaMeta: false,
+  dia: null,
+  pagaSola: false,
+  pagaSolaDesde: null,
 };
 
 const MATERIALES_: PasoDeLaFila = {
@@ -116,6 +123,9 @@ const MATERIALES_: PasoDeLaFila = {
   desde: null,
   modo: 'mes',
   hastaLaMeta: false,
+  dia: null,
+  pagaSola: false,
+  pagaSolaDesde: null,
 };
 
 const HERRAMIENTAS_: PasoDeLaFila = {
@@ -126,12 +136,25 @@ const HERRAMIENTAS_: PasoDeLaFila = {
   desde: null,
   modo: 'mes',
   hastaLaMeta: false,
+  dia: null,
+  pagaSola: false,
+  pagaSolaDesde: null,
 };
 
 const SISTEMA = { hogar: HOGAR, maun: MAUN, diezmo: DIEZMO };
 
-const DEL_DIEZMO = { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' as const };
-const DE_IIBB = { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' as const };
+const DEL_DIEZMO = {
+  tesoro: DIEZMO,
+  porcentaje: puntosBasicos(1000),
+  base: 'ingreso' as const,
+  montoFijo: null,
+};
+const DE_IIBB = {
+  tesoro: IIBB,
+  porcentaje: puntosBasicos(350),
+  base: 'cobrado' as const,
+  montoFijo: null,
+};
 
 function filaCon(
   pasos: PasoDeLaFila[],
@@ -166,6 +189,7 @@ const SIN_DATOS: DatosDelMes = {
   saldos: new Map(),
   metas: new Map(),
   gastos: [],
+  pagos: [],
 };
 
 function vistaDe(
@@ -392,23 +416,73 @@ describe('los grupos de la fila', () => {
     expect(rol('resto')).toBe('superávit');
     expect(rol('insumos')).toBe('insumos');
     expect(nodo(nodos, `obligacion-${IIBB}`).ariaLabel).toMatch(
-      /^Obligación 1 de 5: Ingresos Brutos, 3,5% sobre lo que cobrás; a pagar \$\s0$/,
+      /^Deuda destinada 1 de 5: Ingresos Brutos, 3,5% sobre lo que cobrás; a pagar \$\s0$/,
     );
     expect(nodo(nodos, 'diezmo').ariaLabel).toMatch(
-      /^Obligación 2 de 5: Diezmo, 10% sobre el ingreso; a pagar \$\s0; no se puede sacar de la fila$/,
+      /^Deuda destinada 2 de 5: Diezmo, 10% sobre el ingreso; a pagar \$\s0; no se puede sacar de la fila$/,
     );
     expect(nodo(nodos, `paso-${HOGAR}`).ariaLabel).toMatch(
-      /^Compromiso 3 de 5: Hogar, sueldo, hasta \$\s1\.800\.000 por mes; lleva \$\s0, faltan \$\s1\.800\.000$/,
+      /^Deuda obligatoria 3 de 5: Hogar, sueldo, hasta \$\s1\.800\.000 por mes; lleva \$\s0, faltan \$\s1\.800\.000$/,
     );
     expect(nodo(nodos, `paso-${FIJOS}`).ariaLabel).toMatch(
-      /^Compromiso 4 de 5: Gastos fijos, hasta \$\s900\.000, se renueva al pagar; a pagar \$\s0, faltan \$\s900\.000$/,
+      /^Deuda obligatoria 4 de 5: Gastos fijos, hasta \$\s900\.000, se renueva al pagar; a pagar \$\s0, faltan \$\s900\.000$/,
     );
     expect(nodo(nodos, `paso-${MATERIALES}`).ariaLabel).toMatch(
-      /^Ahorro fijo 5 de 5: Materiales, hasta \$\s300\.000 por mes; lleva \$\s0, faltan \$\s300\.000$/,
+      /^Caja 5 de 5: Materiales, hasta \$\s300\.000 por mes; lleva \$\s0, faltan \$\s300\.000$/,
     );
-    expect(nodo(nodos, `parte-${COCOS}`).ariaLabel).toBe('Ahorro: Cocos, 50% de lo que sobra');
-    expect(nodo(nodos, 'resto').ariaLabel).toBe(
-      'Superávit: Maun recibe el resto, 50%, y los centavos',
+    expect(nodo(nodos, `parte-${COCOS}`).ariaLabel).toBe('Caja: Cocos, 50% de lo que sobra');
+    expect(nodo(nodos, 'resto').ariaLabel).toBe('Caja: Maun recibe el resto, 50%, y los centavos');
+  });
+
+  it('cada ficha de la fila empieza su nombre con lo que dice arriba del suyo', () => {
+    const fila = filaCon(
+      [SUELDO, GASTOS_FIJOS, MATERIALES_, HERRAMIENTAS_],
+      [
+        [COCOS, 5000],
+        [INMUEBLES, 2000, true],
+      ],
+      [DE_IIBB, DEL_DIEZMO],
+    );
+    const conMeta: TesoroDelTaller[] = TESOROS.map((uno) =>
+      uno.id === INMUEBLES ? { ...uno, meta: enPesos(centavos(30_000_000)) } : uno,
+    );
+    const { nodos } = armarElPlano({
+      vista: { ...vistaDe(fila), tesoros: conMeta },
+      prueba: null,
+      elegido: null,
+    });
+    const fichas = nodos.filter(
+      (uno) => uno.type === 'obligacion' || uno.type === 'paso' || uno.type === 'parte',
+    );
+    expect(fichas).toHaveLength(9);
+    for (const ficha of fichas) {
+      expect(ficha.ariaLabel?.startsWith(NOMBRE_DE_LO_QUE_ES[ficha.data.queEs])).toBe(true);
+    }
+    expect(fichas.map((uno) => uno.data.queEs)).toEqual([
+      'deuda-destinada',
+      'deuda-destinada',
+      'deuda-obligatoria',
+      'deuda-obligatoria',
+      'caja',
+      'caja',
+      'caja',
+      'meta',
+      'caja',
+    ]);
+  });
+
+  it('una deuda destinada de monto fijo dice su monto, y una deuda obligatoria con día de pago, su ciclo', () => {
+    const fila = filaCon(
+      [{ ...SUELDO, dia: 10 }],
+      [],
+      [{ ...DE_IIBB, montoFijo: centavos(5_000_000) }, DEL_DIEZMO],
+    );
+    const { nodos } = armarElPlano({ vista: vistaDe(fila), prueba: null, elegido: null });
+    expect(nodo(nodos, `obligacion-${IIBB}`).ariaLabel).toMatch(
+      /^Deuda destinada 1 de 3: Ingresos Brutos, un monto fijo de \$\s50\.000; a pagar \$\s0$/,
+    );
+    expect(nodo(nodos, `paso-${HOGAR}`).ariaLabel).toMatch(
+      /^Deuda obligatoria 3 de 3: Hogar, sueldo, hasta \$\s1\.800\.000, del 10 al 10; lleva \$\s0, faltan \$\s1\.800\.000$/,
     );
   });
 });
@@ -496,8 +570,11 @@ describe('el reparto, las partes y el superávit', () => {
       saldos: new Map<string, Money>([[INMUEBLES, centavos(25_000_000)]]),
       metas: new Map<string, Money>([[INMUEBLES, centavos(30_000_000)]]),
     };
+    const conMeta: TesoroDelTaller[] = TESOROS.map((uno) =>
+      uno.id === INMUEBLES ? { ...uno, meta: enPesos(centavos(30_000_000)) } : uno,
+    );
     const { nodos } = armarElPlano({
-      vista: vistaDe(fila, [], fila, datos),
+      vista: { ...vistaDe(fila, [], fila, datos), tesoros: conMeta },
       prueba: null,
       elegido: null,
     });
@@ -507,7 +584,7 @@ describe('el reparto, las partes y el superávit', () => {
       meta: { meta: 30_000_000, saldo: 25_000_000, falta: 5_000_000 },
     });
     expect(inmuebles.ariaLabel).toMatch(
-      /^Ahorro: Inmuebles, 20% de lo que sobra, hasta la meta; tiene \$\s250\.000 de su meta de \$\s300\.000$/,
+      /^Meta: Inmuebles, 20% de lo que sobra, hasta la meta; tiene \$\s250\.000 de su meta de \$\s300\.000$/,
     );
   });
 });
@@ -934,4 +1011,55 @@ describe('los rótulos del flujo', () => {
       expect(pisadas).toEqual([]);
     });
   }
+});
+
+describe('lo que es cada tesoro en su ficha', () => {
+  it('cada ficha lleva lo que es su tesoro: deuda destinada, deuda obligatoria, caja o meta', () => {
+    const fila = filaCon(
+      [SUELDO, GASTOS_FIJOS, MATERIALES_],
+      [
+        [COCOS, 5000],
+        [INMUEBLES, 2000],
+      ],
+      [DE_IIBB, DEL_DIEZMO],
+    );
+    const tesoros = TESOROS.map((uno) =>
+      uno.id === MATERIALES || uno.id === INMUEBLES
+        ? { ...uno, meta: enPesos(centavos(30_000_000)) }
+        : uno,
+    );
+    const estante = tesoros.filter((uno) => uno.id === HERRAMIENTAS);
+    const { nodos } = armarElPlano({
+      vista: { ...vistaDe(fila, estante), tesoros },
+      prueba: null,
+      elegido: null,
+    });
+    const queEs = (id: string) => {
+      const uno = nodo(nodos, id);
+      return 'queEs' in uno.data ? uno.data.queEs : null;
+    };
+    expect(
+      [
+        `obligacion-${IIBB}`,
+        'diezmo',
+        `paso-${HOGAR}`,
+        `paso-${FIJOS}`,
+        `paso-${MATERIALES}`,
+        `parte-${COCOS}`,
+        `parte-${INMUEBLES}`,
+        'resto',
+        `estante-${HERRAMIENTAS}`,
+      ].map((id) => [id, queEs(id)]),
+    ).toEqual([
+      [`obligacion-${IIBB}`, 'deuda-destinada'],
+      ['diezmo', 'deuda-destinada'],
+      [`paso-${HOGAR}`, 'deuda-obligatoria'],
+      [`paso-${FIJOS}`, 'deuda-obligatoria'],
+      [`paso-${MATERIALES}`, 'meta'],
+      [`parte-${COCOS}`, 'caja'],
+      [`parte-${INMUEBLES}`, 'meta'],
+      ['resto', 'caja'],
+      [`estante-${HERRAMIENTAS}`, 'caja'],
+    ]);
+  });
 });

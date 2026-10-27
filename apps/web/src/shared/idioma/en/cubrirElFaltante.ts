@@ -8,6 +8,8 @@ export const cubrirElFaltante = {
   paraCubrir: (nombre, mes) => `To cover ${nombre} for ${mes}`,
   vence: (renglon, dia, falta) =>
     `${renglon} is due on the ${ordinal(dia)} and you still need ${falta}.`,
+  seVaAPagar: (nombre, dia, falta, maun) =>
+    `${nombre} gets paid on the ${ordinal(dia)} and ${falta} is still missing. If no more money comes in, ${maun} puts it in.`,
   faltanParaElSaldo: (falta, nombre) => `You still need ${falta} for ${nombre}.`,
   faltanParaElMes: (falta, nombre, mes) => `You still need ${falta} for ${nombre} in ${mes}.`,
   titulo: 'Cover fixed costs',

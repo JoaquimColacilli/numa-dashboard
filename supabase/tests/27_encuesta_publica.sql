@@ -131,7 +131,7 @@ select set_eq(
     'costo_ayudante_centavos', 'presupuesto_vale_hasta',
     'listo_el', 'entrega_comprometida', 'entrega_comprometida_franja', 'tipo_de_proyecto',
     'dist_fila_version', 'dist_fila', 'dist_previo', 'reapertura_fila',
-    'moneda', 'cobra_en', 'costos_cotizacion_centavos'
+    'moneda', 'cobra_en', 'costos_cotizacion_centavos', 'respuestas_de_la_consulta'
   ],
   'toda columna de proyectos está clasificada para la encuesta: viaja el título y nada más'
 );
@@ -184,7 +184,7 @@ select set_eq(
     'cobro_dolares_cbu', 'cobro_dolares_alias', 'dolar_del_dia_centavos', 'dolar_del_dia_el',
     'facturacion_ambiente', 'facturacion_cuit', 'facturacion_punto_de_venta', 'facturacion_desde',
     'facturacion_concepto', 'facturacion_categoria', 'facturacion_ingresos_brutos',
-    'facturacion_inicio_de_actividades', 'facturacion_alertas'
+    'facturacion_inicio_de_actividades', 'facturacion_alertas', 'preguntas_de_la_consulta'
   ],
   'toda columna de ajustes está clasificada para la encuesta'
 );

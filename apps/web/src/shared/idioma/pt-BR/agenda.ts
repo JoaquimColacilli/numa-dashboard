@@ -75,7 +75,9 @@ export const agenda = {
   estaComprometida: 'Está confirmada com o cliente. Para mudar, abra o projeto.',
   comoSeMueve: {
     seguimiento:
-      'Quando escrever para o cliente, registre: ali você escolhe se o projeto volta, se continua com outra data ou se não vai adiante.',
+      'Quando escrever para o cliente, registre: ali você escolhe se o projeto volta, se continua com outra data ou se não vai adiante. Para passar para outro dia, arraste no mês para hoje ou um dia à frente, ou mude a data.',
+    seguimientoConLaFecha:
+      'Quando escrever para o cliente, registre: ali você escolhe se o projeto volta, se continua com outra data ou se não vai adiante. Para passar para outro dia, mude a data.',
     arrastrando: 'Arraste no mês para mover, ou mude a data lá.',
     conLaFecha: 'Para mover, mude a data lá.',
   },
@@ -84,6 +86,7 @@ export const agenda = {
     tarde: 'à tarde',
   },
   registrarElContacto: 'Registrar o contato',
+  cambiarLaFecha: 'Mudar a data',
   marcarComoImportante: 'Marcar como importante',
   sacarLaMarca: 'Tirar a marca de importante',
   borrar: (texto) => `Excluir “${texto}”`,
@@ -159,6 +162,7 @@ export const agenda = {
   },
   arrastre: {
     loDejaste: (dia) => `Você deixou onde estava, em ${dia}.`,
+    soloHoyOAdelante: (nombre) => `${nombre} é hoje ou num dia à frente: ficou onde estava.`,
     moviste: (nombre, dia) => `Você moveu ${nombre} para ${dia}. Dá para desfazer no aviso.`,
     agarrasteConTeclado: (nombre, dia) =>
       `Você pegou ${nombre}, de ${dia}. Mova com as setas, solte com Enter e cancele com Escape.`,

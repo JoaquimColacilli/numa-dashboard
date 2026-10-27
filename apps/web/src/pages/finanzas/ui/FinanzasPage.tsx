@@ -200,14 +200,6 @@ export function FinanzasPage() {
                     tono: 'text-hogar',
                   },
                   {
-                    id: 'gasto-hogar',
-                    etiqueta: m.movimiento.resumenDelMes.gastoElHogar,
-                    previo: previo.gastoHogar,
-                    actual: actual.gastoHogar,
-                    tono: 'text-ink',
-                    mejorSiBaja: true,
-                  },
-                  {
                     id: 'facturo-taller',
                     etiqueta: m.movimiento.resumenDelMes.facturoElTaller,
                     previo: previo.facturoTaller,

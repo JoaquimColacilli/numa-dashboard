@@ -1,13 +1,25 @@
 export {
+  atenderLaRespuesta,
+  CLAVE_DE_LA_RESPUESTA_ATENDIDA,
   CLAVE_DEL_BORRADOR,
   CLAVE_DEL_ENVIO,
+  MUTACION_DE_LA_RESPUESTA_ATENDIDA,
   MUTACION_DEL_BORRADOR,
   MUTACION_DEL_ENVIO,
+  type RespuestaAtendida,
 } from './api/mutacion';
+export {
+  respuestaDeLaUltimaRevision,
+  respuestaPendiente,
+  respuestasPendientes,
+  type FilaDeRespuesta,
+  type RespuestaDelCliente,
+} from './model/respuesta';
 export {
   conElBorradorGuardado,
   conElPresupuestoMandado,
   conLoMandado,
+  estadoAlMandar,
   etapaDelPresupuesto,
   presupuestoDelTrabajo,
   revisionesDelPresupuesto,

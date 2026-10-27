@@ -118,4 +118,16 @@ export const centinelas: Centinelas = {
       m.editarTesoro.lugar.libreConResto('«LIBRE»', '«PORCENTAJE»', '«TESORO»', '«RESTO»'),
     tieneQueDecir: ['«LIBRE»', '«PORCENTAJE»', '«TESORO»', '«RESTO»'],
   },
+  'editarTesoro.ajustar.titulo': {
+    llamar: (m) => m.editarTesoro.ajustar.titulo('«TESORO»'),
+    tieneQueDecir: ['«TESORO»'],
+  },
+  'editarTesoro.ajustar.seSuman': {
+    llamar: (m) => m.editarTesoro.ajustar.seSuman('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'editarTesoro.ajustar.seRestan': {
+    llamar: (m) => m.editarTesoro.ajustar.seRestan('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
 };

@@ -22,12 +22,14 @@ export interface DatosDelAviso {
   detalle: string;
   categoria: CategoriaDeAgenda;
   anticipaciones: readonly Anticipacion[];
+  enElMomento: boolean;
 }
 
 function datosDelAviso(
   aviso: AvisoDeLaAgenda,
   categoria: CategoriaDeAgenda,
   anticipaciones: readonly Anticipacion[],
+  enElMomento = false,
 ): DatosDelAviso {
   return {
     get etiqueta() {
@@ -38,6 +40,7 @@ function datosDelAviso(
     },
     categoria,
     anticipaciones,
+    enElMomento,
   };
 }
 
@@ -48,6 +51,7 @@ export const QUE_AVISA: Readonly<Record<AvisoDeLaAgenda, DatosDelAviso>> = {
   seguimientos: datosDelAviso('seguimientos', 'seguimiento', [0, 1]),
   vencimientos: datosDelAviso('vencimientos', 'vencimiento', [0, 1, 2, 3]),
   anotaciones: datosDelAviso('anotaciones', 'taller', [0, 1]),
+  respuestas: datosDelAviso('respuestas', 'presupuesto', [0], true),
 };
 
 export function anticipacionEnPalabras(anticipacion: Anticipacion): string {

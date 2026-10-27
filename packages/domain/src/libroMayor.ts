@@ -2,9 +2,7 @@ import type { Cotizacion } from './cotizacion.ts';
 import { estaLiquidado, type EstadoProyecto } from './estados.ts';
 import { mesDe } from './fechas.ts';
 import {
-  BASE_PUNTOS_BASICOS,
   CERO,
-  centavos,
   importeDelTaller,
   negar,
   restar,
@@ -20,7 +18,24 @@ export type Tesoro = (typeof TESOROS)[number];
 
 export const CATEGORIA_DE_APERTURA = 'Apertura';
 
-export type OrigenDeAsiento = 'manual' | 'pago' | 'gasto_proyecto' | 'distribucion' | 'reparto';
+export const CATEGORIA_DE_LA_DEUDA_INTERNA = 'Deuda interna';
+
+export const CATEGORIA_DEL_PAGO_DEL_VENCIMIENTO = 'Vencimiento';
+
+export const CATEGORIA_DEL_SOBRANTE = 'Sobrante';
+
+export const CATEGORIA_DE_LA_PLATA_DE_ANTES = 'Plata de antes de su ciclo';
+
+export const CATEGORIA_DE_YA_NO_ESTA = 'Ya no está';
+
+export const CATEGORIA_DEL_ADELANTO = 'Adelanto';
+
+export const MOTIVOS_DEL_AJUSTE = ['Intereses', 'Venta', 'Corrección'] as const;
+
+export const LARGO_MAXIMO_DEL_MOTIVO = 60;
+
+export type OrigenDeAsiento =
+  'manual' | 'pago' | 'gasto_proyecto' | 'distribucion' | 'reparto' | 'vencimiento';
 
 export interface TesoroDelLibro {
   id: string;
@@ -82,6 +97,15 @@ export interface RepartoDelLibro {
   yaEnLaApertura: boolean;
 }
 
+export interface VencimientoDelLibro {
+  id: string;
+  tesoroId: string;
+  vencimiento: string;
+  aPagar: Money;
+  pusoMaun: Money;
+  vuelveAMaun: Money;
+}
+
 export interface DatosDelLibro {
   tesoros: readonly TesoroDelLibro[];
   movimientos: readonly MovimientoDelLibro[];
@@ -89,6 +113,7 @@ export interface DatosDelLibro {
   gastos: readonly GastoDelLibro[];
   proyectos: readonly ProyectoDelLibro[];
   repartos: readonly RepartoDelLibro[];
+  vencimientos: readonly VencimientoDelLibro[];
 }
 
 export interface Asiento {
@@ -284,6 +309,34 @@ export function lineasDelLibro(datos: DatosDelLibro): LineaDelLibro[] {
     });
   }
 
+  for (const pago of datos.vencimientos) {
+    const tesoro = tesoros.claveDe(pago.tesoroId);
+    const deMaun = { desde: 'maun', desdeId: maun, hacia: tesoro, haciaId: pago.tesoroId } as const;
+    const afuera = { desde: tesoro, desdeId: pago.tesoroId, hacia: null, haciaId: null } as const;
+    const aMaun = { desde: tesoro, desdeId: pago.tesoroId, hacia: 'maun', haciaId: maun } as const;
+    const tramos = [
+      [pago.pusoMaun, 'deuda_interna', CATEGORIA_DE_LA_DEUDA_INTERNA, deMaun],
+      [pago.aPagar, 'vencimiento', CATEGORIA_DEL_PAGO_DEL_VENCIMIENTO, afuera],
+      [pago.vuelveAMaun, 'sobrante', CATEGORIA_DEL_SOBRANTE, aMaun],
+    ] as const;
+    for (const [monto, concepto, categoria, lados] of tramos) {
+      if (monto === 0) continue;
+      lineas.push({
+        origen: 'vencimiento',
+        asientoId: pago.id,
+        fecha: pago.vencimiento,
+        ...lados,
+        monto,
+        montoHacia: monto,
+        concepto,
+        categoria,
+        descripcion: '',
+        proyectoId: null,
+        yaEnLaApertura: false,
+      });
+    }
+  }
+
   return lineas;
 }
 
@@ -429,11 +482,28 @@ export function estadoDelDiezmo(asientos: readonly Asiento[]): EstadoDelDiezmo {
   };
 }
 
-export function proyeccionCocos(saldo: Money, tasaAnualBp: number, dias: number): Money {
-  if (!Number.isInteger(tasaAnualBp) || tasaAnualBp < 0) {
-    throw new RangeError(`La tasa anual va en puntos básicos enteros: ${String(tasaAnualBp)} no.`);
-  }
-  if (dias <= 0 || tasaAnualBp === 0) return saldo;
-  const factor = (1 + tasaAnualBp / BASE_PUNTOS_BASICOS) ** (dias / 365);
-  return centavos(Math.round(saldo * factor));
+export type SentidoDelAjuste = 'suma' | 'resta';
+
+export interface AjusteDelSaldo<M extends Moneda = Moneda> {
+  sentido: SentidoDelAjuste;
+  monto: Money<M>;
+}
+
+export function ajusteDelSaldo<M extends Moneda>(
+  saldo: Money<M>,
+  tieneAhora: Money<M>,
+): AjusteDelSaldo<M> | null {
+  const diferencia = restar(tieneAhora, saldo);
+  if (diferencia === 0) return null;
+  return diferencia > 0
+    ? { sentido: 'suma', monto: diferencia }
+    : { sentido: 'resta', monto: negar(diferencia) };
+}
+
+export function motivoDelAjuste(motivo: string): string | null {
+  const limpio = motivo.trim().replace(/\s+/g, ' ');
+  if (limpio === '' || limpio.length > LARGO_MAXIMO_DEL_MOTIVO) return null;
+  return limpio.toLocaleLowerCase('es') === CATEGORIA_DE_APERTURA.toLocaleLowerCase('es')
+    ? null
+    : limpio;
 }

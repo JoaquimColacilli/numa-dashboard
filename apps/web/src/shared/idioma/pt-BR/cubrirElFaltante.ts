@@ -5,6 +5,8 @@ export const cubrirElFaltante = {
   notaDelHogar: 'É o dinheiro da família.',
   paraCubrir: (nombre, mes) => `Para cobrir ${nombre} de ${mes}`,
   vence: (renglon, dia, falta) => `${renglon} vence no dia ${String(dia)} e ainda faltam ${falta}.`,
+  seVaAPagar: (nombre, dia, falta, maun) =>
+    `No dia ${String(dia)} se paga ${nombre} e faltam ${falta}. Se não entrar mais dinheiro, ${maun} põe.`,
   faltanParaElSaldo: (falta, nombre) => `Ainda faltam ${falta} para ${nombre}.`,
   faltanParaElMes: (falta, nombre, mes) => `Ainda faltam ${falta} para ${nombre} de ${mes}.`,
   titulo: 'Cobrir os custos fixos',

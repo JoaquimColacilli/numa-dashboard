@@ -23,7 +23,10 @@ import {
   filaDelCobro,
   filasDe,
   idDeLaClave,
+  importeDelPago,
+  loQueDescuentaElPago,
   modoDelReparto,
+  monedaDelTrabajo,
   porLaFila,
   repartosDelProyecto,
   tesorosDeLaReplica,
@@ -114,6 +117,20 @@ export function reaperturaDe(proyecto: Proyecto): Reapertura | null {
   };
 }
 
+function pagosDe(replica: Replica, proyecto: Proyecto) {
+  return filasDe(replica, 'pagos').filter((pago) => pago.proyecto_id === proyecto.id);
+}
+
+function saldadoConLosPagos(replica: Replica, proyecto: Proyecto): boolean {
+  if (proyecto.presupuesto_centavos === null) return false;
+  const moneda = monedaDelTrabajo(proyecto);
+  let pagado = 0;
+  for (const pago of pagosDe(replica, proyecto)) {
+    pagado += loQueDescuentaElPago(importeDelPago(pago), moneda);
+  }
+  return pagado >= proyecto.presupuesto_centavos;
+}
+
 export function fechaDelCobroPropuesta(
   replica: Replica,
   proyecto: Proyecto,
@@ -122,14 +139,14 @@ export function fechaDelCobroPropuesta(
 ): string {
   const reapertura = reaperturaDe(proyecto);
   if (reapertura !== null) return reapertura.fecha;
+  if (pagoFinal !== null && pagoFinal !== '') return pagoFinal > hoy ? hoy : pagoFinal;
+  if (!saldadoConLosPagos(replica, proyecto)) return hoy;
 
-  let ultima: string | null = pagoFinal !== null && pagoFinal !== '' ? pagoFinal : null;
-  for (const pago of filasDe(replica, 'pagos')) {
-    if (pago.proyecto_id !== proyecto.id) continue;
+  let ultima: string | null = null;
+  for (const pago of pagosDe(replica, proyecto)) {
     if (ultima === null || pago.fecha > ultima) ultima = pago.fecha;
   }
-  if (ultima === null || ultima > hoy) return hoy;
-  return ultima;
+  return ultima === null || ultima > hoy ? hoy : ultima;
 }
 
 export function repartoEnLaAperturaPropuesto(

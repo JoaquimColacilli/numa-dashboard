@@ -35,7 +35,12 @@ export const recibirAvisos = {
       etiqueta: 'Minhas anotações',
       detalle: 'O que você anota: materiais, trabalho da marcenaria',
     },
+    respuestas: {
+      etiqueta: 'Respostas dos seus clientes',
+      detalle: 'Quando um cliente aprova um orçamento ou uma estimativa pela página dele',
+    },
   },
+  enElMomento: 'Na hora',
   laMananaDelDia: 'na manhã do dia',
   elDiaAnterior: 'no dia anterior',
   diasAntes: ({ dias }) => plural(dias, { one: '# dia antes', other: '# dias antes' }),

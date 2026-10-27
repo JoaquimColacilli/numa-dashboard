@@ -115,6 +115,7 @@ function proyecto(id: string, titulo: string, moneda = 'ARS'): FilaDe<'proyectos
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
   } satisfies FilaDe<'proyectos'>;
 }
 

@@ -280,6 +280,36 @@ export const lib = {
       enCola: 'Nota de crédito pedida sin señal: sale cuando vuelva.',
       error: 'No se pidió la nota de crédito.',
     },
+    respuestaAtendida: {
+      hecho: 'Listo: la respuesta queda hablada.',
+      enCola: 'Anotado sin señal: se guarda solo cuando vuelva.',
+      error: 'No se pudo marcar la respuesta como hablada.',
+    },
+    fechaDelContacto: {
+      hecho: 'Fecha del próximo contacto cambiada.',
+      enCola: 'Fecha nueva anotada sin señal: se guarda sola cuando vuelva.',
+      error: 'No se cambió la fecha del próximo contacto.',
+    },
+    respuestasDeLaConsulta: {
+      hecho: 'Respuestas guardadas.',
+      enCola: 'Respuestas anotadas sin señal: se guardan solas cuando vuelva.',
+      error: 'No se guardaron las respuestas de la consulta.',
+    },
+    preguntasDeLaConsulta: {
+      hecho: 'Preguntas guardadas.',
+      enCola: 'Preguntas anotadas sin señal: se guardan solas cuando vuelva.',
+      error: 'No se guardaron las preguntas.',
+    },
+    saldoAjustado: {
+      hecho: 'Saldo ajustado.',
+      enCola: 'Ajuste anotado sin señal: se guarda solo cuando vuelva.',
+      error: 'No se ajustó el saldo.',
+    },
+    adelantoRegistrado: {
+      hecho: 'Adelanto anotado.',
+      enCola: 'Adelanto anotado sin señal: se guarda solo cuando vuelva.',
+      error: 'No se anotó el adelanto.',
+    },
     datosDeFacturacion: {
       hecho: 'Datos de facturación guardados.',
       enCola: 'Datos de facturación anotados sin señal: se guardan solo cuando vuelva.',

@@ -1,6 +1,9 @@
 import {
   CERO,
+  esDeLaMoneda,
+  MONEDA_DEL_TALLER,
   modosPosibles,
+  queEsElTesoro,
   sumarTodos,
   tipoDelPaso,
   type BaseDeLaObligacion,
@@ -10,16 +13,41 @@ import {
   type MetaDelMes,
   type ModoDePaso,
   type Money,
+  type Plata,
+  type QueEsElTesoro,
   type TesoroDeLaFila,
   type TipoDelPaso,
   type TipoDeTesoro,
 } from '@maun/domain';
 
 import { mensajes, textosDelIdioma } from '@/shared/idioma';
+import { mesEnUnaFrase } from '@/shared/lib';
 
-export const NOMBRE_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = textosDelIdioma(
-  () => mensajes().fila.tipos,
+export const NOMBRE_DE_LO_QUE_ES: Readonly<Record<QueEsElTesoro, string>> = textosDelIdioma(
+  () => mensajes().fila.queEs,
 );
+
+export interface TesoroQueSeNombra {
+  id: string;
+  clave: TesoroDeLaFila['clave'];
+  meta: Plata | null;
+}
+
+export function loQueEs(fila: Fila, tesoro: TesoroQueSeNombra): QueEsElTesoro {
+  const { meta } = tesoro;
+  const enPesos = meta !== null && esDeLaMoneda(meta, MONEDA_DEL_TALLER) ? meta.importe : null;
+  const queEs = queEsElTesoro(fila, { id: tesoro.id, clave: tesoro.clave, meta: enPesos });
+  return queEs === 'caja' && meta !== null && enPesos === null && meta.importe > 0 ? 'meta' : queEs;
+}
+
+export function nombreDeLoQueEs(fila: Fila, tesoro: TesoroQueSeNombra): string {
+  return NOMBRE_DE_LO_QUE_ES[loQueEs(fila, tesoro)];
+}
+
+export function paraCuandoEsLaMeta(metaFecha: string | null): string | null {
+  if (metaFecha === null) return null;
+  return mensajes().fila.paraCuando(mesEnUnaFrase(metaFecha.slice(0, 7)), metaFecha.slice(0, 4));
+}
 
 export const GRUPOS_DE_LA_FILA = ['obligaciones', 'compromisos', 'ahorros', 'superavit'] as const;
 
@@ -55,11 +83,6 @@ export function tiposDelTesoro(fila: Fila, tesoro: string): TipoDeTesoro[] {
   if (fila.reparto.some((parte) => parte.tesoro === tesoro)) tipos.push('ahorro-por-porcentaje');
   if (fila.superavit === tesoro) tipos.push('superavit');
   return tipos;
-}
-
-export function nombreDelTipoDe(fila: Fila, tesoro: string): string | null {
-  const [tipo] = tiposDelTesoro(fila, tesoro);
-  return tipo === undefined ? null : NOMBRE_DEL_TIPO[tipo];
 }
 
 export function tituloDelModo(tipo: TipoDelPaso): string {

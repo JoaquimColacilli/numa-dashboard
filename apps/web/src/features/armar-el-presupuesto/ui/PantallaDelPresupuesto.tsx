@@ -1,11 +1,14 @@
 import {
+  fechasDelPresupuesto,
   huecosDelPresupuesto,
   leerBorrador,
   MONEDA_DEL_TALLER,
-  puedeCambiarEstado,
+  problemaDeLasFechas,
+  senaDelTexto,
   textoDeLaGarantia,
   type BorradorDelPresupuesto,
   type CampoQueFalta,
+  type ProblemaDeLasFechas,
   type ReferenciaEnPesos,
 } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
@@ -13,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { enlaceActivo, MUTACION_DE_ENLACE } from '@/entities/enlace';
 import {
+  estadoAlMandar,
   MUTACION_DEL_BORRADOR,
   presupuestoDelTrabajo,
   revisionesDelPresupuesto,
@@ -20,11 +24,14 @@ import {
 } from '@/entities/presupuesto';
 import {
   diasQueValeElPresupuesto,
+  filaDespuesDelGuardado,
+  guardadoDeLaDireccion,
   hijosDelProyecto,
   MUTACION_DE_PROYECTO,
   necesidadesDelProyecto,
   opcionesDelProyecto,
   tareaHecha,
+  useFilaEnCamino,
   type Proyecto,
 } from '@/entities/proyecto';
 import { idiomaDeLosClientes, useReplicaDelTaller } from '@/entities/replica';
@@ -189,7 +196,14 @@ function EstadoDelBorrador({
   );
 }
 
-function campoDelProblema(campo: CampoQueFalta, borrador: BorradorDelPresupuesto): string {
+function campoDelProblema(
+  campo: CampoQueFalta | 'fechas',
+  borrador: BorradorDelPresupuesto,
+  problema: ProblemaDeLasFechas | null,
+): string {
+  if (campo === 'fechas') {
+    return problema === 'sena-antes-del-envio' ? 'senaAntesDel' : 'listoPara';
+  }
   if (campo !== 'muebles') return campo;
   const sinDescribir = borrador.muebles.find(({ descripcion }) => descripcion.trim() === '');
   return sinDescribir === undefined ? 'muebles' : `mueble-${sinDescribir.id}`;
@@ -220,7 +234,8 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
 
   const plantilla = plantillaDeLaReplica(replica);
   const cliente = nombreDelCliente(replica, proyecto);
-  const telefono = filaPorId(replica, 'clientes', proyecto.cliente_id)?.telefono ?? '';
+  const fichaDelCliente = filaPorId(replica, 'clientes', proyecto.cliente_id);
+  const telefono = fichaDelCliente?.telefono ?? '';
   const guardado = presupuestoDelTrabajo(replica, proyecto.id);
   const revisiones = guardado === null ? [] : revisionesDelPresupuesto(replica, guardado.id);
   const revision = revisionQueSeManda(revisiones);
@@ -242,11 +257,15 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
   const [valores, setValores] = useState<ValoresDelEditor>(() =>
     valoresDelProyecto(proyecto, opcionesDelProyecto(replica, proyecto.id)),
   );
+  const [direccion, setDireccion] = useState(() =>
+    proyecto.direccion_entrega.trim() === '' ? borrador.obra : proyecto.direccion_entrega,
+  );
   const [pestana, setPestana] = useState<Pestana>('armarlo');
   const [mandando, setMandando] = useState(mandarAlAbrir);
   const [borradorSinGuardar, setBorradorSinGuardar] = useState(false);
   const [valoresSinGuardar, setValoresSinGuardar] = useState(false);
-  useAlgoEnCurso(borradorSinGuardar || valoresSinGuardar);
+  const [direccionSinGuardar, setDireccionSinGuardar] = useState(false);
+  useAlgoEnCurso(borradorSinGuardar || valoresSinGuardar || direccionSinGuardar);
 
   const guardarElBorrador = useMutation({
     ...MUTACION_DEL_BORRADOR,
@@ -256,17 +275,23 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     ...MUTACION_DE_PROYECTO,
     meta: metaDeAvisos('proyectoGuardado', { silencioso: true, sujeto: proyecto.titulo }),
   });
+  const guardarLaDireccion = useMutation({
+    ...MUTACION_DE_PROYECTO,
+    meta: metaDeAvisos('proyectoGuardado', { silencioso: true, sujeto: proyecto.titulo }),
+  });
   const crearElEnlace = useMutation({
     ...MUTACION_DE_ENLACE,
     meta: metaDeAvisos('enlaceDelCliente'),
   });
 
-  const ultimo = useRef({ replica, borrador, valores });
+  const enCamino = useFilaEnCamino();
+  const ultimo = useRef({ replica, borrador, valores, direccion });
   useEffect(() => {
-    ultimo.current = { replica, borrador, valores };
+    ultimo.current = { replica, borrador, valores, direccion };
   });
   const relojDelBorrador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const relojDeLosValores = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const relojDeLaDireccion = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   function mandarElBorrador(contenido: BorradorDelPresupuesto): void {
     clearTimeout(relojDelBorrador.current);
@@ -289,23 +314,39 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     clearTimeout(relojDeLosValores.current);
     relojDeLosValores.current = undefined;
     setValoresSinGuardar(false);
-    const actual = filaPorId(ultimo.current.replica, 'proyectos', proyecto.id);
+    const actual = enCamino.masNueva(filaPorId(ultimo.current.replica, 'proyectos', proyecto.id));
     if (actual === undefined) return;
-    guardarLosValores.mutate(
-      guardadoDeLosValores(
-        actual,
-        opcionesDelProyecto(ultimo.current.replica, proyecto.id),
-        siguientes,
-      ),
+    const guardado = guardadoDeLosValores(
+      actual,
+      opcionesDelProyecto(ultimo.current.replica, proyecto.id),
+      siguientes,
     );
+    const soltar = enCamino.anotar(filaDespuesDelGuardado(actual, guardado.pedido.datos));
+    guardarLosValores.mutate(guardado, { onSettled: soltar });
+  }
+
+  function mandarLaDireccion(siguiente: string): void {
+    clearTimeout(relojDeLaDireccion.current);
+    relojDeLaDireccion.current = undefined;
+    setDireccionSinGuardar(false);
+    const actual = enCamino.masNueva(filaPorId(ultimo.current.replica, 'proyectos', proyecto.id));
+    if (actual === undefined) return;
+    if (actual.direccion_entrega.trim() !== siguiente.trim()) {
+      const guardado = guardadoDeLaDireccion(actual, siguiente);
+      const soltar = enCamino.anotar(filaDespuesDelGuardado(actual, guardado.pedido.datos));
+      guardarLaDireccion.mutate(guardado, { onSettled: soltar });
+    }
+    if (ultimo.current.borrador.obra !== '') cambiar({ ...ultimo.current.borrador, obra: '' });
   }
 
   const guardarAhora = useRef(() => {
+    if (relojDeLaDireccion.current !== undefined) mandarLaDireccion(ultimo.current.direccion);
     if (relojDelBorrador.current !== undefined) mandarElBorrador(ultimo.current.borrador);
     if (relojDeLosValores.current !== undefined) mandarLosValores(ultimo.current.valores);
   });
   useEffect(() => {
     guardarAhora.current = () => {
+      if (relojDeLaDireccion.current !== undefined) mandarLaDireccion(ultimo.current.direccion);
       if (relojDelBorrador.current !== undefined) mandarElBorrador(ultimo.current.borrador);
       if (relojDeLosValores.current !== undefined) mandarLosValores(ultimo.current.valores);
     };
@@ -323,6 +364,15 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
     clearTimeout(relojDelBorrador.current);
     relojDelBorrador.current = setTimeout(() => {
       mandarElBorrador(siguiente);
+    }, DEMORA_DEL_GUARDADO_MS);
+  }
+
+  function cambiarLaDireccion(siguiente: string): void {
+    setDireccion(siguiente);
+    setDireccionSinGuardar(true);
+    clearTimeout(relojDeLaDireccion.current);
+    relojDeLaDireccion.current = setTimeout(() => {
+      mandarLaDireccion(siguiente);
     }, DEMORA_DEL_GUARDADO_MS);
   }
 
@@ -351,20 +401,9 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
 
   const deLoAbonado = monedaDeLoAbonadoDeHoy(proyecto, borrador);
   const abonado = abonadoDeHoy(replica, proyecto.id, deLoAbonado);
-  const huecos = {
-    valores: huecosDelPresupuesto(
-      {
-        plazoDeFabricacion: borrador.plazoDeFabricacion,
-        plantilla,
-        modificacion: borrador.modificacion,
-        abonado,
-        monedaDeLoAbonado: deLoAbonado,
-        senaBp,
-      },
-      formatos,
-    ),
-    abonado,
-  };
+  const fechas = fechasDelPresupuesto(borrador, plantilla, hoy);
+  const problemaDeFechas =
+    fechas === null ? null : problemaDeLasFechas({ ...fechas, estimativo: false }, hoy);
 
   function documentoCon(referencia?: ReferenciaEnPesos | null) {
     return documentoDeHoy({
@@ -379,6 +418,23 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
   }
 
   const documento = documentoCon();
+  const huecos = {
+    valores: huecosDelPresupuesto(
+      {
+        plazoDeFabricacion: borrador.plazoDeFabricacion,
+        plantilla,
+        modificacion: borrador.modificacion,
+        abonado,
+        monedaDeLoAbonado: deLoAbonado,
+        senaBp,
+        fechas,
+        sena: senaDelTexto(documento.valores, moneda, senaBp, abonado, deLoAbonado),
+      },
+      formatos,
+    ),
+    abonado,
+  };
+  const despues = estadoAlMandar(proyecto.estado, documento);
 
   const pdf = usePdfDelPresupuesto(pdfDelBorrador(documento, numero, revision, idioma), {
     alAbrir: true,
@@ -389,6 +445,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
   const todoGuardado =
     !borradorSinGuardar &&
     !valoresSinGuardar &&
+    !direccionSinGuardar &&
     borradorEnLaReplica !== null &&
     JSON.stringify(borradorEnLaReplica) === JSON.stringify(leerBorrador(borrador, plantilla)) &&
     mismosValores(valoresDelProyecto(proyecto, opcionesDelProyecto(replica, proyecto.id)), valores);
@@ -444,7 +501,11 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
 
   const enCelular = ancho === 'movil';
   const etiquetaDeMandar =
-    revision <= 1 ? textos.mandarElPresupuesto : textos.mandarLaRevision(revision);
+    revision > 1
+      ? textos.mandarLaRevision(revision)
+      : borrador.estimativo
+        ? textos.mandarElEstimativo
+        : textos.mandarElPresupuesto;
   const guardadoEl = guardado === null ? null : hoyEnElTaller(new Date(guardado.updated_at));
 
   return (
@@ -463,7 +524,9 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             {textos.cerrar}
           </Button>
           <div className="flex max-w-[min(26rem,calc(100vw-13rem))] min-w-0 flex-col items-center text-center">
-            <h1 className="truncate text-body-lg leading-snug font-semibold">{textos.titulo}</h1>
+            <h1 className="truncate text-body-lg leading-snug font-semibold">
+              {borrador.estimativo ? textos.tituloDelEstimativo : textos.titulo}
+            </h1>
             <p translate="no" className="max-w-full truncate text-label text-text-2">
               {proyecto.titulo}
               {cliente === '' ? '' : ` · ${cliente}`}
@@ -511,6 +574,14 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 cliente={cliente}
                 hoy={hoy}
                 diasDeAjustes={diasDeAjustes}
+                diasParaLaSena={plantilla.diasParaLaSena}
+                direccion={{
+                  valor: direccion,
+                  delCliente: fichaDelCliente?.direccion ?? '',
+                  alCambiar: cambiarLaDireccion,
+                }}
+                fechas={fechas}
+                problemaDeLasFechas={problemaDeFechas}
               />
               <DetalleDelBorrador borrador={borrador} alCambiar={cambiar} />
               <HerrajesDelBorrador
@@ -541,6 +612,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
                 senaPropia={senaEsPropia(proyecto)}
                 abonado={pagado}
                 moneda={moneda}
+                estimativo={borrador.estimativo}
                 extra={
                   moneda !== MONEDA_DEL_TALLER && pagado > 0 ? (
                     <MonedaDeLoAbonado
@@ -601,20 +673,35 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
         <div className="mx-auto flex w-full max-w-content flex-wrap items-center gap-x-2 gap-y-2 px-(--page-pad-mobile) pt-2 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:flex-nowrap md:gap-x-3 md:px-(--page-pad-tablet) md:py-3.5 lg:px-(--page-pad-desktop)">
           <div className="min-w-0 basis-full md:flex-1 md:basis-auto">
             <EstadoDelBorrador
-              sinGuardar={borradorSinGuardar || valoresSinGuardar}
-              enPausa={guardarElBorrador.isPaused || guardarLosValores.isPaused}
+              sinGuardar={borradorSinGuardar || valoresSinGuardar || direccionSinGuardar}
+              enPausa={
+                guardarElBorrador.isPaused ||
+                guardarLosValores.isPaused ||
+                guardarLaDireccion.isPaused
+              }
               enVuelo={
                 (guardarElBorrador.isPending && !guardarElBorrador.isPaused) ||
-                (guardarLosValores.isPending && !guardarLosValores.isPaused)
+                (guardarLosValores.isPending && !guardarLosValores.isPaused) ||
+                (guardarLaDireccion.isPending && !guardarLaDireccion.isPaused)
               }
-              conError={guardarElBorrador.isError || guardarLosValores.isError}
-              guardado={guardarElBorrador.isSuccess || guardarLosValores.isSuccess}
+              conError={
+                guardarElBorrador.isError || guardarLosValores.isError || guardarLaDireccion.isError
+              }
+              guardado={
+                guardarElBorrador.isSuccess ||
+                guardarLosValores.isSuccess ||
+                guardarLaDireccion.isSuccess
+              }
               guardadoEl={guardadoEl}
               hoy={hoy}
             />
-            {(guardarElBorrador.isError || guardarLosValores.isError) && (
+            {(guardarElBorrador.isError ||
+              guardarLosValores.isError ||
+              guardarLaDireccion.isError) && (
               <p role="alert" className="mt-1 text-label font-medium text-alerta">
-                {mensajeDeSincronizacion(guardarElBorrador.error ?? guardarLosValores.error)}
+                {mensajeDeSincronizacion(
+                  guardarElBorrador.error ?? guardarLosValores.error ?? guardarLaDireccion.error,
+                )}
               </p>
             )}
           </div>
@@ -653,11 +740,8 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             documento={documento}
             hoy={hoy}
             valeHasta={valeHastaAlMandar(hoy, borrador.validezDias)}
-            pasaAPresupuestoEnviado={
-              proyecto.estado !== 'presupuesto_enviado' &&
-              puedeCambiarEstado(proyecto.estado, 'presupuesto_enviado')
-            }
-            tildaLaTarea={revision <= 1 && !tareaHecha(proyecto, 'presupuesto_pdf')}
+            pasaA={despues === proyecto.estado ? null : despues}
+            tildaLaTarea={!documento.estimativo && !tareaHecha(proyecto, 'presupuesto_pdf')}
             todoGuardado={todoGuardado}
             cliente={cliente}
             trabajo={proyecto.titulo}
@@ -670,7 +754,7 @@ export function PantallaDelPresupuesto({ proyecto }: PantallaDelPresupuestoProps
             alIrAlCampo={(campo) => {
               setMandando(false);
               setPestana('armarlo');
-              const destino = campoDelProblema(campo, borrador);
+              const destino = campoDelProblema(campo, borrador, problemaDeFechas);
               setTimeout(() => {
                 irAlCampo(destino);
               }, DEMORA_PARA_IR_AL_CAMPO_MS);

@@ -16,7 +16,7 @@ import {
   modoEnPalabras,
   NivelDelMes,
   NOMBRE_DEL_GRUPO,
-  NOMBRE_DEL_TIPO,
+  NOMBRE_DE_LO_QUE_ES,
   RotuloDelPlano,
 } from '@/entities/fila';
 import { categoriaEnPantalla } from '@/entities/movimiento';
@@ -257,7 +257,8 @@ export function CuerpoDeLaObligacion({
   elegida: boolean;
   enLienzo: boolean;
 }) {
-  const textos = useMensajes().paginaTesoros.fichas;
+  const m = useMensajes();
+  const textos = m.paginaTesoros.fichas;
   const { tesoro, obligacion, prueba } = data;
   const vacia = prueba !== null && prueba <= 0;
   const conAntes = data.revision !== null && data.revision.antes !== null;
@@ -273,24 +274,32 @@ export function CuerpoDeLaObligacion({
         chip={<ChipDelTesoro tesoro={tesoro} />}
         nombre={tesoro.nombre}
         claseDelNombre={TINTA[tesoro.tinta].texto}
-        cifra={porciento(obligacion.porcentaje)}
+        cifra={
+          obligacion.montoFijo === null
+            ? porciento(obligacion.porcentaje)
+            : formatearPesos(obligacion.montoFijo)
+        }
         rotulo={
           data.diezmo ? (
             <span className="inline-flex items-center gap-1">
               <Candado />
-              {NOMBRE_DEL_TIPO.obligacion}
+              {NOMBRE_DE_LO_QUE_ES[data.queEs]}
             </span>
           ) : (
-            NOMBRE_DEL_TIPO.obligacion
+            NOMBRE_DE_LO_QUE_ES[data.queEs]
           )
         }
         unidad={conAntes ? <Antes revision={data.revision} /> : undefined}
       />
       <div className="mt-1.5 flex flex-col gap-0.5 text-meta text-text-2">
-        <span className="truncate first-letter:uppercase">{BASE_EN_PALABRAS[obligacion.base]}</span>
+        <span className="truncate first-letter:uppercase">
+          {obligacion.montoFijo === null
+            ? BASE_EN_PALABRAS[obligacion.base]
+            : m.armarLaFila.panel.unMontoFijo}
+        </span>
         {prueba === null ? (
           <LineaDePuntos
-            izquierda={textos.aPagar}
+            izquierda={m.armarLaFila.panel.paraEntregar}
             derecha={
               <span translate="no" className="font-medium text-ink">
                 {formatearPesos(data.aPagar)}
@@ -553,7 +562,11 @@ export function CuerpoDelPaso({
   const renglones = renglonesALaVista(paso.renglones);
   const mas = paso.renglones.length - renglones.length;
   const conAntes = data.revision !== null && data.revision.antes !== null;
-  const modo = data.porTrabajo ? m.fila.modo[tipo].trabajo : modoEnPalabras(paso.modo, tipo);
+  const modo = data.porTrabajo
+    ? m.fila.modo[tipo].trabajo
+    : tipo === 'compromiso' && paso.dia !== null
+      ? m.armarLaFila.panel.delDiaAlDia(paso.dia)
+      : modoEnPalabras(paso.modo, tipo);
   const pagados = new Map(
     delMes.vencimientos.map((vencimiento) => [vencimiento.indice, vencimiento]),
   );
@@ -577,7 +590,7 @@ export function CuerpoDelPaso({
         nombre={tesoro.nombre}
         claseDelNombre={TINTA[tesoro.tinta].texto}
         cifra={formatearPesos(paso.tope)}
-        rotulo={NOMBRE_DEL_TIPO[tipo]}
+        rotulo={NOMBRE_DE_LO_QUE_ES[data.queEs]}
         despuesDelRotulo={despues}
         unidad={conAntes ? <Antes revision={data.revision} /> : modo}
       />
@@ -667,9 +680,7 @@ export function CuerpoDeLaParte({ data, elegida }: { data: DatosDeLaParte; elegi
         nombre={tesoro.nombre}
         claseDelNombre={TINTA[tesoro.tinta].texto}
         cifra={porciento(data.porcentaje)}
-        rotulo={
-          data.superavit ? NOMBRE_DEL_TIPO.superavit : NOMBRE_DEL_TIPO['ahorro-por-porcentaje']
-        }
+        rotulo={NOMBRE_DE_LO_QUE_ES[data.queEs]}
         unidadAncha
         unidad={
           conAntes ? (
@@ -753,13 +764,10 @@ export function CuerpoDelEstante({
           >
             {tesoro.nombre}
           </span>
-          {tesoro.descripcion === '' ? (
-            <span className="block truncate text-meta text-text-2">{textos.sinDescripcion}</span>
-          ) : (
-            <span translate="no" className="block truncate text-meta text-text-2">
-              {tesoro.descripcion}
-            </span>
-          )}
+          <span className="block truncate text-meta text-text-2">
+            {NOMBRE_DE_LO_QUE_ES[data.queEs]}
+            {tesoro.descripcion !== '' && <span translate="no"> · {tesoro.descripcion}</span>}
+          </span>
         </div>
       </div>
       <div className="mt-2 text-meta text-text-2">

@@ -26,6 +26,9 @@ export const paginaAjustes = {
   verLaFila: 'Ver a fila em Caixinhas',
   tuTaller: 'Sua marcenaria',
   tuPresupuesto: 'Seu orçamento',
+  loQuePreguntas: 'O que você pergunta numa consulta',
+  loQueTeGuia:
+    'O que aparece em cada consulta para guiar a conversa: o que você precisa saber para uma estimativa prudente.',
   loQueVaEnCadaPresupuesto:
     'O que vai em cada orçamento que você monta: seus dados, os números e os textos de sempre.',
   comoTePagan: 'Como você recebe',
@@ -40,7 +43,6 @@ export const paginaAjustes = {
   loQueVenTusClientes:
     'O que seus clientes veem na página deles: fotos de outros projetos e suas redes sociais.',
   redes: 'Redes sociais',
-  corregirElSaldoDeCocos: 'Ajustar o saldo de Cocos',
   espacioParaArchivos: 'Espaço para arquivos',
   espacioUsado: ({ usado, total, Junto }) => (
     <>

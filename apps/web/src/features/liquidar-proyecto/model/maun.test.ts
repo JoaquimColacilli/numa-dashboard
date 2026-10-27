@@ -41,6 +41,7 @@ function tesoro(
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     moneda,

@@ -91,8 +91,14 @@ async function mandarOtraRevision(
   id: string,
   revision: number,
   queCambio: string,
+  enSuIdioma: RegExp,
 ): Promise<void> {
   await abrir(page, `/proyectos/${id}/presupuesto`);
+  await page.getByRole('tab', { name: 'Ver cómo lo ve tu cliente' }).click();
+  await expect(
+    page.getByRole('tabpanel').getByRole('region', { name: enSuIdioma }).first(),
+  ).toBeVisible(CARGA);
+  await page.getByRole('tab', { name: 'Armarlo' }).click();
   await page
     .locator('[data-mueble]')
     .first()
@@ -214,7 +220,7 @@ test('un trabajo en dólares de punta a punta: la visita en pesos con su dólar,
   ] as const;
   for (const otro of enOtrosIdiomas) {
     await escribirAjustes(sesion, { idioma_de_los_clientes: otro.idioma });
-    await mandarOtraRevision(page, id, otro.revision, otro.queCambio);
+    await mandarOtraRevision(page, id, otro.revision, otro.queCambio, otro.region);
     await abrir(page, `/v/${token}`);
     await expect(page.locator('html')).toHaveAttribute('lang', otro.lang, CARGA);
     await expect(page.getByRole('region', { name: otro.region }).first()).toContainText(

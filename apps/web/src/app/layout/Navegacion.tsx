@@ -284,7 +284,11 @@ function BarraInferior({
         irA={irA}
         className="pointer-events-auto fixed bottom-(--holgura-inferior) left-1/2 origin-bottom -translate-x-1/2"
       />
-      <nav aria-label={m.appLayout.principal} className="grid w-full grid-cols-1">
+      <nav
+        data-barra-inferior
+        aria-label={m.appLayout.principal}
+        className="grid w-full grid-cols-1"
+      >
         <div
           aria-hidden
           className="pointer-events-auto col-start-1 row-start-1 mt-3.75 h-bottom-nav rounded-pill border border-ink/8 bg-paper/80 shadow-float backdrop-blur-nav"

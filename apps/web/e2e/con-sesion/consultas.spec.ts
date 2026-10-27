@@ -126,11 +126,14 @@ test('el caso del audio: contacto sin presupuesto, seña en la visita, aprobado,
   expect(creado?.presupuesto_centavos).toBeNull();
 
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  const edicion = page.getByRole('dialog', { name: 'Editar el contacto' });
-  await edicion.getByLabel('Visita', { exact: true }).fill(fechaLocal(-1));
-  await edicion.getByLabel('Seña cobrada').fill('150.000');
-  await edicion.getByRole('button', { name: 'Guardar los cambios' }).click();
-  await expect(edicion).toBeHidden();
+  await page.getByLabel('Visita', { exact: true }).fill(fechaLocal(-1));
+  await page.getByRole('checkbox', { name: /^Ya fui a relevar/ }).check();
+  const pagos = page.getByRole('region', { name: 'Pagos recibidos' });
+  await pagos.getByRole('button', { name: 'Agregar un pago' }).click();
+  await pagos.getByLabel('Concepto 1', { exact: true }).fill('Seña de la visita');
+  await pagos.getByLabel('Monto 1', { exact: true }).fill('150.000');
+  await pagos.getByLabel('Fecha 1', { exact: true }).fill(fechaLocal(-1));
+  await page.getByRole('button', { name: 'Guardar los cambios' }).click();
   await expect(page.getByRole('region', { name: 'Qué falta' })).toContainText('Falta presupuestar');
 
   await expect.poll(async () => (await pagosDe(sesion, id)).length, { timeout: 30_000 }).toBe(1);
@@ -761,10 +764,12 @@ test('las consultas y la ficha del contacto se recorren con el teclado', async (
 
   await page.getByRole('button', { name: 'Editar', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Editar el contacto' })).toBeVisible();
-  await expect(page.getByLabel('Teléfono')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Editar el contacto' })).toBeHidden();
+  await expect(page.getByLabel('Visita', { exact: true })).toBeVisible();
+  const enElEditor = await recorrerConTab(page, 80);
+  expect(enElEditor.some((foco) => foco.includes('Cancelar'))).toBe(true);
+  expect(enElEditor.some((foco) => foco.includes('Guardar los cambios'))).toBe(true);
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Escritorio flotante');
 
   await page.getByRole('link', { name: 'Consultas', exact: true }).first().click();
   await page.getByRole('button', { name: 'Cargar contacto', exact: true }).focus();

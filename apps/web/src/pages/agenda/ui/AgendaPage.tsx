@@ -34,7 +34,7 @@ import {
   type AvisoDelDia,
 } from '@/entities/agenda';
 import { useReplicaDelTaller } from '@/entities/replica';
-import { HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
+import { HojaDeCambiarLaFecha, HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
 import {
   HojaDeAnotacion,
   useAccionesDeLaAgenda,
@@ -276,6 +276,7 @@ export function AgendaPage() {
   const idDeLaCapa = useId();
 
   const [registrando, setRegistrando] = useState<EventoDerivado | null>(null);
+  const [cambiandoLaFecha, setCambiandoLaFecha] = useState<EventoDerivado | null>(null);
 
   const avisarEnElDia = useCallback((aviso: NuevoAviso) => {
     setAvisoDelDia({ texto: aviso.texto, accion: aviso.accion ?? null });
@@ -290,6 +291,10 @@ export function AgendaPage() {
     alRegistrar: (evento) => {
       soltarElDia();
       setRegistrando(evento);
+    },
+    alCambiarLaFecha: (evento) => {
+      soltarElDia();
+      setCambiandoLaFecha(evento);
     },
     alRegistrarElPago: (evento) => {
       soltarElDia();
@@ -388,6 +393,33 @@ export function AgendaPage() {
           avisar={anotandoDesdeElDia ? avisarEnElDia : undefined}
         />
       )}
+    </ConSalida>
+  );
+
+  const hojaDeLaFecha = (
+    <ConSalida valor={cambiandoLaFecha}>
+      {(evento) => {
+        const proyecto = filaPorId(replica, 'proyectos', evento.proyectoId);
+        const idDelPendiente = idDelProximoContacto(evento);
+        const pendiente =
+          idDelPendiente === null
+            ? undefined
+            : filaPorId(replica, 'proximos_contactos', idDelPendiente);
+        if (proyecto === undefined || pendiente === undefined || pendiente.hecho_el !== null) {
+          return null;
+        }
+        const cliente = filaPorId(replica, 'clientes', proyecto.cliente_id);
+        return (
+          <HojaDeCambiarLaFecha
+            pendiente={pendiente}
+            nombre={cliente?.nombre ?? evento.titulo}
+            titulo={proyecto.titulo}
+            alCerrar={() => {
+              setCambiandoLaFecha(null);
+            }}
+          />
+        );
+      }}
     </ConSalida>
   );
 
@@ -522,6 +554,7 @@ export function AgendaPage() {
         </ConSalida>
         {hojaDeAnotar}
         {hojaDeRegistrar}
+        {hojaDeLaFecha}
       </Pagina>
     );
   }
@@ -721,6 +754,7 @@ export function AgendaPage() {
       </div>
       {hojaDeAnotar}
       {hojaDeRegistrar}
+      {hojaDeLaFecha}
     </Pagina>
   );
 }

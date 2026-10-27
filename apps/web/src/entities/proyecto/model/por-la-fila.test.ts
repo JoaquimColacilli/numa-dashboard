@@ -47,7 +47,12 @@ const METADATOS = {
   version: 1,
 } as const;
 
-const DEL_DIEZMO = { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' } as const;
+const DEL_DIEZMO = {
+  tesoro: DIEZMO,
+  porcentaje: puntosBasicos(1000),
+  base: 'ingreso',
+  montoFijo: null,
+} as const;
 
 const FILA: Fila = {
   obligaciones: [DEL_DIEZMO],
@@ -60,6 +65,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -69,6 +77,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -86,6 +97,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, t
     tinta,
     icono: 'vault',
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
@@ -201,7 +213,10 @@ function cobro(replica = taller()) {
 
 const CON_TODO: Fila = {
   ...FILA,
-  obligaciones: [{ tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' }, DEL_DIEZMO],
+  obligaciones: [
+    { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
+    DEL_DIEZMO,
+  ],
   superavit: APARTE,
 };
 
@@ -248,6 +263,9 @@ describe('el cobro por la fila', () => {
         desde: null,
         modo: 'mes',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
     reparto: [],

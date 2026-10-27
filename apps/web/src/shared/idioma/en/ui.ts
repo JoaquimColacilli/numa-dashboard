@@ -46,6 +46,7 @@ export const ui = {
   rotulo: {
     etiqueta: 'Quote title block',
     presupuesto: 'Quote',
+    estimativo: 'Estimate',
     numero: (numero) => `No. ${numero}`,
     sinNumero: 'No number yet',
     revision: 'Rev.',

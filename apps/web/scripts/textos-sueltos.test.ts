@@ -191,11 +191,6 @@ const EXCEPCIONES: readonly Excepcion[] = [
     motivo: 'Categoría que se guarda en el libro, en castellano; se traduce al mostrarla.',
   },
   {
-    archivo: 'src/features/ajustar-cocos/ui/AjusteDeCocos.tsx',
-    texto: 'Ajuste',
-    motivo: 'Categoría que se guarda en el libro, en castellano; se traduce al mostrarla.',
-  },
-  {
     archivo: 'src/entities/fila/ui/EscalaDelReparto.tsx',
     texto: /^repeating-linear-gradient\(/u,
     motivo: 'Es CSS: el rayado de la parte del reparto que va al superávit.',

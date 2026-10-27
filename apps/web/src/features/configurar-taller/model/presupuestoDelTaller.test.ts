@@ -120,23 +120,37 @@ describe('los datos que se completan solos', () => {
 
   it('los ejemplos salen de los números, y si uno no es válido, de lo guardado', () => {
     const valores = valoresDeMuestra(
-      { plazo: '45', modificaciones: '', valor: null, garantia: '3' },
+      { plazo: '45', modificaciones: '', valor: null, garantia: '3', diasSena: '' },
       DE_SIEMPRE.numeros,
       AJUSTES,
+      'ARS',
+      '2026-10-01',
     );
     expect(valores.plazo).toBe('45');
     expect(valores.modificaciones).toBe('2 modificaciones');
     expect(valores.meses).toBe('6 meses');
-    expect(valores.valor_modificacion.replace(/\s/g, ' ')).toBe('$ 50.000');
+    expect(valores.valor_modificacion?.replace(/\s/g, ' ')).toBe('$ 50.000');
     expect(valores.sena).toBe('50%');
-    expect(valores.relevamiento.replace(/\s/g, ' ')).toBe('$ 120.000');
+    expect(valores.relevamiento?.replace(/\s/g, ' ')).toBe('$ 120.000');
+    expect(valores).toMatchObject({
+      entrega: '3 de diciembre de 2026',
+      sena_antes: '3 de octubre de 2026',
+      sena_acordada: 'del 50% de la opción que elijas',
+    });
     expect(
       valoresDeMuestra(
-        { plazo: '1', modificaciones: '1', valor: 0, garantia: '1' },
+        { plazo: '1', modificaciones: '1', valor: 0, garantia: '1', diasSena: '5' },
         DE_SIEMPRE.numeros,
         ajustes({ relevamiento_centavos: null }),
+        'ARS',
+        '2026-10-01',
       ),
-    ).toMatchObject({ modificaciones: '1 modificación', meses: '6 meses' });
+    ).toMatchObject({
+      modificaciones: '1 modificación',
+      meses: '6 meses',
+      entrega: '2 de octubre de 2026',
+      sena_antes: '6 de octubre de 2026',
+    });
   });
 
   it('en otro idioma de los clientes, los ejemplos se escriben como los lee el cliente', () => {
@@ -151,7 +165,7 @@ describe('los datos que se completan solos', () => {
       meses: '6 months',
       sena: '50%',
     });
-    expect(valores.valor_modificacion.replace(/\s/g, ' ')).toBe('ARS 50,000');
+    expect(valores.valor_modificacion?.replace(/\s/g, ' ')).toBe('ARS 50,000');
   });
 });
 
@@ -216,6 +230,35 @@ describe('lo que cambió en la pantalla', () => {
   });
 });
 
+describe('los días para la seña', () => {
+  it('arrancan en los de la plantilla, van a la plantilla y cambiarlos es un cambio de los números', () => {
+    expect(DE_SIEMPRE.numeros.diasSena).toBe('2');
+    const conCinco: BorradorDeLaPantalla = {
+      ...DE_SIEMPRE,
+      numeros: { ...DE_SIEMPRE.numeros, diasSena: '5' },
+    };
+    expect(plantillaDelBorrador(conCinco).diasParaLaSena).toBe(5);
+    expect(cambiosDeLaPantalla(conCinco, DE_SIEMPRE)).toMatchObject({ numeros: true, hay: true });
+    expect(
+      cambiosDeLaPantalla(
+        { ...DE_SIEMPRE, numeros: { ...DE_SIEMPRE.numeros, diasSena: ' 2 ' } },
+        DE_SIEMPRE,
+      ).hay,
+    ).toBe(false);
+  });
+
+  it('van de 0 a 60: cero es el mismo día en que se manda', () => {
+    const conDias = (diasSena: string) =>
+      problemasDeLaPantalla({ ...DE_SIEMPRE, numeros: { ...DE_SIEMPRE.numeros, diasSena } }).map(
+        ({ campo }) => campo,
+      );
+    expect(conDias('0')).toEqual([]);
+    expect(conDias('60')).toEqual([]);
+    expect(conDias('61')).toEqual(['diasSena']);
+    expect(conDias('')).toEqual(['diasSena']);
+  });
+});
+
 describe('lo que frena el guardado', () => {
   it('sin nada mal, no hay problemas', () => {
     expect(problemasDeLaPantalla(DE_SIEMPRE)).toEqual([]);
@@ -227,7 +270,7 @@ describe('lo que frena el guardado', () => {
     const mal: BorradorDeLaPantalla = {
       ...conAvisos(DE_SIEMPRE, [{ ...aviso, texto: '   ' }]),
       datos: { ...DE_SIEMPRE.datos, cuit: '27-1234', email: 'no es un mail' },
-      numeros: { plazo: '0', modificaciones: '11', valor: null, garantia: '3' },
+      numeros: { plazo: '0', modificaciones: '11', valor: null, garantia: '3', diasSena: '61' },
       formas: DE_SIEMPRE.formas.map((forma) => ({ ...forma, quitada: true })),
       garantia: ' ',
     };
@@ -236,9 +279,10 @@ describe('lo que frena el guardado', () => {
       'cuit',
       'email',
       'plazo',
-      'garantia',
+      'diasSena',
       'modificaciones',
       'valor',
+      'garantia',
       `texto:${aviso.id}`,
       'formas',
       'texto-de-la-garantia',
@@ -246,6 +290,10 @@ describe('lo que frena el guardado', () => {
     expect(problemas.find(({ campo }) => campo === 'garantia')?.mensaje).toBe(
       'La ley pide por lo menos 6 meses.',
     );
+    expect(problemas.find(({ campo }) => campo === 'diasSena')).toMatchObject({
+      mensaje: 'Escribí los días para la seña, entre 0 y 60.',
+      queRevisar: 'los días para la seña',
+    });
     expect(
       problemasDeLaPantalla({ ...DE_SIEMPRE, numeros: { ...DE_SIEMPRE.numeros, garantia: 'x' } })[0]
         ?.mensaje,
@@ -349,6 +397,7 @@ describe('volver a los textos de siempre', () => {
     const propia: PlantillaDelPresupuesto = {
       ...PLANTILLA_DE_SIEMPRE,
       plazoDeFabricacion: 35,
+      diasParaLaSena: 5,
       valorDeUnaModificacion: centavos(6_000_000),
       garantiaMeses: 12,
       incluye: [{ ...incluye, tildadaPorDefecto: false }, ...PLANTILLA_DE_SIEMPRE.incluye.slice(1)],
@@ -372,11 +421,15 @@ describe('volver a los textos de siempre', () => {
       'wallet',
       'shield',
       'calendar',
+      'calendar',
       'pencil-ruler',
       'shield',
     ]);
     expect(cosas[1]?.texto).toBe(
       'Se va el aviso que agregaste: «La fecha de producción se reserva con la seña.»',
+    );
+    expect(cosas[6]?.texto.replace(/\s/g, ' ')).toBe(
+      'La seña vuelve a vencer 2 días después de mandarlo.',
     );
   });
 });
@@ -454,7 +507,7 @@ describe('las cláusulas de los dólares y la moneda de una modificación', () =
 
   it('el ejemplo del valor de una modificación va en su moneda', () => {
     const valores = valoresDeMuestra(DE_SIEMPRE.numeros, DE_SIEMPRE.numeros, AJUSTES, 'USD');
-    expect(valores.valor_modificacion.replace(/\s/g, ' ')).toBe('US$ 50.000');
+    expect(valores.valor_modificacion?.replace(/\s/g, ' ')).toBe('US$ 50.000');
   });
 
   it('volver a los de siempre dice que vuelven las cláusulas y la modificación en pesos', () => {

@@ -72,7 +72,9 @@ async function householdDePrueba(cliente: pg.Client): Promise<string> {
     'select private.crear_household($1, $2) as id',
     ['[prueba] Migración del sistema viejo', usuario[0]?.id],
   );
-  return rows[0]?.id ?? '';
+  const id = rows[0]?.id ?? '';
+  await cliente.query('select private.sembrar_cocos($1)', [id]);
+  return id;
 }
 
 describe('lo que se lee del JSON del sistema viejo', () => {

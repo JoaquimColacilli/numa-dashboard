@@ -31,6 +31,10 @@
   dólares, el dólar del día, que viaja desde que se mandó el presupuesto, cuando hay un precio que pasar a
   pesos; la cuenta en dólares viaja solo si el pago que toca se ofrece en dólares por transferencia.
   `32_la_vista_antes_de_aprobar.sql` fija desde qué etapa viaja cada clave.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): antes de aprobar, el
+  cliente puede aprobar una opción desde su página y proponer un día para medir; la respuesta la escribe una
+  función elevada y no mueve la etapa.
 
 ## Contexto
 

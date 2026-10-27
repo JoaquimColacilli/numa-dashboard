@@ -17,6 +17,7 @@ import {
   yaSeRelevo,
   type Pago,
   type Proyecto,
+  type RespuestasEscritas,
   type TesoroQueRecibeDolares,
   type ValorDelPago,
 } from '@/entities/proyecto';
@@ -60,6 +61,8 @@ export interface ValoresDelContacto {
   notas: string;
   vencimiento: string;
   valeHasta: string;
+  direccion: string;
+  respuestas: RespuestasEscritas;
 }
 
 export interface ErroresDelContacto {
@@ -118,6 +121,8 @@ export function valoresDelContacto(
     notas: proyecto?.notas ?? '',
     vencimiento: proyecto?.vencimiento_presupuesto ?? '',
     valeHasta: proyecto === undefined ? '' : (vigenciaDelPresupuesto(proyecto) ?? ''),
+    direccion: proyecto?.direccion_entrega ?? '',
+    respuestas: {},
   };
   return conLaSena(
     valores,
@@ -128,7 +133,12 @@ export function valoresDelContacto(
 }
 
 function recortados(valores: ValoresDelContacto): ValoresDelContacto {
-  return { ...valores, titulo: valores.titulo.trim(), notas: valores.notas.trim() };
+  return {
+    ...valores,
+    titulo: valores.titulo.trim(),
+    notas: valores.notas.trim(),
+    direccion: valores.direccion.trim(),
+  };
 }
 
 export function hayCambiosEnElContacto(
@@ -378,6 +388,7 @@ export function pedidoDelContacto({
       visita_hecha: visitaHechaAlGuardar(proyecto, estado, valores, hoy),
       ultimo_contacto: ultimoContactoAlGuardar(proyecto, estado, hoy, visita === '' ? hoy : visita),
       notas: valores.notas.trim(),
+      direccion_entrega: valores.direccion.trim(),
       vencimiento_presupuesto: vencimientoDelContacto(proyecto, estado, valores, hoy),
       presupuesto_vale_hasta: vigenciaAlGuardar(proyecto, valores, base.presupuesto_vale_hasta),
     },

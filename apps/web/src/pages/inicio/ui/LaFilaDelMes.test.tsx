@@ -4,6 +4,7 @@ import {
   puntosBasicos,
   tipoDelPaso,
   type EstadoDelDiezmo,
+  type Fila,
   type FilaDelMes,
   type ParteDelMes,
   type PasoDelMes,
@@ -33,7 +34,7 @@ function tesoro(
     tinta,
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado: false,
     saldo: enPesos(centavos(0)),
@@ -55,6 +56,7 @@ const TESOROS = [
   tesoro('inmuebles', null, 'Inmuebles', 'ciruela', {
     saldo: enPesos(centavos(102_000_000)),
     meta: enPesos(centavos(2_000_000_000)),
+    metaFecha: '2027-03-31',
   }),
 ];
 
@@ -78,7 +80,10 @@ function paso(
     falta: centavos(falta),
     completo: falta === 0,
     aPagar: null,
+    ciclo: null,
     vencimientos: [],
+    vencimiento: null,
+    ultimoPago: null,
     meta: null,
     ...extra,
   };
@@ -141,10 +146,10 @@ afterEach(() => {
   cleanup();
 });
 
-function montar(delMes: FilaDelMes = SEPTIEMBRE) {
+function montar(delMes: FilaDelMes = SEPTIEMBRE, fila?: Pick<Fila, 'obligaciones'>) {
   render(
     <MemoryRouter>
-      <LaFilaDelMes delMes={delMes} tesoros={TESOROS} hoy="2026-09-27" />
+      <LaFilaDelMes delMes={delMes} tesoros={TESOROS} hoy="2026-09-27" fila={fila} />
     </MemoryRouter>,
   );
   return screen.getByRole('region', { name: 'La fila de septiembre' });
@@ -172,7 +177,7 @@ describe('La fila del mes en Inicio', () => {
         .map((renglon) => llano(renglon.textContent));
 
     expect(renglones('Obligaciones')).toEqual([
-      '1Ingresos Brutos · 3,5% sobre lo que cobrás$ 94.500 apartadoA pagar $ 94.500',
+      '1Ingresos Brutos · 3,5% sobre lo que cobrás$ 94.500 apartadoPara entregar $ 94.500',
       '2Diezmo · 10% sobre el ingreso$ 270.000 apartadoAl día',
     ]);
     expect(renglones('Compromisos')).toEqual([
@@ -196,6 +201,27 @@ describe('La fila del mes en Inicio', () => {
         .getAllByRole('list')
         .map((lista) => lista.getAttribute('start')),
     ).toEqual(['1', '3', '5']);
+  });
+
+  it('una obligación con monto fijo dice cuánto aparta de cada cobro', () => {
+    const fila = montar(SEPTIEMBRE, {
+      obligaciones: [
+        {
+          tesoro: 'iibb',
+          porcentaje: puntosBasicos(350),
+          base: 'cobrado',
+          montoFijo: centavos(5_000_000),
+        },
+        { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+      ],
+    });
+    const renglones = within(within(fila).getByRole('group', { name: 'Obligaciones' }))
+      .getAllByRole('listitem')
+      .map((renglon) => llano(renglon.textContent));
+    expect(renglones).toEqual([
+      '1Ingresos Brutos · $ 50.000 de cada cobro$ 94.500 apartadoPara entregar $ 94.500',
+      '2Diezmo · 10% sobre el ingreso$ 270.000 apartadoAl día',
+    ]);
   });
 
   it('un ahorro por trabajo no lleva barra: dice cuánto recibió en el mes', () => {
@@ -238,7 +264,7 @@ describe('La fila del mes en Inicio', () => {
 });
 
 describe('Las metas en Inicio', () => {
-  it('una barra por cada tesoro con meta, y el diezmo pagado', () => {
+  it('una barra por cada tesoro con meta, con su fecha si tiene, y el diezmo pagado', () => {
     const diezmo = {
       situacion: 'debe',
       importe: centavos(27_000_000),
@@ -256,7 +282,7 @@ describe('Las metas en Inicio', () => {
     ]);
     expect(barras.map((barra) => llano(barra.getAttribute('aria-valuetext')))).toEqual([
       '$ 3.415.000 de $ 100.000.000',
-      '$ 1.020.000 de $ 20.000.000',
+      '$ 1.020.000 de $ 20.000.000, para marzo de 2027',
       '$ 2.160.000 de $ 2.430.000',
     ]);
     expect(barras[1]?.querySelector('.bg-ciruela')).not.toBeNull();

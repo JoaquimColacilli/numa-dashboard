@@ -9,4 +9,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.fila.ayudas.reparto.conEjemplo('«PORCENTAJE»', '«SOBRANTE»', '«PARTE»'),
     tieneQueDecir: ['«PORCENTAJE»', '«SOBRANTE»', '«PARTE»'],
   },
+  'fila.paraCuando': {
+    llamar: (m) => m.fila.paraCuando('«MES»', '«AÑO»'),
+    tieneQueDecir: ['«MES»', '«AÑO»'],
+  },
 };

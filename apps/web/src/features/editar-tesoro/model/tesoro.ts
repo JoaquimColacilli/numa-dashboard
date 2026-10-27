@@ -1,14 +1,9 @@
 import { MONEDA_DEL_TALLER, type Moneda } from '@maun/domain';
 
 import type { TesoroDelTaller } from '@/entities/tesoro';
-import type { CambiosDeAjustes, CambiosDeTesoro, FilaDe, Tesoro, TesoroNuevo } from '@/shared/api';
+import type { CambiosDeTesoro, FilaDe, Tesoro, TesoroNuevo } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
-import {
-  formatearPorcentaje,
-  ICONOS_DE_TESORO,
-  parsearPorcentaje,
-  type TintaDeTesoro,
-} from '@/shared/lib';
+import { hoyEnElTaller, ICONOS_DE_TESORO, type TintaDeTesoro } from '@/shared/lib';
 import type { NombreDeIcono } from '@/shared/ui';
 
 export const LARGO_MAXIMO_DEL_NOMBRE = 24;
@@ -41,13 +36,14 @@ export interface BorradorDelTesoro {
   tinta: TintaDeTesoro;
   icono: NombreDeIcono;
   meta: number | null;
-  rinde: string;
+  metaFecha: string;
 }
 
 export interface ErroresDelTesoro {
   nombre?: string;
   descripcion?: string;
-  rinde?: string;
+  meta?: string;
+  metaFecha?: string;
 }
 
 type ConTinta = Pick<TesoroDelTaller, 'id' | 'nombre' | 'tinta' | 'archivado'>;
@@ -84,7 +80,7 @@ export function borradorNuevo(
     tinta: tintaSugerida(tesoros),
     icono: iconoDeFabrica(moneda),
     meta: null,
-    rinde: '0',
+    metaFecha: '',
   };
 }
 
@@ -101,8 +97,12 @@ export function borradorDe(tesoro: TesoroDelTaller): BorradorDelTesoro {
     tinta: tesoro.tinta,
     icono: tesoro.icono,
     meta: tesoro.meta?.importe ?? null,
-    rinde: formatearPorcentaje(tesoro.rindeAnualBp ?? 0),
+    metaFecha: tesoro.metaFecha ?? '',
   };
+}
+
+export function tieneMeta(borrador: Pick<BorradorDelTesoro, 'meta'>): boolean {
+  return borrador.meta !== null && borrador.meta > 0;
 }
 
 function largo(texto: string): number {
@@ -111,7 +111,7 @@ function largo(texto: string): number {
 
 export function revisarElTesoro(
   borrador: BorradorDelTesoro,
-  { conRinde }: { conRinde: boolean },
+  { pideMeta = false, hoy = hoyEnElTaller() }: { pideMeta?: boolean; hoy?: string } = {},
 ): ErroresDelTesoro {
   const textos = mensajes().editarTesoro.errores;
   const errores: ErroresDelTesoro = {};
@@ -122,8 +122,12 @@ export function revisarElTesoro(
   if (largo(borrador.descripcion.trim()) > LARGO_MAXIMO_DE_LA_DESCRIPCION) {
     errores.descripcion = textos.descripcion(LARGO_MAXIMO_DE_LA_DESCRIPCION);
   }
-  if (conRinde && parsearPorcentaje(borrador.rinde) === undefined) {
-    errores.rinde = textos.rinde;
+  if (pideMeta && !tieneMeta(borrador)) errores.meta = textos.meta;
+  if (borrador.metaFecha !== '') {
+    if (!tieneMeta(borrador)) errores.metaFecha = textos.fechaSinMeta;
+    else if (!/^\d{4}-\d{2}-\d{2}$/.test(borrador.metaFecha) || borrador.metaFecha < hoy) {
+      errores.metaFecha = textos.fechaDeLaMeta;
+    }
   }
   return errores;
 }
@@ -134,6 +138,10 @@ export function hayErrores(errores: ErroresDelTesoro): boolean {
 
 function metaParaGuardar(meta: number | null): number | null {
   return meta === null || meta <= 0 ? null : meta;
+}
+
+function fechaParaGuardar(borrador: Pick<BorradorDelTesoro, 'meta' | 'metaFecha'>): string | null {
+  return tieneMeta(borrador) && borrador.metaFecha !== '' ? borrador.metaFecha : null;
 }
 
 export function ordenAlFinal(tesoros: readonly Pick<TesoroDelTaller, 'clave' | 'orden'>[]): number {
@@ -149,10 +157,14 @@ export function tesoroNuevo(borrador: BorradorDelTesoro, id: string, orden: numb
     tinta: borrador.tinta,
     icono: borrador.icono,
     meta_centavos: metaParaGuardar(borrador.meta),
-    rinde_anual_bp: null,
+    meta_fecha: fechaParaGuardar(borrador),
     orden,
     moneda: borrador.moneda,
   };
+}
+
+export function admiteMeta(clave: Tesoro | null): boolean {
+  return clave === null || clave === 'cocos';
 }
 
 const COLUMNAS_QUE_SE_EDITAN = [
@@ -161,6 +173,7 @@ const COLUMNAS_QUE_SE_EDITAN = [
   'tinta',
   'icono',
   'meta_centavos',
+  'meta_fecha',
 ] as const satisfies readonly (keyof CambiosDeTesoro)[];
 
 export type DatosQueSeEditan = Pick<FilaDe<'tesoros'>, (typeof COLUMNAS_QUE_SE_EDITAN)[number]>;
@@ -176,6 +189,7 @@ export function datosQueSeEditan(
       tinta: fila.tinta,
       icono: fila.icono,
       meta_centavos: fila.meta_centavos,
+      meta_fecha: fila.meta_fecha,
     };
   }
   return {
@@ -183,8 +197,17 @@ export function datosQueSeEditan(
     descripcion: tesoro.descripcion,
     tinta: tesoro.tinta,
     icono: tesoro.icono,
-    meta_centavos: tesoro.clave === null ? (tesoro.meta?.importe ?? null) : null,
+    meta_centavos: admiteMeta(tesoro.clave) ? (tesoro.meta?.importe ?? null) : null,
+    meta_fecha: admiteMeta(tesoro.clave) ? tesoro.metaFecha : null,
   };
+}
+
+export function metaQueVieneDeLosAjustes(
+  tesoro: TesoroDelTaller,
+  fila: FilaDe<'tesoros'> | undefined,
+): number | null {
+  if (tesoro.clave !== 'cocos' || fila === undefined || fila.meta_centavos !== null) return null;
+  return tesoro.meta?.importe ?? null;
 }
 
 export interface Diferencias<T> {
@@ -194,15 +217,21 @@ export interface Diferencias<T> {
 
 export function cambiosDelTesoro(
   actual: DatosQueSeEditan,
-  clave: Tesoro | null,
+  conMeta: boolean,
   borrador: BorradorDelTesoro,
+  deLosAjustes: number | null = null,
 ): Diferencias<CambiosDeTesoro> {
+  const pedida = metaParaGuardar(borrador.meta);
+  const vigente = metaParaGuardar(actual.meta_centavos ?? deLosAjustes);
+  const meta = Object.is(pedida, vigente)
+    ? actual.meta_centavos
+    : (pedida ?? (deLosAjustes === null ? null : 0));
   const propuesto: CambiosDeTesoro = {
     nombre: borrador.nombre.trim(),
     descripcion: borrador.descripcion.trim(),
     tinta: borrador.tinta,
     icono: borrador.icono,
-    ...(clave === null ? { meta_centavos: metaParaGuardar(borrador.meta) } : {}),
+    ...(conMeta ? { meta_centavos: meta, meta_fecha: fechaParaGuardar(borrador) } : {}),
   };
   const cambios: CambiosDeTesoro = {};
   const previos: CambiosDeTesoro = {};
@@ -217,32 +246,11 @@ export function cambiosDelTesoro(
   return { cambios, previos };
 }
 
-export function cambiosDeCocos(
-  ajustes: Pick<FilaDe<'ajustes'>, 'meta_cocos_centavos' | 'tasa_cocos_anual_bp'>,
-  borrador: BorradorDelTesoro,
-): Diferencias<CambiosDeAjustes> {
-  const cambios: CambiosDeAjustes = {};
-  const previos: CambiosDeAjustes = {};
-  const meta = borrador.meta ?? 0;
-  if (meta !== ajustes.meta_cocos_centavos) {
-    cambios.meta_cocos_centavos = meta;
-    previos.meta_cocos_centavos = ajustes.meta_cocos_centavos;
-  }
-  const rinde = parsearPorcentaje(borrador.rinde);
-  if (rinde !== undefined && rinde !== ajustes.tasa_cocos_anual_bp) {
-    cambios.tasa_cocos_anual_bp = rinde;
-    previos.tasa_cocos_anual_bp = ajustes.tasa_cocos_anual_bp;
-  }
-  return { cambios, previos };
-}
-
 export function hayDiferencias<T extends object>({ cambios }: Diferencias<T>): boolean {
   return Object.keys(cambios).length > 0;
 }
 
-export function bajadaDeLaEdicion(clave: Tesoro | null): string {
+export function bajadaDeLaEdicion(conMeta: boolean): string {
   const { bajada } = mensajes().editarTesoro;
-  if (clave === 'cocos') return bajada.conRinde;
-  if (clave === null) return bajada.conMeta;
-  return bajada.deSiempre;
+  return conMeta ? bajada.conMeta : bajada.deSiempre;
 }

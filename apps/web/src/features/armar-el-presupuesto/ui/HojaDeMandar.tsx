@@ -2,9 +2,11 @@ import {
   cotizacionLeida,
   idiomaLeido,
   LARGOS_DEL_PRESUPUESTO,
+  problemaDeLasFechas,
   problemasParaMandar,
   type CampoQueFalta,
   type DocumentoDelPresupuesto,
+  type EstadoProyecto,
   type Idioma,
   type ReferenciaEnPesos,
 } from '@maun/domain';
@@ -20,6 +22,7 @@ import { useMensajesDelClienteEn } from '@/shared/idioma-del-cliente';
 import {
   fechaLarga,
   formatearPesos,
+  mensajeDelEstimativo,
   mensajeParaElCliente,
   metaDeAvisos,
   useAnchoDePantalla,
@@ -71,7 +74,7 @@ export interface HojaDeMandarProps {
   documento: DocumentoDelPresupuesto;
   hoy: string;
   valeHasta: string | null;
-  pasaAPresupuestoEnviado: boolean;
+  pasaA: EstadoProyecto | null;
   tildaLaTarea: boolean;
   todoGuardado: boolean;
   cliente: string;
@@ -82,7 +85,7 @@ export interface HojaDeMandarProps {
     queCambio: string,
     referencia: ReferenciaEnPesos | null,
   ) => EnvioDelPresupuesto | null;
-  alIrAlCampo: (campo: CampoQueFalta) => void;
+  alIrAlCampo: (campo: CampoQueFalta | 'fechas') => void;
   alCerrar: () => void;
 }
 
@@ -148,8 +151,12 @@ function Listo({
     },
     { alAbrir: true },
   );
-  const paraElCliente = (direccion: string) =>
-    whatsapp === undefined ? '' : mensajeParaElCliente(whatsapp, cliente, trabajo, direccion, true);
+  const paraElCliente = (direccion: string) => {
+    if (whatsapp === undefined) return '';
+    return documento.estimativo
+      ? mensajeDelEstimativo(whatsapp, cliente, trabajo, direccion)
+      : mensajeParaElCliente(whatsapp, cliente, trabajo, direccion, true);
+  };
   const mensaje = paraElCliente(url ?? '');
   const nombre = primerNombre(cliente);
   const yaLoVe = esLaPrimera
@@ -281,7 +288,7 @@ export function HojaDeMandar({
   documento,
   hoy,
   valeHasta,
-  pasaAPresupuestoEnviado,
+  pasaA,
   tildaLaTarea,
   todoGuardado,
   cliente,
@@ -306,7 +313,13 @@ export function HojaDeMandar({
   });
   const guardarElDolar = useMutation(MUTACION_DE_AJUSTES);
   const problemas = problemasParaMandar(documento, revision, queCambio);
-  const faltaAlgoDelBorrador = problemas.some(({ campo }) => campo !== 'queCambio');
+  const problemaDeFechas = problemaDeLasFechas(documento, hoy);
+  const fechasQueArreglar =
+    problemaDeFechas === 'sena-antes-del-envio' || problemaDeFechas === 'entrega-antes-de-la-sena'
+      ? problemaDeFechas
+      : null;
+  const faltaAlgoDelBorrador =
+    problemas.some(({ campo }) => campo !== 'queCambio') || fechasQueArreglar !== null;
   const esLaPrimera = revision <= 1;
   const enDolares = documento.forma === 2;
   const delDia = enDolares ? dolarDeHoy(replica, hoy) : null;
@@ -360,7 +373,12 @@ export function HojaDeMandar({
         queHacer: mensajeDeSincronizacion(mandar.error),
       })
     : null;
-  const titulo = esLaPrimera ? textos.mandarElPresupuesto : textos.mandarLaRevision(revision);
+  const titulo = esLaPrimera
+    ? documento.estimativo
+      ? textos.mandarElEstimativo
+      : textos.mandarElPresupuesto
+    : textos.mandarLaRevision(revision);
+  const { listoPara, senaAntesDel } = documento;
   const delPresupuesto = documento.titulo.trim();
 
   return (
@@ -414,6 +432,23 @@ export function HojaDeMandar({
                         </button>
                       </li>
                     ))}
+                  {fechasQueArreglar !== null && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          alIrAlCampo('fechas');
+                        }}
+                        className="flex min-h-tap w-full items-center gap-3 text-left text-body text-ink"
+                      >
+                        <span className="min-w-0 flex-1">{m.loQueFalta[fechasQueArreglar]}</span>
+                        <span className="flex flex-none items-center gap-1 text-label font-semibold underline underline-offset-3">
+                          {m.campos.fechas}
+                          <Icono nombre="chevron-right" tamano={16} />
+                        </span>
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </section>
             )}
@@ -449,17 +484,27 @@ export function HojaDeMandar({
                 <Renglon icono="eye">
                   {esLaPrimera ? m.loVeYLoPuedeBajar : m.loVeArribaDeLoQueCambio}
                 </Renglon>
+                {documento.estimativo && <Renglon icono="ruler">{m.esUnEstimativo}</Renglon>}
+                {documento.pideFecha && (
+                  <Renglon icono="calendar-check">{m.teProponeUnDia}</Renglon>
+                )}
                 <Renglon icono="calendar">
                   {valeHasta === null ? m.noVence : m.valeHasta(fechaLarga(valeHasta, hoy))}
                 </Renglon>
-                {pasaAPresupuestoEnviado && (
+                {listoPara !== null && senaAntesDel !== null && (
+                  <Renglon icono="truck">
+                    {m.prometeLaEntrega(fechaLarga(listoPara, hoy), fechaLarga(senaAntesDel, hoy))}
+                  </Renglon>
+                )}
+                {pasaA !== null && (
                   <Renglon icono="arrow-right">
                     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                      {m.pasaA(<EstadoBadge estado="presupuesto_enviado" />)}
+                      {m.pasaA(<EstadoBadge estado={pasaA} />)}
                     </span>
                   </Renglon>
                 )}
                 {tildaLaTarea && <Renglon icono="list-checks">{m.seTilda}</Renglon>}
+                {documento.estimativo && <Renglon icono="list-checks">{m.noSeTilda}</Renglon>}
                 {!esLaPrimera && <Renglon icono="history">{m.quedaGuardada(revision - 1)}</Renglon>}
                 {enDolares && (
                   <Renglon icono="coins">
@@ -504,7 +549,13 @@ export function HojaDeMandar({
                 {m.cancelar}
               </Button>
               <Button
-                disabled={problemas.length > 0 || faltaElDolar || !todoGuardado || mandar.isPending}
+                disabled={
+                  problemas.length > 0 ||
+                  problemaDeFechas !== null ||
+                  faltaElDolar ||
+                  !todoGuardado ||
+                  mandar.isPending
+                }
                 onClick={mandarlo}
               >
                 <Icono nombre="send" tamano={16} />

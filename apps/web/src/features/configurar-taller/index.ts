@@ -24,6 +24,7 @@ export {
 export { FormularioDeRedes } from './ui/FormularioDeRedes';
 export { FormularioDeResena } from './ui/FormularioDeResena';
 export { IdiomaDeLosClientes } from './ui/IdiomaDeLosClientes';
+export { PreguntasDeLaConsulta, type PreguntasDeLaConsultaProps } from './ui/PreguntasDeLaConsulta';
 export {
   PantallaDelPresupuestoDelTaller,
   type PantallaDelPresupuestoDelTallerProps,

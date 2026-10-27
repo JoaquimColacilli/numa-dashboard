@@ -1,8 +1,11 @@
 import {
+  CATEGORIA_DEL_ADELANTO,
   centavos,
   LARGO_MAXIMO_DEL_RENGLON,
   lugarLibreDelReparto,
+  modosQueSeOfrecen,
   puntosBasicos,
+  seOfreceSinFin,
   sumaDelReparto,
   tipoDelPaso,
   totalesPorMoneda,
@@ -28,8 +31,8 @@ import {
   AyudaDeLaBase,
   AyudaDeLaFila,
   AyudaDeLaMeta,
+  AyudaDeLoQueEs,
   AyudaDeLosInsumos,
-  AyudaDeQueEs,
   AyudaDelGrupo,
   AyudaDelIngreso,
   AyudaDelLugar,
@@ -47,8 +50,10 @@ import {
   modoEnPalabras,
   modosDelPaso,
   NivelDelMes,
+  NOMBRE_DE_LO_QUE_ES,
+  loQueEs,
+  paraCuandoEsLaMeta,
   NOMBRE_DEL_GRUPO,
-  NOMBRE_DEL_TIPO,
   puedeSerSuperavit,
   tituloDelModo,
 } from '@/entities/fila';
@@ -69,6 +74,7 @@ import {
 } from '@/entities/tesoro';
 import { mensajes, useMensajes } from '@/shared/idioma';
 import {
+  diaYMes,
   formatearLaPlata,
   formatearPesos,
   formatearPlata,
@@ -86,8 +92,11 @@ import { editarLaFila, sePuedeEditar } from '../model/acciones';
 import { cortarLaJunta } from '../model/borrador';
 import {
   conBase,
+  conDiaDePago,
   conHastaLaMeta,
   conModo,
+  conMontoFijo,
+  conPagaSola,
   conPorcentaje,
   conPorcentajeDeLaObligacion,
   conRenglones,
@@ -501,6 +510,7 @@ function PanelDeLaObligacion({
   const delMes = vista.delMes.obligaciones.find((una) => una.tesoro === tesoroId);
   const aPagar = delMes?.aPagar ?? 0;
   const mes = mesEnUnaFrase(vista.mes);
+  const conMonto = obligacion.montoFijo !== null;
   const cerrar = () => {
     props.alElegir(null);
   };
@@ -516,8 +526,46 @@ function PanelDeLaObligacion({
         />
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, tesoroId, ['tesoro'])} />
-      <Seccion titulo={textos.porcentaje} ayuda={<AyudaDelGrupo grupo="obligaciones" />}>
-        {vista.armando ? (
+      <Seccion
+        titulo={esDiezmo ? textos.porcentaje : textos.comoSeLleva}
+        ayuda={<AyudaDeLoQueEs de="deuda-destinada" />}
+      >
+        {vista.armando && !esDiezmo && (
+          <Segmentado<'porcentaje' | 'monto'>
+            etiqueta={textos.comoSeLlevaDe(tesoro.nombre)}
+            opciones={[
+              { id: 'porcentaje', etiqueta: textos.unPorcentaje },
+              { id: 'monto', etiqueta: textos.unMontoFijo },
+            ]}
+            elegido={conMonto ? 'monto' : 'porcentaje'}
+            alElegir={(como) => {
+              editarLaFila(vista, (fila) =>
+                conMontoFijo(fila, tesoroId, como === 'monto' ? centavos(0) : null),
+              );
+            }}
+          />
+        )}
+        {conMonto ? (
+          vista.armando ? (
+            <MoneyInput
+              aria-label={textos.montoFijoDe(tesoro.nombre)}
+              conMarcador
+              value={obligacion.montoFijo}
+              onChange={(monto) => {
+                editarLaFila(
+                  vista,
+                  (fila) => conMontoFijo(fila, tesoroId, centavos(monto ?? 0)),
+                  `monto-fijo:${tesoroId}`,
+                );
+              }}
+              className="h-field w-full rounded-field border border-border bg-paper px-3.5 text-body-lg text-ink"
+            />
+          ) : (
+            <p translate="no" className="text-money-lg font-semibold tabular-nums">
+              {formatearPesos(obligacion.montoFijo ?? 0)}
+            </p>
+          )
+        ) : vista.armando ? (
           <CampoDelPorcentaje
             etiqueta={textos.porcentajeDe(tesoro.nombre)}
             porcentaje={obligacion.porcentaje}
@@ -534,27 +582,30 @@ function PanelDeLaObligacion({
             {porciento(obligacion.porcentaje)}
           </p>
         )}
+        {conMonto && <p className="text-meta text-text-3">{textos.ayudaDelMontoFijo}</p>}
         <ProblemasDeLaSeccion textos={textosDe(vista, tesoroId, ['obligacion'])} />
       </Seccion>
-      <Seccion titulo={textos.sobreQueSeCalcula} ayuda={<AyudaDeLaBase />}>
-        {vista.armando ? (
-          <Segmentado<BaseDeLaObligacion>
-            etiqueta={textos.sobreQueSeCalculaDe(tesoro.nombre)}
-            opciones={[
-              { id: 'cobrado', etiqueta: ETIQUETA_DE_LA_BASE.cobrado },
-              { id: 'ingreso', etiqueta: ETIQUETA_DE_LA_BASE.ingreso },
-            ]}
-            elegido={obligacion.base}
-            alElegir={(base) => {
-              editarLaFila(vista, (fila) => conBase(fila, tesoroId, base));
-            }}
-          />
-        ) : (
-          <p className="text-body text-ink first-letter:uppercase">
-            {BASE_EN_PALABRAS[obligacion.base]}
-          </p>
-        )}
-      </Seccion>
+      {!conMonto && (
+        <Seccion titulo={textos.sobreQueSeCalcula} ayuda={<AyudaDeLaBase />}>
+          {vista.armando ? (
+            <Segmentado<BaseDeLaObligacion>
+              etiqueta={textos.sobreQueSeCalculaDe(tesoro.nombre)}
+              opciones={[
+                { id: 'cobrado', etiqueta: ETIQUETA_DE_LA_BASE.cobrado },
+                { id: 'ingreso', etiqueta: ETIQUETA_DE_LA_BASE.ingreso },
+              ]}
+              elegido={obligacion.base}
+              alElegir={(base) => {
+                editarLaFila(vista, (fila) => conBase(fila, tesoroId, base));
+              }}
+            />
+          ) : (
+            <p className="text-body text-ink first-letter:uppercase">
+              {BASE_EN_PALABRAS[obligacion.base]}
+            </p>
+          )}
+        </Seccion>
+      )}
       <Seccion titulo={textos.enElMes(mes)}>
         <LineaDePuntos
           className="text-label"
@@ -566,7 +617,7 @@ function PanelDeLaObligacion({
           }
         />
       </Seccion>
-      <Seccion titulo={textos.aPagar}>
+      <Seccion titulo={textos.paraEntregar}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p translate="no" className="text-money-lg font-semibold tabular-nums">
             {formatearPesos(aPagar)}
@@ -741,13 +792,15 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
                   }}
                   className="h-11 w-32 min-w-0 flex-1 rounded-field border border-border bg-paper px-3 text-right text-body text-ink"
                 />
-                <SelectorDelDia
-                  nombre={categoriaEnPantalla(renglon.nombre)}
-                  dia={renglon.dia}
-                  alCambiar={(dia) => {
-                    cambiarRenglon(indice, { dia });
-                  }}
-                />
+                {paso.dia === null && (
+                  <SelectorDelDia
+                    nombre={categoriaEnPantalla(renglon.nombre)}
+                    dia={renglon.dia}
+                    alCambiar={(dia) => {
+                      cambiarRenglon(indice, { dia });
+                    }}
+                  />
+                )}
               </div>
             </li>
           ) : (
@@ -795,6 +848,183 @@ function RenglonesDelPaso({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeL
           {formatearPesos(paso.tope)}
         </span>
       </div>
+    </Seccion>
+  );
+}
+
+function DiaDePago({ vista, paso }: { vista: VistaDeLaFila; paso: PasoDeLaFila }) {
+  const textos = useMensajes().armarLaFila.panel;
+  const nombre = tesoroDe(vista, paso.tesoro).nombre;
+  return (
+    <Seccion titulo={textos.diaDePago} ayuda={<AyudaDeLoQueEs de="deuda-obligatoria" />}>
+      {vista.armando ? (
+        <select
+          aria-label={textos.diaDePagoDe(nombre)}
+          value={paso.dia === null ? '' : String(paso.dia)}
+          onChange={(evento) => {
+            const valor = evento.target.value;
+            if (valor === '') return;
+            editarLaFila(vista, (fila) => conDiaDePago(fila, paso.tesoro, Number(valor)));
+          }}
+          className="h-11 w-28 min-w-0 rounded-field border border-border bg-paper px-2 text-body text-ink"
+        >
+          {paso.dia === null && <option value="">{textos.sinDiaDePago}</option>}
+          {Array.from({ length: ULTIMO_DIA_DE_PAGO }, (_, indice) => indice + 1).map((uno) => (
+            <option key={uno} value={String(uno)}>
+              {uno}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-body text-ink">
+          {paso.dia === null ? textos.sinDiaDePago : textos.elDia(paso.dia)}
+        </p>
+      )}
+      <p className="text-meta text-text-3">{textos.ayudaDelDiaDePago}</p>
+      {paso.dia !== null && (
+        <div className="flex items-center gap-1.5">
+          {vista.armando ? (
+            <Interruptor
+              activo={paso.pagaSola}
+              alCambiar={(activo) => {
+                editarLaFila(vista, (fila) => conPagaSola(fila, paso.tesoro, activo));
+              }}
+              className="min-h-tap rounded-pill text-body"
+            >
+              {textos.pagaSola}
+            </Interruptor>
+          ) : (
+            <p className="text-body text-ink">
+              {paso.pagaSola ? textos.pagaSola : textos.loPagasVos}
+            </p>
+          )}
+          <AyudaDeLoQueEs de="pagaSola" />
+        </div>
+      )}
+      <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['dia'])} />
+    </Seccion>
+  );
+}
+
+function ElCicloDelCompromiso({
+  vista,
+  paso,
+  tesoro,
+  delMes,
+  props,
+}: {
+  vista: VistaDeLaFila;
+  paso: PasoDeLaFila;
+  tesoro: TesoroDelTaller;
+  delMes: PasoDelMes;
+  props: PanelDeDetalleProps;
+}) {
+  const textos = useMensajes().armarLaFila.panel;
+  const ciclo = delMes.ciclo;
+  const vencimiento = delMes.vencimiento;
+  if (ciclo === null || vencimiento === null) return null;
+  const maun = tesoroDe(vista, vista.sistema.maun).nombre;
+  const lleva = delMes.lleva;
+  const llevaDeTope = textos.deTotal(formatearPesos(lleva), formatearPesos(paso.tope));
+  const puedeRegistrar = vista.sincronizados && props.alRegistrarElPago !== undefined;
+  const ultimo = delMes.ultimoPago;
+  return (
+    <Seccion
+      titulo={textos.enElCiclo(diaYMes(ciclo.desde, vista.hoy), diaYMes(ciclo.hasta, vista.hoy))}
+    >
+      <NivelDelMes
+        tinta={tesoro.tinta}
+        lleva={lleva}
+        tope={paso.tope}
+        etiqueta={textos.nivelDelCiclo(tesoro.nombre)}
+        texto={paso.tope <= 0 ? textos.sinMontoTodavia : llevaDeTope}
+      />
+      <div className="flex items-baseline justify-between gap-3 text-label">
+        <span translate="no" className="text-text-2 tabular-nums">
+          {llevaDeTope}
+        </span>
+        <span className="font-semibold">{textos.vence(diaYMes(vencimiento.fecha, vista.hoy))}</span>
+      </div>
+      {vencimiento.pagado > 0 && (
+        <p translate="no" className="text-label text-text-2 tabular-nums">
+          {textos.adelantado(formatearPesos(vencimiento.pagado))}
+        </p>
+      )}
+      {paso.pagaSola ? (
+        <div className="flex flex-col gap-0.5 rounded-field bg-surface-2 px-3 py-2">
+          <p translate="no" className="text-label font-medium tabular-nums">
+            {textos.seVaAPagarSolo(
+              diaYMes(vencimiento.fecha, vista.hoy),
+              formatearPesos(vencimiento.aPagar),
+            )}
+          </p>
+          {vencimiento.pusoMaun > 0 && (
+            <p translate="no" className="text-meta text-text-2 tabular-nums">
+              {textos.loPoneMaun(maun, formatearPesos(vencimiento.pusoMaun))}
+            </p>
+          )}
+        </div>
+      ) : (
+        vencimiento.aPagar > 0 &&
+        puedeRegistrar && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span translate="no" className="text-label tabular-nums">
+              {textos.faltaPagar} {formatearPesos(vencimiento.aPagar)}
+            </span>
+            <BotonDePago
+              alTocar={() => {
+                props.alRegistrarElPago?.({
+                  tesoro: { id: tesoro.id, clave: tesoro.clave },
+                  monto: vencimiento.aPagar,
+                  categoria: null,
+                  vencimiento: vencimiento.fecha,
+                });
+              }}
+            />
+          </div>
+        )
+      )}
+      {ultimo !== null && (
+        <p translate="no" className="text-meta text-text-2 tabular-nums">
+          {textos.sePagaron(Number(ultimo.vencimiento.slice(8)), formatearPesos(ultimo.aPagar))}
+          {ultimo.pusoMaun > 0 && <> · {textos.puso(maun, formatearPesos(ultimo.pusoMaun))}</>}
+          {ultimo.pusoMaun > 0 && <AyudaDeLoQueEs de="deudaInterna" />}
+        </p>
+      )}
+      {puedeRegistrar && (
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="secundario"
+            size="chico"
+            className="min-h-tap"
+            onClick={() => {
+              props.alRegistrarElPago?.({
+                tesoro: { id: tesoro.id, clave: tesoro.clave },
+                monto: null,
+                categoria: CATEGORIA_DEL_ADELANTO,
+                fecha: vista.hoy,
+              });
+            }}
+          >
+            <Icono nombre="hand-coins" tamano={16} />
+            {textos.registrarUnAdelanto}
+          </Button>
+          <AyudaDeLoQueEs de="adelanto" />
+        </div>
+      )}
+      {delMes.falta !== null && delMes.falta > 0 && vista.sincronizados && (
+        <Button
+          variant="secundario"
+          size="chico"
+          className="min-h-tap self-start"
+          onClick={() => {
+            props.alCubrir(delMes);
+          }}
+        >
+          <Icono nombre="arrow-left-right" tamano={16} />
+          {textos.cubrirDesdeOtroTesoro}
+        </Button>
+      )}
     </Seccion>
   );
 }
@@ -850,7 +1080,19 @@ function ComoSeLlena({
 }) {
   const m = useMensajes();
   const textos = m.armarLaFila.panel;
-  const modos = modosDelPaso(paso.clase, tesoro.clave);
+  const ofrecidos = modosQueSeOfrecen(paso.clase, tesoro.clave);
+  const modos = modosDelPaso(paso.clase, tesoro.clave).filter(
+    (modo) => ofrecidos.includes(modo.id) || modo.id === paso.modo,
+  );
+  if (tipo === 'compromiso' && paso.dia !== null) {
+    return (
+      <Seccion titulo={tituloDelModo(tipo)} ayuda={<AyudaDeLoQueEs de="deuda-obligatoria" />}>
+        <p className="text-body text-ink">{textos.delDiaAlDia(paso.dia)}</p>
+        <p className="text-meta text-text-3">{textos.juntaEntreVencimientos}</p>
+        <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['modo'])} />
+      </Seccion>
+    );
+  }
   return (
     <Seccion titulo={tituloDelModo(tipo)} ayuda={<AyudaDelModo tipo={tipo} />}>
       {vista.armando && modos.length > 1 ? (
@@ -865,7 +1107,6 @@ function ComoSeLlena({
       ) : (
         <p className="text-body text-ink">{m.fila.opcionDelModo[tipo][paso.modo]}</p>
       )}
-      {paso.clase === 'sueldo' && <p className="text-meta text-text-3">{textos.sueldoPorMes}</p>}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['modo'])} />
     </Seccion>
   );
@@ -883,9 +1124,10 @@ function HastaLaMeta({
   meta: { meta: number; saldo: number; falta: number; llego: boolean } | null;
 }) {
   const textos = useMensajes().armarLaFila.panel;
+  const sinFin = seOfreceSinFin(metaEnPesos(tesoro)) || !hastaLaMeta;
   return (
     <Seccion titulo={textos.hastaLaMeta} ayuda={<AyudaDeLaMeta />}>
-      {vista.armando ? (
+      {vista.armando && sinFin ? (
         <Interruptor
           activo={hastaLaMeta}
           alCambiar={(activo) => {
@@ -899,6 +1141,9 @@ function HastaLaMeta({
         <p className="text-body text-ink">
           {hastaLaMeta ? textos.juntaHastaLaMeta : textos.juntaSinFin}
         </p>
+      )}
+      {paraCuandoEsLaMeta(tesoro.metaFecha) !== null && (
+        <p className="text-meta text-text-3">{paraCuandoEsLaMeta(tesoro.metaFecha)}</p>
       )}
       {meta !== null && (
         <LineaDePuntos
@@ -1084,10 +1329,14 @@ function PanelDelPaso({
     props.alElegir(null);
   };
   const lugar = lugarEnLaFila(vista.fila, paso.tesoro);
+  const loQueEsAhora = loQueEs(vista.fila, tesoro);
+  const queEs = NOMBRE_DE_LO_QUE_ES[loQueEsAhora];
+  const queSeriaCon = (uno: TipoDelPaso) =>
+    NOMBRE_DE_LO_QUE_ES[
+      loQueEs(conTipo(vista.fila, paso.tesoro, uno, tesoro.clave, metaEnPesos(tesoro)), tesoro)
+    ];
   const sobre =
-    paso.clase === 'sueldo'
-      ? m.ficha.delSueldo(NOMBRE_DEL_TIPO[tipo], lugar)
-      : m.ficha.delPaso(NOMBRE_DEL_TIPO[tipo], lugar);
+    paso.clase === 'sueldo' ? m.ficha.delSueldo(queEs, lugar) : m.ficha.delPaso(queEs, lugar);
 
   return (
     <>
@@ -1101,11 +1350,11 @@ function PanelDelPaso({
         />
       )}
       <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['tesoro'])} />
-      <Seccion titulo={textos.queEs} ayuda={<AyudaDeQueEs />}>
+      <Seccion titulo={textos.queEs} ayuda={<AyudaDeLoQueEs de={loQueEsAhora} />}>
         {vista.armando && tipos.length > 1 ? (
           <Segmentado<TipoDelPaso>
             etiqueta={textos.queEsDe(tesoro.nombre)}
-            opciones={tipos.map((uno) => ({ id: uno, etiqueta: NOMBRE_DEL_TIPO[uno] }))}
+            opciones={tipos.map((uno) => ({ id: uno, etiqueta: queSeriaCon(uno) }))}
             elegido={tipo}
             alElegir={(uno) => {
               editarLaFila(vista, (fila) =>
@@ -1115,9 +1364,7 @@ function PanelDelPaso({
           />
         ) : (
           <p className="text-body text-ink">
-            {paso.clase === 'sueldo'
-              ? textos.tipoDelSueldo(NOMBRE_DEL_TIPO[tipo])
-              : NOMBRE_DEL_TIPO[tipo]}
+            {paso.clase === 'sueldo' ? textos.tipoDelSueldo(queEs) : queEs}
           </p>
         )}
       </Seccion>
@@ -1127,6 +1374,8 @@ function PanelDelPaso({
       ) : (
         <MontoDelPaso vista={vista} paso={paso} />
       )}
+
+      {tipo === 'compromiso' && tesoro.clave !== 'maun' && <DiaDePago vista={vista} paso={paso} />}
 
       <ComoSeLlena vista={vista} paso={paso} tesoro={tesoro} tipo={tipo} />
 
@@ -1142,7 +1391,17 @@ function PanelDelPaso({
         <ProblemasDeLaSeccion textos={textosDe(vista, paso.tesoro, ['meta'])} />
       )}
 
-      <ElMesDelPaso vista={vista} paso={paso} tesoro={tesoro} delMes={delMes} props={props} />
+      {delMes?.ciclo !== null && delMes?.vencimiento !== null && delMes !== undefined ? (
+        <ElCicloDelCompromiso
+          vista={vista}
+          paso={paso}
+          tesoro={tesoro}
+          delMes={delMes}
+          props={props}
+        />
+      ) : (
+        <ElMesDelPaso vista={vista} paso={paso} tesoro={tesoro} delMes={delMes} props={props} />
+      )}
 
       {tipo === 'compromiso' &&
         delMes !== undefined &&
@@ -1263,7 +1522,7 @@ function PanelDelReparto({ vista, props }: { vista: VistaDeLaFila; props: PanelD
                 </div>
                 {conMeta && (
                   <div className="flex items-center justify-between gap-2 pl-10">
-                    {vista.armando ? (
+                    {vista.armando && !parte.hastaLaMeta ? (
                       <Interruptor
                         activo={parte.hastaLaMeta}
                         etiqueta={textos.hastaLaMetaDe(tesoro.nombre)}

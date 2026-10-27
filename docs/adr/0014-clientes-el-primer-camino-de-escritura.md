@@ -2,6 +2,8 @@
 
 Estado: aceptada, 2026-09-11. Es el segundo paso de la fase 2D: la primera pantalla que escribe.
 
+Enmendado el 2026-10-27, al final: la sesión que guarda `setup` se renueva antes de vencer.
+
 ## Contexto
 
 Todo lo anterior era lectura. Clientes va antes que Proyectos aunque se use mucho menos: la foreign key compuesta `(household_id, cliente_id)` hace que el formulario de proyecto necesite el selector de clientes, y un CRUD barato es el lugar para ensayar el camino de escritura antes de la pantalla grande.
@@ -78,3 +80,11 @@ Era la deuda más cara del repo y la marcaba el propio ADR 0013. `scripts/compar
 - El taller de la cuenta de prueba se vacía en cada corrida: no se usa para mirar datos a mano.
 - `Campo` de `@maun/ui` acepta `ref` (pasó a `ComponentPropsWithRef`), que es lo que React Hook Form necesita para registrar un input.
 - Quedó sin hacer, y es trabajo del paso que viene: borrar un cliente desde la interfaz. La base lo soporta (baja lógica, con `MN003` si tiene proyectos vivos) y el e2e la usa para limpiar, pero no hay botón.
+
+## Enmienda del 2026-10-27: la sesión guardada vence a la hora
+
+La sesión que guarda `setup` es la de Supabase Auth, y su token dura una hora. `pnpm e2e` entero ya la pasaba en main (1,1 h el 2026-10-26), pero lo que corría después de la hora no congelaba el reloj. Con los specs de la rama 52 tarda 1,3 h, y `la-fecha-del-cobro.spec.ts:156` («con el reloj del dispositivo en UTC», en la compu), que en main corría antes de la hora, pasó a correr después. Pasada la hora, cada test arranca con el token vencido. Con el reloj de verdad la app lo renueva sola, pero un test que congela el reloj en el pasado la deja creyendo que sigue vivo: el servidor contesta «JWT expired» y la pantalla dice «No pudimos leer tus datos». Le pasó a ese test en las dos corridas enteras de la rama, y se reprodujo a propósito corriéndolo solo, sin el `setup` (`--no-deps`), con la sesión guardada ya vencida.
+
+- `apoyo/prueba` pisa `storageState`: antes de armar el contexto de cada test mira cuándo vence la sesión de `maun.sesion` en el archivo y, si le quedan menos de 15 minutos, entra de nuevo por REST (`iniciarSesionDePrueba`) y la reescribe. Es una entrada por hora de corrida, no una por test, que era lo que topaba con el límite de pedidos de Supabase Auth (ADR 0082).
+- Un `test.use({ storageState })` de un spec sigue mandando sobre esto, y un estado sin `maun.sesion` queda como está.
+- Un `setup` por proyecto no alcanzaba: Playwright corre las dependencias antes que todo, así que la sesión del escritorio habría vencido igual a mitad de la corrida.

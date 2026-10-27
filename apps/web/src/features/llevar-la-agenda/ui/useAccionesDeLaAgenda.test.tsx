@@ -57,6 +57,7 @@ function vencimiento(tesoro: string, renglon: string, fecha: string): EventoVenc
     monto: centavos(50_000_000),
     hecha: false,
     importante: false,
+    pagoSolo: null,
   };
 }
 

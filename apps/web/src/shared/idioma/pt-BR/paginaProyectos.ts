@@ -103,6 +103,7 @@ export const paginaProyectos = {
     leTocaba: (fecha) => `Era para ${fecha}`,
     leVolvesAEscribir: (fecha) => `Você volta a escrever em ${fecha}`,
     proximoContacto: 'Próximo contato',
+    cambiarLaFecha: 'Mudar a data',
     registrarElContacto: 'Registrar o contato',
     cuandoLeEscribas:
       'Quando você escrever, registre: aí você escolhe se volta para as consultas, se segue em Retornos com outra data ou se não vai.',
@@ -144,6 +145,7 @@ export const paginaProyectos = {
   },
   consultas: {
     visita: 'Visita técnica',
+    tuClienteAprobo: 'O cliente aprovou',
     vacioTitulo: 'Nenhuma consulta por enquanto',
     vacioDetalle:
       'Quando alguém ligar, registre aqui com o que a pessoa pede e a data da visita técnica. Se na visita ela deixou um sinal, registre: entra no caixa da marcenaria desde esse dia. Quando aprovar, passa para Ativos.',

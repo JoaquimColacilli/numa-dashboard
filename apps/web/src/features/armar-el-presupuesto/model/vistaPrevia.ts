@@ -1,5 +1,6 @@
 import {
   cuentasDelPresupuesto,
+  diasParaMedir,
   sumarDias,
   type DocumentoDelPresupuesto,
   type Idioma,
@@ -7,6 +8,8 @@ import {
   type Money,
   type PresupuestoMandado,
 } from '@maun/domain';
+
+const REVISION_DE_LA_VISTA_PREVIA = '00000000-0000-0000-0000-000000000000';
 
 export function comoLoVeElCliente(
   documento: DocumentoDelPresupuesto,
@@ -21,6 +24,7 @@ export function comoLoVeElCliente(
       ? []
       : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagado);
   const [unica] = cuentas;
+  const { listoPara, senaAntesDel } = documento;
   return {
     etapa: 'mandado',
     numero: numero ?? '',
@@ -29,10 +33,27 @@ export function comoLoVeElCliente(
     mandadoEl: hoy,
     documento,
     cuentas,
+    estimativo: documento.estimativo,
     queCambio: null,
     valeHasta: documento.validezDias === null ? null : sumarDias(hoy, documento.validezDias),
     vencio: null,
     pideLaSena:
-      documento.valores?.tipo === 'total' && unica !== undefined && unica.faltaParaLaSena > 0,
+      !documento.estimativo &&
+      documento.valores?.tipo === 'total' &&
+      unica !== undefined &&
+      unica.faltaParaLaSena > 0,
+    aprobacion:
+      documento.valores === null
+        ? { situacion: 'cerrada' }
+        : {
+            situacion: 'se-puede',
+            revisionId: REVISION_DE_LA_VISTA_PREVIA,
+            pideFecha: documento.pideFecha,
+            dias: diasParaMedir(hoy),
+          },
+    fechas:
+      documento.estimativo || listoPara === null || senaAntesDel === null
+        ? null
+        : { listoPara, senaAntesDel, vencioLaSena: false },
   };
 }

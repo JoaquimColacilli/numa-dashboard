@@ -92,26 +92,32 @@ export function PreferenciasDeLosAvisos({
                 <p className="text-body font-medium">{datos.etiqueta}</p>
                 <p className="text-label leading-tight text-text-2">{datos.detalle}</p>
               </div>
-              <select
-                aria-label={m.recibirAvisos.anticipacionDe({ aviso: datos.etiqueta })}
-                disabled={!preferencia.activo}
-                value={String(preferencia.anticipacion)}
-                onChange={(evento) => {
-                  const anticipacion = ANTICIPACIONES.find(
-                    (posible) => String(posible) === evento.target.value,
-                  );
-                  if (anticipacion !== undefined) {
-                    cambiarAviso(aviso, { ...preferencia, anticipacion });
-                  }
-                }}
-                className="h-10 min-w-[170px] flex-none rounded-field border border-border bg-paper px-2.5 text-body text-ink disabled:text-text-3"
-              >
-                {anticipacionesDe(aviso, preferencia.anticipacion).map((anticipacion) => (
-                  <option key={anticipacion} value={String(anticipacion)}>
-                    {anticipacionEnPalabras(anticipacion)}
-                  </option>
-                ))}
-              </select>
+              {datos.enElMomento ? (
+                <span className="min-w-[170px] flex-none text-body text-text-2">
+                  {m.recibirAvisos.enElMomento}
+                </span>
+              ) : (
+                <select
+                  aria-label={m.recibirAvisos.anticipacionDe({ aviso: datos.etiqueta })}
+                  disabled={!preferencia.activo}
+                  value={String(preferencia.anticipacion)}
+                  onChange={(evento) => {
+                    const anticipacion = ANTICIPACIONES.find(
+                      (posible) => String(posible) === evento.target.value,
+                    );
+                    if (anticipacion !== undefined) {
+                      cambiarAviso(aviso, { ...preferencia, anticipacion });
+                    }
+                  }}
+                  className="h-10 min-w-[170px] flex-none rounded-field border border-border bg-paper px-2.5 text-body text-ink disabled:text-text-3"
+                >
+                  {anticipacionesDe(aviso, preferencia.anticipacion).map((anticipacion) => (
+                    <option key={anticipacion} value={String(anticipacion)}>
+                      {anticipacionEnPalabras(anticipacion)}
+                    </option>
+                  ))}
+                </select>
+              )}
               <Interruptor
                 etiqueta={datos.etiqueta}
                 activo={preferencia.activo}

@@ -173,21 +173,36 @@ describe('el lugar del panorama de Inicio', () => {
     ).toHaveLength(4);
   });
 
+  it('después vienen los tres tesoros de un taller nuevo: hogar, Maun y diezmo', () => {
+    render(<EsqueletoDeArranque que={ABRIENDO_LA_APP} forma="marco" />);
+    const seccion = [...esqueleto().querySelectorAll('div')].find(
+      (nodo) => nodo.className === SECCION_DEL_PANORAMA,
+    );
+    const tablero =
+      seccion?.nextElementSibling?.querySelector('.bg-hogar')?.parentElement?.parentElement;
+
+    expect(tablero?.children).toHaveLength(3);
+    expect(
+      ['bg-hogar', 'bg-maun', 'bg-diezmo', 'bg-cocos'].map(
+        (canto) => seccion?.nextElementSibling?.querySelectorAll(`.${canto}`).length,
+      ),
+    ).toEqual([1, 1, 1, 0]);
+  });
+
   it('mide lo mismo porque lleva las clases del panorama de verdad', () => {
     render(
       <Panorama
         panorama={{
           paraPagar: centavos(132_700_000),
-          ahorros: centavos(413_100_000),
-          superavit: centavos(36_500_000),
+          metas: centavos(413_100_000),
+          cajas: centavos(36_500_000),
           insumos: centavos(82_000_000),
           compromisoDeMaun: centavos(0),
           tesorosParaPagar: 3,
-          tesorosDeAhorro: 4,
-          tesoroDelSuperavit: 's',
+          tesorosDeMetas: 4,
+          tesorosDeCajas: 2,
           trabajosConInsumos: 2,
         }}
-        nombreDelSuperavit="Maun"
       />,
     );
     const seccion = screen.getByRole('region', { name: 'Panorama' });

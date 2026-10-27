@@ -85,7 +85,8 @@ test.describe('en la compu', () => {
       .getByRole('button', { name: 'Nuevo tesoro' })
       .click();
     const nuevo = page.getByRole('dialog', { name: 'Nuevo tesoro' });
-    await nuevo.getByRole('textbox', { name: 'Nombre' }).fill('Dólares');
+    await nuevo.getByRole('radio', { name: /^Caja/ }).click();
+    await nuevo.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Dólares');
     await nuevo.getByRole('radio', { name: 'Dólares' }).check();
     await expect(
       nuevo.getByText(
@@ -106,7 +107,7 @@ test.describe('en la compu', () => {
     );
     await expect(sumarlo.getByRole('button')).toHaveCount(0);
 
-    await ficha(page, /^Compromiso \d de \d: Maun,/).click();
+    await ficha(page, /^Caja \d de \d: Maun,/).click();
     await detalleDe(page).getByRole('button', { name: 'Comprar dólares' }).click();
     await cargarElCambio(page, { sale: '725.000', entra: '500' });
     const hoja = page.getByRole('dialog', { name: 'Cargar un movimiento' });

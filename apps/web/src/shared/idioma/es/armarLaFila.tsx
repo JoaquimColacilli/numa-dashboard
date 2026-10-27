@@ -54,6 +54,14 @@ export const armarLaFila = {
     'porcentaje-invalido': 'Cada porcentaje va de 0,01% a 100%.',
     'reparto-pasa-de-cien': 'Los porcentajes suman más de 100%.',
     'sueldo-por-trabajo': 'La fila cuenta el sueldo por mes.',
+    'monto-fijo-invalido': 'El monto fijo tiene que ser mayor que cero.',
+    'diezmo-por-monto': 'El diezmo va por porcentaje.',
+    'dia-de-pago-invalido': 'El día de pago va del 1 al 31.',
+    'dia-de-pago-fuera-de-compromiso': 'Solo las deudas obligatorias tienen día de pago.',
+    'dias-en-los-renglones': 'Con un día de pago, los renglones no llevan días.',
+    'paga-sola-sin-dia': 'Para pagarse sola necesita su día de pago.',
+    'paga-sola-en-maun': 'Maun no se paga sola: es la caja que pone lo que falta.',
+    'paga-sola-desde-invalido': 'No se pudo leer desde cuándo se paga sola.',
   },
   problemasConNombre: {
     'tesoro-archivado': (nombre: string | null) =>
@@ -170,6 +178,36 @@ export const armarLaFila = {
         <Nombre>{nombre}</Nombre> cambia los días de pago.
       </>
     ),
+    cambiaElMontoFijo: (Nombre: Envoltorio, nombre: string, monto: string | null) =>
+      monto === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> vuelve a llevarse un porcentaje de cada cobro.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> se lleva {monto} fijos de cada cobro.
+        </>
+      ),
+    cambiaElDiaDePago: (Nombre: Envoltorio, nombre: string, dia: number | null) =>
+      dia === null ? (
+        <>
+          <Nombre>{nombre}</Nombre> deja de tener día de pago.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> se paga el {String(dia)} de cada mes.
+        </>
+      ),
+    cambiaPagaSola: (Nombre: Envoltorio, nombre: string, pagaSola: boolean) =>
+      pagaSola ? (
+        <>
+          <Nombre>{nombre}</Nombre> se paga sola el día de pago.
+        </>
+      ) : (
+        <>
+          <Nombre>{nombre}</Nombre> deja de pagarse sola: el pago lo registrás vos.
+        </>
+      ),
     cambiaElModo: (Nombre: Envoltorio, nombre: string, tipo: TipoDelPaso, modo: ModoDePaso) =>
       modo === 'saldo' ? (
         <>
@@ -255,7 +293,7 @@ export const armarLaFila = {
     ahorrosPorPorcentaje: 'Ahorros por porcentaje',
     superavitElResto: 'Superávit · El resto',
     enElEstante: 'En el estante',
-    deLaObligacion: (lugar: string) => `Obligación · ${lugar}`,
+    deLaObligacion: (lugar: string) => `Deuda destinada · ${lugar}`,
     insumos: 'Insumos',
     loQueQuedaDeCadaSena: 'Lo que queda de cada seña',
   },
@@ -292,6 +330,24 @@ export const armarLaFila = {
     cuandoValen: (mes: string) =>
       `Los cambios valen desde el próximo cobro. Los repartos que ya hiciste no cambian, y lo que ya entró en ${mes} sigue contando.`,
     seguirEditando: 'Seguir editando',
+    sePagaSolo: (Nombre: Envoltorio, nombre: string, fecha: string, maun: string) => (
+      <>
+        <Nombre>{nombre}</Nombre> se paga solo desde el {fecha}: ese día NUMA anota el pago y, si no
+        juntó el tope, lo que falta lo pone {maun}.
+      </>
+    ),
+    plataDeAntes: (Nombre: Envoltorio, nombre: string, monto: string) => (
+      <>
+        <Nombre>{nombre}</Nombre> tiene {monto} de antes de su ciclo. ¿Qué hacés con esa plata?
+      </>
+    ),
+    pasarlaA: (nombre: string) => `Pasarla a ${nombre}`,
+    pasarlaAOtro: 'Pasarla a otro tesoro',
+    aCual: (nombre: string) => `A qué tesoro pasás la plata de ${nombre}`,
+    elegiUno: 'Elegí uno',
+    yaNoEsta: 'Ya no está',
+    ayudaDeYaNoEsta: 'Sale del saldo con un ajuste: es plata que ya no tenés.',
+    faltaElegir: 'Elegí qué hacer con la plata de antes para poder guardar.',
   },
   probador: {
     loQueDeja: 'Deja (cobrado menos gastos)',
@@ -323,6 +379,31 @@ export const armarLaFila = {
     daElIngreso: 'da el ingreso',
   },
   panel: {
+    paraEntregar: 'Para entregar',
+    comoSeLleva: 'Cómo se lleva su parte',
+    comoSeLlevaDe: (nombre: string) => `Cómo se lleva su parte ${nombre}`,
+    unPorcentaje: 'Un porcentaje',
+    unMontoFijo: 'Un monto fijo',
+    montoFijoDe: (nombre: string) => `Monto fijo de ${nombre}`,
+    ayudaDelMontoFijo: 'De cada cobro, nunca más de lo que llega.',
+    diaDePago: 'Día de pago',
+    sinDiaDePago: 'Sin día de pago',
+    elDia: (dia: number) => `El ${String(dia)} de cada mes`,
+    ayudaDelDiaDePago: 'Del 1 al 31. Si el mes no lo tiene, el último.',
+    pagaSola: 'Se paga sola',
+    loPagasVos: 'El pago lo registrás vos',
+    delDiaAlDia: (dia: number) => `Del ${String(dia)} al ${String(dia)}`,
+    juntaEntreVencimientos: 'Junta hasta su tope entre un vencimiento y el siguiente.',
+    enElCiclo: (desde: string, hasta: string) => `Del ${desde} al ${hasta}`,
+    nivelDelCiclo: (nombre: string) => `${nombre} en este ciclo`,
+    vence: (fecha: string) => `Vence el ${fecha}`,
+    adelantado: (monto: string) => `Adelantado: ${monto}`,
+    seVaAPagarSolo: (fecha: string, monto: string) => `El ${fecha} se paga solo: ${monto}`,
+    loPoneMaun: (maun: string, monto: string) => `Si no entra más plata, ${maun} pone ${monto}.`,
+    sePagaron: (dia: number, monto: string) => `El ${String(dia)} se pagaron ${monto}`,
+    puso: (maun: string, monto: string) => `${maun} puso ${monto}`,
+    faltaPagar: 'Falta pagar',
+    registrarUnAdelanto: 'Registrar un adelanto',
     cerrarElDetalle: 'Cerrar el detalle',
     subir: 'Subir',
     bajar: 'Bajar',
@@ -366,7 +447,6 @@ export const armarLaFila = {
     rigeDesde: (mes: string, anio: string) => `Rige desde ${mes} de ${anio}`,
     monto: 'Monto',
     comoSeLlenaDe: (tipo: TipoDelPaso, nombre: string) => `${fila.tituloDelModo[tipo]} ${nombre}`,
-    sueldoPorMes: 'El sueldo del Hogar va siempre por mes: el Hogar gasta su saldo todo el mes.',
     hastaLaMeta: 'Hasta la meta',
     juntaHastaLaMeta: 'Junta hasta llegar a su meta.',
     juntaSinFin: 'Junta sin fin.',

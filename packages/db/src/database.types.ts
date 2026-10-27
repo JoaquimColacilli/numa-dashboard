@@ -4,7 +4,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5';
+    PostgrestVersion: '14.17';
   };
   public: {
     Tables: {
@@ -44,6 +44,7 @@ export type Database = {
           perdido_con_sueldo: boolean;
           plantilla_del_presupuesto: Json | null;
           plantilla_del_presupuesto_version: number;
+          preguntas_de_la_consulta: Json | null;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
@@ -96,6 +97,7 @@ export type Database = {
           perdido_con_sueldo?: boolean;
           plantilla_del_presupuesto?: Json | null;
           plantilla_del_presupuesto_version?: number;
+          preguntas_de_la_consulta?: Json | null;
           presupuesto_vale_dias?: number;
           relevamiento_centavos?: number | null;
           resena_link?: string;
@@ -148,6 +150,7 @@ export type Database = {
           perdido_con_sueldo?: boolean;
           plantilla_del_presupuesto?: Json | null;
           plantilla_del_presupuesto_version?: number;
+          preguntas_de_la_consulta?: Json | null;
           presupuesto_vale_dias?: number;
           relevamiento_centavos?: number | null;
           resena_link?: string;
@@ -968,6 +971,7 @@ export type Database = {
           tesoro_origen: Database['public']['Enums']['tesoro'] | null;
           tipo: Database['public']['Enums']['tipo_movimiento'];
           updated_at: string;
+          vencimiento: string | null;
           version: number;
         };
         Insert: {
@@ -988,6 +992,7 @@ export type Database = {
           tesoro_origen?: Database['public']['Enums']['tesoro'] | null;
           tipo: Database['public']['Enums']['tipo_movimiento'];
           updated_at?: string;
+          vencimiento?: string | null;
           version?: number;
         };
         Update: {
@@ -1008,6 +1013,7 @@ export type Database = {
           tesoro_origen?: Database['public']['Enums']['tesoro'] | null;
           tipo?: Database['public']['Enums']['tipo_movimiento'];
           updated_at?: string;
+          vencimiento?: string | null;
           version?: number;
         };
         Relationships: [
@@ -1218,6 +1224,75 @@ export type Database = {
           },
           {
             foreignKeyName: 'pagos_tesoro_fk';
+            columns: ['household_id', 'tesoro_id'];
+            isOneToOne: false;
+            referencedRelation: 'tesoros';
+            referencedColumns: ['household_id', 'id'];
+          },
+        ];
+      };
+      pagos_de_vencimientos: {
+        Row: {
+          a_pagar_centavos: number;
+          created_at: string;
+          deleted_at: string | null;
+          dia: number;
+          household_id: string;
+          id: string;
+          pagado_antes_centavos: number;
+          puso_maun_centavos: number;
+          saldo_centavos: number;
+          tesoro_id: string;
+          tope_centavos: number;
+          updated_at: string;
+          vencimiento: string;
+          version: number;
+          vuelve_a_maun_centavos: number;
+        };
+        Insert: {
+          a_pagar_centavos: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          dia: number;
+          household_id: string;
+          id?: string;
+          pagado_antes_centavos: number;
+          puso_maun_centavos: number;
+          saldo_centavos: number;
+          tesoro_id: string;
+          tope_centavos: number;
+          updated_at?: string;
+          vencimiento: string;
+          version?: number;
+          vuelve_a_maun_centavos: number;
+        };
+        Update: {
+          a_pagar_centavos?: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          dia?: number;
+          household_id?: string;
+          id?: string;
+          pagado_antes_centavos?: number;
+          puso_maun_centavos?: number;
+          saldo_centavos?: number;
+          tesoro_id?: string;
+          tope_centavos?: number;
+          updated_at?: string;
+          vencimiento?: string;
+          version?: number;
+          vuelve_a_maun_centavos?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pagos_de_vencimientos_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pagos_de_vencimientos_tesoro_fk';
             columns: ['household_id', 'tesoro_id'];
             isOneToOne: false;
             referencedRelation: 'tesoros';
@@ -1546,6 +1621,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
           reparto_ya_en_la_apertura: boolean;
+          respuestas_de_la_consulta: Json;
           sena_bp: number | null;
           tipo_de_proyecto: string | null;
           titulo: string;
@@ -1619,6 +1695,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos?: number | null;
           reapertura_sueldo_mensual?: boolean | null;
           reparto_ya_en_la_apertura?: boolean;
+          respuestas_de_la_consulta?: Json;
           sena_bp?: number | null;
           tipo_de_proyecto?: string | null;
           titulo: string;
@@ -1692,6 +1769,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos?: number | null;
           reapertura_sueldo_mensual?: boolean | null;
           reparto_ya_en_la_apertura?: boolean;
+          respuestas_de_la_consulta?: Json;
           sena_bp?: number | null;
           tipo_de_proyecto?: string | null;
           titulo?: string;
@@ -1941,6 +2019,72 @@ export type Database = {
           },
         ];
       };
+      respuestas_al_presupuesto: {
+        Row: {
+          atendida_at: string | null;
+          created_at: string;
+          deleted_at: string | null;
+          dia: string | null;
+          franja: string | null;
+          household_id: string;
+          id: string;
+          nota: string;
+          opcion_id: string | null;
+          proyecto_id: string;
+          respondida_el: string;
+          revision_id: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          atendida_at?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          dia?: string | null;
+          franja?: string | null;
+          household_id: string;
+          id?: string;
+          nota?: string;
+          opcion_id?: string | null;
+          proyecto_id: string;
+          respondida_el: string;
+          revision_id: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          atendida_at?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          dia?: string | null;
+          franja?: string | null;
+          household_id?: string;
+          id?: string;
+          nota?: string;
+          opcion_id?: string | null;
+          proyecto_id?: string;
+          respondida_el?: string;
+          revision_id?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'respuestas_al_presupuesto_household_id_fkey';
+            columns: ['household_id'];
+            isOneToOne: false;
+            referencedRelation: 'households';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'respuestas_al_presupuesto_revision_fk';
+            columns: ['household_id', 'proyecto_id', 'revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'revisiones_del_presupuesto';
+            referencedColumns: ['household_id', 'proyecto_id', 'id'];
+          },
+        ];
+      };
       respuestas_de_entrega: {
         Row: {
           created_at: string;
@@ -2088,6 +2232,7 @@ export type Database = {
           icono: string;
           id: string;
           meta_centavos: number | null;
+          meta_fecha: string | null;
           moneda: string;
           nombre: string;
           orden: number;
@@ -2106,6 +2251,7 @@ export type Database = {
           icono: string;
           id?: string;
           meta_centavos?: number | null;
+          meta_fecha?: string | null;
           moneda?: string;
           nombre: string;
           orden?: number;
@@ -2124,6 +2270,7 @@ export type Database = {
           icono?: string;
           id?: string;
           meta_centavos?: number | null;
+          meta_fecha?: string | null;
           moneda?: string;
           nombre?: string;
           orden?: number;
@@ -2169,11 +2316,37 @@ export type Database = {
         Args: { p_dia: string; p_mandado: boolean; p_suscripcion: string };
         Returns: boolean;
       };
+      aviso_de_la_respuesta: { Args: { p_id: string }; Returns: Json };
       avisos_por_mandar: { Args: { p_ahora?: string }; Returns: Json };
       bootstrap: { Args: never; Returns: Json };
       borrar_suscripcion_vencida: {
         Args: { p_endpoint: string };
         Returns: boolean;
+      };
+      cambiar_la_fecha_del_contacto: {
+        Args: { p_fecha: string; p_id: string; p_version: number };
+        Returns: {
+          created_at: string;
+          deleted_at: string | null;
+          etapa_previa: Database['public']['Enums']['estado_proyecto'];
+          fecha: string;
+          hecho_el: string | null;
+          household_id: string;
+          id: string;
+          importante: boolean;
+          nota: string;
+          proyecto_id: string;
+          respuesta: string;
+          resultado: string | null;
+          updated_at: string;
+          version: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'proximos_contactos';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       cerrar_perdido: {
         Args: {
@@ -2258,6 +2431,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
           reparto_ya_en_la_apertura: boolean;
+          respuestas_de_la_consulta: Json;
           sena_bp: number | null;
           tipo_de_proyecto: string | null;
           titulo: string;
@@ -2358,6 +2532,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
           reparto_ya_en_la_apertura: boolean;
+          respuestas_de_la_consulta: Json;
           sena_bp: number | null;
           tipo_de_proyecto: string | null;
           titulo: string;
@@ -2422,6 +2597,7 @@ export type Database = {
           perdido_con_sueldo: boolean;
           plantilla_del_presupuesto: Json | null;
           plantilla_del_presupuesto_version: number;
+          preguntas_de_la_consulta: Json | null;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
@@ -2580,6 +2756,7 @@ export type Database = {
           perdido_con_sueldo: boolean;
           plantilla_del_presupuesto: Json | null;
           plantilla_del_presupuesto_version: number;
+          preguntas_de_la_consulta: Json | null;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
@@ -2641,6 +2818,7 @@ export type Database = {
           perdido_con_sueldo: boolean;
           plantilla_del_presupuesto: Json | null;
           plantilla_del_presupuesto_version: number;
+          preguntas_de_la_consulta: Json | null;
           presupuesto_vale_dias: number;
           relevamiento_centavos: number | null;
           resena_link: string;
@@ -2853,6 +3031,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
           reparto_ya_en_la_apertura: boolean;
+          respuestas_de_la_consulta: Json;
           sena_bp: number | null;
           tipo_de_proyecto: string | null;
           titulo: string;
@@ -2939,6 +3118,7 @@ export type Database = {
           reapertura_objetivo_sueldo_centavos: number | null;
           reapertura_sueldo_mensual: boolean | null;
           reparto_ya_en_la_apertura: boolean;
+          respuestas_de_la_consulta: Json;
           sena_bp: number | null;
           tipo_de_proyecto: string | null;
           titulo: string;
@@ -2964,6 +3144,10 @@ export type Database = {
           p_p256dh: string;
           p_zona: string;
         };
+        Returns: Json;
+      };
+      responder_el_presupuesto: {
+        Args: { p_respuesta: Json; p_token: string };
         Returns: Json;
       };
       responder_la_entrega: {

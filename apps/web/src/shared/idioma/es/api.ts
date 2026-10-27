@@ -297,6 +297,30 @@ export const api = {
       titulo: 'La facturación con ARCA no está conectada.',
       queHacer: 'No se pidió nada. Conectala en Ajustes › Facturación y volvé a pedirla.',
     },
+    MN044: {
+      titulo: 'Un estimativo no lleva fechas.',
+      queHacer: 'Sacá el tilde del estimativo o las fechas y volvé a mandarlo.',
+    },
+    MN045: {
+      titulo: 'Al presupuesto le falta una de sus fechas.',
+      queHacer: 'Poné para cuándo puede estar listo y hasta cuándo puede entrar la seña.',
+    },
+    MN046: {
+      titulo: 'La fecha de la seña ya pasó.',
+      queHacer: 'Elegí hoy o un día que viene y volvé a mandarlo.',
+    },
+    MN047: {
+      titulo: 'La entrega tiene que ser después de la seña.',
+      queHacer: 'Corré la fecha de entrega o la de la seña y volvé a mandarlo.',
+    },
+    MN048: {
+      titulo: 'Ese contacto ya se registró.',
+      queHacer: 'Si hay que volver a escribirle, poné una fecha nueva desde la ficha.',
+    },
+    MN049: {
+      titulo: 'El próximo contacto va hoy o un día que viene.',
+      queHacer: 'Elegí hoy o un día que viene.',
+    },
     MN041: {
       titulo: 'Le falta algo para facturar.',
       queHacer: 'No se pidió la factura. Completá lo que falta y volvé a pedirla desde el pago.',

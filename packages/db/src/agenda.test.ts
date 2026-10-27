@@ -364,6 +364,7 @@ describe('los vencimientos de la fila en la agenda', () => {
         monto: 50_000_000,
         fecha: '2026-09-10',
         pagado: true,
+        pagoSolo: null,
       },
       {
         id: `vencimiento:${FIJOS}:1:2026-09-30`,
@@ -373,6 +374,7 @@ describe('los vencimientos de la fila en la agenda', () => {
         monto: 6_000_000,
         fecha: '2026-09-30',
         pagado: false,
+        pagoSolo: null,
       },
     ]);
     expect(
@@ -503,9 +505,99 @@ describe('los gastos desde un tesoro', () => {
     const sinOrigen = gasto('m4', { desde_id: null });
 
     expect(gastosDeLosTesoros([gasto('m1', {}), sinId, deCocos, sinOrigen], TESOROS)).toEqual([
-      { tesoro: FIJOS, categoria: 'Alquiler', fecha: '2026-09-08' },
-      { tesoro: MAUN, categoria: 'Luz', fecha: '2026-09-08' },
-      { tesoro: 'cocos', categoria: 'X', fecha: '2026-09-08' },
+      {
+        tesoro: FIJOS,
+        categoria: 'Alquiler',
+        fecha: '2026-09-08',
+        monto: 50_000_000,
+        vencimiento: null,
+      },
+      { tesoro: MAUN, categoria: 'Luz', fecha: '2026-09-08', monto: 50_000_000, vencimiento: null },
+      {
+        tesoro: 'cocos',
+        categoria: 'X',
+        fecha: '2026-09-08',
+        monto: 50_000_000,
+        vencimiento: null,
+      },
+    ]);
+  });
+
+  it('un gasto que se registró para un vencimiento lo trae', () => {
+    expect(
+      gastosDeLosTesoros([gasto('m1', { vencimiento: '2026-10-10' })], TESOROS).map(
+        (uno) => uno.vencimiento,
+      ),
+    ).toEqual(['2026-10-10']);
+  });
+});
+
+describe('un compromiso con día de pago en la agenda', () => {
+  const CON_DIA = {
+    ...FILA,
+    pasos: [
+      {
+        tesoro: FIJOS,
+        clase: 'fijos',
+        tope: 50_000_000,
+        renglones: [{ nombre: 'Alquiler', monto: 50_000_000, dia: null }],
+        desde: null,
+        modo: 'mes',
+        hastaLaMeta: false,
+        dia: 10,
+        pagaSola: true,
+        pagaSolaDesde: '2026-09-01',
+      },
+    ],
+  };
+
+  it('vence una vez en su día por lo que falta, y el pagado solo dice cuánto se pagó y cuánto puso Maun', () => {
+    const datos = datosDeLaAgenda(
+      conLaFila({
+        ajustes: [ajustes({ fila: CON_DIA })],
+        movimientos: [
+          gasto('m1', { categoria: 'Adelanto', fecha: '2026-08-20', monto_centavos: 5_000_000 }),
+        ],
+        pagos_de_vencimientos: [
+          {
+            ...METADATOS,
+            id: 'v1',
+            tesoro_id: FIJOS,
+            vencimiento: '2026-09-10',
+            dia: 10,
+            tope_centavos: 50_000_000,
+            pagado_antes_centavos: 5_000_000,
+            saldo_centavos: 30_000_000,
+            a_pagar_centavos: 45_000_000,
+            puso_maun_centavos: 15_000_000,
+            vuelve_a_maun_centavos: 0,
+          },
+        ],
+      }),
+      { desde: '2026-09-01', hasta: '2026-10-31' },
+    );
+
+    expect(datos.vencimientos).toEqual([
+      {
+        id: `vencimiento:${FIJOS}:2026-09-10`,
+        tesoro: FIJOS,
+        nombreDelTesoro: 'Gastos fijos',
+        renglon: null,
+        monto: 45_000_000,
+        fecha: '2026-09-10',
+        pagado: true,
+        pagoSolo: { pagado: 45_000_000, pusoMaun: 15_000_000 },
+      },
+      {
+        id: `vencimiento:${FIJOS}:2026-10-10`,
+        tesoro: FIJOS,
+        nombreDelTesoro: 'Gastos fijos',
+        renglon: null,
+        monto: 50_000_000,
+        fecha: '2026-10-10',
+        pagado: false,
+        pagoSolo: null,
+      },
     ]);
   });
 });

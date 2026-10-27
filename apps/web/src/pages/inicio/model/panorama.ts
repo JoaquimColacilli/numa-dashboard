@@ -19,7 +19,7 @@ import {
   type TesorosDelSistema,
 } from '@maun/domain';
 
-import { loQueHayQuePagar, tiposDelTesoro } from '@/entities/fila';
+import { loQueEs } from '@/entities/fila';
 import { equivalenteEnPesos, ultimoCambioEntre, type UltimoCambio } from '@/entities/movimiento';
 import { saldoEnPesos, type TesoroDelTaller } from '@/entities/tesoro';
 import { mensajes } from '@/shared/idioma';
@@ -42,13 +42,13 @@ export interface DolaresDelTaller {
 
 export interface PanoramaDelTaller {
   paraPagar: Money;
-  ahorros: Money;
-  superavit: Money;
+  metas: Money;
+  cajas: Money;
   insumos: Money;
   compromisoDeMaun: Money;
   tesorosParaPagar: number;
-  tesorosDeAhorro: number;
-  tesoroDelSuperavit: string;
+  tesorosDeMetas: number;
+  tesorosDeCajas: number;
   trabajosConInsumos: number;
   enDolares?: DolaresDelTaller | null;
 }
@@ -96,19 +96,6 @@ export function compromisoDeMaun({
   return maximo(CERO, restar(delPaso.lleva, gastado));
 }
 
-function esDeAhorro(
-  fila: Fila,
-  sistema: TesorosDelSistema,
-  tesoro: Pick<TesoroDelTaller, 'id'>,
-): boolean {
-  if (tesoro.id === fila.superavit) return false;
-  if (tesoro.id === sistema.hogar || tesoro.id === sistema.maun) return false;
-  if (tesoro.id === sistema.diezmo) return false;
-  const tipos = tiposDelTesoro(fila, tesoro.id);
-  if (tipos.includes('obligacion') || tipos.includes('compromiso')) return false;
-  return true;
-}
-
 function dolaresDelTaller(
   tesoros: readonly TesoroDelTaller[],
   movimientos: readonly MovimientoDelLibro[],
@@ -125,46 +112,51 @@ function dolaresDelTaller(
 }
 
 export function panoramaDelTaller(entrada: EntradaDelPanorama): PanoramaDelTaller {
-  const { fila, delMes, sistema, tesoros, insumos } = entrada;
+  const { fila, sistema, tesoros, insumos } = entrada;
   const deMaun = compromisoDeMaun(entrada);
-  const aPagar = loQueHayQuePagar(delMes).map((renglon) => renglon.aPagar);
-  const ahorros = tesoros.flatMap((tesoro) => {
-    if (tesoro.archivado || !esDeAhorro(fila, sistema, tesoro)) return [];
+  const paraPagar: Money[] = [];
+  const metas: Money[] = [];
+  const cajas: Money[] = [];
+  for (const tesoro of tesoros) {
+    if (tesoro.archivado) continue;
     const saldo = saldoEnPesos(tesoro);
-    return saldo === null ? [] : [saldo];
-  });
-
-  const delTesoro = tesoros.find((tesoro) => tesoro.id === fila.superavit);
-  const delSuperavit = (delTesoro === undefined ? null : saldoEnPesos(delTesoro)) ?? CERO;
-  const superavit =
-    fila.superavit === sistema.maun ? restar(restar(delSuperavit, insumos), deMaun) : delSuperavit;
+    if (saldo === null) continue;
+    const queEs = loQueEs(fila, tesoro);
+    if (queEs === 'deuda-destinada' || queEs === 'deuda-obligatoria') {
+      paraPagar.push(maximo(CERO, saldo));
+    } else if (queEs === 'meta') {
+      metas.push(saldo);
+    } else if (tesoro.id === sistema.maun) {
+      cajas.push(restar(restar(saldo, insumos), deMaun));
+    } else {
+      cajas.push(saldo);
+    }
+  }
+  const conElDeMaun = [...paraPagar, deMaun];
 
   return {
-    paraPagar: sumarTodos([...aPagar, deMaun]),
-    ahorros: sumarTodos(ahorros),
-    superavit,
+    paraPagar: sumarTodos(conElDeMaun),
+    metas: sumarTodos(metas),
+    cajas: sumarTodos(cajas),
     insumos,
     compromisoDeMaun: deMaun,
-    tesorosParaPagar: [...aPagar, deMaun].filter((monto) => monto > 0).length,
-    tesorosDeAhorro: ahorros.length,
-    tesoroDelSuperavit: fila.superavit,
+    tesorosParaPagar: conElDeMaun.filter((monto) => monto > 0).length,
+    tesorosDeMetas: metas.length,
+    tesorosDeCajas: cajas.length,
     trabajosConInsumos: entrada.trabajosConInsumos,
     enDolares: dolaresDelTaller(tesoros, entrada.movimientos),
   };
 }
 
 export interface CifraDelPanorama {
-  id: 'para-pagar' | 'ahorros' | 'superavit' | 'insumos' | 'en-dolares';
+  id: 'para-pagar' | 'metas' | 'cajas' | 'insumos' | 'en-dolares';
   etiqueta: string;
   monto: Plata;
   detalle: string;
   equivalente: string | null;
 }
 
-export function cifrasDelPanorama(
-  panorama: PanoramaDelTaller,
-  nombreDelSuperavit: string,
-): CifraDelPanorama[] {
+export function cifrasDelPanorama(panorama: PanoramaDelTaller): CifraDelPanorama[] {
   const textos = mensajes().paginaInicio.panorama;
   const trabajos = panorama.trabajosConInsumos;
   const cifras: CifraDelPanorama[] = [
@@ -179,23 +171,23 @@ export function cifrasDelPanorama(
       equivalente: null,
     },
     {
-      id: 'ahorros',
-      etiqueta: textos.ahorros,
-      monto: enPesos(panorama.ahorros),
+      id: 'metas',
+      etiqueta: textos.metas,
+      monto: enPesos(panorama.metas),
       detalle:
-        panorama.tesorosDeAhorro === 0
-          ? textos.todaviaSinAhorros
-          : textos.enTesoros(panorama.tesorosDeAhorro),
+        panorama.tesorosDeMetas === 0
+          ? textos.todaviaSinMetas
+          : textos.enTesoros(panorama.tesorosDeMetas),
       equivalente: null,
     },
     {
-      id: 'superavit',
-      etiqueta: textos.superavit,
-      monto: enPesos(panorama.superavit),
+      id: 'cajas',
+      etiqueta: textos.cajas,
+      monto: enPesos(panorama.cajas),
       detalle:
-        panorama.superavit < 0
-          ? textos.enElTesoroQueNoAlcanza(nombreDelSuperavit)
-          : textos.enElTesoro(nombreDelSuperavit),
+        panorama.cajas < 0 && (panorama.insumos > 0 || panorama.compromisoDeMaun > 0)
+          ? textos.noAlcanzanParaLosInsumos
+          : textos.sinLosInsumos(panorama.tesorosDeCajas),
       equivalente: null,
     },
     {

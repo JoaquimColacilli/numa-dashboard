@@ -2,6 +2,7 @@ import {
   categoriaDeGastoLeida,
   estaLiquidado,
   faseDe,
+  leerLasRespuestas,
   puedeCerrarPerdido,
   puedeCobrar,
   type EstadoProyecto,
@@ -29,6 +30,8 @@ import {
   MarcaDeListo,
   nombreDeLaCategoria,
   pagosDelProyecto,
+  ParaElEstimativo,
+  preguntasDelTaller,
   RUTA_DE_PROYECTOS,
   resumenDeProyecto,
   rutaDeCierre,
@@ -606,6 +609,16 @@ export function ProyectoFichaPage() {
               }
             />
           </section>
+
+          {leerLasRespuestas(proyecto.respuestas_de_la_consulta).length > 0 && (
+            <ParaElEstimativo
+              key={proyecto.id}
+              proyecto={proyecto}
+              preguntas={preguntasDelTaller(replica)}
+              domicilioDelCliente={cliente?.direccion ?? ''}
+              abiertoAlPrincipio={false}
+            />
+          )}
 
           <NotasDelProyecto
             key={proyecto.id}

@@ -295,12 +295,11 @@ test('la visita anotada como hecha sigue tachada al ir y volver entre etapas, y 
 
   await abrirLaFicha(page, id);
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  const hoja = page.getByRole('dialog', { name: 'Editar el contacto' });
-  const casilla = hoja.getByRole('checkbox', { name: /^Ya fui a relevar/ });
+  const casilla = page.getByRole('checkbox', { name: /^Ya fui a relevar/ });
   await expect(casilla).toBeChecked();
   await casilla.uncheck();
-  await hoja.getByRole('button', { name: 'Guardar los cambios' }).click();
-  await expect(hoja).toBeHidden();
+  await page.getByRole('button', { name: 'Guardar los cambios' }).click();
+  await expect(casilla).toBeHidden();
   await expect.poll(enLaBase, CARGA).toBe('relevamiento false');
 
   await abrirLaAgenda(page);

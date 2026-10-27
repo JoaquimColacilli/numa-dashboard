@@ -7,6 +7,9 @@ select tests.guardar('a', tests.crear_usuario('a@maun.test'));
 select tests.guardar('household_a', private.crear_household('Taller A', tests.id('a')));
 select tests.guardar('m', tests.crear_usuario('m@maun.test'));
 select tests.guardar('household_m', private.crear_household('Taller M', tests.id('m')));
+-- Un taller de antes de los tipos de tesoro, con Cocos.
+select private.sembrar_cocos(tests.id('household_a'));
+select private.sembrar_cocos(tests.id('household_m'));
 select tests.guardar('z', tests.crear_usuario('z@maun.test'));
 
 create function tests.registrar(p_endpoint text, p_zona text)
@@ -231,8 +234,8 @@ select is(
     from tests.aviso_de('2026-09-15 10:40:00+00', 'https://push.example/a') as e
     cross join jsonb_array_elements(e -> 'filas' -> 'movimientos') as m
   ),
-  array['2026-09-10 Alquiler'],
-  'y los gastos vivos desde un tesoro del mes que mira: ni el de agosto, ni el de octubre, ni el borrado, ni un ingreso, ni una transferencia'
+  array['2026-08-31 Luz', '2026-09-10 Alquiler'],
+  'y los gastos vivos desde un tesoro del mes que mira y del anterior, donde arranca el ciclo de un compromiso con día de pago: ni el de octubre, ni el borrado, ni un ingreso, ni una transferencia'
 );
 
 select is(
@@ -241,8 +244,8 @@ select is(
     from tests.aviso_de('2026-09-29 10:40:00+00', 'https://push.example/a') as e
     cross join jsonb_array_elements(e -> 'filas' -> 'movimientos') as m
   ),
-  array['2026-09-10 Alquiler', '2026-10-02 Luz'],
-  'el 29 de septiembre mira hasta tres días adelante, que ya es octubre: trae los gastos de los dos meses'
+  array['2026-08-31 Luz', '2026-09-10 Alquiler', '2026-10-02 Luz'],
+  'el 29 de septiembre mira hasta tres días adelante, que ya es octubre: trae los gastos de los dos meses y del anterior'
 );
 
 select is(

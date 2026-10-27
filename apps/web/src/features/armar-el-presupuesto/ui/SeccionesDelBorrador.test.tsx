@@ -6,6 +6,7 @@ import {
   PLANTILLA_DE_SIEMPRE,
   puntosBasicos,
   type BorradorDelPresupuesto,
+  type FechasDelPresupuesto,
   type Moneda,
 } from '@maun/domain';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -17,6 +18,7 @@ import { SeccionesEnFilas } from '@/shared/ui';
 
 import type { ValoresDelEditor } from '../model/valores';
 import {
+  CasillasDelBorrador,
   FormaDePagoDelBorrador,
   ModificacionDelBorrador,
   MonedaDeLoAbonado,
@@ -29,23 +31,32 @@ const BORRADOR: BorradorDelPresupuesto = borradorNuevo({
   obra: '',
   plantilla: PLANTILLA_DE_SIEMPRE,
   validezDias: 15,
+  faltaMedir: false,
   idNuevo: () => 'm1',
 });
 
-const HUECOS: HuecosDelEditor = {
-  valores: huecosDelPresupuesto(
-    {
-      plazoDeFabricacion: 30,
-      plantilla: PLANTILLA_DE_SIEMPRE,
-      modificacion: null,
-      abonado: centavosEn('USD', 0),
-      monedaDeLoAbonado: 'USD',
-      senaBp: puntosBasicos(5_000),
-    },
-    formatosDelDocumento('es'),
-  ),
-  abonado: centavosEn('USD', 0),
-};
+function huecos(fechas: FechasDelPresupuesto | null): HuecosDelEditor {
+  return {
+    valores: huecosDelPresupuesto(
+      {
+        plazoDeFabricacion: 30,
+        plantilla: PLANTILLA_DE_SIEMPRE,
+        modificacion: null,
+        abonado: centavosEn('USD', 0),
+        monedaDeLoAbonado: 'USD',
+        senaBp: puntosBasicos(5_000),
+        fechas,
+        sena: null,
+      },
+      formatosDelDocumento('es'),
+    ),
+    abonado: centavosEn('USD', 0),
+  };
+}
+
+const HUECOS = huecos({ listoPara: '2026-11-12', senaAntesDel: '2026-10-03' });
+
+const ESTIMATIVO: BorradorDelPresupuesto = { ...BORRADOR, estimativo: true, pideFecha: true };
 
 const cambios = vi.fn<(siguiente: BorradorDelPresupuesto) => void>();
 
@@ -54,14 +65,16 @@ function ultimo(): BorradorDelPresupuesto | undefined {
 }
 
 function ConElBorrador({
+  inicial = BORRADOR,
   children,
 }: {
+  inicial?: BorradorDelPresupuesto;
   children: (
     borrador: BorradorDelPresupuesto,
     alCambiar: (siguiente: BorradorDelPresupuesto) => void,
   ) => ReactNode;
 }) {
-  const [borrador, setBorrador] = useState(BORRADOR);
+  const [borrador, setBorrador] = useState(inicial);
   return (
     <SeccionesEnFilas>
       {children(borrador, (siguiente) => {
@@ -77,9 +90,9 @@ afterEach(() => {
   cambios.mockClear();
 });
 
-function formaDePago(moneda: Moneda, cobraEn: readonly Moneda[] | null) {
+function formaDePago(moneda: Moneda, cobraEn: readonly Moneda[] | null, inicial = BORRADOR) {
   render(
-    <ConElBorrador>
+    <ConElBorrador inicial={inicial}>
       {(borrador, alCambiar) => (
         <FormaDePagoDelBorrador
           borrador={borrador}
@@ -180,7 +193,7 @@ describe('lo que ya pagó en un trabajo en dólares', () => {
 });
 
 describe('los valores en dólares', () => {
-  function Valores() {
+  function Valores({ estimativo = false }: { estimativo?: boolean }) {
     const [valores, setValores] = useState<ValoresDelEditor>({
       total: centavosEn('USD', 240_000),
       opciones: [],
@@ -194,6 +207,7 @@ describe('los valores en dólares', () => {
           senaPropia={false}
           abonado={centavosEn('USD', 8_276)}
           moneda="USD"
+          estimativo={estimativo}
         />
       </SeccionesEnFilas>
     );
@@ -208,5 +222,71 @@ describe('los valores en dólares', () => {
     expect(within(seccion).getByText('US$ 82,76')).toBeInTheDocument();
     expect(within(seccion).getByText('US$ 1.117,24')).toBeInTheDocument();
     expect(within(seccion).queryByText(/^\$/)).toBeNull();
+  });
+
+  it('en un estimativo no va la cuenta de la seña', () => {
+    render(<Valores estimativo />);
+    const seccion = screen.getByRole('region', { name: /Valores/ });
+    expect(
+      within(seccion).getByText('Un estimativo no pide seña: la pide el presupuesto.'),
+    ).toBeInTheDocument();
+    expect(within(seccion).queryByText('US$ 1.200')).toBeNull();
+    expect(within(seccion).queryByText('US$ 1.117,24')).toBeNull();
+  });
+});
+
+describe('un estimativo en el borrador', () => {
+  function avisos(conHuecos: HuecosDelEditor, inicial = BORRADOR) {
+    render(
+      <ConElBorrador inicial={inicial}>
+        {(borrador, alCambiar) => (
+          <CasillasDelBorrador
+            borrador={borrador}
+            alCambiar={alCambiar}
+            numero={5}
+            grupo="avisos"
+            clausulas={PLANTILLA_DE_SIEMPRE.avisos}
+            huecos={conHuecos}
+          />
+        )}
+      </ConElBorrador>,
+    );
+  }
+
+  function elDelPlazo(): HTMLElement {
+    return screen.getByRole('checkbox', { name: /^Debido a la agenda del taller/ });
+  }
+
+  it('no lleva la forma de pago', () => {
+    formaDePago('ARS', null, ESTIMATIVO);
+    expect(
+      screen.getByText('Un estimativo no lleva la forma de pago: va en el presupuesto.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Forma de pago' })).toBeNull();
+
+    cleanup();
+    formaDePago('ARS', null);
+    expect(screen.getByRole('radiogroup', { name: 'Forma de pago' })).toBeInTheDocument();
+  });
+
+  it('el aviso con las fechas no va: queda sin tildar y dice por qué', () => {
+    avisos(huecos(null), ESTIMATIVO);
+    expect(elDelPlazo()).toBeDisabled();
+    expect(elDelPlazo()).not.toBeChecked();
+    expect(
+      screen.getByText('No va en un estimativo: la lleva el presupuesto, con sus fechas.'),
+    ).toBeInTheDocument();
+  });
+
+  it('con las fechas, el aviso va tildado y dice la entrega y la seña', () => {
+    avisos(HUECOS);
+    expect(elDelPlazo()).toBeEnabled();
+    expect(elDelPlazo()).toBeChecked();
+    expect(elDelPlazo()).toHaveAccessibleName(
+      /la fecha estimada de entrega es el 12 de noviembre de 2026\. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada del 50% de la opción que elijas antes del 3 de octubre de 2026\./,
+    );
+    expect(
+      screen.queryByText('No va en un estimativo: la lleva el presupuesto, con sus fechas.'),
+    ).toBeNull();
   });
 });

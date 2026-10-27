@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { entraEnLaFila, lugaresParaSumar } from './lugares';
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: 'hogar',
@@ -14,6 +16,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [],

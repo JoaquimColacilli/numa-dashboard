@@ -40,6 +40,7 @@ export {
   subirElCertificadoDeArca,
 } from './facturacion';
 export {
+  aprobarElPresupuestoDelCliente,
   compartirElArchivo,
   generarElEnlace,
   guardarElToken,
@@ -107,9 +108,12 @@ export {
   guardarElBorradorDelPresupuesto,
   guardarElProyecto,
   guardarLasFormasDeCobro,
+  guardarLasRespuestasDeLaConsulta,
   guardarLosCostosEstimados,
   guardarLosTextosDelPresupuesto,
+  cambiarLaFechaDelProximoContacto,
   mandarElPresupuestoAlCliente,
+  marcarLaRespuestaAlPresupuestoAtendida,
   liquidarElProyecto,
   marcarElProximoContacto,
   marcarEnLaAgenda,
@@ -268,6 +272,7 @@ export {
   type EnlaceNuevo,
   COLUMNAS_DE_PREGUNTA,
   motivoDelRechazo,
+  motivoDelRechazoDeLaAprobacion,
   motivoDelRechazoDeLaEntrega,
   type ColumnaDePregunta,
   type DatosDelAnalisis,

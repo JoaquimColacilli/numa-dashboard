@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 
 import { AccionesDeContacto, rutaDelCliente } from '@/entities/cliente';
+import { respuestaPendiente } from '@/entities/presupuesto';
 import {
   enOtrosTesoros,
   ESTADO,
@@ -10,20 +11,23 @@ import {
   insumosDelProyecto,
   loCobradoEnPalabras,
   pagosDelProyecto,
+  ParaElEstimativo,
   pendienteDelSeguimiento,
+  preguntasDelTaller,
   RUTA_DE_SEGUIMIENTO,
   rutaDeCierre,
+  rutaDeEdicion,
   textoDelResultado,
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
 import { useReplicaDelTaller } from '@/entities/replica';
 import { ArchivosDelTrabajo } from '@/features/adjuntar-archivos';
 import { TarjetaDelPresupuesto } from '@/features/armar-el-presupuesto';
-import { HojaDeContacto } from '@/features/avanzar-la-consulta';
+import { TarjetaDeLaRespuesta, useAtenderLaRespuesta } from '@/features/atender-la-respuesta';
 import { HojaDeCliente } from '@/features/editar-cliente';
 import { BorradoDelProyecto, NotasDelProyecto } from '@/features/editar-proyecto';
 import { CobrosYFacturas } from '@/features/facturar-con-arca';
-import { HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
+import { HojaDeCambiarLaFecha, HojaDeRegistrarElContacto } from '@/features/hacer-el-seguimiento';
 import { useMensajes } from '@/shared/idioma';
 import {
   destinoDeLaTarjeta,
@@ -48,7 +52,6 @@ import {
   PrincipalYApoyo,
 } from '@/shared/ui';
 
-import { ConTesoroEnDolaresNuevo } from './ConTesoroEnDolaresNuevo';
 import { InsumosDelTrabajo } from './InsumosDelTrabajo';
 
 function Dato({
@@ -75,26 +78,13 @@ function Dato({
   );
 }
 
-type HojaAbierta = 'registrar' | 'editar' | null;
+type HojaAbierta = 'registrar' | 'fecha' | null;
 
 export interface FichaDeSeguimientoProps {
   resumen: ResumenDeProyecto;
 }
 
-export function FichaDeSeguimiento(props: FichaDeSeguimientoProps) {
-  return (
-    <ConTesoroEnDolaresNuevo>
-      {(pedir) => <FichaDelSeguimiento {...props} pedirUnTesoroEnDolares={pedir} />}
-    </ConTesoroEnDolaresNuevo>
-  );
-}
-
-function FichaDelSeguimiento({
-  resumen,
-  pedirUnTesoroEnDolares,
-}: FichaDeSeguimientoProps & {
-  pedirUnTesoroEnDolares: (alCrear: (tesoroId: string) => void) => void;
-}) {
+export function FichaDeSeguimiento({ resumen }: FichaDeSeguimientoProps) {
   const replica = useReplicaDelTaller();
   const ir = useIr();
   const { comun, seguimiento: textos } = useMensajes().paginaProyectos;
@@ -103,8 +93,11 @@ function FichaDelSeguimiento({
   const avisos = useAvisosDelProyecto(proyecto.id);
   const [hoja, setHoja] = useState<HojaAbierta>(null);
   const [editandoCliente, setEditandoCliente] = useState(false);
+  const [reactivando, setReactivando] = useState(false);
+  const atender = useAtenderLaRespuesta();
   const cerrarLaHoja = useCallback(() => {
     setHoja(null);
+    setReactivando(false);
   }, []);
 
   const hoy = hoyEnElTaller();
@@ -164,7 +157,7 @@ function FichaDelSeguimiento({
             className="sm:px-4"
             aria-label={comun.editar}
             onClick={() => {
-              setHoja('editar');
+              ir(rutaDeEdicion(proyecto.id));
             }}
           >
             <Icono nombre="pencil" tamano={16} />
@@ -230,6 +223,15 @@ function FichaDelSeguimiento({
                     <Icono nombre="message-circle" tamano={18} />
                     {textos.registrarElContacto}
                   </Button>
+                  <Button
+                    variant="secundario"
+                    onClick={() => {
+                      setHoja('fecha');
+                    }}
+                  >
+                    <Icono nombre="calendar" tamano={18} />
+                    {textos.cambiarLaFecha}
+                  </Button>
                 </FilaDeAcciones>
               )}
               <p className="mt-3 text-meta leading-relaxed text-text-3">
@@ -240,7 +242,28 @@ function FichaDelSeguimiento({
         }
       >
         <div className="flex flex-col gap-3 md:gap-4">
+          <TarjetaDeLaRespuesta
+            proyecto={proyecto}
+            nombre={nombre}
+            telefono={telefono}
+            alReactivar={
+              pendiente === undefined
+                ? undefined
+                : () => {
+                    setReactivando(true);
+                    setHoja('registrar');
+                  }
+            }
+          />
+
           <TarjetaDelPresupuesto proyecto={proyecto} />
+
+          <ParaElEstimativo
+            key={proyecto.id}
+            proyecto={proyecto}
+            preguntas={preguntasDelTaller(replica)}
+            domicilioDelCliente={cliente?.direccion ?? ''}
+          />
 
           <section
             aria-label={textos.datosDelTrabajo}
@@ -351,21 +374,31 @@ function FichaDelSeguimiento({
 
       <ConSalida valor={hoja}>
         {(abierta) =>
-          abierta === 'registrar' && pendiente !== undefined ? (
+          abierta === 'fecha' && pendiente !== undefined ? (
+            <HojaDeCambiarLaFecha
+              pendiente={pendiente}
+              nombre={nombre}
+              titulo={proyecto.titulo}
+              alCerrar={cerrarLaHoja}
+            />
+          ) : abierta === 'registrar' && pendiente !== undefined ? (
             <HojaDeRegistrarElContacto
               proyecto={proyecto}
               pendiente={pendiente}
               nombre={nombre}
               telefono={telefono}
+              vuelveALaConsulta={reactivando}
+              alRegistrar={
+                reactivando
+                  ? () => {
+                      const respuesta = respuestaPendiente(replica, proyecto.id);
+                      if (respuesta !== null) atender(respuesta);
+                    }
+                  : undefined
+              }
               alCerrar={cerrarLaHoja}
             />
-          ) : (
-            <HojaDeContacto
-              proyecto={proyecto}
-              alCerrar={cerrarLaHoja}
-              alCrearUnTesoroEnDolares={pedirUnTesoroEnDolares}
-            />
-          )
+          ) : null
         }
       </ConSalida>
 

@@ -621,8 +621,8 @@ select tests.mandar_el_presupuesto(
 
 select is(
   array(select jsonb_object_keys(tests.el_presupuesto()) as k order by k),
-  array['contenido', 'idioma', 'mandado_el', 'numero', 'que_cambio', 'revision'],
-  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió, el documento y su idioma'
+  array['contenido', 'idioma', 'mandado_el', 'numero', 'que_cambio', 'respuesta', 'revision', 'revision_id'],
+  'mandado y esperando la seña, viaja la última revisión: su número, su revisión, el día, lo que cambió, el documento, su idioma, su id para aprobarla y lo que contestó el cliente'
 );
 
 select is(

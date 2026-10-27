@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ajusteDelSaldo,
   asientosDeLaLinea,
   asientosDelLibro,
   asientosDelMes,
@@ -11,8 +12,8 @@ import {
   estadoDelDiezmo,
   fechaDeApertura,
   lineasDelLibro,
+  motivoDelAjuste,
   mueveLosTesoros,
-  proyeccionCocos,
   saldosDelLibro,
   saldosDelLibroPorId,
   saldosPorId,
@@ -25,6 +26,7 @@ import {
   type ProyectoDelLibro,
   type RepartoDelLibro,
   type Tesoro,
+  type VencimientoDelLibro,
 } from './libroMayor.ts';
 import { cotizacion } from './cotizacion.ts';
 import { centavos, centavosEn, type Money } from './money.ts';
@@ -39,6 +41,7 @@ function datos(partes: Partial<DatosDelLibro>): DatosDelLibro {
     gastos: [],
     proyectos: [],
     repartos: [],
+    vencimientos: [],
     ...partes,
   };
 }
@@ -342,27 +345,6 @@ describe('agregados del mes', () => {
 
   it('un tesoro sin asientos queda en cero de los dos lados', () => {
     expect(entradasYSalidas(asientos, 'cocos')).toEqual({ entro: 0, salio: 0 });
-  });
-});
-
-describe('proyeccionCocos', () => {
-  it('capitaliza el saldo por los días que faltan', () => {
-    expect(proyeccionCocos($(10_000_000), 4_000, 365)).toBe(14_000_000);
-  });
-
-  it('sin días por delante, o sin tasa, devuelve el saldo tal cual', () => {
-    expect(proyeccionCocos($(10_000_000), 4_000, 0)).toBe(10_000_000);
-    expect(proyeccionCocos($(10_000_000), 4_000, -5)).toBe(10_000_000);
-    expect(proyeccionCocos($(10_000_000), 0, 365)).toBe(10_000_000);
-  });
-
-  it('acepta tasas por encima del 100%, que es lo que la base permite', () => {
-    expect(proyeccionCocos($(1_000_000), 100_000, 365)).toBe(11_000_000);
-  });
-
-  it('rechaza una tasa que no es un entero no negativo', () => {
-    expect(() => proyeccionCocos($(1), -1, 365)).toThrow(RangeError);
-    expect(() => proyeccionCocos($(1), 1.5, 365)).toThrow(RangeError);
   });
 });
 
@@ -997,5 +979,133 @@ describe('la cuenta por id de tesoro', () => {
       salio: 120_000,
     });
     expect(entradasYSalidasPorId(asientos, 't-cocos')).toEqual({ entro: 0, salio: 0 });
+  });
+});
+
+describe('el pago de un vencimiento', () => {
+  const TESOROS = [
+    { id: 't-maun', clave: 'maun' },
+    { id: 't-hogar', clave: 'hogar' },
+    { id: 't-alquiler', clave: null },
+  ] as const;
+
+  function vencimiento(partes: Partial<VencimientoDelLibro>): VencimientoDelLibro {
+    return {
+      id: 'v1',
+      tesoroId: 't-alquiler',
+      vencimiento: '2026-11-10',
+      aPagar: $(900_000),
+      pusoMaun: $(0),
+      vuelveAMaun: $(0),
+      ...partes,
+    };
+  }
+
+  it('lo que pone Maun entra como deuda interna, el pago sale afuera y todo va con el día del vencimiento', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS,
+        vencimientos: [vencimiento({ aPagar: $(900_000), pusoMaun: $(270_000) })],
+      }),
+    );
+
+    expect(
+      lineas.map((linea) => [
+        linea.concepto,
+        linea.categoria,
+        linea.desde,
+        linea.desdeId,
+        linea.hacia,
+        linea.haciaId,
+        linea.monto,
+      ]),
+    ).toEqual([
+      ['deuda_interna', 'Deuda interna', 'maun', 't-maun', null, 't-alquiler', 270_000],
+      ['vencimiento', 'Vencimiento', null, 't-alquiler', null, null, 900_000],
+    ]);
+    expect(lineas.every((linea) => linea.origen === 'vencimiento')).toBe(true);
+    expect(lineas.every((linea) => linea.fecha === '2026-11-10')).toBe(true);
+    expect(lineas.every((linea) => linea.asientoId === 'v1')).toBe(true);
+    expect(lineas[0]).toMatchObject({ descripcion: '', proyectoId: null, yaEnLaApertura: false });
+  });
+
+  it('lo que sobra vuelve a Maun, y un tramo en cero no genera línea', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS,
+        vencimientos: [vencimiento({ aPagar: $(600_000), vuelveAMaun: $(150_000) })],
+      }),
+    );
+
+    expect(lineas.map((linea) => [linea.concepto, linea.desdeId, linea.haciaId])).toEqual([
+      ['vencimiento', 't-alquiler', null],
+      ['sobrante', 't-alquiler', 't-maun'],
+    ]);
+    expect(lineas[1]).toMatchObject({ desde: null, hacia: 'maun', categoria: 'Sobrante' });
+  });
+
+  it('el de Hogar lleva su clave de los dos lados, y con todo ya pagado no queda línea', () => {
+    const lineas = lineasDelLibro(
+      datos({
+        tesoros: TESOROS,
+        vencimientos: [
+          vencimiento({ id: 'v1', tesoroId: 't-hogar', aPagar: $(0), pusoMaun: $(0) }),
+          vencimiento({ id: 'v2', tesoroId: 't-hogar', aPagar: $(0), vuelveAMaun: $(5_000) }),
+        ],
+      }),
+    );
+
+    expect(lineas.map((linea) => [linea.asientoId, linea.desde, linea.hacia])).toEqual([
+      ['v2', 'hogar', 'maun'],
+    ]);
+  });
+
+  it('después del pago, el tesoro queda en cero y Maun pone lo que faltaba', () => {
+    const conElPago = datos({
+      tesoros: TESOROS,
+      movimientos: [
+        movimiento({
+          id: 'm1',
+          tipo: 'transferencia',
+          tesoroOrigen: 'maun',
+          tesoroDestino: null,
+          haciaId: 't-alquiler',
+          monto: $(630_000),
+        }),
+      ],
+      vencimientos: [vencimiento({ aPagar: $(900_000), pusoMaun: $(270_000) })],
+    });
+
+    expect(saldosDelLibroPorId(conElPago)).toEqual(
+      new Map([
+        ['t-alquiler', 0],
+        ['t-maun', -900_000],
+      ]),
+    );
+  });
+});
+
+describe('ajustar el saldo', () => {
+  it('la diferencia entre lo que tiene ahora y el saldo dice si se suma o se resta', () => {
+    expect(ajusteDelSaldo($(1_000_000), $(1_250_000))).toEqual({
+      sentido: 'suma',
+      monto: 250_000,
+    });
+    expect(ajusteDelSaldo($(1_000_000), $(400_000))).toEqual({ sentido: 'resta', monto: 600_000 });
+    expect(ajusteDelSaldo($(-50_000), $(0))).toEqual({ sentido: 'suma', monto: 50_000 });
+  });
+
+  it('si ya tiene eso, no hay nada que ajustar', () => {
+    expect(ajusteDelSaldo($(1_000_000), $(1_000_000))).toBeNull();
+  });
+
+  it('el motivo va limpio, hasta sesenta letras, y nunca es la apertura', () => {
+    expect(motivoDelAjuste('  Intereses   del plazo fijo ')).toBe('Intereses del plazo fijo');
+    expect(motivoDelAjuste('Corrección')).toBe('Corrección');
+    expect(motivoDelAjuste('   ')).toBeNull();
+    expect(motivoDelAjuste('x'.repeat(60))).toBe('x'.repeat(60));
+    expect(motivoDelAjuste('x'.repeat(61))).toBeNull();
+    expect(motivoDelAjuste('Apertura')).toBeNull();
+    expect(motivoDelAjuste(' APERTURA ')).toBeNull();
   });
 });

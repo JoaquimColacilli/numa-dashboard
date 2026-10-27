@@ -44,7 +44,7 @@ export const vistaCliente = {
         estimativo: {
           titulo: 'Te pasamos un número estimado',
           texto:
-            'Solo si le mandaste un estimativo: le aparece tildado, como un paso antes del presupuesto, con el día que tocaste «Mandé el estimativo», y el presupuesto queda en curso. El número no lo ve nunca.',
+            'Cuando le mandás el presupuesto con el tilde «Es un estimativo», lo ve antes del presupuesto, con el número estimado y sin seña, y lo puede aprobar desde su página. Si le pediste una fecha para medir, al aprobar te propone un día.',
         },
         relevamiento: {
           titulo: 'El número todavía puede cambiar',
@@ -77,7 +77,7 @@ export const vistaCliente = {
         esperando: {
           titulo: 'Mientras espera la seña',
           texto:
-            'No ve la dirección ni las fechas que tengas cargadas: esas aparecen cuando lo aprueba. Ve para cuándo podría estar listo si deja la seña antes del día hasta el que vale el presupuesto, o si lo aprueba antes de ese día cuando lo que te pagó ya cubre la seña.',
+            'No ve la dirección ni las fechas que tengas cargadas: esas aparecen cuando lo aprueba. Lee para cuándo puede estar listo si la seña entra antes del día que elegiste en el presupuesto; pasado ese día sin la seña, lee que esa fecha dependía de la seña.',
         },
         paso2: {
           titulo: 'Aprobado, seña cobrada',
@@ -103,7 +103,7 @@ export const vistaCliente = {
         opciones: {
           titulo: 'Con opciones',
           texto:
-            'Ve cada opción con su total y su seña, y le pide que elija. Cuando aprobás una, las otras desaparecen de su página.',
+            'Ve cada opción con su total y su seña, y la puede aprobar desde su página: te avisa y lo ves en la ficha. Cuando aprobás una, las otras desaparecen de su página.',
         },
         vencido: {
           titulo: 'Si vence',

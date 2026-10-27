@@ -293,6 +293,36 @@ export const lib = {
       enCola: "Credit note requested while offline: it'll go out when you're back online.",
       error: "Couldn't request the credit note.",
     },
+    respuestaAtendida: {
+      hecho: 'Done: the reply is marked as talked over.',
+      enCola: ANOTADO_EN_COLA,
+      error: "Couldn't mark the reply as talked over.",
+    },
+    fechaDelContacto: {
+      hecho: 'Next follow-up date changed.',
+      enCola: `New date queued while offline: ${VUELVE_SOLO}`,
+      error: "Couldn't change the next follow-up date.",
+    },
+    respuestasDeLaConsulta: {
+      hecho: 'Answers saved.',
+      enCola: `Answers queued while offline: ${VUELVEN_SOLOS}`,
+      error: "Couldn't save the inquiry answers.",
+    },
+    preguntasDeLaConsulta: {
+      hecho: 'Questions saved.',
+      enCola: `Questions queued while offline: ${VUELVEN_SOLOS}`,
+      error: "Couldn't save the questions.",
+    },
+    saldoAjustado: {
+      hecho: 'Balance adjusted.',
+      enCola: `Adjustment queued while offline: ${VUELVE_SOLO}`,
+      error: "Couldn't adjust the balance.",
+    },
+    adelantoRegistrado: {
+      hecho: 'Advance added.',
+      enCola: `Advance queued while offline: ${VUELVE_SOLO}`,
+      error: "Couldn't add the advance.",
+    },
     datosDeFacturacion: {
       hecho: 'Invoicing details saved.',
       enCola:

@@ -1,8 +1,15 @@
 import type { FranjaDeEntrega } from './entrega.ts';
 import { faseDe, type EstadoProyecto } from './estados.ts';
-import { diasEntre, esMes, mesesDelRango, sumarDias } from './fechas.ts';
-import { vencimientosDelPaso, type Fila, type GastoDeUnTesoro } from './fila.ts';
-import type { Money } from './money.ts';
+import { diaDelMes, diasEntre, esMes, mesesDelRango, sumarDias } from './fechas.ts';
+import {
+  diaDelCiclo,
+  pagadoParaElVencimiento,
+  vencimientosDelPaso,
+  type Fila,
+  type GastoDeUnTesoro,
+  type PagoDeUnVencimiento,
+} from './fila.ts';
+import { CERO, maximo, restar, type Money } from './money.ts';
 
 export const CATEGORIAS_DEL_TRABAJO = ['presupuesto', 'visita', 'entrega'] as const;
 
@@ -71,14 +78,20 @@ export interface ProximoDeLaAgenda {
   importante: boolean;
 }
 
+export interface PagoSolo {
+  pagado: Money;
+  pusoMaun: Money;
+}
+
 export interface VencimientoDeLaAgenda {
   id: string;
   tesoro: string;
   nombreDelTesoro: string;
-  renglon: string;
+  renglon: string | null;
   monto: Money;
   fecha: string;
   pagado: boolean;
+  pagoSolo: PagoSolo | null;
 }
 
 export interface DatosDeLaAgenda {
@@ -132,10 +145,11 @@ export interface EventoVencimiento {
   hora: null;
   tesoro: string;
   nombreDelTesoro: string;
-  renglon: string;
+  renglon: string | null;
   monto: Money;
   hecha: boolean;
   importante: boolean;
+  pagoSolo: PagoSolo | null;
 }
 
 export type EventoDeLaAgenda = EventoDerivado | EventoPropio | EventoVencimiento;
@@ -278,12 +292,13 @@ function eventoDelVencimiento(vencimiento: VencimientoDeLaAgenda): EventoVencimi
     monto: vencimiento.monto,
     hecha: vencimiento.pagado,
     importante: false,
+    pagoSolo: vencimiento.pagoSolo,
   };
 }
 
 function textoDe(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
-  if (evento.clase === 'vencimiento') return evento.renglon;
+  if (evento.clase === 'vencimiento') return evento.renglon ?? evento.nombreDelTesoro;
   return evento.titulo;
 }
 
@@ -356,6 +371,30 @@ export interface EntradaDeLosVencimientos {
   nombres: ReadonlyMap<string, string>;
   guardada: string | null;
   gastos: readonly GastoDeUnTesoro[];
+  pagos: readonly PagoDeUnVencimiento[];
+}
+
+function vencimientoDelMes(
+  paso: Fila['pasos'][number],
+  dia: number,
+  mes: string,
+  nombreDelTesoro: string,
+  entrada: EntradaDeLosVencimientos,
+): VencimientoDeLaAgenda {
+  const fecha = diaDelMes(mes, dia);
+  const pago = entrada.pagos.find((uno) => uno.tesoro === paso.tesoro && uno.vencimiento === fecha);
+  const pagado = pagadoParaElVencimiento(paso.tesoro, fecha, dia, entrada.gastos);
+  const falta = maximo(CERO, restar(paso.tope, pagado));
+  return {
+    id: `vencimiento:${paso.tesoro}:${fecha}`,
+    tesoro: paso.tesoro,
+    nombreDelTesoro,
+    renglon: null,
+    monto: pago?.aPagar ?? falta,
+    fecha,
+    pagado: pago !== undefined || falta === 0,
+    pagoSolo: pago === undefined ? null : { pagado: pago.aPagar, pusoMaun: pago.pusoMaun },
+  };
 }
 
 export function vencimientosDeLaFila(
@@ -370,17 +409,24 @@ export function vencimientosDeLaFila(
   const vencimientos: VencimientoDeLaAgenda[] = [];
   for (const paso of entrada.fila.pasos) {
     const rige = paso.desde ?? entrada.guardada;
+    const nombreDelTesoro = entrada.nombres.get(paso.tesoro) ?? '';
+    const dia = diaDelCiclo(paso);
     for (const mes of lista) {
       if (rige !== null && mes < rige) continue;
+      if (dia !== null) {
+        vencimientos.push(vencimientoDelMes(paso, dia, mes, nombreDelTesoro, entrada));
+        continue;
+      }
       for (const vencimiento of vencimientosDelPaso(paso, mes, entrada.gastos)) {
         vencimientos.push({
           id: `vencimiento:${paso.tesoro}:${String(vencimiento.indice)}:${vencimiento.fecha}`,
           tesoro: paso.tesoro,
-          nombreDelTesoro: entrada.nombres.get(paso.tesoro) ?? '',
+          nombreDelTesoro,
           renglon: vencimiento.renglon,
           monto: vencimiento.monto,
           fecha: vencimiento.fecha,
           pagado: vencimiento.pagado,
+          pagoSolo: null,
         });
       }
     }
@@ -454,10 +500,13 @@ export function diaPorHoras(
 }
 
 export function puedeArrastrarse(evento: EventoDeLaAgenda): boolean {
-  if (evento.clase === 'vencimiento' || evento.hecha || evento.categoria === 'seguimiento') {
-    return false;
-  }
+  if (evento.clase === 'vencimiento' || evento.hecha) return false;
   return evento.clase === 'propia' || !evento.comprometida;
+}
+
+export function sePuedeSoltar(evento: EventoDeLaAgenda, fecha: string, hoy: string): boolean {
+  if (!puedeArrastrarse(evento)) return false;
+  return evento.categoria !== 'seguimiento' || fecha >= hoy;
 }
 
 export const AVISOS_DE_LA_AGENDA = [
@@ -467,6 +516,7 @@ export const AVISOS_DE_LA_AGENDA = [
   'seguimientos',
   'vencimientos',
   'anotaciones',
+  'respuestas',
 ] as const;
 
 export type AvisoDeLaAgenda = (typeof AVISOS_DE_LA_AGENDA)[number];
@@ -489,6 +539,7 @@ export const PREFERENCIAS_INICIALES: PreferenciasDeAvisos = {
   seguimientos: { activo: true, anticipacion: 0 },
   vencimientos: { activo: true, anticipacion: 0 },
   anotaciones: { activo: false, anticipacion: 0 },
+  respuestas: { activo: true, anticipacion: 0 },
 };
 
 export const AVISO_DE_LA_CATEGORIA: Readonly<Record<CategoriaDeAgenda, AvisoDeLaAgenda>> = {
@@ -511,7 +562,11 @@ export function eventosParaAvisar(
   return eventosDeLaAgenda(datos, { desde: hoy, hasta: sumarDias(hoy, mayor) }).filter((evento) => {
     const preferencia = preferencias[AVISO_DE_LA_CATEGORIA[evento.categoria]];
     if (!preferencia.activo) return false;
-    if (evento.hecha) return false;
+    if (evento.hecha) return sePagoSoloHoy(evento, hoy);
     return diasEntre(hoy, evento.fecha) <= preferencia.anticipacion;
   });
+}
+
+function sePagoSoloHoy(evento: EventoDeLaAgenda, hoy: string): boolean {
+  return evento.clase === 'vencimiento' && evento.pagoSolo !== null && evento.fecha === hoy;
 }

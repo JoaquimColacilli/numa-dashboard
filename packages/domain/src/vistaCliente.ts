@@ -1,3 +1,10 @@
+import {
+  diasParaMedir,
+  esperaRespuesta,
+  letraDeLaRespuesta,
+  type DiasParaMedir,
+  type FranjaDeLaVisita,
+} from './aprobacion.ts';
 import { pesosDeDolares, type Cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import type { FormaDeCoordinar, FranjaDeEntrega, RespuestaDeEntrega } from './entrega.ts';
 import type { EstadoProyecto } from './estados.ts';
@@ -12,6 +19,7 @@ import {
   sumar,
   type Moneda,
   type Money,
+  type PuntosBasicos,
 } from './money.ts';
 import { montoParaPegar, ofrece, type FormaDeCobro, type InstanciaDePago } from './pagos.ts';
 import { plata, type Plata } from './plata.ts';
@@ -19,8 +27,11 @@ import {
   acordadoAlAprobar,
   cobraEnLeido,
   cuentasDelPresupuesto,
+  monedaDeLoAbonadoDelDocumento,
   monedaDelDocumento,
   plazoDelPresupuesto,
+  senaDelTexto,
+  vencioLaFechaDeLaSena,
   type CuentaDeUnValor,
   type DocumentoDelPresupuesto,
   type ReferenciaEnPesos,
@@ -123,6 +134,13 @@ export interface VisitaDelTrabajo {
   hecha: boolean;
 }
 
+export interface RespuestaDeLaVista {
+  opcionId: string | null;
+  respondidaEl: string;
+  dia: string | null;
+  franja: FranjaDeLaVisita | null;
+}
+
 export interface PresupuestoDelTrabajo {
   numero: string;
   revision: number;
@@ -132,6 +150,8 @@ export interface PresupuestoDelTrabajo {
   idioma: Idioma;
   aceptadoEl: string | null;
   letra: string | null;
+  revisionId?: string;
+  respuesta?: RespuestaDeLaVista | null;
 }
 
 export interface ComprobanteAsociado {
@@ -553,7 +573,17 @@ export type SenaDeLaVista =
 export type ProyeccionDeLaEntrega =
   | { situacion: 'sin-fecha' }
   | { situacion: 'vigente'; senarAntesDe: string; listoPara: string }
-  | { situacion: 'vencida'; vencio: string };
+  | { situacion: 'vencida'; vencio: string }
+  | {
+      situacion: 'del-presupuesto';
+      listoPara: string;
+      senaAntesDel: string;
+      senaBp: PuntosBasicos;
+      sena: Money<Moneda> | null;
+      moneda: Moneda;
+    }
+  | { situacion: 'sena-vencida'; senaAntesDel: string }
+  | { situacion: 'estimativo' };
 
 export type EntregaDelTrabajo =
   | { situacion: 'estimada'; fecha: string | null }
@@ -612,6 +642,25 @@ interface LoComunDelPresupuesto {
   mandadoEl: string;
   documento: DocumentoDelPresupuesto;
   cuentas: readonly CuentaDeUnValor<Moneda>[];
+  estimativo: boolean;
+}
+
+export type AprobacionDeLaVista =
+  | { situacion: 'cerrada' }
+  | { situacion: 'se-puede'; revisionId: string; pideFecha: boolean; dias: DiasParaMedir }
+  | {
+      situacion: 'aprobada';
+      opcionId: string | null;
+      letra: string | null;
+      respondidaEl: string;
+      dia: string | null;
+      franja: FranjaDeLaVisita | null;
+    };
+
+export interface FechasDeLaVista {
+  listoPara: string;
+  senaAntesDel: string;
+  vencioLaSena: boolean;
 }
 
 export interface PresupuestoMandado extends LoComunDelPresupuesto {
@@ -620,6 +669,8 @@ export interface PresupuestoMandado extends LoComunDelPresupuesto {
   valeHasta: string | null;
   vencio: string | null;
   pideLaSena: boolean;
+  aprobacion: AprobacionDeLaVista;
+  fechas: FechasDeLaVista | null;
 }
 
 export interface PresupuestoAceptado extends LoComunDelPresupuesto {
@@ -634,6 +685,7 @@ export type PresupuestoDeLaVista = PresupuestoMandado | PresupuestoAceptado;
 export interface VistaAntesDelPresupuesto extends LoComunDeLaVista {
   etapa: 'antes-del-presupuesto';
   relevamientoPorHacer: RelevamientoPorHacer | null;
+  elPresupuesto: PresupuestoMandado | null;
 }
 
 export interface VistaEsperandoLaSena extends LoComunDeLaVista {
@@ -689,6 +741,14 @@ export interface TextosDeLaProyeccion {
   siLoAprobasAntesDel: (antesDe: string, listoPara: string) => string;
   siDejasLaSenaAntesDel: (antesDe: string, listoPara: string) => string;
   vamosTomandoLosTrabajos: string;
+  conLasFechas: (entrega: string, senaAcordada: string, senaAntes: string) => string;
+  senaAcordada: (porcentaje: string, monto: string | null) => string;
+  dependiaDeLaSena: (fecha: string) => string;
+}
+
+export interface FormatosDeLaProyeccion extends Pick<FormatosDeFecha, 'enUnaFrase'> {
+  plata: (monto: Money<Moneda>, moneda: Moneda) => string;
+  porcentaje: (puntos: PuntosBasicos) => string;
 }
 
 export interface TextosDeLaNota {
@@ -837,16 +897,32 @@ export function tuvoEstimativo(trabajo: TrabajoDelCliente): boolean {
   return trabajo.estado === 'presupuesto_estimativo' || fechaDelEstimativo(trabajo) !== null;
 }
 
+function relevamientoDe(
+  estado: EstadoProyecto,
+  visita: VisitaDelTrabajo,
+  hoy: string,
+): RelevamientoDeLaVista | null {
+  const dia = visita.dia;
+  const yaPaso = dia !== null && dia < hoy && !TODAVIA_ANTES_DE_LA_VISITA.includes(estado);
+  if (visita.hecha || yaPaso) return { estado: 'hecho', fecha: dia };
+  if (dia === null && !ESPERAN_LA_VISITA.includes(estado)) return null;
+  return { estado: 'pendiente', fecha: dia !== null && dia >= hoy ? dia : null };
+}
+
 export function relevamientoDelTrabajo(
   trabajo: TrabajoDelCliente,
   hoy: string,
 ): RelevamientoDeLaVista | null {
   const visita = (trabajo.visita as VisitaDelTrabajo | undefined) ?? SIN_VISITA;
-  const dia = visita.dia;
-  const yaPaso = dia !== null && dia < hoy && !TODAVIA_ANTES_DE_LA_VISITA.includes(trabajo.estado);
-  if (visita.hecha || yaPaso) return { estado: 'hecho', fecha: dia };
-  if (dia === null && !ESPERAN_LA_VISITA.includes(trabajo.estado)) return null;
-  return { estado: 'pendiente', fecha: dia !== null && dia >= hoy ? dia : null };
+  return relevamientoDe(trabajo.estado, visita, hoy);
+}
+
+export function faltaElRelevamiento(
+  estado: EstadoProyecto,
+  visita: VisitaDelTrabajo,
+  hoy: string,
+): boolean {
+  return relevamientoDe(estado, visita, hoy)?.estado === 'pendiente';
 }
 
 export function proyeccionDeLaEntrega(
@@ -865,7 +941,7 @@ export function proyeccionDeLaEntrega(
 
 export function textoDeLaProyeccion(
   proyeccion: ProyeccionDeLaEntrega,
-  formatos: Pick<FormatosDeFecha, 'enUnaFrase'>,
+  formatos: FormatosDeLaProyeccion,
   sena: SenaDeLaVista['situacion'],
   textos: TextosDeLaProyeccion,
 ): readonly string[] {
@@ -875,6 +951,22 @@ export function textoDeLaProyeccion(
       return [cubierta ? textos.coordinamosLaEntregaAlAprobar : textos.coordinamosLaEntrega];
     case 'vencida':
       return [textos.vencio(formatos.enUnaFrase(proyeccion.vencio))];
+    case 'estimativo':
+      return [];
+    case 'sena-vencida':
+      return [textos.dependiaDeLaSena(formatos.enUnaFrase(proyeccion.senaAntesDel))];
+    case 'del-presupuesto': {
+      const porcentaje = `${formatos.porcentaje(proyeccion.senaBp)}%`;
+      const monto =
+        proyeccion.sena === null ? null : formatos.plata(proyeccion.sena, proyeccion.moneda);
+      return [
+        textos.conLasFechas(
+          formatos.enUnaFrase(proyeccion.listoPara),
+          textos.senaAcordada(porcentaje, monto),
+          formatos.enUnaFrase(proyeccion.senaAntesDel),
+        ),
+      ];
+    }
     case 'vigente': {
       const antesDe = formatos.enUnaFrase(proyeccion.senarAntesDe);
       const listoPara = formatos.enUnaFrase(proyeccion.listoPara);
@@ -917,6 +1009,55 @@ function loComunDelPresupuesto(
       documento.valores === null
         ? []
         : cuentasDelPresupuesto<Moneda>(documento.valores, documento.senaBp, pagadoEnSuMoneda),
+    estimativo: documento.estimativo,
+  };
+}
+
+function aprobacionDelPresupuesto(
+  trabajo: TrabajoDelCliente,
+  presupuesto: PresupuestoDelTrabajo,
+  hoy: string,
+): AprobacionDeLaVista {
+  const { documento } = presupuesto;
+  const respuesta = presupuesto.respuesta ?? null;
+  if (respuesta !== null) {
+    return {
+      situacion: 'aprobada',
+      opcionId: respuesta.opcionId,
+      letra: letraDeLaRespuesta(documento, respuesta.opcionId),
+      respondidaEl: respuesta.respondidaEl,
+      dia: respuesta.dia,
+      franja: respuesta.franja,
+    };
+  }
+  const { revisionId } = presupuesto;
+  const valeHasta = fechasDe(trabajo).valeHasta ?? null;
+  if (
+    revisionId === undefined ||
+    documento.valores === null ||
+    !esperaRespuesta(trabajo.estado, valeHasta, hoy)
+  ) {
+    return { situacion: 'cerrada' };
+  }
+  return {
+    situacion: 'se-puede',
+    revisionId,
+    pideFecha: documento.pideFecha,
+    dias: diasParaMedir(hoy),
+  };
+}
+
+function fechasDeLaVista(
+  documento: DocumentoDelPresupuesto,
+  sena: SenaDeLaVista['situacion'],
+  hoy: string,
+): FechasDeLaVista | null {
+  const { listoPara, senaAntesDel } = documento;
+  if (documento.estimativo || listoPara === null || senaAntesDel === null) return null;
+  return {
+    listoPara,
+    senaAntesDel,
+    vencioLaSena: sena !== 'cubierta' && vencioLaFechaDeLaSena(documento, hoy),
   };
 }
 
@@ -924,6 +1065,7 @@ function presupuestoMandado(
   trabajo: TrabajoDelCliente,
   moneda: Moneda,
   pagado: Money<Moneda>,
+  sena: SenaDeLaVista['situacion'],
   hoy: string,
 ): PresupuestoMandado | null {
   const presupuesto = presupuestoDe(trabajo);
@@ -940,9 +1082,47 @@ function presupuestoMandado(
     vencio,
     pideLaSena:
       vencio === null &&
+      !comun.estimativo &&
       presupuesto.documento.valores?.tipo === 'total' &&
       unica !== undefined &&
       unica.faltaParaLaSena > 0,
+    aprobacion: aprobacionDelPresupuesto(trabajo, presupuesto, hoy),
+    fechas: fechasDeLaVista(presupuesto.documento, sena, hoy),
+  };
+}
+
+function esUnEstimativo(trabajo: TrabajoDelCliente): boolean {
+  return presupuestoDe(trabajo)?.documento.estimativo === true;
+}
+
+function proyeccionDeLaVista(
+  trabajo: TrabajoDelCliente,
+  sena: SenaDeLaVista['situacion'],
+  hoy: string,
+): ProyeccionDeLaEntrega {
+  const documento = presupuestoDe(trabajo)?.documento ?? null;
+  const valeHasta = fechasDe(trabajo).valeHasta ?? null;
+  if (documento?.estimativo === true) return { situacion: 'estimativo' };
+  const fechas = documento === null ? null : fechasDeLaVista(documento, sena, hoy);
+  if (documento === null || fechas === null || vencioElPresupuesto(valeHasta, hoy)) {
+    return proyeccionDeLaEntrega(valeHasta, hoy, plazoDelPresupuesto(documento));
+  }
+  if (fechas.vencioLaSena) return { situacion: 'sena-vencida', senaAntesDel: fechas.senaAntesDel };
+  const moneda = monedaDelDocumento(documento);
+  return {
+    situacion: 'del-presupuesto',
+    listoPara: fechas.listoPara,
+    senaAntesDel: fechas.senaAntesDel,
+    senaBp: documento.senaBp,
+    sena:
+      senaDelTexto(
+        documento.valores,
+        moneda,
+        documento.senaBp,
+        documento.abonado,
+        monedaDeLoAbonadoDelDocumento(documento),
+      )?.monto ?? null,
+    moneda,
   };
 }
 
@@ -1301,7 +1481,9 @@ export function vistaDelCliente(
   );
   const saldo = aprobado && trabajo.precio !== null ? restar(trabajo.precio, pagado) : null;
   const saldado = saldo !== null && saldo <= 0;
-  const sena = senaDelTrabajo(trabajo, pagado);
+  const estimativo = esUnEstimativo(trabajo);
+  const sena: SenaDeLaVista =
+    estimativo && !aprobado ? { situacion: 'sin-presupuesto' } : senaDelTrabajo(trabajo, pagado);
   const relevamiento = relevamientoDelTrabajo(trabajo, hoy);
   const vencido =
     trabajo.estado === 'presupuesto_enviado' &&
@@ -1394,7 +1576,10 @@ export function vistaDelCliente(
     pagos: trabajo.pagos,
     pagado,
     archivos: trabajo.archivos,
-    comoPagar: comoPagar(trabajo, hoy, textos.comoPagar),
+    comoPagar:
+      estimativo && (trabajo.pago as PagoPendiente | undefined)?.instancia === 'sena'
+        ? null
+        : comoPagar(trabajo, hoy, textos.comoPagar),
     vidriera: (trabajo.vidriera as VidrieraDelTaller | undefined) ?? VIDRIERA_VACIA,
     facturas: trabajo.facturas ?? [],
   };
@@ -1413,6 +1598,9 @@ export function vistaDelCliente(
       etapa,
       sigue: relevamientoPorHacer === null ? comun.sigue : '',
       relevamientoPorHacer,
+      elPresupuesto: estimativo
+        ? presupuestoMandado(trabajo, moneda, pagado, sena.situacion, hoy)
+        : null,
     };
   }
 
@@ -1424,12 +1612,8 @@ export function vistaDelCliente(
       precioEnPesos: precioEnPesos(trabajo, moneda, hoy),
       opciones: opcionesMandadas(trabajo),
       sena,
-      proyeccion: proyeccionDeLaEntrega(
-        fechasDe(trabajo).valeHasta ?? null,
-        hoy,
-        plazoDelPresupuesto(presupuestoDe(trabajo)?.documento ?? null),
-      ),
-      elPresupuesto: presupuestoMandado(trabajo, moneda, pagado, hoy),
+      proyeccion: proyeccionDeLaVista(trabajo, sena.situacion, hoy),
+      elPresupuesto: presupuestoMandado(trabajo, moneda, pagado, sena.situacion, hoy),
     };
   }
 

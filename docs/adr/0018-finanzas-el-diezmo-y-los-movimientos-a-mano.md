@@ -18,6 +18,11 @@ Estado: **aceptada**. Fecha: 2026-09-12.
   columnas del mes anterior y el cuadradito de su leyenda pasan del gris de borde (1,41:1 contra el papel) a
   `--color-contexto` (3,23:1 en claro y 3,62:1 en oscuro), y debajo de la comparación, en el apoyo, va «Ver
   más en Estadísticas».
+- Enmendado el 2026-10-26 por el [0087](0087-los-tipos-de-tesoro-de-eliseo.md): el formulario ya no ofrece
+  «Ingreso al hogar», «Gasto del hogar» ni las tres de Cocos (siguen para mostrar lo viejo); un pago desde el
+  hogar o Cocos va por «Gasto de un tesoro». Entran el adelanto de una deuda obligatoria (un gasto con la
+  categoría «Adelanto») y «Ajustar el saldo» (un `ajuste` con el motivo como categoría, distinto de la
+  apertura).
 
 ## Contexto
 

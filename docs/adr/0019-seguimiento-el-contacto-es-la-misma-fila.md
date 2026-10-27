@@ -2,6 +2,10 @@
 
 Estado: **aceptada**. Fecha: 2026-09-12.
 
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): la fecha del pendiente
+  se cambia en su lugar, sin registrar un contacto (`cambiar_la_fecha_del_contacto`).
+
 ## Contexto
 
 El dueño lo pidió en dos audios: una sección para los contactos de posibles trabajos, donde viva la

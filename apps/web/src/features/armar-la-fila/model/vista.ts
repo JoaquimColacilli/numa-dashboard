@@ -4,7 +4,6 @@ import {
   lugarLibreDelReparto,
   MONEDA_DEL_TALLER,
   problemasDeLaFila,
-  tipoDelPaso,
   type CambioDeLaFila,
   type Fila,
   type FilaDelMes,
@@ -16,7 +15,7 @@ import {
 import {
   estanteDe,
   filaDelMesDelTaller,
-  NOMBRE_DEL_TIPO,
+  nombreDeLoQueEs,
   pruebaDeUnCobro,
   type ParteDeLaEscala,
 } from '@/entities/fila';
@@ -114,7 +113,7 @@ export function vistaDeLaFila(
     revision: (borrador?.version ?? delTaller.version) + 1,
     hoy,
     mes,
-    delMes: filaDelMesDelTaller(replica, mes, fila),
+    delMes: filaDelMesDelTaller(replica, mes, fila, hoy),
     tesoros,
     estante: estanteDe(fila, tesoros),
     sistema: {
@@ -168,7 +167,7 @@ export function tesoroDe(vista: Pick<VistaDeLaFila, 'tesoros'>, id: string): Tes
       tinta: 'maun',
       icono: 'vault',
       meta: null,
-      rindeAnualBp: null,
+      metaFecha: null,
       orden: 0,
       archivado: true,
       saldo: enPesos(CERO),
@@ -281,7 +280,7 @@ export function encabezadoDeLaFicha(
     const paso = vista.fila.pasos.find((uno) => uno.tesoro === ficha.tesoro);
     const tesoro = tesoroDe(vista, ficha.tesoro);
     if (paso === undefined) return { titulo: tesoro.nombre, bajada: textos.enLaFila, tesoro };
-    const tipo = NOMBRE_DEL_TIPO[tipoDelPaso(paso.clase)];
+    const tipo = nombreDeLoQueEs(vista.fila, tesoro);
     const lugar = lugarEnLaFila(vista.fila, paso.tesoro);
     return {
       titulo: tesoro.nombre,

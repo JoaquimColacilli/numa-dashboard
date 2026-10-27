@@ -1,6 +1,6 @@
 import type { Base } from './base.ts';
 import type { Configuracion } from './entorno.ts';
-import { mandarLaPrueba, mandarLosAvisos, type Enviador } from './envio.ts';
+import { mandarLaPrueba, mandarLaRespuesta, mandarLosAvisos, type Enviador } from './envio.ts';
 
 export interface Dependencias {
   configuracion: Configuracion;
@@ -35,6 +35,19 @@ function igualesEnTiempoConstante(uno: string, otro: string): boolean {
 function tokenDe(pedido: Request): string | null {
   const encontrado = /^Bearer\s+(\S+)$/i.exec(pedido.headers.get('authorization') ?? '');
   return encontrado?.[1] ?? null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function respuestaDelCuerpo(pedido: Request): Promise<string | null> {
+  try {
+    const cuerpo = (await pedido.json()) as { respuesta?: unknown };
+    return typeof cuerpo.respuesta === 'string' && UUID.test(cuerpo.respuesta)
+      ? cuerpo.respuesta
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function endpointDelCuerpo(pedido: Request): Promise<string | null> {
@@ -82,6 +95,15 @@ export function crearManejador(dependencias: Dependencias): (pedido: Request) =>
         return json({ error: 'No autorizado.' }, 401);
       }
       if (vapid === null) return json({ configurado: false, mandados: 0 });
+      if (new URL(pedido.url).pathname.endsWith('/respuesta')) {
+        const respuesta = await respuestaDelCuerpo(pedido);
+        if (respuesta === null) return json({ error: 'Falta la respuesta.' }, 400);
+        const avisos = await base.avisoDeLaRespuesta(respuesta);
+        return json({
+          configurado: true,
+          ...(await mandarLaRespuesta(avisos, base, enviar, vapid)),
+        });
+      }
       const avisos = await base.avisosPorMandar(ahora());
       return json({ configurado: true, ...(await mandarLosAvisos(avisos, base, enviar, vapid)) });
     } catch (error) {

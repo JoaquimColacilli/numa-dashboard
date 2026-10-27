@@ -586,6 +586,7 @@ describe('① lo que te dejaron los trabajos', () => {
         saldos: new Map(),
         metas: new Map(),
         gastos: [],
+        pagos: [],
       };
       const unaBase = baseDeLasEstadisticas(datos({ liquidaciones }), SIN_OPINIONES);
       const largos: readonly LargoDelPeriodo[] = [3, 6, 12, 'todo'];

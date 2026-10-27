@@ -1,5 +1,6 @@
 import type { MensajesDelCliente } from '../es';
 
+import { documento } from './documento';
 import { plural } from './plural';
 
 const MIRA_LAS_OPCIONES: readonly string[] = [
@@ -139,6 +140,11 @@ export const vista = {
       siDejasLaSenaAntesDel: (antesDe, listoPara) =>
         `If you pay the deposit before ${antesDe}, we could have it ready by ${listoPara}.`,
       vamosTomandoLosTrabajos: 'We take on jobs in the order the deposits come in.',
+      conLasFechas: (entrega, senaAcordada, senaAntes) =>
+        `Due to the shop's schedule and manufacturing lead times, the estimated delivery date is ${entrega}. To confirm these dates, the agreed deposit ${senaAcordada} must be paid by ${senaAntes}.`,
+      senaAcordada: documento.senaAcordada,
+      dependiaDeLaSena: (fecha) =>
+        `The delivery date depended on the deposit by ${fecha}. Message us and we'll confirm a new one.`,
     },
     nota: {
       pendiente: {

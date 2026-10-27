@@ -1,13 +1,16 @@
 import {
   esEstadoDeConsulta,
+  faltaElRelevamiento,
   RESULTADOS_DEL_CONTACTO,
   type EstadoDeConsulta,
+  type EstadoProyecto,
   type ResultadoDelContacto,
 } from '@maun/domain';
 
-import { filasDe, type FilaDe, type Replica } from '@/shared/api';
+import { filasDe, visitaHecha, type FilaDe, type Replica } from '@/shared/api';
 import { mensajes, textosDelIdioma } from '@/shared/idioma';
 
+import type { Proyecto } from './catalogos';
 import type { ResumenDeProyecto } from './resumen';
 
 export type ProximoContacto = FilaDe<'proximos_contactos'>;
@@ -79,4 +82,21 @@ export function seguimientosEnOrden(
       if (fechaUno !== fechaOtro) return fechaUno < fechaOtro ? -1 : 1;
       return uno.resumen.proyecto.id < otro.resumen.proyecto.id ? -1 : 1;
     });
+}
+
+export function etapaQueVeElCliente(replica: Replica, proyecto: Proyecto): EstadoProyecto {
+  if (proyecto.estado !== 'en_seguimiento') return proyecto.estado;
+  return etapaAlVolver(pendienteDelSeguimiento(replica, proyecto.id));
+}
+
+export function faltaMedirAlPresupuestar(
+  replica: Replica,
+  proyecto: Proyecto,
+  hoy: string,
+): boolean {
+  return faltaElRelevamiento(
+    etapaQueVeElCliente(replica, proyecto),
+    { dia: proyecto.fecha_visita, hecha: visitaHecha(proyecto) },
+    hoy,
+  );
 }

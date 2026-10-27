@@ -1,9 +1,9 @@
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { GuardadoDeProyecto, Proyecto } from '@/entities/proyecto';
+import { CLAVE_DE_PROYECTO, type GuardadoDeProyecto, type Proyecto } from '@/entities/proyecto';
 import { ProveedorDeReplica } from '@/entities/replica';
 import { TABLAS_REPLICADAS, type FilaDe, type Replica, type TablaReplicada } from '@/shared/api';
 
@@ -90,6 +90,7 @@ function proyecto(extra: Partial<Proyecto> = {}): Proyecto {
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
     ...extra,
   };
 }
@@ -101,7 +102,13 @@ function taller({
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   tablas.clientes = {
-    c: { ...METADATOS, id: 'c', nombre: 'Marcela Duarte', telefono: '11 5555-0000' },
+    c: {
+      ...METADATOS,
+      id: 'c',
+      nombre: 'Marcela Duarte',
+      telefono: '11 5555-0000',
+      direccion: 'Olazábal 1240, Ituzaingó',
+    },
   };
   tablas.ajustes = {
     aj: {
@@ -135,8 +142,9 @@ function taller({
 
 function montar(
   replica: Replica,
-  fila: Proyecto,
+  fila: Proyecto | undefined,
   alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void,
+  visitaPropuesta: { dia: string; hora: string | null } | null = null,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -147,6 +155,7 @@ function montar(
         <ProveedorDeReplica replica={replica}>
           <HojaDeContacto
             proyecto={fila}
+            visitaPropuesta={visitaPropuesta}
             alCerrar={vi.fn()}
             alCrearUnTesoroEnDolares={alCrearUnTesoroEnDolares}
           />
@@ -154,12 +163,15 @@ function montar(
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  const guardados = () =>
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .filter((mutacion) => mutacion.options.mutationKey?.join('/') === CLAVE_DE_PROYECTO.join('/'))
+      .map((mutacion) => mutacion.state.variables as GuardadoDeProyecto);
   return {
-    pagos: () =>
-      queryClient
-        .getMutationCache()
-        .getAll()
-        .flatMap((mutacion) => (mutacion.state.variables as GuardadoDeProyecto).pedido.pagos),
+    guardados,
+    pagos: () => guardados().flatMap((guardado) => guardado.pedido.pagos),
   };
 }
 
@@ -281,5 +293,114 @@ describe('la seña cobrada, en un trabajo en pesos', () => {
         tesoro_id: null,
       }),
     ]);
+  });
+});
+
+describe('para el estimativo, en una consulta nueva', () => {
+  function elBloque(): HTMLElement {
+    return screen.getByRole('region', { name: 'Para el estimativo' });
+  }
+
+  function elegirElCliente(): void {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Cliente' }), {
+      target: { value: 'Marcela' },
+    });
+    fireEvent.click(screen.getByRole('option', { name: /Marcela Duarte/ }));
+  }
+
+  it('aparece con las preguntas del taller, sin contestar: «0 de 3»', () => {
+    montar(taller(), undefined);
+
+    const bloque = elBloque();
+    expect(bloque).toHaveTextContent('0 de 3');
+    expect(within(bloque).getByLabelText('Domicilio')).toHaveValue('');
+    expect(within(bloque).getByLabelText('Acceso al lugar')).toHaveAttribute(
+      'placeholder',
+      'Escaleras, piso, tamaño del ascensor.',
+    );
+    expect(within(bloque).getByLabelText('Urgencia')).toHaveAttribute(
+      'placeholder',
+      'Para cuándo lo necesita.',
+    );
+  });
+
+  it('«Usar la del cliente» completa el domicilio con la dirección del cliente elegido', () => {
+    montar(taller(), undefined);
+
+    expect(within(elBloque()).queryByRole('button', { name: /^Usar la del cliente/ })).toBeNull();
+    elegirElCliente();
+    fireEvent.click(
+      within(elBloque()).getByRole('button', {
+        name: 'Usar la del cliente: Olazábal 1240, Ituzaingó',
+      }),
+    );
+
+    expect(within(elBloque()).getByLabelText('Domicilio')).toHaveValue('Olazábal 1240, Ituzaingó');
+    expect(elBloque()).toHaveTextContent('1 de 3');
+    expect(within(elBloque()).queryByRole('button', { name: /^Usar la del cliente/ })).toBeNull();
+  });
+
+  it('al guardar, el pedido lleva el domicilio como dirección del trabajo y las respuestas', () => {
+    const { guardados } = montar(taller(), undefined);
+
+    elegirElCliente();
+    fireEvent.change(screen.getByLabelText('Qué pide'), { target: { value: 'Placard' } });
+    fireEvent.change(within(elBloque()).getByLabelText('Domicilio'), {
+      target: { value: '  Gorriti 4500, Palermo  ' },
+    });
+    fireEvent.change(within(elBloque()).getByLabelText('Acceso al lugar'), {
+      target: { value: ' Tercer piso, por escalera ' },
+    });
+    expect(elBloque()).toHaveTextContent('2 de 3');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar contacto' }));
+
+    const [guardado] = guardados();
+    expect(guardado?.pedido.version).toBeNull();
+    expect(guardado?.pedido.datos.direccion_entrega).toBe('Gorriti 4500, Palermo');
+    expect(guardado?.respuestas).toEqual([
+      { id: 'acceso', pregunta: 'Acceso al lugar', respuesta: 'Tercer piso, por escalera' },
+    ]);
+  });
+
+  it('editando una consulta que ya existe, el bloque no aparece', () => {
+    montar(
+      taller(),
+      proyecto({ moneda: 'ARS', cobra_en: null, direccion_entrega: 'Belgrano 123' }),
+    );
+
+    expect(screen.queryByRole('region', { name: 'Para el estimativo' })).toBeNull();
+    expect(screen.queryByLabelText('Domicilio')).toBeNull();
+  });
+});
+
+describe('la visita que propuso el cliente al aprobar', () => {
+  it('la hoja arranca con ese día y esa hora, y al guardar la agenda', () => {
+    const { guardados } = montar(
+      taller(),
+      proyecto({ estado: 'presupuesto_estimativo', moneda: 'ARS', cobra_en: null }),
+      undefined,
+      { dia: '2026-09-21', hora: '15:00' },
+    );
+
+    expect(screen.getByLabelText('Visita')).toHaveValue('2026-09-21');
+    expect(screen.getByLabelText('Hora de la visita')).toHaveValue('15:00');
+
+    guardar();
+    expect(guardados()[0]?.pedido.datos).toMatchObject({
+      fecha_visita: '2026-09-21',
+      visita_hora: '15:00',
+    });
+  });
+
+  it('si le dio igual el horario, va sin hora', () => {
+    montar(
+      taller(),
+      proyecto({ estado: 'presupuesto_estimativo', moneda: 'ARS', cobra_en: null }),
+      undefined,
+      { dia: '2026-09-21', hora: null },
+    );
+
+    expect(screen.getByLabelText('Visita')).toHaveValue('2026-09-21');
+    expect(screen.getByLabelText('Hora de la visita')).toHaveValue('');
   });
 });

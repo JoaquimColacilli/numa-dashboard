@@ -283,17 +283,21 @@ test.describe('en la compu', () => {
     ).toBeVisible();
     const diezmo = ficha(
       page,
-      /^Obligación 1 de 3: Diezmo, 10% sobre el ingreso; a pagar \$\s0; no se puede sacar de la fila$/,
+      /^Deuda destinada 1 de 3: Diezmo, 10% sobre el ingreso; a pagar \$\s0; no se puede sacar de la fila$/,
     );
     await expect(diezmo).toBeVisible(CARGA);
     await expect(diezmo).toHaveAttribute('aria-roledescription', 'obligación');
-    const hogar = ficha(page, /^Compromiso 2 de 3: Hogar, sueldo, hasta \$\s500\.000 por mes/);
+    const hogar = ficha(
+      page,
+      /^Deuda obligatoria 2 de 3: Hogar, sueldo, hasta \$\s500\.000 por mes/,
+    );
     await expect(hogar).toBeVisible();
     await expect(hogar).toHaveAttribute('aria-roledescription', 'compromiso');
-    await expect(ficha(page, /^Compromiso 3 de 3: Maun, hasta \$\s250\.000 por mes/)).toBeVisible();
-    await expect(
-      ficha(page, /^Superávit: Maun recibe el resto, 100%, y los centavos$/),
-    ).toHaveAttribute('aria-roledescription', 'superávit');
+    await expect(ficha(page, /^Caja 3 de 3: Maun, hasta \$\s250\.000 por mes/)).toBeVisible();
+    await expect(ficha(page, /^Caja: Maun recibe el resto, 100%, y los centavos$/)).toHaveAttribute(
+      'aria-roledescription',
+      'superávit',
+    );
     await expect(rotulo(page)).toContainText(/Rige\s*de Ajustes/);
 
     const detalle = detalleDe(page);
@@ -342,14 +346,12 @@ test.describe('en la compu', () => {
     await nuevo.getByRole('button', { name: 'Crear el tesoro' }).click();
     await expect(nuevo).toHaveCount(0);
 
-    const vacaciones = ficha(page, /^Ahorro fijo 4 de 4: Vacaciones, hasta \$\s150\.000 por mes/);
+    const vacaciones = ficha(page, /^Caja 4 de 4: Vacaciones, hasta \$\s150\.000 por mes/);
     await expect(vacaciones).toBeVisible();
     await expect(vacaciones).toHaveAttribute('aria-roledescription', 'ahorro');
     await expect(detalle.getByRole('heading', { name: 'Vacaciones' })).toBeVisible();
     await detalle.getByLabel('Monto de Vacaciones').fill('200.000');
-    await expect(
-      ficha(page, /^Ahorro fijo 4 de 4: Vacaciones, hasta \$\s200\.000 por mes/),
-    ).toBeVisible();
+    await expect(ficha(page, /^Caja 4 de 4: Vacaciones, hasta \$\s200\.000 por mes/)).toBeVisible();
 
     const tirador = vacaciones.locator('.react-flow__handle[data-handleid="abajo"]');
     await expect(tirador).toHaveClass(/connectablestart/);
@@ -365,12 +367,12 @@ test.describe('en la compu', () => {
         ).toBeVisible();
       },
     );
-    await expect(ficha(page, /^Ahorro fijo 5 de 5: Cocos/)).toBeVisible();
+    await expect(ficha(page, /^Caja 5 de 5: Cocos/)).toBeVisible();
     await expect(detalle.getByRole('heading', { name: 'Cocos' })).toBeVisible();
 
     await detalle.getByRole('button', { name: 'Subir' }).click();
-    await expect(ficha(page, /^Ahorro fijo 4 de 5: Cocos/)).toBeVisible();
-    await expect(ficha(page, /^Ahorro fijo 5 de 5: Vacaciones/)).toBeVisible();
+    await expect(ficha(page, /^Caja 4 de 5: Cocos/)).toBeVisible();
+    await expect(ficha(page, /^Caja 5 de 5: Vacaciones/)).toBeVisible();
 
     const { fila_version: antes } = await leerLaFila(sesion);
     await expect(rotulo(page)).toContainText(new RegExp(`Rev\\.\\s*${String(antes)}(?!\\d)`));
@@ -407,7 +409,7 @@ test.describe('en la compu', () => {
     test.setTimeout(150_000);
     const { diezmo } = await delSistema();
     await abrirLosTesoros(page);
-    await expect(ficha(page, /^Obligación 1 de 3: Diezmo/)).toBeVisible(CARGA);
+    await expect(ficha(page, /^Deuda destinada 1 de 3: Diezmo/)).toBeVisible(CARGA);
 
     await page
       .getByRole('main')
@@ -416,7 +418,7 @@ test.describe('en la compu', () => {
       .click();
     const nuevo = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(nuevo).toBeVisible();
-    await nuevo.getByRole('radio', { name: /^Como obligación/ }).check();
+    await nuevo.getByRole('radio', { name: /^Deuda destinada/ }).click();
     await nuevo
       .getByRole('group', { name: 'Nombres sugeridos' })
       .getByRole('button', { name: 'Ingresos Brutos' })
@@ -434,16 +436,21 @@ test.describe('en la compu', () => {
 
     const iibb = ficha(
       page,
-      /^Obligación 1 de 4: Ingresos Brutos, 3,5% sobre lo que cobrás; a pagar \$\s0$/,
+      /^Deuda destinada 1 de 4: Ingresos Brutos, 3,5% sobre lo que cobrás; a pagar \$\s0$/,
     );
     await expect(iibb).toBeVisible(CARGA);
     await expect(iibb).toHaveAttribute('aria-roledescription', 'obligación');
-    await expect(ficha(page, /^Obligación 2 de 4: Diezmo, 10% sobre el ingreso/)).toBeVisible();
+    await expect(
+      ficha(page, /^Deuda destinada 2 de 4: Diezmo, 10% sobre el ingreso/),
+    ).toBeVisible();
     await expect(indicadorDeSync(page)).toBeHidden(CARGA);
     const creado = await tesoroLlamado('Ingresos Brutos');
     await expect
       .poll(async () => (await leerLaFila(sesion)).fila?.obligaciones, CARGA)
-      .toEqual([{ tesoro: creado.id, porcentaje: 350, base: 'cobrado' }, elDiezmo(diezmo)]);
+      .toEqual([
+        { tesoro: creado.id, porcentaje: 350, base: 'cobrado', montoFijo: null },
+        { ...elDiezmo(diezmo), montoFijo: null },
+      ]);
 
     const detalle = detalleDe(page);
     await detalle.getByRole('button', { name: 'Cerrar el detalle' }).click();
@@ -465,14 +472,14 @@ test.describe('en la compu', () => {
     await page.getByRole('button', { name: 'Editar la fila' }).first().click();
     const barra = page.getByRole('region', { name: 'Editando la fila' });
     await expect(barra).toBeVisible();
-    await ficha(page, /^Obligación 1 de 4: Ingresos Brutos/).click();
+    await ficha(page, /^Deuda destinada 1 de 4: Ingresos Brutos/).click();
     await expect(detalle.getByRole('heading', { name: 'Ingresos Brutos' })).toBeVisible();
     await detalle
       .getByRole('region', { name: 'Lugar en la fila' })
       .getByRole('button', { name: 'Bajar' })
       .click();
-    await expect(ficha(page, /^Obligación 1 de 4: Diezmo/)).toBeVisible();
-    await expect(ficha(page, /^Obligación 2 de 4: Ingresos Brutos/)).toBeVisible();
+    await expect(ficha(page, /^Deuda destinada 1 de 4: Diezmo/)).toBeVisible();
+    await expect(ficha(page, /^Deuda destinada 2 de 4: Ingresos Brutos/)).toBeVisible();
     await detalle.getByRole('button', { name: 'Cerrar el detalle' }).click();
     await expect(tabla.getByRole('listitem')).toHaveText([
       /^Diezmo 10%.*\$\s200\.000$/,
@@ -486,7 +493,7 @@ test.describe('en la compu', () => {
     ]);
     await barra.getByRole('button', { name: 'Descartar' }).click();
     await expect(barra).toHaveCount(0);
-    await expect(ficha(page, /^Obligación 1 de 4: Ingresos Brutos/)).toBeVisible();
+    await expect(ficha(page, /^Deuda destinada 1 de 4: Ingresos Brutos/)).toBeVisible();
   });
 
   test('un compromiso que se renueva al pagar se llena con un cobro, registrar el pago lo baja y la agenda lo muestra pagado, y el cobro siguiente lo vuelve a llenar', async ({
@@ -541,7 +548,7 @@ test.describe('en la compu', () => {
     await expect(
       ficha(
         page,
-        /^Compromiso 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar; a pagar \$\s500\.000, completo$/,
+        /^Deuda obligatoria 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar; a pagar \$\s500\.000, completo$/,
       ),
     ).toBeVisible(CARGA);
     await detalle.getByRole('button', { name: 'Registrar el pago de Alquiler' }).click();
@@ -566,7 +573,7 @@ test.describe('en la compu', () => {
     await expect(
       ficha(
         page,
-        /^Compromiso 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar; a pagar \$\s0, faltan \$\s500\.000$/,
+        /^Deuda obligatoria 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar; a pagar \$\s0, faltan \$\s500\.000$/,
       ),
     ).toBeVisible(CARGA);
     await expect(indicadorDeSync(page)).toBeHidden(CARGA);
@@ -631,7 +638,7 @@ test.describe('en la compu', () => {
     await abrirLosTesoros(page);
     const parte = ficha(
       page,
-      /^Ahorro: Inmueble, 20% de lo que sobra, hasta la meta; tiene \$\s250\.000 de su meta de \$\s300\.000$/,
+      /^Meta: Inmueble, 20% de lo que sobra, hasta la meta; tiene \$\s250\.000 de su meta de \$\s300\.000$/,
     );
     await expect(parte).toBeVisible(CARGA);
     await expect(parte).toHaveAttribute('aria-roledescription', 'ahorro');
@@ -692,7 +699,7 @@ test.describe('en la compu', () => {
     const id = await trabajo('Mesa para cobrar', { cobrado: 100_000_000 });
 
     await abrirLosTesoros(page);
-    const resto = ficha(page, /^Superávit: Superávit recibe el resto, 100%, y los centavos$/);
+    const resto = ficha(page, /^Caja: Superávit recibe el resto, 100%, y los centavos$/);
     await expect(resto).toBeVisible(CARGA);
     await expect(resto).toHaveAttribute('aria-roledescription', 'superávit');
     await expect(ficha(page, /^Maun, en el estante, tiene \$\s1\.600\.000$/)).toBeVisible();
@@ -737,14 +744,16 @@ test.describe('en la compu', () => {
     await boton.click();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).click();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await hoja.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Descartar' }).click();
     await expect(hoja).toHaveCount(0);
 
     await boton.focus();
     await page.keyboard.press('Enter');
     await expect(hoja).toBeVisible();
-    await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
+    await expect(hoja.getByRole('group', { name: '¿Qué es?' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(hoja).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
@@ -768,9 +777,13 @@ test.describe('en el celular', () => {
     const fila = page.getByRole('region', { name: 'La fila', exact: true });
     await expect(fila).toBeVisible();
     await expect(page.getByRole('region', { name: 'La fila, la primera vez' })).toBeVisible();
-    await expect(fila.getByRole('button', { name: /^Obligación 1 de 3: Diezmo/ })).toBeVisible();
-    await expect(fila.getByRole('button', { name: /^Compromiso 2 de 3: Hogar/ })).toBeVisible();
-    await expect(fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun/ })).toBeVisible();
+    await expect(
+      fila.getByRole('button', { name: /^Deuda destinada 1 de 3: Diezmo/ }),
+    ).toBeVisible();
+    await expect(
+      fila.getByRole('button', { name: /^Deuda obligatoria 2 de 3: Hogar/ }),
+    ).toBeVisible();
+    await expect(fila.getByRole('button', { name: /^Caja 3 de 3: Maun/ })).toBeVisible();
     for (const [grupo, ayuda] of [
       ['Obligaciones', 'Qué son las obligaciones'],
       ['Compromisos', 'Qué son los compromisos'],
@@ -795,29 +808,33 @@ test.describe('en el celular', () => {
     const lugarDeHogar = page.getByRole('group', { name: 'Lugar de Hogar' });
     await expect(lugarDeHogar.getByRole('button', { name: 'Subir' })).toBeDisabled();
     await lugarDeHogar.getByRole('button', { name: 'Bajar' }).click();
-    await expect(fila.getByRole('button', { name: /^Compromiso 2 de 3: Maun/ })).toBeVisible();
-    await expect(fila.getByRole('button', { name: /^Compromiso 3 de 3: Hogar/ })).toBeVisible();
+    await expect(fila.getByRole('button', { name: /^Caja 2 de 3: Maun/ })).toBeVisible();
+    await expect(
+      fila.getByRole('button', { name: /^Deuda obligatoria 3 de 3: Hogar/ }),
+    ).toBeVisible();
     await expect(lugarDeHogar.getByRole('button', { name: 'Bajar' })).toBeDisabled();
     await lugarDeHogar.getByRole('button', { name: 'Subir' }).click();
-    await expect(fila.getByRole('button', { name: /^Compromiso 2 de 3: Hogar/ })).toBeVisible();
-    await expect(fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun/ })).toBeVisible();
+    await expect(
+      fila.getByRole('button', { name: /^Deuda obligatoria 2 de 3: Hogar/ }),
+    ).toBeVisible();
+    await expect(fila.getByRole('button', { name: /^Caja 3 de 3: Maun/ })).toBeVisible();
 
-    await fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun/ }).click();
+    await fila.getByRole('button', { name: /^Caja 3 de 3: Maun/ }).click();
     const hoja = page.getByRole('dialog', { name: 'Maun' });
     await expect(hoja).toBeVisible();
-    await expect(hoja).toContainText('Compromiso · 3 de 3');
+    await expect(hoja).toContainText('Caja · 3 de 3');
     await hoja.getByRole('textbox', { name: 'Monto de Costos fijos' }).fill('300.000');
     await expect(hoja).toContainText('$ 300.000');
     await hoja.getByRole('button', { name: 'Listo', exact: true }).click();
     await expect(hoja).toHaveCount(0);
     await expect(
-      fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun, hasta \$\s300\.000/ }),
+      fila.getByRole('button', { name: /^Caja 3 de 3: Maun, hasta \$\s300\.000/ }),
     ).toBeVisible();
 
     await barra.getByRole('button', { name: 'Descartar los cambios' }).click();
     await expect(barra).toHaveCount(0);
     await expect(
-      fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun, hasta \$\s250\.000/ }),
+      fila.getByRole('button', { name: /^Caja 3 de 3: Maun, hasta \$\s250\.000/ }),
     ).toBeVisible();
     expect(pedidos).toEqual([]);
 
@@ -826,15 +843,15 @@ test.describe('en el celular', () => {
     await pedido;
     const plano = page.getByRole('dialog', { name: 'El plano de la fila' });
     await expect(plano).toBeVisible();
-    await expect(
-      plano.locator('.react-flow__node[aria-label^="Compromiso 3 de 3: Maun"]'),
-    ).toBeVisible(CARGA);
+    await expect(plano.locator('.react-flow__node[aria-label^="Caja 3 de 3: Maun"]')).toBeVisible(
+      CARGA,
+    );
     await plano.getByRole('button', { name: 'Cerrar el plano' }).click();
     await expect(plano).toHaveCount(0);
     expect(pedidos.length).toBeGreaterThan(0);
   });
 
-  test('cambiar cómo se llena un compromiso desde la hoja del paso lo guarda en la fila', async ({
+  test('cambiar el día de pago de una deuda obligatoria desde la hoja del paso lo guarda en la fila', async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -860,45 +877,39 @@ test.describe('en el celular', () => {
     const fila = page.getByRole('region', { name: 'La fila', exact: true });
     await expect(
       fila.getByRole('button', {
-        name: /^Compromiso 2 de 2: Gastos fijos, hasta \$\s500\.000 por mes/,
+        name: /^Deuda obligatoria 2 de 2: Gastos fijos, hasta \$\s500\.000 por mes/,
       }),
     ).toBeVisible(CARGA);
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
     const barra = page.getByRole('region', { name: 'Editando la fila' });
     await expect(barra).toBeVisible();
 
-    await fila.getByRole('button', { name: /^Compromiso 2 de 2: Gastos fijos/ }).tap();
+    await fila.getByRole('button', { name: /^Deuda obligatoria 2 de 2: Gastos fijos/ }).tap();
     const hoja = page.getByRole('dialog', { name: 'Gastos fijos' });
     await expect(hoja).toBeVisible();
-    await expect(hoja).toContainText('Compromiso · 2 de 2');
-    const modo = hoja.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' });
-    await expect(modo.getByRole('radio', { name: 'Por mes' })).toBeChecked();
-    await modo.getByRole('radio', { name: 'Se renueva al pagar' }).tap();
-    await expect(modo.getByRole('radio', { name: 'Se renueva al pagar' })).toBeChecked();
-    await expect(hoja.getByRole('region', { name: 'Lo apartado' })).toBeVisible();
+    await expect(hoja).toContainText('Deuda obligatoria · 2 de 2');
+    await expect(hoja.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' })).toHaveCount(
+      0,
+    );
+    await hoja.getByRole('combobox', { name: 'Día de pago de Gastos fijos' }).selectOption('15');
     await hoja.getByRole('button', { name: 'Listo', exact: true }).click();
     await expect(hoja).toHaveCount(0);
-    await expect(
-      fila.getByRole('button', {
-        name: /^Compromiso 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar/,
-      }),
-    ).toBeVisible();
 
     await barra.getByRole('button', { name: 'Guardar' }).click();
     const guardar = page.getByRole('dialog', { name: 'Guardar la fila' });
-    await expect(guardar).toContainText('ahora se renueva al pagar');
     await guardar.getByRole('button', { name: 'Guardar la fila' }).click();
     await expect(barra).toHaveCount(0);
     await expect(indicadorDeSync(page)).toBeHidden(CARGA);
     await expect
       .poll(
         async () =>
-          ((await leerLaFila(sesion)).fila?.pasos as PasoParaGuardar[] | undefined)?.map(
-            (paso) => paso.modo,
-          ),
+          ((await leerLaFila(sesion)).fila?.pasos as PasoParaGuardar[] | undefined)?.map((paso) => [
+            paso.modo,
+            (paso as { dia?: number | null }).dia ?? null,
+          ]),
         CARGA,
       )
-      .toEqual(['saldo']);
+      .toEqual([['mes', 15]]);
   });
 
   test('«Nuevo tesoro» del estante abre la hoja con el toque', async ({ page }) => {
@@ -910,6 +921,7 @@ test.describe('en el celular', () => {
       .tap();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).tap();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
   });
@@ -1209,7 +1221,7 @@ test.describe('en la tablet', () => {
   }) => {
     test.setTimeout(120_000);
     await abrirLosTesoros(page);
-    const maun = ficha(page, /^Compromiso 3 de 3: Maun/);
+    const maun = ficha(page, /^Caja 3 de 3: Maun/);
     await expect(maun).toBeVisible(CARGA);
     await expect(page.getByRole('complementary', { name: 'Detalle' })).toHaveCount(0);
 
@@ -1224,10 +1236,10 @@ test.describe('en la tablet', () => {
     await maun.click();
     const panelDeMaun = page.getByRole('region', { name: 'Maun', exact: true });
     await expect(panelDeMaun).toBeVisible();
-    await expect(panelDeMaun).toContainText('Compromiso · 3 de 3');
+    await expect(panelDeMaun).toContainText('Caja · 3 de 3');
     await expect.poll(() => entera(maun, panelDeMaun)).toBe(true);
 
-    const hogar = ficha(page, /^Compromiso 2 de 3: Hogar/);
+    const hogar = ficha(page, /^Deuda obligatoria 2 de 3: Hogar/);
     await hogar.click();
     const panelDeHogar = page.getByRole('region', { name: 'Hogar', exact: true });
     await expect(panelDeHogar).toBeVisible();
@@ -1253,6 +1265,7 @@ test.describe('en la tablet, con el dedo', () => {
     await boton.tap();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).tap();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
   });

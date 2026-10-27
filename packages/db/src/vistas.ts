@@ -1,5 +1,6 @@
 import {
   analisisDeEntregas,
+  asientosDelLibro,
   BASES_DE_OBLIGACION,
   CATEGORIAS_DE_COSTO,
   categoriaDeGastoLeida,
@@ -33,6 +34,7 @@ import {
   type DatosDelLibro,
   type DatosDelMes,
   type EntradaDeLaLiquidacion,
+  type EntradaDeLosPagos,
   type EstadoLiquidado,
   type Fila,
   type GastoDelTaller,
@@ -46,6 +48,7 @@ import {
   type Moneda,
   type Money,
   type NecesidadParaLasEstadisticas,
+  type PagoDeUnVencimiento,
   type Plata,
   type SaldosPorId,
   type SaldosPorTesoro,
@@ -55,7 +58,7 @@ import {
   type TrabajoParaLasEstadisticas,
 } from '@maun/domain';
 
-import { gastosDeLosTesoros } from './agenda.ts';
+import { gastosDeLosTesoros, pagosDeLosVencimientos } from './agenda.ts';
 import { dinero } from './dinero.ts';
 import { ajustesDe, filasDe, type FilaDe, type Replica } from './replica.ts';
 
@@ -70,7 +73,7 @@ export interface TesoroDeLaReplica {
   tinta: string;
   icono: string;
   meta: Plata | null;
-  rindeAnualBp: number | null;
+  metaFecha: string | null;
   orden: number;
   archivado: boolean;
 }
@@ -103,14 +106,15 @@ export function tesorosDeLaReplica(replica: Replica): TesoroDeLaReplica[] {
         descripcion: fila.descripcion,
         tinta: fila.tinta,
         icono: fila.icono,
-        meta: deCocos
-          ? metaDeCocos > 0
-            ? plata(MONEDA_DEL_TALLER, metaDeCocos)
-            : null
-          : fila.meta_centavos === null
-            ? null
-            : plata(moneda, fila.meta_centavos),
-        rindeAnualBp: deCocos ? (ajustes?.tasa_cocos_anual_bp ?? 0) : fila.rinde_anual_bp,
+        meta:
+          fila.meta_centavos !== null
+            ? fila.meta_centavos > 0
+              ? plata(moneda, fila.meta_centavos)
+              : null
+            : deCocos && metaDeCocos > 0
+              ? plata(MONEDA_DEL_TALLER, metaDeCocos)
+              : null,
+        metaFecha: (fila as Partial<FilaDe<'tesoros'>>).meta_fecha ?? null,
         orden: fila.orden,
         archivado: fila.archivado_at !== null,
       };
@@ -165,6 +169,14 @@ function montoDestinoDe(movimiento: FilaDe<'movimientos'>): Money<Moneda> | null
 export function datosDelLibro(replica: Replica): DatosDelLibro {
   return {
     tesoros: filasDe(replica, 'tesoros').map((tesoro) => ({ id: tesoro.id, clave: tesoro.clave })),
+    vencimientos: filasDe(replica, 'pagos_de_vencimientos').map((pago) => ({
+      id: pago.id,
+      tesoroId: pago.tesoro_id,
+      vencimiento: pago.vencimiento,
+      aPagar: dinero(pago.a_pagar_centavos),
+      pusoMaun: dinero(pago.puso_maun_centavos),
+      vuelveAMaun: dinero(pago.vuelve_a_maun_centavos),
+    })),
     movimientos: filasDe(replica, 'movimientos').map((movimiento) => ({
       id: movimiento.id,
       fecha: movimiento.fecha,
@@ -534,7 +546,7 @@ export function coberturasDeLaReplica(replica: Replica): Cobertura[] {
     if (haciaId === null) continue;
     coberturas.push({
       tesoro: haciaId,
-      mes: cubre.slice(0, 7),
+      desde: cubre,
       monto: dinero(movimiento.monto_centavos),
     });
   }
@@ -545,6 +557,10 @@ export function gastosDeLosTesorosDeLaReplica(replica: Replica): GastoDeUnTesoro
   return gastosDeLosTesoros(filasDe(replica, 'movimientos'), filasDe(replica, 'tesoros'));
 }
 
+export function pagosDeLosVencimientosDeLaReplica(replica: Replica): PagoDeUnVencimiento[] {
+  return pagosDeLosVencimientos(filasDe(replica, 'pagos_de_vencimientos'));
+}
+
 export function datosDelMesDeLaReplica(replica: Replica): DatosDelMes {
   return {
     liquidaciones: liquidacionesDelMesDeLaReplica(replica),
@@ -552,6 +568,18 @@ export function datosDelMesDeLaReplica(replica: Replica): DatosDelMes {
     saldos: saldosEnLaMonedaDelTaller(replica),
     metas: metasDeLaReplica(replica),
     gastos: gastosDeLosTesorosDeLaReplica(replica),
+    pagos: pagosDeLosVencimientosDeLaReplica(replica),
+  };
+}
+
+export function entradaDeLosPagos(replica: Replica, hoy: string): EntradaDeLosPagos {
+  return {
+    fila: filaDelTaller(replica).fila,
+    maun: idDeLaClave(replica, 'maun'),
+    hoy,
+    lineas: asientosDelLibro(datosDelLibro(replica)),
+    gastos: gastosDeLosTesorosDeLaReplica(replica),
+    pagos: pagosDeLosVencimientosDeLaReplica(replica),
   };
 }
 

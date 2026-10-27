@@ -1,5 +1,5 @@
 import { esAnteriorALaApertura, porcentajeDeLaSena } from '@maun/domain';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useCallback,
   useEffect,
@@ -12,6 +12,7 @@ import {
 
 import { CONDICION, EnlaceACliente } from '@/entities/cliente';
 import { CasillaDeLaApertura } from '@/entities/movimiento';
+import { atenderLaRespuesta, type RespuestaDelCliente } from '@/entities/presupuesto';
 import {
   BotonDeLaMoneda,
   COMPROBANTE,
@@ -46,6 +47,7 @@ import {
   formatearPlata,
   formatearPorcentaje,
   hoyEnElTaller,
+  metaDeAvisos,
   uuidv7,
   Ir,
   useIr,
@@ -74,6 +76,7 @@ import {
   avisoDelAcordado,
   ayudaDeLaEntrega,
   entregaDelPasaje,
+  entregaPrometida,
   loMandadoAlCliente,
   plazoDelPasaje,
 } from '../model/presupuestoMandado';
@@ -81,6 +84,7 @@ import {
 export interface PantallaDePasajeProps {
   resumen: ResumenDeProyecto;
   opciones: readonly OpcionDePresupuesto[];
+  respuestaDelCliente?: RespuestaDelCliente | null;
   alCrearUnTesoroEnDolares?: (alCrear: (tesoroId: string) => void) => void;
 }
 
@@ -89,6 +93,7 @@ const CIFRA = 'contents @min-[44rem]:flex @min-[44rem]:flex-col @min-[44rem]:gap
 export function PantallaDePasaje({
   resumen,
   opciones,
+  respuestaDelCliente = null,
   alCrearUnTesoroEnDolares,
 }: PantallaDePasajeProps) {
   const textos = useMensajes().avanzarLaConsulta.pasaje;
@@ -117,18 +122,29 @@ export function PantallaDePasaje({
   const [rechazo, setRechazo] = useState<unknown>(null);
 
   const [presupuesto, setPresupuesto] = useState<number | null>(proyecto.presupuesto_centavos);
-  const [opcion, setOpcion] = useState<string | null>(() => opcionAprobada(opciones)?.id ?? null);
+  const consultas = useQueryClient();
+  const [opcion, setOpcion] = useState<string | null>(
+    () =>
+      opcionAprobada(opciones)?.id ??
+      opciones.find((una) => una.id === respuestaDelCliente?.fila.opcion_id)?.id ??
+      null,
+  );
   const [falta, setFalta] = useState<string | undefined>(undefined);
   const primeraOpcion = useRef<HTMLInputElement>(null);
   const campoDelPresupuesto = useRef<HTMLInputElement>(null);
+  const yaSeFueEnPausa = useRef(false);
   const [forma, setForma] = useState<FormaDePago>(() =>
     formaSugerida(proyecto.forma_pago, formasDelTrabajo(proyecto, 'sena', ajustesDe(replica))),
   );
   const [mandado] = useState(() => loMandadoAlCliente(replica, proyecto.id));
   const plazo = plazoDelPasaje(mandado);
+  const prometida = entregaPrometida(mandado);
   const [inicio, setInicio] = useState(proyecto.fecha_inicio ?? hoy);
   const [entrega, setEntrega] = useState(
-    () => proyecto.entrega_estimada ?? entregaDelPasaje(proyecto.fecha_inicio ?? hoy, plazo),
+    () =>
+      proyecto.entrega_estimada ??
+      prometida ??
+      entregaDelPasaje(proyecto.fecha_inicio ?? hoy, plazo),
   );
   const [entregaAuto, setEntregaAuto] = useState(proyecto.entrega_estimada === null);
   const [direccion, setDireccion] = useState(
@@ -204,11 +220,27 @@ export function PantallaDePasaje({
     sugerirLaSena(opciones.find((una) => una.id === id)?.monto_centavos ?? null);
   }
 
+  function atenderAlAprobar(): void {
+    if (respuestaDelCliente === null) return;
+    atenderLaRespuesta(
+      consultas,
+      respuestaDelCliente.fila,
+      metaDeAvisos('respuestaAtendida', { silencioso: true }),
+    );
+  }
+
   useEffect(() => {
-    if (guardar.isPaused) {
-      ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienAprobado' });
+    if (!guardar.isPaused || yaSeFueEnPausa.current) return;
+    yaSeFueEnPausa.current = true;
+    if (respuestaDelCliente !== null) {
+      atenderLaRespuesta(
+        consultas,
+        respuestaDelCliente.fila,
+        metaDeAvisos('respuestaAtendida', { silencioso: true }),
+      );
     }
-  }, [guardar.isPaused, ir, proyecto.id]);
+    ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienAprobado' });
+  }, [guardar.isPaused, ir, proyecto.id, consultas, respuestaDelCliente]);
 
   function aprobar(evento: SyntheticEvent<HTMLFormElement>): void {
     evento.preventDefault();
@@ -254,6 +286,7 @@ export function PantallaDePasaje({
       ),
       {
         onSuccess: () => {
+          atenderAlAprobar();
           ir(rutaDelProyecto(proyecto.id), { como: 'terminar', senal: 'recienAprobado' });
         },
         onError: setRechazo,
@@ -582,7 +615,7 @@ export function PantallaDePasaje({
               value={inicio}
               onChange={(evento) => {
                 setInicio(evento.target.value);
-                if (entregaAuto && evento.target.value !== '') {
+                if (entregaAuto && prometida === null && evento.target.value !== '') {
                   setEntrega(entregaDelPasaje(evento.target.value, plazo));
                 }
               }}
@@ -592,7 +625,13 @@ export function PantallaDePasaje({
               type="date"
               contenedor="@sm:row-span-3 @sm:grid @sm:grid-rows-subgrid"
               value={entrega}
-              ayuda={entregaAuto ? ayudaDeLaEntrega(plazo, mandado !== null) : undefined}
+              ayuda={
+                !entregaAuto
+                  ? undefined
+                  : prometida === null
+                    ? ayudaDeLaEntrega(plazo, mandado !== null)
+                    : textos.ayudaDeLaEntregaPrometida
+              }
               onChange={(evento) => {
                 setEntrega(evento.target.value);
                 setEntregaAuto(false);

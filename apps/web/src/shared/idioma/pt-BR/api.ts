@@ -300,6 +300,30 @@ export const api = {
       titulo: 'A emissão de notas fiscais com a ARCA não está conectada.',
       queHacer: 'Nada foi solicitado. Conecte em Configurações › Faturamento e solicite de novo.',
     },
+    MN044: {
+      titulo: 'Uma estimativa não leva datas.',
+      queHacer: 'Desmarque a estimativa ou tire as datas e envie de novo.',
+    },
+    MN045: {
+      titulo: 'Falta uma das datas do orçamento.',
+      queHacer: 'Informe quando pode ficar pronto e até quando o sinal pode entrar.',
+    },
+    MN046: {
+      titulo: 'A data do sinal já passou.',
+      queHacer: 'Escolha hoje ou um dia à frente e envie de novo.',
+    },
+    MN047: {
+      titulo: 'A entrega tem que ser depois do sinal.',
+      queHacer: 'Mude a data de entrega ou a do sinal e envie de novo.',
+    },
+    MN048: {
+      titulo: 'Esse contato já foi registrado.',
+      queHacer: 'Se precisar escrever de novo, coloque uma data nova pela ficha.',
+    },
+    MN049: {
+      titulo: 'O próximo contato é hoje ou num dia à frente.',
+      queHacer: 'Escolha hoje ou um dia à frente.',
+    },
     MN041: {
       titulo: 'Falta algo para emitir a nota fiscal.',
       queHacer:

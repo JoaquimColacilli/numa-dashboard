@@ -355,6 +355,12 @@ export const proyecto = {
     cubiertaDeMas: (deMas) => `O sinal já está coberto, e você recebeu ${deMas} a mais.`,
     cubierta: 'O sinal já está coberto.',
   },
+  paraElEstimativo: {
+    titulo: 'Para a estimativa',
+    ayuda: 'O que vale perguntar para dar uma estimativa prudente.',
+    contestadas: (contestadas, total) => `${String(contestadas)} de ${String(total)}`,
+    usarLaDelCliente: (direccion) => `Usar o do cliente: ${direccion}`,
+  },
   costosDeCotizar: {
     titulo: 'Custos estimados',
     ayuda:

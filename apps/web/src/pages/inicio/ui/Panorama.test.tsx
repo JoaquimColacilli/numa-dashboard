@@ -10,13 +10,13 @@ import { Panorama } from './Panorama';
 
 const PANORAMA: PanoramaDelTaller = {
   paraPagar: centavos(132_700_000),
-  ahorros: centavos(413_100_000),
-  superavit: centavos(36_500_000),
+  metas: centavos(413_100_000),
+  cajas: centavos(36_500_000),
   insumos: centavos(82_000_000),
   compromisoDeMaun: centavos(0),
   tesorosParaPagar: 3,
-  tesorosDeAhorro: 4,
-  tesoroDelSuperavit: 's',
+  tesorosDeMetas: 4,
+  tesorosDeCajas: 2,
   trabajosConInsumos: 2,
 };
 
@@ -47,6 +47,7 @@ function filaDeTesoro(id: string, clave: string | null, nombre: string, moneda =
     tinta: clave ?? 'grana',
     icono: 'vault',
     meta_centavos: null,
+    meta_fecha: null,
     rinde_anual_bp: null,
     orden: 0,
     archivado_at: null,
@@ -94,6 +95,11 @@ function replicaConDolares(): Replica {
   ];
   tablas.tesoros = Object.fromEntries(tesoros.map((uno) => [uno.id, uno]));
   const movimientos = [
+    movimiento('m0', '2026-09-01', {
+      tesoro_destino: 'maun',
+      hacia_id: MAUN,
+      monto_centavos: 100_000_000,
+    }),
     movimiento('m1', '2026-09-10', { hacia_id: VACACIONES, monto_centavos: 1_000_000 }),
     movimiento('m2', '2026-09-12', { hacia_id: DOLARES, monto_centavos: 50_000 }),
     movimiento('m3', '2026-09-28', {
@@ -117,7 +123,14 @@ function panoramaDeLaReplica(replica: Replica): PanoramaDelTaller {
   const delMes = filaDelMes(
     fila,
     SISTEMA,
-    { liquidaciones: [], coberturas: [], saldos: new Map(), metas: new Map(), gastos: [] },
+    {
+      liquidaciones: [],
+      coberturas: [],
+      saldos: new Map(),
+      metas: new Map(),
+      gastos: [],
+      pagos: [],
+    },
     '2026-09',
   );
   return panoramaDelTaller({
@@ -133,14 +146,14 @@ function panoramaDeLaReplica(replica: Replica): PanoramaDelTaller {
 
 describe('el panorama de Inicio', () => {
   it('es una línea de cuatro cifras, con su (i)', () => {
-    render(<Panorama panorama={PANORAMA} nombreDelSuperavit="Superávit" />);
+    render(<Panorama panorama={PANORAMA} />);
     const panorama = screen.getByRole('region', { name: 'Panorama' });
 
     expect(
       within(panorama)
         .getAllByRole('term')
         .map((clave) => clave.textContent),
-    ).toEqual(['Para pagar', 'Ahorros', 'Superávit', 'Insumos de los trabajos']);
+    ).toEqual(['Para pagar', 'Metas', 'Cajas', 'Insumos de los trabajos']);
     expect(
       within(panorama)
         .getAllByRole('definition')
@@ -151,7 +164,7 @@ describe('el panorama de Inicio', () => {
       '$ 4.131.000',
       'en 4 tesoros',
       '$ 365.000',
-      'en Superávit',
+      'en 2 cajas, sin los insumos',
       '$ 820.000',
       'de 2 trabajos',
     ]);
@@ -162,13 +175,11 @@ describe('el panorama de Inicio', () => {
     expect(panorama.querySelectorAll('[data-monto]')).toHaveLength(4);
   });
 
-  it('por moneda: «Ahorros» cuenta solo los pesos, y los dólares van en su línea con el equivalente', () => {
-    render(
-      <Panorama panorama={panoramaDeLaReplica(replicaConDolares())} nombreDelSuperavit="Maun" />,
-    );
+  it('por moneda: «Cajas» cuenta solo los pesos, y los dólares van en su línea con el equivalente', () => {
+    render(<Panorama panorama={panoramaDeLaReplica(replicaConDolares())} />);
     const panorama = screen.getByRole('region', { name: 'Panorama' });
-    const ahorros = panorama.querySelector('[data-cifra-del-panorama="ahorros"]');
-    expect(llano(ahorros?.textContent)).toBe('Ahorros$ 10.000en 2 tesoros');
+    const cajas = panorama.querySelector('[data-cifra-del-panorama="cajas"]');
+    expect(llano(cajas?.textContent)).toBe('Cajas$ 285.000en 4 cajas, sin los insumos');
 
     const enDolares = panorama.querySelector('[data-cifra-del-panorama="en-dolares"]');
     expect(llano(enDolares?.textContent)).toBe(
@@ -177,16 +188,12 @@ describe('el panorama de Inicio', () => {
     expect(enDolares?.querySelector('[data-equivalente-en-pesos]')).not.toBeNull();
   });
 
-  it('un superávit en negativo se ve en alerta', () => {
-    render(
-      <Panorama
-        panorama={{ ...PANORAMA, superavit: centavos(-5_000_000) }}
-        nombreDelSuperavit="Maun"
-      />,
-    );
-    const superavit = screen
+  it('unas cajas en negativo se ven en alerta y dicen que no alcanzan para los insumos', () => {
+    render(<Panorama panorama={{ ...PANORAMA, cajas: centavos(-5_000_000) }} />);
+    const cajas = screen
       .getByRole('region', { name: 'Panorama' })
-      .querySelector('[data-cifra-del-panorama="superavit"] [data-monto]');
-    expect(superavit).toHaveClass('text-alerta');
+      .querySelector('[data-cifra-del-panorama="cajas"]');
+    expect(cajas?.querySelector('[data-monto]')).toHaveClass('text-alerta');
+    expect(cajas).toHaveTextContent('no alcanzan para los insumos');
   });
 });

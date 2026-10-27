@@ -377,7 +377,6 @@ function tesoros(): Elemento {
       tesoro('bg-hogar'),
       tesoro('bg-maun'),
       tesoro('bg-diezmo'),
-      tesoro('bg-cocos'),
     ),
   );
 }

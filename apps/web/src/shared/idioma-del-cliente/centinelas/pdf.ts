@@ -21,6 +21,26 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.pdf.archivo.conRevision('«NÚMERO»', 7),
     tieneQueDecir: ['«NÚMERO»', '7'],
   },
+  'pdf.tituloDelEstimativo.numero': {
+    llamar: (m) => m.pdf.tituloDelEstimativo.numero('«NÚMERO»'),
+    tieneQueDecir: ['«NÚMERO»'],
+  },
+  'pdf.tituloDelEstimativo.conRevision': {
+    llamar: (m) => m.pdf.tituloDelEstimativo.conRevision('«NÚMERO»', 7),
+    tieneQueDecir: ['«NÚMERO»', '7'],
+  },
+  'pdf.tituloDelEstimativo.enBorrador': {
+    llamar: (m) => m.pdf.tituloDelEstimativo.enBorrador('«TÍTULO»'),
+    tieneQueDecir: ['«TÍTULO»'],
+  },
+  'pdf.archivoDelEstimativo.numero': {
+    llamar: (m) => m.pdf.archivoDelEstimativo.numero('«NÚMERO»'),
+    tieneQueDecir: ['«NÚMERO»'],
+  },
+  'pdf.archivoDelEstimativo.conRevision': {
+    llamar: (m) => m.pdf.archivoDelEstimativo.conRevision('«NÚMERO»', 7),
+    tieneQueDecir: ['«NÚMERO»', '7'],
+  },
   'pdf.pagina': {
     llamar: (m) => m.pdf.pagina('«TÍTULO»', 3, 9),
     tieneQueDecir: ['«TÍTULO»', '3', '9'],

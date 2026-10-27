@@ -6,6 +6,7 @@ import { usarIdioma } from '@/shared/idioma';
 import {
   CLASE,
   CLASES_EN_ORDEN,
+  CLASES_QUE_SE_CARGAN,
   categoriaEnPantalla,
   categoriasDeLaClase,
   claseDe,
@@ -15,6 +16,7 @@ import {
   esUnCambio,
   gastaDesdeElTesoro,
   GRUPOS,
+  gruposQueSeCargan,
   hayDolaresParaCargar,
   origenesDeLaClase,
   renglonesPorTesoro,
@@ -22,6 +24,7 @@ import {
   rutaParaComprarDolaresPara,
   rutaParaRegistrarElPago,
   rutaParaVenderDolares,
+  seCarga,
   tesorosParaElegir,
   vaEntreTesoros,
 } from './clases';
@@ -81,7 +84,6 @@ describe('las clases de movimiento', () => {
       eligeElTesoro: true,
     });
     expect(clasesDelGrupo('gasto').map((clase) => clase.id)).toEqual([
-      'gasto_hogar',
       'gasto_maun',
       'gasto_tesoro',
     ]);
@@ -105,6 +107,83 @@ describe('las clases de movimiento', () => {
     expect(vaEntreTesoros({ clave: 'diezmo' })).toBe(false);
     expect(vaEntreTesoros({ clave: 'maun' })).toBe(true);
     expect(vaEntreTesoros({ clave: null })).toBe(true);
+  });
+});
+
+describe('las clases que se cargan', () => {
+  const ids = (lista: readonly { id: string }[]) => lista.map((uno) => uno.id);
+
+  it('las del hogar y las de Cocos ya no se cargan, pero siguen existiendo para mostrar lo viejo', () => {
+    expect(CLASES_EN_ORDEN.filter((clase) => !seCarga(clase))).toEqual([
+      'ingreso_hogar',
+      'gasto_hogar',
+      'aporte_cocos',
+      'retiro_cocos',
+      'gasto_cocos',
+    ]);
+    expect(CLASES_QUE_SE_CARGAN).toEqual([
+      'ingreso_maun',
+      'gasto_maun',
+      'gasto_tesoro',
+      'pago_diezmo',
+      'entre_tesoros',
+      'compra_de_dolares',
+      'venta_de_dolares',
+      'ingreso_en_dolares',
+    ]);
+    expect(claseDe('gasto', 'hogar', null)?.id).toBe('gasto_hogar');
+    expect(claseDe('aporte_cocos', 'maun', 'cocos')?.id).toBe('aporte_cocos');
+  });
+
+  it('cada grupo ofrece solo las que se cargan, más la del movimiento que se está editando', () => {
+    expect(ids(clasesDelGrupo('ingreso'))).toEqual(['ingreso_maun']);
+    expect(ids(clasesDelGrupo('gasto'))).toEqual(['gasto_maun', 'gasto_tesoro']);
+    expect(ids(clasesDelGrupo('cocos'))).toEqual([]);
+    expect(ids(clasesDelGrupo('ingreso', 'ingreso_hogar'))).toEqual([
+      'ingreso_hogar',
+      'ingreso_maun',
+    ]);
+    expect(ids(clasesDelGrupo('gasto', 'gasto_hogar'))).toEqual([
+      'gasto_hogar',
+      'gasto_maun',
+      'gasto_tesoro',
+    ]);
+    expect(ids(clasesDelGrupo('cocos', 'retiro_cocos'))).toEqual(['retiro_cocos']);
+    expect(ids(clasesDelGrupo('gasto', 'gasto_maun'))).toEqual(['gasto_maun', 'gasto_tesoro']);
+    expect(ids(clasesDelGrupo('gasto', 'aporte_cocos'))).toEqual(['gasto_maun', 'gasto_tesoro']);
+  });
+
+  it('el grupo de Cocos no se ofrece, salvo para editar un movimiento de Cocos', () => {
+    expect(ids(gruposQueSeCargan())).toEqual(['ingreso', 'gasto', 'diezmo', 'entre', 'dolares']);
+    expect(ids(gruposQueSeCargan('cocos'))).toEqual([
+      'ingreso',
+      'gasto',
+      'diezmo',
+      'cocos',
+      'entre',
+      'dolares',
+    ]);
+    expect(ids(gruposQueSeCargan('gasto'))).toEqual(ids(gruposQueSeCargan()));
+  });
+
+  it('el hogar y Cocos gastan como cualquier tesoro del dueño: con «Gasto de un tesoro»', () => {
+    expect(gastaDesdeElTesoro({ clave: 'hogar', archivado: false })).toBe(true);
+    expect(gastaDesdeElTesoro({ clave: 'cocos', archivado: false })).toBe(true);
+    expect(gastaDesdeElTesoro({ clave: 'cocos', archivado: true })).toBe(false);
+    expect(gastaDesdeElTesoro({ clave: 'diezmo', archivado: false })).toBe(false);
+    expect(gastaDesdeElTesoro({ clave: 'maun', archivado: false })).toBe(false);
+    const tesoros = [
+      { id: 'hogar', clave: 'hogar' as const, moneda: 'ARS' as const, archivado: false },
+      { id: 'maun', clave: 'maun' as const, moneda: 'ARS' as const, archivado: false },
+      { id: 'diezmo', clave: 'diezmo' as const, moneda: 'ARS' as const, archivado: false },
+      { id: 'cocos', clave: 'cocos' as const, moneda: 'ARS' as const, archivado: false },
+      { id: 'materiales', clave: null, moneda: 'ARS' as const, archivado: false },
+    ];
+    expect(ids(tesorosParaElegir('gasto_tesoro', tesoros))).toEqual([
+      'hogar',
+      'cocos',
+      'materiales',
+    ]);
   });
 });
 
@@ -220,6 +299,7 @@ describe('las categorías de un gasto de un tesoro', () => {
         tesoro: '0192aaaa-0000-7000-8000-000000000003',
         porcentaje: puntosBasicos(1000),
         base: 'ingreso',
+        montoFijo: null,
       },
     ],
     pasos: [
@@ -234,6 +314,9 @@ describe('las categorías de un gasto de un tesoro', () => {
         desde: null,
         modo: 'saldo',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
       {
         tesoro: STOCK,
@@ -243,6 +326,9 @@ describe('las categorías de un gasto de un tesoro', () => {
         desde: null,
         modo: 'mes',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
     reparto: [],
@@ -265,11 +351,11 @@ describe('las categorías de un gasto de un tesoro', () => {
 });
 
 describe('registrar el pago', () => {
-  it('cada tesoro paga con su clase: Maun con el gasto del taller y el diezmo con su pago', () => {
+  it('cada tesoro paga con su clase: Maun con el gasto del taller, el diezmo con su pago y los demás con «Gasto de un tesoro», el hogar y Cocos también', () => {
     expect(claseParaPagar({ clave: 'maun' })).toBe('gasto_maun');
     expect(claseParaPagar({ clave: 'diezmo' })).toBe('pago_diezmo');
-    expect(claseParaPagar({ clave: 'hogar' })).toBe('gasto_hogar');
-    expect(claseParaPagar({ clave: 'cocos' })).toBe('gasto_cocos');
+    expect(claseParaPagar({ clave: 'hogar' })).toBe('gasto_tesoro');
+    expect(claseParaPagar({ clave: 'cocos' })).toBe('gasto_tesoro');
     expect(claseParaPagar({ clave: null })).toBe('gasto_tesoro');
   });
 
@@ -297,6 +383,13 @@ describe('registrar el pago', () => {
         categoria: 'Diezmo',
       }),
     ).toBe('/finanzas/nuevo?clase=pago_diezmo');
+    expect(
+      rutaParaRegistrarElPago({
+        tesoro: { id: 'hogar-id', clave: 'hogar' },
+        monto: centavos(180_000_000),
+        categoria: 'Sueldo',
+      }),
+    ).toBe('/finanzas/nuevo?clase=gasto_tesoro&tesoro=hogar-id&monto=180000000&categoria=Sueldo');
   });
 
   it('el pago de un mes que ya pasó lleva su día, para que quede pagado en ese mes', () => {
@@ -309,6 +402,19 @@ describe('registrar el pago', () => {
       }),
     ).toBe(
       `/finanzas/nuevo?clase=gasto_tesoro&tesoro=${ALQUILER}&monto=50000000&categoria=Alquiler&fecha=2026-08-10`,
+    );
+  });
+
+  it('el pago de una deuda con día de pago lleva el vencimiento que paga', () => {
+    expect(
+      rutaParaRegistrarElPago({
+        tesoro: { id: ALQUILER, clave: null },
+        monto: centavos(50_000_000),
+        categoria: 'Alquiler',
+        vencimiento: '2026-10-10',
+      }),
+    ).toBe(
+      `/finanzas/nuevo?clase=gasto_tesoro&tesoro=${ALQUILER}&monto=50000000&categoria=Alquiler&vencimiento=2026-10-10`,
     );
   });
 });

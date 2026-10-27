@@ -290,8 +290,33 @@ export const CLASES_EN_ORDEN: readonly ClaseDeMovimiento[] = [
   'ingreso_en_dolares',
 ];
 
-export function clasesDelGrupo(grupo: GrupoDeMovimiento): DatosDeClase[] {
-  return CLASES_EN_ORDEN.map((id) => CLASE[id]).filter((clase) => clase.grupo === grupo);
+const QUE_YA_NO_SE_CARGAN: ReadonlySet<ClaseDeMovimiento> = new Set([
+  'ingreso_hogar',
+  'gasto_hogar',
+  'aporte_cocos',
+  'retiro_cocos',
+  'gasto_cocos',
+]);
+
+export function seCarga(clase: ClaseDeMovimiento): boolean {
+  return !QUE_YA_NO_SE_CARGAN.has(clase);
+}
+
+export const CLASES_QUE_SE_CARGAN: readonly ClaseDeMovimiento[] = CLASES_EN_ORDEN.filter(seCarga);
+
+export function clasesDelGrupo(
+  grupo: GrupoDeMovimiento,
+  actual?: ClaseDeMovimiento,
+): DatosDeClase[] {
+  return CLASES_EN_ORDEN.filter((id) => seCarga(id) || id === actual)
+    .map((id) => CLASE[id])
+    .filter((clase) => clase.grupo === grupo);
+}
+
+export function gruposQueSeCargan(
+  actual?: GrupoDeMovimiento,
+): readonly { id: GrupoDeMovimiento; etiqueta: string }[] {
+  return GRUPOS.filter((grupo) => grupo.id === actual || clasesDelGrupo(grupo.id).length > 0);
 }
 
 export function esUnCambio(clase: ClaseDeMovimiento): clase is ClaseDeCambio {
@@ -336,7 +361,10 @@ export function vaEntreTesoros(tesoro: { clave: Tesoro | null }): boolean {
 }
 
 export function gastaDesdeElTesoro(tesoro: { clave: Tesoro | null; archivado: boolean }): boolean {
-  return tesoro.clave === null && !tesoro.archivado;
+  return (
+    (tesoro.clave === null || tesoro.clave === 'hogar' || tesoro.clave === 'cocos') &&
+    !tesoro.archivado
+  );
 }
 
 interface TesoroDeLaClase {
@@ -461,9 +489,7 @@ export function claseParaPagar(tesoro: { clave: Tesoro | null }): ClaseDeMovimie
     case 'diezmo':
       return 'pago_diezmo';
     case 'hogar':
-      return 'gasto_hogar';
     case 'cocos':
-      return 'gasto_cocos';
     case null:
       return 'gasto_tesoro';
   }
@@ -474,6 +500,7 @@ export interface PagoParaRegistrar {
   monto: Money | null;
   categoria: string | null;
   fecha?: string | null;
+  vencimiento?: string | null;
 }
 
 export function rutaParaRegistrarElPago({
@@ -481,6 +508,7 @@ export function rutaParaRegistrarElPago({
   monto,
   categoria,
   fecha = null,
+  vencimiento = null,
 }: PagoParaRegistrar): string {
   const clase = claseParaPagar(tesoro);
   return rutaDeMovimientoNuevo({
@@ -489,5 +517,6 @@ export function rutaParaRegistrarElPago({
     ...(monto !== null && monto > 0 ? { monto } : {}),
     ...(categoria === null || clase === 'pago_diezmo' ? {} : { categoria }),
     ...(fecha === null ? {} : { fecha }),
+    ...(vencimiento === null ? {} : { vencimiento }),
   });
 }

@@ -13,7 +13,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch, type SubmitHandler } from 'react-hook-form';
 
-import { ClienteCombobox, CONDICION, enlaceDeMapa } from '@/entities/cliente';
+import { ClienteCombobox, CONDICION, enlaceDeMapa, MUTACION_DE_CLIENTE } from '@/entities/cliente';
 import { pagosConFacturaDeVerdad } from '@/entities/factura';
 import {
   COMPROBANTE,
@@ -23,13 +23,16 @@ import {
   diasQueValeElPresupuesto,
   dolarDelDiaDelTaller,
   esquemaDeProyecto,
+  esUnaConsulta,
   ESTADO,
+  etapaAlGuardarElContacto,
   ESTADOS_EN_ORDEN,
   estadosDisponibles,
   FORMA_DE_PAGO,
   FORMAS_EN_ORDEN,
   gastosDelProyecto,
   hijosDelProyecto,
+  marcaDelCampo,
   monedaDeUnPagoNuevo,
   MUTACION_DE_PROYECTO,
   opcionesDelProyecto,
@@ -120,6 +123,7 @@ export function PantallaDeProyecto({
   const ir = useIr();
   const textos = useMensajes().editarProyecto.pantalla;
   const textosDelFormulario = useMensajes().proyecto.formulario;
+  const textosDelContacto = useMensajes().avanzarLaConsulta.contacto;
   const cancelar = useVolver(
     proyectoId === undefined ? '/proyectos' : rutaDelProyecto(proyectoId),
     textos.cancelar,
@@ -145,8 +149,15 @@ export function PantallaDeProyecto({
 
   const guardar = useMutation({
     ...MUTACION_DE_PROYECTO,
-    meta: metaDeAvisos('proyectoGuardado', { errorEnPantalla: true }),
+    meta: metaDeAvisos(
+      proyecto !== undefined && esUnaConsulta(proyecto.estado)
+        ? 'contactoGuardado'
+        : 'proyectoGuardado',
+      { errorEnPantalla: true },
+    ),
   });
+  const editarCliente = useMutation(MUTACION_DE_CLIENTE);
+  const [telefono, setTelefono] = useState<string | undefined>(undefined);
   const [rechazo, setRechazo] = useState<unknown>(null);
   const [volverALiquidar, setVolverALiquidar] = useState<'cierre' | 'cobro' | null>(null);
   const revertir = useMutation(MUTACION_DE_REVERSION);
@@ -212,6 +223,7 @@ export function PantallaDeProyecto({
   const filasDeOpciones = useWatch({ control, name: 'opciones' });
 
   const cliente = clientes.find((fila) => fila.id === clienteId);
+  const telefonoVisible = telefono ?? cliente?.telefono ?? '';
   const [entregaAuto, setEntregaAuto] = useState(
     proyecto?.entrega_estimada == null && entregaInicial === undefined,
   );
@@ -237,6 +249,8 @@ export function PantallaDeProyecto({
       : estadosDisponibles(proyecto.estado);
 
   const moneda = useWatch({ control, name: 'moneda' });
+  const estadoElegido = useWatch({ control, name: 'estado' });
+  const deConsulta = esUnaConsulta(estadoElegido);
   const [cambiandoA, setCambiandoA] = useState<Moneda | null>(null);
   const monedaEditable = sePuedeCambiarLaMoneda(proyecto?.estado);
   const tesorosEnDolares = tesorosQueRecibenDolares(replica);
@@ -308,15 +322,35 @@ export function PantallaDeProyecto({
       },
       aperturaDeLaReplica(replica),
     );
+    const etapa =
+      proyecto !== undefined &&
+      esUnaConsulta(proyecto.estado) &&
+      armado.datos.estado === proyecto.estado
+        ? etapaAlGuardarElContacto(proyecto, armado.datos.fecha_visita ?? '', hoy)
+        : armado.datos.estado;
     const pedido = {
       ...armado,
       datos: conLaVigenciaAlMandar(
         proyecto,
-        armado.datos,
+        { ...armado.datos, estado: etapa },
         hoy,
         diasQueValeElPresupuesto(ajustesDe(replica)),
       ),
     };
+
+    const telefonoAnterior = cliente?.telefono ?? '';
+    if (
+      deConsulta &&
+      cliente !== undefined &&
+      telefono !== undefined &&
+      telefono.trim() !== telefonoAnterior.trim()
+    ) {
+      editarCliente.mutate({
+        id: cliente.id,
+        cambios: { telefono: telefono.trim() },
+        previos: { telefono: telefonoAnterior },
+      });
+    }
 
     setRechazo(null);
     guardar.mutate(
@@ -370,21 +404,42 @@ export function PantallaDeProyecto({
           <SeccionesEnFilas separacion="gap-3 @min-[40rem]/secciones:gap-4">
             <div className="@container/datos flex min-w-0 flex-col gap-5 rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5">
               <CamposJuntos separacion="gap-5">
-                <ClienteCombobox
-                  clientes={clientes}
-                  elegidoId={clienteId === '' ? null : clienteId}
-                  alElegir={(elegido) => {
-                    setValue('cliente_id', elegido?.id ?? '', { shouldValidate: true });
-                    if (elegido === null) return;
-                    if (direccion.trim() === '') {
-                      setValue('direccion_entrega', elegido.direccion, { shouldDirty: true });
-                    }
-                  }}
-                  error={errors.cliente_id?.message}
-                />
+                <div {...marcaDelCampo('cliente')} className="contents">
+                  <ClienteCombobox
+                    clientes={clientes}
+                    elegidoId={clienteId === '' ? null : clienteId}
+                    alElegir={(elegido) => {
+                      setValue('cliente_id', elegido?.id ?? '', { shouldValidate: true });
+                      setTelefono(undefined);
+                      if (elegido === null) return;
+                      if (direccion.trim() === '') {
+                        setValue('direccion_entrega', elegido.direccion, { shouldDirty: true });
+                      }
+                    }}
+                    error={errors.cliente_id?.message}
+                  />
+                </div>
+
+                {deConsulta && cliente !== undefined && (
+                  <Campo
+                    {...marcaDelCampo('telefono')}
+                    etiqueta={textosDelContacto.telefono}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="11 5555-5555"
+                    maxLength={200}
+                    value={telefonoVisible}
+                    onChange={(evento) => {
+                      setTelefono(evento.target.value);
+                    }}
+                    ayuda={textosDelContacto.ayudaDelTelefono}
+                  />
+                )}
 
                 <Campo
                   {...register('titulo')}
+                  {...marcaDelCampo('titulo')}
                   etiqueta={textos.trabajo}
                   placeholder={textos.trabajoEjemplo}
                   error={errors.titulo?.message}
@@ -393,6 +448,7 @@ export function PantallaDeProyecto({
 
               <Campo
                 {...register('tipo_de_proyecto')}
+                {...marcaDelCampo('tipo')}
                 etiqueta={textos.tipo}
                 placeholder={textos.tipoEjemplo}
                 list={`${idCampos}-tipos`}
@@ -407,7 +463,7 @@ export function PantallaDeProyecto({
                 ))}
               </datalist>
 
-              <fieldset className="flex flex-col gap-1.5">
+              <fieldset {...marcaDelCampo('moneda')} className="flex flex-col gap-1.5">
                 <legend className="mb-1.5 text-label text-text-2">{textos.precioEn}</legend>
                 <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm/datos:max-w-80">
                   {MONEDAS.map((una) => (
@@ -428,7 +484,7 @@ export function PantallaDeProyecto({
               </fieldset>
 
               <CamposJuntos separacion="gap-5" campoMinimo="14rem">
-                <div className="flex flex-col gap-1.5">
+                <div {...marcaDelCampo('presupuesto')} className="flex flex-col gap-1.5">
                   <label htmlFor={`${idCampos}-presupuesto`} className="text-label text-text-2">
                     {textos.presupuesto}
                   </label>
@@ -483,6 +539,7 @@ export function PantallaDeProyecto({
 
                 <Campo
                   {...register('sena')}
+                  {...marcaDelCampo('sena')}
                   etiqueta={textos.senaPropia}
                   className="@min-[29rem]/campos:h-15"
                   inputMode="decimal"
@@ -492,7 +549,7 @@ export function PantallaDeProyecto({
                 />
               </CamposJuntos>
 
-              <fieldset className="flex flex-col gap-1.5">
+              <fieldset {...marcaDelCampo('formaDePago')} className="flex flex-col gap-1.5">
                 <legend className="mb-1.5 text-label text-text-2">{textos.formaDePago}</legend>
                 <div className="grid grid-cols-2 gap-1 rounded-panel bg-ink/6 p-1 @sm/datos:grid-cols-4">
                   {FORMAS_EN_ORDEN.map((forma) => (
@@ -508,18 +565,70 @@ export function PantallaDeProyecto({
                 </div>
               </fieldset>
 
+              {deConsulta && (
+                <div data-fila="consulta" className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 gap-4 @sm/datos:grid-cols-2 @sm/datos:gap-x-3">
+                    <Campo
+                      {...register('fecha_visita')}
+                      {...marcaDelCampo('visita')}
+                      etiqueta={textos.visita}
+                      type="date"
+                    />
+                    <Campo
+                      {...register('visita_hora')}
+                      {...marcaDelCampo('horaDeLaVisita')}
+                      etiqueta={textos.horaDeLaVisita}
+                      type="time"
+                      ayuda={textos.ayudaDeLaHora}
+                    />
+                  </div>
+                  <label className="-mt-1 flex min-h-tap cursor-pointer items-start gap-3 py-1">
+                    <input
+                      {...register('visita_hecha')}
+                      {...marcaDelCampo('visitaHecha')}
+                      type="checkbox"
+                      className="mt-0.5 size-5 flex-none accent-ink"
+                    />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-body font-medium text-ink">{textos.yaFuiARelevar}</span>
+                      <span className="text-meta text-text-3">{textos.ayudaDeYaFui}</span>
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-1 gap-4 @sm/datos:grid-cols-2 @sm/datos:gap-x-3">
+                    <Campo
+                      {...register('vencimiento_presupuesto')}
+                      {...marcaDelCampo('vencimiento')}
+                      etiqueta={textos.entregarElPresupuestoAntesDel}
+                      type="date"
+                      ayuda={textos.ayudaDelVencimiento}
+                    />
+                    {estadoElegido === 'presupuesto_enviado' && (
+                      <Campo
+                        {...register('presupuesto_vale_hasta')}
+                        {...marcaDelCampo('valeHasta')}
+                        etiqueta={textos.valeHasta}
+                        type="date"
+                        ayuda={textos.ayudaDeValeHasta}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div
                 data-fila="fechas"
                 className="grid grid-cols-1 gap-4 @sm/datos:grid-cols-2 @sm/datos:gap-x-3 @sm/datos:gap-y-1.5 @min-[44rem]/datos:grid-cols-3 @min-[44rem]/datos:gap-x-4"
               >
                 <Campo
                   {...register('fecha_inicio')}
+                  {...marcaDelCampo('inicio')}
                   etiqueta={textos.fechaDeInicio}
                   type="date"
                   error={errors.fecha_inicio?.message}
                   contenedor={FECHA_ALINEADA}
                 />
                 <Campo
+                  {...marcaDelCampo('entrega')}
                   {...register('entrega_estimada', {
                     onChange: () => {
                       setEntregaAuto(false);
@@ -532,6 +641,7 @@ export function PantallaDeProyecto({
                 />
                 <Campo
                   {...register('entrega_hora')}
+                  {...marcaDelCampo('horaDeLaEntrega')}
                   etiqueta={textos.horaDeLaEntrega}
                   type="time"
                   ayuda={textos.horaAyuda}
@@ -540,7 +650,7 @@ export function PantallaDeProyecto({
               </div>
 
               <CamposJuntos columnas={3} separacion="gap-5">
-                <div className="flex flex-col gap-1.5">
+                <div {...marcaDelCampo('estado')} className="flex flex-col gap-1.5">
                   <label htmlFor={`${idCampos}-estado`} className="text-label text-text-2">
                     {textos.estado}
                   </label>
@@ -565,7 +675,7 @@ export function PantallaDeProyecto({
                   )}
                 </div>
 
-                <div className="flex flex-col gap-1.5">
+                <div {...marcaDelCampo('direccion')} className="flex flex-col gap-1.5">
                   <label
                     htmlFor={`${idCampos}-direccion`}
                     className="flex items-center justify-between gap-2 text-label text-text-2"
@@ -607,7 +717,7 @@ export function PantallaDeProyecto({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
+                <div {...marcaDelCampo('comprobante')} className="flex flex-col gap-1.5">
                   <label
                     htmlFor={`${idCampos}-comprobante`}
                     className="flex items-baseline justify-between gap-2 text-label text-text-2"
@@ -637,7 +747,7 @@ export function PantallaDeProyecto({
                 </div>
               </CamposJuntos>
 
-              <div className="flex flex-col gap-1.5">
+              <div {...marcaDelCampo('notas')} className="flex flex-col gap-1.5">
                 <label htmlFor={`${idCampos}-notas`} className="text-label text-text-2">
                   {textos.notasDeObra}
                 </label>
@@ -680,39 +790,45 @@ export function PantallaDeProyecto({
                   </p>
                 </div>
               )}
-              <FilasDeOpciones
-                control={control}
-                register={register}
-                errores={errors}
-                campos={opciones}
-                bloqueado={false}
-              />
-              <FilasDinamicas
-                lista="pagos"
-                control={control}
-                register={register}
-                setValue={setValue}
-                errores={errors}
-                campos={pagos}
-                bloqueado={liquidado}
-                apertura={aperturaDeLaReplica(replica)}
-                delPago={{
-                  monedaDelTrabajo: moneda,
-                  monedaNueva: monedaDeUnPagoNuevo(proyecto, moneda),
-                  tesorosEnDolares,
-                  dolarDelDia,
-                  alCrearUnTesoroEnDolares,
-                  facturados: pagosConFacturaDeVerdad(replica),
-                }}
-              />
-              <FilasDinamicas
-                lista="gastos"
-                control={control}
-                register={register}
-                errores={errors}
-                campos={gastos}
-                bloqueado={liquidado}
-              />
+              <div {...marcaDelCampo('opciones')} className="contents">
+                <FilasDeOpciones
+                  control={control}
+                  register={register}
+                  errores={errors}
+                  campos={opciones}
+                  bloqueado={false}
+                />
+              </div>
+              <div {...marcaDelCampo('pagos')} className="contents">
+                <FilasDinamicas
+                  lista="pagos"
+                  control={control}
+                  register={register}
+                  setValue={setValue}
+                  errores={errors}
+                  campos={pagos}
+                  bloqueado={liquidado}
+                  apertura={aperturaDeLaReplica(replica)}
+                  delPago={{
+                    monedaDelTrabajo: moneda,
+                    monedaNueva: monedaDeUnPagoNuevo(proyecto, moneda),
+                    tesorosEnDolares,
+                    dolarDelDia,
+                    alCrearUnTesoroEnDolares,
+                    facturados: pagosConFacturaDeVerdad(replica),
+                  }}
+                />
+              </div>
+              <div {...marcaDelCampo('gastos')} className="contents">
+                <FilasDinamicas
+                  lista="gastos"
+                  control={control}
+                  register={register}
+                  errores={errors}
+                  campos={gastos}
+                  bloqueado={liquidado}
+                />
+              </div>
             </div>
           </SeccionesEnFilas>
         </div>

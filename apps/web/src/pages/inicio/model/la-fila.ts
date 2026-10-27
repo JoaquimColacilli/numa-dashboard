@@ -3,6 +3,7 @@ import {
   CERO,
   maximo,
   sumarTodos,
+  type Fila,
   type FilaDelMes,
   type ModoDePaso,
   type Money,
@@ -18,6 +19,7 @@ import { mensajes } from '@/shared/idioma';
 import {
   diaDelMes,
   diasDelMes,
+  diaYMesCorto,
   formatearPesos,
   formatearPorcentaje,
   mesDeLaFecha,
@@ -56,16 +58,22 @@ export interface ObligacionEnInicio {
 export function obligacionesEnInicio(
   delMes: FilaDelMes,
   tesoros: readonly TesoroDelTaller[],
+  fila?: Pick<Fila, 'obligaciones'>,
 ): ObligacionEnInicio[] {
-  const { regla } = mensajes().paginaInicio.laFila;
+  const { regla, reglaDelMontoFijo } = mensajes().paginaInicio.laFila;
   return delMes.obligaciones.map((obligacion, indice) => {
     const tesoro = tesoroQueSeMuestra(tesoros, obligacion.tesoro);
+    const montoFijo =
+      fila?.obligaciones.find((una) => una.tesoro === obligacion.tesoro)?.montoFijo ?? null;
     return {
       numero: indice + 1,
       tesoro: obligacion.tesoro,
       nombre: tesoro.nombre,
       tinta: tesoro.tinta,
-      regla: regla[obligacion.base](formatearPorcentaje(obligacion.porcentaje)),
+      regla:
+        montoFijo === null
+          ? regla[obligacion.base](formatearPorcentaje(obligacion.porcentaje))
+          : reglaDelMontoFijo(formatearPesos(montoFijo)),
       apartado: obligacion.apartado,
       aPagar: obligacion.aPagar,
     };
@@ -95,6 +103,10 @@ export interface PasoEnInicio {
 
 function detalleDelPaso(paso: PasoDelMes, tesoro: TesoroQueSeMuestra): string {
   const textos = mensajes().paginaInicio.laFila;
+  if (paso.vencimiento !== null && paso.ciclo !== null) {
+    const ciclo = textos.delCiclo(diaYMesCorto(paso.ciclo.desde), diaYMesCorto(paso.ciclo.hasta));
+    return paso.clase === 'sueldo' ? textos.sueldoDelCiclo(ciclo) : ciclo;
+  }
   if (paso.clase === 'sueldo') return textos.sueldo;
   if (paso.clase === 'fijos' && tesoro.clave === 'maun') return textos.costosFijos;
   const modo = modoEnPalabras(paso.modo, paso.tipo);
@@ -233,6 +245,8 @@ export interface FaltanteEnInicio {
   modo: ModoDePaso;
   falta: Money;
   vence: VencimientoDeLaAgenda | null;
+  pagaSola: boolean;
+  maun: string;
 }
 
 export function nombreEnLaFrase(tesoro: Pick<TesoroQueSeMuestra, 'clave' | 'nombre'>): string {
@@ -248,12 +262,15 @@ export function faltantesEnInicio(
   vencimientos: readonly VencimientoDeLaAgenda[],
   hoy: string,
 ): FaltanteEnInicio[] {
+  const maun = tesoros.find((tesoro) => tesoro.clave === 'maun')?.nombre ?? '';
   return faltantesDeLosCompromisos(delMes, vencimientos, hoy).map((faltante) => ({
     tesoro: faltante.tesoro,
     nombre: nombreEnLaFrase(tesoroQueSeMuestra(tesoros, faltante.tesoro)),
     modo: faltante.modo,
     falta: maximo(faltante.falta, CERO),
     vence: faltante.vence,
+    pagaSola: faltante.pagaSola,
+    maun,
   }));
 }
 

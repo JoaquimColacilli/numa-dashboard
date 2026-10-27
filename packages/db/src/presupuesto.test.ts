@@ -22,6 +22,7 @@ const BORRADOR = borradorNuevo({
   obra: 'Arenales 1840, Palermo',
   plantilla: PLANTILLA_DE_SIEMPRE,
   validezDias: 15,
+  faltaMedir: false,
   idNuevo: () => 'm1',
 });
 
@@ -44,6 +45,7 @@ const DOCUMENTO = documentoDelPresupuesto(
     valores: valoresDelTrabajo(centavos(120_000_000), []),
     senaBp: puntosBasicos(5000),
     abonado: centavos(0),
+    mandadoEl: '2026-09-20',
   },
   {
     plata: (importe) => `$ ${String(importe / 100)}`,
@@ -51,6 +53,9 @@ const DOCUMENTO = documentoDelPresupuesto(
     modificaciones: (cantidad) =>
       `${String(cantidad)} ${cantidad === 1 ? 'modificación' : 'modificaciones'}`,
     meses: (cantidad) => `${String(cantidad)} ${cantidad === 1 ? 'mes' : 'meses'}`,
+    fecha: (fecha) => fecha,
+    senaAcordada: (porcentaje, monto) =>
+      monto === null ? `del ${porcentaje}%` : `del ${porcentaje}% (${monto})`,
   },
 );
 

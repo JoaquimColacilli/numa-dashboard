@@ -28,7 +28,7 @@ export function fechaDeCreacion(p: PresupuestoEnPdf): Date | undefined {
 }
 
 export function tituloDelPdf(p: PresupuestoEnPdf, { m }: LenguaDelPdf): string {
-  const { titulo } = m.pdf;
+  const titulo = p.documento.estimativo ? m.pdf.tituloDelEstimativo : m.pdf.titulo;
   if (p.numero === null) return titulo.sinNumero;
   const conRevision =
     p.revision <= 1 ? titulo.numero(p.numero) : titulo.conRevision(p.numero, p.revision);

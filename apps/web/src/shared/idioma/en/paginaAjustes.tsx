@@ -26,6 +26,9 @@ export const paginaAjustes = {
   verLaFila: 'See the waterfall in Buckets',
   tuTaller: 'Your shop',
   tuPresupuesto: 'Your quote',
+  loQuePreguntas: 'What you ask in an inquiry',
+  loQueTeGuia:
+    'What shows up in each inquiry to guide the chat: what you need to know for a careful estimate.',
   loQueVaEnCadaPresupuesto:
     'What goes in every quote you put together: your details, the numbers, and your usual wording.',
   comoTePagan: 'How clients pay you',
@@ -40,7 +43,6 @@ export const paginaAjustes = {
   loQueVenTusClientes:
     'What your clients see on their page: photos of other jobs and your social media.',
   redes: 'Social media',
-  corregirElSaldoDeCocos: 'Adjust the Cocos balance',
   espacioParaArchivos: 'File storage',
   espacioUsado: ({ usado, total, Junto }) => (
     <>

@@ -26,6 +26,7 @@ import {
 import {
   BloquePlegable,
   Button,
+  ConSalida,
   FilaDeAcciones,
   Globo,
   Icono,
@@ -34,6 +35,7 @@ import {
   RotuloDelPresupuesto,
 } from '@/shared/ui';
 
+import type { AprobacionHecha, AprobarElPresupuesto } from '../model/aprobar';
 import {
   enlaceParaEscribirleAlTaller,
   ID_DE_COMO_PAGAR,
@@ -46,6 +48,7 @@ import {
   rotuloDelMandado,
   textoDeLaValidez,
 } from '../model/presupuesto';
+import { HojaDeAprobar, LoQueAprobaste, type LoQueSeAprueba } from './AprobarElPresupuesto';
 
 const TARJETA = 'rounded-panel border border-hairline bg-paper px-4 py-4 md:px-5';
 
@@ -179,8 +182,11 @@ function Incluye({ renglones }: { renglones: readonly string[] }) {
 
 interface LoQueSeMuestraDeLosValores {
   conLoPagado: boolean;
+  conSena: boolean;
   acordado: number | null;
 }
+
+type BotonDeAprobar = ((aprobada: LoQueSeAprueba) => ReactNode) | null;
 
 function Monto({ children }: { children: string }) {
   return <span translate="no">{children}</span>;
@@ -217,7 +223,7 @@ function CuentasDeUnValor({
 }) {
   const m = useMensajesDelCliente().presupuesto.valores;
   const f = useFormatosDelCliente();
-  const pago = como.conLoPagado && cuenta.pagado > 0;
+  const pago = como.conLoPagado && como.conSena && cuenta.pagado > 0;
   return (
     <div className="flex flex-col text-body leading-normal">
       <LineaDePuntos
@@ -235,12 +241,16 @@ function CuentasDeUnValor({
           {m.acordado(plata(como.acordado))}
         </p>
       )}
-      <LineaDePuntos
-        className="py-1"
-        izquierda={m.sena(f.porcentaje(senaBp))}
-        derecha={<Monto>{plata(cuenta.sena)}</Monto>}
-      />
-      <Referencia importe={cuenta.sena} referencia={referencia} />
+      {como.conSena && (
+        <>
+          <LineaDePuntos
+            className="py-1"
+            izquierda={m.sena(f.porcentaje(senaBp))}
+            derecha={<Monto>{plata(cuenta.sena)}</Monto>}
+          />
+          <Referencia importe={cuenta.sena} referencia={referencia} />
+        </>
+      )}
       {pago && (
         <>
           <LineaDePuntos
@@ -264,7 +274,7 @@ function CuentasDeUnValor({
           </div>
         </>
       )}
-      {como.conLoPagado && (
+      {como.conLoPagado && como.conSena && (
         <LineaDePuntos
           className="py-1 text-text-2"
           izquierda={m.despuesElSaldo}
@@ -280,11 +290,13 @@ function Valores({
   cuentas,
   conEleccion,
   como,
+  aprobar,
 }: {
   documento: DocumentoDelPresupuesto;
   cuentas: readonly CuentaDeUnValor<Moneda>[];
   conEleccion: boolean;
   como: LoQueSeMuestraDeLosValores;
+  aprobar: BotonDeAprobar;
 }) {
   const m = useMensajesDelCliente().presupuesto;
   const f = useFormatosDelCliente();
@@ -306,6 +318,9 @@ function Valores({
             referencia={referencia}
           />
         </div>
+        {aprobar !== null && (
+          <div className="mt-3">{aprobar({ cuenta: unica, conOpciones: false })}</div>
+        )}
       </div>
     );
   }
@@ -333,6 +348,9 @@ function Valores({
             referencia={referencia}
           />
         </div>
+        {aprobar !== null && (
+          <div className="mt-3">{aprobar({ cuenta: unica, conOpciones: true })}</div>
+        )}
       </div>
     );
   }
@@ -365,10 +383,13 @@ function Valores({
                 referencia={referencia}
               />
             </div>
+            {aprobar !== null && (
+              <div className="pt-2.5">{aprobar({ cuenta, conOpciones: true })}</div>
+            )}
           </li>
         ))}
       </ul>
-      {conEleccion && (
+      {conEleccion && aprobar === null && (
         <p className="mt-3 text-body leading-normal text-text-2">{m.valores.elegiLaOpcion}</p>
       )}
     </div>
@@ -399,6 +420,9 @@ function FormaPlazoYValidez({
   validez: ValidezDelDocumento | null;
 }) {
   const m = useMensajesDelCliente().presupuesto;
+  const f = useFormatosDelCliente();
+  const { listoPara, senaAntesDel } = documento;
+  const conFechas = listoPara !== null && senaAntesDel !== null;
   return (
     <dl className={`${BLOQUE} flex flex-col gap-3`}>
       {documento.formaDePago !== null && (
@@ -411,9 +435,19 @@ function FormaPlazoYValidez({
           <span translate="no">{documento.clausulaDeLaMoneda}</span>
         </Definicion>
       )}
-      <Definicion clave={m.definiciones.plazo}>
-        {m.diasHabiles(documento.plazoDeFabricacion)}
-      </Definicion>
+      {!documento.estimativo && !conFechas && (
+        <Definicion clave={m.definiciones.plazo}>
+          {m.diasHabiles(documento.plazoDeFabricacion)}
+        </Definicion>
+      )}
+      {!documento.estimativo && listoPara !== null && senaAntesDel !== null && (
+        <>
+          <Definicion clave={m.definiciones.entrega}>{f.fechaConAnio(listoPara)}</Definicion>
+          <Definicion clave={m.definiciones.senaAntesDel}>
+            {f.fechaConAnio(senaAntesDel)}
+          </Definicion>
+        </>
+      )}
       {validez !== null && (
         <Definicion clave={m.definiciones.validez}>
           {validez.vencida ? (
@@ -532,12 +566,14 @@ function CuerpoDelDocumento({
   validez,
   conEleccion,
   como,
+  aprobar = null,
 }: {
   documento: DocumentoDelPresupuesto;
   cuentas: readonly CuentaDeUnValor<Moneda>[];
   validez: ValidezDelDocumento | null;
   conEleccion: boolean;
   como: LoQueSeMuestraDeLosValores;
+  aprobar?: BotonDeAprobar;
 }) {
   return (
     <>
@@ -546,7 +582,13 @@ function CuerpoDelDocumento({
       <Herrajes herrajes={documento.herrajes} />
       <ATenerEnCuenta renglones={documento.aTenerEnCuenta} />
       <Incluye renglones={documento.incluye} />
-      <Valores documento={documento} cuentas={cuentas} conEleccion={conEleccion} como={como} />
+      <Valores
+        documento={documento}
+        cuentas={cuentas}
+        conEleccion={conEleccion}
+        como={como}
+        aprobar={aprobar}
+      />
       <FormaPlazoYValidez documento={documento} validez={validez} />
       <LoQueHayQueSaber documento={documento} />
     </>
@@ -637,6 +679,7 @@ export interface ElPresupuestoProps {
   hoy: string;
   hayComoPagar: boolean;
   borrador?: boolean;
+  alAprobar?: AprobarElPresupuesto;
 }
 
 function ElPresupuestoMandado({
@@ -644,8 +687,15 @@ function ElPresupuestoMandado({
   hoy,
   hayComoPagar,
   borrador = false,
+  alAprobar,
 }: ElPresupuestoProps) {
   const m = useMensajesDelCliente();
+  const [aprobando, setAprobando] = useState<LoQueSeAprueba | null>(null);
+  const [hechaAca, setHechaAca] = useState<AprobacionHecha | null>(null);
+  const { aprobacion, documento } = presupuesto;
+  const hecha = aprobacion.situacion === 'aprobada' ? aprobacion : hechaAca;
+  const sePuede = aprobacion.situacion === 'se-puede' && hecha === null ? aprobacion : null;
+  const escribir = borrador ? null : enlaceParaEscribirleAlTaller(presupuesto, m);
   const f = useFormatosDelCliente();
   const titulo = useId();
   const pdf = usePdfDelPresupuesto(
@@ -667,7 +717,7 @@ function ElPresupuestoMandado({
     <section aria-labelledby={titulo} data-quieta className={`@container ${TARJETA}`}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={titulo} className="text-section font-semibold">
-          {m.presupuesto.titulo}
+          {documento.estimativo ? m.presupuesto.tituloDelEstimativo : m.presupuesto.titulo}
         </h2>
         {borrador && (
           <span className="rounded-pill border border-border px-2 py-0.5 text-badge font-semibold text-text-2">
@@ -685,12 +735,29 @@ function ElPresupuestoMandado({
         </p>
       )}
 
+      {documento.estimativo && (
+        <p className="mt-1.5 text-body leading-normal text-pretty text-text-2">
+          {m.presupuesto.esUnNumeroEstimado}
+        </p>
+      )}
+
       <RotuloDelPresupuesto
         className="mt-3"
         {...rotulo}
         numero={borrador && rotulo.numero === '' ? null : rotulo.numero}
         emitido={borrador ? null : rotulo.emitido}
       />
+
+      {hecha !== null && (
+        <LoQueAprobaste
+          hecha={hecha}
+          documento={documento}
+          hoy={hoy}
+          conComoPagar={!borrador && hayComoPagar}
+          idDeComoPagar={ID_DE_COMO_PAGAR}
+          escribir={escribir}
+        />
+      )}
 
       {presupuesto.queCambio !== null && (
         <div className="mt-3 flex items-start gap-3 rounded-field bg-surface px-3.5 pt-3 pb-3.5">
@@ -711,8 +778,25 @@ function ElPresupuestoMandado({
           documento={presupuesto.documento}
           cuentas={presupuesto.cuentas}
           validez={validez}
-          conEleccion={presupuesto.cuentas.length > 1}
-          como={{ conLoPagado: true, acordado: null }}
+          conEleccion={presupuesto.cuentas.length > 1 && hecha === null}
+          como={{ conLoPagado: true, conSena: !documento.estimativo, acordado: null }}
+          aprobar={
+            sePuede === null
+              ? null
+              : (aprobada) => (
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      setAprobando(aprobada);
+                    }}
+                  >
+                    <Icono nombre="check" tamano={16} />
+                    {aprobada.conOpciones
+                      ? m.presupuesto.aprobar.aprobarEstaOpcion
+                      : m.presupuesto.aprobar.aprobar}
+                  </Button>
+                )
+          }
         />
       </div>
 
@@ -720,11 +804,34 @@ function ElPresupuestoMandado({
         className="mt-5"
         pdf={pdf}
         conCompartir={!borrador}
-        escribir={borrador ? null : enlaceParaEscribirleAlTaller(presupuesto, m)}
+        escribir={escribir}
         comoDejarLaSena={!borrador && presupuesto.pideLaSena && hayComoPagar}
       />
 
       <PieDelDocumento documento={presupuesto.documento} />
+
+      {sePuede !== null && (
+        <ConSalida valor={aprobando}>
+          {(aprobada) => (
+            <HojaDeAprobar
+              aprobada={aprobada}
+              documento={documento}
+              revisionId={sePuede.revisionId}
+              pideFecha={sePuede.pideFecha}
+              dias={sePuede.dias}
+              hoy={hoy}
+              alAprobar={borrador ? undefined : alAprobar}
+              alAprobado={(nueva) => {
+                setHechaAca(nueva);
+                setAprobando(null);
+              }}
+              alCerrar={() => {
+                setAprobando(null);
+              }}
+            />
+          )}
+        </ConSalida>
+      )}
     </section>
   );
 }
@@ -768,7 +875,11 @@ function ElPresupuestoQueAcepto({ presupuesto }: ElPresupuestoAceptadoProps) {
             cuentas={presupuesto.cuentas}
             validez={null}
             conEleccion={false}
-            como={{ conLoPagado: false, acordado: presupuesto.acordado }}
+            como={{
+              conLoPagado: false,
+              conSena: !presupuesto.documento.estimativo,
+              acordado: presupuesto.acordado,
+            }}
           />
           <PieDelDocumento documento={presupuesto.documento} />
         </div>

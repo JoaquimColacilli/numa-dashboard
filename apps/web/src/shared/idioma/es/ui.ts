@@ -44,6 +44,7 @@ export const ui = {
   rotulo: {
     etiqueta: 'Rótulo del presupuesto',
     presupuesto: 'Presupuesto',
+    estimativo: 'Presupuesto estimativo',
     numero: (numero: string) => `Nº ${numero}`,
     sinNumero: 'Sin número todavía',
     revision: 'Rev.',

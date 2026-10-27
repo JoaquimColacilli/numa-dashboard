@@ -83,6 +83,7 @@ function vencimiento(cambios: Partial<EventoVencimiento> = {}): EventoVencimient
     monto: centavos(27_000_000),
     hecha: false,
     importante: false,
+    pagoSolo: null,
     ...cambios,
   };
 }
@@ -95,6 +96,19 @@ describe('un vencimiento', () => {
     expect(textoCortoDelEvento(alquiler)).toBe('Vence: Alquiler');
     expect(detalleDelEvento(alquiler).replace(/\s/g, ' ')).toBe('$ 270.000 de Gastos fijos');
     expect(textoDeLoHecho(vencimiento({ hecha: true }))).toBe('pagado');
+  });
+
+  it('el de una deuda con día de pago no tiene renglón: se nombra por su tesoro y dice solo el monto', () => {
+    const delAlquiler = vencimiento({
+      id: 'vencimiento:alquiler:2026-09-10',
+      tesoro: 'alquiler',
+      nombreDelTesoro: 'Alquiler del taller',
+      renglon: null,
+    });
+    expect(textoDelEvento(delAlquiler)).toBe('Alquiler del taller');
+    expect(nombreDelEvento(delAlquiler)).toBe('Vence: Alquiler del taller');
+    expect(textoCortoDelEvento(delAlquiler)).toBe('Vence: Alquiler del taller');
+    expect(detalleDelEvento(delAlquiler).replace(/\s/g, ' ')).toBe('$ 270.000');
   });
 
   it('se cuenta aparte de las citas, y el que pasó sin pagarse venció', () => {

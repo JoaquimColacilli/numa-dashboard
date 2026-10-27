@@ -13,8 +13,17 @@ export {
   type ReversionDeProyecto,
 } from './api/liquidacion';
 export {
+  ATRIBUTO_DEL_CAMPO,
+  CAMPOS_DEL_TRABAJO,
+  camposDelTrabajo,
+  esUnaConsulta,
+  marcaDelCampo,
+  type CampoDelTrabajo,
+} from './model/campos';
+export {
   aprobacionDeUnaOpcion,
   CLAVE_DE_BAJA_DE_PROYECTO,
+  CLAVE_DE_LA_FECHA_DEL_CONTACTO,
   CLAVE_DE_COSTOS,
   CLAVE_DE_FORMAS_DE_COBRO,
   CLAVE_DE_LA_ENTREGA,
@@ -22,11 +31,13 @@ export {
   CLAVE_DE_MARCAS,
   CLAVE_DE_NOTAS,
   CLAVE_DE_PROYECTO,
+  CLAVE_DE_RESPUESTAS_DE_LA_CONSULTA,
   CLAVE_DE_TAREAS,
   guardadoDeLoQueHaceFalta,
   guardadoDeUnPaso,
   hijosDelProyecto,
   MUTACION_DE_BAJA_DE_PROYECTO,
+  MUTACION_DE_LA_FECHA_DEL_CONTACTO,
   MUTACION_DE_COSTOS,
   MUTACION_DE_FORMAS_DE_COBRO,
   MUTACION_DE_LA_ENTREGA,
@@ -34,16 +45,19 @@ export {
   MUTACION_DE_MARCAS,
   MUTACION_DE_NOTAS,
   MUTACION_DE_PROYECTO,
+  MUTACION_DE_RESPUESTAS_DE_LA_CONSULTA,
   MUTACION_DE_TAREAS,
   type BajaDeProyecto,
   type CambioDeLaEntrega,
   type CostosDelTrabajo,
   type EdicionDeProyecto,
+  type FechaDelContacto,
   type FormasDeCobroDelTrabajo,
   type GuardadoDeProyecto,
   type MarcaDeLaAgenda,
   type MarcaDelSeguimiento,
   type MarcaDeTareas,
+  type RespuestasDelTrabajo,
 } from './api/mutacion';
 export {
   cambiaAlgunaForma,
@@ -171,6 +185,13 @@ export {
   type AjusteDeLaLiquidacion,
   type DiferenciaDelAjuste,
 } from './model/liquidacion';
+export { direccionDelTrabajo, guardadoDeLaDireccion } from './model/direccion';
+export {
+  filaConLasRespuestas,
+  filaDespuesDelGuardado,
+  useFilaEnCamino,
+  type FilaEnCamino,
+} from './model/enCamino';
 export {
   cambiaAlgoDeLaEntrega,
   cambiosDeLaComprometida,
@@ -254,6 +275,8 @@ export {
   contactosDelSeguimiento,
   etapaAlVolver,
   historiaDelSeguimiento,
+  etapaQueVeElCliente,
+  faltaMedirAlPresupuestar,
   pendienteDelSeguimiento,
   RESULTADO_DEL_CONTACTO,
   seguimientosEnOrden,
@@ -328,6 +351,19 @@ export {
 } from './model/rutas';
 export { BloqueDeLaSena, type BloqueDeLaSenaProps } from './ui/BloqueDeLaSena';
 export { CostosDeCotizar, type CostosDeCotizarProps } from './ui/CostosDeCotizar';
+export {
+  ParaElEstimativo,
+  RenglonesDelEstimativo,
+  type ParaElEstimativoProps,
+  type RenglonesDelEstimativoProps,
+} from './ui/ParaElEstimativo';
+export {
+  mismasRespuestas,
+  preguntasConLasDeAntes,
+  preguntasDelTaller,
+  respuestasConLoEscrito,
+  type RespuestasEscritas,
+} from './model/preguntas';
 export { DistribucionDespiece, type DistribucionDespieceProps } from './ui/DistribucionDespiece';
 export { EntregaRelativa, type EntregaRelativaProps } from './ui/EntregaRelativa';
 export { EstadoBadge } from './ui/EstadoBadge';

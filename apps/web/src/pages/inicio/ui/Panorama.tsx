@@ -6,13 +6,12 @@ import { cifrasDelPanorama, type PanoramaDelTaller } from '../model/panorama';
 
 export interface PanoramaProps {
   panorama: PanoramaDelTaller;
-  nombreDelSuperavit: string;
 }
 
-export function Panorama({ panorama, nombreDelSuperavit }: PanoramaProps) {
+export function Panorama({ panorama }: PanoramaProps) {
   const m = useMensajes();
   const textos = m.paginaInicio.panorama;
-  const cifras = cifrasDelPanorama(panorama, nombreDelSuperavit);
+  const cifras = cifrasDelPanorama(panorama);
   const caracteres = caracteresDe(...cifras.map((cifra) => formatearLaPlata(cifra.monto)));
 
   return (

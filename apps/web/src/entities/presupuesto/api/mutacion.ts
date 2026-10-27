@@ -5,6 +5,7 @@ import {
   debeReintentarse,
   guardarElBorradorDelPresupuesto,
   mandarElPresupuestoAlCliente,
+  marcarLaRespuestaAlPresupuestoAtendida,
   type FilaDe,
   type PresupuestoMandado,
   type Replica,
@@ -20,9 +21,11 @@ import {
   type EnvioDelPresupuesto,
   type GuardadoDelBorrador,
 } from '../model/replica';
+import type { FilaDeRespuesta } from '../model/respuesta';
 
 export const CLAVE_DEL_BORRADOR = ['presupuestos', 'borrador'] as const;
 export const CLAVE_DEL_ENVIO = ['presupuestos', 'mandar'] as const;
+export const CLAVE_DE_LA_RESPUESTA_ATENDIDA = ['presupuestos', 'respuesta-atendida'] as const;
 
 const REINTENTOS = 5;
 
@@ -76,3 +79,57 @@ export const MUTACION_DEL_ENVIO: MutationOptions<PresupuestoMandado, unknown, En
       cambiarReplicas(client, (replica) => sinElPresupuestoMandado(replica, envio));
     },
   };
+
+export interface RespuestaAtendida {
+  respuesta: FilaDeRespuesta;
+  momento: string;
+}
+
+export const MUTACION_DE_LA_RESPUESTA_ATENDIDA: MutationOptions<
+  FilaDeRespuesta,
+  unknown,
+  RespuestaAtendida
+> = {
+  mutationKey: CLAVE_DE_LA_RESPUESTA_ATENDIDA,
+  mutationFn: ({ respuesta, momento }) =>
+    marcarLaRespuestaAlPresupuestoAtendida(respuesta.id, momento),
+  scope: COLA_DE_SALIDA,
+  gcTime: DURACION_DEL_RECHAZO_MS,
+  retry: (intentos, error) => intentos < REINTENTOS && debeReintentarse(error),
+  onMutate: async ({ respuesta, momento }, { client }) => {
+    await client.cancelQueries({ queryKey: claveDeTodaReplica() });
+    cambiarReplicas(client, (replica) =>
+      aplicarFilaLocal(replica, 'respuestas_al_presupuesto', {
+        ...respuesta,
+        atendida_at: momento,
+        updated_at: momento,
+        version: respuesta.version + 1,
+      }),
+    );
+    await guardarCacheAhora();
+  },
+  onSuccess: (fila, _atendida, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) =>
+      aplicarFilaLocal(replica, 'respuestas_al_presupuesto', fila),
+    );
+  },
+  onError: (_error, { respuesta }, _contexto, { client }) => {
+    cambiarReplicas(client, (replica) =>
+      aplicarFilaLocal(replica, 'respuestas_al_presupuesto', respuesta),
+    );
+  },
+};
+
+export function atenderLaRespuesta(
+  cliente: QueryClient,
+  respuesta: FilaDeRespuesta,
+  meta: MutationOptions['meta'],
+  momento: string = new Date().toISOString(),
+): void {
+  if (respuesta.atendida_at !== null) return;
+  void cliente
+    .getMutationCache()
+    .build(cliente, { ...MUTACION_DE_LA_RESPUESTA_ATENDIDA, meta })
+    .execute({ respuesta, momento })
+    .catch(() => undefined);
+}

@@ -1,6 +1,6 @@
 import { cambiosDeLaFila, centavos, puntosBasicos, type Fila } from '@maun/domain';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   borradorDeLaFila,
@@ -51,7 +51,9 @@ const IIBB = '01900000-0000-7000-8000-000000000009';
 const APARTE = '01900000-0000-7000-8000-000000000010';
 
 const GUARDADA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -61,6 +63,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -70,6 +75,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -79,6 +87,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -100,7 +111,13 @@ function tiposDeLosCambios(): string[] {
 
 afterEach(() => {
   descartarElBorrador();
+  vi.useRealTimers();
 });
+
+function hoyEs(fecha: string): void {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(`${fecha}T15:00:00-03:00`));
+}
 
 describe('el borrador de la fila', () => {
   it('empieza con la fila guardada, sin cambios y con la versión que vio', () => {
@@ -268,8 +285,8 @@ describe('las obligaciones en el borrador', () => {
       }),
     );
     expect(fila().obligaciones).toEqual([
-      { tesoro: IIBB, porcentaje: 350, base: 'cobrado' },
-      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' },
+      { tesoro: IIBB, porcentaje: 350, base: 'cobrado', montoFijo: null },
+      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null },
     ]);
     expect(tiposDeLosCambios()).toEqual(['entra-a-las-obligaciones']);
 
@@ -282,10 +299,20 @@ describe('las obligaciones en el borrador', () => {
   it('una que entra por la manija arranca con 0% al final, y después se le pone el porcentaje', () => {
     empezarElBorrador('a', 4, GUARDADA);
     cambiarElBorrador(sumarComoObligacion(fila(), IIBB));
-    expect(fila().obligaciones.at(-1)).toEqual({ tesoro: IIBB, porcentaje: 0, base: 'ingreso' });
+    expect(fila().obligaciones.at(-1)).toEqual({
+      tesoro: IIBB,
+      porcentaje: 0,
+      base: 'ingreso',
+      montoFijo: null,
+    });
     cambiarElBorrador(conPorcentajeDeLaObligacion(fila(), IIBB, puntosBasicos(250)));
     cambiarElBorrador(conBase(fila(), IIBB, 'cobrado'));
-    expect(fila().obligaciones.at(-1)).toEqual({ tesoro: IIBB, porcentaje: 250, base: 'cobrado' });
+    expect(fila().obligaciones.at(-1)).toEqual({
+      tesoro: IIBB,
+      porcentaje: 250,
+      base: 'cobrado',
+      montoFijo: null,
+    });
     expect(borradorDeLaFila()?.atras).toHaveLength(3);
   });
 
@@ -293,7 +320,7 @@ describe('las obligaciones en el borrador', () => {
     empezarElBorrador('a', 4, {
       ...GUARDADA,
       obligaciones: [
-        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado' },
+        { tesoro: IIBB, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
         ...GUARDADA.obligaciones,
       ],
     });
@@ -372,9 +399,18 @@ describe('los modos, las metas, los días y el superávit en el borrador', () =>
   });
 
   it('«Qué es»: un ahorro fijo pasa a compromiso y vuelve, en el borde de su tipo', () => {
+    hoyEs('2026-10-26');
     empezarElBorrador('a', 4, GUARDADA);
     cambiarElBorrador(conTipo(fila(), MATERIALES, 'compromiso', null));
-    expect(fila().pasos[2]).toMatchObject({ tesoro: MATERIALES, clase: 'fijos', tope: 30_000_000 });
+    expect(fila().pasos[2]).toMatchObject({
+      tesoro: MATERIALES,
+      clase: 'fijos',
+      tope: 30_000_000,
+      modo: 'mes',
+      dia: 10,
+      pagaSola: true,
+      pagaSolaDesde: '2026-10-26',
+    });
     cambiarElBorrador(conTipo(fila(), FIJOS, 'ahorro-fijo', null, centavos(1_000)));
     expect(fila().pasos.map((paso) => [paso.tesoro, paso.clase])).toEqual([
       [HOGAR, 'sueldo'],
@@ -388,7 +424,8 @@ describe('los modos, las metas, los días y el superávit en el borrador', () =>
     expect(fila()).toEqual(GUARDADA);
   });
 
-  it('un compromiso nuevo se renueva al pagar y un ahorro fijo nuevo va por mes, al final de su tipo', () => {
+  it('un compromiso nuevo va por mes, con el día 10 y se paga solo desde hoy; un ahorro fijo nuevo va por mes, al final de su tipo', () => {
+    hoyEs('2026-10-26');
     empezarElBorrador('a', 4, GUARDADA);
     cambiarElBorrador(
       sumarComoCompromiso(fila(), HERRAMIENTAS, null, centavos(50_000_000), {
@@ -401,13 +438,17 @@ describe('los modos, las metas, los días y el superávit en el borrador', () =>
     expect(fila().pasos.map((paso) => [paso.tesoro, paso.modo, paso.hastaLaMeta])).toEqual([
       [HOGAR, 'mes', false],
       [FIJOS, 'mes', false],
-      [HERRAMIENTAS, 'saldo', false],
+      [HERRAMIENTAS, 'mes', false],
       [MATERIALES, 'mes', false],
       [INMUEBLE, 'mes', true],
     ]);
-    expect(fila().pasos[2]?.renglones).toEqual([
-      { nombre: 'Alquiler del galpón', monto: 50_000_000, dia: null },
-    ]);
+    expect(fila().pasos[2]).toMatchObject({
+      renglones: [{ nombre: 'Alquiler del galpón', monto: 50_000_000, dia: null }],
+      dia: 10,
+      pagaSola: true,
+      pagaSolaDesde: '2026-10-26',
+    });
+    expect(fila().pasos[4]).toMatchObject({ dia: null, pagaSola: false, pagaSolaDesde: null });
     deshacerElBorrador();
     deshacerElBorrador();
     expect(fila()).toEqual(GUARDADA);
@@ -426,14 +467,14 @@ describe('sumar un tesoro del estante en un lugar de la fila', () => {
     cambiarElBorrador(sumarEnElLugar(fila(), suelto(INMUEBLE, 1_000), 'ahorro-fijo'));
 
     expect(fila().obligaciones).toEqual([
-      { tesoro: IIBB, porcentaje: 0, base: 'ingreso' },
-      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso' },
+      { tesoro: IIBB, porcentaje: 0, base: 'ingreso', montoFijo: null },
+      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null },
     ]);
     expect(
       fila().pasos.map((paso) => [paso.tesoro, paso.clase, paso.modo, paso.tope, paso.hastaLaMeta]),
     ).toEqual([
       [HOGAR, 'sueldo', 'mes', 180_000_000, false],
-      [HERRAMIENTAS, 'fijos', 'saldo', 0, false],
+      [HERRAMIENTAS, 'fijos', 'mes', 0, false],
       [FIJOS, 'fijos', 'mes', 90_000_000, false],
       [MATERIALES, 'prioridad', 'mes', 30_000_000, false],
       [INMUEBLE, 'prioridad', 'mes', 0, true],

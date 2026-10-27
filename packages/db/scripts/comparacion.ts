@@ -7,7 +7,9 @@ import {
   calcularSena,
   centavos,
   centavosEn,
+  cicloDeLaFecha,
   columnasDeSiempre,
+  conElPagaSolaDesde,
   COMBINACIONES_DE_LA_MONEDA,
   condicionIvaDelReceptor,
   CONDICIONES_DEL_RECEPTOR,
@@ -15,10 +17,12 @@ import {
   cuitValido,
   DIEZMO,
   dolaresDePesos,
+  diaDelMes,
   documentoDelPresupuesto,
   documentoDelReceptor,
   ESTADOS,
   esEstado,
+  esFechaQueExiste,
   estaLiquidado,
   esLinkDeMercadoPago,
   fechaDeApertura,
@@ -37,6 +41,7 @@ import {
   MONEDA_DEL_TALLER,
   MONEDAS,
   pagosPorDelante,
+  pagosQueCorresponden,
   pesosDeDolares,
   PLANTILLA_DE_SIEMPRE,
   planDelReparto,
@@ -44,6 +49,9 @@ import {
   previoQueVio,
   primerProblemaDeLaFila,
   problemaDeLaPlantilla,
+  problemaDeLasFechas,
+  problemaDeLasPreguntas,
+  problemaDeLasRespuestas,
   problemaDelBorrador,
   problemaDelDocumento,
   problemasParaMandar,
@@ -61,6 +69,7 @@ import {
   TESOROS,
   topesDeLaLiquidacion,
   totalEnPesos,
+  validarAprobacion,
   validarRespuesta,
   validarRespuestaDeEntrega,
   valoresDelTrabajo,
@@ -91,6 +100,7 @@ import {
   type Moneda,
   type Money,
   type OpcionDelTrabajo,
+  type PagoDeUnVencimiento,
   type PlanDelReparto,
   type PreguntaDeLaEncuesta,
   type PuntosBasicos,
@@ -108,6 +118,7 @@ import {
   ajustesDe,
   aplicarLote,
   filaPorId,
+  filasDe,
   leerLote,
   quitarFilaLocal,
   replicaVacia,
@@ -122,7 +133,9 @@ import {
 import {
   datosDelLibro,
   entradaDeLaLiquidacion,
+  entradaDeLosPagos,
   filaDelTaller,
+  sistemaDeLaReplica,
   reaperturaDeLaFila,
   tesorosDeLaReplica,
   totalesDelProyecto,
@@ -1615,6 +1628,7 @@ function enteroEnTs(texto: string): number | null {
 interface ObligacionDelCaso {
   porcentaje: number;
   base: string;
+  montoFijo?: number | null;
 }
 
 interface PasoDelCaso {
@@ -1805,6 +1819,41 @@ const REPARTOS_FIJOS: readonly CasoDelReparto[] = [
     pasos: [{ objetivo: 90_000_000, previo: 63_000_000, porMes: true }],
     partes: [],
   },
+  {
+    cobrado: 3_000_000,
+    gastos: 0,
+    obligaciones: [{ porcentaje: 350, base: 'cobrado', montoFijo: 5_000_000 }, DEL_DIEZMO],
+    pasos: [],
+    partes: [],
+  },
+  {
+    cobrado: 13_000_000,
+    gastos: 0,
+    obligaciones: [{ porcentaje: 350, base: 'cobrado', montoFijo: 5_000_000 }, DEL_DIEZMO],
+    pasos: [{ objetivo: 1_000_000, previo: 0, porMes: true }],
+    partes: [],
+  },
+  {
+    cobrado: 0,
+    gastos: 1_000,
+    obligaciones: [{ porcentaje: 350, base: 'cobrado', montoFijo: 5_000_000 }],
+    pasos: [],
+    partes: [],
+  },
+  {
+    cobrado: 100,
+    gastos: 0,
+    obligaciones: [{ porcentaje: 350, base: 'cobrado', montoFijo: -1 }],
+    pasos: [],
+    partes: [],
+  },
+  {
+    cobrado: 100,
+    gastos: 0,
+    obligaciones: [{ porcentaje: 350, base: 'ingreso', montoFijo: 9_007_199_254_740_992 }],
+    pasos: [],
+    partes: [],
+  },
 ];
 
 function repartosAlAzar(escala: number): CasoDelReparto[] {
@@ -1826,6 +1875,8 @@ function repartosAlAzar(escala: number): CasoDelReparto[] {
       () => ({
         porcentaje: porcentajeDeObligacion(),
         base: siguiente(40) === 0 ? 'neta' : siguiente(2) === 0 ? 'cobrado' : 'ingreso',
+        montoFijo:
+          siguiente(4) === 0 ? (siguiente(30) === 0 ? -1 - siguiente(100) : importe()) : null,
       }),
     );
     const pasos = Array.from({ length: siguiente(7) }, () => ({
@@ -1850,6 +1901,10 @@ function repartirEnTs(caso: CasoDelReparto): Reparto {
       tesoro: tesoroDelCaso(i),
       porcentaje: obligacion.porcentaje as PuntosBasicos,
       base: obligacion.base as BaseDeLaObligacion,
+      montoFijo:
+        obligacion.montoFijo === undefined || obligacion.montoFijo === null
+          ? null
+          : (obligacion.montoFijo as Money),
       diezmo: false,
     })),
     pasos: caso.pasos.map((paso, i) => ({
@@ -1859,6 +1914,7 @@ function repartirEnTs(caso: CasoDelReparto): Reparto {
       porMes: paso.porMes,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
     })),
     reparto: caso.partes.map((parte, i) => ({
       tesoro: tesoroDelCaso(20 + i),
@@ -1889,7 +1945,8 @@ const REPARTIR_EN_SQL = `select r.neta_centavos::text as neta, r.obligaciones::t
     array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'previos') with ordinality as e (v, n) order by e.n),
     array(select e.v::boolean from jsonb_array_elements_text(c.caso -> 'porMes') with ordinality as e (v, n) order by e.n),
     array(select e.v::integer from jsonb_array_elements_text(c.caso -> 'partes') with ordinality as e (v, n) order by e.n),
-    array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'topes') with ordinality as e (v, n) order by e.n)
+    array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'topes') with ordinality as e (v, n) order by e.n),
+    array(select e.v::bigint from jsonb_array_elements_text(c.caso -> 'montosFijos') with ordinality as e (v, n) order by e.n)
   ) as r
   order by c.orden`;
 
@@ -1904,6 +1961,7 @@ function casoDelRepartoEnJson(caso: CasoDelReparto): string {
     porMes: caso.pasos.map((paso) => paso.porMes),
     partes: caso.partes.map((parte) => parte.porcentaje),
     topes: caso.partes.map((parte) => parte.tope),
+    montosFijos: caso.obligaciones.map((obligacion) => obligacion.montoFijo ?? null),
   });
 }
 
@@ -2159,8 +2217,22 @@ function filasAlAzar(escala: number): unknown[] {
       formaDelModo < 7 ? de(['mes', 'saldo', 'trabajo']) : de(['semanal', null, 3]),
     );
     const formaDeLaMeta = siguiente(8);
-    return conClave(conModo, 'hastaLaMeta', formaDeLaMeta < 4 ? 0 : 1, () =>
+    const conMeta = conClave(conModo, 'hastaLaMeta', formaDeLaMeta < 4 ? 0 : 1, () =>
       formaDeLaMeta < 7 ? siguiente(2) === 0 : de([null, 'si', 1]),
+    );
+    const formaDelDia = siguiente(10);
+    const conDia = conClave(conMeta, 'dia', formaDelDia < 5 ? 0 : 1, () =>
+      formaDelDia < 8 ? 1 + siguiente(31) : de([null, 0, 32, '10', 2.5]),
+    );
+    const formaDeSola = siguiente(10);
+    const conSola = conClave(conDia, 'pagaSola', formaDeSola < 6 ? 0 : 1, () =>
+      formaDeSola < 9 ? siguiente(2) === 0 : de([null, 'si', 1]),
+    );
+    const formaDelDesde = siguiente(10);
+    return conClave(conSola, 'pagaSolaDesde', formaDelDesde < 6 ? 0 : 1, () =>
+      formaDelDesde < 9
+        ? de(['2026-10-27', '2026-11-30', '2026-02-30', '2026-1-5', null])
+        : de([20261027, true]),
     );
   };
   const parte = (): unknown => {
@@ -2183,7 +2255,14 @@ function filasAlAzar(escala: number): unknown[] {
       base: siguiente(12) < 11 ? de(['cobrado', 'ingreso']) : de(['neta', 3, null]),
     };
     if (forma === 0) return { tesoro: armada.tesoro, porcentaje: armada.porcentaje };
-    return forma === 1 ? 'obligación' : armada;
+    if (forma === 1) return 'obligación';
+    const formaDelMonto = siguiente(8);
+    return formaDelMonto < 5
+      ? armada
+      : {
+          ...armada,
+          montoFijo: formaDelMonto < 7 ? monto() : de([null, '500', 2.5, 0]),
+        };
   };
   const obligaciones = (): unknown => {
     const forma = siguiente(10);
@@ -2438,6 +2517,7 @@ function filaValidaAlAzar(siguiente: (tope: number) => number): Record<string, u
     tesoro: tomar(),
     porcentaje: 1 + siguiente(3000),
     base: de(['cobrado', 'ingreso']),
+    ...(siguiente(4) === 0 ? { montoFijo: 1 + siguiente(50_000_000) } : {}),
   }));
   const delDiezmo = {
     tesoro: idDeLaFila(2),
@@ -2454,25 +2534,55 @@ function filaValidaAlAzar(siguiente: (tope: number) => number): Record<string, u
         : [...otras.slice(0, lugar), delDiezmo, ...otras.slice(lugar)];
 
   const tope = (): number => (siguiente(6) === 0 ? 0 : 1 + siguiente(500_000_000));
+  const conDiaDePago = (paso: Record<string, unknown>): Record<string, unknown> => {
+    if (siguiente(3) !== 0) return paso;
+    const sola = siguiente(2) === 0;
+    return {
+      ...paso,
+      modo: 'mes',
+      dia: 1 + siguiente(31),
+      pagaSola: sola,
+      pagaSolaDesde: sola ? de(['2026-10-27', '2026-12-31']) : null,
+    };
+  };
   const sueldo =
     siguiente(3) === 0
       ? []
       : [
-          conClaveAlAzar(
-            {
-              tesoro: idDeLaFila(0),
-              clase: 'sueldo',
-              tope: tope(),
-              renglones: [],
-              desde: null,
-            },
-            'modo',
-            () => 'mes',
+          conDiaDePago(
+            conClaveAlAzar(
+              {
+                tesoro: idDeLaFila(0),
+                clase: 'sueldo',
+                tope: tope(),
+                renglones: [],
+                desde: null,
+              },
+              'modo',
+              () => 'mes',
+            ),
           ),
         ];
   const compromisos = Array.from({ length: siguiente(3) }, (_, i) => {
     const deMaun = i === 0 && siguiente(3) === 0;
     const monto = 1 + siguiente(500_000_000);
+    const conDia = siguiente(3) === 0;
+    if (conDia) {
+      const dia = 1 + siguiente(31);
+      const sola = !deMaun && siguiente(2) === 0;
+      return {
+        tesoro: deMaun ? idDeLaFila(1) : tomar(),
+        clase: 'fijos',
+        tope: monto,
+        renglones: [{ nombre: 'Alquiler', monto, dia: null }],
+        desde: null,
+        hastaLaMeta: false,
+        modo: 'mes',
+        dia,
+        pagaSola: sola,
+        pagaSolaDesde: sola ? de(['2026-10-27', '2026-11-30', '2027-02-28']) : null,
+      };
+    }
     return conClaveAlAzar(
       {
         tesoro: deMaun ? idDeLaFila(1) : tomar(),
@@ -2660,6 +2770,7 @@ function previoEnTs(caso: CasoDelPrevio): { previos: (number | null)[]; topes: (
     porMes: true,
     modo: paso.modo as ModoDePaso,
     hastaLaMeta: paso.hastaLaMeta,
+    dia: null,
   }));
   const reparto = caso.partes.map((parte, i) => ({
     tesoro: tesoroDelCaso(20 + i),
@@ -2751,6 +2862,7 @@ function planDeTesoros(
       porMes: true,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
     })),
     reparto: partes.map((tesoro) => ({
       tesoro,
@@ -2854,7 +2966,7 @@ const CUENTA_EN_SQL = `select pl.diezmo_en, pl.diezmo_bp, r.neta_centavos::text 
   ) as pv
   cross join lateral private.repartir_por_la_fila(
     (c.caso ->> 'cobrado')::bigint, (c.caso ->> 'gastos')::bigint, pl.porcentajes_de_obligacion,
-    pl.bases, pl.objetivos, pv.previos, pl.por_mes, pl.porcentajes, pv.topes
+    pl.bases, pl.objetivos, pv.previos, pl.por_mes, pl.porcentajes, pv.topes, pl.montos_fijos
   ) as r
   order by c.orden`;
 
@@ -3001,6 +3113,31 @@ const VECTORES_DE_LA_FILA: readonly VectorDeLaFila[] = [
     esperado: JSON.stringify([[1_000_000, 0], 0]),
     deReparto: (reparto) => JSON.stringify([reparto.obligaciones, reparto.libre]),
   },
+  {
+    nombre:
+      'una obligación de monto fijo de $ 50.000 cuando a su lugar llegan $ 30.000 se lleva $ 30.000',
+    caso: {
+      cobrado: 3_000_000,
+      gastos: 0,
+      obligaciones: [{ porcentaje: 0, base: 'cobrado', montoFijo: 5_000_000 }],
+      pasos: [],
+      partes: [],
+    },
+    esperado: JSON.stringify([[3_000_000], 0]),
+    deReparto: (reparto) => JSON.stringify([reparto.obligaciones, reparto.libre]),
+  },
+  {
+    nombre: 'la misma con $ 130.000 se lleva sus $ 50.000 y el diezmo es el 10% de lo que queda',
+    caso: {
+      cobrado: 13_000_000,
+      gastos: 0,
+      obligaciones: [{ porcentaje: 0, base: 'cobrado', montoFijo: 5_000_000 }, DEL_DIEZMO],
+      pasos: [],
+      partes: [],
+    },
+    esperado: JSON.stringify([[5_000_000, 800_000], 7_200_000]),
+    deReparto: (reparto) => JSON.stringify([reparto.obligaciones, reparto.libre]),
+  },
 ];
 
 async function compararVectoresDeLaFila(cliente: pg.Client): Promise<string[]> {
@@ -3142,7 +3279,7 @@ export async function compararFila(cliente: pg.Client, escala = 1): Promise<stri
           order by c.orden`,
     enJson: (caso) => JSON.stringify(caso),
     extra: SISTEMA_DE_LA_FILA,
-    deSql: (fila) => canonico(fila.fila),
+    deSql: (fila) => canonico(filaLeida(fila.fila)),
     deTs: (fila) => canonico(fila),
   });
 
@@ -3167,7 +3304,8 @@ export async function compararFila(cliente: pg.Client, escala = 1): Promise<stri
                  r.diezmo_en, r.diezmo_bp, r.tesoros::text[] as tesoros, r.clases,
                  r.objetivos::text[] as objetivos, r.por_mes, r.modos, r.hasta_la_meta,
                  r.tesoros_del_reparto::text[] as tesoros_del_reparto, r.porcentajes,
-                 r.hasta_la_meta_del_reparto, r.superavit::text as superavit
+                 r.hasta_la_meta_del_reparto, r.superavit::text as superavit,
+                 r.montos_fijos::text[] as montos_fijos, r.dias
           from unnest($1::jsonb[]) with ordinality as c (caso, orden)
           cross join lateral private.plan_del_reparto(
             c.caso ->> 'destino', c.caso -> 'fila', (c.caso ->> 'conSueldo')::boolean,
@@ -3193,6 +3331,8 @@ export async function compararFila(cliente: pg.Client, escala = 1): Promise<stri
         fila.porcentajes,
         fila.hasta_la_meta_del_reparto,
         fila.superavit,
+        textosONull(fila.montos_fijos as unknown[]),
+        fila.dias,
       ]),
     deTs: (plan) => {
       const diezmo = diezmoDelPlan(plan);
@@ -3212,6 +3352,8 @@ export async function compararFila(cliente: pg.Client, escala = 1): Promise<stri
         plan.reparto.map((parte) => parte.porcentaje),
         plan.reparto.map((parte) => parte.hastaLaMeta),
         plan.superavit,
+        plan.obligaciones.map((obligacion) => obligacion.montoFijo),
+        plan.pasos.map((paso) => paso.dia),
       ]);
     },
   });
@@ -3770,10 +3912,11 @@ interface PasoDeLaFilaDeEscenario {
   renglones?: readonly (readonly [string, number, number?])[];
   modo?: ModoDePaso;
   hastaLaMeta?: boolean;
+  dia?: number;
 }
 
 interface FilaDeEscenario {
-  obligaciones?: readonly (readonly [string, number, BaseDeLaObligacion])[];
+  obligaciones?: readonly (readonly [string, number, BaseDeLaObligacion, number?])[];
   pasos: readonly PasoDeLaFilaDeEscenario[];
   reparto: readonly (readonly [string, number, boolean?])[];
   superavit?: string;
@@ -4811,6 +4954,104 @@ export const ESCENARIOS_DE_LIQUIDACION: EscenarioDeLiquidacion[] = [
     ],
   },
   ...ESCENARIOS_POR_LA_FILA,
+  {
+    nombre:
+      'con día de pago: el sueldo que vence el 10 junta del 10 al 10, y el cobro del 12 no ve lo del 5',
+    ajustes: MENSUAL,
+    proyectos: {
+      p1: entregado(60_000_000),
+      p2: entregado(80_000_000),
+      p3: entregado(50_000_000),
+    },
+    pasos: [
+      {
+        fila: {
+          pasos: [{ tesoro: 'hogar', clase: 'sueldo', tope: 100_000_000, dia: 10 }],
+          reparto: [],
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-05', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-12', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p3', fecha: '2026-10-03', porLaFila: true, sinVer: ['p2'] },
+    ],
+  },
+  {
+    nombre:
+      'con día de pago 31: el cobro del 30 de noviembre ya es del ciclo que vence el 31 de diciembre',
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(60_000_000), p2: entregado(70_000_000) },
+    pasos: [
+      {
+        fila: {
+          pasos: [{ tesoro: 'hogar', clase: 'sueldo', tope: 100_000_000, dia: 31 }],
+          reparto: [],
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-11-29', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-11-30', porLaFila: true },
+    ],
+  },
+  {
+    nombre:
+      'con día de pago: lo que se pasó para cubrir el ciclo cuenta para su tope, y lo del ciclo anterior no',
+    tesoros: ['Gastos fijos'],
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(50_000_000) },
+    pasos: [
+      {
+        fila: {
+          pasos: [
+            {
+              tesoro: 'Gastos fijos',
+              clase: 'fijos',
+              renglones: [['Alquiler', 30_000_000]],
+              dia: 10,
+            },
+          ],
+          reparto: [],
+        },
+      },
+      {
+        cubrir: {
+          desde: 'maun',
+          hacia: 'Gastos fijos',
+          monto: 12_000_000,
+          mes: '2026-09-10',
+          fecha: '2026-09-11',
+        },
+      },
+      {
+        cubrir: {
+          desde: 'maun',
+          hacia: 'Gastos fijos',
+          monto: 5_000_000,
+          mes: '2026-08-10',
+          fecha: '2026-09-01',
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-20', porLaFila: true },
+    ],
+  },
+  {
+    nombre: 'una obligación de monto fijo: se lleva su monto, o lo que llega si es menos',
+    tesoros: ['Brutos'],
+    ajustes: MENSUAL,
+    proyectos: { p1: entregado(3_000_000), p2: entregado(13_000_000) },
+    pasos: [
+      {
+        fila: {
+          obligaciones: [
+            ['Brutos', 350, 'cobrado', 5_000_000],
+            ['diezmo', 1000, 'ingreso'],
+          ],
+          pasos: [{ tesoro: 'hogar', clase: 'sueldo', tope: 1_000_000 }],
+          reparto: [],
+        },
+      },
+      { liquidar: 'cobrado', proyecto: 'p1', fecha: '2026-09-05', porLaFila: true },
+      { liquidar: 'cobrado', proyecto: 'p2', fecha: '2026-09-06', porLaFila: true },
+    ],
+  },
 ];
 
 interface Contexto {
@@ -4847,10 +5088,11 @@ function ladoDelMovimiento(
 function filaDelEscenario(fila: FilaDeEscenario, tesoros: ReadonlyMap<string, string>): Fila {
   return {
     obligaciones: (fila.obligaciones ?? [['diezmo', 1000, 'ingreso']]).map(
-      ([tesoro, porcentaje, base]) => ({
+      ([tesoro, porcentaje, base, montoFijo]) => ({
         tesoro: idDelTesoro(tesoros, tesoro),
         porcentaje: puntosBasicos(porcentaje),
         base,
+        montoFijo: montoFijo === undefined ? null : centavos(montoFijo),
       }),
     ),
     pasos: fila.pasos.map((paso) => {
@@ -4868,6 +5110,9 @@ function filaDelEscenario(fila: FilaDeEscenario, tesoros: ReadonlyMap<string, st
         desde: null,
         modo: paso.modo ?? 'mes',
         hastaLaMeta: paso.hastaLaMeta ?? false,
+        dia: paso.dia ?? null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       };
     }),
     reparto: fila.reparto.map(([tesoro, porcentaje, hastaLaMeta]) => ({
@@ -4920,6 +5165,7 @@ async function prepararEscenario(
     ['Comparación', userId],
   );
   const householdId = household[0]?.id ?? '';
+  await cliente.query('select private.sembrar_cocos($1)', [householdId]);
   const { ajustes } = escenario;
   const { rows: clienteDelTaller } = await cliente.query<{ id: string }>(
     `with cambiados as (
@@ -5395,10 +5641,17 @@ async function liquidarPorLaFila(
   const enBase = congelado(congeladoEnBase);
   const enDominio = esperadoPorLaFila(esperado, enLaApertura);
   if (enBase !== enDominio) diferencias.push(`${quien}: base ${enBase}, dominio ${enDominio}`);
-  const filaEnBase = filaCongelada(congeladoEnBase);
+  const sistema = sistemaDeLaReplica(replica);
+  const leida = (valor: unknown): unknown => leerLaFila(valor, sistema) ?? valor;
+  const filaEnBase = canonico([
+    congeladoEnBase.fila_version,
+    leida(congeladoEnBase.fila),
+    congeladoEnBase.previo_del_mes,
+    congeladoEnBase.reapertura_fila,
+  ]);
   const filaEnDominio = canonico([
     version,
-    filaCrudaParaLiquidar(replica, proyecto, paso.liquidar, deLaBase.fila),
+    leida(filaCrudaParaLiquidar(replica, proyecto, paso.liquidar, deLaBase.fila)),
     previoQueVio(esperado),
     null,
   ]);
@@ -6420,7 +6673,12 @@ const FORMATOS_DEL_PRESUPUESTO: Formatos = {
   modificaciones: (cantidad) =>
     `${String(cantidad)} ${cantidad === 1 ? 'modificación' : 'modificaciones'}`,
   meses: (cantidad) => `${String(cantidad)} ${cantidad === 1 ? 'mes' : 'meses'}`,
+  fecha: (fecha) => fecha,
+  senaAcordada: (porcentaje, monto) =>
+    monto === null ? `del ${porcentaje}% de la opción que elijas` : `del ${porcentaje}% (${monto})`,
 };
+
+const MANDADO_EL = '2026-10-26';
 
 const TALLER_DEL_PRESUPUESTO: DatosDelTaller = {
   nombre: 'Taller de prueba',
@@ -6451,6 +6709,7 @@ function borradorDelPresupuesto(): BorradorDelPresupuesto {
     obra: 'Arenales 1840, Palermo',
     plantilla: PLANTILLA_DE_SIEMPRE,
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm1',
   });
   return {
@@ -6497,6 +6756,7 @@ function documentoDePrueba(
       valores,
       senaBp: puntosBasicos(5000),
       abonado: centavos(abonado),
+      mandadoEl: MANDADO_EL,
     },
     FORMATOS_DEL_PRESUPUESTO,
   );
@@ -6694,9 +6954,25 @@ const CAMBIOS_DE_LA_PLANTILLA: readonly ((
   (p, s) => {
     p.garantia = elegir(s, ['', ' \n', 'g'.repeat(2000), 'g'.repeat(2001), 5, null]);
   },
+  (p, s) => {
+    if (s(4) === 0) Reflect.deleteProperty(p, 'diasParaLaSena');
+    else p.diasParaLaSena = elegir(s, [0, 1, 2, 60, 61, -1, 1.5, '2', null]);
+  },
   (p) => {
     p.extra = 'se ignora';
   },
+];
+
+const FECHAS_DEL_PRESUPUESTO: readonly unknown[] = [
+  '2026-12-07',
+  '2026-10-28',
+  '2026-10-26',
+  '2026-02-30',
+  '2026-1-05',
+  '0099-01-01',
+  '',
+  20_261_207,
+  null,
 ];
 
 const CLAVES_DEL_BORRADOR = [
@@ -6907,6 +7183,15 @@ const CAMBIOS_DEL_BORRADOR: readonly ((
   },
   (b, s) => {
     b.monedaDeLoAbonado = elegir(s, [null, 'ARS', 'USD', 'EUR', 5, []]);
+  },
+  (b, s) => {
+    b[elegir(s, ['estimativo', 'pideFecha'])] = elegir(s, [true, false, 'si', 1, null]);
+  },
+  (b, s) => {
+    b[elegir(s, ['listoPara', 'senaAntesDel'])] = elegir(s, FECHAS_DEL_PRESUPUESTO);
+  },
+  (b, s) => {
+    Reflect.deleteProperty(b, elegir(s, ['estimativo', 'pideFecha', 'listoPara', 'senaAntesDel']));
   },
   (b) => {
     b.extra = 'se ignora';
@@ -7169,6 +7454,15 @@ const CAMBIOS_DEL_DOCUMENTO: readonly ((
       ]);
     } else Reflect.deleteProperty(d, elegir(s, ['moneda', 'monedaDeLoAbonado', 'referencia']));
   },
+  (d, s) => {
+    d[elegir(s, ['estimativo', 'pideFecha'])] = elegir(s, [true, false, 'si', 1, null]);
+  },
+  (d, s) => {
+    d[elegir(s, ['listoPara', 'senaAntesDel'])] = elegir(s, FECHAS_DEL_PRESUPUESTO);
+  },
+  (d, s) => {
+    Reflect.deleteProperty(d, elegir(s, ['estimativo', 'pideFecha', 'listoPara', 'senaAntesDel']));
+  },
   (d) => {
     d.extra = 'se ignora';
   },
@@ -7188,6 +7482,7 @@ function documentoEnDolaresDePrueba(abonado: number): unknown {
         valores: valoresDelTrabajo(centavosEn('USD', 150_000), []),
         senaBp: puntosBasicos(5000),
         abonado: centavosEn('USD', abonado),
+        mandadoEl: MANDADO_EL,
       },
       FORMATOS_DEL_PRESUPUESTO,
     ),
@@ -7595,8 +7890,794 @@ export async function compararFacturacion(cliente: pg.Client): Promise<string[]>
   return [...condiciones, ...cuits, ...documentos, ...faltas];
 }
 
+type Mutacion = (lista: Objeto[], siguiente: (tope: number) => number) => unknown;
+
+function listasAlAzar(
+  semilla: number,
+  cantidad: number,
+  base: (siguiente: (tope: number) => number) => Objeto[],
+  cambios: readonly Mutacion[],
+): unknown[] {
+  const siguiente = generador(semilla);
+  const casos: unknown[] = [];
+  for (let i = 0; i < cantidad; i++) {
+    let valor: unknown = base(siguiente);
+    for (let j = siguiente(3); j > 0 && Array.isArray(valor); j--) {
+      const cambio = cambios[siguiente(cambios.length)];
+      if (cambio) valor = cambio(valor as Objeto[], siguiente);
+    }
+    casos.push(copiaDeJson(valor));
+  }
+  return casos;
+}
+
+function unaDeLaLista(lista: Objeto[], siguiente: (tope: number) => number): Objeto | undefined {
+  return comoObjeto(lista[siguiente(Math.max(1, lista.length))]) ?? undefined;
+}
+
+const IDS_A_PROBAR: readonly unknown[] = [
+  'Acceso',
+  'ñandú',
+  'a'.repeat(40),
+  'a'.repeat(41),
+  '-x',
+  'x y',
+  '',
+  'x-',
+  '9a',
+  'acceso_al_lugar',
+  5,
+  null,
+];
+
+const CAMBIOS_DE_LAS_PREGUNTAS: readonly Mutacion[] = [
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) una.id = elegir(s, IDS_A_PROBAR);
+    return lista;
+  },
+  (lista) => {
+    const segunda = comoObjeto(lista[1]);
+    const tercera = comoObjeto(lista[2]);
+    if (segunda && tercera) tercera.id = segunda.id;
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) {
+      una.rotulo = elegir(s, [
+        '',
+        '   ',
+        ' \t',
+        'r'.repeat(60),
+        'r'.repeat(61),
+        '😀'.repeat(60),
+        '😀'.repeat(61),
+        ' x ',
+        5,
+        null,
+      ]);
+    }
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) {
+      una.ayuda = elegir(s, [
+        'a'.repeat(120),
+        'a'.repeat(121),
+        '😀'.repeat(120),
+        '😀'.repeat(121),
+        7,
+      ]);
+    }
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) una.extra = 1;
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) Reflect.deleteProperty(una, elegir(s, ['id', 'rotulo', 'ayuda']));
+    return lista;
+  },
+  (lista) => lista.reverse(),
+  (lista) => [
+    ...lista,
+    ...Array.from({ length: 10 }, (_, i) => ({ id: `mas-${String(i)}`, rotulo: 'Más', ayuda: '' })),
+  ],
+  (lista) => lista.slice(1),
+  (lista, s) => [...lista, elegir(s, ['pregunta', 5, null, []])],
+  (_, s) => elegir(s, [null, {}, 'preguntas', 7, []]),
+];
+
+function preguntasDeLaConsultaAlAzar(): unknown[] {
+  return listasAlAzar(
+    20_261_026,
+    1_500,
+    (siguiente) => [
+      { id: 'domicilio', rotulo: 'Domicilio', ayuda: '' },
+      { id: 'acceso', rotulo: 'Acceso al lugar', ayuda: 'Escaleras, piso, tamaño del ascensor.' },
+      { id: 'urgencia', rotulo: 'Urgencia', ayuda: 'Para cuándo lo necesita.' },
+      ...Array.from({ length: siguiente(5) }, (_, i) => ({
+        id: `propia-${String(i)}`,
+        rotulo: `Pregunta ${String(i)}`,
+        ayuda: '',
+      })),
+    ],
+    CAMBIOS_DE_LAS_PREGUNTAS,
+  );
+}
+
+const CAMBIOS_DE_LAS_RESPUESTAS: readonly Mutacion[] = [
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) una.id = elegir(s, [...IDS_A_PROBAR, 'domicilio']);
+    return lista;
+  },
+  (lista) => {
+    const primera = comoObjeto(lista[0]);
+    const segunda = comoObjeto(lista[1]);
+    if (primera && segunda) segunda.id = primera.id;
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una)
+      una.pregunta = elegir(s, ['', '  ', 'p'.repeat(60), 'p'.repeat(61), '😀'.repeat(61), 3]);
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) {
+      una.respuesta = elegir(s, [
+        '',
+        '   ',
+        'r'.repeat(500),
+        'r'.repeat(501),
+        '😀'.repeat(500),
+        '😀'.repeat(501),
+        ' Por la escalera. ',
+        null,
+      ]);
+    }
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) Reflect.deleteProperty(una, elegir(s, ['id', 'pregunta', 'respuesta']));
+    return lista;
+  },
+  (lista, s) => {
+    const una = unaDeLaLista(lista, s);
+    if (una) una.otra = 'x';
+    return lista;
+  },
+  (lista) => [
+    ...lista,
+    ...Array.from({ length: 22 }, (_, i) => ({
+      id: `mas-${String(i)}`,
+      pregunta: 'Más',
+      respuesta: 'Sí',
+    })),
+  ],
+  (lista, s) => [...lista, elegir(s, ['respuesta', 5, null, []])],
+  (_, s) => elegir(s, [null, {}, 'respuestas', 7, []]),
+];
+
+function respuestasDeLaConsultaAlAzar(): unknown[] {
+  return listasAlAzar(
+    20_261_027,
+    1_500,
+    (siguiente) =>
+      Array.from({ length: siguiente(4) }, (_, i) => ({
+        id: elegir(siguiente, ['acceso', 'urgencia', `propia-${String(i)}`]),
+        pregunta: 'Acceso al lugar',
+        respuesta: 'Planta baja, puerta de 80 cm.',
+      })).filter((una, i, todas) => todas.findIndex((otra) => otra.id === una.id) === i),
+    CAMBIOS_DE_LAS_RESPUESTAS,
+  );
+}
+
+export async function compararPreguntasDeLaConsulta(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  const preguntas = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'las preguntas de la consulta',
+    casos: preguntasDeLaConsultaAlAzar(),
+    ts: problemaDeLasPreguntas,
+    sql: `select private.problema_de_las_preguntas(c.valor) as problema
+          from unnest($1::jsonb[]) with ordinality as c (valor, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => (typeof fila.problema === 'string' ? fila.problema : 'null'),
+    deTs: (problema) => String(problema),
+  });
+  const respuestas = await compararGemela<unknown, string | null>(cliente, {
+    nombre: 'lo contestado en la consulta',
+    casos: respuestasDeLaConsultaAlAzar(),
+    ts: problemaDeLasRespuestas,
+    sql: `select private.problema_de_las_respuestas(c.valor) as problema
+          from unnest($1::jsonb[]) with ordinality as c (valor, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => (typeof fila.problema === 'string' ? fila.problema : 'null'),
+    deTs: (problema) => String(problema),
+  });
+  return [...preguntas, ...respuestas];
+}
+
+const HOY_DE_LA_APROBACION = '2026-10-26';
+
+const DOCUMENTOS_DE_LA_APROBACION: readonly DocumentoEnPesos[] = [
+  documentoDePrueba(valoresDelTrabajo(centavos(218_100_000), OPCIONES_DEL_PRESUPUESTO), 0),
+  documentoDePrueba(valoresDelTrabajo(centavos(120_000_000), []), 0),
+  documentoDePrueba(null, 0),
+].flatMap((documento) => [
+  { ...documento, pideFecha: true },
+  { ...documento, pideFecha: false },
+]);
+
+interface CasoDeLaAprobacion {
+  aprobacion: unknown;
+  documento: number;
+}
+
+function aprobacionesAlAzar(): CasoDeLaAprobacion[] {
+  const siguiente = generador(20_261_028);
+  const de = <T>(opciones: readonly T[]): T => elegir(siguiente, opciones);
+  const opciones = OPCIONES_DEL_PRESUPUESTO.map((opcion) => opcion.id);
+  const casos: CasoDeLaAprobacion[] = [];
+  for (let i = 0; i < 3_000; i++) {
+    const aprobacion: Objeto = {
+      id: de(['0199c000-0000-7000-8000-000000000001', '0199C000-0000-7000-8000-00000000000A']),
+      revision_id: '0199c000-0000-7000-8000-000000000002',
+      opcion_id: de([null, ...opciones, '0199c000-0000-7000-8000-000000000099', 'B']),
+      dia: de([
+        null,
+        '2026-10-27',
+        '2026-10-28',
+        '2026-12-25',
+        '2026-12-26',
+        '2026-02-30',
+        '2026-11-31',
+        '2026-10-28T10:00',
+        '1026-10-28',
+        20_261_028,
+      ]),
+      franja: de([null, 'manana', 'tarde', 'me_da_igual', 'noche', 5]),
+      nota: de([
+        '',
+        '   ',
+        'El portero abre hasta las 12.',
+        'n'.repeat(300),
+        'n'.repeat(301),
+        ` ${'n'.repeat(300)} \n`,
+        '😀'.repeat(300),
+        '😀'.repeat(301),
+        5,
+      ]),
+    };
+    const cambio = siguiente(8);
+    if (cambio === 0) Reflect.deleteProperty(aprobacion, de(Object.keys(aprobacion)));
+    if (cambio === 1) aprobacion.extra = true;
+    if (cambio === 2) aprobacion.revision_id = de(['r1', 5, null]);
+    casos.push({
+      aprobacion: siguiente(40) === 0 ? de([null, [], 'aprobar', 7]) : aprobacion,
+      documento: siguiente(DOCUMENTOS_DE_LA_APROBACION.length),
+    });
+  }
+  return casos;
+}
+
+export async function compararAprobaciones(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  return compararGemela<CasoDeLaAprobacion, string | null>(cliente, {
+    nombre: 'la aprobación del cliente',
+    casos: aprobacionesAlAzar(),
+    ts: (caso) =>
+      validarAprobacion(
+        caso.aprobacion,
+        DOCUMENTOS_DE_LA_APROBACION[caso.documento] as DocumentoEnPesos,
+        HOY_DE_LA_APROBACION,
+      ),
+    sql: `select private.validar_aprobacion(c.caso -> 'aprobacion', c.caso -> 'documento', ($2::jsonb #>> '{}')::date) as motivo
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) =>
+      JSON.stringify({
+        aprobacion: caso.aprobacion,
+        documento: DOCUMENTOS_DE_LA_APROBACION[caso.documento],
+      }),
+    extra: HOY_DE_LA_APROBACION,
+    deSql: (fila) => (typeof fila.motivo === 'string' ? fila.motivo : 'null'),
+    deTs: (motivo) => String(motivo),
+  });
+}
+
+interface CasoDeLasFechas {
+  documento: Objeto;
+  mandadoEl: string;
+}
+
+function fechasDelPresupuestoAlAzar(): CasoDeLasFechas[] {
+  const siguiente = generador(20_261_029);
+  const de = <T>(opciones: readonly T[]): T => elegir(siguiente, opciones);
+  const casos: CasoDeLasFechas[] = [];
+  for (let i = 0; i < 2_000; i++) {
+    const documento: Objeto = {};
+    if (siguiente(4) !== 0) documento.estimativo = de([true, false, false, 'true', 1, null]);
+    if (siguiente(5) !== 0) documento.listoPara = de(FECHAS_DEL_PRESUPUESTO);
+    if (siguiente(5) !== 0) documento.senaAntesDel = de(FECHAS_DEL_PRESUPUESTO);
+    casos.push({
+      documento,
+      mandadoEl: de(['2026-10-26', '2026-10-28', '2026-12-07', '2026-12-08']),
+    });
+  }
+  return casos;
+}
+
+function fechaDelDocumento(valor: unknown): string | null {
+  return typeof valor === 'string' && esFechaQueExiste(valor) ? valor : null;
+}
+
+export async function compararFechasDelPresupuesto(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  const fechas = await compararGemela<CasoDeLasFechas, string | null>(cliente, {
+    nombre: 'las fechas del presupuesto',
+    casos: fechasDelPresupuestoAlAzar(),
+    ts: ({ documento, mandadoEl }) =>
+      problemaDeLasFechas(
+        {
+          estimativo: documento.estimativo === true,
+          listoPara: fechaDelDocumento(documento.listoPara),
+          senaAntesDel: fechaDelDocumento(documento.senaAntesDel),
+        },
+        mandadoEl,
+      ),
+    sql: `select private.problema_de_las_fechas_del_presupuesto(c.caso -> 'documento', (c.caso ->> 'mandadoEl')::date) as problema
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => (typeof fila.problema === 'string' ? fila.problema : 'null'),
+    deTs: (problema) => String(problema),
+  });
+  const existe = await compararGemela<string, boolean>(cliente, {
+    nombre: 'una fecha que existe',
+    casos: [
+      ...FECHAS_DEL_PRESUPUESTO.filter((fecha): fecha is string => typeof fecha === 'string'),
+      '2028-02-29',
+      '2027-02-29',
+      '2026-04-31',
+      '0100-01-01',
+      '9999-12-31',
+      '2026-00-10',
+      '2026-13-10',
+      ' 2026-10-26',
+      '2026-10-26 ',
+      '２０２６-10-26',
+    ],
+    ts: esFechaQueExiste,
+    sql: `select private.es_fecha_que_existe(c.valor #>> '{}') as existe
+          from unnest($1::jsonb[]) with ordinality as c (valor, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => String(fila.existe),
+    deTs: (existe) => String(existe),
+  });
+  return [...fechas, ...existe];
+}
+
+function ciclosAlAzar(): [string, number][] {
+  const siguiente = generador(20_261_030);
+  const casos: [string, number][] = [];
+  for (let i = 0; i < 2_000; i++) {
+    const dia = Date.UTC(2026, 0, 1) / 86_400_000 + siguiente(1_100);
+    const fecha = new Date(dia * 86_400_000).toISOString().slice(0, 10);
+    casos.push([fecha, 1 + siguiente(31)]);
+  }
+  return [
+    ['2026-10-27', 10],
+    ['2026-11-10', 10],
+    ['2026-11-09', 10],
+    ['2026-11-15', 31],
+    ['2026-12-15', 31],
+    ['2026-11-30', 31],
+    ['2027-02-10', 30],
+    ['2028-02-29', 31],
+    ...casos,
+  ];
+}
+
+function filasParaSellarAlAzar(): [unknown, unknown][] {
+  const siguiente = generador(20_261_031);
+  const casos: [unknown, unknown][] = [];
+  for (let i = 0; i < 1_000; i++) {
+    const guardada = filaValidaAlAzar(siguiente);
+    const nueva = copiaDeJson(guardada) as Objeto;
+    for (const paso of comoLista(nueva.pasos)) {
+      const cambio = siguiente(5);
+      if (cambio === 0 && typeof paso.dia === 'number') {
+        paso.pagaSola = !(paso.pagaSola === true);
+        paso.pagaSolaDesde = paso.pagaSola ? '2026-11-20' : null;
+      }
+      if (cambio === 1 && paso.pagaSola === true) paso.pagaSolaDesde = '2020-01-01';
+    }
+    casos.push([siguiente(6) === 0 ? null : guardada, nueva]);
+  }
+  return casos;
+}
+
+const HOY_DEL_SELLO = '2026-11-20';
+
+export async function compararCiclos(cliente: pg.Client): Promise<string[]> {
+  await cliente.query(RECHAZO_DE_LA_GEMELA);
+  const casos = ciclosAlAzar();
+  const ciclos = await compararGemela<[string, number], string>(cliente, {
+    nombre: 'el ciclo de un compromiso',
+    casos,
+    ts: ([fecha, dia]) => {
+      const ciclo = cicloDeLaFecha(fecha, dia);
+      return `${ciclo.desde} ${ciclo.hasta}`;
+    },
+    sql: `select r.desde::text || ' ' || r.hasta::text as ciclo
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          cross join lateral private.ciclo_de_la_fecha((c.caso ->> 0)::date, (c.caso ->> 1)::integer) as r
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => String(fila.ciclo),
+    deTs: (ciclo) => ciclo,
+  });
+  const dias = await compararGemela<[string, number], string>(cliente, {
+    nombre: 'el día del mes',
+    casos,
+    ts: ([fecha, dia]) => diaDelMes(fecha.slice(0, 7), dia),
+    sql: `select private.dia_del_mes(date_trunc('month', (c.caso ->> 0)::date)::date, (c.caso ->> 1)::integer)::text as dia
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    deSql: (fila) => String(fila.dia),
+    deTs: (dia) => dia,
+  });
+  const sellos = await compararGemela<[unknown, unknown], string>(cliente, {
+    nombre: 'desde cuándo se paga sola',
+    casos: filasParaSellarAlAzar(),
+    ts: ([guardada, nueva]) =>
+      canonico(
+        conElPagaSolaDesde(
+          guardada === null ? { ...filaLeida(nueva), pasos: [] } : filaLeida(guardada),
+          filaLeida(nueva),
+          HOY_DEL_SELLO,
+        ),
+      ),
+    sql: `select private.con_el_paga_sola_desde(c.caso -> 0, c.caso -> 1, ($2::jsonb #>> '{}')::date) as fila
+          from unnest($1::jsonb[]) with ordinality as c (caso, orden)
+          order by c.orden`,
+    enJson: (caso) => JSON.stringify(caso),
+    extra: HOY_DEL_SELLO,
+    deSql: (fila) => canonico(filaLeida(fila.fila)),
+    deTs: (fila) => fila,
+  });
+  return [...ciclos, ...dias, ...sellos];
+}
+
+interface MovimientoDelPago {
+  fecha: string;
+  tipo: 'ingreso' | 'gasto' | 'transferencia';
+  desde?: 'hogar' | 'maun';
+  hacia?: 'hogar' | 'maun';
+  monto: number;
+  vencimiento?: string;
+}
+
+interface CorridaDelPago {
+  hoy: string;
+  esperados?: readonly (readonly [string, number, number, number])[];
+}
+
+interface EscenarioDelPago {
+  nombre: string;
+  tope: number;
+  dia: number;
+  guardadaEl: string;
+  movimientos: readonly MovimientoDelPago[];
+  corridas: readonly CorridaDelPago[];
+}
+
+const ESCENARIOS_DEL_PAGO: readonly EscenarioDelPago[] = [
+  {
+    nombre: '1.000.000 que vence el 10, con 600.000 juntados y un adelanto de 300.000',
+    tope: 100_000_000,
+    dia: 10,
+    guardadaEl: '2026-10-27',
+    movimientos: [
+      { fecha: '2026-10-27', tipo: 'ingreso', hacia: 'hogar', monto: 60_000_000 },
+      { fecha: '2026-11-05', tipo: 'gasto', desde: 'hogar', monto: 30_000_000 },
+    ],
+    corridas: [
+      { hoy: '2026-11-09', esperados: [] },
+      { hoy: '2026-11-10', esperados: [['2026-11-10', 70_000_000, 40_000_000, 0]] },
+      { hoy: '2026-11-10', esperados: [] },
+    ],
+  },
+  {
+    nombre: 'la misma con 1.000.000 juntados y sin adelanto',
+    tope: 100_000_000,
+    dia: 10,
+    guardadaEl: '2026-10-27',
+    movimientos: [{ fecha: '2026-10-27', tipo: 'ingreso', hacia: 'hogar', monto: 100_000_000 }],
+    corridas: [{ hoy: '2026-11-10', esperados: [['2026-11-10', 100_000_000, 0, 0]] }],
+  },
+  {
+    nombre: 'la misma con 1.100.000 de saldo porque le pasaron 100.000 a mano',
+    tope: 100_000_000,
+    dia: 10,
+    guardadaEl: '2026-10-27',
+    movimientos: [
+      { fecha: '2026-10-27', tipo: 'ingreso', hacia: 'hogar', monto: 100_000_000 },
+      {
+        fecha: '2026-11-01',
+        tipo: 'transferencia',
+        desde: 'maun',
+        hacia: 'hogar',
+        monto: 10_000_000,
+      },
+    ],
+    corridas: [{ hoy: '2026-11-10', esperados: [['2026-11-10', 100_000_000, 0, 10_000_000]] }],
+  },
+  {
+    nombre: 'el 31: en noviembre vence el 30 y en diciembre el 31, y se pone al día con los dos',
+    tope: 50_000_000,
+    dia: 31,
+    guardadaEl: '2026-11-15',
+    movimientos: [
+      { fecha: '2026-11-15', tipo: 'ingreso', hacia: 'hogar', monto: 20_000_000 },
+      { fecha: '2026-12-01', tipo: 'ingreso', hacia: 'hogar', monto: 60_000_000 },
+    ],
+    corridas: [
+      {
+        hoy: '2027-01-02',
+        esperados: [
+          ['2026-11-30', 50_000_000, 30_000_000, 0],
+          ['2026-12-31', 50_000_000, 0, 10_000_000],
+        ],
+      },
+    ],
+  },
+  {
+    nombre: 'un gasto que llega tarde cuenta para el vencimiento siguiente',
+    tope: 100_000_000,
+    dia: 10,
+    guardadaEl: '2026-10-27',
+    movimientos: [
+      { fecha: '2026-10-27', tipo: 'ingreso', hacia: 'hogar', monto: 100_000_000 },
+      {
+        fecha: '2026-11-12',
+        tipo: 'gasto',
+        desde: 'hogar',
+        monto: 5_000_000,
+        vencimiento: '2026-11-10',
+      },
+      { fecha: '2026-11-20', tipo: 'ingreso', hacia: 'hogar', monto: 50_000_000 },
+    ],
+    corridas: [{ hoy: '2026-11-10' }, { hoy: '2026-12-10' }],
+  },
+];
+
+async function comoElTaller(cliente: pg.Client, usuarioId: string): Promise<void> {
+  await cliente.query(
+    "select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)",
+    [JSON.stringify({ sub: usuarioId, role: 'authenticated' })],
+  );
+}
+
+async function comoLaBase(cliente: pg.Client): Promise<void> {
+  await cliente.query("select set_config('role', 'none', true)");
+}
+
+async function enElDia(cliente: pg.Client, hoy: string): Promise<void> {
+  await cliente.query("select set_config('maun.hoy_en_el_taller', $1, true)", [hoy]);
+}
+
+function textoDelPago(
+  pago: Pick<
+    PagoDeUnVencimiento,
+    'vencimiento' | 'tope' | 'pagadoAntes' | 'saldo' | 'aPagar' | 'pusoMaun' | 'vuelveAMaun'
+  >,
+): string {
+  return JSON.stringify([
+    pago.vencimiento,
+    pago.tope,
+    pago.pagadoAntes,
+    pago.saldo,
+    pago.aPagar,
+    pago.pusoMaun,
+    pago.vuelveAMaun,
+  ]);
+}
+
+async function correrElEscenarioDelPago(
+  cliente: pg.Client,
+  escenario: EscenarioDelPago,
+): Promise<string[]> {
+  const diferencias: string[] = [];
+  const { rows: usuario } = await cliente.query<{ id: string }>(
+    `insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+     values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+             'pagos@maun.test', '', now(), now())
+     returning id`,
+  );
+  const usuarioId = usuario[0]?.id ?? '';
+  const { rows: household } = await cliente.query<{ id: string }>(
+    'select private.crear_household($1, $2) as id',
+    ['Pagos', usuarioId],
+  );
+  const householdId = household[0]?.id ?? '';
+  const { rows: claves } = await cliente.query<{ clave: string; id: string }>(
+    'select clave::text as clave, id from public.tesoros where household_id = $1 and clave is not null',
+    [householdId],
+  );
+  const id = new Map(claves.map((fila) => [fila.clave, fila.id]));
+
+  await enElDia(cliente, escenario.guardadaEl);
+  await comoElTaller(cliente, usuarioId);
+  await cliente.query('select public.guardar_la_fila(0, $1::jsonb)', [
+    JSON.stringify({
+      obligaciones: [{ tesoro: id.get('diezmo'), porcentaje: 1000, base: 'ingreso' }],
+      pasos: [
+        {
+          tesoro: id.get('hogar'),
+          clase: 'sueldo',
+          tope: escenario.tope,
+          renglones: [],
+          desde: null,
+          modo: 'mes',
+          dia: escenario.dia,
+          pagaSola: true,
+          pagaSolaDesde: escenario.guardadaEl,
+        },
+      ],
+      reparto: [],
+      superavit: id.get('maun'),
+      sueldoPorTrabajo: false,
+    }),
+  ]);
+  for (const movimiento of escenario.movimientos) {
+    await enElDia(cliente, movimiento.fecha);
+    await cliente.query(
+      `insert into public.movimientos (fecha, tipo, desde_id, hacia_id, monto_centavos, categoria, vencimiento)
+       values ($1, $2::public.tipo_movimiento, $3, $4, $5, '', $6)`,
+      [
+        movimiento.fecha,
+        movimiento.tipo,
+        movimiento.desde === undefined ? null : id.get(movimiento.desde),
+        movimiento.hacia === undefined ? null : id.get(movimiento.hacia),
+        movimiento.monto,
+        movimiento.vencimiento ?? null,
+      ],
+    );
+  }
+
+  for (const corrida of escenario.corridas) {
+    const quien = `${escenario.nombre}, el ${corrida.hoy}`;
+    await comoElTaller(cliente, usuarioId);
+    const antes = await replicaDeLaBase(cliente, usuarioId);
+    const esperados = pagosQueCorresponden(entradaDeLosPagos(antes, corrida.hoy));
+    await comoLaBase(cliente);
+    await enElDia(cliente, corrida.hoy);
+    const { rows: pagados } = await cliente.query<{ cuantos: number }>(
+      'select private.pagar_los_vencimientos_del_taller($1, $2) as cuantos',
+      [householdId, corrida.hoy],
+    );
+    const { rows: nuevos } = await cliente.query<Record<string, string>>(
+      `select vencimiento::text as vencimiento, tope_centavos::text as tope, pagado_antes_centavos::text as pagado_antes,
+              saldo_centavos::text as saldo, a_pagar_centavos::text as a_pagar,
+              puso_maun_centavos::text as puso_maun, vuelve_a_maun_centavos::text as vuelve_a_maun
+       from public.pagos_de_vencimientos
+       where household_id = $1
+         and vencimiento <= $2::date
+         and not exists (
+           select 1 from jsonb_array_elements($3::jsonb) as v (vencimiento)
+           where v.vencimiento #>> '{}' = pagos_de_vencimientos.vencimiento::text
+         )
+       order by vencimiento`,
+      [
+        householdId,
+        corrida.hoy,
+        JSON.stringify(filasDe(antes, 'pagos_de_vencimientos').map((pago) => pago.vencimiento)),
+      ],
+    );
+    const enSql = nuevos.map((fila) =>
+      JSON.stringify([
+        fila.vencimiento,
+        Number(fila.tope),
+        Number(fila.pagado_antes),
+        Number(fila.saldo),
+        Number(fila.a_pagar),
+        Number(fila.puso_maun),
+        Number(fila.vuelve_a_maun),
+      ]),
+    );
+    const enTs = esperados.map(textoDelPago);
+    if (JSON.stringify(enSql) !== JSON.stringify(enTs)) {
+      diferencias.push(`${quien}: SQL ${enSql.join(' ')}, TS ${enTs.join(' ')}`);
+    }
+    if (Number(pagados[0]?.cuantos) !== esperados.length) {
+      diferencias.push(
+        `${quien}: la base pagó ${String(pagados[0]?.cuantos)} y el dominio espera ${String(esperados.length)}`,
+      );
+    }
+    if (corrida.esperados !== undefined) {
+      const delPedido = corrida.esperados.map(([vencimiento, aPagar, pusoMaun, vuelveAMaun]) =>
+        JSON.stringify([vencimiento, aPagar, pusoMaun, vuelveAMaun]),
+      );
+      const deLaBase = nuevos.map((fila) =>
+        JSON.stringify([
+          fila.vencimiento,
+          Number(fila.a_pagar),
+          Number(fila.puso_maun),
+          Number(fila.vuelve_a_maun),
+        ]),
+      );
+      if (JSON.stringify(deLaBase) !== JSON.stringify(delPedido)) {
+        diferencias.push(
+          `${quien}: el pedido dice ${delPedido.join(' ')} y la base ${deLaBase.join(' ')}`,
+        );
+      }
+    }
+
+    await comoElTaller(cliente, usuarioId);
+    const despues = await replicaDeLaBase(cliente, usuarioId);
+    await comoLaBase(cliente);
+    const libro = await leerLibro(cliente, householdId);
+    diferencias.push(
+      ...diferenciasDeMultiset(
+        libro.map(comoTextoSql),
+        asientosDelLibro(datosDelLibro(despues)).map(comoTextoTs),
+      ).map((diferencia) => `${quien}, el libro: ${diferencia}`),
+    );
+    const { rows: saldo } = await cliente.query<{ saldo: string }>(
+      `select coalesce(sum(monto_centavos), 0)::text as saldo from public.libro_mayor
+       where household_id = $1 and tesoro_id = $2 and fecha <= $3::date and not ya_en_la_apertura`,
+      [householdId, id.get('hogar'), corrida.hoy],
+    );
+    if (
+      esperados.some((pago) => pago.vencimiento === corrida.hoy) &&
+      Number(saldo[0]?.saldo) !== 0
+    ) {
+      diferencias.push(
+        `${quien}: el tesoro no quedó en cero antes del día: ${String(saldo[0]?.saldo)}`,
+      );
+    }
+  }
+  return diferencias;
+}
+
+export async function compararPagosDeLosVencimientos(cliente: pg.Client): Promise<string[]> {
+  const diferencias: string[] = [];
+  for (const escenario of ESCENARIOS_DEL_PAGO) {
+    await cliente.query('savepoint escenario_del_pago');
+    try {
+      diferencias.push(...(await correrElEscenarioDelPago(cliente, escenario)));
+    } catch (error) {
+      diferencias.push(
+        `${escenario.nombre}: cortó con ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    await cliente.query('rollback to savepoint escenario_del_pago');
+    await comoLaBase(cliente);
+  }
+  return diferencias;
+}
+
 export async function compararDominioYSql(cliente: pg.Client): Promise<string[]> {
   return [
+    ...(await compararPreguntasDeLaConsulta(cliente)),
+    ...(await compararAprobaciones(cliente)),
+    ...(await compararFechasDelPresupuesto(cliente)),
+    ...(await compararCiclos(cliente)),
+    ...(await compararPagosDeLosVencimientos(cliente)),
     ...(await compararFacturacion(cliente)),
     ...(await compararCascada(cliente)),
     ...(await compararTopes(cliente)),

@@ -119,4 +119,8 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.agenda.arrastre.sobre('«NOMBRE»', DIA),
     tieneQueDecir: ['«NOMBRE»', DIA],
   },
+  'agenda.arrastre.soloHoyOAdelante': {
+    llamar: (m) => m.agenda.arrastre.soloHoyOAdelante('«NOMBRE»'),
+    tieneQueDecir: ['«NOMBRE»'],
+  },
 };

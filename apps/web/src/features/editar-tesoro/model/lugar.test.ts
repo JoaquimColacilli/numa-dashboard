@@ -11,10 +11,14 @@ import { describe, expect, it } from 'vitest';
 import {
   dondeEntra,
   fraseDelLibre,
+  LUGARES_DEL_TIPO,
+  lugarDelTipo,
   opcionesDeLugar,
   porcentajeSugerido,
   revisarElLugar,
   SUGERENCIAS_DEL_LUGAR,
+  tipoDelLugar,
+  tiposPosibles,
   type LoQueSePide,
 } from './lugar';
 
@@ -27,6 +31,9 @@ function paso(tesoro: string): PasoDeLaFila {
     desde: null,
     modo: 'mes',
     hastaLaMeta: false,
+    dia: null,
+    pagaSola: false,
+    pagaSolaDesde: null,
   };
 }
 
@@ -35,7 +42,14 @@ function parte(tesoro: string, porcentaje: number) {
 }
 
 const SIN_PASOS = {
-  obligaciones: [{ tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' as const }],
+  obligaciones: [
+    {
+      tesoro: 'diezmo',
+      porcentaje: puntosBasicos(1000),
+      base: 'ingreso' as const,
+      montoFijo: null,
+    },
+  ],
   superavit: 'maun',
   sueldoPorTrabajo: false,
 };
@@ -82,6 +96,7 @@ describe('dónde va un tesoro nuevo', () => {
         tesoro: `o${String(indice)}`,
         porcentaje: puntosBasicos(100),
         base: 'ingreso' as const,
+        montoFijo: null,
       })),
       pasos: Array.from({ length: 12 }, (_, indice) => paso(String(indice))),
       reparto: [parte('b', 10_000)],
@@ -149,11 +164,80 @@ describe('dónde va un tesoro nuevo', () => {
     expect(fraseDelLibre(2000, '30')).toBe('Queda libre el 20% del reparto.');
   });
 
+  it('cada tipo tiene sus lugares, y en dólares solo es caja o meta', () => {
+    expect(tiposPosibles('ARS')).toEqual(['caja', 'deuda-destinada', 'deuda-obligatoria', 'meta']);
+    expect(tiposPosibles('USD')).toEqual(['caja', 'meta']);
+    expect(LUGARES_DEL_TIPO).toEqual({
+      caja: ['estante', 'ahorro-fijo', 'reparto', 'superavit'],
+      meta: ['estante', 'ahorro-fijo', 'reparto'],
+      'deuda-destinada': ['obligacion'],
+      'deuda-obligatoria': ['compromiso'],
+    });
+    expect(tipoDelLugar('obligacion')).toBe('deuda-destinada');
+    expect(tipoDelLugar('compromiso')).toBe('deuda-obligatoria');
+    expect(tipoDelLugar('reparto')).toBeNull();
+    expect(tipoDelLugar('estante')).toBeNull();
+    expect(lugarDelTipo('caja', 'superavit')).toBe('superavit');
+    expect(lugarDelTipo('meta', 'superavit')).toBe('estante');
+    expect(lugarDelTipo('deuda-obligatoria', 'reparto')).toBe('compromiso');
+    expect(lugarDelTipo('deuda-destinada', 'estante')).toBe('obligacion');
+  });
+
+  it('una deuda obligatoria va con su día de pago, del 1 al 31, y se paga sola salvo que se diga', () => {
+    expect(revisarElLugar('compromiso', { ...PIDE, monto: 30_000_000, dia: '31' }, FILA)).toEqual({
+      dondeVa: { lugar: 'compromiso', monto: 30_000_000, dia: 31, pagaSola: true },
+    });
+    expect(
+      revisarElLugar(
+        'compromiso',
+        { ...PIDE, monto: 30_000_000, dia: ' 5 ', pagaSola: false },
+        FILA,
+      ),
+    ).toEqual({ dondeVa: { lugar: 'compromiso', monto: 30_000_000, dia: 5, pagaSola: false } });
+    for (const dia of ['0', '32', '', 'x', '1.5']) {
+      expect(
+        revisarElLugar('compromiso', { ...PIDE, monto: 30_000_000, dia }, FILA).errores,
+      ).toEqual({ dia: 'El día de pago va del 1 al 31.' });
+    }
+    expect(revisarElLugar('compromiso', { ...PIDE, dia: '40' }, FILA).errores).toEqual({
+      monto: 'Poné hasta cuánto recibe.',
+      dia: 'El día de pago va del 1 al 31.',
+    });
+  });
+
+  it('una deuda destinada con monto fijo pide el monto, y sin él va por porcentaje', () => {
+    expect(
+      revisarElLugar(
+        'obligacion',
+        { ...PIDE, conMontoFijo: true, montoFijo: 5_000_000, porcentaje: 'cualquier cosa' },
+        FILA,
+      ),
+    ).toEqual({
+      dondeVa: {
+        lugar: 'obligacion',
+        porcentaje: 100,
+        base: 'ingreso',
+        antesDelDiezmo: false,
+        montoFijo: 5_000_000,
+      },
+    });
+    expect(revisarElLugar('obligacion', { ...PIDE, conMontoFijo: true }, FILA).errores).toEqual({
+      montoFijo: 'Poné hasta cuánto recibe.',
+    });
+    expect(
+      revisarElLugar(
+        'obligacion',
+        { ...PIDE, conMontoFijo: true, montoFijo: MONTO_MAXIMO_DE_LA_FILA + 1 },
+        FILA,
+      ).errores,
+    ).toEqual({ montoFijo: 'El monto no puede ser tan grande.' });
+  });
+
   it('arma el lugar con su monto o su porcentaje, y frena lo que no se puede', () => {
     expect(revisarElLugar('estante', PIDE, FILA)).toEqual({ dondeVa: { lugar: 'estante' } });
     expect(revisarElLugar('superavit', PIDE, FILA)).toEqual({ dondeVa: { lugar: 'superavit' } });
     expect(revisarElLugar('compromiso', { ...PIDE, monto: 30_000_000 }, FILA)).toEqual({
-      dondeVa: { lugar: 'compromiso', monto: 30_000_000 },
+      dondeVa: { lugar: 'compromiso', monto: 30_000_000, dia: 10, pagaSola: true },
     });
     expect(revisarElLugar('ahorro-fijo', { ...PIDE, monto: 5_000_000 }, FILA)).toEqual({
       dondeVa: { lugar: 'ahorro-fijo', monto: 5_000_000 },
@@ -173,7 +257,13 @@ describe('dónde va un tesoro nuevo', () => {
         FILA,
       ),
     ).toEqual({
-      dondeVa: { lugar: 'obligacion', porcentaje: 350, base: 'cobrado', antesDelDiezmo: true },
+      dondeVa: {
+        lugar: 'obligacion',
+        porcentaje: 350,
+        base: 'cobrado',
+        antesDelDiezmo: true,
+        montoFijo: null,
+      },
     });
     expect(revisarElLugar('obligacion', PIDE, FILA).errores?.porcentaje).toBe(
       'Poné un porcentaje de 0,01 a 100.',

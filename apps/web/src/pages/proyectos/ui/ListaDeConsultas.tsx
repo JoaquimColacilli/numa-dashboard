@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 
 import { AccionesDeContacto, EnlaceACliente } from '@/entities/cliente';
+import { respuestaPendiente } from '@/entities/presupuesto';
 import {
   buscarProyectos,
   contactosEnOrden,
@@ -13,6 +14,7 @@ import {
   type ContactoEnLista,
   type ResumenDeProyecto,
 } from '@/entities/proyecto';
+import { useReplicaDelTaller } from '@/entities/replica';
 import type { Replica } from '@/shared/api';
 import { useMensajes } from '@/shared/idioma';
 import { conFondo, fechaLarga, formatearLaPlata, formatearPlata, useIr } from '@/shared/lib';
@@ -20,9 +22,11 @@ import { Button, EstadoVacio, Icono } from '@/shared/ui';
 
 function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: string }) {
   const { comun, consultas: textos } = useMensajes().paginaProyectos;
+  const replica = useReplicaDelTaller();
   const { resumen, situacion } = contacto;
   const { proyecto, cliente } = resumen;
   const atencion = situacion.fria || situacion.vencido;
+  const aprobo = respuestaPendiente(replica, proyecto.id) !== null;
 
   const datos: { clave: string; valor: string; tono: string }[] = [];
   if (proyecto.fecha_visita !== null) {
@@ -67,6 +71,12 @@ function TarjetaDeContacto({ contacto, hoy }: { contacto: ContactoEnLista; hoy: 
         />
       }
     >
+      {aprobo && (
+        <p className="inline-flex items-center gap-1.5 self-start rounded-pill bg-hogar-tint px-2.5 py-0.5 text-meta font-semibold text-hogar">
+          <Icono nombre="circle-check" tamano={13} />
+          {textos.tuClienteAprobo}
+        </p>
+      )}
       <div>
         <p className="text-label font-semibold">{situacion.proximoPaso}</p>
         <p

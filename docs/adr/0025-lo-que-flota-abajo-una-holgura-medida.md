@@ -3,6 +3,7 @@
 - Estado: aceptada
 - Fecha: 2026-09-13
 - Corrige al [0013](0013-shell-navegacion-e-inicio.md) en el padding inferior del contenido.
+- Enmendado el 2026-10-27, al final: en el celular, el padding del contenido espera a que vuelva la barra.
 
 ## Contexto
 
@@ -133,3 +134,18 @@ arriba sea el botón; se comprobó que falla con el error puesto.
 - Todo elemento nuevo que flote abajo va adentro del pie o se ancla con `var(--holgura-inferior)`.
   Nunca con un número.
 - Cambiar el tamaño o la posición del botón redondo no pide tocar ninguna cuenta.
+
+## Enmienda del 2026-10-27: hasta que vuelva la barra
+
+«Mientras se escribe» se medía con el foco: con el foco fuera de un campo, la medición volvía a la de
+siempre. Pero la barra no vuelve con el foco: vuelve en la tarea siguiente y, si el toque que sacó el
+foco sigue apretado, recién al soltarlo (`useEditando`, ADR 0013). En ese rato el pie está vacío, la
+medición que corre al soltar el foco da cero, el padding del `<main>` baja y el navegador recorta el
+scroll; cuando la barra vuelve, el padding también, pero lo de abajo ya se corrió. En el e2e se vio en
+`scroll.spec.ts:52`: cerrar con Escape la hoja de un movimiento, abierta desde el fondo de Inicio,
+dejaba el scroll 103 px más arriba. Fallaba en tanda y pasaba solo. En el teléfono es el botón que se
+corre debajo del dedo en el toque que saca el foco.
+
+Ahora, en el celular, el padding del contenido tampoco se achica mientras la barra no está en el pie
+(`data-barra-inferior`), y se vuelve a medir cuando vuelve, con el mismo `ResizeObserver`.
+`holgura.test.tsx` lo prueba y falla con la regla de antes.

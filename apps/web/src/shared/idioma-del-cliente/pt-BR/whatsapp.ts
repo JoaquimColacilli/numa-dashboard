@@ -12,4 +12,9 @@ export const whatsapp = {
     sinNombre: (trabajo, url) =>
       `Olá. Aqui você acompanha o andamento de ${trabajo} e vê como pagar: ${url}`,
   },
+  elEstimativo: {
+    conNombre: (nombre, trabajo, url) =>
+      `Olá, ${nombre}. Aqui está o orçamento estimativo de ${trabajo}: ${url}`,
+    sinNombre: (trabajo, url) => `Olá. Aqui está o orçamento estimativo de ${trabajo}: ${url}`,
+  },
 } satisfies MensajesDelCliente['whatsapp'];

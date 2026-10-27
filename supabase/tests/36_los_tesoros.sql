@@ -1,4 +1,4 @@
--- Los tesoros (ADR 0078): la tabla, sus checks, sus grants, la RLS, los cuatro de siempre y la guarda
+-- Los tesoros (ADR 0078): la tabla, sus checks, sus grants, la RLS, los tres de siempre y la guarda
 -- de archivar, que no deja archivar un tesoro que la plata todavía necesita (MN024).
 --
 -- Taller A con sus tesoros propios y taller B con uno, para la RLS. El cobro por la fila que se reabre
@@ -59,7 +59,8 @@ select results_eq(
       ('updated_at', 'timestamptz'::regtype, true),
       ('deleted_at', 'timestamptz'::regtype, false),
       ('version', 'integer'::regtype, true),
-      ('moneda', 'text'::regtype, true)
+      ('moneda', 'text'::regtype, true),
+      ('meta_fecha', 'date'::regtype, false)
   $$,
   'la tabla tiene sus columnas, con sus tipos y las que no pueden ir vacías'
 );
@@ -80,7 +81,7 @@ select set_eq(
     where a.attrelid = 'public.tesoros'::regclass and a.attnum > 0 and not a.attisdropped
       and has_column_privilege('authenticated', a.attrelid, a.attnum, 'INSERT')
   $$,
-  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda'],
+  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda', 'meta_fecha'],
   'la app da de alta todo lo del tesoro salvo el taller, la clave y la metadata'
 );
 
@@ -91,7 +92,7 @@ select set_eq(
     where a.attrelid = 'public.tesoros'::regclass and a.attnum > 0 and not a.attisdropped
       and has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
   $$,
-  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda'],
+  array['id', 'nombre', 'descripcion', 'tinta', 'icono', 'meta_centavos', 'rinde_anual_bp', 'orden', 'archivado_at', 'moneda', 'meta_fecha'],
   'y edita lo mismo, porque el alta es un upsert: la moneda la cuida un trigger, que no la deja cambiar (MN034, 42_los_tesoros_en_dolares.sql)'
 );
 
@@ -108,15 +109,15 @@ select set_eq(
 );
 
 
--- Los cuatro de siempre ------------------------------------------------------------------------------------
+-- Los tres de siempre --------------------------------------------------------------------------------------
 
 select results_eq(
   format(
     $$ select clave::text from public.tesoros where household_id = %L order by orden $$,
     tests.id('household_a')
   ),
-  $$ values ('hogar'), ('maun'), ('diezmo'), ('cocos') $$,
-  'el taller nace con sus cuatro tesoros de siempre'
+  $$ values ('hogar'), ('maun'), ('diezmo') $$,
+  'el taller nace con sus tres tesoros de siempre: Cocos ya no (60_la_meta.sql)'
 );
 
 select throws_ok(
@@ -197,9 +198,9 @@ select lives_ok(
 );
 
 select throws_ok(
-  $$ update public.tesoros set meta_centavos = 100 where clave = 'cocos' $$,
+  $$ update public.tesoros set meta_centavos = 100 where clave = 'hogar' $$,
   '23514', 'new row for relation "tesoros" violates check constraint "tesoros_meta_solo_de_los_propios"',
-  'los de siempre no: la meta de Cocos sigue en ajustes, donde la leen las apps sin actualizar'
+  'los de siempre no tienen meta: la de Cocos, que sí, se prueba en 60_la_meta.sql'
 );
 
 select throws_ok(
@@ -220,7 +221,7 @@ select throws_ok(
 select throws_ok(
   $$ update public.tesoros set archivado_at = now() where clave = 'hogar' $$,
   '23514', 'new row for relation "tesoros" violates check constraint "tesoros_los_de_siempre_no_se_archivan"',
-  'Hogar, Maun, Diezmo y Cocos no se archivan: son el taller'
+  'Hogar, Maun y el diezmo no se archivan: son el taller'
 );
 
 
@@ -233,8 +234,8 @@ insert into public.tesoros (id, nombre, tinta, icono)
 
 select is(
   (select count(*)::int from public.tesoros),
-  5,
-  'B ve sus cuatro de siempre y el suyo'
+  4,
+  'B ve sus tres de siempre y el suyo'
 );
 
 select is_empty(

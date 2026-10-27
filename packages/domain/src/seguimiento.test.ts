@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { sumarMeses } from './fechas.ts';
 import {
+  esFechaParaElContacto,
   fechaDelPlazo,
   PLAZOS_DEL_SEGUIMIENTO,
   plazoDeLaFecha,
@@ -45,5 +46,18 @@ describe('los plazos del seguimiento', () => {
 
   it('al registrar un contacto hay tres salidas', () => {
     expect(RESULTADOS_DEL_CONTACTO).toEqual(['reactivado', 'perdido', 'otra_fecha']);
+  });
+});
+
+describe('esFechaParaElContacto', () => {
+  it('es hoy o un día que viene; un día que ya pasó no', () => {
+    expect(esFechaParaElContacto('2026-10-26', '2026-10-26')).toBe(true);
+    expect(esFechaParaElContacto('2026-11-10', '2026-10-26')).toBe(true);
+    expect(esFechaParaElContacto('2026-10-25', '2026-10-26')).toBe(false);
+  });
+
+  it('una fecha que no existe no se elige', () => {
+    expect(esFechaParaElContacto('2026-02-30', '2026-01-01')).toBe(false);
+    expect(esFechaParaElContacto('mañana', '2026-01-01')).toBe(false);
   });
 });

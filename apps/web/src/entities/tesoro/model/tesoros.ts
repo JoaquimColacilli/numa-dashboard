@@ -10,6 +10,7 @@ import {
 import {
   iconoDelTesoro,
   TESORO,
+  TESOROS_DE_UN_TALLER_NUEVO,
   TESOROS_EN_ORDEN,
   tintaDelTesoro,
   type TintaDeTesoro,
@@ -33,7 +34,7 @@ function deSiempre(clave: Tesoro): TesoroDeLaReplica {
     tinta: clave,
     icono: datos.icono,
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: TESOROS_EN_ORDEN.indexOf(clave),
     archivado: false,
   };
@@ -45,7 +46,7 @@ export function tesorosSincronizados(replica: Replica): boolean {
 
 export function tesorosDelTaller(replica: Replica): TesoroDelTaller[] {
   const replicados = tesorosDeLaReplica(replica);
-  const tesoros = replicados.length > 0 ? replicados : TESOROS_EN_ORDEN.map(deSiempre);
+  const tesoros = replicados.length > 0 ? replicados : TESOROS_DE_UN_TALLER_NUEVO.map(deSiempre);
   const saldos = saldosPorIdDeLaReplica(replica);
   return tesoros.map((tesoro) => ({
     ...tesoro,

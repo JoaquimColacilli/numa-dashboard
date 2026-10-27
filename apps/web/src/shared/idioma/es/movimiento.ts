@@ -115,6 +115,15 @@ export const movimiento = {
     Ajuste: 'Ajuste',
     'Archivo de un tesoro': 'Archivo de un tesoro',
     'Cubrir el mes': 'Cubrir el mes',
+    Adelanto: 'Adelanto',
+    'Deuda interna': 'Deuda interna',
+    Vencimiento: 'Vencimiento',
+    Sobrante: 'Sobrante',
+    'Plata de antes de su ciclo': 'Plata de antes de su ciclo',
+    'Ya no está': 'Ya no está',
+    Intereses: 'Intereses',
+    Venta: 'Venta',
+    Corrección: 'Corrección',
   },
   ayuda: {
     ingresoHogar: 'Entra al hogar y no pasa por el taller ni por el diezmo.',
@@ -174,13 +183,14 @@ export const movimiento = {
   },
   resumenDelMes: {
     entroAlHogar: 'Entró al hogar',
-    gastoElHogar: 'Gastó el hogar',
     facturoElTaller: 'Facturó el taller',
   },
   libro: {
     motivoDelBloqueo: {
       'del-proyecto':
         'Este asiento lo genera el proyecto: sale de sus pagos, de sus gastos y del reparto que quedó congelado al cobrarlo. Para cambiarlo hay que corregir el proyecto.',
+      'del-vencimiento':
+        'Lo anotó NUMA el día de pago de una deuda que se paga sola: el pago, lo que puso Maun para llegar al tope (deuda interna) o lo que sobró y volvió a Maun. No se edita.',
       ajuste:
         'Un ajuste no se edita: es la constancia de una corrección que ya se hizo. Si quedó mal, se compensa con otro ajuste en sentido contrario.',
     },
@@ -192,6 +202,9 @@ export const movimiento = {
       fijos: 'Gastos fijos del reparto',
       prioridad: 'Paso del reparto',
       reparto: 'Parte del reparto',
+      vencimiento: 'Pago del día de pago',
+      deuda_interna: 'Deuda interna',
+      sobrante: 'Sobrante del día de pago',
     },
     delTrabajo: 'Del trabajo',
     ajusteDeSaldo: 'Ajuste de saldo',

@@ -43,8 +43,6 @@ export const configurarTaller = {
     ayudaDelSueldoPorTrabajo: 'Lo que cada trabajo cobrado transfiere al hogar.',
     costosFijos: 'Costos fijos por mes',
     ayudaDeLosCostosFijos: 'Alquiler, servicios y todo lo que se paga aunque no entre trabajo.',
-    metaDeCocos: 'Meta de Cocos',
-    ayudaDeLaMeta: 'A cuánto querés llegar en el ahorro invertido.',
     sena: 'Seña que pedís (%)',
     ayudaDeLaSena:
       'Qué parte del presupuesto pedís para confirmar un trabajo. Lo normal es la mitad, y en un trabajo puntual la podés cambiar.',
@@ -54,15 +52,12 @@ export const configurarTaller = {
     vigencia: 'Días que vale un presupuesto',
     ayudaDeLaVigencia:
       'Se cuentan desde el día que lo mandás. Tu cliente ve hasta cuándo puede dejar la seña, y en cada trabajo la fecha se puede cambiar.',
-    tasa: 'Tasa anual de Cocos (%)',
-    ayudaDeLaTasa: 'Solo sirve para proyectar. Si no la sabés, dejala en 0.',
     guardarTodo: 'Guardar la configuración',
     guardarElReparto: 'Guardar el sueldo y los costos',
     errores: {
       nombre: (caracteres: number) =>
         `Poné un nombre para el taller, de hasta ${String(caracteres)} caracteres.`,
       importe: 'Escribí un importe, por ejemplo 1.800.000. Podés dejarlo en 0.',
-      tasa: 'Escribí la tasa como un porcentaje, por ejemplo 40. Podés dejarla en 0.',
       sena: 'Escribí la seña como un porcentaje entre 0 y 100, por ejemplo 50.',
       vigencia: (maximo: number) =>
         `Escribí cuántos días vale un presupuesto, entre 1 y ${String(maximo)}. Lo normal son 15.`,
@@ -182,6 +177,24 @@ export const configurarTaller = {
       'otro-sitio':
         'Tiene que ser un enlace de Google para dejar una reseña, como los que empiezan con https://g.page/ o https://search.google.com/.',
     },
+  },
+  preguntas: {
+    pregunta: (numero: number) => `Pregunta ${String(numero)}`,
+    ayudaDe: (rotulo: string) => `Ayuda de «${rotulo}»`,
+    escribiLaPregunta: 'Escribí la pregunta',
+    ayudaOpcional: 'Ayuda (opcional): qué conviene preguntar',
+    elDomicilio: 'Es la dirección del trabajo, la de entrega: va primero y no se borra.',
+    sinNombre: 'Ponele un nombre: sin nombre no se guarda.',
+    escribilaParaQueSeGuarde: 'Escribí la pregunta para que se guarde.',
+    sumar: 'Sumar una pregunta',
+    lleno: (cuantas: number) => `Entran ${String(cuantas)} como mucho: para sumar otra, borrá una.`,
+    subir: (rotulo: string) => `Subir «${rotulo}»`,
+    bajar: (rotulo: string) => `Bajar «${rotulo}»`,
+    borrar: (rotulo: string) => `Borrar «${rotulo}»`,
+    laNueva: 'la pregunta nueva',
+    borraste: (rotulo: string) => `Borraste «${rotulo}».`,
+    loContestadoQueda: 'Lo que ya te contestaron queda en cada trabajo.',
+    deshacer: 'Deshacer',
   },
   presupuesto: {
     ajustes: 'Ajustes',
@@ -374,6 +387,34 @@ export const configurarTaller = {
           </>
         ),
       },
+      entrega: {
+        nombre: 'La fecha de entrega',
+        explicacion: (Dato: Envoltorio, valor: string) => (
+          <>
+            <Dato>{valor}</Dato> es para cuándo puede estar listo. Arranca con el plazo de
+            «Números», contado desde el día en que mandás el presupuesto, y en cada uno la podés
+            cambiar.
+          </>
+        ),
+      },
+      sena_acordada: {
+        nombre: 'La seña acordada',
+        explicacion: (Dato: Envoltorio, valor: string) => (
+          <>
+            La seña va así: <Dato>{valor}</Dato>. Con un solo total lleva su monto, con lo que ya te
+            pagó descontado.
+          </>
+        ),
+      },
+      sena_antes: {
+        nombre: 'La fecha de la seña',
+        explicacion: (Dato: Envoltorio, valor: string) => (
+          <>
+            <Dato>{valor}</Dato> es hasta cuándo puede entrar la seña para mantener la fecha de
+            entrega. Arranca con los días de «Números» después del día en que lo mandás.
+          </>
+        ),
+      },
     },
     formas: {
       vaElegida: 'Va elegida de entrada',
@@ -446,6 +487,9 @@ export const configurarTaller = {
       ayudaDeLasModificaciones: 'Las del diseño 3D que entran en el precio.',
       valor: 'Valor de una modificación de más',
       ayudaDelValor: 'Lo que cobrás cada una que pase de esas.',
+      diasSena: 'Días para la seña',
+      ayudaDeLosDiasDeLaSena:
+        'Los que van del día en que mandás el presupuesto a la fecha de la seña. En cada uno la podés cambiar.',
     },
     problemas: {
       titularLargo: (caracteres: number) => `El nombre entra en ${String(caracteres)} caracteres.`,
@@ -468,6 +512,8 @@ export const configurarTaller = {
       lasModificaciones: 'las modificaciones incluidas',
       valor: 'Escribí cuánto sale una modificación de más. Puede ser 0.',
       elValor: 'el valor de una modificación',
+      diasSena: 'Escribí los días para la seña, entre 0 y 60.',
+      losDiasDeLaSena: 'los días para la seña',
       textoVacio: 'Escribí el texto o quitalo de la lista.',
       unTextoVacio: 'un texto vacío',
       textoLargo: (caracteres: number) => `Un texto entra en ${String(caracteres)} caracteres.`,
@@ -524,6 +570,8 @@ export const configurarTaller = {
       lasFormasVuelven: 'Las formas de pago vuelven a sus textos de siempre.',
       laGarantiaVuelveASuTexto: 'La garantía vuelve a su texto de siempre.',
       elPlazoVuelve: (dias: number) => `El plazo vuelve a ${String(dias)} días hábiles.`,
+      losDiasDeLaSenaVuelven: (dias: number) =>
+        `La seña vuelve a vencer ${cuantas(dias, 'día', 'días')} después de mandarlo.`,
       vuelvenLasModificaciones: (cuantas: number, valor: string) =>
         `Vuelven a entrar ${String(cuantas)} modificaciones, y cada una de más vale ${valor}.`,
       laGarantiaVuelve: (meses: number) => `La garantía vuelve a ${String(meses)} meses.`,
@@ -555,6 +603,8 @@ export const configurarTaller = {
           : `Faltan ${que}, que la ley pide en un presupuesto.`,
       plazo: 'Plazo',
       diasHabiles: (dias: number) => cuantas(dias, 'día hábil', 'días hábiles'),
+      sena: 'Seña',
+      diasDespues: (dias: number) => `${cuantas(dias, 'día', 'días')} después de mandarlo`,
       garantia: 'Garantía',
       meses: (meses: number) => cuantas(meses, 'mes', 'meses'),
       textos: 'Textos',

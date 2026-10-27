@@ -16,6 +16,38 @@ export type Novedad = NovedadEnLosTresIdiomas | NovedadDeAntes;
 
 export const NOVEDADES_EN_LOS_TRES_IDIOMAS: readonly NovedadEnLosTresIdiomas[] = [
   {
+    version: '2026-10-27',
+    lineas: {
+      es: [
+        'En Seguimiento cambiás el día del próximo contacto desde la ficha, o arrastrándolo en la agenda.',
+        'Al cargar una consulta, NUMA te recuerda qué preguntar para el estimativo: el domicilio, el acceso al lugar y la urgencia. Sumá tus preguntas en Ajustes.',
+        'El estimativo se arma en el presupuesto, con un tilde. Tu cliente lo ve en su página, lo aprueba y te propone un día para ir a medir.',
+        'En el presupuesto elegís para cuándo puede estar listo y hasta qué día tiene que entrar la seña.',
+        'El reparto de cada cobro a los tesoros va con el día en que cobrás, y ya no con el de la seña.',
+        'En Tesoros, cada tesoro es una caja, una deuda o una meta. Revisá la fila y guardala: desde ahí, tus compromisos se pagan solos el día que vencen, y si falta plata la pone Maun.',
+        'Cocos ya no calcula intereses: si no lo usás, archivalo desde Tesoros. Los gastos de la casa ya no se cargan: si adelantás un sueldo, anotá el adelanto. Para corregir lo que tiene un tesoro, tocá «Ajustar el saldo».',
+      ],
+      en: [
+        'In Follow-up you change the day of the next follow-up from its card, or by dragging it in the calendar.',
+        'When you add an inquiry, NUMA reminds you what to ask for the estimate: the address, site access and urgency. Add your own questions in Settings.',
+        'You build the estimate in the quote, with a checkbox. Your client sees it on their page, approves it and suggests a day for you to come measure.',
+        'In the quote you choose when it can be ready and by what day the deposit has to come in.',
+        'The split of each payment into your buckets now goes by the day you get paid, not the day of the deposit.',
+        'In Buckets, each bucket is a cash box, a debt or a goal. Review the waterfall and save it: from then on, your bills pay themselves on their due day, and if money is short, Maun puts it in.',
+        "Cocos no longer calculates interest: if you don't use it, archive it from Buckets. Household expenses are no longer entered: if you advance a salary, log the advance. To correct what a bucket has, tap “Adjust the balance”.",
+      ],
+      'pt-BR': [
+        'Em Retornos você muda o dia do próximo contato pela ficha, ou arrastando na agenda.',
+        'Ao registrar uma consulta, o NUMA lembra o que perguntar para a estimativa: o endereço, o acesso ao local e a urgência. Adicione suas perguntas em Configurações.',
+        'A estimativa se monta no orçamento, com uma marcação. O cliente vê na página dele, aprova e propõe um dia para você ir medir.',
+        'No orçamento você escolhe para quando pode ficar pronto e até que dia o sinal tem que entrar.',
+        'A divisão de cada recebimento nas caixinhas agora vai pelo dia em que você recebe, e não pelo dia do sinal.',
+        'Em Caixinhas, cada caixinha é um caixa, uma dívida ou uma meta. Revise a fila e salve: a partir daí, suas contas se pagam sozinhas no dia do vencimento, e se faltar dinheiro, a Maun coloca.',
+        'O Cocos não calcula mais juros: se você não usa, arquive em Caixinhas. As despesas da casa não são mais registradas: se adiantar um salário, registre o adiantamento. Para corrigir o que uma caixinha tem, toque em “Ajustar o saldo”.',
+      ],
+    },
+  },
+  {
     version: '2026-10-04',
     lineas: {
       es: [

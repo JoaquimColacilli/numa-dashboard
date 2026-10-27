@@ -46,7 +46,7 @@ export const vistaCliente = {
         estimativo: {
           titulo: 'Enviamos uma estimativa',
           texto:
-            'Só se você enviou uma estimativa: ela aparece marcada, como uma etapa antes do orçamento, com o dia em que você tocou em Marcar estimativa como enviada, e o orçamento fica em andamento. O cliente nunca vê o valor.',
+            'Quando você envia o orçamento com a marcação “É uma estimativa”, o cliente vê antes do orçamento, com o valor estimado e sem sinal, e pode aprovar pela página dele. Se você pediu uma data para medir, ao aprovar ele propõe um dia.',
         },
         relevamiento: {
           titulo: 'O valor ainda pode mudar',
@@ -79,7 +79,7 @@ export const vistaCliente = {
         esperando: {
           titulo: 'Enquanto espera o sinal',
           texto:
-            'O cliente não vê o endereço nem as datas que você registrou: elas aparecem quando ele aprova. Vê para quando poderia ficar pronto se pagar o sinal antes do dia até o qual o orçamento vale, ou se aprovar antes desse dia quando o que já pagou cobre o sinal.',
+            'O cliente não vê o endereço nem as datas que você registrou: elas aparecem quando ele aprova. Lê para quando pode ficar pronto se o sinal entrar até o dia que você escolheu no orçamento; passado esse dia sem o sinal, lê que a data dependia do sinal.',
         },
         paso2: {
           titulo: 'Aprovado, sinal recebido',
@@ -105,7 +105,7 @@ export const vistaCliente = {
         opciones: {
           titulo: 'Com opções',
           texto:
-            'O cliente vê cada opção com o total e o sinal, e a página pede que escolha. Quando você aprova uma, as outras somem da página.',
+            'O cliente vê cada opção com o total e o sinal, e pode aprovar uma pela página dele: você recebe um aviso e vê na ficha. Quando você aprova uma, as outras somem da página.',
         },
         vencido: {
           titulo: 'Se vencer',

@@ -10,22 +10,39 @@ import {
   cambiarLaObligacion,
   cambiarLaParte,
   cambiosDeLaFila,
+  DIA_DE_PAGO_PROPUESTO,
   columnasDeSiempre,
+  cicloDelPaso,
   conDesde,
+  conElPagaSolaDesde,
+  conLaFormaNueva,
+  cuentaDelVencimiento,
+  esDeLaFormaDeAntes,
   esDeLaMonedaDelTaller,
   esDiaDePago,
   filaDelMes,
   filaDeSiempre,
   leerLaFila,
+  LO_QUE_PUEDE_SER_UN_TESORO,
+  loDeLosPasos,
+  loDelCiclo,
   loDelMes,
   loVistoEsOtro,
   lugarLibreDelReparto,
   modoInicial,
   modosPosibles,
+  modosQueSeOfrecen,
+  MONTO_MAXIMO_DE_LA_FILA,
   moverObligacion,
   moverPaso,
+  pagadoParaElVencimiento,
+  pagoDelVencimiento,
+  pagosQueCorresponden,
+  pasanAPagarseSolos,
+  pasoNuevo,
   planDeLaLiquidacion,
   planDelReparto,
+  plataDeAntesDelCiclo,
   ponerDespues,
   ponerElSuperavit,
   ponerEnElReparto,
@@ -36,18 +53,26 @@ import {
   previoQueVio,
   primerProblemaDeLaFila,
   problemasDeLaFila,
+  queEsElTesoro,
   repartir,
   repartosDelCobro,
   sacarDeLaFila,
+  saldoAntesDe,
+  seOfreceSinFin,
+  seVencenSolos,
   sumaDelReparto,
   tesorosDeLaFila,
   tipoDelPaso,
   tipoDelTesoro,
+  vencimientoDelGasto,
   vencimientosDelPaso,
   type AjustesDelReparto,
+  type Cobertura,
   type DatosDelMes,
+  type PagoDeUnVencimiento,
   type EntradaDelReparto,
   type Fila,
+  type LineaDeUnTesoro,
   type LiquidacionDelMes,
   type ModoDePaso,
   type ObligacionDeLaFila,
@@ -93,11 +118,17 @@ const TESOROS: TesoroDeLaFila[] = [
 
 const COBRADO: AjustesDelReparto = { perdidoConSueldo: false, perdidoConDiezmo: true };
 
-const DEL_DIEZMO: ObligacionDeLaFila = { tesoro: DIEZMO_ID, porcentaje: DIEZMO, base: 'ingreso' };
+const DEL_DIEZMO: ObligacionDeLaFila = {
+  tesoro: DIEZMO_ID,
+  porcentaje: DIEZMO,
+  base: 'ingreso',
+  montoFijo: null,
+};
 const INGRESOS_BRUTOS: ObligacionDeLaFila = {
   tesoro: IIBB,
   porcentaje: bp(350),
   base: 'cobrado',
+  montoFijo: null,
 };
 
 function sueldo(tope: Money): PasoDeLaFila {
@@ -109,6 +140,9 @@ function sueldo(tope: Money): PasoDeLaFila {
     desde: null,
     modo: 'mes',
     hastaLaMeta: false,
+    dia: null,
+    pagaSola: false,
+    pagaSolaDesde: null,
   };
 }
 
@@ -126,6 +160,9 @@ function fijos(
     desde: null,
     modo,
     hastaLaMeta: false,
+    dia: null,
+    pagaSola: false,
+    pagaSolaDesde: null,
   };
 }
 
@@ -142,6 +179,9 @@ function prioridad(
     desde: null,
     modo: 'mes',
     hastaLaMeta: false,
+    dia: null,
+    pagaSola: false,
+    pagaSolaDesde: null,
     ...cambios,
   };
 }
@@ -612,6 +652,7 @@ describe('lo que el reparto rechaza', () => {
             porMes: true,
             modo: 'mes',
             hastaLaMeta: false,
+            dia: null,
           },
         ],
       }),
@@ -755,7 +796,7 @@ describe('la fila de siempre', () => {
         SISTEMA,
       ),
     ).toEqual({
-      obligaciones: [{ tesoro: DIEZMO_ID, porcentaje: 1_000, base: 'ingreso' }],
+      obligaciones: [{ tesoro: DIEZMO_ID, porcentaje: 1_000, base: 'ingreso', montoFijo: null }],
       pasos: [
         {
           tesoro: HOGAR,
@@ -765,6 +806,9 @@ describe('la fila de siempre', () => {
           desde: null,
           modo: 'mes',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
         {
           tesoro: MAUN,
@@ -774,6 +818,9 @@ describe('la fila de siempre', () => {
           desde: null,
           modo: 'mes',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
       reparto: [],
@@ -852,6 +899,7 @@ describe('el plan del reparto', () => {
           porMes: true,
           modo: 'trabajo',
           hastaLaMeta: true,
+          dia: null,
         },
       ],
       reparto: [parte(INVERSIONES, 100, true)],
@@ -929,8 +977,8 @@ describe('lo que cada tesoro ya recibió en el mes', () => {
     const delMes = loDelMes(
       liquidaciones,
       [
-        { tesoro: FIJOS, mes: '2026-09', monto: $(400) },
-        { tesoro: FIJOS, mes: '2026-08', monto: $(999) },
+        { tesoro: FIJOS, desde: '2026-09-01', monto: $(400) },
+        { tesoro: FIJOS, desde: '2026-08-01', monto: $(999) },
       ],
       '2026-09',
     );
@@ -941,10 +989,10 @@ describe('lo que cada tesoro ya recibió en el mes', () => {
     });
   });
 
-  it('un mes mal escrito se rechaza, también en una cobertura', () => {
+  it('un mes mal escrito se rechaza, y una fecha que no existe en una cobertura', () => {
     expect(() => loDelMes([], [], '2026-9')).toThrow(RangeError);
     expect(() =>
-      loDelMes([], [{ tesoro: FIJOS, mes: 'septiembre', monto: $(1) }], '2026-09'),
+      loDelMes([], [{ tesoro: FIJOS, desde: 'septiembre', monto: $(1) }], '2026-09'),
     ).toThrow(RangeError);
   });
 
@@ -1100,6 +1148,7 @@ describe('lo que se congela en las columnas de siempre y en los repartos', () =>
       tesoro: IIBB,
       porcentaje: 350,
       base: 'cobrado',
+      montoFijo: null,
       monto: $(105_000),
     });
     expect(aportesDelReparto(reparto).map((aporte) => aporte.tesoro)).toEqual([
@@ -1211,7 +1260,7 @@ describe('leer la fila guardada', () => {
       sueldoPorTrabajo: false,
     };
     expect(leerLaFila(primerPedido, SISTEMA)).toEqual({
-      obligaciones: [{ tesoro: DIEZMO_ID, porcentaje: 1_000, base: 'ingreso' }],
+      obligaciones: [{ tesoro: DIEZMO_ID, porcentaje: 1_000, base: 'ingreso', montoFijo: null }],
       pasos: [
         {
           tesoro: HOGAR,
@@ -1221,6 +1270,9 @@ describe('leer la fila guardada', () => {
           desde: null,
           modo: 'mes',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
         {
           tesoro: FIJOS,
@@ -1230,6 +1282,9 @@ describe('leer la fila guardada', () => {
           desde: '2026-09',
           modo: 'mes',
           hastaLaMeta: false,
+          dia: null,
+          pagaSola: false,
+          pagaSolaDesde: null,
         },
       ],
       reparto: [{ tesoro: COCOS, porcentaje: 500, hastaLaMeta: false }],
@@ -1694,7 +1749,7 @@ describe('la fila del mes', () => {
         remanente: $(0),
       },
     ],
-    coberturas: [{ tesoro: MAUN, mes: '2026-09', monto: $(20_000) }],
+    coberturas: [{ tesoro: MAUN, desde: '2026-09-01', monto: $(20_000) }],
     saldos: new Map([
       [IIBB, $(140_000)],
       [DIEZMO_ID, $(341_250)],
@@ -1712,10 +1767,23 @@ describe('la fila del mes', () => {
       [INVERSIONES, $(300_000)],
     ]),
     gastos: [
-      { tesoro: FIJOS, categoria: ' alquiler', fecha: '2026-09-09' },
-      { tesoro: FIJOS, categoria: 'Luz', fecha: '2026-08-31' },
-      { tesoro: MAUN, categoria: 'Costos fijos', fecha: '2026-09-05' },
+      {
+        tesoro: FIJOS,
+        categoria: ' alquiler',
+        fecha: '2026-09-09',
+        monto: $(500_000),
+        vencimiento: null,
+      },
+      { tesoro: FIJOS, categoria: 'Luz', fecha: '2026-08-31', monto: $(60_000), vencimiento: null },
+      {
+        tesoro: MAUN,
+        categoria: 'Costos fijos',
+        fecha: '2026-09-05',
+        monto: $(1),
+        vencimiento: null,
+      },
     ],
+    pagos: [],
   };
 
   it('cada obligación con lo apartado y lo que tiene a pagar', () => {
@@ -1765,6 +1833,9 @@ describe('la fila del mes', () => {
       aPagar: null,
       vencimientos: [],
       meta: null,
+      ciclo: { desde: '2026-09-01', hasta: '2026-10-01' },
+      vencimiento: null,
+      ultimoPago: null,
     });
     expect(gastosFijos).toEqual({
       tesoro: FIJOS,
@@ -1797,6 +1868,9 @@ describe('la fila del mes', () => {
         },
       ],
       meta: null,
+      ciclo: null,
+      vencimiento: null,
+      ultimoPago: null,
     });
     expect(maun).toMatchObject({
       tipo: 'compromiso',
@@ -1950,7 +2024,9 @@ describe('los vencimientos de un paso', () => {
 
   it('se paga con un gasto desde ese tesoro, con el renglón como categoría, en ese mes', () => {
     const pagos = (tesoro: string, categoria: string, fecha: string) =>
-      vencimientosDelPaso(paso, '2026-09', [{ tesoro, categoria, fecha }])[0]?.pagado;
+      vencimientosDelPaso(paso, '2026-09', [
+        { tesoro, categoria, fecha, monto: $(1), vencimiento: null },
+      ])[0]?.pagado;
     expect(pagos(FIJOS, 'Alquiler', '2026-09-01')).toBe(true);
     expect(pagos(FIJOS, 'ALQUILER ', '2026-09-30')).toBe(true);
     expect(pagos(MAUN, 'Alquiler', '2026-09-01')).toBe(false);
@@ -2016,7 +2092,7 @@ describe('editar la fila', () => {
     expect(
       cambiarLaObligacion(conIngresosBrutos, IIBB, { porcentaje: bp(400), base: 'ingreso' })
         .obligaciones[0],
-    ).toEqual({ tesoro: IIBB, porcentaje: 400, base: 'ingreso' });
+    ).toEqual({ tesoro: IIBB, porcentaje: 400, base: 'ingreso', montoFijo: null });
 
     const desdeUnPaso = ponerObligacion(
       FILA_DE_ELISEO,
@@ -2159,13 +2235,26 @@ describe('editar la fila', () => {
       { nombre: 'Alquiler', monto: $(500_000), dia: 10 },
     ]);
     expect(aCompromiso.pasos.map((paso) => paso.tesoro)).toEqual([HOGAR, COCOS, MATERIALES]);
-    expect(aCompromiso.pasos[1]).toMatchObject({ clase: 'fijos', tope: $(500_000), modo: 'saldo' });
+    expect(aCompromiso.pasos[1]).toMatchObject({
+      clase: 'fijos',
+      tope: $(500_000),
+      modo: 'mes',
+      dia: 10,
+      pagaSola: true,
+      pagaSolaDesde: null,
+      renglones: [{ nombre: 'Alquiler', monto: $(500_000), dia: null }],
+    });
     expect(cambiarLaClase(ahorro, MATERIALES, 'fijos').pasos[1]).toMatchObject({
       clase: 'fijos',
-      modo: 'saldo',
+      modo: 'mes',
+      dia: DIA_DE_PAGO_PROPUESTO,
+      pagaSola: true,
       hastaLaMeta: false,
       tope: $(0),
     });
+    expect(
+      cambiarLaClase(aCompromiso, COCOS, 'prioridad').pasos.find((paso) => paso.tesoro === COCOS),
+    ).toMatchObject({ clase: 'prioridad', dia: null, pagaSola: false, pagaSolaDesde: null });
     expect(cambiarLaClase(ahorro, MATERIALES, 'prioridad')).toBe(ahorro);
     expect(() => cambiarLaClase(ahorro, INVERSIONES, 'fijos')).toThrow(RangeError);
   });
@@ -2201,7 +2290,7 @@ describe('el resumen de lo que cambió', () => {
     });
     const despues = filaCon({
       obligaciones: [
-        { tesoro: IIBB, porcentaje: bp(400), base: 'ingreso' },
+        { tesoro: IIBB, porcentaje: bp(400), base: 'ingreso', montoFijo: null },
         DEL_DIEZMO,
         { ...INGRESOS_BRUTOS, tesoro: SUPERAVIT },
       ],
@@ -2318,5 +2407,713 @@ describe('el resumen de lo que cambió', () => {
       { tipo: 'cambia-el-superavit', tesoro: IIBB, antes: MAUN },
     ]);
     expect(cambiosDeLaFila(FILA_DE_ELISEO, FILA_DE_ELISEO)).toEqual([]);
+  });
+});
+
+describe('los tipos de tesoro de Eliseo: caja, deuda destinada, deuda obligatoria y meta', () => {
+  const SALARIO_CON_DIA: PasoDeLaFila = {
+    ...sueldo($(1_000_000)),
+    dia: 10,
+    pagaSola: true,
+    pagaSolaDesde: '2026-10-27',
+  };
+
+  const FILA_CON_DIA: Fila = filaCon({
+    obligaciones: [INGRESOS_BRUTOS, DEL_DIEZMO],
+    pasos: [SALARIO_CON_DIA, fijos([['Costos fijos', $(200_000)]], MAUN), PASO_MATERIALES],
+    reparto: [parte(INVERSIONES, 5_000, true), parte(INMUEBLES, 3_000)],
+  });
+
+  describe('qué es cada tesoro', () => {
+    it('sale de su lugar en la fila y de si tiene objetivo; Maun es siempre caja', () => {
+      const que = (id: string, meta: Money | null = null, clave: TesoroDeLaFila['clave'] = null) =>
+        queEsElTesoro(FILA_CON_DIA, { id, clave, meta });
+      expect(que(MAUN, null, 'maun')).toBe('caja');
+      expect(que(IIBB)).toBe('deuda-destinada');
+      expect(que(DIEZMO_ID, null, 'diezmo')).toBe('deuda-destinada');
+      expect(que(HOGAR, null, 'hogar')).toBe('deuda-obligatoria');
+      expect(que(MATERIALES, $(1_000_000))).toBe('meta');
+      expect(que(MATERIALES)).toBe('caja');
+      expect(que(INVERSIONES, $(300_000))).toBe('meta');
+      expect(que(INMUEBLES, $(0))).toBe('caja');
+      expect(que(SUPERAVIT, $(5))).toBe('meta');
+      expect(que(SUPERAVIT)).toBe('caja');
+      expect(
+        queEsElTesoro(ponerElSuperavit(FILA_CON_DIA, SUPERAVIT), {
+          id: SUPERAVIT,
+          clave: null,
+          meta: $(5),
+        }),
+      ).toBe('caja');
+      expect(LO_QUE_PUEDE_SER_UN_TESORO).toEqual([
+        'caja',
+        'deuda-destinada',
+        'deuda-obligatoria',
+        'meta',
+      ]);
+    });
+  });
+
+  describe('el pago del vencimiento', () => {
+    it('una deuda de 1.000.000 con 600.000 juntados y un adelanto de 300.000: se pagan 700.000 y Maun pone 400.000', () => {
+      expect(cuentaDelVencimiento($(1_000_000), $(300_000), $(300_000))).toEqual({
+        aPagar: $(700_000),
+        pusoMaun: $(400_000),
+        vuelveAMaun: $(0),
+      });
+    });
+
+    it('con 1.000.000 juntados y sin adelanto se paga 1.000.000 y Maun no pone nada', () => {
+      expect(cuentaDelVencimiento($(1_000_000), $(0), $(1_000_000))).toEqual({
+        aPagar: $(1_000_000),
+        pusoMaun: $(0),
+        vuelveAMaun: $(0),
+      });
+    });
+
+    it('con 1.100.000 de saldo se paga 1.000.000 y vuelven 100.000 a Maun', () => {
+      expect(cuentaDelVencimiento($(1_000_000), $(0), $(1_100_000))).toEqual({
+        aPagar: $(1_000_000),
+        pusoMaun: $(0),
+        vuelveAMaun: $(100_000),
+      });
+    });
+
+    it('lo pagado de más no se vuelve a pagar, y un saldo negativo lo cubre Maun entero', () => {
+      expect(cuentaDelVencimiento($(1_000), $(1_500), $(-200))).toEqual({
+        aPagar: $(0),
+        pusoMaun: $(200),
+        vuelveAMaun: $(0),
+      });
+      expect(cuentaDelVencimiento($(1_000), $(0), $(-200))).toEqual({
+        aPagar: $(1_000),
+        pusoMaun: $(1_200),
+        vuelveAMaun: $(0),
+      });
+    });
+
+    it('rechaza un tope o un pago negativos', () => {
+      expect(() => cuentaDelVencimiento(centavos(-1), $(0), $(0))).toThrow(RangeError);
+      expect(() => cuentaDelVencimiento($(1), centavos(-1), $(0))).toThrow(RangeError);
+    });
+  });
+
+  describe('qué vencimiento paga cada gasto', () => {
+    const gasto = (fecha: string, monto: Money, vencimiento: string | null = null) => ({
+      tesoro: HOGAR,
+      categoria: 'Adelanto',
+      fecha,
+      monto,
+      vencimiento,
+    });
+
+    it('el que se registra desde un vencimiento paga ese, aunque sea después; los demás, el de su ciclo', () => {
+      expect(vencimientoDelGasto(gasto('2026-11-12', $(1), '2026-11-10'), 10)).toBe('2026-11-10');
+      expect(vencimientoDelGasto(gasto('2026-11-09', $(1)), 10)).toBe('2026-11-10');
+      expect(vencimientoDelGasto(gasto('2026-11-10', $(1)), 10)).toBe('2026-12-10');
+    });
+
+    it('lo pagado para un vencimiento suma los gastos de ese tesoro que lo pagan', () => {
+      const gastos = [
+        gasto('2026-10-20', $(300_000)),
+        gasto('2026-11-12', $(50_000), '2026-11-10'),
+        gasto('2026-11-10', $(7)),
+        { ...gasto('2026-10-21', $(9)), tesoro: MAUN },
+      ];
+      expect(pagadoParaElVencimiento(HOGAR, '2026-11-10', 10, gastos)).toBe($(350_000));
+      expect(pagadoParaElVencimiento(HOGAR, '2026-12-10', 10, gastos)).toBe($(7));
+      expect(pagadoParaElVencimiento(MAUN, '2026-11-10', 10, gastos)).toBe($(9));
+    });
+  });
+
+  describe('el ciclo de cada paso', () => {
+    const liquidacion = (fecha: string, tesoro: string, monto: Money): LiquidacionDelMes => ({
+      fecha,
+      neta: monto,
+      diezmo: $(0),
+      aportes: [{ tesoro, monto }],
+      remanente: $(0),
+    });
+
+    it('con el día 10 junta del 10 al 10; sin día, el mes del calendario', () => {
+      expect(cicloDelPaso({ dia: 10 }, '2026-10-27')).toEqual({
+        desde: '2026-10-10',
+        hasta: '2026-11-10',
+      });
+      expect(cicloDelPaso({ dia: null }, '2026-10-27')).toEqual({
+        desde: '2026-10-01',
+        hasta: '2026-11-01',
+      });
+    });
+
+    it('lo del ciclo suma lo que recibió por la fila y lo que se le pasó a mano para ese ciclo', () => {
+      const ciclo = { desde: '2026-10-10', hasta: '2026-11-10' };
+      const liquidaciones = [
+        liquidacion('2026-10-08', HOGAR, $(1_000)),
+        liquidacion('2026-10-10', HOGAR, $(200)),
+        liquidacion('2026-11-09', HOGAR, $(30)),
+        liquidacion('2026-11-10', HOGAR, $(4_000)),
+        liquidacion('2026-10-20', MAUN, $(5)),
+      ];
+      const coberturas: Cobertura[] = [
+        { tesoro: HOGAR, desde: '2026-10-10', monto: $(7) },
+        { tesoro: HOGAR, desde: '2026-10-01', monto: $(9_000) },
+        { tesoro: MAUN, desde: '2026-10-10', monto: $(8) },
+      ];
+      expect(loDelCiclo(liquidaciones, coberturas, HOGAR, ciclo)).toBe($(237));
+    });
+
+    it('lo de cada paso que va por mes usa su ciclo; los que se renuevan o van por trabajo, no', () => {
+      const plan = planDelReparto(
+        'cobrado',
+        filaCon({
+          pasos: [
+            SALARIO_CON_DIA,
+            fijos([['Alquiler', $(100)]], FIJOS, 'saldo'),
+            prioridad(MATERIALES, $(10), { modo: 'trabajo' }),
+            prioridad(INVERSIONES, $(10)),
+          ],
+        }),
+        COBRADO,
+        SISTEMA,
+      );
+      expect(plan.pasos.map((paso) => paso.dia)).toEqual([10, null, null, null]);
+      const delCiclo = loDeLosPasos(
+        plan,
+        [
+          liquidacion('2026-10-09', HOGAR, $(1)),
+          liquidacion('2026-10-11', HOGAR, $(2)),
+          liquidacion('2026-10-02', INVERSIONES, $(3)),
+          liquidacion('2026-10-02', FIJOS, $(4)),
+          liquidacion('2026-10-02', MATERIALES, $(5)),
+        ],
+        [],
+        '2026-10-27',
+      );
+      expect(Object.fromEntries(delCiclo)).toEqual({ [HOGAR]: $(2), [INVERSIONES]: $(3) });
+    });
+
+    it('un cobro reparte el compromiso con lo de su ciclo y no con lo del mes', () => {
+      const fila = filaCon({ pasos: [SALARIO_CON_DIA] });
+      const comun = {
+        destino: 'cobrado' as const,
+        fecha: '2026-10-27',
+        cobrado: $(2_000_000),
+        gastos: $(0),
+        fila,
+        sistema: SISTEMA,
+        ajustes: COBRADO,
+        coberturas: [],
+        saldos: new Map<string, Money>(),
+        metas: new Map<string, Money>(),
+      };
+      const enOctubre = calcularPorLaFila({
+        ...comun,
+        liquidaciones: [liquidacion('2026-10-08', HOGAR, $(900_000))],
+      });
+      expect(enOctubre.pasos[0]).toMatchObject({ previo: $(0), monto: $(1_000_000) });
+      const enElCiclo = calcularPorLaFila({
+        ...comun,
+        liquidaciones: [liquidacion('2026-10-12', HOGAR, $(900_000))],
+      });
+      expect(enElCiclo.pasos[0]).toMatchObject({ previo: $(900_000), monto: $(100_000) });
+    });
+  });
+
+  describe('la obligación de monto fijo', () => {
+    it('se lleva su monto de cada cobro, nunca más de lo que le llega', () => {
+      const fija: ObligacionDeLaFila = { ...INGRESOS_BRUTOS, montoFijo: $(50_000) };
+      const reparto = repartir(
+        entrada($(130_000), $(100_000), filaCon({ obligaciones: [fija, DEL_DIEZMO] })),
+      );
+      expect(reparto.obligaciones.map((obligacion) => obligacion.monto)).toEqual([$(30_000), $(0)]);
+      const conMas = repartir(
+        entrada($(1_000_000), $(0), filaCon({ obligaciones: [fija, DEL_DIEZMO] })),
+      );
+      expect(conMas.obligaciones.map((obligacion) => obligacion.monto)).toEqual([
+        $(50_000),
+        $(95_000),
+      ]);
+      expect(repartosDelCobro(conMas)[0]).toMatchObject({
+        montoFijo: $(50_000),
+        monto: $(50_000),
+      });
+    });
+
+    it('en un perdido se aplica igual, y el diezmo nunca va por monto', () => {
+      const fija: ObligacionDeLaFila = { ...INGRESOS_BRUTOS, montoFijo: $(50_000) };
+      const plan = planDelReparto(
+        'perdido',
+        filaCon({ obligaciones: [fija, { ...DEL_DIEZMO, montoFijo: $(1) }] }),
+        { perdidoConSueldo: false, perdidoConDiezmo: false },
+        SISTEMA,
+      );
+      expect(plan.obligaciones.map((obligacion) => obligacion.montoFijo)).toEqual([
+        $(50_000),
+        null,
+      ]);
+    });
+
+    it('el reparto rechaza un monto fijo negativo o un diezmo por monto', () => {
+      const base = entrada($(1), $(0), filaCon({}));
+      expect(() =>
+        repartir({
+          ...base,
+          obligaciones: [{ ...INGRESOS_BRUTOS, montoFijo: centavos(-1), diezmo: false }],
+        }),
+      ).toThrow(RangeError);
+      expect(() =>
+        repartir({
+          ...base,
+          obligaciones: [{ ...DEL_DIEZMO, montoFijo: $(1), diezmo: true }],
+        }),
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe('leer y validar lo nuevo', () => {
+    it('lee el día de pago, «se paga sola» y el monto fijo', () => {
+      const guardada = JSON.parse(JSON.stringify(FILA_CON_DIA)) as unknown;
+      expect(leerLaFila(guardada, SISTEMA)).toEqual(FILA_CON_DIA);
+      const conMonto = filaCon({
+        obligaciones: [{ ...INGRESOS_BRUTOS, montoFijo: $(5) }, DEL_DIEZMO],
+      });
+      expect(leerLaFila(JSON.parse(JSON.stringify(conMonto)), SISTEMA)).toEqual(conMonto);
+    });
+
+    it('una clave nueva con otro tipo no se lee', () => {
+      const base = JSON.parse(JSON.stringify(filaCon({ pasos: [PASO_SUELDO] }))) as Record<
+        string,
+        unknown
+      >;
+      const paso = JSON.parse(JSON.stringify(PASO_SUELDO)) as Record<string, unknown>;
+      const con = (cambio: Record<string, unknown>) =>
+        leerLaFila({ ...base, pasos: [{ ...paso, ...cambio }] }, SISTEMA);
+      expect(con({ dia: '10' })).toBeNull();
+      expect(con({ dia: 1.5 })).toBeNull();
+      expect(con({ pagaSola: 'si' })).toBeNull();
+      expect(con({ pagaSolaDesde: 20261027 })).toBeNull();
+      expect(con({ dia: null, pagaSolaDesde: null })).toMatchObject({ pasos: [{ dia: null }] });
+      expect(
+        leerLaFila({ ...base, obligaciones: [{ ...DEL_DIEZMO, montoFijo: '5' }] }, SISTEMA),
+      ).toBeNull();
+    });
+
+    it('cada problema nuevo con su código', () => {
+      const problema = (fila: Fila) => problemasDeLaFila(fila, TESOROS).map((uno) => uno.problema);
+      const conPaso = (cambios: Partial<PasoDeLaFila>, base: PasoDeLaFila = SALARIO_CON_DIA) =>
+        problema(filaCon({ pasos: [{ ...base, ...cambios }] }));
+      expect(problema(FILA_CON_DIA)).toEqual([]);
+      expect(conPaso({ dia: 32 })).toEqual(['dia-de-pago-invalido']);
+      expect(conPaso({ dia: 5 }, prioridad(MATERIALES, $(1)))).toEqual([
+        'dia-de-pago-fuera-de-compromiso',
+      ]);
+      expect(
+        conPaso(
+          { dia: 5, pagaSola: false, pagaSolaDesde: null },
+          fijos([['Luz', $(1)]], FIJOS, 'saldo'),
+        ),
+      ).toEqual(['dia-de-pago-fuera-de-compromiso']);
+      expect(conPaso({ dia: 5 }, fijos([['Luz', $(1), 10]]))).toEqual(['dias-en-los-renglones']);
+      expect(conPaso({ dia: null })).toEqual(['paga-sola-sin-dia']);
+      expect(
+        conPaso(
+          { dia: 10, pagaSola: true, pagaSolaDesde: '2026-10-27' },
+          fijos([['Costos fijos', $(1)]], MAUN),
+        ),
+      ).toEqual(['paga-sola-en-maun']);
+      expect(conPaso({ pagaSolaDesde: null })).toEqual(['paga-sola-desde-invalido']);
+      expect(conPaso({ pagaSolaDesde: '2026-02-30' })).toEqual(['paga-sola-desde-invalido']);
+      expect(conPaso({ pagaSola: false })).toEqual(['paga-sola-desde-invalido']);
+      expect(conPaso({ pagaSola: false, pagaSolaDesde: null })).toEqual([]);
+      const conObligacion = (obligacion: ObligacionDeLaFila) =>
+        problema(filaCon({ obligaciones: [obligacion, DEL_DIEZMO] }));
+      expect(conObligacion({ ...INGRESOS_BRUTOS, montoFijo: $(50_000) })).toEqual([]);
+      expect(conObligacion({ ...INGRESOS_BRUTOS, montoFijo: $(0) })).toEqual([
+        'monto-fijo-invalido',
+      ]);
+      expect(
+        conObligacion({ ...INGRESOS_BRUTOS, montoFijo: centavos(MONTO_MAXIMO_DE_LA_FILA + 1) }),
+      ).toEqual(['monto-fijo-invalido']);
+      expect(problema(filaCon({ obligaciones: [{ ...DEL_DIEZMO, montoFijo: $(1) }] }))).toEqual([
+        'diezmo-por-monto',
+      ]);
+    });
+  });
+
+  describe('la fila del mes con un compromiso con día de pago', () => {
+    const datos: DatosDelMes = {
+      liquidaciones: [
+        {
+          fecha: '2026-10-08',
+          neta: $(1_000_000),
+          diezmo: $(100_000),
+          aportes: [{ tesoro: HOGAR, monto: $(900_000) }],
+          remanente: $(0),
+        },
+        {
+          fecha: '2026-10-15',
+          neta: $(700_000),
+          diezmo: $(70_000),
+          aportes: [{ tesoro: HOGAR, monto: $(600_000) }],
+          remanente: $(30_000),
+        },
+      ],
+      coberturas: [{ tesoro: HOGAR, desde: '2026-10-10', monto: $(50_000) }],
+      saldos: new Map([[HOGAR, $(350_000)]]),
+      metas: new Map(),
+      gastos: [
+        {
+          tesoro: HOGAR,
+          categoria: 'Adelanto',
+          fecha: '2026-10-20',
+          monto: $(300_000),
+          vencimiento: null,
+        },
+      ],
+      pagos: [
+        {
+          tesoro: HOGAR,
+          vencimiento: '2026-10-10',
+          tope: $(1_000_000),
+          pagadoAntes: $(0),
+          saldo: $(900_000),
+          aPagar: $(1_000_000),
+          pusoMaun: $(100_000),
+          vuelveAMaun: $(0),
+        },
+      ],
+    };
+
+    it('muestra su ciclo, lo que juntó en él, el vencimiento con lo adelantado y el último pago', () => {
+      const [salario] = filaDelMes(
+        filaCon({ pasos: [SALARIO_CON_DIA] }),
+        SISTEMA,
+        datos,
+        '2026-10',
+        '2026-10-27',
+      ).pasos;
+      expect(salario).toMatchObject({
+        ciclo: { desde: '2026-10-10', hasta: '2026-11-10' },
+        recibido: $(600_000),
+        cubierto: $(50_000),
+        lleva: $(650_000),
+        falta: $(350_000),
+        vencimientos: [],
+        vencimiento: {
+          fecha: '2026-11-10',
+          pagaSola: true,
+          tope: $(1_000_000),
+          pagado: $(300_000),
+          saldo: $(350_000),
+          aPagar: $(700_000),
+          pusoMaun: $(350_000),
+          vuelveAMaun: $(0),
+          pago: null,
+        },
+        ultimoPago: { vencimiento: '2026-10-10', pusoMaun: $(100_000) },
+      });
+    });
+
+    it('el último pago es el del vencimiento más nuevo de ese tesoro, y sin saldo cuenta cero', () => {
+      const [deOctubre] = datos.pagos as [PagoDeUnVencimiento];
+      const otroPago = { ...deOctubre, vencimiento: '2026-09-10', pusoMaun: $(1) };
+      const deOtro = { ...deOctubre, tesoro: MAUN, vencimiento: '2026-12-10' };
+      const [salario] = filaDelMes(
+        filaCon({ pasos: [SALARIO_CON_DIA] }),
+        SISTEMA,
+        {
+          ...datos,
+          saldos: new Map(),
+          pagos: [otroPago, ...datos.pagos, otroPago, deOtro],
+        },
+        '2026-10',
+        '2026-10-27',
+      ).pasos;
+      expect(salario?.ultimoPago).toMatchObject({ vencimiento: '2026-10-10' });
+      expect(salario?.vencimiento).toMatchObject({ saldo: $(0), pusoMaun: $(700_000) });
+      expect(
+        plataDeAntesDelCiclo(SALARIO_CON_DIA, { ...datos, saldos: new Map() }, '2026-10-27'),
+      ).toBe($(-350_000));
+    });
+
+    it('sin referencia mira el último día del mes, y el pago de ese vencimiento viaja con él', () => {
+      const [salario] = filaDelMes(
+        filaCon({ pasos: [SALARIO_CON_DIA] }),
+        SISTEMA,
+        datos,
+        '2026-09',
+      ).pasos;
+      expect(salario?.vencimiento).toMatchObject({
+        fecha: '2026-10-10',
+        pago: { pusoMaun: $(100_000) },
+      });
+    });
+
+    it('lo que tiene de antes de su ciclo: el saldo, menos lo que juntó en él, más lo que ya pagó', () => {
+      expect(plataDeAntesDelCiclo(SALARIO_CON_DIA, datos, '2026-10-27')).toBe($(0));
+      expect(
+        plataDeAntesDelCiclo(
+          SALARIO_CON_DIA,
+          { ...datos, saldos: new Map([[HOGAR, $(3_822_741)]]) },
+          '2026-10-27',
+        ),
+      ).toBe($(3_472_741));
+      expect(plataDeAntesDelCiclo({ tesoro: HOGAR, dia: null }, datos, '2026-10-27')).toBe(
+        $(-900_000),
+      );
+    });
+  });
+
+  describe('la forma nueva', () => {
+    const DE_ANTES = filaCon({
+      pasos: [
+        PASO_SUELDO,
+        fijos(
+          [
+            ['Luz', $(60_000)],
+            ['Alquiler', $(500_000), 15],
+          ],
+          FIJOS,
+          'saldo',
+        ),
+        fijos([['Costos fijos', $(200_000)]], MAUN),
+        PASO_MATERIALES,
+      ],
+    });
+
+    it('cada compromiso menos Maun se paga solo, con el día del primer renglón con día o el 10, y sin días en los renglones', () => {
+      const nueva = conLaFormaNueva(DE_ANTES, MAUN, '2026-10-27');
+      expect(
+        nueva.pasos.map((paso) => [
+          paso.tesoro,
+          paso.modo,
+          paso.dia,
+          paso.pagaSola,
+          paso.pagaSolaDesde,
+        ]),
+      ).toEqual([
+        [HOGAR, 'mes', DIA_DE_PAGO_PROPUESTO, true, '2026-10-27'],
+        [FIJOS, 'mes', 15, true, '2026-10-27'],
+        [MAUN, 'mes', null, false, null],
+        [MATERIALES, PASO_MATERIALES.modo, null, false, null],
+      ]);
+      expect(nueva.pasos[1]?.renglones.map((renglon) => renglon.dia)).toEqual([null, null]);
+      expect(problemasDeLaFila(nueva, TESOROS)).toEqual([]);
+      expect(conLaFormaNueva(nueva, MAUN, '2026-11-01')).toEqual(nueva);
+      expect(
+        DE_ANTES.pasos.filter((paso) => esDeLaFormaDeAntes(paso, MAUN)).map((paso) => paso.tesoro),
+      ).toEqual([HOGAR, FIJOS]);
+    });
+
+    it('al guardar, un compromiso que ya se pagaba solo conserva su día; uno nuevo arranca hoy', () => {
+      const guardada = conLaFormaNueva(DE_ANTES, MAUN, '2026-10-27');
+      const editada = cambiarElPaso(cambiarElPaso(guardada, FIJOS, { pagaSola: false }), FIJOS, {
+        pagaSola: true,
+        pagaSolaDesde: null,
+      });
+      expect(
+        conElPagaSolaDesde(DE_ANTES, editada, '2026-11-02').pasos.map((paso) => paso.pagaSolaDesde),
+      ).toEqual(['2026-11-02', '2026-11-02', null, null]);
+      expect(
+        conElPagaSolaDesde(guardada, editada, '2026-11-02').pasos.map((paso) => paso.pagaSolaDesde),
+      ).toEqual(['2026-10-27', '2026-10-27', null, null]);
+      expect(
+        conElPagaSolaDesde(
+          guardada,
+          cambiarElPaso(guardada, HOGAR, { pagaSola: false }),
+          '2026-11-02',
+        ).pasos[0]?.pagaSolaDesde,
+      ).toBeNull();
+      expect(pasanAPagarseSolos(DE_ANTES, guardada).map((paso) => paso.tesoro)).toEqual([
+        HOGAR,
+        FIJOS,
+      ]);
+      expect(pasanAPagarseSolos(guardada, guardada)).toEqual([]);
+    });
+
+    it('un paso nuevo: un compromiso es deuda por ciclo y se paga solo; Maun y un ahorro, no', () => {
+      expect(pasoNuevo(FIJOS, 'fijos', null, $(10), '2026-10-27')).toMatchObject({
+        modo: 'mes',
+        dia: DIA_DE_PAGO_PROPUESTO,
+        pagaSola: true,
+        pagaSolaDesde: '2026-10-27',
+      });
+      expect(pasoNuevo(MAUN, 'fijos', 'maun', $(10), '2026-10-27')).toMatchObject({
+        modo: 'mes',
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
+      });
+      expect(pasoNuevo(MATERIALES, 'prioridad', null, $(10), '2026-10-27')).toMatchObject({
+        modo: 'mes',
+        dia: null,
+        pagaSola: false,
+      });
+      expect(modosQueSeOfrecen('fijos', null)).toEqual(['mes']);
+      expect(modosQueSeOfrecen('sueldo', 'hogar')).toEqual(['mes']);
+      expect(modosQueSeOfrecen('prioridad', null)).toEqual(['mes', 'saldo', 'trabajo']);
+    });
+
+    it('el resumen de lo que cambió dice el día de pago, «se paga sola» y el monto fijo', () => {
+      const guardada = conLaFormaNueva(DE_ANTES, MAUN, '2026-10-27');
+      expect(cambiosDeLaFila(DE_ANTES, guardada)).toEqual([
+        {
+          tipo: 'cambia-el-dia-de-pago',
+          tesoro: HOGAR,
+          antes: null,
+          despues: DIA_DE_PAGO_PROPUESTO,
+        },
+        { tipo: 'cambia-paga-sola', tesoro: HOGAR, pagaSola: true },
+        { tipo: 'cambian-los-dias', tesoro: FIJOS },
+        { tipo: 'cambia-el-modo', tesoro: FIJOS, antes: 'saldo', despues: 'mes' },
+        { tipo: 'cambia-el-dia-de-pago', tesoro: FIJOS, antes: null, despues: 15 },
+        { tipo: 'cambia-paga-sola', tesoro: FIJOS, pagaSola: true },
+      ]);
+      const antes = filaCon({ obligaciones: [INGRESOS_BRUTOS, DEL_DIEZMO] });
+      const conMonto = cambiarLaObligacion(antes, IIBB, { montoFijo: $(50_000) });
+      expect(cambiosDeLaFila(antes, conMonto)).toEqual([
+        { tipo: 'cambia-el-monto-fijo', tesoro: IIBB, antes: null, despues: $(50_000) },
+      ]);
+    });
+  });
+});
+
+describe('el pago solo de cada vencimiento', () => {
+  const SALARIO: PasoDeLaFila = {
+    ...sueldo($(1_000_000)),
+    dia: 10,
+    pagaSola: true,
+    pagaSolaDesde: '2026-10-27',
+  };
+
+  const linea = (fecha: string, monto: Money, extra: Partial<LineaDeUnTesoro> = {}) => ({
+    tesoroId: HOGAR,
+    fecha,
+    monto,
+    yaEnLaApertura: false,
+    ...extra,
+  });
+
+  const adelanto = (fecha: string, monto: Money, vencimiento: string | null = null) => ({
+    tesoro: HOGAR,
+    categoria: 'Adelanto',
+    fecha,
+    monto,
+    vencimiento,
+  });
+
+  it('se paga solo un compromiso por mes con día, «se paga sola» y la fecha en que se guardó, que no sea Maun', () => {
+    expect(seVencenSolos(SALARIO, MAUN)).toBe(true);
+    expect(seVencenSolos({ ...SALARIO, pagaSola: false }, MAUN)).toBe(false);
+    expect(seVencenSolos({ ...SALARIO, pagaSolaDesde: null }, MAUN)).toBe(false);
+    expect(seVencenSolos({ ...SALARIO, modo: 'saldo' }, MAUN)).toBe(false);
+    expect(seVencenSolos({ ...SALARIO, dia: null }, MAUN)).toBe(false);
+    expect(seVencenSolos({ ...SALARIO, clase: 'prioridad' }, MAUN)).toBe(false);
+    expect(seVencenSolos({ ...SALARIO, tesoro: MAUN }, MAUN)).toBe(false);
+  });
+
+  it('el saldo de antes del vencimiento no cuenta su mismo día, otro tesoro ni lo que ya estaba en la apertura', () => {
+    const lineas = [
+      linea('2026-11-09', $(100)),
+      linea('2026-11-10', $(20)),
+      linea('2026-10-01', $(3), { yaEnLaApertura: true }),
+      linea('2026-10-01', $(4_000), { tesoroId: MAUN }),
+      linea('2026-09-30', $(-40)),
+    ];
+    expect(saldoAntesDe(lineas, HOGAR, '2026-11-10')).toBe($(60));
+    expect(saldoAntesDe([], HOGAR, '2026-11-10')).toBe($(0));
+  });
+
+  it('el día 10 paga el tope menos el adelanto, con lo juntado antes del 10, y Maun pone lo que falta', () => {
+    const entrada = {
+      fila: filaCon({ pasos: [SALARIO] }),
+      maun: MAUN,
+      hoy: '2026-11-10',
+      lineas: [
+        linea('2026-10-28', $(600_000)),
+        linea('2026-11-05', $(-300_000)),
+        linea('2026-11-10', $(50_000)),
+      ],
+      gastos: [adelanto('2026-11-05', $(300_000))],
+      pagos: [],
+    };
+    expect(pagosQueCorresponden(entrada)).toEqual([
+      {
+        tesoro: HOGAR,
+        vencimiento: '2026-11-10',
+        tope: $(1_000_000),
+        pagadoAntes: $(300_000),
+        saldo: $(300_000),
+        aPagar: $(700_000),
+        pusoMaun: $(400_000),
+        vuelveAMaun: $(0),
+      },
+    ]);
+    expect(pagosQueCorresponden({ ...entrada, hoy: '2026-11-09' })).toEqual([]);
+    expect(
+      pagosQueCorresponden({ ...entrada, pagos: [{ tesoro: HOGAR, vencimiento: '2026-11-10' }] }),
+    ).toEqual([]);
+  });
+
+  it('nunca antes del día en que se guardó: guardado el 10, el primero es el del mes que viene', () => {
+    const fila = filaCon({ pasos: [{ ...SALARIO, pagaSolaDesde: '2026-11-10' }] });
+    const entrada = { fila, maun: MAUN, lineas: [], gastos: [], pagos: [] };
+    expect(pagosQueCorresponden({ ...entrada, hoy: '2026-11-10' })).toEqual([]);
+    expect(
+      pagosQueCorresponden({ ...entrada, hoy: '2026-12-10' }).map((pago) => pago.vencimiento),
+    ).toEqual(['2026-12-10']);
+  });
+
+  it('se pone al día con los que se perdió, cada uno con el saldo que dejó el anterior', () => {
+    const pagos = pagosQueCorresponden({
+      fila: filaCon({
+        pasos: [
+          SALARIO,
+          { ...sueldo($(1)), tesoro: MAUN, dia: 10, pagaSola: true, pagaSolaDesde: '2026-10-27' },
+        ],
+      }),
+      maun: MAUN,
+      hoy: '2027-01-15',
+      lineas: [
+        linea('2026-10-28', $(600_000)),
+        linea('2026-11-05', $(-300_000)),
+        linea('2026-11-10', $(50_000)),
+        linea('2026-11-20', $(1_000_000)),
+      ],
+      gastos: [adelanto('2026-11-05', $(300_000))],
+      pagos: [],
+    });
+    expect(
+      pagos.map((pago) => [
+        pago.vencimiento,
+        pago.saldo,
+        pago.pagadoAntes,
+        pago.aPagar,
+        pago.pusoMaun,
+        pago.vuelveAMaun,
+      ]),
+    ).toEqual([
+      ['2026-11-10', $(300_000), $(300_000), $(700_000), $(400_000), $(0)],
+      ['2026-12-10', $(1_050_000), $(0), $(1_000_000), $(0), $(50_000)],
+      ['2027-01-10', $(0), $(0), $(1_000_000), $(1_000_000), $(0)],
+    ]);
+  });
+
+  it('el pago de un vencimiento cuenta lo que ya se pagó para él aunque sea de otro día', () => {
+    expect(
+      pagoDelVencimiento(SALARIO, 10, '2026-11-10', $(0), [
+        adelanto('2026-11-12', $(200_000), '2026-11-10'),
+      ]),
+    ).toMatchObject({ pagadoAntes: $(200_000), aPagar: $(800_000), pusoMaun: $(800_000) });
+  });
+});
+
+describe('la meta', () => {
+  it('con objetivo junta hasta llegar: «sin fin» solo se ofrece sin objetivo', () => {
+    expect(seOfreceSinFin($(1_000_000))).toBe(false);
+    expect(seOfreceSinFin($(0))).toBe(true);
+    expect(seOfreceSinFin(null)).toBe(true);
+    expect(seOfreceSinFin(undefined)).toBe(true);
   });
 });

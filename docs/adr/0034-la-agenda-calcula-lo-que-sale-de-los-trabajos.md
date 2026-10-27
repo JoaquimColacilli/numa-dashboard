@@ -16,6 +16,11 @@
   no se guarda». El resumen del mes y del día deja de llamar «compromisos» a lo que sale de los
   trabajos, porque compromiso es ahora un tipo de tesoro: cuenta citas, vencimientos (si hay) y
   anotaciones.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md) y el
+  [0087](0087-los-tipos-de-tesoro-de-eliseo.md): el próximo contacto se arrastra a hoy o a un día que viene, y
+  su detalle ofrece «Cambiar la fecha»; el vencimiento de una deuda obligatoria con día de pago es uno por
+  compromiso, y dice lo que se pagó solo.
 
 ## Contexto
 

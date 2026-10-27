@@ -37,7 +37,9 @@ const METADATOS = {
 } as const;
 
 const FILA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -47,6 +49,9 @@ const FILA: Fila = {
       desde: null,
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -56,6 +61,9 @@ const FILA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [{ tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: false }],
@@ -93,6 +101,7 @@ function tesoro(id: string, clave: FilaDe<'tesoros'>['clave'], nombre: string, t
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     moneda: 'ARS',
@@ -282,7 +291,7 @@ describe('cobrar por la fila', () => {
     expect(plan?.pasos.map((paso) => paso.tesoro)).toEqual([HOGAR, FIJOS]);
     expect(plan?.reparto).toEqual([{ tesoro: COCOS, porcentaje: 5000, hastaLaMeta: false }]);
     expect(plan?.obligaciones).toEqual([
-      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', diezmo: true },
+      { tesoro: DIEZMO, porcentaje: 1000, base: 'ingreso', montoFijo: null, diezmo: true },
     ]);
   });
 

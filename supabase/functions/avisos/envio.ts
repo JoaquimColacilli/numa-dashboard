@@ -11,9 +11,9 @@ import {
 } from '@maun/domain';
 
 import { datosDeLaAgenda } from '../../../packages/db/src/agenda.ts';
-import type { AvisoPorMandar, Base, Suscripcion } from './base.ts';
+import type { AvisoDeLaRespuesta, AvisoPorMandar, Base, Suscripcion } from './base.ts';
 import type { ClavesVapid } from './entorno.ts';
-import { cargaDeLaPrueba, cargaDelAviso } from './texto.ts';
+import { cargaDeLaPrueba, cargaDeLaRespuesta, cargaDelAviso } from './texto.ts';
 
 export type Enviador = (
   suscripcion: Suscripcion,
@@ -88,15 +88,32 @@ export async function mandarLosAvisos(
     const preferencias = preferenciasCompletas(aviso.preferencias);
     const datos = datosDeLaAgenda(aviso.filas, rangoDelAviso(aviso.dia, preferencias), aviso.zona);
     const eventos = eventosParaAvisar(datos, aviso.dia, preferencias);
-    if (eventos.length === 0) {
+    const respuestas = preferencias.respuestas.activo ? (aviso.respuestas ?? []) : [];
+    if (eventos.length === 0 && respuestas.length === 0) {
       resultado.sinNadaQueAvisar += 1;
       await base.anotarAviso(aviso.id, aviso.dia, false);
       continue;
     }
-    const carga = JSON.stringify(cargaDelAviso(eventos, aviso.dia, idiomaLeido(aviso.idioma)));
+    const carga = JSON.stringify(
+      cargaDelAviso(eventos, aviso.dia, idiomaLeido(aviso.idioma), respuestas),
+    );
     if (await mandarUno(aviso, carga, base, enviar, vapid, resultado)) {
       await base.anotarAviso(aviso.id, aviso.dia, true);
     }
+  }
+  return resultado;
+}
+
+export async function mandarLaRespuesta(
+  avisos: readonly AvisoDeLaRespuesta[],
+  base: Base,
+  enviar: Enviador,
+  vapid: ClavesVapid,
+): Promise<ResultadoDelEnvio> {
+  const resultado = resultadoVacio();
+  for (const aviso of avisos) {
+    const carga = JSON.stringify(cargaDeLaRespuesta(aviso.respuesta, idiomaLeido(aviso.idioma)));
+    await mandarUno(aviso, carga, base, enviar, vapid, resultado);
   }
   return resultado;
 }

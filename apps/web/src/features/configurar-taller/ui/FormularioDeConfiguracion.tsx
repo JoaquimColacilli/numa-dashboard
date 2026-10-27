@@ -20,18 +20,16 @@ import { DIAS_MAXIMOS_DE_UN_PRESUPUESTO, parsearDias } from '../model/vigencia';
 
 const LARGO_DEL_NOMBRE = 120;
 
-export type ParteDeLaConfiguracion = 'taller' | 'reparto' | 'cocos';
+export type ParteDeLaConfiguracion = 'taller' | 'reparto';
 
-const TODAS_LAS_PARTES: readonly ParteDeLaConfiguracion[] = ['taller', 'reparto', 'cocos'];
+const TODAS_LAS_PARTES: readonly ParteDeLaConfiguracion[] = ['taller', 'reparto'];
 
-type CampoDelFormulario = 'nombre' | 'sueldo' | 'fijos' | 'meta' | 'tasa' | 'sena' | 'vigencia';
+type CampoDelFormulario = 'nombre' | 'sueldo' | 'fijos' | 'sena' | 'vigencia';
 
 type ErroresDeLaConfiguracion = Mensajes['configurarTaller']['configuracion']['errores'];
 
 function mensajeDelCampo(campo: CampoDelFormulario, errores: ErroresDeLaConfiguracion): string {
   switch (campo) {
-    case 'tasa':
-      return errores.tasa;
     case 'sena':
       return errores.sena;
     case 'vigencia':
@@ -64,8 +62,6 @@ export function FormularioDeConfiguracion({
   const [nombre, setNombre] = useState(household.nombre);
   const [sueldo, setSueldo] = useState<number | null>(ajustes.sueldo_mensual_centavos);
   const [fijos, setFijos] = useState<number | null>(ajustes.costos_fijos_centavos);
-  const [meta, setMeta] = useState<number | null>(ajustes.meta_cocos_centavos);
-  const [tasa, setTasa] = useState(() => formatearPorcentaje(ajustes.tasa_cocos_anual_bp));
   const [sena, setSena] = useState(() => formatearPorcentaje(ajustes.sena_bp));
   const [relevamiento, setRelevamiento] = useState(() => valorDelRelevamiento(ajustes));
   const [vigencia, setVigencia] = useState(() => String(diasQueValeElPresupuesto(ajustes)));
@@ -77,8 +73,7 @@ export function FormularioDeConfiguracion({
 
   const conElTaller = partes.includes('taller');
   const conElReparto = partes.includes('reparto');
-  const conCocos = partes.includes('cocos');
-  const cuantos = (conElTaller ? 4 : 0) + (conElReparto ? 2 : 0) + (conCocos ? 2 : 0);
+  const cuantos = (conElTaller ? 4 : 0) + (conElReparto ? 2 : 0);
 
   const guardando = mutacionDeAjustes.isPending || mutacionDelNombre.isPending;
   const hayFallo = mutacionDeAjustes.isError || mutacionDelNombre.isError;
@@ -106,12 +101,6 @@ export function FormularioDeConfiguracion({
       faltante.push(
         ['sueldo', 'sueldo_mensual_centavos', sueldo],
         ['fijos', 'costos_fijos_centavos', fijos],
-      );
-    }
-    if (conCocos) {
-      faltante.push(
-        ['meta', 'meta_cocos_centavos', meta],
-        ['tasa', 'tasa_cocos_anual_bp', parsearPorcentaje(tasa)],
       );
     }
     if (conElTaller) {
@@ -184,15 +173,6 @@ export function FormularioDeConfiguracion({
             onChange={setFijos}
           />
         )}
-        {conCocos && (
-          <MoneyInput
-            etiqueta={m.metaDeCocos}
-            ayuda={m.ayudaDeLaMeta}
-            value={meta}
-            error={error?.campo === 'meta' ? error.mensaje : undefined}
-            onChange={setMeta}
-          />
-        )}
         {conElTaller && (
           <Campo
             etiqueta={m.sena}
@@ -222,18 +202,6 @@ export function FormularioDeConfiguracion({
             error={error?.campo === 'vigencia' ? error.mensaje : undefined}
             onChange={(evento) => {
               setVigencia(evento.target.value);
-            }}
-          />
-        )}
-        {conCocos && (
-          <Campo
-            etiqueta={m.tasa}
-            inputMode="decimal"
-            ayuda={m.ayudaDeLaTasa}
-            value={tasa}
-            error={error?.campo === 'tasa' ? error.mensaje : undefined}
-            onChange={(evento) => {
-              setTasa(evento.target.value);
             }}
           />
         )}

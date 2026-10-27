@@ -54,6 +54,12 @@ export function entregaDelPasaje(inicio: string, plazo: number): string {
   return entregaEstimada(inicio, plazo);
 }
 
+export function entregaPrometida(mandado: LoMandadoAlCliente | null): string | null {
+  const documento = mandado?.documento;
+  if (documento === undefined || documento.estimativo) return null;
+  return documento.listoPara;
+}
+
 export function ayudaDeLaEntrega(plazo: number, delPresupuesto: boolean): string {
   const { pasaje } = mensajes().avanzarLaConsulta;
   return delPresupuesto

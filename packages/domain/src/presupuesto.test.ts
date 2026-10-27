@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DIAS_HABILES_DE_ENTREGA } from './fechas.ts';
+import { DIAS_HABILES_DE_ENTREGA, entregaEstimada } from './fechas.ts';
 import { cotizacion, type ImporteDeUnPago } from './cotizacion.ts';
 import { centavos, centavosEn, puntosBasicos, type Money } from './money.ts';
 import { plata } from './plata.ts';
@@ -14,10 +14,15 @@ import {
   cobraEnLeido,
   combinacionDeLaMoneda,
   completarHuecos,
+  conLaFraseDeLasFechas,
   cuentasDelPresupuesto,
+  DIAS_PARA_LA_SENA,
+  direccionDelPresupuesto,
   documentoDelPresupuesto,
+  entregaDelPresupuesto,
   esIdDelPresupuesto,
   esNumeroDePresupuesto,
+  fechasDelPresupuesto,
   hayCambiosSinMandar,
   huecosDelPresupuesto,
   IMPORTE_MAXIMO_DEL_PRESUPUESTO,
@@ -40,11 +45,13 @@ import {
   plantillaDelTaller,
   plazoDelPresupuesto,
   problemaDeLaPlantilla,
+  problemaDeLasFechas,
   problemaDelBorrador,
   problemaDelDocumento,
   problemasParaMandar,
   recortado,
   resumenDeLosValores,
+  senaDelTexto,
   soloLaAceptada,
   textoDeLaForma,
   textoDeLaGarantia,
@@ -53,6 +60,7 @@ import {
   totalPropuesto,
   usaElHueco,
   valoresDelTrabajo,
+  vencioLaFechaDeLaSena,
   type BorradorDelPresupuesto,
   type Clausula,
   type DatosDelTaller,
@@ -73,6 +81,9 @@ const FORMATOS: Formatos = {
   porcentaje: (puntos) => String(puntos / 100),
   modificaciones: (cantidad) => conSuPlural(cantidad, 'modificación', 'modificaciones'),
   meses: (cantidad) => conSuPlural(cantidad, 'mes', 'meses'),
+  fecha: (fecha) => fecha,
+  senaAcordada: (porcentaje, monto) =>
+    monto === null ? `del ${porcentaje} de la opción que elijas` : `del ${porcentaje} (${monto})`,
 };
 
 const DEL_NUMERO: FrasesDelNumero = {
@@ -162,7 +173,13 @@ const BORRADOR: BorradorDelPresupuesto = {
   clausulaDeLaMoneda: null,
   modificacion: null,
   monedaDeLoAbonado: null,
+  estimativo: false,
+  pideFecha: false,
+  listoPara: null,
+  senaAntesDel: null,
 };
+
+const MANDADO_EL = '2026-10-26';
 
 type EntradaEnPesos = Extract<EntradaDelDocumento, { moneda: 'ARS' }>;
 
@@ -179,6 +196,7 @@ function entrada(cambios: Partial<EntradaEnPesos> = {}): EntradaEnPesos {
     valores: valoresDelTrabajo(TOTAL, []),
     senaBp: SENA_BP,
     abonado: RELEVAMIENTO,
+    mandadoEl: MANDADO_EL,
     ...cambios,
   };
 }
@@ -201,6 +219,7 @@ function entradaEnDolares(cambios: Partial<EntradaEnDolares> = {}): EntradaEnDol
     senaBp: SENA_BP,
     abonado: centavosEn('USD', 8_276),
     referencia: REFERENCIA,
+    mandadoEl: MANDADO_EL,
     ...cambios,
   };
 }
@@ -223,7 +242,7 @@ describe('la plantilla de siempre', () => {
       'Instalación y terminaciones en el domicilio.',
     ]);
     expect(PLANTILLA_DE_SIEMPRE.avisos[0]?.texto).toMatch(
-      /^El plazo estimado de fabricación es de \{plazo\} días hábiles a partir de acreditada la seña/,
+      /^Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el \{entrega\}\. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada \{sena_acordada\} antes del \{sena_antes\}\. Este plazo contempla/,
     );
     expect(PLANTILLA_DE_SIEMPRE.avisos[2]?.texto).toBe(
       'Este presupuesto incluye diseño 3D y hasta {modificaciones}. Modificaciones adicionales (rediseño completo) tienen un valor estimativo de {valor_modificacion} c/u.',
@@ -662,6 +681,7 @@ describe('borradorNuevo', () => {
       obra: 'Arenales 1840',
       plantilla: PLANTILLA_DE_SIEMPRE,
       validezDias: 15,
+      faltaMedir: false,
       idNuevo,
     });
     expect(borrador).toMatchObject({
@@ -686,6 +706,7 @@ describe('borradorNuevo', () => {
       obra: textoDe(400),
       plantilla: PLANTILLA_DE_SIEMPRE,
       validezDias: null,
+      faltaMedir: false,
       idNuevo,
     });
     expect(borrador.titulo).toHaveLength(200);
@@ -700,6 +721,7 @@ describe('borradorNuevo', () => {
       obra: '',
       plantilla,
       validezDias: 15,
+      faltaMedir: false,
       idNuevo,
     });
     expect(borrador.formaDePago).toBeNull();
@@ -732,6 +754,8 @@ describe('los huecos', () => {
         abonado: RELEVAMIENTO,
         monedaDeLoAbonado: 'ARS',
         senaBp: SENA_BP,
+        fechas: null,
+        sena: null,
       },
       FORMATOS,
     );
@@ -756,6 +780,8 @@ describe('los huecos', () => {
         abonado: centavos(0),
         monedaDeLoAbonado: 'ARS',
         senaBp: puntosBasicos(3_333),
+        fechas: null,
+        sena: null,
       },
       FORMATOS,
     );
@@ -775,6 +801,8 @@ describe('los huecos', () => {
         abonado: centavosEn('USD', 8_276),
         monedaDeLoAbonado: 'USD',
         senaBp: SENA_BP,
+        fechas: null,
+        sena: null,
       },
       FORMATOS,
     );
@@ -806,6 +834,8 @@ describe('los huecos', () => {
           abonado: RELEVAMIENTO,
           monedaDeLoAbonado: 'ARS',
           senaBp: SENA_BP,
+          fechas: null,
+          sena: null,
         },
         enIngles,
       ),
@@ -859,8 +889,14 @@ describe('documentoDelPresupuesto', () => {
     ]);
     expect(hecho.incluye).toHaveLength(5);
     expect(hecho.avisos[0]?.texto).toMatch(
-      /^El plazo estimado de fabricación es de 30 días hábiles/,
+      /^Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el 2026-12-07\. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada del 50% \(\$970500\) antes del 2026-10-28\. Este plazo contempla/,
     );
+    expect(hecho).toMatchObject({
+      estimativo: false,
+      pideFecha: false,
+      listoPara: '2026-12-07',
+      senaAntesDel: '2026-10-28',
+    });
     expect(hecho.avisos[2]?.texto).toBe(
       'Este presupuesto incluye diseño 3D y hasta 2 modificaciones. Modificaciones adicionales (rediseño completo) tienen un valor estimativo de $50000 c/u.',
     );
@@ -1375,6 +1411,29 @@ describe('leerDocumento', () => {
       condiciones: [],
       garantia: '',
       garantiaMeses: 6,
+      estimativo: false,
+      pideFecha: false,
+      listoPara: null,
+      senaAntesDel: null,
+    });
+  });
+
+  it('una revisión de antes no es un estimativo, no pide fecha y no tiene fechas', () => {
+    const deAntes = copia(documento());
+    delete deAntes.estimativo;
+    delete deAntes.pideFecha;
+    delete deAntes.listoPara;
+    delete deAntes.senaAntesDel;
+    expect(problemaDelDocumento(deAntes)).toBeNull();
+    expect(leerDocumento(deAntes)).toMatchObject({
+      estimativo: false,
+      pideFecha: false,
+      listoPara: null,
+      senaAntesDel: null,
+    });
+    expect(leerDocumento({ ...deAntes, listoPara: '2026-02-30', estimativo: 'si' })).toMatchObject({
+      estimativo: false,
+      listoPara: null,
     });
   });
 
@@ -1706,7 +1765,28 @@ describe('leerBorrador', () => {
       clausulaDeLaMoneda: null,
       modificacion: null,
       monedaDeLoAbonado: null,
+      estimativo: false,
+      pideFecha: false,
+      listoPara: null,
+      senaAntesDel: null,
     });
+  });
+
+  it('lee el tilde del estimativo, el pedido de fecha y las dos fechas', () => {
+    const conFechas: BorradorDelPresupuesto = {
+      ...BORRADOR,
+      estimativo: true,
+      pideFecha: true,
+      listoPara: '2026-12-10',
+      senaAntesDel: '2026-11-02',
+    };
+    expect(leerBorrador(copia(conFechas), PLANTILLA_DE_SIEMPRE)).toEqual(conFechas);
+    expect(
+      leerBorrador(
+        { forma: 1, estimativo: 1, pideFecha: 'no', listoPara: '2026-13-01', senaAntesDel: 5 },
+        PLANTILLA_DE_SIEMPRE,
+      ),
+    ).toMatchObject({ estimativo: false, pideFecha: false, listoPara: null, senaAntesDel: null });
   });
 
   it('lee la cláusula, la modificación y lo abonado de un trabajo en dólares', () => {
@@ -1954,5 +2034,262 @@ describe('las cuentas no se apartan de la plata', () => {
     const [cuenta] = cuentas;
     expect(Number.isSafeInteger(cuenta?.sena as Money)).toBe(true);
     expect(cuenta?.sena).toBe(167);
+  });
+});
+
+describe('el estimativo y las fechas del presupuesto', () => {
+  it('la entrega sale del plazo de siempre desde el día de mandar, y la seña dos días después', () => {
+    expect(DIAS_PARA_LA_SENA).toBe(2);
+    expect(PLANTILLA_DE_SIEMPRE.diasParaLaSena).toBe(2);
+    expect(fechasDelPresupuesto(BORRADOR, PLANTILLA_DE_SIEMPRE, '2026-10-26')).toEqual({
+      listoPara: '2026-12-07',
+      senaAntesDel: '2026-10-28',
+    });
+    expect(
+      fechasDelPresupuesto(
+        { ...BORRADOR, listoPara: '2026-12-20', senaAntesDel: '2026-11-05' },
+        { diasParaLaSena: 0 },
+        '2026-10-26',
+      ),
+    ).toEqual({ listoPara: '2026-12-20', senaAntesDel: '2026-11-05' });
+    expect(fechasDelPresupuesto(BORRADOR, { diasParaLaSena: 0 }, '2026-10-26')).toMatchObject({
+      senaAntesDel: '2026-10-26',
+    });
+    expect(
+      fechasDelPresupuesto({ ...BORRADOR, estimativo: true }, PLANTILLA_DE_SIEMPRE, '2026-10-26'),
+    ).toBeNull();
+  });
+
+  it('un borrador nuevo arranca como estimativo y pidiendo fecha si todavía falta medir', () => {
+    const idNuevo = () => 'm1';
+    const comun = { titulo: 'Rack', obra: '', plantilla: PLANTILLA_DE_SIEMPRE, validezDias: 15 };
+    expect(borradorNuevo({ ...comun, faltaMedir: true, idNuevo })).toMatchObject({
+      estimativo: true,
+      pideFecha: true,
+      listoPara: null,
+      senaAntesDel: null,
+    });
+    expect(borradorNuevo({ ...comun, faltaMedir: false, idNuevo })).toMatchObject({
+      estimativo: false,
+      pideFecha: false,
+    });
+  });
+
+  it('un estimativo no lleva la seña, ni la forma de pago, ni las fechas, ni el aviso que las dice', () => {
+    const estimativo = documento({
+      borrador: { ...BORRADOR, estimativo: true, pideFecha: true },
+    });
+    expect(estimativo).toMatchObject({
+      estimativo: true,
+      pideFecha: true,
+      listoPara: null,
+      senaAntesDel: null,
+      formaDePago: null,
+    });
+    expect(estimativo.avisos.some(({ texto }) => texto.startsWith('Debido a la agenda'))).toBe(
+      false,
+    );
+    expect(estimativo.avisos).toHaveLength(documento().avisos.length - 1);
+    expect(estimativo.valores).toEqual(documento().valores);
+    expect(problemaDelDocumento(estimativo)).toBeNull();
+  });
+
+  it('con opciones, la seña acordada es la de la opción que elija', () => {
+    const conOpciones = documento({ valores: valoresDelTrabajo(null, [OPCION_A, OPCION_B]) });
+    expect(conOpciones.avisos[0]?.texto).toContain(
+      'se deberá concretar la seña acordada del 50% de la opción que elijas antes del 2026-10-28.',
+    );
+  });
+
+  it('la seña del texto descuenta lo abonado solo si está en la moneda del presupuesto', () => {
+    const total = valoresDelTrabajo(TOTAL, []);
+    expect(senaDelTexto(total, 'ARS', SENA_BP, RELEVAMIENTO, 'ARS')).toEqual({
+      monto: 97_050_000,
+      moneda: 'ARS',
+    });
+    expect(senaDelTexto(total, 'ARS', SENA_BP, centavos(500_000_000), 'ARS')).toEqual({
+      monto: 0,
+      moneda: 'ARS',
+    });
+    const enDolares = valoresDelTrabajo(centavosEn('USD', 240_000), []);
+    expect(senaDelTexto(enDolares, 'USD', SENA_BP, centavos(12_000_000), 'ARS')).toEqual({
+      monto: 120_000,
+      moneda: 'USD',
+    });
+    expect(
+      senaDelTexto(valoresDelTrabajo(null, [OPCION_A]), 'ARS', SENA_BP, RELEVAMIENTO, 'ARS'),
+    ).toBeNull();
+    expect(senaDelTexto(null, 'ARS', SENA_BP, RELEVAMIENTO, 'ARS')).toBeNull();
+  });
+
+  it('el mismo borrador mandado otro día no es un cambio: las fechas sin tocar son las de la última', () => {
+    const mandado = documento();
+    expect(hayCambiosSinMandar(entrada({ mandadoEl: '2026-11-03' }), mandado, FORMATOS)).toBe(
+      false,
+    );
+    expect(
+      hayCambiosSinMandar(
+        entrada({ borrador: { ...BORRADOR, listoPara: '2026-12-20' } }),
+        mandado,
+        FORMATOS,
+      ),
+    ).toBe(true);
+    expect(
+      hayCambiosSinMandar(
+        entrada({ borrador: { ...BORRADOR, estimativo: true } }),
+        mandado,
+        FORMATOS,
+      ),
+    ).toBe(true);
+  });
+
+  it('las combinaciones que se validan al mandar', () => {
+    const fechas = { estimativo: false, listoPara: '2026-12-07', senaAntesDel: '2026-10-28' };
+    expect(problemaDeLasFechas(fechas, '2026-10-26')).toBeNull();
+    expect(problemaDeLasFechas({ ...fechas, senaAntesDel: '2026-10-26' }, '2026-10-26')).toBeNull();
+    expect(
+      problemaDeLasFechas({ estimativo: false, listoPara: null, senaAntesDel: null }, '2026-10-26'),
+    ).toBeNull();
+    expect(
+      problemaDeLasFechas({ estimativo: true, listoPara: null, senaAntesDel: null }, '2026-10-26'),
+    ).toBeNull();
+    expect(problemaDeLasFechas({ ...fechas, estimativo: true }, '2026-10-26')).toBe(
+      'estimativo-con-fechas',
+    );
+    expect(problemaDeLasFechas({ ...fechas, listoPara: null }, '2026-10-26')).toBe(
+      'falta-una-fecha',
+    );
+    expect(problemaDeLasFechas({ ...fechas, senaAntesDel: null }, '2026-10-26')).toBe(
+      'falta-una-fecha',
+    );
+    expect(problemaDeLasFechas({ ...fechas, senaAntesDel: '2026-10-25' }, '2026-10-26')).toBe(
+      'sena-antes-del-envio',
+    );
+    expect(problemaDeLasFechas({ ...fechas, listoPara: '2026-10-28' }, '2026-10-26')).toBe(
+      'entrega-antes-de-la-sena',
+    );
+  });
+
+  it('la forma del documento y del borrador: tildes que son tildes y fechas que existen', () => {
+    expect(problemaDelDocumento({ ...copia(documento()), estimativo: 'si' })).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDelDocumento({ ...copia(documento()), pideFecha: null })).toBe('forma-invalida');
+    expect(problemaDelDocumento({ ...copia(documento()), listoPara: 20261207 })).toBe(
+      'forma-invalida',
+    );
+    expect(problemaDelDocumento({ ...copia(documento()), senaAntesDel: '2026-02-30' })).toBe(
+      'fecha-invalida',
+    );
+    expect(problemaDelBorrador({ ...copia(BORRADOR), estimativo: 1 })).toBe('forma-invalida');
+    expect(problemaDelBorrador({ ...copia(BORRADOR), listoPara: '2026-13-01' })).toBe(
+      'fecha-invalida',
+    );
+    expect(
+      problemaDelBorrador({ ...copia(BORRADOR), listoPara: '2026-12-01', senaAntesDel: null }),
+    ).toBeNull();
+  });
+
+  it('la entrega estimada es la del presupuesto si la tiene; si no, el plazo desde el inicio', () => {
+    expect(entregaDelPresupuesto(documento(), '2026-11-02')).toBe('2026-12-07');
+    expect(entregaDelPresupuesto({ listoPara: null, plazoDeFabricacion: 10 }, '2026-11-02')).toBe(
+      '2026-11-16',
+    );
+    expect(entregaDelPresupuesto(null, '2026-11-02')).toBe(
+      entregaEstimada('2026-11-02', DIAS_HABILES_DE_ENTREGA),
+    );
+  });
+
+  it('la fecha de la seña vence el día después', () => {
+    expect(vencioLaFechaDeLaSena({ senaAntesDel: '2026-10-28' }, '2026-10-28')).toBe(false);
+    expect(vencioLaFechaDeLaSena({ senaAntesDel: '2026-10-28' }, '2026-10-29')).toBe(true);
+    expect(vencioLaFechaDeLaSena({ senaAntesDel: null }, '2027-01-01')).toBe(false);
+    expect(vencioLaFechaDeLaSena(null, '2027-01-01')).toBe(false);
+  });
+});
+
+describe('la frase de los días en una plantilla guardada', () => {
+  it('se lee con la frase de las fechas, en su idioma, sin tocar lo demás', () => {
+    expect(
+      conLaFraseDeLasFechas(
+        'El plazo estimado de fabricación es de {plazo} días hábiles a partir de acreditada la seña y confirmadas las especificaciones finales del proyecto. Lo demás.',
+      ),
+    ).toBe(
+      'Debido a la agenda del taller y a los plazos de fabricación, la fecha estimada de entrega es el {entrega}. A fin de poder confirmar estos plazos, se deberá concretar la seña acordada {sena_acordada} antes del {sena_antes}. Lo demás.',
+    );
+    expect(
+      conLaFraseDeLasFechas(
+        'The estimated lead time is {plazo} business days from when the deposit clears and the final project specifications are confirmed.',
+      ),
+    ).toMatch(
+      /^Due to the shop's schedule and manufacturing lead times, the estimated delivery date is \{entrega\}\./,
+    );
+    expect(
+      conLaFraseDeLasFechas(
+        'O prazo estimado de fabricação é de {plazo} dias úteis a partir do recebimento do sinal e da confirmação das especificações finais do projeto.',
+      ),
+    ).toMatch(/^Devido à agenda da marcenaria/);
+    expect(conLaFraseDeLasFechas('Entregamos en {plazo} días.')).toBe(
+      'Entregamos en {plazo} días.',
+    );
+  });
+
+  it('leer una guardada con el texto de siempre le pone la frase nueva y los días para la seña', () => {
+    const guardada = copia(PLANTILLA_DE_SIEMPRE);
+    const avisos = guardada.avisos as Clausula[];
+    avisos[0] = {
+      ...(avisos[0] as Clausula),
+      texto:
+        'El plazo estimado de fabricación es de {plazo} días hábiles a partir de acreditada la seña y confirmadas las especificaciones finales del proyecto. Este plazo contempla los tiempos actuales de producción y provisión de materiales. En caso de finalizar el trabajo antes del plazo indicado, se notificará al cliente para coordinar una entrega anticipada. Los plazos indicados pueden verse afectados por demoras en la provisión de materiales, logística o factores externos ajenos al proceso de fabricación. En caso de producirse estas situaciones, se informará oportunamente al cliente.',
+    };
+    delete guardada.diasParaLaSena;
+    expect(problemaDeLaPlantilla(guardada)).toBeNull();
+    const leida = leerPlantilla(guardada, 'es');
+    expect(leida?.avisos[0]?.texto).toBe(PLANTILLA_DE_SIEMPRE.avisos[0]?.texto);
+    expect(leida?.diasParaLaSena).toBe(2);
+    expect(leerPlantilla({ ...guardada, diasParaLaSena: 5 }, 'es')?.diasParaLaSena).toBe(5);
+  });
+
+  it('los días para la seña van de 0 a 60', () => {
+    const guardada = copia(PLANTILLA_DE_SIEMPRE);
+    expect(problemaDeLaPlantilla({ ...guardada, diasParaLaSena: 0 })).toBeNull();
+    expect(problemaDeLaPlantilla({ ...guardada, diasParaLaSena: 60 })).toBeNull();
+    expect(problemaDeLaPlantilla({ ...guardada, diasParaLaSena: 61 })).toBe(
+      'dias-para-la-sena-fuera-de-rango',
+    );
+    expect(problemaDeLaPlantilla({ ...guardada, diasParaLaSena: -1 })).toBe(
+      'dias-para-la-sena-fuera-de-rango',
+    );
+    expect(problemaDeLaPlantilla({ ...guardada, diasParaLaSena: 1.5 })).toBe('forma-invalida');
+  });
+});
+
+describe('la dirección del presupuesto', () => {
+  it('la del trabajo; si no tiene, la del cliente; si son distintas, la del trabajo y ofrece la otra', () => {
+    expect(direccionDelPresupuesto('Arenales 1840', '')).toEqual({
+      direccion: 'Arenales 1840',
+      deDonde: 'trabajo',
+      laDelCliente: null,
+    });
+    expect(direccionDelPresupuesto('  ', 'Gorriti 5000 ')).toEqual({
+      direccion: 'Gorriti 5000',
+      deDonde: 'cliente',
+      laDelCliente: null,
+    });
+    expect(direccionDelPresupuesto('Arenales 1840', 'Gorriti 5000')).toEqual({
+      direccion: 'Arenales 1840',
+      deDonde: 'trabajo',
+      laDelCliente: 'Gorriti 5000',
+    });
+    expect(direccionDelPresupuesto('Arenales  1840', 'Arenales 1840')).toEqual({
+      direccion: 'Arenales 1840',
+      deDonde: 'trabajo',
+      laDelCliente: null,
+    });
+    expect(direccionDelPresupuesto('', '')).toEqual({
+      direccion: '',
+      deDonde: null,
+      laDelCliente: null,
+    });
   });
 });

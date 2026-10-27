@@ -1,5 +1,6 @@
 import type { MensajesDelCliente } from '../es';
 
+import { documento } from './documento';
 import { plural } from './plural';
 
 const VEJA_AS_OPCOES: readonly string[] = [
@@ -144,6 +145,11 @@ export const vista = {
       siDejasLaSenaAntesDel: (antesDe, listoPara) =>
         `Se você pagar o sinal antes de ${antesDe}, podemos ter tudo pronto até ${listoPara}.`,
       vamosTomandoLosTrabajos: 'Pegamos os projetos na ordem em que os sinais chegam.',
+      conLasFechas: (entrega, senaAcordada, senaAntes) =>
+        `Devido à agenda da marcenaria e aos prazos de fabricação, a data estimada de entrega é ${entrega}. Para confirmar esses prazos, o sinal combinado ${senaAcordada} deverá ser pago até ${senaAntes}.`,
+      senaAcordada: documento.senaAcordada,
+      dependiaDeLaSena: (fecha) =>
+        `A data de entrega dependia do sinal até ${fecha}. Fale com a gente e confirmamos uma nova.`,
     },
     nota: {
       pendiente: {

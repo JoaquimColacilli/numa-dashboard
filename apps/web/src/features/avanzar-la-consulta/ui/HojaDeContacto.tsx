@@ -1,4 +1,4 @@
-import { MONEDA_DEL_TALLER } from '@maun/domain';
+import { contestadas, MONEDA_DEL_TALLER, type PreguntaDeLaConsulta } from '@maun/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 
@@ -7,8 +7,12 @@ import {
   CamposDelPago,
   dolarDelDiaParaUnPago,
   hijosDelProyecto,
+  marcaDelCampo,
   MUTACION_DE_PROYECTO,
   pagosDelProyecto,
+  preguntasDelTaller,
+  RenglonesDelEstimativo,
+  respuestasConLoEscrito,
   type Proyecto,
   type ValorDelPago,
 } from '@/entities/proyecto';
@@ -47,6 +51,7 @@ import { monedaDeLaConsulta, paraLosPagos } from '../model/pagoDeLaConsulta';
 export interface HojaDeContactoProps {
   proyecto?: Proyecto;
   visitaInicial?: string;
+  visitaPropuesta?: { dia: string; hora: string | null } | null;
   enfocarLaVisita?: boolean;
   enfocarLaVigencia?: boolean;
   alCerrar: () => void;
@@ -57,6 +62,7 @@ export interface HojaDeContactoProps {
 export function HojaDeContacto({
   proyecto,
   visitaInicial,
+  visitaPropuesta = null,
   enfocarLaVisita = false,
   enfocarLaVigencia = false,
   alCerrar,
@@ -64,6 +70,7 @@ export function HojaDeContacto({
   alCrearUnTesoroEnDolares,
 }: HojaDeContactoProps) {
   const textos = useMensajes().avanzarLaConsulta.contacto;
+  const delEstimativo = useMensajes().proyecto.paraElEstimativo;
   const replica = useReplicaDelTaller();
   const idCampos = useId();
   const cuerpo = useRef<HTMLDivElement>(null);
@@ -78,10 +85,14 @@ export function HojaDeContacto({
   const cobrado = totalesDelProyecto(replica, proyecto?.id ?? '').cobradoEnSuMoneda;
 
   const alAbrir = useRef({ id: proyecto?.id ?? uuidv7(), idDeSenaNueva: uuidv7() });
-  const [iniciales] = useState<ValoresDelContacto>(() =>
-    valoresDelContacto(proyecto, sena, visitaInicial, para, hoy),
-  );
+  const [iniciales] = useState<ValoresDelContacto>(() => {
+    const valores = valoresDelContacto(proyecto, sena, visitaInicial, para, hoy);
+    return visitaPropuesta === null
+      ? valores
+      : { ...valores, visita: visitaPropuesta.dia, visitaHora: visitaPropuesta.hora ?? '' };
+  });
   const [valores, setValores] = useState<ValoresDelContacto>(iniciales);
+  const [preguntas] = useState(() => preguntasDelTaller(replica));
   const [telefono, setTelefono] = useState<string | undefined>(undefined);
   const [errores, setErrores] = useState<ErroresDelContacto>({});
   const [rechazo, setRechazo] = useState<unknown>(null);
@@ -131,6 +142,13 @@ export function HojaDeContacto({
       ...previos,
       cotizacionDeLaSena: undefined,
       tesoroDeLaSena: undefined,
+    }));
+  }
+
+  function responder(pregunta: PreguntaDeLaConsulta, texto: string): void {
+    setValores((previos) => ({
+      ...previos,
+      respuestas: { ...previos.respuestas, [pregunta.id]: texto },
     }));
   }
 
@@ -187,12 +205,20 @@ export function HojaDeContacto({
           proyecto: proyecto ?? null,
           ...hijosDelProyecto(replica, alAbrir.current.id),
         },
+        ...(proyecto === undefined
+          ? { respuestas: respuestasConLoEscrito([], preguntas, valores.respuestas, true) }
+          : {}),
       },
       { onSuccess: terminar, onError: setRechazo },
     );
   }
 
   const esContactoSinEtapa = proyecto === undefined || proyecto.estado === 'contacto';
+  const cuenta = contestadas(
+    preguntas,
+    respuestasConLoEscrito([], preguntas, valores.respuestas),
+    valores.direccion,
+  );
 
   return (
     <Hoja
@@ -206,18 +232,21 @@ export function HojaDeContacto({
             ref={cuerpo}
             className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 md:px-6 md:py-5"
           >
-            <ClienteCombobox
-              clientes={clientes}
-              elegidoId={valores.clienteId === '' ? null : valores.clienteId}
-              alElegir={(elegido) => {
-                cambiar('clienteId', elegido?.id ?? '');
-                setTelefono(undefined);
-              }}
-              error={errores.cliente}
-            />
+            <div {...marcaDelCampo('cliente')} className="contents">
+              <ClienteCombobox
+                clientes={clientes}
+                elegidoId={valores.clienteId === '' ? null : valores.clienteId}
+                alElegir={(elegido) => {
+                  cambiar('clienteId', elegido?.id ?? '');
+                  setTelefono(undefined);
+                }}
+                error={errores.cliente}
+              />
+            </div>
 
             {valores.clienteId !== '' && (
               <Campo
+                {...marcaDelCampo('telefono')}
                 etiqueta={textos.telefono}
                 type="tel"
                 inputMode="tel"
@@ -233,6 +262,7 @@ export function HojaDeContacto({
             )}
 
             <Campo
+              {...marcaDelCampo('titulo')}
               etiqueta={textos.quePide}
               placeholder={textos.ejemploDeQuePide}
               maxLength={200}
@@ -243,8 +273,36 @@ export function HojaDeContacto({
               error={errores.titulo}
             />
 
+            {proyecto === undefined && (
+              <section
+                aria-labelledby={`${idCampos}-estimativo`}
+                className="flex flex-col rounded-panel border border-hairline px-4 pt-3 pb-1"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 id={`${idCampos}-estimativo`} className="text-body font-semibold">
+                    {delEstimativo.titulo}
+                  </h3>
+                  <span className="text-label text-text-2 tabular-nums">
+                    {delEstimativo.contestadas(cuenta.contestadas, cuenta.total)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-meta leading-normal text-text-3">{delEstimativo.ayuda}</p>
+                <RenglonesDelEstimativo
+                  preguntas={preguntas}
+                  respuestas={respuestasConLoEscrito([], preguntas, valores.respuestas)}
+                  domicilio={valores.direccion}
+                  domicilioDelCliente={cliente?.direccion ?? ''}
+                  alResponder={responder}
+                  alCambiarElDomicilio={(direccion) => {
+                    cambiar('direccion', direccion);
+                  }}
+                />
+              </section>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo
+                {...marcaDelCampo('visita')}
                 etiqueta={etiquetaDeLaVisita(proyecto, hoy)}
                 name="visita"
                 type="date"
@@ -257,6 +315,7 @@ export function HojaDeContacto({
               />
 
               <Campo
+                {...marcaDelCampo('horaDeLaVisita')}
                 etiqueta={textos.horaDeLaVisita}
                 name="visita_hora"
                 type="time"
@@ -268,7 +327,7 @@ export function HojaDeContacto({
               />
 
               {pagos.length > 1 ? (
-                <div className="flex flex-col gap-1.5">
+                <div {...marcaDelCampo('pagos')} className="flex flex-col gap-1.5">
                   <span className="text-label text-text-2">{textos.senaCobrada}</span>
                   <span
                     translate="no"
@@ -279,34 +338,36 @@ export function HojaDeContacto({
                   <span className="text-meta text-text-3">{textos.variosPagos(pagos.length)}</span>
                 </div>
               ) : (
-                <CamposDelPago
-                  etiqueta={textos.senaCobrada}
-                  valor={valorDeLaSena(valores)}
-                  alCambiar={cambiarLaSena}
-                  monedaDelTrabajo={delTrabajo}
-                  tesorosEnDolares={para.tesorosEnDolares}
-                  dolarDelDia={dolarDelDiaParaUnPago(
-                    { moneda: valores.monedaDeLaSena, fecha: diaDeLaSena(valores, hoy) },
-                    delTrabajo,
-                    para.dolarDelDia,
-                  )}
-                  alCrearUnTesoroEnDolares={
-                    alCrearUnTesoroEnDolares === undefined
-                      ? undefined
-                      : () => {
-                          alCrearUnTesoroEnDolares(entraAlTesoroNuevo);
-                        }
-                  }
-                  errores={{
-                    cotizacion: errores.cotizacionDeLaSena,
-                    tesoro: errores.tesoroDeLaSena,
-                  }}
-                  ayudaDelMonto={
-                    valores.monedaDeLaSena === MONEDA_DEL_TALLER
-                      ? textos.ayudaDeLaSena
-                      : textos.ayudaDeLaSenaEnDolares
-                  }
-                />
+                <div {...marcaDelCampo('pagos')} className="contents">
+                  <CamposDelPago
+                    etiqueta={textos.senaCobrada}
+                    valor={valorDeLaSena(valores)}
+                    alCambiar={cambiarLaSena}
+                    monedaDelTrabajo={delTrabajo}
+                    tesorosEnDolares={para.tesorosEnDolares}
+                    dolarDelDia={dolarDelDiaParaUnPago(
+                      { moneda: valores.monedaDeLaSena, fecha: diaDeLaSena(valores, hoy) },
+                      delTrabajo,
+                      para.dolarDelDia,
+                    )}
+                    alCrearUnTesoroEnDolares={
+                      alCrearUnTesoroEnDolares === undefined
+                        ? undefined
+                        : () => {
+                            alCrearUnTesoroEnDolares(entraAlTesoroNuevo);
+                          }
+                    }
+                    errores={{
+                      cotizacion: errores.cotizacionDeLaSena,
+                      tesoro: errores.tesoroDeLaSena,
+                    }}
+                    ayudaDelMonto={
+                      valores.monedaDeLaSena === MONEDA_DEL_TALLER
+                        ? textos.ayudaDeLaSena
+                        : textos.ayudaDeLaSenaEnDolares
+                    }
+                  />
+                </div>
               )}
 
               {pagos.length <= 1 && (valores.sena ?? 0) > 0 && (
@@ -341,6 +402,7 @@ export function HojaDeContacto({
             {ofreceMarcarLaVisita(proyecto, valores, hoy) && (
               <label className="-mt-1 flex min-h-tap cursor-pointer items-start gap-3 py-1">
                 <input
+                  {...marcaDelCampo('visitaHecha')}
                   type="checkbox"
                   checked={valores.visitaHecha}
                   onChange={(evento) => {
@@ -357,6 +419,7 @@ export function HojaDeContacto({
 
             {muestraElVencimiento(proyecto) && (
               <Campo
+                {...marcaDelCampo('vencimiento')}
                 etiqueta={textos.entregarElPresupuestoAntesDel}
                 type="date"
                 value={valores.vencimiento}
@@ -373,6 +436,7 @@ export function HojaDeContacto({
 
             {muestraLaVigencia(proyecto) && (
               <Campo
+                {...marcaDelCampo('valeHasta')}
                 etiqueta={textos.valeHasta}
                 name="vale_hasta"
                 type="date"
@@ -384,7 +448,7 @@ export function HojaDeContacto({
               />
             )}
 
-            <div className="flex flex-col gap-1.5">
+            <div {...marcaDelCampo('notas')} className="flex flex-col gap-1.5">
               <label htmlFor={`${idCampos}-notas`} className="text-label text-text-2">
                 {textos.notas}
               </label>

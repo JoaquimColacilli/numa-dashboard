@@ -942,10 +942,46 @@ export async function dolaresEIdiomaDeFabrica(sesion: SesionDePrueba): Promise<v
   });
 }
 
+export async function vaciarLosPagosDeLosVencimientos({
+  entorno,
+  accessToken,
+}: SesionDePrueba): Promise<number> {
+  const vivos = (await pedir(
+    entorno,
+    '/rest/v1/pagos_de_vencimientos?select=id&deleted_at=is.null',
+    { accessToken },
+  )) as { id: string }[];
+  if (vivos.length === 0) return 0;
+
+  await pedir(entorno, '/rest/v1/pagos_de_vencimientos?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+  });
+  return vivos.length;
+}
+
+export async function preguntasYMetaDeCocosDeFabrica(sesion: SesionDePrueba): Promise<void> {
+  await pedir(sesion.entorno, '/rest/v1/ajustes?deleted_at=is.null', {
+    method: 'PATCH',
+    accessToken: sesion.accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ preguntas_de_la_consulta: null }),
+  });
+  await pedir(sesion.entorno, '/rest/v1/tesoros?clave=eq.cocos', {
+    method: 'PATCH',
+    accessToken: sesion.accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ meta_centavos: null, meta_fecha: null }),
+  });
+}
+
 export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await vaciarLaVidriera(sesion);
   await vaciarArchivos(sesion);
   await vaciarAnotaciones(sesion);
+  await vaciarLosPagosDeLosVencimientos(sesion);
   await vaciarMovimientos(sesion);
   await vaciarProyectos(sesion);
   await vaciarClientes(sesion);
@@ -953,6 +989,7 @@ export async function vaciarTaller(sesion: SesionDePrueba): Promise<void> {
   await archivarLosTesorosDelDueno(sesion);
   await restablecerElPresupuestoDelTaller(sesion);
   await dolaresEIdiomaDeFabrica(sesion);
+  await preguntasYMetaDeCocosDeFabrica(sesion);
   await escribirLaFacturacion(sesion, FACTURACION_DE_FABRICA);
 }
 
@@ -2139,4 +2176,62 @@ export async function sembrarEntregas(
       gastos: [],
     });
   }
+}
+
+export async function columnasDelProyecto(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+  columnas: readonly string[],
+): Promise<Record<string, unknown> | undefined> {
+  const filas = (await pedir(
+    entorno,
+    `/rest/v1/proyectos?select=${columnas.join(',')}&id=eq.${proyectoId}`,
+    { accessToken },
+  )) as Record<string, unknown>[];
+  return filas[0];
+}
+
+export async function preguntasDeLaConsultaDe({
+  entorno,
+  accessToken,
+}: SesionDePrueba): Promise<unknown> {
+  const filas = (await pedir(
+    entorno,
+    '/rest/v1/ajustes?select=preguntas_de_la_consulta&deleted_at=is.null',
+    { accessToken },
+  )) as { preguntas_de_la_consulta: unknown }[];
+  return filas[0]?.preguntas_de_la_consulta ?? null;
+}
+
+export async function cambiarElCliente(
+  { entorno, accessToken }: SesionDePrueba,
+  clienteId: string,
+  cambios: Record<string, unknown>,
+): Promise<void> {
+  await pedir(entorno, `/rest/v1/clientes?id=eq.${clienteId}`, {
+    method: 'PATCH',
+    accessToken,
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(cambios),
+  });
+}
+
+export interface FilaDeRespuestaAlPresupuesto {
+  id: string;
+  opcion_id: string | null;
+  dia: string | null;
+  franja: string | null;
+  nota: string | null;
+  atendida_at: string | null;
+}
+
+export async function respuestasAlPresupuestoDe(
+  { entorno, accessToken }: SesionDePrueba,
+  proyectoId: string,
+): Promise<FilaDeRespuestaAlPresupuesto[]> {
+  return (await pedir(
+    entorno,
+    `/rest/v1/respuestas_al_presupuesto?select=id,opcion_id,dia,franja,nota,atendida_at&deleted_at=is.null&proyecto_id=eq.${proyectoId}`,
+    { accessToken },
+  )) as FilaDeRespuestaAlPresupuesto[];
 }

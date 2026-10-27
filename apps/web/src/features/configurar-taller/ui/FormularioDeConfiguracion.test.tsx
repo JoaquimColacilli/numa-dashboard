@@ -59,11 +59,13 @@ afterEach(() => {
 });
 
 describe('la configuración del taller por partes', () => {
-  it('entera, como en la primera configuración, lleva los ocho campos, la meta y la tasa de Cocos incluidas', () => {
+  it('entera, como en la primera configuración, lleva los seis campos del taller y del reparto, sin nada de Cocos', () => {
     montar();
-    expect(campos()).toHaveLength(8);
-    expect(screen.getByLabelText('Meta de Cocos')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tasa anual de Cocos (%)')).toBeInTheDocument();
+    expect(campos()).toHaveLength(6);
+    expect(screen.getByLabelText('Nombre del taller')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sueldo que te asignás')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Meta de Cocos')).toBeNull();
+    expect(screen.queryByLabelText('Tasa anual de Cocos (%)')).toBeNull();
     expect(screen.getByRole('button', { name: 'Guardar la configuración' })).toBeInTheDocument();
   });
 

@@ -17,6 +17,7 @@ export interface FaltanteDelCompromiso {
   modo: ModoDePaso;
   falta: Money;
   vence: VencimientoDeLaAgenda | null;
+  pagaSola: boolean;
 }
 
 export function rangoDelFaltante(hoy: string): RangoDeLaAgenda {
@@ -48,12 +49,25 @@ export function faltantesDeLosCompromisos(
   const rango = rangoDelFaltante(hoy);
   const faltantes: FaltanteDelCompromiso[] = [];
   for (const paso of delMes.pasos) {
+    if (paso.vencimiento !== null) {
+      const vence = primerVencimiento(vencimientos, paso.tesoro, rango);
+      if (vence === null || paso.vencimiento.pusoMaun <= 0) continue;
+      faltantes.push({
+        tesoro: paso.tesoro,
+        modo: paso.modo,
+        falta: paso.vencimiento.pusoMaun,
+        vence,
+        pagaSola: paso.vencimiento.pagaSola,
+      });
+      continue;
+    }
     if (paso.clase !== 'fijos' || paso.falta === null || paso.falta <= 0) continue;
     faltantes.push({
       tesoro: paso.tesoro,
       modo: paso.modo,
       falta: paso.falta,
       vence: primerVencimiento(vencimientos, paso.tesoro, rango),
+      pagaSola: false,
     });
   }
   return faltantes;
@@ -64,6 +78,8 @@ export interface FaltanteEnPalabras {
   modo: ModoDePaso;
   falta: Money;
   vence: Pick<VencimientoDeLaAgenda, 'renglon' | 'fecha'> | null;
+  pagaSola?: boolean;
+  maun?: string;
 }
 
 export function fraseDelFaltante(faltante: FaltanteEnPalabras, mes: string): string {
@@ -71,7 +87,11 @@ export function fraseDelFaltante(faltante: FaltanteEnPalabras, mes: string): str
   const falta = formatearPesos(faltante.falta);
   if (faltante.vence !== null) {
     const dia = Number(faltante.vence.fecha.slice(8, 10));
-    return textos.vence(faltante.vence.renglon, dia, falta);
+    const nombre = faltante.vence.renglon ?? faltante.nombre;
+    if (faltante.pagaSola === true && faltante.maun !== undefined) {
+      return textos.seVaAPagar(nombre, dia, falta, faltante.maun);
+    }
+    return textos.vence(nombre, dia, falta);
   }
   if (faltante.modo === 'saldo') return textos.faltanParaElSaldo(falta, faltante.nombre);
   return textos.faltanParaElMes(falta, faltante.nombre, mesEnUnaFrase(mes));

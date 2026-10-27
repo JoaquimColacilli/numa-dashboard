@@ -55,18 +55,21 @@ export const paginaTesoros = {
   plano: {
     eraEl: (numero) => `was ${String(numero)}`,
     flecha: 'Waterfall arrow',
-    etiquetaDeLaObligacion: (numero, cuantos, nombre, porcentaje, base, aPagar) =>
-      `Obligation ${String(numero)} of ${String(cuantos)}: ${nombre}, ${porcentaje} ${fila.base[base]}; to pay ${aPagar}`,
-    etiquetaDelDiezmo: (numero, cuantos, nombre, porcentaje, base, aPagar) =>
-      `Obligation ${String(numero)} of ${String(cuantos)}: ${nombre}, ${porcentaje} ${fila.base[base]}; to pay ${aPagar}; it can't be taken out of the waterfall`,
+    etiquetaDeLaObligacion: (queEs, numero, cuantos, nombre, porcentaje, base, aPagar) =>
+      `${fila.queEs[queEs]} ${String(numero)} of ${String(cuantos)}: ${nombre}, ${porcentaje} ${fila.base[base]}; to pay ${aPagar}`,
+    etiquetaDeLaObligacionDeMontoFijo: (queEs, numero, cuantos, nombre, monto, aPagar) =>
+      `${fila.queEs[queEs]} ${String(numero)} of ${String(cuantos)}: ${nombre}, a fixed amount of ${monto}; to pay ${aPagar}`,
+    etiquetaDelDiezmo: (queEs, numero, cuantos, nombre, porcentaje, base, aPagar) =>
+      `${fila.queEs[queEs]} ${String(numero)} of ${String(cuantos)}: ${nombre}, ${porcentaje} ${fila.base[base]}; to pay ${aPagar}; it can't be taken out of the waterfall`,
     etiquetaDelPaso: (encabezado, cifra, estado) => `${encabezado}, ${cifra}; ${estado}`,
-    encabezadoDelPaso: (tipo, numero, cuantos, nombre) =>
-      `${fila.tipos[tipo]} ${String(numero)} of ${String(cuantos)}: ${nombre}`,
-    encabezadoDelSueldo: (tipo, numero, cuantos, nombre) =>
-      `${fila.tipos[tipo]} ${String(numero)} of ${String(cuantos)}: ${nombre}, owner's pay`,
+    encabezadoDelPaso: (queEs, numero, cuantos, nombre) =>
+      `${fila.queEs[queEs]} ${String(numero)} of ${String(cuantos)}: ${nombre}`,
+    encabezadoDelSueldo: (queEs, numero, cuantos, nombre) =>
+      `${fila.queEs[queEs]} ${String(numero)} of ${String(cuantos)}: ${nombre}, owner's pay`,
     cifraPorTrabajo: (tipo, tope) => `${tope} ${fila.modo[tipo].trabajo}`,
     cifraDelSaldo: (tipo, tope) => `up to ${tope}, ${fila.modo[tipo].saldo}`,
     cifraDelMes: (tipo, tope) => `up to ${tope} ${fila.modo[tipo].mes}`,
+    cifraDelCiclo: (tope, dia) => `up to ${tope}, from the ${ordinal(dia)} to the ${ordinal(dia)}`,
     enElMesRecibio: (recibido) => `${recibido} this month`,
     aPagarYFaltan: (lleva, falta) => `to pay ${lleva}, ${falta} to go`,
     aPagarCompleto: (lleva) => `to pay ${lleva}, complete`,
@@ -74,11 +77,12 @@ export const paginaTesoros = {
     tieneCompleto: (lleva) => `has ${lleva}, complete`,
     llevaYFaltan: (lleva, falta) => `${lleva} so far, ${falta} to go`,
     llevaCompleto: (lleva) => `${lleva} so far, complete`,
-    etiquetaDeLaParte: (nombre, porcentaje) => `Savings: ${nombre}, ${porcentaje} of what's left`,
-    etiquetaDeLaParteConMeta: (nombre, porcentaje, saldo, meta) =>
-      `Savings: ${nombre}, ${porcentaje} of what's left; it has ${saldo} of its ${meta} goal`,
-    etiquetaDeLaParteHastaLaMeta: (nombre, porcentaje, saldo, meta) =>
-      `Savings: ${nombre}, ${porcentaje} of what's left, up to the goal; it has ${saldo} of its ${meta} goal`,
+    etiquetaDeLaParte: (queEs, nombre, porcentaje) =>
+      `${fila.queEs[queEs]}: ${nombre}, ${porcentaje} of what's left`,
+    etiquetaDeLaParteConMeta: (queEs, nombre, porcentaje, saldo, meta) =>
+      `${fila.queEs[queEs]}: ${nombre}, ${porcentaje} of what's left; it has ${saldo} of its ${meta} goal`,
+    etiquetaDeLaParteHastaLaMeta: (queEs, nombre, porcentaje, saldo, meta) =>
+      `${fila.queEs[queEs]}: ${nombre}, ${porcentaje} of what's left, up to the goal; it has ${saldo} of its ${meta} goal`,
     pruebaDeUnTrabajo: (deja) => `Test: a job that nets ${deja}`,
     ingresoDelMes: (mes, ingreso, cobros) =>
       plural(cobros, {
@@ -102,8 +106,8 @@ export const paginaTesoros = {
     rolDelReparto: 'split',
     parteDelReparto: (nombre, porcentaje) => `${nombre} ${porcentaje}`,
     etiquetaDelReparto: (partes) => `What's left gets split: ${partes.join(', ')}`,
-    etiquetaDelResto: (nombre, porcentaje) =>
-      `Surplus: ${nombre} gets the rest, ${porcentaje}, and the cents`,
+    etiquetaDelResto: (queEs, nombre, porcentaje) =>
+      `${fila.queEs[queEs]}: ${nombre} gets the rest, ${porcentaje}, and the cents`,
     restoConPorcentaje: (porcentaje) => `rest ${porcentaje}`,
     estante: 'Shelf',
     todosEnLaFila: 'All in the waterfall',
@@ -155,7 +159,6 @@ export const paginaTesoros = {
     elResto: 'The rest',
     hastaLaMetaUnidad: 'Up to the goal',
     tiene: 'Balance',
-    sinDescripcion: 'No description',
     uniUnaFlecha: 'Draw an arrow here',
     nuevoTesoro: 'New bucket',
     seCobraElTrabajo: 'The job gets paid',

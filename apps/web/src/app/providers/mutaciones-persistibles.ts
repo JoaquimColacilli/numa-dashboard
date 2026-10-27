@@ -56,6 +56,7 @@ import {
 } from '@/entities/movimiento';
 import {
   CLAVE_DE_BAJA_DE_PROYECTO,
+  CLAVE_DE_LA_FECHA_DEL_CONTACTO,
   CLAVE_DE_COSTOS,
   CLAVE_DE_FORMAS_DE_COBRO,
   CLAVE_DE_LA_ENTREGA,
@@ -64,9 +65,11 @@ import {
   CLAVE_DE_MARCAS,
   CLAVE_DE_NOTAS,
   CLAVE_DE_PROYECTO,
+  CLAVE_DE_RESPUESTAS_DE_LA_CONSULTA,
   CLAVE_DE_REVERSION,
   CLAVE_DE_TAREAS,
   MUTACION_DE_BAJA_DE_PROYECTO,
+  MUTACION_DE_LA_FECHA_DEL_CONTACTO,
   MUTACION_DE_COSTOS,
   MUTACION_DE_FORMAS_DE_COBRO,
   MUTACION_DE_LA_ENTREGA,
@@ -75,6 +78,7 @@ import {
   MUTACION_DE_MARCAS,
   MUTACION_DE_NOTAS,
   MUTACION_DE_PROYECTO,
+  MUTACION_DE_RESPUESTAS_DE_LA_CONSULTA,
   MUTACION_DE_REVERSION,
   MUTACION_DE_TAREAS,
 } from '@/entities/proyecto';
@@ -91,9 +95,11 @@ import {
   MUTACION_DE_RECORDATORIO,
 } from '@/entities/opinion';
 import {
+  CLAVE_DE_LA_RESPUESTA_ATENDIDA,
   CLAVE_DEL_BORRADOR,
   CLAVE_DEL_ENVIO,
   MUTACION_DEL_BORRADOR,
+  MUTACION_DE_LA_RESPUESTA_ATENDIDA,
   MUTACION_DEL_ENVIO,
 } from '@/entities/presupuesto';
 import { CLAVE_DE_AJUSTES, MUTACION_DE_AJUSTES } from '@/entities/replica';
@@ -172,6 +178,12 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
     queryClient.setMutationDefaults(CLAVE_DE_NOTAS, MUTACION_DE_NOTAS);
   },
   (queryClient) => {
+    queryClient.setMutationDefaults(
+      CLAVE_DE_RESPUESTAS_DE_LA_CONSULTA,
+      MUTACION_DE_RESPUESTAS_DE_LA_CONSULTA,
+    );
+  },
+  (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_TAREAS, MUTACION_DE_TAREAS);
   },
   (queryClient) => {
@@ -194,6 +206,12 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_BAJA_DE_PROYECTO, MUTACION_DE_BAJA_DE_PROYECTO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(
+      CLAVE_DE_LA_FECHA_DEL_CONTACTO,
+      MUTACION_DE_LA_FECHA_DEL_CONTACTO,
+    );
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_LIQUIDACION, MUTACION_DE_LIQUIDACION);
@@ -281,6 +299,12 @@ const mutacionesPersistibles: readonly RegistroDeMutacion[] = [
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DEL_ENVIO, MUTACION_DEL_ENVIO);
+  },
+  (queryClient) => {
+    queryClient.setMutationDefaults(
+      CLAVE_DE_LA_RESPUESTA_ATENDIDA,
+      MUTACION_DE_LA_RESPUESTA_ATENDIDA,
+    );
   },
   (queryClient) => {
     queryClient.setMutationDefaults(CLAVE_DE_LA_PLANTILLA, MUTACION_DE_LA_PLANTILLA);

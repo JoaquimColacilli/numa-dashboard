@@ -236,6 +236,14 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.proyecto.sena.cubiertaDeMas('«DE MÁS»'),
     tieneQueDecir: ['«DE MÁS»'],
   },
+  'proyecto.paraElEstimativo.contestadas': {
+    llamar: (m) => m.proyecto.paraElEstimativo.contestadas(2, 3),
+    tieneQueDecir: ['2', '3'],
+  },
+  'proyecto.paraElEstimativo.usarLaDelCliente': {
+    llamar: (m) => m.proyecto.paraElEstimativo.usarLaDelCliente('«DIRECCIÓN»'),
+    tieneQueDecir: ['«DIRECCIÓN»'],
+  },
   'proyecto.costosDeCotizar.cargadas': {
     llamar: (m) => m.proyecto.costosDeCotizar.cargadas(2, 7),
     tieneQueDecir: ['2', '7'],

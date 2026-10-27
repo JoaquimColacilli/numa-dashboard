@@ -16,7 +16,6 @@ import {
 } from '@/entities/replica';
 import { useSesionActiva } from '@/entities/sesion';
 import { AjusteDeHuella } from '@/features/activar-huella';
-import { AjusteDeCocos } from '@/features/ajustar-cocos';
 import { FotosDeLaVidriera } from '@/features/armar-la-vidriera';
 import { BotonSalir } from '@/features/cerrar-sesion';
 import {
@@ -26,6 +25,7 @@ import {
   FormularioDeResena,
   hayRedesCargadas,
   IdiomaDeLosClientes,
+  PreguntasDeLaConsulta,
   ResumenDeLaFacturacion,
   ResumenDelPresupuesto,
   type ParteDeLaConfiguracion,
@@ -34,13 +34,7 @@ import { FormularioDePerfil } from '@/features/editar-perfil';
 import { SelectorDeIdioma } from '@/features/elegir-idioma';
 import { SelectorDeTema } from '@/features/elegir-tema';
 import { VersionDeLaApp } from '@/features/ver-novedades';
-import {
-  ajustesDe,
-  filaDelTaller,
-  householdDe,
-  mensajeDeSincronizacion,
-  saldosDeLaReplica,
-} from '@/shared/api';
+import { ajustesDe, filaDelTaller, householdDe, mensajeDeSincronizacion } from '@/shared/api';
 import { useMensajes, type Mensajes } from '@/shared/idioma';
 import {
   describirEstadoSync,
@@ -313,6 +307,20 @@ export function AjustesPage() {
 
         {ajustes && (
           <SeccionEnFila
+            id="titulo-preguntas"
+            titulo={m.paginaAjustes.loQuePreguntas}
+            bajada={
+              <p className="text-label leading-relaxed text-text-2">
+                {m.paginaAjustes.loQueTeGuia}
+              </p>
+            }
+          >
+            <PreguntasDeLaConsulta key={ajustes.id} ajustes={ajustes} />
+          </SeccionEnFila>
+        )}
+
+        {ajustes && (
+          <SeccionEnFila
             id="titulo-facturacion"
             titulo={m.facturacion.pagina.titulo}
             etiqueta={m.facturacion.resumen.etiqueta}
@@ -359,10 +367,6 @@ export function AjustesPage() {
             </div>
           </SeccionEnFila>
         )}
-
-        <SeccionEnFila id="titulo-cocos" titulo={m.paginaAjustes.corregirElSaldoDeCocos}>
-          <AjusteDeCocos saldo={saldosDeLaReplica(replica).cocos} />
-        </SeccionEnFila>
 
         <SeccionEnFila id="titulo-espacio" titulo={m.paginaAjustes.espacioParaArchivos}>
           <p className="text-body leading-relaxed text-text-2 tabular-nums">

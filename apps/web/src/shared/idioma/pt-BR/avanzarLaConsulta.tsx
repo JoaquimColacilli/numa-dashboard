@@ -130,6 +130,7 @@ export const avanzarLaConsulta = {
         one: 'Calculada com # dia útil a partir do início, o prazo do orçamento.',
         other: 'Calculada com # dias úteis a partir do início, o prazo do orçamento.',
       }),
+    ayudaDeLaEntregaPrometida: 'É a data que o orçamento prometeu, com o sinal até a data dele.',
     direccionDeEntrega: 'Endereço de entrega',
     ejemploDeDireccion: 'Rua e número, cidade',
     comprobanteAEmitir: 'Comprovante a emitir',

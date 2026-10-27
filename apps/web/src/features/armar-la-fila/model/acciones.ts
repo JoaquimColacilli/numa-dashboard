@@ -1,9 +1,27 @@
-import type { Fila } from '@maun/domain';
+import { conLaFormaNueva, esDeLaFormaDeAntes, type Fila } from '@maun/domain';
 
 import { borradorDeLaFila, cambiarElBorrador, empezarElBorrador } from './borrador';
 import type { VistaDeLaFila } from './vista';
 
 type LoQueSeEdita = Pick<VistaDeLaFila, 'ajustesId' | 'delTaller' | 'sincronizados'>;
+
+export type PropuestaDeLaFormaNueva = 'propuesta' | 'nada-que-proponer' | 'todavia-no';
+
+export function proponerLaFormaNueva(
+  vista: LoQueSeEdita & Pick<VistaDeLaFila, 'sistema'>,
+  hoy: string,
+): PropuestaDeLaFormaNueva {
+  const guardada = vista.delTaller.fila;
+  const maun = vista.sistema.maun;
+  if (!vista.delTaller.guardada) return 'nada-que-proponer';
+  if (!guardada.pasos.some((paso) => esDeLaFormaDeAntes(paso, maun))) return 'nada-que-proponer';
+  if (borradorDeLaFila() !== null || !sePuedeEditar(vista) || vista.ajustesId === null) {
+    return 'todavia-no';
+  }
+  empezarElBorrador(vista.ajustesId, vista.delTaller.version, guardada);
+  cambiarElBorrador(conLaFormaNueva(guardada, maun, hoy));
+  return 'propuesta';
+}
 
 export function sePuedeEditar(vista: LoQueSeEdita): boolean {
   return vista.ajustesId !== null && vista.sincronizados;

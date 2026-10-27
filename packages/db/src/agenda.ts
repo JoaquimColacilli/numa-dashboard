@@ -7,10 +7,12 @@ import {
   type CategoriaPropia,
   type DatosDeLaAgenda,
   type GastoDeUnTesoro,
+  type PagoDeUnVencimiento,
   type RangoDeLaAgenda,
   type VencimientoDeLaAgenda,
 } from '@maun/domain';
 
+import { dinero } from './dinero.ts';
 import { filasDe, type FilaDe, type Replica } from './replica.ts';
 
 export interface FilasDeLaAgenda {
@@ -21,6 +23,7 @@ export interface FilasDeLaAgenda {
   ajustes?: readonly FilaDe<'ajustes'>[];
   tesoros?: readonly FilaDe<'tesoros'>[];
   movimientos?: readonly FilaDe<'movimientos'>[];
+  pagos_de_vencimientos?: readonly FilaDe<'pagos_de_vencimientos'>[];
 }
 
 export const COLUMNAS_DE_MARCAS = [
@@ -114,9 +117,30 @@ export function gastosDeLosTesoros(
       (movimiento as Partial<FilaDe<'movimientos'>>).desde_id ??
       (origen === null ? null : (tesoros.find((uno) => uno.clave === origen)?.id ?? origen));
     if (tesoro === null) continue;
-    gastos.push({ tesoro, categoria: movimiento.categoria, fecha: movimiento.fecha });
+    gastos.push({
+      tesoro,
+      categoria: movimiento.categoria,
+      fecha: movimiento.fecha,
+      monto: dinero(movimiento.monto_centavos),
+      vencimiento: (movimiento as Partial<FilaDe<'movimientos'>>).vencimiento ?? null,
+    });
   }
   return gastos;
+}
+
+export function pagosDeLosVencimientos(
+  filas: readonly FilaDe<'pagos_de_vencimientos'>[],
+): PagoDeUnVencimiento[] {
+  return filas.filter(sinBorrar).map((fila) => ({
+    tesoro: fila.tesoro_id,
+    vencimiento: fila.vencimiento,
+    tope: dinero(fila.tope_centavos),
+    pagadoAntes: dinero(fila.pagado_antes_centavos),
+    saldo: dinero(fila.saldo_centavos),
+    aPagar: dinero(fila.a_pagar_centavos),
+    pusoMaun: dinero(fila.puso_maun_centavos),
+    vuelveAMaun: dinero(fila.vuelve_a_maun_centavos),
+  }));
 }
 
 const PARTES_DEL_MES = { year: 'numeric', month: '2-digit' } as const;
@@ -162,10 +186,8 @@ function vencimientosDeLasFilas(
       fila,
       nombres: new Map(tesoros.map((tesoro) => [tesoro.id, tesoro.nombre])),
       guardada: guardadaEn === null ? null : mesEnLaZona(guardadaEn, zona),
-      gastos: gastosDeLosTesoros(filas.movimientos ?? [], tesoros).filter((gasto) => {
-        const mes = gasto.fecha.slice(0, 7);
-        return mes >= desde && mes <= hasta;
-      }),
+      gastos: gastosDeLosTesoros(filas.movimientos ?? [], tesoros),
+      pagos: pagosDeLosVencimientos(filas.pagos_de_vencimientos ?? []),
     },
     { desde, hasta },
   );
@@ -240,6 +262,7 @@ export function datosDeLaAgendaDeLaReplica(
       ajustes: filasDe(replica, 'ajustes'),
       tesoros: filasDe(replica, 'tesoros'),
       movimientos: filasDe(replica, 'movimientos'),
+      pagos_de_vencimientos: filasDe(replica, 'pagos_de_vencimientos'),
     },
     rango,
     zona,

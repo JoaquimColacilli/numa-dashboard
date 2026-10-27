@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PagoParaRegistrar } from '@/entities/movimiento';
 import type { InsumosDeLosTrabajos } from '@/entities/proyecto';
 import { TABLAS_REPLICADAS, type Replica, type TablaReplicada } from '@/shared/api';
+import { hoyEnElTaller } from '@/shared/lib';
 
 import {
   borradorDeLaFila,
@@ -31,7 +32,9 @@ const INMUEBLES = '01900000-0000-7000-8000-000000000008';
 const HOY = '2026-09-27';
 
 const GUARDADA: Fila = {
-  obligaciones: [{ tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso' }],
+  obligaciones: [
+    { tesoro: DIEZMO, porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+  ],
   pasos: [
     {
       tesoro: HOGAR,
@@ -41,6 +44,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: FIJOS,
@@ -50,6 +56,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
     {
       tesoro: MATERIALES,
@@ -59,6 +68,9 @@ const GUARDADA: Fila = {
       desde: '2026-09',
       modo: 'mes',
       hastaLaMeta: false,
+      dia: null,
+      pagaSola: false,
+      pagaSolaDesde: null,
     },
   ],
   reparto: [
@@ -81,6 +93,7 @@ function tesoro(id: string, clave: string | null, nombre: string, tinta: string,
     icono: 'vault',
     meta_centavos: null,
     rinde_anual_bp: null,
+    meta_fecha: null,
     orden: 0,
     archivado_at: null,
     created_at: '2026-09-01T10:00:00Z',
@@ -90,7 +103,10 @@ function tesoro(id: string, clave: string | null, nombre: string, tinta: string,
   };
 }
 
-function replicaDelTaller(saldos: { diezmo?: number } = {}): Replica {
+function replicaDelTaller(
+  saldos: { diezmo?: number } = {},
+  metas: Readonly<Record<string, { meta: number; fecha: string | null }>> = {},
+): Replica {
   const tablas = {} as Record<TablaReplicada, Record<string, unknown>>;
   for (const tabla of TABLAS_REPLICADAS) tablas[tabla] = {};
   if (saldos.diezmo !== undefined) {
@@ -105,6 +121,7 @@ function replicaDelTaller(saldos: { diezmo?: number } = {}): Replica {
         desde_id: null,
         hacia_id: DIEZMO,
         cubre_el_mes: null,
+        vencimiento: null,
         monto_centavos: saldos.diezmo,
         categoria: 'Ajuste',
         descripcion: '',
@@ -143,7 +160,16 @@ function replicaDelTaller(saldos: { diezmo?: number } = {}): Replica {
     tesoro(HERRAMIENTAS, null, 'Herramientas', 'petroleo'),
     tesoro(INMUEBLES, null, 'Inmuebles', 'ciruela'),
   ];
-  tablas.tesoros = Object.fromEntries(tesoros.map((uno) => [uno.id, uno]));
+  tablas.tesoros = Object.fromEntries(
+    tesoros.map((uno) => [
+      uno.id,
+      {
+        ...uno,
+        meta_centavos: metas[uno.id]?.meta ?? null,
+        meta_fecha: metas[uno.id]?.fecha ?? null,
+      },
+    ]),
+  );
   return { usuarioId: 'u', cursor: '', reconciliadoEn: '', tablas } as unknown as Replica;
 }
 
@@ -162,6 +188,7 @@ function ingresoA(hacia: string, monto: number) {
     desde_id: null,
     hacia_id: hacia,
     cubre_el_mes: null,
+    vencimiento: null,
     monto_centavos: monto,
     monto_destino_centavos: null,
     categoria: '',
@@ -275,13 +302,27 @@ describe('el panel de detalle', () => {
     expect(screen.queryByText('Completo')).toBeNull();
   });
 
-  it('un compromiso elige cómo se llena, y un ahorro fijo cómo se aparta', () => {
-    empezarElBorrador('a', 4, GUARDADA);
+  it('un compromiso va por mes: el de antes que se renovaba al pagar pasa a por mes y no vuelve; un ahorro fijo elige cómo se aparta', () => {
+    empezarElBorrador('a', 4, {
+      ...GUARDADA,
+      pasos: GUARDADA.pasos.map((paso) =>
+        paso.tesoro === FIJOS ? { ...paso, modo: 'saldo' as const } : paso,
+      ),
+    });
     montar(`paso-${FIJOS}`);
-    const comoSeLlena = screen.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' });
-    fireEvent.click(within(comoSeLlena).getByRole('radio', { name: 'Se renueva al pagar' }));
-    expect(borradorDeLaFila()?.fila.pasos[1]?.modo).toBe('saldo');
     expect(screen.getByRole('region', { name: 'Lo apartado' })).toBeInTheDocument();
+    const comoSeLlena = screen.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' });
+    expect(
+      within(comoSeLlena)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.textContent),
+    ).toEqual(['Por mes', 'Se renueva al pagar']);
+    fireEvent.click(within(comoSeLlena).getByRole('radio', { name: 'Por mes' }));
+    expect(borradorDeLaFila()?.fila.pasos[1]?.modo).toBe('mes');
+    expect(screen.queryByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' })).toBeNull();
+    expect(
+      within(screen.getByRole('region', { name: 'Cómo se llena' })).getByText('Por mes'),
+    ).toBeInTheDocument();
     cleanup();
 
     montar(`paso-${MATERIALES}`);
@@ -302,11 +343,37 @@ describe('el panel de detalle', () => {
     expect(borradorDeLaFila()?.fila.pasos[1]?.renglones[0]?.dia).toBe(10);
   });
 
+  it('«Qué es» dice el tipo con las palabras de los tipos, y editando ofrece en qué se convierte', () => {
+    montar(`paso-${FIJOS}`);
+    const queEs = screen.getByRole('region', { name: 'Qué es' });
+    expect(queEs).toHaveTextContent('Deuda obligatoria');
+    expect(queEs).not.toHaveTextContent('Compromiso');
+    expect(
+      within(queEs).getByRole('button', { name: 'Qué es una deuda obligatoria' }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    montar(`paso-${HOGAR}`);
+    expect(screen.getByRole('region', { name: 'Qué es' })).toHaveTextContent(
+      'Deuda obligatoria · el sueldo del Hogar',
+    );
+    cleanup();
+
+    empezarElBorrador('a', 4, GUARDADA);
+    montar(`paso-${FIJOS}`);
+    const tipos = screen.getByRole('radiogroup', { name: 'Qué es Gastos fijos' });
+    expect(
+      within(tipos)
+        .getAllByRole('radio')
+        .map((opcion) => opcion.textContent),
+    ).toEqual(['Deuda obligatoria', 'Caja']);
+  });
+
   it('una obligación: porcentaje, sobre qué se calcula, su lugar entre las obligaciones y el candado del diezmo', () => {
     empezarElBorrador('a', 4, {
       ...GUARDADA,
       obligaciones: [
-        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado' },
+        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
         ...GUARDADA.obligaciones,
       ],
     });
@@ -324,6 +391,139 @@ describe('el panel de detalle', () => {
     montar('diezmo');
     expect(screen.getByText(/El diezmo no se puede sacar de la fila/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sacar de las obligaciones' })).toBeNull();
+  });
+
+  it('una obligación se lleva un porcentaje o un monto fijo de cada cobro; el diezmo, solo un porcentaje', () => {
+    empezarElBorrador('a', 4, {
+      ...GUARDADA,
+      obligaciones: [
+        { tesoro: HERRAMIENTAS, porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
+        ...GUARDADA.obligaciones,
+      ],
+    });
+    montar(`obligacion-${HERRAMIENTAS}`);
+    const comoSeLleva = screen.getByRole('radiogroup', {
+      name: 'Cómo se lleva su parte Herramientas',
+    });
+    expect(
+      within(comoSeLleva)
+        .getAllByRole('radio')
+        .map((opcion) => [opcion.textContent, opcion.getAttribute('aria-checked')]),
+    ).toEqual([
+      ['Un porcentaje', 'true'],
+      ['Un monto fijo', 'false'],
+    ]);
+    expect(screen.getByRole('textbox', { name: 'Porcentaje de Herramientas' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('radiogroup', { name: 'Sobre qué se calcula Herramientas' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Para entregar' })).toBeInTheDocument();
+
+    fireEvent.click(within(comoSeLleva).getByRole('radio', { name: 'Un monto fijo' }));
+    expect(borradorDeLaFila()?.fila.obligaciones[0]?.montoFijo).toBe(0);
+    expect(screen.queryByRole('textbox', { name: 'Porcentaje de Herramientas' })).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: /^Sobre qué se calcula/ })).toBeNull();
+    expect(screen.getByText('De cada cobro, nunca más de lo que llega.')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Monto fijo de Herramientas' }), {
+      target: { value: '50.000' },
+    });
+    expect(borradorDeLaFila()?.fila.obligaciones[0]).toEqual({
+      tesoro: HERRAMIENTAS,
+      porcentaje: 350,
+      base: 'cobrado',
+      montoFijo: 5_000_000,
+    });
+
+    fireEvent.click(within(comoSeLleva).getByRole('radio', { name: 'Un porcentaje' }));
+    expect(borradorDeLaFila()?.fila.obligaciones[0]?.montoFijo).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Porcentaje de Herramientas' })).toBeInTheDocument();
+    cleanup();
+
+    montar('diezmo');
+    expect(screen.queryByRole('radiogroup', { name: /^Cómo se lleva su parte/ })).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Porcentaje de Diezmo' })).toBeInTheDocument();
+  });
+
+  it('un compromiso tiene su día de pago y se paga solo; con día, junta de un vencimiento al siguiente', () => {
+    empezarElBorrador('a', 4, GUARDADA);
+    montar(`paso-${FIJOS}`);
+    const dia = screen.getByRole('combobox', { name: 'Día de pago de Gastos fijos' });
+    expect(dia).toHaveValue('');
+    expect(within(dia).getAllByRole('option')[0]).toHaveTextContent('Sin día de pago');
+    expect(screen.getByRole('combobox', { name: 'Día de pago de Luz' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Se paga sola' })).toBeNull();
+
+    fireEvent.change(dia, { target: { value: '10' } });
+    expect(borradorDeLaFila()?.fila.pasos[1]).toMatchObject({
+      dia: 10,
+      modo: 'mes',
+      pagaSola: false,
+      pagaSolaDesde: null,
+      renglones: [{ nombre: 'Luz', monto: 10_000_000, dia: null }],
+    });
+    expect(screen.queryByRole('combobox', { name: 'Día de pago de Luz' })).toBeNull();
+    const comoSeLlena = screen.getByRole('region', { name: 'Cómo se llena' });
+    expect(within(comoSeLlena).getByText('Del 10 al 10')).toBeInTheDocument();
+    expect(
+      within(comoSeLlena).getByText('Junta hasta su tope entre un vencimiento y el siguiente.'),
+    ).toBeInTheDocument();
+    const ciclo = screen.getByRole('region', { name: 'Del 10 de septiembre al 10 de octubre' });
+    expect(within(ciclo).getByText('Vence el 10 de octubre')).toBeInTheDocument();
+    expect(within(ciclo).queryByText(/se paga solo/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Se paga sola' }));
+    expect(borradorDeLaFila()?.fila.pasos[1]).toMatchObject({
+      pagaSola: true,
+      pagaSolaDesde: hoyEnElTaller(),
+    });
+    expect(screen.getByRole('switch', { name: 'Se paga sola' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(
+      within(ciclo)
+        .getByText(/^El 10 de octubre se paga solo:/)
+        .textContent.replace(/\s/g, ' '),
+    ).toBe('El 10 de octubre se paga solo: $ 100.000');
+    expect(
+      within(ciclo)
+        .getByText(/^Si no entra más plata/)
+        .textContent.replace(/\s/g, ' '),
+    ).toBe('Si no entra más plata, Maun pone $ 100.000.');
+  });
+
+  it('un ahorro con objetivo que ya junta hasta la meta no ofrece volver a «sin fin»', () => {
+    const replica = replicaDelTaller(
+      {},
+      {
+        [MATERIALES]: { meta: 50_000_000, fecha: '2027-03-15' },
+        [COCOS]: { meta: 100_000_000, fecha: null },
+        [INMUEBLES]: { meta: 100_000_000, fecha: null },
+      },
+    );
+    empezarElBorrador('a', 4, {
+      ...GUARDADA,
+      reparto: [
+        { tesoro: COCOS, porcentaje: puntosBasicos(5000), hastaLaMeta: true },
+        { tesoro: INMUEBLES, porcentaje: puntosBasicos(3000), hastaLaMeta: false },
+      ],
+    });
+    render(
+      <Panel inicial={`paso-${MATERIALES}`} alEditarTesoro={() => undefined} replica={replica} />,
+    );
+    const hastaLaMeta = screen.getByRole('region', { name: 'Hasta la meta' });
+    expect(within(hastaLaMeta).getByText('para marzo de 2027')).toBeInTheDocument();
+    fireEvent.click(within(hastaLaMeta).getByRole('switch', { name: 'Hasta la meta' }));
+    expect(borradorDeLaFila()?.fila.pasos[2]?.hastaLaMeta).toBe(true);
+    expect(within(hastaLaMeta).queryByRole('switch')).toBeNull();
+    expect(within(hastaLaMeta).getByText('Junta hasta llegar a su meta.')).toBeInTheDocument();
+    cleanup();
+
+    render(<Panel inicial="reparto" alEditarTesoro={() => undefined} replica={replica} />);
+    expect(screen.queryByRole('switch', { name: 'Cocos hasta la meta' })).toBeNull();
+    fireEvent.click(screen.getByRole('switch', { name: 'Inmuebles hasta la meta' }));
+    expect(borradorDeLaFila()?.fila.reparto[1]?.hastaLaMeta).toBe(true);
+    expect(screen.queryByRole('switch', { name: 'Inmuebles hasta la meta' })).toBeNull();
   });
 
   it('una obligación con plata a pagar ofrece «Registrar el pago»', () => {
@@ -377,6 +577,7 @@ describe('el panel de detalle', () => {
       tesoro: HERRAMIENTAS,
       porcentaje: 0,
       base: 'ingreso',
+      montoFijo: null,
     });
   });
 
@@ -538,11 +739,11 @@ describe('la hoja de una ficha en el celular', () => {
     expect(alEditarTesoro).toHaveBeenCalledWith(HERRAMIENTAS);
   });
 
-  it('un paso dice su tipo y su lugar, y también se edita', () => {
+  it('un paso dice qué es y su lugar, y también se edita', () => {
     render(<Hoja elegido={`paso-${FIJOS}`} alEditarTesoro={() => undefined} />);
     const hoja = screen.getByRole('dialog', { name: 'Gastos fijos' });
     expect(
-      within(hoja).getByText('Compromiso · 3 de 4', { selector: 'header span' }),
+      within(hoja).getByText('Deuda obligatoria · 3 de 4', { selector: 'header span' }),
     ).toBeInTheDocument();
     expect(within(hoja).getByRole('button', { name: 'Editar Gastos fijos' })).toBeInTheDocument();
   });

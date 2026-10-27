@@ -69,7 +69,9 @@ export const agenda = {
   estaComprometida: 'Está comprometida con el cliente. Para cambiarla, abrí el proyecto.',
   comoSeMueve: {
     seguimiento:
-      'Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va.',
+      'Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va. Para pasarlo a otro día, arrastralo en el mes a hoy o a un día que viene, o cambiá la fecha.',
+    seguimientoConLaFecha:
+      'Cuando le escribas, registralo: ahí elegís si vuelve, si sigue con otra fecha o si no va. Para pasarlo a otro día, cambiá la fecha.',
     arrastrando: 'Arrastrala en el mes para moverla, o cambiá la fecha ahí.',
     conLaFecha: 'Para moverla, cambiá la fecha ahí.',
   },
@@ -78,6 +80,7 @@ export const agenda = {
     tarde: 'a la tarde',
   },
   registrarElContacto: 'Registrar el contacto',
+  cambiarLaFecha: 'Cambiar la fecha',
   marcarComoImportante: 'Marcar como importante',
   sacarLaMarca: 'Sacarle la marca de importante',
   borrar: (texto: string): string => `Borrar «${texto}»`,
@@ -147,6 +150,8 @@ export const agenda = {
   },
   arrastre: {
     loDejaste: (dia: string): string => `Lo dejaste donde estaba, el ${dia}.`,
+    soloHoyOAdelante: (nombre: string): string =>
+      `${nombre} va hoy o un día que viene: quedó donde estaba.`,
     moviste: (nombre: string, dia: string): string =>
       `Moviste ${nombre} al ${dia}. El aviso tiene Deshacer.`,
     agarrasteConTeclado: (nombre: string, dia: string): string =>

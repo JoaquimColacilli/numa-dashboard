@@ -696,6 +696,94 @@ describe('el presupuesto que se le mandó', () => {
     expect(conPresupuesto({ ...bueno, mandado_el: null })).toBeNull();
     expect(conPresupuesto(bueno)).not.toBeNull();
   });
+
+  it('mientras espera respuesta trae con qué revisión se aprueba y lo que ya contestó el cliente', () => {
+    const conPresupuesto = (extra: object) =>
+      leerVistaDelCliente(
+        respuesta({
+          presupuesto: {
+            numero: '20260920-01',
+            revision: 1,
+            mandado_el: '2026-09-20',
+            contenido: CONTENIDO,
+            ...extra,
+          },
+        }),
+      ).presupuesto;
+    const revision = '0199c000-0000-7000-8000-000000000002';
+    const opcion = '0199c000-0000-7000-8000-000000000003';
+
+    expect(conPresupuesto({ revision_id: revision, respuesta: null })).toMatchObject({
+      revisionId: revision,
+      respuesta: null,
+    });
+    expect(
+      conPresupuesto({
+        revision_id: revision,
+        respuesta: {
+          opcion_id: opcion,
+          respondida_el: '2026-10-26',
+          dia: '2026-10-29',
+          franja: 'manana',
+        },
+      })?.respuesta,
+    ).toEqual({
+      opcionId: opcion,
+      respondidaEl: '2026-10-26',
+      dia: '2026-10-29',
+      franja: 'manana',
+    });
+    expect(
+      conPresupuesto({
+        revision_id: revision,
+        respuesta: { opcion_id: null, respondida_el: '2026-10-26', dia: null, franja: null },
+      })?.respuesta,
+    ).toEqual({ opcionId: null, respondidaEl: '2026-10-26', dia: null, franja: null });
+  });
+
+  it('una respuesta que no se puede leer no aprueba nada, y sin la revisión no se aprueba', () => {
+    const conPresupuesto = (extra: object) =>
+      leerVistaDelCliente(
+        respuesta({
+          presupuesto: {
+            numero: '20260920-01',
+            revision: 1,
+            mandado_el: '2026-09-20',
+            contenido: CONTENIDO,
+            ...extra,
+          },
+        }),
+      ).presupuesto;
+    const revision = '0199c000-0000-7000-8000-000000000002';
+    const deLaRespuesta = (cruda: object) =>
+      conPresupuesto({ revision_id: revision, respuesta: cruda })?.respuesta;
+
+    expect(
+      deLaRespuesta({ opcion_id: null, respondida_el: '26/10', dia: null, franja: null }),
+    ).toBeNull();
+    expect(
+      deLaRespuesta({ opcion_id: 'B', respondida_el: '2026-10-26', dia: null, franja: null }),
+    ).toBeNull();
+    expect(
+      deLaRespuesta({
+        opcion_id: null,
+        respondida_el: '2026-10-26',
+        dia: '2026-10-29',
+        franja: 'noche',
+      }),
+    ).toBeNull();
+    expect(
+      deLaRespuesta({
+        opcion_id: null,
+        respondida_el: '2026-10-26',
+        dia: '2026-02-30',
+        franja: 'tarde',
+      }),
+    ).toBeNull();
+    expect(deLaRespuesta('aprobada' as unknown as object)).toBeNull();
+    expect(conPresupuesto({ revision_id: 'r1' })).not.toHaveProperty('revisionId');
+    expect(conPresupuesto({})).not.toHaveProperty('respuesta');
+  });
 });
 
 describe('un trabajo en dólares', () => {

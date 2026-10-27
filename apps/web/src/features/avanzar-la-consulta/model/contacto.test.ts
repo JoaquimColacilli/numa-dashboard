@@ -33,6 +33,8 @@ function valores(extra: Partial<ValoresDelContacto> = {}): ValoresDelContacto {
     notas: '',
     vencimiento: '',
     valeHasta: '',
+    direccion: '',
+    respuestas: {},
     ...extra,
   };
 }
@@ -112,6 +114,7 @@ function proyecto(extra: Partial<FilaDe<'proyectos'>> = {}): FilaDe<'proyectos'>
     visita_importante: false,
     entrega_importante: false,
     presupuesto_importante: false,
+    respuestas_de_la_consulta: [],
     ...extra,
   };
 }
@@ -333,7 +336,10 @@ describe('pedidoDelContacto', () => {
     const pedido = pedidoDelContacto({
       id: 'p',
       proyecto: fila,
-      valores: valores({ titulo: 'Placard y vanitory' }),
+      valores: {
+        ...valoresDelContacto(fila, undefined, '', undefined, HOY),
+        titulo: 'Placard y vanitory',
+      },
       sena: undefined,
       idDeSenaNueva: 'x',
       hoy: HOY,
@@ -344,6 +350,36 @@ describe('pedidoDelContacto', () => {
       direccion_entrega: 'Belgrano 123',
       titulo: 'Placard y vanitory',
     });
+  });
+
+  it('la dirección del trabajo sale de la consulta y viaja como se escribió, sin los blancos de las puntas', () => {
+    const fila = proyecto({ direccion_entrega: 'Belgrano 123' });
+    expect(valoresDelContacto(fila, undefined, '', undefined, HOY).direccion).toBe('Belgrano 123');
+    expect(valoresDelContacto(undefined, undefined, '', undefined, HOY).direccion).toBe('');
+
+    const nueva = pedidoDelContacto({
+      id: 'p',
+      proyecto: undefined,
+      valores: valores({ direccion: '  Gorriti 4500, Palermo  ' }),
+      sena: undefined,
+      idDeSenaNueva: 'x',
+      hoy: HOY,
+    });
+    expect(nueva.datos.direccion_entrega).toBe('Gorriti 4500, Palermo');
+
+    const otra = pedidoDelContacto({
+      id: 'p',
+      proyecto: fila,
+      valores: {
+        ...valoresDelContacto(fila, undefined, '', undefined, HOY),
+        direccion: 'Gorriti 4500',
+      },
+      sena: undefined,
+      idDeSenaNueva: 'x',
+      hoy: HOY,
+    });
+    expect(otra.datos.direccion_entrega).toBe('Gorriti 4500');
+    expect(hayQueGuardar(fila, otra)).toBe(true);
   });
 });
 

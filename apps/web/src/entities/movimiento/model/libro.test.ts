@@ -9,6 +9,7 @@ import {
   filtrarLineas,
   filtroInicial,
   lineasDelTaller,
+  MOTIVO_DEL_BLOQUEO,
   tesorosConMovimientoEn,
   TODOS_LOS_TESOROS,
   type LineaDelTaller,
@@ -303,6 +304,98 @@ describe('las líneas del taller con los tesoros del dueño', () => {
       monto: 5_000_000,
       cotizacionDelPago: null,
     });
+  });
+
+  it('el día de pago de una deuda que se paga sola deja sus líneas, que solo se ven: con su etiqueta y su bloqueo', () => {
+    const ALQUILER_ID = '0192aaaa-0000-7000-8000-000000000008';
+    const ALQUILER: TesoroDeLaLinea = {
+      id: ALQUILER_ID,
+      clave: null,
+      moneda: 'ARS',
+      nombre: 'Alquiler',
+      tinta: 'petroleo',
+      icono: 'house',
+    };
+    const pago = {
+      tesoro_id: ALQUILER_ID,
+      dia: 10,
+      tope_centavos: 50_000_000,
+      pagado_antes_centavos: 0,
+      deleted_at: null,
+    };
+    const replica = replicaCon([]);
+    const conLosPagos = {
+      ...replica,
+      tablas: {
+        ...replica.tablas,
+        pagos_de_vencimientos: {
+          octubre: {
+            ...pago,
+            id: 'octubre',
+            vencimiento: '2026-10-10',
+            saldo_centavos: 30_000_000,
+            a_pagar_centavos: 50_000_000,
+            puso_maun_centavos: 20_000_000,
+            vuelve_a_maun_centavos: 0,
+          },
+          septiembre: {
+            ...pago,
+            id: 'septiembre',
+            vencimiento: '2026-09-10',
+            saldo_centavos: 45_000_000,
+            a_pagar_centavos: 40_000_000,
+            puso_maun_centavos: 0,
+            vuelve_a_maun_centavos: 5_000_000,
+          },
+        },
+      },
+    } as unknown as Replica;
+
+    const lineas = lineasDelTaller(conLosPagos, [...TESOROS, ALQUILER]);
+    expect(
+      lineas.map((una) => [
+        una.fecha,
+        una.etiqueta,
+        una.sentido,
+        una.tesoroDesde?.nombre ?? null,
+        una.tesoroHacia?.nombre ?? null,
+        una.monto,
+        una.bloqueo,
+      ]),
+    ).toEqual([
+      ['2026-10-10', 'Deuda interna', 'mueve', 'Maun', 'Alquiler', 20_000_000, 'del-vencimiento'],
+      [
+        '2026-10-10',
+        'Pago del día de pago',
+        'sale',
+        'Alquiler',
+        null,
+        50_000_000,
+        'del-vencimiento',
+      ],
+      [
+        '2026-09-10',
+        'Pago del día de pago',
+        'sale',
+        'Alquiler',
+        null,
+        40_000_000,
+        'del-vencimiento',
+      ],
+      [
+        '2026-09-10',
+        'Sobrante del día de pago',
+        'mueve',
+        'Alquiler',
+        'Maun',
+        5_000_000,
+        'del-vencimiento',
+      ],
+    ]);
+    expect(lineas.every((una) => una.proyectoTitulo === null)).toBe(true);
+    expect(MOTIVO_DEL_BLOQUEO['del-vencimiento']).toBe(
+      'Lo anotó NUMA el día de pago de una deuda que se paga sola: el pago, lo que puso Maun para llegar al tope (deuda interna) o lo que sobró y volvió a Maun. No se edita.',
+    );
   });
 
   it('un tesoro que la réplica no conoce igual tiene un nombre', () => {

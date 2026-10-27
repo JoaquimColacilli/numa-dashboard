@@ -67,6 +67,12 @@ const SIMPLES = [
   'MN038',
   'MN039',
   'MN040',
+  'MN044',
+  'MN045',
+  'MN046',
+  'MN047',
+  'MN048',
+  'MN049',
 ] as const satisfies readonly (keyof TextosDeLosRechazos)[];
 
 type CodigoSimple = (typeof SIMPLES)[number];

@@ -143,7 +143,7 @@ export function urgenciaDelEvento(evento: EventoDeLaAgenda, hoy: string): Urgenc
 
 export function textoDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
-  if (evento.clase === 'vencimiento') return evento.renglon;
+  if (evento.clase === 'vencimiento') return evento.renglon ?? evento.nombreDelTesoro;
   return evento.titulo;
 }
 
@@ -155,14 +155,18 @@ export function idDelProximoContacto(evento: EventoDeLaAgenda): string | null {
 export function nombreDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
   const { agenda } = mensajes();
-  if (evento.clase === 'vencimiento') return agenda.vencimiento.nombre(evento.renglon);
+  if (evento.clase === 'vencimiento') {
+    return agenda.vencimiento.nombre(evento.renglon ?? evento.nombreDelTesoro);
+  }
   return agenda.derivadas[evento.categoria].nombre(evento.titulo);
 }
 
 export function textoCortoDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'propia') return evento.texto;
   const { agenda } = mensajes();
-  if (evento.clase === 'vencimiento') return agenda.vencimiento.corto(evento.renglon);
+  if (evento.clase === 'vencimiento') {
+    return agenda.vencimiento.corto(evento.renglon ?? evento.nombreDelTesoro);
+  }
   return agenda.derivadas[evento.categoria].corto(evento.titulo);
 }
 
@@ -171,7 +175,9 @@ export function detalleDelEvento(evento: EventoDeLaAgenda): string {
   if (evento.clase === 'vencimiento') {
     const nombre = evento.nombreDelTesoro.trim();
     const pesos = formatearPesos(evento.monto);
-    return nombre === '' ? pesos : mensajes().agenda.vencimiento.monto(pesos, nombre);
+    return nombre === '' || evento.renglon === null
+      ? pesos
+      : mensajes().agenda.vencimiento.monto(pesos, nombre);
   }
   return [evento.cliente, evento.lugar].filter((parte) => parte.trim() !== '').join(', ');
 }

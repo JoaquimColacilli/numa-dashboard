@@ -25,6 +25,11 @@ Estado: aceptada, 2026-09-11. La base (ids, metadatos, bootstrap, delta, guardas
   app la lee por el delta como cualquier otra. Los locks suman tres esperas, con sus pruebas en
   `tests/concurrencia.test.ts`: la segunda toma de una secuencia espera a la primera en `ajustes`,
   `guardar_proyecto` espera a `pedir_la_factura` en el trabajo y un cambio del pago espera en el pago.
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md) y el
+  [0087](0087-los-tipos-de-tesoro-de-eliseo.md): la réplica suma `respuestas_al_presupuesto` y
+  `pagos_de_vencimientos`, y hay rechazos nuevos: `MN044` a `MN047` (las fechas del presupuesto), `MN048` y
+  `MN049` (la fecha del próximo contacto) y `MN050` (la aprobación del cliente).
 
 ## Contexto
 

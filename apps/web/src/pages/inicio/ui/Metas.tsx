@@ -1,5 +1,6 @@
 import type { EstadoDelDiezmo } from '@maun/domain';
 
+import { paraCuandoEsLaMeta } from '@/entities/fila';
 import type { TesoroDelTaller } from '@/entities/tesoro';
 import { useMensajes } from '@/shared/idioma';
 import { formatearLaPlata, formatearPesos, TINTA, type TintaDeTesoro } from '@/shared/lib';
@@ -71,7 +72,14 @@ export function Metas({ tesoros, diezmo, tintaDelDiezmo }: MetasProps) {
           key={tesoro.id}
           etiqueta={tesoro.nombre}
           etiquetaTalCual
-          texto={textos.deLaMeta(formatearLaPlata(tesoro.saldo), formatearLaPlata(meta))}
+          texto={(() => {
+            const deLaMeta = textos.deLaMeta(
+              formatearLaPlata(tesoro.saldo),
+              formatearLaPlata(meta),
+            );
+            const para = paraCuandoEsLaMeta(tesoro.metaFecha);
+            return para === null ? deLaMeta : textos.deLaMetaPara(deLaMeta, para);
+          })()}
           pct={porcentaje(tesoro.saldo.importe, meta.importe)}
           tinta={tesoro.tinta}
         />

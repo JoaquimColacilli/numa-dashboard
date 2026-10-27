@@ -19,4 +19,10 @@ export const whatsapp = {
     sinNombre: (trabajo: string, url: string) =>
       `Hola, acá podés ver cómo va y cómo pagarlo tu ${enLaFrase(trabajo)}: ${url}`,
   },
+  elEstimativo: {
+    conNombre: (nombre: string, trabajo: string, url: string) =>
+      `Hola ${nombre}, acá podés ver el presupuesto estimativo de tu ${enLaFrase(trabajo)}: ${url}`,
+    sinNombre: (trabajo: string, url: string) =>
+      `Hola, acá podés ver el presupuesto estimativo de tu ${enLaFrase(trabajo)}: ${url}`,
+  },
 } as const satisfies TextosDelMensajeAlCliente;

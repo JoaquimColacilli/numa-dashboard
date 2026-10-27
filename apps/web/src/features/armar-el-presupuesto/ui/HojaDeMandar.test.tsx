@@ -2,6 +2,8 @@ import {
   borradorNuevo,
   PLANTILLA_DE_SIEMPRE,
   type BorradorDelPresupuesto,
+  type CampoQueFalta,
+  type EstadoProyecto,
   type ReferenciaEnPesos,
 } from '@maun/domain';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -40,6 +42,7 @@ const BORRADOR: BorradorDelPresupuesto = {
     obra: '',
     plantilla: PLANTILLA_DE_SIEMPRE,
     validezDias: 15,
+    faltaMedir: false,
     idNuevo: () => 'm1',
   }),
   muebles: [{ id: 'm1', nombre: 'Placard', descripcion: 'Tres puertas corredizas.' }],
@@ -92,7 +95,17 @@ function taller(uno: Proyecto, dolar: { valor: number; el: string } | null): Rep
   return aplicarFilaLocal(replica, 'presupuestos', PRESUPUESTO);
 }
 
-function montar(uno: Proyecto, replica: Replica) {
+interface ComoSeManda {
+  borrador?: BorradorDelPresupuesto;
+  pasaA?: EstadoProyecto | null;
+  alIrAlCampo?: (campo: CampoQueFalta | 'fechas') => void;
+}
+
+function montar(
+  uno: Proyecto,
+  replica: Replica,
+  { borrador = BORRADOR, pasaA = null, alIrAlCampo = () => undefined }: ComoSeManda = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
@@ -104,7 +117,13 @@ function montar(uno: Proyecto, replica: Replica) {
       proximos: [],
       presupuesto: PRESUPUESTO,
       revisiones: [],
-      documento: documentoDeHoy({ replica, proyecto: uno, borrador: BORRADOR, referencia }),
+      documento: documentoDeHoy({
+        replica,
+        proyecto: uno,
+        borrador,
+        referencia,
+        mandadoEl: HOY,
+      }),
       idioma: 'es',
       queCambio,
       hoy: HOY,
@@ -120,10 +139,15 @@ function montar(uno: Proyecto, replica: Replica) {
           <HojaDeMandar
             revision={1}
             numero={null}
-            documento={documentoDeHoy({ replica, proyecto: uno, borrador: BORRADOR })}
+            documento={documentoDeHoy({
+              replica,
+              proyecto: uno,
+              borrador,
+              mandadoEl: HOY,
+            })}
             hoy={HOY}
             valeHasta="2026-10-17"
-            pasaAPresupuestoEnviado={false}
+            pasaA={pasaA}
             tildaLaTarea={false}
             todoGuardado
             cliente="Marcela Duarte"
@@ -131,7 +155,7 @@ function montar(uno: Proyecto, replica: Replica) {
             telefono=""
             enlace={{ url: null, crear: () => null }}
             armarElEnvio={armarElEnvio}
-            alIrAlCampo={() => undefined}
+            alIrAlCampo={alIrAlCampo}
             alCerrar={() => undefined}
           />
         </ProveedorDeReplica>
@@ -253,5 +277,88 @@ describe('mandar un presupuesto en dólares', () => {
     expect(referencias).toEqual([null]);
     expect(ajustes()).toEqual([]);
     expect(envios()[0]?.pedido.documento.forma).toBe(1);
+  });
+});
+
+describe('mandar un estimativo, y las fechas del presupuesto', () => {
+  it('un estimativo se manda como tal: sin seña, propone un día para medir y no tilda la tarea', () => {
+    const uno = proyecto('ARS');
+    const { envios } = montar(uno, taller(uno, null), {
+      borrador: { ...BORRADOR, estimativo: true, pideFecha: true },
+      pasaA: 'presupuesto_estimativo',
+    });
+
+    expect(screen.getByRole('heading', { name: 'Mandar el estimativo' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Tu cliente lo ve como presupuesto estimativo, sin seña, y lo puede aprobar.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Al aprobarlo, te propone un día y un horario para que vayas a medir.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('«Armar el presupuesto» sigue sin tildar: espera el definitivo.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Estimativo enviado')).toBeInTheDocument();
+    expect(screen.queryByText(/^Promete la entrega/)).toBeNull();
+
+    fireEvent.click(botonDeMandar());
+    expect(envios()[0]?.pedido.documento).toMatchObject({
+      estimativo: true,
+      pideFecha: true,
+      listoPara: null,
+      senaAntesDel: null,
+    });
+  });
+
+  it('un presupuesto con fechas promete la entrega para ese día si la seña entra antes', () => {
+    const uno = proyecto('ARS');
+    const { envios } = montar(uno, taller(uno, null), {
+      borrador: { ...BORRADOR, listoPara: '2026-11-20', senaAntesDel: '2026-10-09' },
+    });
+
+    expect(screen.getByRole('heading', { name: 'Mandar el presupuesto' })).toBeInTheDocument();
+    expect(screen.getByText(/^Promete la entrega para el /)).toHaveTextContent(
+      'Promete la entrega para el vie 20 nov si la seña entra antes del vie 9 oct.',
+    );
+    expect(screen.queryByText(/^Tu cliente lo ve como presupuesto estimativo/)).toBeNull();
+
+    fireEvent.click(botonDeMandar());
+    expect(envios()[0]?.pedido.documento).toMatchObject({
+      estimativo: false,
+      listoPara: '2026-11-20',
+      senaAntesDel: '2026-10-09',
+    });
+  });
+
+  it('con la fecha de la seña ya pasada, no deja mandar y lleva a las fechas', () => {
+    const uno = proyecto('ARS');
+    const alIrAlCampo = vi.fn<(campo: CampoQueFalta | 'fechas') => void>();
+    const { envios } = montar(uno, taller(uno, null), {
+      borrador: { ...BORRADOR, listoPara: '2026-11-20', senaAntesDel: '2026-10-01' },
+      alIrAlCampo,
+    });
+
+    expect(
+      screen.getByText('La fecha de la seña ya pasó: tiene que ser hoy o después.'),
+    ).toBeInTheDocument();
+    expect(botonDeMandar()).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /La fecha de la seña ya pasó/ }));
+    expect(alIrAlCampo).toHaveBeenCalledWith('fechas');
+    fireEvent.click(botonDeMandar());
+    expect(envios()).toEqual([]);
+  });
+
+  it('con la entrega antes de la seña, tampoco', () => {
+    const uno = proyecto('ARS');
+    montar(uno, taller(uno, null), {
+      borrador: { ...BORRADOR, listoPara: '2026-10-05', senaAntesDel: '2026-10-09' },
+    });
+
+    expect(
+      screen.getByText('La entrega tiene que ser después de la fecha de la seña.'),
+    ).toBeInTheDocument();
+    expect(botonDeMandar()).toBeDisabled();
   });
 });

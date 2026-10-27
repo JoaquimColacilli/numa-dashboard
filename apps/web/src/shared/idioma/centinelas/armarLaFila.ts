@@ -379,4 +379,80 @@ export const centinelas: Centinelas = {
     llamar: (m) => m.armarLaFila.panel.ingresoEnCobros(37),
     tieneQueDecir: ['37'],
   },
+  'armarLaFila.cambios.cambiaElMontoFijo': {
+    llamar: (m) => m.armarLaFila.cambios.cambiaElMontoFijo(NEGRITA, TESORO, '«MONTO»'),
+    tieneQueDecir: [EN_NEGRITA, '«MONTO»'],
+  },
+  'armarLaFila.cambios.cambiaElDiaDePago': {
+    llamar: (m) => m.armarLaFila.cambios.cambiaElDiaDePago(NEGRITA, TESORO, 23),
+    tieneQueDecir: [EN_NEGRITA, '23'],
+  },
+  'armarLaFila.cambios.cambiaPagaSola': {
+    llamar: (m) => m.armarLaFila.cambios.cambiaPagaSola(NEGRITA, TESORO, true),
+    tieneQueDecir: [EN_NEGRITA],
+  },
+  'armarLaFila.guardar.sePagaSolo': {
+    llamar: (m) => m.armarLaFila.guardar.sePagaSolo(NEGRITA, TESORO, '«FECHA»', '«MAUN»'),
+    tieneQueDecir: [EN_NEGRITA, '«FECHA»', '«MAUN»'],
+  },
+  'armarLaFila.guardar.plataDeAntes': {
+    llamar: (m) => m.armarLaFila.guardar.plataDeAntes(NEGRITA, TESORO, '«MONTO»'),
+    tieneQueDecir: [EN_NEGRITA, '«MONTO»'],
+  },
+  'armarLaFila.guardar.pasarlaA': {
+    llamar: (m) => m.armarLaFila.guardar.pasarlaA(TESORO),
+    tieneQueDecir: [TESORO],
+  },
+  'armarLaFila.guardar.aCual': {
+    llamar: (m) => m.armarLaFila.guardar.aCual(TESORO),
+    tieneQueDecir: [TESORO],
+  },
+  'armarLaFila.panel.comoSeLlevaDe': {
+    llamar: (m) => m.armarLaFila.panel.comoSeLlevaDe(TESORO),
+    tieneQueDecir: [TESORO],
+  },
+  'armarLaFila.panel.montoFijoDe': {
+    llamar: (m) => m.armarLaFila.panel.montoFijoDe(TESORO),
+    tieneQueDecir: [TESORO],
+  },
+  'armarLaFila.panel.elDia': {
+    llamar: (m) => m.armarLaFila.panel.elDia(23),
+    tieneQueDecir: ['23'],
+  },
+  'armarLaFila.panel.delDiaAlDia': {
+    llamar: (m) => m.armarLaFila.panel.delDiaAlDia(23),
+    tieneQueDecir: ['23'],
+  },
+  'armarLaFila.panel.enElCiclo': {
+    llamar: (m) => m.armarLaFila.panel.enElCiclo('«DESDE»', '«HASTA»'),
+    tieneQueDecir: ['«DESDE»', '«HASTA»'],
+  },
+  'armarLaFila.panel.nivelDelCiclo': {
+    llamar: (m) => m.armarLaFila.panel.nivelDelCiclo(TESORO),
+    tieneQueDecir: [TESORO],
+  },
+  'armarLaFila.panel.vence': {
+    llamar: (m) => m.armarLaFila.panel.vence('«FECHA»'),
+    tieneQueDecir: ['«FECHA»'],
+  },
+  'armarLaFila.panel.adelantado': {
+    llamar: (m) => m.armarLaFila.panel.adelantado('«MONTO»'),
+    tieneQueDecir: ['«MONTO»'],
+  },
+  'armarLaFila.panel.seVaAPagarSolo': {
+    llamar: (m) => m.armarLaFila.panel.seVaAPagarSolo('«FECHA»', '«MONTO»'),
+    tieneQueDecir: ['«FECHA»', '«MONTO»'],
+  },
+  'armarLaFila.panel.loPoneMaun': {
+    llamar: (m) => m.armarLaFila.panel.loPoneMaun('«MAUN»', '«MONTO»'),
+    tieneQueDecir: ['«MAUN»', '«MONTO»'],
+  },
+  'armarLaFila.panel.sePagaron': {
+    llamar: (m) => m.armarLaFila.panel.sePagaron(23, '«MONTO»'),
+    tieneQueDecir: ['23', '«MONTO»'],
+  },
+  'armarLaFila.panel.puso': {
+    llamar: (m) => m.armarLaFila.panel.puso('«MAUN»', '«MONTO»'),
+    tieneQueDecir: ['«MAUN»', '«MONTO»'],
+  },
 };

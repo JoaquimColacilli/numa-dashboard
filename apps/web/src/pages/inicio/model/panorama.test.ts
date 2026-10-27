@@ -1,8 +1,10 @@
 import {
   centavos,
+  centavosEn,
   enPesos,
   filaDelMes,
   filaDeSiempre,
+  plataEn,
   puntosBasicos,
   type DatosDelMes,
   type Fila,
@@ -32,11 +34,15 @@ function tesoro(
     tinta: 'grana',
     icono: 'vault',
     meta: null,
-    rindeAnualBp: null,
+    metaFecha: null,
     orden: 0,
     archivado,
     saldo: enPesos(centavos(saldo)),
   };
+}
+
+function conMeta(uno: TesoroDelTaller, meta: number): TesoroDelTaller {
+  return { ...uno, meta: enPesos(centavos(meta)) };
 }
 
 function saldosDe(tesoros: readonly TesoroDelTaller[]): Map<string, Money> {
@@ -64,7 +70,7 @@ function gasto(
   };
 }
 
-describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y superávit', () => {
+describe('el panorama de Inicio con la fila de siempre: el hogar y el diezmo son para pagar, Maun es una caja', () => {
   const fila = filaDeSiempre(
     {
       sueldoMensual: centavos(180_000_000),
@@ -96,6 +102,7 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
     saldos: saldosDe(tesoros),
     metas: new Map(),
     gastos: [],
+    pagos: [],
   };
   const delMes = filaDelMes(fila, SISTEMA, datos, '2026-09');
   const movimientos = [
@@ -105,7 +112,7 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
     gasto('Costos fijos', 10_000_000, '2026-08-20'),
   ];
 
-  it('lo que el paso de Maun juntó en el mes, menos lo que ya se pagó con su nombre, es para pagar', () => {
+  it('el saldo de las deudas y lo que el paso de Maun juntó en el mes, menos lo que ya se pagó con su nombre, es para pagar', () => {
     expect(gastadoEnLosRenglones(movimientos, 'maun', ['Costos fijos'], '2026-09')).toBe(
       21_000_000,
     );
@@ -121,24 +128,25 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
     });
     expect(panorama).toMatchObject({
       compromisoDeMaun: 42_000_000,
-      paraPagar: 69_000_000,
-      ahorros: 341_500_000,
-      superavit: 124_800_000 - 60_000_000 - 42_000_000,
+      paraPagar: 41_230_000 + 27_000_000 + 42_000_000,
+      metas: 0,
+      cajas: 124_800_000 - 60_000_000 - 42_000_000 + 341_500_000,
       insumos: 60_000_000,
-      tesorosParaPagar: 2,
-      tesorosDeAhorro: 1,
-      tesoroDelSuperavit: 'maun',
+      tesorosParaPagar: 3,
+      tesorosDeMetas: 0,
+      tesorosDeCajas: 2,
+      enDolares: null,
     });
     expect(
-      cifrasDelPanorama(panorama, 'Maun').map((cifra) => [
+      cifrasDelPanorama(panorama).map((cifra) => [
         cifra.etiqueta,
         cifra.monto.importe,
         cifra.detalle,
       ]),
     ).toEqual([
-      ['Para pagar', 69_000_000, 'en 2 tesoros'],
-      ['Ahorros', 341_500_000, 'en un tesoro'],
-      ['Superávit', 22_800_000, 'en Maun'],
+      ['Para pagar', 110_230_000, 'en 3 tesoros'],
+      ['Metas', 0, 'todavía sin metas'],
+      ['Cajas', 364_300_000, 'en 2 cajas, sin los insumos'],
       ['Insumos de los trabajos', 60_000_000, 'de 2 trabajos'],
     ]);
   });
@@ -154,8 +162,9 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
       trabajosConInsumos: 0,
     });
     expect(panorama.compromisoDeMaun).toBe(0);
-    expect(panorama.paraPagar).toBe(27_000_000);
-    expect(panorama.superavit).toBe(124_800_000);
+    expect(panorama.paraPagar).toBe(41_230_000 + 27_000_000);
+    expect(panorama.tesorosParaPagar).toBe(2);
+    expect(panorama.cajas).toBe(124_800_000 + 341_500_000);
 
     const sinFijos = filaDeSiempre(
       { sueldoMensual: centavos(180_000_000), costosFijos: centavos(0), sueldoTopeMensual: true },
@@ -175,27 +184,69 @@ describe('el panorama de Inicio con la fila de siempre: Maun es compromiso y sup
     ).toBe(0);
   });
 
-  it('si los trabajos tienen más de lo que hay en Maun, el superávit queda en negativo y lo dice', () => {
+  it('una deuda en negativo no tiene nada para pagar y no se cuenta', () => {
+    const conElHogarEnNegativo = tesoros.map((uno) =>
+      uno.id === 'hogar' ? tesoro('hogar', 'hogar', -5_000_000) : uno,
+    );
     const panorama = panoramaDelTaller({
       fila,
       delMes,
       sistema: SISTEMA,
-      tesoros,
+      tesoros: conElHogarEnNegativo,
+      movimientos,
+      insumos: centavos(0),
+      trabajosConInsumos: 0,
+    });
+    expect(panorama.paraPagar).toBe(27_000_000 + 42_000_000);
+    expect(panorama.tesorosParaPagar).toBe(2);
+    expect(panorama.cajas).toBe(124_800_000 - 42_000_000 + 341_500_000);
+  });
+
+  it('con meta, Cocos va a las metas; si los insumos y el compromiso de Maun no entran en las cajas, quedan en negativo y lo dice', () => {
+    const conLaMetaDeCocos = tesoros.map((uno) =>
+      uno.clave === 'cocos' ? conMeta(uno, 500_000_000) : uno,
+    );
+    const panorama = panoramaDelTaller({
+      fila,
+      delMes,
+      sistema: SISTEMA,
+      tesoros: conLaMetaDeCocos,
       movimientos,
       insumos: centavos(200_000_000),
       trabajosConInsumos: 1,
     });
-    expect(panorama.superavit).toBe(124_800_000 - 200_000_000 - 42_000_000);
-    expect(cifrasDelPanorama(panorama, 'Maun')[2]?.detalle).toBe('en Maun, que no alcanza');
-    expect(cifrasDelPanorama(panorama, 'Maun')[3]?.detalle).toBe('de un trabajo');
+    expect(panorama).toMatchObject({
+      metas: 341_500_000,
+      tesorosDeMetas: 1,
+      cajas: 124_800_000 - 200_000_000 - 42_000_000,
+      tesorosDeCajas: 1,
+    });
+    const cifras = cifrasDelPanorama(panorama);
+    expect(cifras[1]?.detalle).toBe('en un tesoro');
+    expect(cifras[2]?.detalle).toBe('no alcanzan para los insumos');
+    expect(cifras[3]?.detalle).toBe('de un trabajo');
+
+    const sinInsumos = cifrasDelPanorama({
+      ...panorama,
+      cajas: centavos(-40_000_000),
+      insumos: centavos(0),
+      compromisoDeMaun: centavos(0),
+    });
+    expect(sinInsumos[2]?.detalle).toBe('en una caja, sin los insumos');
   });
 });
 
-describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
+describe('el panorama con los tipos de tesoro: para pagar, metas, cajas y los dólares aparte', () => {
   const fila: Fila = {
     obligaciones: [
-      { tesoro: 'iibb', porcentaje: puntosBasicos(350), base: 'cobrado' },
-      { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso' },
+      { tesoro: 'iibb', porcentaje: puntosBasicos(350), base: 'cobrado', montoFijo: null },
+      { tesoro: 'diezmo', porcentaje: puntosBasicos(1000), base: 'ingreso', montoFijo: null },
+      {
+        tesoro: 'contador',
+        porcentaje: puntosBasicos(100),
+        base: 'cobrado',
+        montoFijo: centavos(5_000_000),
+      },
     ],
     pasos: [
       {
@@ -206,6 +257,9 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
         desde: null,
         modo: 'mes',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
       {
         tesoro: 'fijos',
@@ -218,6 +272,9 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
         desde: '2026-09',
         modo: 'saldo',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
       {
         tesoro: 'materiales',
@@ -227,23 +284,33 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
         desde: null,
         modo: 'mes',
         hastaLaMeta: false,
+        dia: null,
+        pagaSola: false,
+        pagaSolaDesde: null,
       },
     ],
     reparto: [{ tesoro: 'inmuebles', porcentaje: puntosBasicos(2000), hastaLaMeta: true }],
     superavit: 'superavit',
     sueldoPorTrabajo: false,
   };
-  const tesoros = [
+  const tesoros: TesoroDelTaller[] = [
     tesoro('hogar', 'hogar', 10_000_000),
     tesoro('maun', 'maun', 100_000_000),
     tesoro('diezmo', 'diezmo', 19_125_000),
     tesoro('cocos', 'cocos', 50_000_000),
     tesoro('iibb', null, 8_750_000),
+    tesoro('contador', null, 2_500_000),
     tesoro('fijos', null, 63_000_000),
     tesoro('materiales', null, 18_500_000),
-    tesoro('inmuebles', null, 25_000_000),
+    conMeta(tesoro('inmuebles', null, 25_000_000), 30_000_000),
+    conMeta(tesoro('viaje', null, 7_000_000), 40_000_000),
     tesoro('superavit', null, 15_000_000),
     tesoro('viejo', null, 0, true),
+    {
+      ...tesoro('dolares', null, 0),
+      moneda: 'USD',
+      saldo: plataEn('USD', centavosEn('USD', 100_000)),
+    },
   ];
   const delMes = filaDelMes(
     fila,
@@ -251,14 +318,15 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
     {
       liquidaciones: [],
       coberturas: [],
-      saldos: saldosDe(tesoros),
+      saldos: saldosDe(tesoros.filter((uno) => uno.moneda === 'ARS')),
       metas: new Map([['inmuebles', centavos(30_000_000)]]),
       gastos: [],
+      pagos: [],
     },
     '2026-09',
   );
 
-  it('para pagar suma las obligaciones y los compromisos; ahorros, los ahorros y lo del estante', () => {
+  it('las deudas destinadas y las obligatorias (el hogar también) son para pagar, las que tienen meta son metas y el resto, cajas', () => {
     const panorama = panoramaDelTaller({
       fila,
       delMes,
@@ -269,15 +337,68 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
       trabajosConInsumos: 1,
     });
     expect(panorama).toMatchObject({
-      paraPagar: 8_750_000 + 19_125_000 + 63_000_000,
-      ahorros: 18_500_000 + 25_000_000 + 50_000_000,
-      superavit: 15_000_000,
+      paraPagar: 10_000_000 + 19_125_000 + 8_750_000 + 2_500_000 + 63_000_000,
+      metas: 25_000_000 + 7_000_000,
+      cajas: 100_000_000 - 60_000_000 + 50_000_000 + 18_500_000 + 15_000_000,
       compromisoDeMaun: 0,
-      tesorosParaPagar: 3,
-      tesorosDeAhorro: 3,
-      tesoroDelSuperavit: 'superavit',
+      tesorosParaPagar: 5,
+      tesorosDeMetas: 2,
+      tesorosDeCajas: 4,
     });
-    expect(cifrasDelPanorama(panorama, 'Superávit')[2]?.detalle).toBe('en Superávit');
+    expect(
+      cifrasDelPanorama(panorama).map((cifra) => [cifra.id, cifra.monto.importe, cifra.detalle]),
+    ).toEqual([
+      ['para-pagar', 103_375_000, 'en 5 tesoros'],
+      ['metas', 32_000_000, 'en 2 tesoros'],
+      ['cajas', 123_500_000, 'en 4 cajas, sin los insumos'],
+      ['insumos', 60_000_000, 'de un trabajo'],
+      ['en-dolares', 100_000, 'en un tesoro'],
+    ]);
+  });
+
+  it('los dólares no se suman a ningún grupo: van aparte, con su equivalente si hubo un cambio', () => {
+    const panorama = panoramaDelTaller({
+      fila,
+      delMes,
+      sistema: SISTEMA,
+      tesoros,
+      movimientos: [],
+      insumos: centavos(0),
+      trabajosConInsumos: 0,
+    });
+    expect(panorama.enDolares).toEqual({
+      total: 100_000,
+      tesoros: 1,
+      ultimoCambio: null,
+    });
+    const [, , , , enDolares] = cifrasDelPanorama(panorama);
+    expect(enDolares).toMatchObject({
+      etiqueta: 'En dólares',
+      monto: { moneda: 'USD', importe: 100_000 },
+      equivalente: null,
+    });
+
+    const sinLosDolares = panoramaDelTaller({
+      fila,
+      delMes,
+      sistema: SISTEMA,
+      tesoros: tesoros.filter((uno) => uno.moneda === 'ARS'),
+      movimientos: [],
+      insumos: centavos(0),
+      trabajosConInsumos: 0,
+    });
+    expect(sinLosDolares).toMatchObject({
+      paraPagar: panorama.paraPagar,
+      metas: panorama.metas,
+      cajas: panorama.cajas,
+      enDolares: null,
+    });
+    expect(cifrasDelPanorama(sinLosDolares).map((cifra) => cifra.id)).toEqual([
+      'para-pagar',
+      'metas',
+      'cajas',
+      'insumos',
+    ]);
   });
 
   it('sin nada, lo dice con sus palabras', () => {
@@ -290,10 +411,10 @@ describe('el panorama con los tipos de Eliseo y el superávit aparte', () => {
       insumos: centavos(0),
       trabajosConInsumos: 0,
     });
-    expect(cifrasDelPanorama(panorama, 'Superávit').map((cifra) => cifra.detalle)).toEqual([
+    expect(cifrasDelPanorama(panorama).map((cifra) => cifra.detalle)).toEqual([
       'nada pendiente',
-      'todavía sin ahorros',
-      'en Superávit',
+      'todavía sin metas',
+      'en 2 cajas, sin los insumos',
       'sin trabajos en curso',
     ]);
   });

@@ -32,7 +32,6 @@ export function HojasDeTesoros({ pantalla }: { pantalla: PantallaDeTesoros }) {
           <HojaDeEditarTesoro
             tesoroId={pedido.tesoro}
             alCerrar={cerrar}
-            alGuardarLoDeCocos={pantalla.alGuardarLoDeCocos}
             alCambiarDolares={pantalla.cambiarDolares}
           />
         )}

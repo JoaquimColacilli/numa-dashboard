@@ -15,6 +15,9 @@ const HUECOS = [
   'relevamiento',
   'sena',
   'meses',
+  'entrega',
+  'sena_acordada',
+  'sena_antes',
 ] as const;
 
 const CAMBIOS = ['nuevos', 'cambiados', 'quitados'] as const;
@@ -222,5 +225,41 @@ export const centinelas: Centinelas = {
   'configurarTaller.cobro.dolarDeOtroDia': {
     llamar: (m) => m.configurarTaller.cobro.dolarDeOtroDia('«FECHA»'),
     tieneQueDecir: ['«FECHA»'],
+  },
+  'configurarTaller.preguntas.pregunta': {
+    llamar: (m) => m.configurarTaller.preguntas.pregunta(3),
+    tieneQueDecir: ['3'],
+  },
+  'configurarTaller.preguntas.ayudaDe': {
+    llamar: (m) => m.configurarTaller.preguntas.ayudaDe('«PREGUNTA»'),
+    tieneQueDecir: ['«PREGUNTA»'],
+  },
+  'configurarTaller.preguntas.lleno': {
+    llamar: (m) => m.configurarTaller.preguntas.lleno(12),
+    tieneQueDecir: ['12'],
+  },
+  'configurarTaller.preguntas.subir': {
+    llamar: (m) => m.configurarTaller.preguntas.subir('«PREGUNTA»'),
+    tieneQueDecir: ['«PREGUNTA»'],
+  },
+  'configurarTaller.preguntas.bajar': {
+    llamar: (m) => m.configurarTaller.preguntas.bajar('«PREGUNTA»'),
+    tieneQueDecir: ['«PREGUNTA»'],
+  },
+  'configurarTaller.preguntas.borrar': {
+    llamar: (m) => m.configurarTaller.preguntas.borrar('«PREGUNTA»'),
+    tieneQueDecir: ['«PREGUNTA»'],
+  },
+  'configurarTaller.preguntas.borraste': {
+    llamar: (m) => m.configurarTaller.preguntas.borraste('«PREGUNTA»'),
+    tieneQueDecir: ['«PREGUNTA»'],
+  },
+  'configurarTaller.presupuesto.seDeshace.losDiasDeLaSenaVuelven': {
+    llamar: (m) => m.configurarTaller.presupuesto.seDeshace.losDiasDeLaSenaVuelven(37),
+    tieneQueDecir: ['37'],
+  },
+  'configurarTaller.presupuesto.resumen.diasDespues': {
+    llamar: (m) => m.configurarTaller.presupuesto.resumen.diasDespues(37),
+    tieneQueDecir: ['37'],
   },
 };

@@ -117,6 +117,15 @@ export const movimiento = {
     Ajuste: 'Adjustment',
     'Archivo de un tesoro': 'Bucket archiving',
     'Cubrir el mes': 'Covering the month',
+    Adelanto: 'Advance',
+    'Deuda interna': 'Internal debt',
+    Vencimiento: 'Due payment',
+    Sobrante: 'Surplus',
+    'Plata de antes de su ciclo': 'Money from before its cycle',
+    'Ya no está': "It's gone",
+    Intereses: 'Interest',
+    Venta: 'Sale',
+    Corrección: 'Correction',
   },
   ayuda: {
     ingresoHogar: 'Goes into the household, without going through the shop or the tithe.',
@@ -170,11 +179,12 @@ export const movimiento = {
   },
   resumenDelMes: {
     entroAlHogar: 'Household income',
-    gastoElHogar: 'Household spending',
     facturoElTaller: 'Shop revenue',
   },
   libro: {
     motivoDelBloqueo: {
+      'del-vencimiento':
+        "NUMA logged it on the payment day of a bill that pays itself: the payment, what Maun put in to reach the cap (internal debt) or what was left over and went back to Maun. It can't be edited.",
       'del-proyecto':
         "This entry comes from the job: it's built from its payments, its expenses and the split that was locked in when it was paid. To change it, correct the job.",
       ajuste:
@@ -188,6 +198,9 @@ export const movimiento = {
       fijos: 'Fixed costs from the split',
       prioridad: 'Split step',
       reparto: 'Share of the split',
+      vencimiento: 'Payment-day payment',
+      deuda_interna: 'Internal debt',
+      sobrante: 'Payment-day surplus',
     },
     delTrabajo: 'From the job',
     ajusteDeSaldo: 'Balance adjustment',

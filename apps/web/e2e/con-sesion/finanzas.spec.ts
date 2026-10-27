@@ -147,25 +147,13 @@ async function cobrarUnTrabajo(titulo: string, monto: number): Promise<string> {
   return id;
 }
 
-test('los nueve tipos manuales mueven los cuatro tesoros, con la contrapartida de los dos lados', async ({
+test('los tipos que se cargan a mano mueven los cuatro tesoros, con la contrapartida de los dos lados', async ({
   page,
 }) => {
   const antes = await saldosEnInicio(page);
 
   await page.goto('/finanzas');
-  await cargar(page, {
-    grupo: 'Ingreso',
-    clase: 'Al hogar',
-    monto: '100.000',
-    descripcion: 'Docencia',
-  });
-  await cargar(page, {
-    grupo: 'Ingreso',
-    clase: 'Al taller',
-    monto: '200.000',
-    descripcion: 'Recortes',
-  });
-  await cargar(page, { grupo: 'Gasto', clase: 'Del hogar', monto: '10.000', descripcion: 'Súper' });
+  await cargar(page, { grupo: 'Ingreso', monto: '200.000', descripcion: 'Recortes' });
   await cargar(page, {
     grupo: 'Gasto',
     clase: 'Del taller',
@@ -173,13 +161,19 @@ test('los nueve tipos manuales mueven los cuatro tesoros, con la contrapartida d
     descripcion: 'Herrajes',
   });
   await cargar(page, {
-    grupo: 'Cocos',
-    clase: 'Aporte',
-    monto: '50.000',
-    descripcion: 'Aporte del mes',
+    grupo: 'Gasto',
+    clase: 'De un tesoro',
+    saleDe: 'Hogar',
+    monto: '10.000',
+    descripcion: 'Súper',
   });
-  await cargar(page, { grupo: 'Cocos', clase: 'Retiro', monto: '5.000', descripcion: 'Retiro' });
-  await cargar(page, { grupo: 'Cocos', clase: 'Gasto', monto: '1.000', descripcion: 'Sellos' });
+  await cargar(page, {
+    grupo: 'Gasto',
+    clase: 'De un tesoro',
+    saleDe: 'Cocos',
+    monto: '1.000',
+    descripcion: 'Sellos',
+  });
   await cargar(page, { grupo: 'Diezmo', monto: '2.000', descripcion: 'Diezmo de septiembre' });
   await cargar(page, {
     grupo: 'Entre tesoros',
@@ -188,24 +182,37 @@ test('los nueve tipos manuales mueven los cuatro tesoros, con la contrapartida d
     monto: '30.000',
     descripcion: 'Para la casa',
   });
+  await cargar(page, {
+    grupo: 'Entre tesoros',
+    saleDe: 'Maun',
+    entraA: 'Cocos',
+    monto: '50.000',
+    descripcion: 'Aporte del mes',
+  });
+  await cargar(page, {
+    grupo: 'Entre tesoros',
+    saleDe: 'Cocos',
+    entraA: 'Maun',
+    monto: '5.000',
+    descripcion: 'Retiro',
+  });
 
   await expect(indicadorDeSync(page)).toBeHidden({ timeout: 30_000 });
 
   const filas = await movimientosDelTaller(sesion);
-  expect(filas).toHaveLength(9);
+  expect(filas).toHaveLength(8);
   expect(
     filas.map((fila) => [fila.tipo, fila.tesoro_origen, fila.tesoro_destino, fila.monto_centavos]),
   ).toEqual(
     expect.arrayContaining([
-      ['ingreso', null, 'hogar', 10_000_000],
       ['ingreso', null, 'maun', 20_000_000],
-      ['gasto', 'hogar', null, 1_000_000],
       ['gasto', 'maun', null, 2_000_000],
-      ['aporte_cocos', 'maun', 'cocos', 5_000_000],
-      ['transferencia', 'cocos', 'maun', 500_000],
+      ['gasto', 'hogar', null, 1_000_000],
       ['gasto', 'cocos', null, 100_000],
       ['pago_diezmo', 'diezmo', null, 200_000],
       ['transferencia', 'maun', 'hogar', 3_000_000],
+      ['transferencia', 'maun', 'cocos', 5_000_000],
+      ['transferencia', 'cocos', 'maun', 500_000],
     ]),
   );
   expect(filas.find((fila) => fila.descripcion === 'Para la casa')).toMatchObject({
@@ -214,7 +221,7 @@ test('los nueve tipos manuales mueven los cuatro tesoros, con la contrapartida d
   });
 
   const despues = await saldosEnInicio(page);
-  expect(despues.hogar - antes.hogar).toBe(120_000);
+  expect(despues.hogar - antes.hogar).toBe(20_000);
   expect(despues.maun - antes.maun).toBe(105_000);
   expect(despues.cocos - antes.cocos).toBe(44_000);
   expect(despues.diezmo - antes.diezmo).toBe(-2_000);
@@ -276,8 +283,9 @@ test('una transferencia es una sola fila que dice de dónde sale y a dónde entr
 }) => {
   await page.goto('/finanzas');
   await cargar(page, {
-    grupo: 'Cocos',
-    clase: 'Aporte',
+    grupo: 'Entre tesoros',
+    saleDe: 'Maun',
+    entraA: 'Cocos',
     monto: '60.000',
     descripcion: 'Aporte de septiembre',
   });
@@ -308,12 +316,12 @@ test('en modo avión el movimiento aparece sin confirmar, sobrevive a cerrar la 
 
   await cargar(page, {
     grupo: 'Gasto',
-    clase: 'Del hogar',
+    clase: 'Del taller',
     monto: '33.000',
-    descripcion: 'Súper sin señal',
+    descripcion: 'Lija sin señal',
   });
 
-  const fila = page.getByRole('button', { name: /Súper sin señal/ });
+  const fila = page.getByRole('button', { name: /Lija sin señal/ });
   await expect(fila).toBeVisible();
   await expect(fila).toContainText('sin confirmar');
   await expect(avisosEnPantalla(page)).toContainText(
@@ -325,7 +333,7 @@ test('en modo avión el movimiento aparece sin confirmar, sobrevive a cerrar la 
   await page.close();
   const reabierta = await context.newPage();
   await reabierta.goto('/finanzas');
-  const despues = reabierta.getByRole('button', { name: /Súper sin señal/ });
+  const despues = reabierta.getByRole('button', { name: /Lija sin señal/ });
   await expect(despues).toBeVisible();
   await expect(despues).toContainText('sin confirmar');
 
@@ -419,48 +427,6 @@ test('los tres estados del diezmo: con deuda, al día y pagado de más', async (
   await expect(estado).toContainText('de más');
 });
 
-test('el ajuste de Cocos calcula la diferencia, elige el concepto por el signo y deja el saldo escrito', async ({
-  page,
-}) => {
-  await page.goto('/finanzas');
-  await cargar(page, {
-    grupo: 'Cocos',
-    clase: 'Aporte',
-    monto: '100.000',
-    descripcion: 'Aporte inicial',
-  });
-
-  await page.goto('/ajustes');
-  await page.getByLabel('El saldo que tenés de verdad').fill('112.500');
-  await expect(page.getByText('Ajuste de Cocos (intereses o depósito)')).toBeVisible();
-  await page.getByRole('button', { name: 'Ajustar el saldo de Cocos' }).click();
-  await expect(page.getByText('Cocos queda en $ 112.500')).toBeVisible();
-
-  await esperarMovimientos(2);
-  const conIntereses = await movimientosDelTaller(sesion);
-  const alza = conIntereses.find((fila) => fila.tipo === 'ajuste');
-  expect(alza?.monto_centavos).toBe(1_250_000);
-  expect(alza?.tesoro_destino).toBe('cocos');
-  expect(alza?.tesoro_origen).toBeNull();
-  expect(alza?.descripcion).toBe('Ajuste de Cocos (intereses o depósito)');
-
-  const saldos = await saldosEnInicio(page);
-  expect(saldos.cocos).toBe(112_500);
-
-  await page.goto('/ajustes');
-  await page.getByLabel('El saldo que tenés de verdad').fill('100.000');
-  await expect(page.getByText('Ajuste de Cocos (retiro o corrección)')).toBeVisible();
-  await page.getByRole('button', { name: 'Ajustar el saldo de Cocos' }).click();
-  await esperarMovimientos(3);
-
-  const conRetiro = await movimientosDelTaller(sesion);
-  const baja = conRetiro.find((fila) => fila.tipo === 'ajuste' && fila.tesoro_origen === 'cocos');
-  expect(baja?.monto_centavos).toBe(1_250_000);
-  expect(baja?.tesoro_destino).toBeNull();
-  expect(baja?.descripcion).toBe('Ajuste de Cocos (retiro o corrección)');
-  expect((await saldosEnInicio(page)).cocos).toBe(100_000);
-});
-
 test('un movimiento que sale de un trabajo no se edita ni se borra, y la interfaz lo explica', async ({
   page,
 }) => {
@@ -511,7 +477,8 @@ test('los filtros por tesoro, tipo y mes, y la búsqueda, se combinan', async ({
   await page.goto('/finanzas');
   await cargar(page, {
     grupo: 'Gasto',
-    clase: 'Del hogar',
+    clase: 'De un tesoro',
+    saleDe: 'Hogar',
     monto: '11.000',
     descripcion: 'Verdulería',
   });
@@ -522,8 +489,9 @@ test('los filtros por tesoro, tipo y mes, y la búsqueda, se combinan', async ({
     descripcion: 'Tornillos',
   });
   await cargar(page, {
-    grupo: 'Ingreso',
-    clase: 'Al hogar',
+    grupo: 'Entre tesoros',
+    saleDe: 'Maun',
+    entraA: 'Hogar',
     monto: '33.000',
     descripcion: 'Clases de carpintería',
   });
@@ -595,7 +563,7 @@ test('finanzas y diezmo se recorren enteros con el teclado', async ({ page }) =>
   await page.goto('/finanzas');
   await cargar(page, {
     grupo: 'Gasto',
-    clase: 'Del hogar',
+    clase: 'Del taller',
     monto: '9.000',
     descripcion: 'Farmacia',
   });

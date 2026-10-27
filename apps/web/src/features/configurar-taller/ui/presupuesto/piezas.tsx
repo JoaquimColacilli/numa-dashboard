@@ -22,7 +22,7 @@ interface BotonesDeMoverProps {
   alMover: (hacia: -1 | 1) => void;
 }
 
-function BotonesDeMover({ etiquetas, primera, ultima, alMover }: BotonesDeMoverProps) {
+export function BotonesDeMover({ etiquetas, primera, ultima, alMover }: BotonesDeMoverProps) {
   return (
     <span className="flex flex-none">
       <button
@@ -197,7 +197,7 @@ export function LeyendaDeLosDatos({
       <ul className="flex flex-col gap-1.5">
         {datos.map((hueco) => (
           <li key={hueco} className="text-label leading-relaxed text-text-2">
-            {m.huecos[hueco].explicacion(DatoQueSeCompleta, valores[hueco])}
+            {m.huecos[hueco].explicacion(DatoQueSeCompleta, valores[hueco] ?? '')}
           </li>
         ))}
       </ul>

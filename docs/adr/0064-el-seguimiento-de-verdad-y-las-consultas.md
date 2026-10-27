@@ -6,6 +6,9 @@
   [0038](0038-el-embudo-del-seguimiento.md): el embudo pasa a llamarse Consultas. Lo que decidieron esos
   ADR sigue en pie. Se aparta de la letra del umbral del [0042](0042-lo-hecho-de-los-trabajos-y-las-marcas.md)
   (ver «Objeciones»).
+- Enmendado el 2026-10-26 por el
+  [0086](0086-el-estimativo-la-respuesta-del-cliente-y-las-fechas-del-presupuesto.md): «Cambiar la fecha» en
+  la ficha de Seguimiento, y la respuesta del cliente con «Reactivar».
 
 ## Contexto
 

@@ -17,6 +17,7 @@ import {
   borrarCliente,
   borrarMovimiento,
   borrarProyecto,
+  cambiarLaFechaDelContacto,
   guardarAjustes,
   guardarAnotacionNueva,
   guardarCambiosDeAnotacion,
@@ -27,6 +28,7 @@ import {
   guardarElBorrador,
   guardarLaPlantillaDelPresupuesto,
   mandarElPresupuesto,
+  marcarLaRespuestaAtendida,
   type BorradorParaGuardar,
   type PresupuestoMandado,
   type PresupuestoParaMandar,
@@ -37,6 +39,7 @@ import {
   guardarMovimiento,
   guardarNombreDelTaller,
   guardarProyecto,
+  guardarRespuestasDeLaConsulta,
   guardarTareasDelPresupuesto,
   liquidarProyecto,
   necesitaReconcile,
@@ -63,7 +66,7 @@ import {
   type ProyectoParaGuardar,
   type Replica,
 } from '@maun/db';
-import type { Fila, PlantillaDelPresupuesto } from '@maun/domain';
+import type { Fila, PlantillaDelPresupuesto, RespuestaDeLaConsulta } from '@maun/domain';
 
 import { clienteMaun } from './cliente';
 
@@ -277,6 +280,28 @@ export async function mandarElPresupuestoAlCliente(
   pedido: PresupuestoParaMandar,
 ): Promise<PresupuestoMandado> {
   return mandarElPresupuesto(clienteMaun(), pedido);
+}
+
+export function cambiarLaFechaDelProximoContacto(
+  id: string,
+  version: number,
+  fecha: string,
+): Promise<FilaDe<'proximos_contactos'>> {
+  return cambiarLaFechaDelContacto(clienteMaun(), id, version, fecha);
+}
+
+export function guardarLasRespuestasDeLaConsulta(
+  id: string,
+  respuestas: readonly RespuestaDeLaConsulta[],
+): Promise<FilaDe<'proyectos'>> {
+  return guardarRespuestasDeLaConsulta(clienteMaun(), id, respuestas);
+}
+
+export function marcarLaRespuestaAlPresupuestoAtendida(
+  id: string,
+  atendidaEn: string | null,
+): Promise<FilaDe<'respuestas_al_presupuesto'>> {
+  return marcarLaRespuestaAtendida(clienteMaun(), id, atendidaEn);
 }
 
 export async function guardarLosTextosDelPresupuesto(

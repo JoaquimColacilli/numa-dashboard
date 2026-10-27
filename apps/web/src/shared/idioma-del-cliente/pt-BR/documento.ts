@@ -9,6 +9,8 @@ export const documento = {
       other: '# modificações',
     }),
   meses: (cantidad) => plural(cantidad, { one: '# mês', other: '# meses' }),
+  senaAcordada: (porcentaje, monto) =>
+    monto === null ? `de ${porcentaje} da opção que você escolher` : `de ${porcentaje} (${monto})`,
   lema: 'Móveis sob medida',
   leyendaDeArca: {
     aclarar: true,

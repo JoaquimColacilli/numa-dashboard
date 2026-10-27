@@ -32,6 +32,16 @@ export const hacerElSeguimiento = {
     cancelar: 'Cancel',
     pasarASeguimiento: 'Move to Follow-up',
   },
+  cambiarLaFecha: {
+    titulo: 'Change the date',
+    leTocaba: (fecha) => `It was due on ${fecha}.`,
+    queDia: 'What day will you reach out again?',
+    noQuedaRegistrado:
+      "It only changes the day: it isn't logged as a follow-up. When you write to them, log it.",
+    cancelar: 'Cancel',
+    cambiar: 'Change the date',
+    noSeCambio: "The date wasn't changed.",
+  },
   registrarElContacto: {
     titulo: 'Log the follow-up',
     contactarA: (nombre) => `Contact ${nombre}`,

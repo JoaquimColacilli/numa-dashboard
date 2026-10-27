@@ -3,6 +3,7 @@ import {
   centavosEn,
   COMBINACIONES_DE_LA_MONEDA,
   CONDICIONES_FISCALES,
+  entregaEstimada,
   formatearCuit,
   HUECOS,
   huecosDelPresupuesto,
@@ -16,6 +17,7 @@ import {
   problemaDeLaPlantilla,
   RANGOS_DEL_PRESUPUESTO,
   revisarCuit,
+  sumarDias,
   tieneTexto,
   TOPES_DEL_PRESUPUESTO,
   usaElHueco,
@@ -34,14 +36,14 @@ import { senaDelTaller } from '@/entities/proyecto';
 import type { CambiosDeAjustes, FilaDe } from '@/shared/api';
 import { mensajes } from '@/shared/idioma';
 import { formatosDelDocumento } from '@/shared/idioma-del-cliente';
-import { etiquetaActual, formatearPlata } from '@/shared/lib';
+import { etiquetaActual, formatearPlata, hoyEnElTaller } from '@/shared/lib';
 
 import { diferencias, type DiferenciasDeAjustes } from './cambios';
 import { VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE, valorDelRelevamiento } from './relevamiento';
 
 type Ajustes = FilaDe<'ajustes'>;
 
-export type Valores = Readonly<Record<Hueco, string>>;
+export type Valores = Readonly<Partial<Record<Hueco, string>>>;
 
 function esCondicion(valor: unknown): valor is CondicionFiscal {
   return typeof valor === 'string' && (CONDICIONES_FISCALES as readonly string[]).includes(valor);
@@ -98,6 +100,9 @@ export interface ConfiguracionDelGrupo {
 }
 
 const DATOS_DE_LOS_TEXTOS_LARGOS: readonly Hueco[] = [
+  'entrega',
+  'sena_acordada',
+  'sena_antes',
   'plazo',
   'modificaciones',
   'valor_modificacion',
@@ -167,6 +172,7 @@ export interface NumerosEditables {
   modificaciones: string;
   valor: number | null;
   garantia: string;
+  diasSena: string;
 }
 
 export interface BorradorDeLaPantalla {
@@ -207,6 +213,7 @@ export function numerosEditables(plantilla: PlantillaDelPresupuesto): NumerosEdi
     modificaciones: String(plantilla.modificacionesIncluidas),
     valor: plantilla.valorDeUnaModificacion,
     garantia: String(plantilla.garantiaMeses),
+    diasSena: String(plantilla.diasParaLaSena),
   };
 }
 
@@ -262,11 +269,17 @@ export function garantiaValida(numeros: NumerosEditables): number | null {
   return enteroEntre(numeros.garantia, desde, hasta);
 }
 
+export function diasParaLaSenaValidos(numeros: NumerosEditables): number | null {
+  const { desde, hasta } = RANGOS_DEL_PRESUPUESTO.diasParaLaSena;
+  return enteroEntre(numeros.diasSena, desde, hasta);
+}
+
 export function valoresDeMuestra(
   numeros: NumerosEditables,
   guardados: NumerosEditables,
   ajustes: Ajustes,
   monedaDelValor: Moneda = MONEDA_DEL_TALLER,
+  hoy: string = hoyEnElTaller(),
 ): Valores {
   const idioma = idiomaDeLosClientesDeLosAjustes(ajustes);
   const siempre = plantillaDeSiempre(idioma);
@@ -277,6 +290,8 @@ export function valoresDeMuestra(
     siempre.modificacionesIncluidas;
   const meses = garantiaValida(numeros) ?? garantiaValida(guardados) ?? siempre.garantiaMeses;
   const valor = numeros.valor ?? guardados.valor ?? siempre.valorDeUnaModificacion;
+  const diasSena =
+    diasParaLaSenaValidos(numeros) ?? diasParaLaSenaValidos(guardados) ?? siempre.diasParaLaSena;
   return huecosDelPresupuesto(
     {
       plazoDeFabricacion: plazo,
@@ -290,6 +305,8 @@ export function valoresDeMuestra(
       abonado: centavos(valorDelRelevamiento(ajustes) ?? VALOR_DEL_RELEVAMIENTO_DE_SIEMPRE),
       monedaDeLoAbonado: MONEDA_DEL_TALLER,
       senaBp: senaDelTaller(ajustes),
+      fechas: { listoPara: entregaEstimada(hoy, plazo), senaAntesDel: sumarDias(hoy, diasSena) },
+      sena: null,
     },
     formatosDelDocumento(idioma),
   );
@@ -364,7 +381,8 @@ function mismosNumeros(uno: NumerosEditables, otro: NumerosEditables): boolean {
     uno.plazo.trim() === otro.plazo.trim() &&
     uno.modificaciones.trim() === otro.modificaciones.trim() &&
     uno.valor === otro.valor &&
-    uno.garantia.trim() === otro.garantia.trim()
+    uno.garantia.trim() === otro.garantia.trim() &&
+    uno.diasSena.trim() === otro.diasSena.trim()
   );
 }
 
@@ -470,6 +488,7 @@ export type CampoConProblema =
   | 'modificaciones'
   | 'valor'
   | 'garantia'
+  | 'diasSena'
   | 'formas'
   | 'texto-de-la-garantia'
   | 'textos'
@@ -547,15 +566,11 @@ function problemasDeLosNumeros(numeros: NumerosEditables): ProblemaDeLaPantalla[
       queRevisar: textos.elPlazo,
     });
   }
-  if (garantiaValida(numeros) === null) {
-    const meses = Number(numeros.garantia.trim());
+  if (diasParaLaSenaValidos(numeros) === null) {
     problemas.push({
-      campo: 'garantia',
-      mensaje:
-        /^\d+$/.test(numeros.garantia.trim()) && meses < RANGOS_DEL_PRESUPUESTO.garantiaMeses.desde
-          ? textos.garantiaCorta
-          : textos.garantia,
-      queRevisar: textos.losMeses,
+      campo: 'diasSena',
+      mensaje: textos.diasSena,
+      queRevisar: textos.losDiasDeLaSena,
     });
   }
   if (modificacionesValidas(numeros) === null) {
@@ -570,6 +585,17 @@ function problemasDeLosNumeros(numeros: NumerosEditables): ProblemaDeLaPantalla[
       campo: 'valor',
       mensaje: textos.valor,
       queRevisar: textos.elValor,
+    });
+  }
+  if (garantiaValida(numeros) === null) {
+    const meses = Number(numeros.garantia.trim());
+    problemas.push({
+      campo: 'garantia',
+      mensaje:
+        /^\d+$/.test(numeros.garantia.trim()) && meses < RANGOS_DEL_PRESUPUESTO.garantiaMeses.desde
+          ? textos.garantiaCorta
+          : textos.garantia,
+      queRevisar: textos.losMeses,
     });
   }
   return problemas;
@@ -733,7 +759,7 @@ export function queFalta(faltan: readonly string[]): string {
 
 function textoCompleto(texto: string, valores: Valores): string {
   return partesDelTexto(texto)
-    .map((parte) => (parte.tipo === 'texto' ? parte.texto : valores[parte.hueco]))
+    .map((parte) => (parte.tipo === 'texto' ? parte.texto : (valores[parte.hueco] ?? '')))
     .join('')
     .trim();
 }
@@ -818,6 +844,9 @@ export function loQueSeDeshace(
   if (guardada.plazoDeFabricacion !== siempre.plazoDeFabricacion) {
     sumar('calendar', vuelve.elPlazoVuelve(siempre.plazoDeFabricacion));
   }
+  if (guardada.diasParaLaSena !== siempre.diasParaLaSena) {
+    sumar('calendar', vuelve.losDiasDeLaSenaVuelven(siempre.diasParaLaSena));
+  }
   if (
     guardada.modificacionesIncluidas !== siempre.modificacionesIncluidas ||
     guardada.valorDeUnaModificacion !== siempre.valorDeUnaModificacion ||
@@ -865,6 +894,7 @@ export function plantillaDelBorrador(borrador: BorradorDeLaPantalla): PlantillaD
       pesosEnPesosODolares: clausulasDeLaMoneda.pesosEnPesosODolares.trim(),
     },
     garantiaMeses: garantiaValida(borrador.numeros) ?? siempre.garantiaMeses,
+    diasParaLaSena: diasParaLaSenaValidos(borrador.numeros) ?? siempre.diasParaLaSena,
     incluye: clausulas(borrador.listas.incluye),
     aTenerEnCuenta: clausulas(borrador.listas.aTenerEnCuenta),
     formasDePago: vivas(borrador.formas).map(({ id, nombre, texto }) => ({

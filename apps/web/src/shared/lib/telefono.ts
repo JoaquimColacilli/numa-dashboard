@@ -36,6 +36,7 @@ export interface UnMensajeAlCliente {
 export interface TextosDelMensajeAlCliente {
   comoVa: UnMensajeAlCliente;
   comoVaYComoPagarlo: UnMensajeAlCliente;
+  elEstimativo: UnMensajeAlCliente;
 }
 
 export function mensajeParaElCliente(
@@ -45,7 +46,29 @@ export function mensajeParaElCliente(
   url: string,
   hayPagoPendiente = false,
 ): string {
-  const mensaje = hayPagoPendiente ? textos.comoVaYComoPagarlo : textos.comoVa;
+  return conElMensaje(
+    hayPagoPendiente ? textos.comoVaYComoPagarlo : textos.comoVa,
+    cliente,
+    trabajo,
+    url,
+  );
+}
+
+export function mensajeDelEstimativo(
+  textos: TextosDelMensajeAlCliente,
+  cliente: string,
+  trabajo: string,
+  url: string,
+): string {
+  return conElMensaje(textos.elEstimativo, cliente, trabajo, url);
+}
+
+function conElMensaje(
+  mensaje: UnMensajeAlCliente,
+  cliente: string,
+  trabajo: string,
+  url: string,
+): string {
   if (cliente.trim() === '') return mensaje.sinNombre(trabajo, url);
   return mensaje.conNombre(cliente.split(' ')[0] ?? cliente, trabajo, url);
 }
