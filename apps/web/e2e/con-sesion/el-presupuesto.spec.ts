@@ -192,7 +192,7 @@ test('se arma en la ficha, se manda, el cliente lo ve y lo baja, sale una revisi
   await page.getByRole('radio', { name: /Frentes en melamina blanca/ }).check();
   await expect(page.getByText(/Acordado al aprobar/)).toHaveCount(0);
   await expect(page.getByLabel('Entrega estimada')).toHaveAccessibleDescription(
-    'Calculada a 30 días hábiles del inicio, el plazo del presupuesto.',
+    'Es la que prometió el presupuesto, con la seña antes de su fecha.',
   );
   await page.getByLabel('Seña que cobrás ahora').fill('');
   await page.getByRole('button', { name: 'Pasar a Proyectos' }).press('Enter');

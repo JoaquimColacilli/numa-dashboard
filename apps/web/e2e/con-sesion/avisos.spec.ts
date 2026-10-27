@@ -30,7 +30,9 @@ const AVISOS_DE_SIEMPRE = {
   visitas: { activo: true, anticipacion: 1 },
   presupuestos: { activo: true, anticipacion: 1 },
   seguimientos: { activo: true, anticipacion: 0 },
+  vencimientos: { activo: true, anticipacion: 0 },
   anotaciones: { activo: false, anticipacion: 0 },
+  respuestas: { activo: true, anticipacion: 0 },
 };
 
 let sesion: SesionDePrueba;
@@ -233,7 +235,10 @@ test('el teclado recorre la configuración en orden y cambia cada cosa', async (
     'Presupuestos por vencer',
     'Anticipación de Volver a escribirle',
     'Volver a escribirle',
+    'Anticipación de Vencimientos',
+    'Vencimientos',
     'Mis anotaciones',
+    'Respuestas de tus clientes',
     '06:30',
     '07:30',
     '13:00',

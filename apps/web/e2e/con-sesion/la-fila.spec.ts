@@ -416,7 +416,7 @@ test.describe('en la compu', () => {
       .click();
     const nuevo = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(nuevo).toBeVisible();
-    await nuevo.getByRole('radio', { name: /^Como obligación/ }).check();
+    await nuevo.getByRole('radio', { name: /^Deuda destinada/ }).click();
     await nuevo
       .getByRole('group', { name: 'Nombres sugeridos' })
       .getByRole('button', { name: 'Ingresos Brutos' })
@@ -443,7 +443,10 @@ test.describe('en la compu', () => {
     const creado = await tesoroLlamado('Ingresos Brutos');
     await expect
       .poll(async () => (await leerLaFila(sesion)).fila?.obligaciones, CARGA)
-      .toEqual([{ tesoro: creado.id, porcentaje: 350, base: 'cobrado' }, elDiezmo(diezmo)]);
+      .toEqual([
+        { tesoro: creado.id, porcentaje: 350, base: 'cobrado', montoFijo: null },
+        { ...elDiezmo(diezmo), montoFijo: null },
+      ]);
 
     const detalle = detalleDe(page);
     await detalle.getByRole('button', { name: 'Cerrar el detalle' }).click();
@@ -737,14 +740,16 @@ test.describe('en la compu', () => {
     await boton.click();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).click();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await hoja.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Descartar' }).click();
     await expect(hoja).toHaveCount(0);
 
     await boton.focus();
     await page.keyboard.press('Enter');
     await expect(hoja).toBeVisible();
-    await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
+    await expect(hoja.getByRole('group', { name: '¿Qué es?' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(hoja).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
@@ -805,7 +810,7 @@ test.describe('en el celular', () => {
     await fila.getByRole('button', { name: /^Compromiso 3 de 3: Maun/ }).click();
     const hoja = page.getByRole('dialog', { name: 'Maun' });
     await expect(hoja).toBeVisible();
-    await expect(hoja).toContainText('Compromiso · 3 de 3');
+    await expect(hoja).toContainText('Caja · 3 de 3');
     await hoja.getByRole('textbox', { name: 'Monto de Costos fijos' }).fill('300.000');
     await expect(hoja).toContainText('$ 300.000');
     await hoja.getByRole('button', { name: 'Listo', exact: true }).click();
@@ -834,7 +839,7 @@ test.describe('en el celular', () => {
     expect(pedidos.length).toBeGreaterThan(0);
   });
 
-  test('cambiar cómo se llena un compromiso desde la hoja del paso lo guarda en la fila', async ({
+  test('cambiar el día de pago de una deuda obligatoria desde la hoja del paso lo guarda en la fila', async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -870,35 +875,29 @@ test.describe('en el celular', () => {
     await fila.getByRole('button', { name: /^Compromiso 2 de 2: Gastos fijos/ }).tap();
     const hoja = page.getByRole('dialog', { name: 'Gastos fijos' });
     await expect(hoja).toBeVisible();
-    await expect(hoja).toContainText('Compromiso · 2 de 2');
-    const modo = hoja.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' });
-    await expect(modo.getByRole('radio', { name: 'Por mes' })).toBeChecked();
-    await modo.getByRole('radio', { name: 'Se renueva al pagar' }).tap();
-    await expect(modo.getByRole('radio', { name: 'Se renueva al pagar' })).toBeChecked();
-    await expect(hoja.getByRole('region', { name: 'Lo apartado' })).toBeVisible();
+    await expect(hoja).toContainText('Deuda obligatoria · 2 de 2');
+    await expect(hoja.getByRole('radiogroup', { name: 'Cómo se llena Gastos fijos' })).toHaveCount(
+      0,
+    );
+    await hoja.getByRole('combobox', { name: 'Día de pago de Gastos fijos' }).selectOption('15');
     await hoja.getByRole('button', { name: 'Listo', exact: true }).click();
     await expect(hoja).toHaveCount(0);
-    await expect(
-      fila.getByRole('button', {
-        name: /^Compromiso 2 de 2: Gastos fijos, hasta \$\s500\.000, se renueva al pagar/,
-      }),
-    ).toBeVisible();
 
     await barra.getByRole('button', { name: 'Guardar' }).click();
     const guardar = page.getByRole('dialog', { name: 'Guardar la fila' });
-    await expect(guardar).toContainText('ahora se renueva al pagar');
     await guardar.getByRole('button', { name: 'Guardar la fila' }).click();
     await expect(barra).toHaveCount(0);
     await expect(indicadorDeSync(page)).toBeHidden(CARGA);
     await expect
       .poll(
         async () =>
-          ((await leerLaFila(sesion)).fila?.pasos as PasoParaGuardar[] | undefined)?.map(
-            (paso) => paso.modo,
-          ),
+          ((await leerLaFila(sesion)).fila?.pasos as PasoParaGuardar[] | undefined)?.map((paso) => [
+            paso.modo,
+            (paso as { dia?: number | null }).dia ?? null,
+          ]),
         CARGA,
       )
-      .toEqual(['saldo']);
+      .toEqual([['mes', 15]]);
   });
 
   test('«Nuevo tesoro» del estante abre la hoja con el toque', async ({ page }) => {
@@ -910,6 +909,7 @@ test.describe('en el celular', () => {
       .tap();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).tap();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
   });
@@ -1224,7 +1224,7 @@ test.describe('en la tablet', () => {
     await maun.click();
     const panelDeMaun = page.getByRole('region', { name: 'Maun', exact: true });
     await expect(panelDeMaun).toBeVisible();
-    await expect(panelDeMaun).toContainText('Compromiso · 3 de 3');
+    await expect(panelDeMaun).toContainText('Caja · 3 de 3');
     await expect.poll(() => entera(maun, panelDeMaun)).toBe(true);
 
     const hogar = ficha(page, /^Compromiso 2 de 3: Hogar/);
@@ -1253,6 +1253,7 @@ test.describe('en la tablet, con el dedo', () => {
     await boton.tap();
     const hoja = page.getByRole('dialog', { name: 'Nuevo tesoro' });
     await expect(hoja).toBeVisible();
+    await hoja.getByRole('radio', { name: /^Caja/ }).tap();
     await expect(hoja.getByRole('radio', { name: /^Al estante/ })).toBeChecked();
     await expect(page.getByRole('region', { name: 'Editando la fila' })).toHaveCount(0);
   });

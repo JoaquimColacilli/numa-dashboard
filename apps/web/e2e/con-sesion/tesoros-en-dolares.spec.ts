@@ -85,7 +85,8 @@ test.describe('en la compu', () => {
       .getByRole('button', { name: 'Nuevo tesoro' })
       .click();
     const nuevo = page.getByRole('dialog', { name: 'Nuevo tesoro' });
-    await nuevo.getByRole('textbox', { name: 'Nombre' }).fill('Dólares');
+    await nuevo.getByRole('radio', { name: /^Caja/ }).click();
+    await nuevo.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Dólares');
     await nuevo.getByRole('radio', { name: 'Dólares' }).check();
     await expect(
       nuevo.getByText(
