@@ -269,10 +269,13 @@ meta, aunque la fila, que reparte pesos, no lo vea.
 - «Qué es» del panel de un paso dice el tipo con estas palabras, con la ayuda de ese tipo, y editando ofrece en
   qué se convierte el tesoro («Deuda obligatoria» o «Caja», o «Meta» si tiene objetivo): por dentro sigue
   eligiendo entre compromiso y ahorro fijo. La ayuda de «cada tipo de paso» se fue con eso.
-- El nombre accesible de cada ficha de la fila sigue empezando por su lugar («Compromiso 3 de 3: Gastos fijos…»),
-  como los grupos de la fila (Obligaciones, Compromisos, Ahorros), y lo que se ve arriba del nombre dice el tipo.
-  Pasarlo a las palabras de los tipos cambia los textos de la fila en tres idiomas y los tests que la recorren:
-  queda para otro PR.
+- El nombre accesible de cada ficha de la fila dice lo mismo que se ve arriba de su nombre: el tipo, con el mismo
+  `queEs` de la ficha («Deuda obligatoria 3 de 3: Gastos fijos…», «Caja 3 de 3: Maun…», «Meta: Inmueble…»,
+  «Caja: Maun recibe el resto…»), en los tres idiomas. También dice lo que muestra la ficha de una deuda
+  destinada de monto fijo («un monto fijo de $ 50.000», no un porcentaje) y de una deuda obligatoria con día de
+  pago («del 10 al 10», no «por mes»). El rol (`aria-roledescription`) sigue diciendo el lugar en la fila
+  (obligación, compromiso, ahorro, superávit), que es el grupo donde está: un lector de pantalla oye las dos
+  cosas. Los nombres de los lugares (`fila.tipos`, `NOMBRE_DEL_TIPO`) se fueron, sin nadie que los use.
 
 ## Diferencias con lo pedido
 

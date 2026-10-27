@@ -23,10 +23,6 @@ import {
 import { mensajes, textosDelIdioma } from '@/shared/idioma';
 import { mesEnUnaFrase } from '@/shared/lib';
 
-export const NOMBRE_DEL_TIPO: Readonly<Record<TipoDeTesoro, string>> = textosDelIdioma(
-  () => mensajes().fila.tipos,
-);
-
 export const NOMBRE_DE_LO_QUE_ES: Readonly<Record<QueEsElTesoro, string>> = textosDelIdioma(
   () => mensajes().fila.queEs,
 );
@@ -87,11 +83,6 @@ export function tiposDelTesoro(fila: Fila, tesoro: string): TipoDeTesoro[] {
   if (fila.reparto.some((parte) => parte.tesoro === tesoro)) tipos.push('ahorro-por-porcentaje');
   if (fila.superavit === tesoro) tipos.push('superavit');
   return tipos;
-}
-
-export function nombreDelTipoDe(fila: Fila, tesoro: string): string | null {
-  const [tipo] = tiposDelTesoro(fila, tesoro);
-  return tipo === undefined ? null : NOMBRE_DEL_TIPO[tipo];
 }
 
 export function tituloDelModo(tipo: TipoDelPaso): string {

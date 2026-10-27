@@ -2,13 +2,6 @@ import type { Mensajes } from '../es';
 
 export const fila = {
   laFilaRepartePesos: 'The waterfall only splits pesos: a dollar bucket stays on the shelf.',
-  tipos: {
-    obligacion: 'Obligation',
-    compromiso: 'Bill',
-    'ahorro-fijo': 'Fixed savings',
-    'ahorro-por-porcentaje': 'Savings',
-    superavit: 'Surplus',
-  },
   grupos: {
     obligaciones: 'Obligations',
     compromisos: 'Bills',

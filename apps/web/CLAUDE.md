@@ -364,7 +364,7 @@ src/
 - **El tipo sale del lugar en la fila**, no de una columna: obligación, compromiso, ahorro fijo, ahorro (el reparto) o superávit. Los nombres para la pantalla están en `entities/fila/model/tipos.ts`, y las ayudas (i) en `entities/fila/ui/Ayudas.tsx`, porque las usan Tesoros, Inicio y `editar-tesoro`.
 - **El plano de Tesoros**:
   - sigue el diagrama de Eliseo: la fila de la seña, «Se cobra el trabajo», el «Ingreso», y los grupos con la columna de los tipos a la izquierda;
-  - los globos van numerados seguido, y las fichas se anuncian como «Compromiso 3 de 4: …»;
+  - los globos van numerados seguido, y las fichas se anuncian con lo que dicen arriba del nombre, el `queEs` de la ficha («Deuda obligatoria 3 de 4: …», «Caja: Maun recibe el resto…»), con su monto fijo o su ciclo si los muestran; el rol (`aria-roledescription`) dice el lugar («compromiso»);
   - «Nuevo tesoro» del estante es un botón (el nodo va `focusable: false`, el botón `nodrag nopan`);
   - `/tesoros?tesoro=<id>` elige ese tesoro.
 - **Los insumos son un visor, no un tesoro**: `insumosPorTrabajo` y `insumosDelTaller` de `@maun/db`. Se ven en la ficha del trabajo, en Tesoros y en Inicio, y la plata sigue en Maun.

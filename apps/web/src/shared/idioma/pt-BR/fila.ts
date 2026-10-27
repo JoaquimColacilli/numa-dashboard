@@ -2,13 +2,6 @@ import type { Mensajes } from '../es';
 
 export const fila = {
   laFilaRepartePesos: 'A fila só divide pesos: uma caixinha em dólares fica na estante.',
-  tipos: {
-    obligacion: 'Obrigação',
-    compromiso: 'Conta',
-    'ahorro-fijo': 'Reserva fixa',
-    'ahorro-por-porcentaje': 'Reserva',
-    superavit: 'Superávit',
-  },
   grupos: {
     obligaciones: 'Obrigações',
     compromisos: 'Contas',

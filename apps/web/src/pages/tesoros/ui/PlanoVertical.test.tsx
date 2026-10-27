@@ -171,13 +171,13 @@ describe('el plano vertical del celular', () => {
     const { alTocar, alNuevo } = montar();
     const fila = screen.getByRole('region', { name: 'La fila' });
     const fichas = fichasDe(fila);
-    expect(fichas[0]).toMatch(/^Obligación 1 de 4: Diezmo, 10% sobre el ingreso/);
-    expect(fichas[1]).toMatch(/^Compromiso 2 de 4: Hogar, sueldo/);
-    expect(fichas[2]).toMatch(/^Compromiso 3 de 4: Gastos fijos/);
-    expect(fichas[3]).toMatch(/^Ahorro fijo 4 de 4: Materiales/);
+    expect(fichas[0]).toMatch(/^Deuda destinada 1 de 4: Diezmo, 10% sobre el ingreso/);
+    expect(fichas[1]).toMatch(/^Deuda obligatoria 2 de 4: Hogar, sueldo/);
+    expect(fichas[2]).toMatch(/^Deuda obligatoria 3 de 4: Gastos fijos/);
+    expect(fichas[3]).toMatch(/^Caja 4 de 4: Materiales/);
     expect(fichas[4]).toMatch(/^Lo que sobra se reparte: Cocos 50%, Maun 50%/);
-    expect(fichas[5]).toMatch(/^Ahorro: Cocos, 50% de lo que sobra/);
-    expect(fichas[6]).toMatch(/^Superávit: Maun recibe el resto/);
+    expect(fichas[5]).toMatch(/^Caja: Cocos, 50% de lo que sobra/);
+    expect(fichas[6]).toMatch(/^Caja: Maun recibe el resto/);
     for (const grupo of ['Obligaciones', 'Compromisos', 'Ahorros']) {
       expect(within(fila).getByText(grupo)).toBeInTheDocument();
     }
@@ -193,7 +193,7 @@ describe('el plano vertical del celular', () => {
       within(fila).getByText(/^Ingreso de septiembre: \$\s0 en 0 cobros$/),
     ).toBeInTheDocument();
 
-    fireEvent.click(within(fila).getByRole('button', { name: /^Ahorro fijo 4 de 4/ }));
+    fireEvent.click(within(fila).getByRole('button', { name: /^Caja 4 de 4/ }));
     expect(alTocar).toHaveBeenCalledWith(`paso-${MATERIALES}`);
 
     const estante = screen.getByRole('region', { name: 'Estante' });

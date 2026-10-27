@@ -56,6 +56,7 @@ export const centinelas: Centinelas = {
   'paginaTesoros.plano.etiquetaDeLaObligacion': {
     llamar: (m) =>
       m.paginaTesoros.plano.etiquetaDeLaObligacion(
+        'deuda-destinada',
         37,
         38,
         TESORO,
@@ -65,9 +66,22 @@ export const centinelas: Centinelas = {
       ),
     tieneQueDecir: ['37', '38', TESORO, '«PORCENTAJE»', '«A PAGAR»'],
   },
+  'paginaTesoros.plano.etiquetaDeLaObligacionDeMontoFijo': {
+    llamar: (m) =>
+      m.paginaTesoros.plano.etiquetaDeLaObligacionDeMontoFijo(
+        'deuda-destinada',
+        37,
+        38,
+        TESORO,
+        '«MONTO»',
+        '«A PAGAR»',
+      ),
+    tieneQueDecir: ['37', '38', TESORO, '«MONTO»', '«A PAGAR»'],
+  },
   'paginaTesoros.plano.etiquetaDelDiezmo': {
     llamar: (m) =>
       m.paginaTesoros.plano.etiquetaDelDiezmo(
+        'deuda-destinada',
         37,
         38,
         TESORO,
@@ -82,11 +96,11 @@ export const centinelas: Centinelas = {
     tieneQueDecir: ['«ENCABEZADO»', '«CIFRA»', '«ESTADO»'],
   },
   'paginaTesoros.plano.encabezadoDelPaso': {
-    llamar: (m) => m.paginaTesoros.plano.encabezadoDelPaso('compromiso', 37, 38, TESORO),
+    llamar: (m) => m.paginaTesoros.plano.encabezadoDelPaso('deuda-obligatoria', 37, 38, TESORO),
     tieneQueDecir: ['37', '38', TESORO],
   },
   'paginaTesoros.plano.encabezadoDelSueldo': {
-    llamar: (m) => m.paginaTesoros.plano.encabezadoDelSueldo('compromiso', 37, 38, TESORO),
+    llamar: (m) => m.paginaTesoros.plano.encabezadoDelSueldo('deuda-obligatoria', 37, 38, TESORO),
     tieneQueDecir: ['37', '38', TESORO],
   },
   'paginaTesoros.plano.cifraPorTrabajo': {
@@ -100,6 +114,10 @@ export const centinelas: Centinelas = {
   'paginaTesoros.plano.cifraDelMes': {
     llamar: (m) => m.paginaTesoros.plano.cifraDelMes('ahorro-fijo', '«TOPE»'),
     tieneQueDecir: ['«TOPE»'],
+  },
+  'paginaTesoros.plano.cifraDelCiclo': {
+    llamar: (m) => m.paginaTesoros.plano.cifraDelCiclo('«TOPE»', 27),
+    tieneQueDecir: ['«TOPE»', '27'],
   },
   'paginaTesoros.plano.enElMesRecibio': {
     llamar: (m) => m.paginaTesoros.plano.enElMesRecibio('«RECIBIDO»'),
@@ -130,17 +148,24 @@ export const centinelas: Centinelas = {
     tieneQueDecir: ['«LLEVA»'],
   },
   'paginaTesoros.plano.etiquetaDeLaParte': {
-    llamar: (m) => m.paginaTesoros.plano.etiquetaDeLaParte(TESORO, '«PORCENTAJE»'),
+    llamar: (m) => m.paginaTesoros.plano.etiquetaDeLaParte('caja', TESORO, '«PORCENTAJE»'),
     tieneQueDecir: [TESORO, '«PORCENTAJE»'],
   },
   'paginaTesoros.plano.etiquetaDeLaParteConMeta': {
     llamar: (m) =>
-      m.paginaTesoros.plano.etiquetaDeLaParteConMeta(TESORO, '«PORCENTAJE»', '«SALDO»', '«META»'),
+      m.paginaTesoros.plano.etiquetaDeLaParteConMeta(
+        'meta',
+        TESORO,
+        '«PORCENTAJE»',
+        '«SALDO»',
+        '«META»',
+      ),
     tieneQueDecir: [TESORO, '«PORCENTAJE»', '«SALDO»', '«META»'],
   },
   'paginaTesoros.plano.etiquetaDeLaParteHastaLaMeta': {
     llamar: (m) =>
       m.paginaTesoros.plano.etiquetaDeLaParteHastaLaMeta(
+        'meta',
         TESORO,
         '«PORCENTAJE»',
         '«SALDO»',
@@ -173,7 +198,7 @@ export const centinelas: Centinelas = {
     tieneQueDecir: ['«UNA»', '«OTRA»'],
   },
   'paginaTesoros.plano.etiquetaDelResto': {
-    llamar: (m) => m.paginaTesoros.plano.etiquetaDelResto(TESORO, '«PORCENTAJE»'),
+    llamar: (m) => m.paginaTesoros.plano.etiquetaDelResto('caja', TESORO, '«PORCENTAJE»'),
     tieneQueDecir: [TESORO, '«PORCENTAJE»'],
   },
   'paginaTesoros.plano.restoConPorcentaje': {

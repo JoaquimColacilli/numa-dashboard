@@ -400,6 +400,7 @@ export function revisiones(
 }
 
 export function etiquetaDeLaObligacion(
+  queEs: QueEsElTesoro,
   numero: number,
   cuantos: number,
   tesoro: Pick<TesoroDelTaller, 'nombre'>,
@@ -408,8 +409,19 @@ export function etiquetaDeLaObligacion(
   diezmo: boolean,
 ): string {
   const textos = mensajes().paginaTesoros.plano;
+  if (obligacion.montoFijo !== null) {
+    return textos.etiquetaDeLaObligacionDeMontoFijo(
+      queEs,
+      numero,
+      cuantos,
+      tesoro.nombre,
+      formatearPesos(obligacion.montoFijo),
+      formatearPesos(aPagar),
+    );
+  }
   const etiqueta = diezmo ? textos.etiquetaDelDiezmo : textos.etiquetaDeLaObligacion;
   return etiqueta(
+    queEs,
     numero,
     cuantos,
     tesoro.nombre,
@@ -435,6 +447,7 @@ function estadoEnPalabras(delMes: PasoDelMes, conDeuda: boolean): string {
 }
 
 export function etiquetaDelPaso(
+  queEs: QueEsElTesoro,
   numero: number,
   cuantos: number,
   tesoro: Pick<TesoroDelTaller, 'nombre'>,
@@ -447,29 +460,33 @@ export function etiquetaDelPaso(
   const tope = formatearPesos(paso.tope);
   const encabezado =
     paso.clase === 'sueldo'
-      ? textos.encabezadoDelSueldo(tipo, numero, cuantos, tesoro.nombre)
-      : textos.encabezadoDelPaso(tipo, numero, cuantos, tesoro.nombre);
+      ? textos.encabezadoDelSueldo(queEs, numero, cuantos, tesoro.nombre)
+      : textos.encabezadoDelPaso(queEs, numero, cuantos, tesoro.nombre);
   const cifra =
     paso.modo === 'trabajo'
       ? textos.cifraPorTrabajo(tipo, tope)
-      : paso.modo === 'saldo'
-        ? textos.cifraDelSaldo(tipo, tope)
-        : textos.cifraDelMes(tipo, tope);
+      : tipo === 'compromiso' && paso.dia !== null
+        ? textos.cifraDelCiclo(tope, paso.dia)
+        : paso.modo === 'saldo'
+          ? textos.cifraDelSaldo(tipo, tope)
+          : textos.cifraDelMes(tipo, tope);
   return textos.etiquetaDelPaso(encabezado, cifra, estadoEnPalabras(delMes, conDeuda));
 }
 
 function etiquetaDeLaParte(
+  queEs: QueEsElTesoro,
   tesoro: Pick<TesoroDelTaller, 'nombre'>,
   porcentaje: number,
   hastaLaMeta: boolean,
   meta: MetaDelMes | null,
 ): string {
   const textos = mensajes().paginaTesoros.plano;
-  if (meta === null) return textos.etiquetaDeLaParte(tesoro.nombre, porciento(porcentaje));
+  if (meta === null) return textos.etiquetaDeLaParte(queEs, tesoro.nombre, porciento(porcentaje));
   const etiqueta = hastaLaMeta
     ? textos.etiquetaDeLaParteHastaLaMeta
     : textos.etiquetaDeLaParteConMeta;
   return etiqueta(
+    queEs,
     tesoro.nombre,
     porciento(porcentaje),
     formatearPesos(meta.saldo),
@@ -653,6 +670,7 @@ export function armarElPlano({
       (candidata) => candidata.tesoro === obligacion.tesoro,
     );
     const esLaMovida = arrastre?.tesoro === obligacion.tesoro;
+    const queEs = queEsDe(tesoro);
     nodos.push({
       id,
       type: 'obligacion',
@@ -667,7 +685,7 @@ export function armarElPlano({
         numero: indice + 1,
         cuantos,
         tesoro,
-        queEs: queEsDe(tesoro),
+        queEs,
         obligacion,
         diezmo: esDiezmo,
         aPagar,
@@ -677,7 +695,7 @@ export function armarElPlano({
       },
       ...accesible(
         DESCRIPCION_DEL_TIPO.obligacion,
-        etiquetaDeLaObligacion(indice + 1, cuantos, tesoro, obligacion, aPagar, esDiezmo),
+        etiquetaDeLaObligacion(queEs, indice + 1, cuantos, tesoro, obligacion, aPagar, esDiezmo),
       ),
     });
     if (corriente !== null && repartida !== undefined)
@@ -714,6 +732,7 @@ export function armarElPlano({
     const id = fichaDelPaso(paso.tesoro);
     const esElMovido = arrastre?.tesoro === paso.tesoro;
     const numero = obligaciones.length + indice + 1;
+    const queEs = queEsDe(tesoro);
     nodos.push({
       id,
       type: 'paso',
@@ -729,7 +748,7 @@ export function armarElPlano({
         numero,
         cuantos,
         tesoro,
-        queEs: queEsDe(tesoro),
+        queEs,
         paso,
         tipo,
         porTrabajo: paso.clase === 'sueldo' && fila.sueldoPorTrabajo,
@@ -748,7 +767,7 @@ export function armarElPlano({
       },
       ...accesible(
         DESCRIPCION_DEL_TIPO[tipo],
-        etiquetaDelPaso(numero, cuantos, tesoro, paso, delMesDelPaso, conDeuda),
+        etiquetaDelPaso(queEs, numero, cuantos, tesoro, paso, delMesDelPaso, conDeuda),
       ),
     });
     if (corriente !== null && repartido !== undefined)
@@ -886,6 +905,7 @@ export function armarElPlano({
       !parte.resto &&
       (fila.reparto.find((candidata) => candidata.tesoro === parte.tesoro)?.hastaLaMeta ?? false);
     const meta = parte.resto ? null : (delMesDeLaParte?.meta ?? null);
+    const queEs = queEsDe(tesoro);
     nodos.push({
       id,
       type: 'parte',
@@ -898,7 +918,7 @@ export function armarElPlano({
         ...comun,
         revision: parte.resto ? null : marca(parte.tesoro),
         tesoro,
-        queEs: queEsDe(tesoro),
+        queEs,
         porcentaje: parte.porcentaje,
         superavit: parte.resto,
         hastaLaMeta,
@@ -912,8 +932,8 @@ export function armarElPlano({
           ? DESCRIPCION_DEL_TIPO.superavit
           : DESCRIPCION_DEL_TIPO['ahorro-por-porcentaje'],
         parte.resto
-          ? textos.etiquetaDelResto(tesoro.nombre, porciento(parte.porcentaje))
-          : etiquetaDeLaParte(tesoro, parte.porcentaje, hastaLaMeta, meta),
+          ? textos.etiquetaDelResto(queEs, tesoro.nombre, porciento(parte.porcentaje))
+          : etiquetaDeLaParte(queEs, tesoro, parte.porcentaje, hastaLaMeta, meta),
       ),
     });
     aristas.push({

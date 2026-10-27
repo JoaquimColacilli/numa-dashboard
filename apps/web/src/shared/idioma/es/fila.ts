@@ -1,12 +1,5 @@
 export const fila = {
   laFilaRepartePesos: 'La fila reparte pesos: un tesoro en dólares queda en el estante.',
-  tipos: {
-    obligacion: 'Obligación',
-    compromiso: 'Compromiso',
-    'ahorro-fijo': 'Ahorro fijo',
-    'ahorro-por-porcentaje': 'Ahorro',
-    superavit: 'Superávit',
-  },
   grupos: {
     obligaciones: 'Obligaciones',
     compromisos: 'Compromisos',

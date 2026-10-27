@@ -23,7 +23,6 @@ import {
   metasDeLaFila,
   modoEnPalabras,
   modosDelPaso,
-  nombreDelTipoDe,
   tiposDelTesoro,
   totalAPagar,
 } from './tipos';
@@ -375,9 +374,6 @@ describe('los tipos de la fila', () => {
     expect(tiposDelTesoro(conMaun, COCOS)).toEqual(['ahorro-por-porcentaje']);
     expect(tiposDelTesoro(conMaun, MAUN)).toEqual(['compromiso', 'superavit']);
     expect(tiposDelTesoro(conMaun, STOCK)).toEqual([]);
-    expect(nombreDelTipoDe(conMaun, COCOS)).toBe('Ahorro');
-    expect(nombreDelTipoDe(conMaun, DIEZMO)).toBe('Obligación');
-    expect(nombreDelTipoDe(conMaun, STOCK)).toBeNull();
   });
 
   it('cada paso ofrece los modos que admite, con sus palabras', () => {
